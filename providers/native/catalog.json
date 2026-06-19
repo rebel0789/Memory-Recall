@@ -50,6 +50,12 @@
       "purpose": "Deterministic lexical context candidate lookup over safe record fields"
     },
     {
+      "id": "provider:native:context-manifest:local",
+      "path": "providers/native/context-manifest-local",
+      "enabledByDefault": true,
+      "purpose": "Workspace-scoped immutable local context manifest persistence"
+    },
+    {
       "id": "provider:native:model:ollama",
       "path": "providers/native/model-ollama",
       "enabledByDefault": false,

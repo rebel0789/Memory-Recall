@@ -73,8 +73,26 @@ selector stops at the smallest sufficient set instead of filling the window.
 4. **Resolve versions and conflicts.** Prefer active versions, preserve unresolved conflicts, and never silently merge contradictory values.
 5. **Fuse and rerank.** Apply weighted reciprocal rank fusion, deterministic feature weights, and stable tie-breaks.
 6. **Diversify and budget.** Select complementary records under token budget and category caps, with soft reserves recorded in policy.
-7. **Order assembly.** Put durable constraints first, evidence near the subtask it supports, and immediate state and output schema near the end.
-8. **Emit manifest.** Record selected and excluded IDs, reasons, scores, tokens, source versions, conflicts, order, failures, and compiler version.
+7. **Order assembly.** Put durable constraints first, then deterministic reserved sections for negative context, decisions, preferences, procedures, evidence, episodes, artifacts, examples, other context, and working state.
+8. **Persist manifest.** In durable composition, append the manifest before any model invocation, verify the stored copy, and emit a safe `context.manifest.persisted` event.
+9. **Emit compatibility event.** Preserve `context.compiled` for existing run inspection with additive durable fields.
+
+## Persisted Assembly
+
+OAF-012 keeps `compileContext(request, records)` synchronous and pure. Durable
+callers use `compileAndPersistContext(...)`, which wraps the selector with
+assembly and repository persistence.
+
+The durable manifest records assembly policy version and fingerprint, ordered
+sections, selected IDs in final model-input order, selected text exactly as
+assembled, excluded decisions without raw text, token accounting, compiler
+version, selection fingerprints, source warnings and failures, conflicts, and a
+manifest fingerprint.
+
+`manifestFingerprint` is the SHA-256 over canonical manifest JSON excluding the
+fingerprint field itself. `assemblyFingerprint` is the SHA-256 over the assembly
+policy, section order, record IDs, selected content hashes, and token estimates.
+Persistence failures stop before model invocation.
 
 ## Required reason codes
 
@@ -91,6 +109,7 @@ Examples include `required`, `explicit_requirement`, `forced_governance`, `entit
 - a candidate source returns conflicting identity material for the same record ID;
 - requested data class is prohibited;
 - assembly cannot be reproduced.
+- manifest persistence, verification, or identity conflict fails.
 
 ## Evaluation
 

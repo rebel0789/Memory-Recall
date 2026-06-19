@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:context-manifest:local",
+  "name": "Native local context manifest repository",
+  "version": "1.0.0",
+  "category": "context-manifest",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "ContextManifestRepositoryPort@1.0.0",
+  "capabilities": [
+    "context-manifest.append",
+    "context-manifest.get",
+    "context-manifest.listByRun",
+    "context-manifest.compare",
+    "context-manifest.verify",
+    "context-manifest.immutable",
+    "context-manifest.workspace-scoped"
+  ],
+  "limits": {
+    "maxManifestBytes": 524288,
+    "maxListLimit": 1000
+  },
+  "dataPaths": [
+    ".local/context-manifests/workspaces/<workspace-id>/manifests/<manifest-id>.json"
+  ],
+  "security": {
+    "network": "none",
+    "externalWrites": false,
+    "secrets": "not accepted",
+    "writeMode": "atomic-temp-rename"
+  }
+}

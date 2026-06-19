@@ -13,3 +13,8 @@ manifest schema-compatible for existing callers, and keep raw record text,
 secrets, local paths, SQL, hidden reasoning, source bodies, and provider
 configuration out of `selection.scoreBreakdowns`, selected decisions, and
 excluded decisions.
+
+OAF-012 durable manifests persist selected assembly and safe summaries. Keep
+`compileContext(request, records)` synchronous and pure; add persistence only
+through the durable composition path. Durable manifests may include selected
+text exactly as assembled, but excluded decisions must not store raw text.

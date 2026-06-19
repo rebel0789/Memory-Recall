@@ -52,7 +52,7 @@ Never describe a specified feature as implemented. Check `PROJECT_STATUS.json`.
 ```bash
 npm run bootstrap
 npm run status
-npm run task -- OAF-004
+npm run task -- <OAF-ID>
 npm run dev
 npm run demo
 npm run protocol:validate

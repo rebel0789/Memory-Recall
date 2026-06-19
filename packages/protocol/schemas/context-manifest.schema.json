@@ -32,12 +32,22 @@
         "null"
       ]
     },
+    "runId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "compilerVersion": {
       "type": "string"
     },
     "createdAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "manifestFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
     },
     "budget": {
       "type": "object",
@@ -152,6 +162,154 @@
       "items": {
         "type": "string"
       }
+    },
+    "assembly": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "assemblyPolicyVersion",
+        "assemblyPolicyFingerprint",
+        "sectionOrder",
+        "selectedRecordIds",
+        "totalTokens",
+        "sections",
+        "assemblyFingerprint"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0.0"
+        },
+        "assemblyPolicyVersion": {
+          "type": "string"
+        },
+        "assemblyPolicyFingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "sectionOrder": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selectedRecordIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "totalTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "order",
+              "recordCount",
+              "tokenCount",
+              "recordIds",
+              "items"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "order": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "recordCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "tokenCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "recordIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "kind",
+                    "tokens",
+                    "source",
+                    "text",
+                    "contentHash"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "tokens": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "contentHash": {
+                      "type": "string",
+                      "pattern": "^sha256:[a-f0-9]{64}$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "assemblyFingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "selectionSummary": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "selectionPolicy": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "candidateGeneration": {
+      "type": "object"
+    },
+    "tokenAccounting": {
+      "type": "object"
+    },
+    "fingerprintAlgorithm": {
+      "type": "string"
+    },
+    "persisted": {
+      "type": "boolean"
+    },
+    "manifestVerification": {
+      "type": "object"
     }
   }
 }

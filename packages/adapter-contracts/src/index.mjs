@@ -32,6 +32,19 @@ export class EventRepositoryPort {
   async listByRun() { return notImplemented(EventRepositoryPort.contract, 'listByRun'); }
 }
 
+export class ContextManifestRepositoryPort {
+  static contract = 'ContextManifestRepositoryPort';
+  static version = '1.0.0';
+  static requiredMethods = ['health', 'capabilities', 'append', 'get', 'listByRun', 'compare', 'verify'];
+  async health() { return notImplemented(ContextManifestRepositoryPort.contract, 'health'); }
+  async capabilities() { return notImplemented(ContextManifestRepositoryPort.contract, 'capabilities'); }
+  async append() { return notImplemented(ContextManifestRepositoryPort.contract, 'append'); }
+  async get() { return notImplemented(ContextManifestRepositoryPort.contract, 'get'); }
+  async listByRun() { return notImplemented(ContextManifestRepositoryPort.contract, 'listByRun'); }
+  async compare() { return notImplemented(ContextManifestRepositoryPort.contract, 'compare'); }
+  async verify() { return notImplemented(ContextManifestRepositoryPort.contract, 'verify'); }
+}
+
 export class ArtifactStorePort {
   static contract = 'ArtifactStorePort';
   static version = '1.1.0';
@@ -242,6 +255,7 @@ export class ReplayRepositoryPort {
 export const PORTS = Object.freeze({
   AdapterHealthPort,
   EventRepositoryPort,
+  ContextManifestRepositoryPort,
   ArtifactStorePort,
   MemoryBackendPort,
   ModelGatewayPort,

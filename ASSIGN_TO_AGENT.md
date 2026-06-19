@@ -14,7 +14,7 @@ npm run bootstrap
 npm run doctor
 npm run verify:handoff
 npm run status
-npm run task -- OAF-004
+npm run task -- <OAF-ID>
 ```
 
 Open <http://127.0.0.1:4310> after `npm run dev`.
@@ -32,7 +32,7 @@ Read, in order:
 
 ## Current task
 
-Foundation tasks **OAF-001 through OAF-003 are complete in this kit**. Complete **OAF-004 — Implement PostgreSQL repositories** next. Keep the file-backed and SQLite native providers as conformance baselines. Do not expand into migration orchestration, UI work, or external adapters in the same change.
+Use `npm run status` and `npm run task -- <OAF-ID>` to identify the current checked-in task. Keep native providers as conformance baselines. Do not expand into migration orchestration, UI work, or external adapters unless the active task explicitly requires it.
 
 ## Product differentiator
 

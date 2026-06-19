@@ -43,6 +43,13 @@ safe score breakdowns, bounded warnings, and deterministic result fingerprint.
 It does not include raw record text, prompts, secrets, local paths, SQL, or
 hidden model reasoning.
 
+OAF-012 persists durable manifests before model calls. A durable manifest adds
+manifest and assembly fingerprints, reserved assembly sections, final selected
+record order, safe source-warning and failure summaries, token accounting, and
+the compiler version. Selected text is present only as assembled model input.
+Excluded records carry IDs, categories, scores, tokens, and reason codes without
+raw excluded text.
+
 ### Evidence
 
 A source snapshot is an immutable body and metadata record. An observation is normalized from a snapshot. An inference is a model-generated interpretation linked to evidence IDs. These never share one ambiguous field.

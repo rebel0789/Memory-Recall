@@ -5,7 +5,7 @@
 1. `ASSIGN_TO_AGENT.md`
 2. `AGENTS.md`
 3. `PROJECT_STATUS.json`
-4. `npm run task -- OAF-004`
+4. `npm run status` and `npm run task -- <OAF-ID>`
 5. `docs/implementation/AGENT_EXECUTION_PLAYBOOK.md`
 6. task-specific files printed by the command
 

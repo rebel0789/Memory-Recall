@@ -1,0 +1,7 @@
+{
+  "name": "@open-agent-fabric/provider-native-context-manifest-local",
+  "version": "0.2.0-dev",
+  "type": "module",
+  "private": true,
+  "description": "Workspace-scoped local immutable context manifest repository."
+}

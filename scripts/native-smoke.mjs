@@ -6,9 +6,10 @@ import { FilesystemArtifactStore } from '../providers/native/artifact-filesystem
 import { DeterministicModelProvider } from '../providers/native/model-deterministic/src/index.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
 import { DeterministicPolicyProvider } from '../providers/native/policy-deterministic/src/index.mjs';
+import { FilesystemContextManifestRepository } from '../providers/native/context-manifest-local/src/index.mjs';
 import { createNativeExactCandidateSource } from '../providers/native/context-candidate-exact/src/index.mjs';
 import { createNativeLexicalCandidateSource } from '../providers/native/context-candidate-lexical/src/index.mjs';
-import { createCandidateSourceRegistry, createFixtureRecordReader, generateContextCandidates } from '../packages/context-compiler/src/index.mjs';
+import { compileAndPersistContext, createCandidateSourceRegistry, createFixtureRecordReader, generateContextCandidates } from '../packages/context-compiler/src/index.mjs';
 import { fingerprintAgentPack, validateAgentPack } from '../packages/agentpack/src/index.mjs';
 
 const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-smoke-'));
@@ -111,11 +112,52 @@ try {
   });
   if (!candidateGeneration.candidates.some((candidate) => candidate.record.id === 'mem_smoke_context')) throw new Error('native context candidate smoke failed');
 
+  const manifestStore = new FilesystemContextManifestRepository({ root: path.join(directory, 'context-manifests'), clock: () => '2026-06-19T10:00:00.000Z' });
+  const persisted = await compileAndPersistContext({
+    schemaVersion: '1.0.0',
+    id: 'ctxreq_smoke_manifest',
+    requestId: 'ctxreq_smoke_manifest',
+    correlationId: 'req_native-smoke-000002',
+    workspaceId: 'ws_smoke',
+    actorId: bootstrap.user.id,
+    taskId: 'task_smoke',
+    objective: 'Find context manifest evidence',
+    step: 'persist context assembly',
+    requiredIds: ['mem_smoke_context'],
+    requiredEntities: ['context-manifest'],
+    allowedScopes: ['workspace-private'],
+    allowedDataClasses: ['workspace-private'],
+    allowedTrustClasses: ['observed'],
+    tokenBudget: 64,
+    now: '2026-06-19T10:00:00.000Z',
+    trustedTimestamp: '2026-06-19T10:00:00.000Z'
+  }, [{
+    id: 'mem_smoke_context',
+    version: 'v1',
+    workspaceId: 'ws_smoke',
+    kind: 'policy',
+    text: 'Every model call records a context manifest for safe local context.',
+    tags: ['context-manifest'],
+    relations: ['context-manifest'],
+    source: 'smoke',
+    dataClass: 'workspace-private',
+    scope: 'workspace-private',
+    trustClass: 'observed',
+    status: 'active',
+    tokens: 14
+  }], {
+    manifestRepository: manifestStore,
+    runId: 'run_smoke',
+    clock: () => '2026-06-19T10:00:00.000Z'
+  });
+  if (!persisted.verification.valid) throw new Error('native context manifest smoke failed');
+
   console.log('PASS native SQLite memory');
   console.log('PASS content-addressed artifact store');
   console.log('PASS native local identity');
   console.log('PASS deterministic contextual policy provider');
   console.log('PASS native exact and lexical context candidate sources');
+  console.log('PASS native local context manifest repository');
   console.log(`PASS Agent Pack ${pack.metadata.name}@${pack.metadata.version} ${fingerprint}`);
   console.log('PASS deterministic local model provider');
   console.log('Native provider smoke completed without network access.');

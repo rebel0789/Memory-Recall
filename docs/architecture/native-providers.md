@@ -14,6 +14,7 @@ Native providers make the local product useful without optional integrations. Th
 | `native.policy.deterministic` | on | Contextual policy decisions for resources, tools, data classes, approvals, and budgets |
 | `native.context-candidate.exact` | on | Workspace-scoped exact candidate lookup by canonical record ID |
 | `native.context-candidate.lexical` | on | Deterministic lexical candidate lookup over safe record fields |
+| `native.context-manifest.local` | on | Workspace-scoped immutable local context manifest persistence |
 | `native.model.ollama` | off | Explicit loopback local-model generation |
 
 ## Rules
@@ -99,3 +100,15 @@ global reranking, diversity, category caps, and token budgeting live in
 `packages/context-compiler/src/index.mjs`, not in the exact or lexical source
 providers. Vector, graph, temporal, preference, and episode source kinds remain
 declared but unavailable until later tasks add explicit providers.
+
+## Context manifest provider
+
+The native context manifest provider implements
+`ContextManifestRepositoryPort` version `1.0.0`. It persists immutable context
+manifests under `.local/context-manifests`, scoped by workspace and run.
+
+It supports append, get, list-by-run, compare, and verify. Appending the same
+manifest ID and fingerprint is idempotent; appending the same ID with a
+different fingerprint fails closed. Verification detects tampering and does not
+repair or overwrite files. The provider has no network access, no external
+writes, and no remote fallback.

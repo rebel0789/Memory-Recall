@@ -55,6 +55,13 @@ codes, numeric scores, fingerprints, coverage, and warnings, but not raw source
 bodies, prompts, model reasoning, secrets, authorization material, local
 filesystem paths, SQL, or database configuration.
 
+OAF-012 persists durable context manifests before model invocation. The durable
+manifest stores selected assembly text, safe selected/excluded decisions,
+fingerprints, section order, token accounting, conflicts, and source summaries.
+Excluded records do not store raw text. Persistence emits only safe IDs, counts,
+fingerprints, and timestamps; a persistence or verification failure stops before
+the model provider is invoked.
+
 ### Local identity and workspace authorization
 
 Browser sessions are opaque server-side records. The session cookie stores only a random token; the native provider stores a SHA-256 token hash and revokes the server-side record on logout. Login rotates active sessions. CSRF uses a readable SameSite=Strict cookie plus matching `x-csrf-token` header, and the session stores only a hash bound to that session. Bearer API tokens are exempt from CSRF but cannot create or manage API tokens.

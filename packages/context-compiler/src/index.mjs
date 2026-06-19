@@ -142,7 +142,7 @@ function normalizeStringArray(values, name, { max = MAX_ID_COUNT, pattern = null
   return result;
 }
 
-function stableStringify(value) {
+export function stableStringify(value) {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
   return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
@@ -152,7 +152,7 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function hashRef(value) {
+export function hashRef(value) {
   return `sha256:${sha256(value)}`;
 }
 
@@ -871,6 +871,16 @@ const FEATURE_WEIGHT_KEYS = new Set([
   'tokenEfficiency'
 ]);
 const CATEGORY_NAMES = Object.freeze(['governance', 'workingState', 'decisions', 'preferences', 'evidence', 'procedures', 'episodes', 'artifacts', 'negative', 'examples', 'other']);
+export const ASSEMBLY_SECTION_ORDER = Object.freeze(['governance', 'negative', 'decisions', 'preferences', 'procedures', 'evidence', 'episodes', 'artifacts', 'examples', 'other', 'workingState']);
+export const CONTEXT_ASSEMBLY_POLICY = deepFreeze({
+  schemaVersion: '1.0.0',
+  policyVersion: '1.0.0',
+  sectionOrder: ASSEMBLY_SECTION_ORDER,
+  tokenAccounting: 'sum_selected_estimated_tokens',
+  selectedText: 'preserve_exact_selected_text',
+  excludedText: 'omit_from_durable_manifest',
+  fingerprintAlgorithm: 'sha256_canonical_json'
+});
 
 export function validateContextSelectionPolicy(policy = CONTEXT_SELECTION_POLICY) {
   try {
@@ -927,6 +937,10 @@ export function validateContextSelectionPolicy(policy = CONTEXT_SELECTION_POLICY
 
 export function contextSelectionPolicyFingerprint(policy = CONTEXT_SELECTION_POLICY) {
   return hashRef(stableStringify(validateContextSelectionPolicy(policy)));
+}
+
+export function contextAssemblyPolicyFingerprint(policy = CONTEXT_ASSEMBLY_POLICY) {
+  return hashRef(stableStringify(policy));
 }
 
 function assertIntegerInRange(value, min, max, name) {
@@ -1559,6 +1573,290 @@ function candidateGenerationSafeFingerprint(candidateGeneration, candidates) {
       contentHash: candidate.record.contentHash,
       hits: candidate.hits.map((hit) => ({ sourceId: hit.sourceId, sourceKind: hit.sourceKind, localRank: hit.localRank }))
     }))
+  };
+}
+
+function stripText(decision) {
+  const { text: _text, ...safe } = decision;
+  return safe;
+}
+
+function durableManifestId({ request, runId, selectedIds }) {
+  return `ctx_${sha256(stableStringify({
+    workspaceId: request.workspaceId ?? 'ws_local',
+    runId: runId ?? null,
+    requestId: request.requestId ?? request.id ?? null,
+    taskId: request.taskId ?? null,
+    step: request.step,
+    objective: request.objective,
+    selectedIds
+  })).slice(0, 32)}`;
+}
+
+function manifestContentHash(item) {
+  return hashRef(stableStringify({
+    id: item.id,
+    kind: item.kind,
+    text: item.text,
+    source: item.source,
+    tokens: item.tokens
+  }));
+}
+
+function assemblyCategory(item) {
+  return ASSEMBLY_SECTION_ORDER.includes(item.category) ? item.category : 'other';
+}
+
+function buildAssembly(selected, { policy = CONTEXT_ASSEMBLY_POLICY } = {}) {
+  const bySection = new Map(ASSEMBLY_SECTION_ORDER.map((id) => [id, []]));
+  for (const item of selected) bySection.get(assemblyCategory(item))?.push(item);
+  const sections = [];
+  let order = 1;
+  for (const sectionId of policy.sectionOrder) {
+    const items = [...(bySection.get(sectionId) ?? [])].sort((a, b) => {
+      const rank = (item) => item.kind === 'policy' ? 0 : item.kind === 'constraint' ? 1 : 2;
+      return rank(a) - rank(b) || (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id);
+    });
+    if (!items.length) continue;
+    const sectionItems = items.map((item) => ({
+      id: item.id,
+      kind: item.kind,
+      tokens: item.tokens,
+      source: item.source,
+      text: item.text,
+      contentHash: manifestContentHash(item)
+    }));
+    sections.push({
+      id: sectionId,
+      order: order++,
+      recordCount: sectionItems.length,
+      tokenCount: sectionItems.reduce((sum, item) => sum + item.tokens, 0),
+      recordIds: sectionItems.map((item) => item.id),
+      items: sectionItems
+    });
+  }
+  const selectedRecordIds = sections.flatMap((section) => section.recordIds);
+  const totalTokens = sections.reduce((sum, section) => sum + section.tokenCount, 0);
+  const assemblyFingerprint = hashRef(stableStringify({
+    policyVersion: policy.policyVersion,
+    policyFingerprint: contextAssemblyPolicyFingerprint(policy),
+    sectionOrder: policy.sectionOrder,
+    sections: sections.map((section) => ({
+      id: section.id,
+      recordIds: section.recordIds,
+      tokenCount: section.tokenCount,
+      contentHashes: section.items.map((item) => item.contentHash)
+    })),
+    totalTokens
+  }));
+  return {
+    schemaVersion: '1.0.0',
+    assemblyPolicyVersion: policy.policyVersion,
+    assemblyPolicyFingerprint: contextAssemblyPolicyFingerprint(policy),
+    sectionOrder: policy.sectionOrder,
+    selectedRecordIds,
+    totalTokens,
+    sections,
+    assemblyFingerprint
+  };
+}
+
+function candidateGenerationSummary(candidateGeneration = null) {
+  return {
+    status: candidateGeneration?.status ?? null,
+    fingerprint: hashRef(stableStringify(candidateGenerationSafeFingerprint(candidateGeneration, []))),
+    warnings: [...new Set(candidateGeneration?.warnings ?? [])].sort(),
+    failures: (candidateGeneration?.reports ?? [])
+      .filter((report) => report.status !== 'succeeded')
+      .map((report) => ({
+        sourceId: report.sourceId,
+        sourceKind: report.sourceKind,
+        status: report.status,
+        failureCode: report.failureCode ?? null,
+        required: report.required === true
+      }))
+      .sort((a, b) => String(a.sourceId).localeCompare(String(b.sourceId)))
+  };
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function fingerprintManifest(manifest) {
+  const copy = cloneJson(manifest);
+  delete copy.manifestFingerprint;
+  return hashRef(stableStringify(copy));
+}
+
+export function createDurableContextManifest({ manifest, selection, request, runId = null, candidateGeneration = null, createdAt = null } = {}) {
+  assertPlainObject(manifest, 'context manifest');
+  assertPlainObject(request, 'context request');
+  const assembly = buildAssembly(manifest.selected ?? []);
+  const assemblyOrder = new Map(assembly.selectedRecordIds.map((id, index) => [id, index + 1]));
+  const selectedById = new Map((manifest.selected ?? []).map((item) => [item.id, item]));
+  const orderedSelected = assembly.selectedRecordIds.map((id) => ({
+    ...selectedById.get(id),
+    order: assemblyOrder.get(id)
+  }));
+  const durable = {
+    ...cloneJson(manifest),
+    id: durableManifestId({ request, runId, selectedIds: assembly.selectedRecordIds }),
+    runId,
+    requestId: request.requestId ?? request.id ?? manifest.requestId ?? null,
+    createdAt: createdAt ?? request.trustedTimestamp ?? request.now ?? manifest.createdAt ?? nowIso(),
+    compilerVersion: manifest.compilerVersion ?? COMPILER_VERSION,
+    selected: orderedSelected,
+    excluded: (manifest.excluded ?? []).map(stripText).sort((a, b) => a.id.localeCompare(b.id)),
+    assembly,
+    selectionSummary: selection ? cloneJson(selection) : manifest.selection ? cloneJson(manifest.selection) : null,
+    selectionPolicy: selection ? {
+      version: selection.selectionPolicyVersion,
+      fingerprint: selection.selectionPolicyFingerprint,
+      resultFingerprint: selection.resultFingerprint,
+      candidateGenerationFingerprint: selection.candidateGenerationFingerprint
+    } : null,
+    candidateGeneration: candidateGenerationSummary(candidateGeneration),
+    tokenAccounting: {
+      selectedTokens: assembly.totalTokens,
+      budgetUsed: manifest.budget?.used ?? 0,
+      budgetAvailable: manifest.budget?.available ?? null
+    },
+    fingerprintAlgorithm: 'sha256'
+  };
+  durable.budget = { ...(durable.budget ?? {}), used: assembly.totalTokens };
+  durable.manifestFingerprint = fingerprintManifest(durable);
+  return durable;
+}
+
+export function verifyContextManifest(manifest) {
+  try {
+    assertPlainObject(manifest, 'context manifest');
+    if (manifest.schemaVersion !== '1.0.0') throw new Error('schemaVersion');
+    requireString(manifest.id, 'context manifest id', { maxBytes: 128, pattern: /^ctx_[A-Za-z0-9._:-]+$/ });
+    requireString(manifest.workspaceId, 'context manifest workspaceId', { maxBytes: 128 });
+    requireString(manifest.manifestFingerprint, 'context manifest manifestFingerprint', { maxBytes: 80, pattern: /^sha256:[a-f0-9]{64}$/ });
+    assertPlainObject(manifest.assembly, 'context manifest assembly');
+    requireString(manifest.assembly.assemblyFingerprint, 'context manifest assemblyFingerprint', { maxBytes: 80, pattern: /^sha256:[a-f0-9]{64}$/ });
+    const selectedIds = (manifest.selected ?? []).map((item) => item.id);
+    if (stableStringify(selectedIds) !== stableStringify(manifest.assembly.selectedRecordIds ?? [])) throw new Error('assembly_order_mismatch');
+    const sectionTokens = (manifest.assembly.sections ?? []).reduce((sum, section) => sum + Number(section.tokenCount ?? 0), 0);
+    if (sectionTokens !== manifest.assembly.totalTokens || sectionTokens !== manifest.budget?.used) throw new Error('token_accounting_mismatch');
+    if ((manifest.excluded ?? []).some((item) => Object.prototype.hasOwnProperty.call(item, 'text'))) throw new Error('excluded_text_present');
+    const rebuiltAssembly = buildAssembly(manifest.selected ?? []);
+    if (rebuiltAssembly.assemblyFingerprint !== manifest.assembly.assemblyFingerprint) throw new Error('assembly_fingerprint_mismatch');
+    if (fingerprintManifest(manifest) !== manifest.manifestFingerprint) throw new Error('manifest_fingerprint_mismatch');
+    const serialized = JSON.stringify(manifest);
+    if (/\/Users\/[^"\\\s]+/.test(serialized) || /SELECT\s+\*/i.test(serialized) || /sk-[A-Za-z0-9_-]{20,}/.test(serialized)) throw new Error('unsafe_manifest_material');
+    return { valid: true, manifestId: manifest.id, manifestFingerprint: manifest.manifestFingerprint, assemblyFingerprint: manifest.assembly.assemblyFingerprint };
+  } catch (error) {
+    return { valid: false, code: error.message, manifestId: manifest?.id ?? null };
+  }
+}
+
+export function compareContextManifests(left, right) {
+  assertPlainObject(left, 'left context manifest');
+  assertPlainObject(right, 'right context manifest');
+  if (left.workspaceId !== right.workspaceId) {
+    const error = new Error('manifest_workspace_mismatch');
+    error.code = 'manifest_workspace_mismatch';
+    throw error;
+  }
+  const leftSelected = new Set((left.selected ?? []).map((item) => item.id));
+  const rightSelected = new Set((right.selected ?? []).map((item) => item.id));
+  const leftExcluded = new Set((left.excluded ?? []).map((item) => item.id));
+  const rightExcluded = new Set((right.excluded ?? []).map((item) => item.id));
+  const diffSet = (a, b) => [...a].filter((item) => !b.has(item)).sort();
+  return {
+    schemaVersion: '1.0.0',
+    leftId: left.id,
+    rightId: right.id,
+    sameWorkspace: true,
+    fingerprintsEqual: left.manifestFingerprint === right.manifestFingerprint,
+    assemblyFingerprintsEqual: left.assembly?.assemblyFingerprint === right.assembly?.assemblyFingerprint,
+    selected: {
+      added: diffSet(rightSelected, leftSelected),
+      removed: diffSet(leftSelected, rightSelected)
+    },
+    excluded: {
+      added: diffSet(rightExcluded, leftExcluded),
+      removed: diffSet(leftExcluded, rightExcluded)
+    },
+    conflicts: {
+      leftCount: left.conflicts?.length ?? 0,
+      rightCount: right.conflicts?.length ?? 0
+    },
+    tokenAccounting: {
+      leftUsed: left.budget?.used ?? null,
+      rightUsed: right.budget?.used ?? null
+    }
+  };
+}
+
+export async function compileAndPersistContext(request, input, {
+  manifestRepository,
+  runId = null,
+  clock = nowIso,
+  emitEvent = async () => {},
+  afterPersist = null
+} = {}) {
+  const compiled = Array.isArray(input)
+    ? (() => {
+      const manifest = compileContext(request, input);
+      return { manifest, selection: manifest.selection ?? null, candidateGeneration: null };
+    })()
+    : await compileContextFromSources(request, input ?? {});
+  if (!manifestRepository || typeof manifestRepository.append !== 'function' || typeof manifestRepository.get !== 'function') {
+    throw new TypeError('manifestRepository with append and get is required');
+  }
+  const createdAt = typeof clock === 'function' ? clock() : nowIso();
+  const durable = createDurableContextManifest({
+    manifest: compiled.manifest,
+    selection: compiled.selection ?? compiled.manifest.selection ?? null,
+    request,
+    runId,
+    candidateGeneration: compiled.candidateGeneration ?? null,
+    createdAt
+  });
+  const verification = verifyContextManifest(durable);
+  if (!verification.valid) {
+    const error = new Error(verification.code ?? 'manifest_verification_failed');
+    error.code = verification.code ?? 'manifest_verification_failed';
+    throw error;
+  }
+  const stored = await manifestRepository.append({ workspaceId: durable.workspaceId, runId, manifest: durable, request });
+  const storedManifest = stored?.manifest && stored?.workspaceId ? stored.manifest : stored;
+  const loaded = await manifestRepository.get({ workspaceId: durable.workspaceId, id: durable.id });
+  const loadedManifest = loaded?.manifest && loaded?.workspaceId ? loaded.manifest : loaded;
+  const storedVerification = verifyContextManifest(loadedManifest ?? storedManifest);
+  if (!storedVerification.valid || storedVerification.manifestFingerprint !== durable.manifestFingerprint) {
+    const error = new Error(storedVerification.code ?? 'manifest_verification_failed');
+    error.code = storedVerification.code ?? 'manifest_verification_failed';
+    throw error;
+  }
+  await emitEvent('context.manifest.persisted', {
+    schemaVersion: '1.0.0',
+    manifestId: durable.id,
+    workspaceId: durable.workspaceId,
+    runId,
+    requestId: durable.requestId,
+    compilerVersion: durable.compilerVersion,
+    manifestFingerprint: durable.manifestFingerprint,
+    assemblyFingerprint: durable.assembly.assemblyFingerprint,
+    selectedCount: durable.selected.length,
+    excludedCount: durable.excluded.length,
+    conflictCount: durable.conflicts.length,
+    tokenBudget: durable.budget,
+    occurredAt: createdAt
+  });
+  if (afterPersist) await afterPersist({ manifest: durable, verification: storedVerification });
+  return {
+    schemaVersion: '1.0.0',
+    persisted: true,
+    manifest: durable,
+    candidateGeneration: compiled.candidateGeneration ?? null,
+    selection: compiled.selection ?? compiled.manifest.selection ?? null,
+    verification: storedVerification
   };
 }
 

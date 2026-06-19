@@ -33,6 +33,11 @@ sources. The eval runner also asserts safe internal trace fields including
 policy fingerprint, result fingerprint, selected/excluded score states, and
 coverage summaries.
 
+OAF-012 adds deterministic persisted-manifest checks for assembly order,
+manifest fingerprint verification, comparison output, required-governance
+overflow, persistence, zero excluded-text leakage, workspace isolation, and
+retry idempotency.
+
 ## Model-backed changes
 
 Separate nondeterministic quality tests from merge-blocking contract tests. A model default may change only after a versioned evaluation report and rollback plan.

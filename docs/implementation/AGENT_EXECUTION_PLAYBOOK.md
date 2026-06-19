@@ -20,7 +20,8 @@ Read `PROJECT_STATUS.json`. Do not infer implementation from future-looking docs
 ### 2. Select exactly one task
 
 ```bash
-npm run task -- OAF-004
+npm run status
+npm run task -- <OAF-ID>
 ```
 
 Use the objective, dependencies, deliverables, stop condition, required reading, and commands printed. If a dependency is incomplete, stop and report it.

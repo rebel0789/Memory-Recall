@@ -293,7 +293,7 @@
       "id": "OAF-012",
       "title": "Persist context assembly and manifests",
       "milestone": "Milestone 3",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:context-curator",
       "dependsOn": [
         "OAF-004",

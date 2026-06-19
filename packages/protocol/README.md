@@ -36,3 +36,13 @@ These schemas are internal service contracts for deterministic selection. They
 do not expose client-supplied weights, model reranking, embeddings, vector or
 graph stores, external search, publishing, browser automation, external
 adapters, or raw context bodies.
+
+## Context manifest schema
+
+OAF-012 evolves `context-manifest.schema.json` additively for durable assembly
+and persistence. Existing selected/excluded manifest fields remain compatible.
+Durable manifests may also include manifest fingerprints, assembly sections,
+selection summaries, candidate-generation summaries, token accounting, and
+verification metadata. The durable assembly preserves selected text exactly for
+model input while omitted excluded text prevents storing inaccessible or unsafe
+candidate bodies.

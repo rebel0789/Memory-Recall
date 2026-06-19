@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-012",
+  "nextTask": "OAF-013",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -74,13 +74,17 @@
         "packages/protocol/schemas/context-candidate.schema.json",
         "packages/protocol/schemas/context-selection-policy.schema.json",
         "packages/protocol/schemas/context-selection-result.schema.json",
-        "docs/architecture/context-compiler.md"
+        "docs/architecture/context-compiler.md",
+        "tests/context-assembly.test.mjs",
+        "tests/context-manifest-store.test.mjs",
+        "providers/native/context-manifest-local/provider.json",
+        "docs/implementation/OAF-012-context-manifests-note.md"
       ],
       "limitations": [
         "Exact and lexical candidate sources only",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Token estimate is approximate",
-        "Manifest not yet persisted separately"
+        "Manifest persistence is local native or repository-layer only; no production orchestration is implied"
       ]
     },
     {
@@ -103,6 +107,25 @@
         "Vector, graph, temporal, preference, and episode sources are declared but unavailable",
         "Sources generate candidates only; final selection remains in the Context Compiler selector",
         "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
+      ]
+    },
+    {
+      "id": "context.manifests",
+      "name": "Persisted context assembly and manifests",
+      "status": "reference",
+      "evidence": [
+        "packages/context-compiler/src/index.mjs",
+        "providers/native/context-manifest-local/src/index.mjs",
+        "providers/native/context-manifest-local/provider.json",
+        "packages/storage/src/postgres-repositories.mjs",
+        "tests/context-assembly.test.mjs",
+        "tests/context-manifest-store.test.mjs",
+        "docs/implementation/OAF-012-context-manifests-note.md"
+      ],
+      "limitations": [
+        "Native local provider and PostgreSQL repository layer only",
+        "No hosted manifest service, external adapter, vector database, graph database, embedding store, browser automation, or publishing integration",
+        "Production deployment orchestration remains pending"
       ]
     },
     {
@@ -444,9 +467,9 @@
       "npm run native:smoke",
       "npm run demo"
     ],
-    "testsExpected": 118,
+    "testsExpected": 123,
     "protocolFixturesExpected": 67,
-    "evaluationsExpected": 53,
+    "evaluationsExpected": 61,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
 }

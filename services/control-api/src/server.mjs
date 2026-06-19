@@ -5,8 +5,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { FileStateStore } from '../../../packages/storage/src/file-store.mjs';
 import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/identity-local/src/index.mjs';
+import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
-import { compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
+import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
 import { API_ERROR_SCHEMA, createApiRouteContracts } from './route-contracts.mjs';
@@ -73,6 +74,7 @@ export function createControlApiServer({
   store,
   runWorkflow = runContentIntelligence,
   compileContext = defaultCompileContext,
+  manifestRepository = null,
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   policyService = null,
@@ -209,6 +211,7 @@ export function createControlApiServer({
           objective: context.body.objective,
           workspaceId: context.workspaceId,
           actorId: context.principal.user.id,
+          manifestRepository,
           emit: async (event) => {
             const correlated = { ...event, workspaceId: context.workspaceId, actorId: context.principal.user.id, correlationId: context.correlationId };
             events.push(correlated);
@@ -236,6 +239,15 @@ export function createControlApiServer({
         return { schemaVersion: '1.0.0', run, events };
       }
       case 'compileContext':
+        if (manifestRepository) {
+          const result = await compileAndPersistContext(context.body.request, context.body.records, {
+            manifestRepository,
+            runId: null,
+            clock,
+            emitEvent: async () => {}
+          });
+          return result.manifest;
+        }
         return compileContext(context.body.request, context.body.records);
       case 'resetBootstrap':
         await store.reset();
@@ -856,7 +868,8 @@ async function main() {
   const dataDir = process.env.OAF_DATA_DIR ?? '.local';
   const store = await new FileStateStore(dataDir).init();
   const identityStore = await new LocalIdentityStore({ directory: path.join(dataDir, 'identity') }).init();
-  const api = createControlApiServer({ store, identityStore });
+  const manifestRepository = new FilesystemContextManifestRepository({ root: path.join(dataDir, 'context-manifests') });
+  const api = createControlApiServer({ store, identityStore, manifestRepository });
   api.server.listen(port, host, () => {
     console.log(`Open Agent Fabric local bootstrap: http://${host}:${port}`);
     console.log('No external writes are enabled. Press Ctrl+C to stop.');

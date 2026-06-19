@@ -14,6 +14,24 @@ The repositories accept an injected PostgreSQL-compatible client with `query(tex
 
 The file-backed state store and native SQLite/artifact providers remain the local conformance baselines. OAF-008 adds native local identity as a separate provider and adds PostgreSQL identity tables for deployments that use the migration runner.
 
+OAF-012 adds immutable context manifest persistence without changing
+migrations. `PostgresContextManifestRepository.append(...)` uses the existing
+`context_manifests` table and requires workspace ID on append, get, and
+list-by-run operations. The same manifest ID plus same fingerprint is
+idempotent; the same ID plus a different fingerprint fails closed as
+`manifest_identity_conflict`.
+
+The native local manifest provider stores JSON files under:
+
+```text
+.local/context-manifests/workspaces/<workspace-id>/manifests/<manifest-id>.json
+```
+
+It uses private directories, atomic temporary-file plus rename writes,
+workspace-scoped reads, bounded list limits, deterministic ordering, and
+verification that detects tampering without repair. Temporary incomplete files
+are ignored by list operations.
+
 ## Migration subsystem
 
 `packages/storage/src/postgres-migrations.mjs` provides explicit PostgreSQL migration discovery, planning, status, and application functions for the `deploy/postgres/migrations` directory. Application startup does not run migrations automatically.

@@ -1,4 +1,5 @@
 import { assertPlainObject, nowIso } from '../../protocol/src/index.mjs';
+import { compareContextManifests, verifyContextManifest } from '../../context-compiler/src/index.mjs';
 
 const PROVIDER_ID = 'provider:postgres:repositories';
 
@@ -450,6 +451,77 @@ export class PostgresContextManifestRepository {
     return mapContextManifest(result.rows[0]);
   }
 
+  async health() {
+    return {
+      status: 'healthy',
+      local: false,
+      details: {
+        provider: PROVIDER_ID,
+        repository: 'context_manifests',
+        externalWrites: false
+      }
+    };
+  }
+
+  async capabilities() {
+    return [
+      'context-manifest.append',
+      'context-manifest.get',
+      'context-manifest.listByRun',
+      'context-manifest.compare',
+      'context-manifest.verify',
+      'context-manifest.immutable',
+      'context-manifest.workspace-scoped'
+    ];
+  }
+
+  async append(input) {
+    assertPlainObject(input, 'context manifest');
+    const manifest = assertPlainObject(input.manifest, 'contextManifest.manifest');
+    const values = [
+      assertString(manifest.id, 'contextManifest.id'),
+      assertString(input.workspaceId, 'contextManifest.workspaceId'),
+      input.runId ?? manifest.runId ?? null,
+      assertString(manifest.compilerVersion, 'contextManifest.compilerVersion'),
+      assertPlainObject(input.request ?? {}, 'contextManifest.request'),
+      manifest,
+      timestamp(input.createdAt ?? manifest.createdAt, this.clock())
+    ];
+    if (manifest.workspaceId !== values[1]) throw repositoryError('manifest_workspace_mismatch', 'manifest workspace does not match append workspace', { workspaceId: values[1], manifestId: manifest.id });
+    const existing = await this.get({ workspaceId: values[1], id: manifest.id });
+    if (existing) {
+      if (existing.manifest?.manifestFingerprint !== manifest.manifestFingerprint) {
+        throw repositoryError('manifest_identity_conflict', 'same context manifest id has a different fingerprint', { workspaceId: values[1], manifestId: manifest.id });
+      }
+      return existing;
+    }
+    const verification = verifyContextManifest(manifest);
+    if (!verification.valid) throw repositoryError('manifest_invalid', `context manifest verification failed: ${verification.code}`, { workspaceId: values[1], manifestId: manifest.id, code: verification.code });
+    const result = await this.client.query(
+      `
+        INSERT INTO context_manifests (id, workspace_id, run_id, compiler_version, request, manifest, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, workspace_id, run_id, compiler_version, request, manifest, created_at
+      `,
+      values
+    );
+    return mapContextManifest(result.rows[0]);
+  }
+
+  async get({ workspaceId, id }) {
+    assertString(workspaceId, 'contextManifest.workspaceId');
+    assertString(id, 'contextManifest.id');
+    const result = await this.client.query(
+      `
+        SELECT id, workspace_id, run_id, compiler_version, request, manifest, created_at
+        FROM context_manifests
+        WHERE workspace_id = $1 AND id = $2
+      `,
+      [workspaceId, id]
+    );
+    return mapContextManifest(result.rows[0]);
+  }
+
   async listByRun({ workspaceId, runId, limit = 100 }) {
     assertString(workspaceId, 'contextManifest.workspaceId');
     assertString(runId, 'contextManifest.runId');
@@ -465,6 +537,19 @@ export class PostgresContextManifestRepository {
       [workspaceId, runId, boundedLimit]
     );
     return result.rows.map(mapContextManifest);
+  }
+
+  async compare({ workspaceId, leftId, rightId }) {
+    const left = await this.get({ workspaceId, id: leftId });
+    const right = await this.get({ workspaceId, id: rightId });
+    if (!left || !right) throw repositoryError('manifest_not_found', 'context manifest not found for comparison', { workspaceId, leftId, rightId });
+    return compareContextManifests(left.manifest, right.manifest);
+  }
+
+  async verify({ workspaceId, id }) {
+    const row = await this.get({ workspaceId, id });
+    if (!row) return { valid: false, code: 'manifest_not_found', manifestId: id };
+    return verifyContextManifest(row.manifest);
   }
 }
 

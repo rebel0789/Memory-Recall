@@ -52,7 +52,7 @@ The offline bootstrap installs no runtime npm dependencies. The optional Ollama 
 Tell the agent:
 
 ```text
-Read ASSIGN_TO_AGENT.md and AGENTS.md. Run npm run verify:handoff, then npm run task -- OAF-004.
+Read ASSIGN_TO_AGENT.md and AGENTS.md. Run `npm run verify:handoff`, then `npm run status` and `npm run task -- <OAF-ID>`.
 Complete one task only, keep npm run ci green, and report using the required handoff template.
 ```
 
@@ -66,7 +66,7 @@ The operating path is:
 6. `docs/START_HERE.md`
 7. `docs/adr/0012-build-the-brain-adapt-the-organs.md`
 8. `docs/implementation/AGENT_EXECUTION_PLAYBOOK.md`
-9. `npm run task -- OAF-004`
+9. `npm run task -- <OAF-ID>`
 
 ## Product thesis
 
@@ -117,7 +117,7 @@ See `REPOSITORY_MAP.md` for ownership and dependency boundaries.
 
 ```bash
 npm run status                 # implemented, reference, planned, disabled
-npm run task -- OAF-004        # next issue-sized assignment bundle
+npm run task -- <OAF-ID>       # current issue-sized assignment bundle
 npm run doctor                 # environment and local safety checks
 npm run protocol:validate      # v1 valid, invalid, and compatibility fixtures
 npm run native:smoke           # native memory, artifacts, Agent Pack, model
@@ -143,4 +143,4 @@ Read:
 
 ## Status
 
-Development kit: **0.2.0-dev**. Foundation tasks OAF-001 through OAF-003 are complete. The safest next task is **OAF-004 — Implement PostgreSQL repositories behind the existing ports while preserving the local conformance baselines**.
+Development kit: **0.2.0-dev**. Run `npm run status` for the next checked-in task and `npm run task -- <OAF-ID>` for its assignment bundle.

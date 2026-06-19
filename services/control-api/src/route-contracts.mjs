@@ -258,8 +258,10 @@ export function createApiRouteContracts(limits = {}) {
       id: { type: 'string', pattern: id('ctx'), maxLength: 128 },
       workspaceId: boundedString(128),
       requestId: { type: ['string', 'null'], maxLength: 128 },
+      runId: { type: ['string', 'null'], maxLength: 128 },
       compilerVersion: boundedString(64),
       createdAt: { type: 'string', format: 'date-time' },
+      manifestFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
       budget: {
         type: 'object',
         additionalProperties: false,
@@ -269,7 +271,27 @@ export function createApiRouteContracts(limits = {}) {
       selected: { type: 'array', maxItems: limitShape.jsonArrayItems, items: { type: 'object', additionalProperties: true } },
       excluded: { type: 'array', maxItems: limitShape.jsonArrayItems, items: { type: 'object', additionalProperties: true } },
       conflicts: { type: 'array', maxItems: limitShape.jsonArrayItems, items: { type: 'object', additionalProperties: true } },
-      warnings: { type: 'array', maxItems: limitShape.jsonArrayItems, items: boundedString(256) }
+      warnings: { type: 'array', maxItems: limitShape.jsonArrayItems, items: boundedString(256) },
+      assembly: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['assemblyPolicyVersion', 'assemblyPolicyFingerprint', 'selectedRecordIds', 'totalTokens', 'sections', 'assemblyFingerprint'],
+        properties: {
+          assemblyPolicyVersion: boundedString(32),
+          assemblyPolicyFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+          selectedRecordIds: { type: 'array', maxItems: limitShape.jsonArrayItems, items: boundedString(128) },
+          totalTokens: { type: 'integer', minimum: 0 },
+          sections: { type: 'array', maxItems: 16, items: { type: 'object', additionalProperties: true } },
+          assemblyFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+        }
+      },
+      selectionSummary: { type: ['object', 'null'], additionalProperties: true },
+      selectionPolicy: { type: ['object', 'null'], additionalProperties: true },
+      candidateGeneration: { type: 'object', additionalProperties: true },
+      tokenAccounting: { type: 'object', additionalProperties: true },
+      fingerprintAlgorithm: boundedString(32),
+      persisted: { type: 'boolean' },
+      manifestVerification: { type: 'object', additionalProperties: true }
     }
   };
 
