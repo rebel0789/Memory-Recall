@@ -1,0 +1,6 @@
+{
+  "deploymentProfile": "local-dev",
+  "locality": "local-only",
+  "interactive": true,
+  "externalWritesEnabled": false
+}

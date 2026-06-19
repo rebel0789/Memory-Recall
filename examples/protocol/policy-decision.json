@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "decisionId": "poldet_example",
+  "outcome": "allow",
+  "action": "run.execute",
+  "principalType": "user",
+  "actorId": "usr_owner",
+  "workspaceId": "ws_local",
+  "resource": {
+    "type": "run",
+    "id": "run_local",
+    "dataClass": "workspace-private"
+  },
+  "role": "owner",
+  "reasonCodes": [],
+  "matchedRules": ["action:run.execute", "role:owner"],
+  "effectiveCapability": null,
+  "policyVersion": "1.0.0",
+  "policyFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "evaluatedAt": "2026-06-19T10:00:00.000Z",
+  "correlationId": "req_policy-example-000000"
+}

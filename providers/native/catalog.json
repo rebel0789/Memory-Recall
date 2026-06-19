@@ -32,6 +32,12 @@
       "purpose": "Local-first users, sessions, API tokens, workspace memberships, and security audit"
     },
     {
+      "id": "provider:native:policy:deterministic",
+      "path": "providers/native/policy-deterministic",
+      "enabledByDefault": true,
+      "purpose": "Deterministic contextual policy decisions for resources, tools, data classes, risk, approvals, and budgets"
+    },
+    {
       "id": "provider:native:model:ollama",
       "path": "providers/native/model-ollama",
       "enabledByDefault": false,

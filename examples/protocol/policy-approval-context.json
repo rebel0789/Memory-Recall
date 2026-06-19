@@ -1,0 +1,11 @@
+{
+  "approvalId": "app_publish",
+  "operationFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_local",
+  "actorId": "usr_owner",
+  "approverId": "usr_owner",
+  "approvedAt": "2026-06-19T10:00:00.000Z",
+  "expiresAt": "2026-06-19T11:00:00.000Z",
+  "status": "active",
+  "policyVersion": "1.0.0"
+}

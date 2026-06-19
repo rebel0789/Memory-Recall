@@ -7,7 +7,7 @@ import { FileStateStore } from '../../../packages/storage/src/file-store.mjs';
 import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/identity-local/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { actionsForRole, authorizeWorkspaceAction } from '../../../packages/policy/src/index.mjs';
+import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
 import { API_ERROR_SCHEMA, createApiRouteContracts } from './route-contracts.mjs';
 
@@ -75,6 +75,7 @@ export function createControlApiServer({
   compileContext = defaultCompileContext,
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
+  policyService = null,
   clock = () => new Date().toISOString(),
   correlationIdFactory = () => `req_${randomUUID()}`,
   limits = {},
@@ -84,6 +85,11 @@ export function createControlApiServer({
   if (!store) throw new Error('createControlApiServer requires store');
   const effectiveLimits = { ...DEFAULT_LIMITS, ...limits };
   const contracts = createApiRouteContracts(effectiveLimits);
+  const effectivePolicyService = policyService ?? createPolicyService({
+    auditSink: identityStore,
+    clock,
+    decisionIdFactory: () => `poldet_${randomUUID()}`
+  });
   const streams = new Set();
 
   const server = http.createServer(async (request, response) => {
@@ -272,9 +278,12 @@ export function createControlApiServer({
     const workspaceId = resolveWorkspaceContext(contract, query, body);
     const action = contract.security?.action ?? null;
     if (action) {
-      const decision = authorizeWorkspaceAction({ principal, workspaceId, action, requireSession: contract.security?.sessionOnly === true });
-      await identityStore.recordAuditEvent({ type: 'auth.authorization', actorUserId: principal.user.id, workspaceId, outcome: decision.decision === 'allow' ? 'allow' : 'deny', correlationId, metadata: { action, reasons: decision.reasons.join(',') } });
-      if (decision.decision !== 'allow') {
+      const decision = await effectivePolicyService.evaluate(createRoutePolicyRequest({ principal, workspaceId, action, contract, correlationId, now: clock() }));
+      if (contract.security?.sessionOnly === true && principal.credentialType !== 'session') {
+        decision.outcome = 'deny';
+        decision.reasonCodes = [...new Set([...decision.reasonCodes, 'resource_denied'])].sort();
+      }
+      if (decision.outcome !== 'allow') {
         throw new ApiError(contract.security?.resourceLookup ? 404 : 403, contract.security?.resourceLookup ? 'resource_not_found' : 'forbidden');
       }
     }
@@ -696,6 +705,67 @@ function resolveWorkspaceContext(contract, query, body) {
   if (contract.security?.workspace && !selected) throw validationError([{ path: '$.workspaceId', code: 'required' }]);
   if (selected && !SAFE_WORKSPACE_ID.test(selected)) throw validationError([{ path: '$.workspaceId', code: 'pattern' }]);
   return selected;
+}
+
+function createRoutePolicyRequest({ principal, workspaceId, action, contract, correlationId, now }) {
+  const membership = workspaceId
+    ? principal.memberships?.find((item) => item.workspaceId === workspaceId && item.status === 'active') ?? null
+    : principal.memberships?.find((item) => item.role === 'owner' && item.status === 'active') ?? null;
+  const effectiveWorkspaceId = workspaceId ?? membership?.workspaceId ?? null;
+  const resourceType = routeResourceType(contract);
+  return {
+    schemaVersion: '1.0.0',
+    requestId: `polreq_${contract.operationId}`,
+    correlationId,
+    operationId: contract.operationId,
+    principal: {
+      userId: principal.user.id,
+      principalType: 'user',
+      authenticationMethod: principal.credentialType === 'bearer' ? 'bearer' : 'session',
+      status: principal.user.status,
+      tokenScopes: principal.apiToken?.scopes,
+      tokenWorkspaceIds: principal.apiToken?.workspaceIds
+    },
+    workspaceId: effectiveWorkspaceId,
+    membership: membership ? { workspaceId: membership.workspaceId, role: membership.role, status: membership.status } : null,
+    action,
+    resource: {
+      type: resourceType,
+      id: effectiveWorkspaceId ?? resourceType,
+      workspaceId: effectiveWorkspaceId,
+      dataClass: resourceType === 'system' ? 'public' : 'workspace-private'
+    },
+    environment: {
+      deploymentProfile: 'local-dev',
+      locality: 'local-only',
+      interactive: true,
+      externalWritesEnabled: false
+    },
+    trustedTimestamp: now
+  };
+}
+
+function routeResourceType(contract) {
+  switch (contract.operationId) {
+    case 'getProjectStatus':
+      return 'system';
+    case 'createApiToken':
+    case 'listApiTokens':
+    case 'deleteApiToken':
+      return 'token';
+    case 'listRuns':
+    case 'getRun':
+    case 'startRun':
+    case 'streamEvents':
+      return 'run';
+    case 'compileContext':
+      return 'context';
+    case 'resetBootstrap':
+    case 'getDashboard':
+      return 'workspace';
+    default:
+      return 'workspace';
+  }
 }
 
 function enforceCsrf({ request, principal }) {

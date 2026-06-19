@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-reason-code.schema.json",
+  "title": "Policy Reason Code",
+  "type": "string",
+  "enum": [
+    "missing_identity",
+    "missing_workspace",
+    "unknown_action",
+    "unsupported_role",
+    "membership_required",
+    "workspace_mismatch",
+    "resource_denied",
+    "tool_not_registered",
+    "operation_not_declared",
+    "capability_exceeds_manifest",
+    "filesystem_read_denied",
+    "filesystem_write_denied",
+    "network_denied",
+    "secret_scope_denied",
+    "data_class_denied",
+    "sandbox_denied",
+    "budget_exceeded",
+    "approval_required",
+    "approval_invalid",
+    "approval_expired",
+    "approval_scope_mismatch",
+    "idempotency_required",
+    "external_writes_disabled",
+    "policy_configuration_invalid"
+  ]
+}

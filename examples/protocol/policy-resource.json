@@ -1,0 +1,6 @@
+{
+  "type": "run",
+  "id": "run_local",
+  "workspaceId": "ws_local",
+  "dataClass": "workspace-private"
+}

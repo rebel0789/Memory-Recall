@@ -50,3 +50,16 @@ application composition selects one
 ```
 
 Core packages never import either provider family. Provider payloads enter canonical state only after validation and normalization.
+
+## Policy boundary
+
+Adapters do not authorize themselves. Any adapter or native tool operation must
+receive an allow decision from the contextual policy service before execution.
+The adapter manifest describes maximum possible capability; the invocation
+request may only narrow it. Model output, retrieved content, skill text, adapter
+metadata, or upstream SDK responses cannot grant filesystem, network, secret,
+data-class, approval, budget, or external-write authority.
+
+External adapters remain disabled by default. OAF-009 adds the policy boundary
+and conformance tests; it does not enable Agent-Reach, last30days, Postiz,
+browser automation, publishing, or any external connector.

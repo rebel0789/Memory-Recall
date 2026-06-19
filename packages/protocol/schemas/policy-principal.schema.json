@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-principal.schema.json",
+  "title": "Policy Principal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["userId", "principalType", "authenticationMethod", "status"],
+  "properties": {
+    "userId": { "type": "string", "pattern": "^usr_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "principalType": { "enum": ["user", "agent", "service"] },
+    "authenticationMethod": { "enum": ["session", "bearer", "system"] },
+    "status": { "enum": ["active", "disabled"] },
+    "tokenScopes": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 96 } },
+    "tokenWorkspaceIds": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 } },
+    "agentRole": { "type": "string", "minLength": 1, "maxLength": 96 }
+  }
+}

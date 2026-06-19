@@ -11,6 +11,7 @@ Native providers make the local product useful without optional integrations. Th
 | `native.workflow.embedded` | on | Bounded local execution and checkpoints |
 | `native.model.deterministic` | on | Reproducible tests and offline demo |
 | `native.identity.local` | on | Local users, sessions, API tokens, memberships, and security audit |
+| `native.policy.deterministic` | on | Contextual policy decisions for resources, tools, data classes, approvals, and budgets |
 | `native.model.ollama` | off | Explicit loopback local-model generation |
 
 ## Rules
@@ -53,3 +54,16 @@ The native identity provider implements `IdentityStorePort` version `1.0.0` for 
 - security audit events without raw secrets, cookies, token values, password credentials, salts, or filesystem paths.
 
 The provider stores `.local/identity/identity.json`, uses private permissions, and has no cloud fallback. It is a bootstrap/local provider, not production SSO, MFA, hosted secret management, or encrypted-at-rest storage.
+
+## Deterministic policy provider
+
+The native policy provider implements `PolicyEvaluatorPort` version `1.0.0`.
+It runs in process, uses the committed policy registry, and has no network,
+model, dynamic execution, or runtime download path. Its health and capabilities
+output expose the policy version and deterministic registry fingerprint.
+
+The provider evaluates trusted requests produced after OAF-008 authentication
+and current membership resolution. It returns structured allow/deny decisions,
+bounded stable reason codes, safe effective capability scopes, and audit-ready
+metadata. It denies unknown or malformed dimensions by default and keeps
+external writes disabled.

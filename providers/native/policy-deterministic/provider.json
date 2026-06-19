@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:policy:deterministic",
+  "name": "Native Deterministic Policy Provider",
+  "version": "0.1.0",
+  "category": "policy",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "PolicyEvaluatorPort",
+  "contractVersion": "1.0.0",
+  "capabilities": [
+    "policy.evaluate.resource",
+    "policy.evaluate.tool",
+    "policy.evaluate.data-class",
+    "policy.evaluate.side-effect",
+    "policy.evaluate.approval",
+    "policy.evaluate.budget",
+    "policy.default-deny",
+    "policy.deterministic"
+  ],
+  "limits": {
+    "network": false,
+    "model": false,
+    "dynamicCodeExecution": false,
+    "policySource": "committed source registry"
+  },
+  "dataPaths": [],
+  "experimental": false,
+  "notes": [
+    "Evaluates trusted in-process policy requests only.",
+    "Never downloads policy, executes model-authored rules, or enables external writes."
+  ]
+}

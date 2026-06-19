@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "polreq_example",
+  "correlationId": "req_policy-example-000000",
+  "operationId": "startRun",
+  "principal": {
+    "userId": "usr_owner",
+    "principalType": "user",
+    "authenticationMethod": "session",
+    "status": "active"
+  },
+  "workspaceId": "ws_local",
+  "membership": {
+    "workspaceId": "ws_local",
+    "role": "owner",
+    "status": "active"
+  },
+  "action": "run.execute",
+  "resource": {
+    "type": "run",
+    "id": "run_local",
+    "workspaceId": "ws_local",
+    "dataClass": "workspace-private"
+  },
+  "environment": {
+    "deploymentProfile": "local-dev",
+    "locality": "local-only",
+    "interactive": true,
+    "externalWritesEnabled": false
+  },
+  "trustedTimestamp": "2026-06-19T10:00:00.000Z"
+}

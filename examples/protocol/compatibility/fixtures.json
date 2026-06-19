@@ -140,6 +140,72 @@
       "expectedValid": true
     },
     {
+      "id": "policy-principal-current-valid",
+      "schema": "packages/protocol/schemas/policy-principal.schema.json",
+      "instance": "examples/protocol/policy-principal.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-resource-current-valid",
+      "schema": "packages/protocol/schemas/policy-resource.schema.json",
+      "instance": "examples/protocol/policy-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-environment-current-valid",
+      "schema": "packages/protocol/schemas/policy-environment-context.schema.json",
+      "instance": "examples/protocol/policy-environment-context.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-capability-request-current-valid",
+      "schema": "packages/protocol/schemas/policy-capability-request.schema.json",
+      "instance": "examples/protocol/policy-capability-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-effective-capability-current-valid",
+      "schema": "packages/protocol/schemas/policy-effective-capability.schema.json",
+      "instance": "examples/protocol/policy-effective-capability.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-approval-context-current-valid",
+      "schema": "packages/protocol/schemas/policy-approval-context.schema.json",
+      "instance": "examples/protocol/policy-approval-context.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-evaluation-request-current-valid",
+      "schema": "packages/protocol/schemas/policy-evaluation-request.schema.json",
+      "instance": "examples/protocol/policy-evaluation-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-decision-current-valid",
+      "schema": "packages/protocol/schemas/policy-decision.schema.json",
+      "instance": "examples/protocol/policy-decision.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-audit-event-current-valid",
+      "schema": "packages/protocol/schemas/policy-audit-event.schema.json",
+      "instance": "examples/protocol/policy-audit-event.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-registry-descriptor-current-valid",
+      "schema": "packages/protocol/schemas/policy-registry-descriptor.schema.json",
+      "instance": "examples/protocol/policy-registry-descriptor.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-reason-code-current-valid",
+      "schema": "packages/protocol/schemas/policy-reason-code.schema.json",
+      "instance": "examples/protocol/policy-reason-code.json",
+      "expectedValid": true
+    },
+    {
       "id": "agent-pack-valid",
       "schema": "packages/protocol/schemas/agent-pack.schema.json",
       "instance": "examples/agentpacks/content-intelligence.agentpack.json",

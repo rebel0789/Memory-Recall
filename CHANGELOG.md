@@ -4,6 +4,7 @@
 
 ### Added
 
+- OAF-009 contextual policy engine with a versioned source registry, deterministic policy fingerprint, stable denial reason codes, strict policy request/decision schemas, native deterministic `PolicyEvaluatorPort` provider, and route/tool conformance tests.
 - OAF-008 native local identity provider, first-owner CLI bootstrap, browser sessions, CSRF, API tokens, deterministic workspace role/action authorization, and security audit events.
 - PostgreSQL `002_identity.sql` migration for users, memberships, sessions, API tokens, and security audit events.
 - OAF-007 strict Control API boundary validation with a runtime route-contract registry, response validation, stable sanitized error envelopes, and correlation IDs.
@@ -11,6 +12,8 @@
 
 ### Security
 
+- Route authorization and tool invocation now use one contextual policy service after authentication and current membership resolution; denials stop before workflows, Context Compiler, model/tool providers, artifact or memory mutation, secret resolution, filesystem writes, network operations, or consequential effects.
+- Policy evaluates workspace/resource ownership, API-token scope intersection, manifest-bounded tool capability, filesystem/network/secret/data-class/sandbox/budget dimensions, exact approval binding, idempotency, and the global external-write kill switch.
 - Control API rejects malformed paths, unknown queries, oversized bodies, unsupported media types, unsupported content encodings, cross-origin state-changing requests, excessive JSON complexity, and invalid bodies before domain execution.
 - Non-public Control API routes now require authenticated principals, explicit workspace context where applicable, deterministic authorization, and CSRF for cookie-auth unsafe requests before invoking workflows, stores, the Context Compiler, native providers, or migrations.
 - Passwords are stored as versioned scrypt credentials; raw session, CSRF, and API token secrets are never persisted or returned in list/session DTOs.

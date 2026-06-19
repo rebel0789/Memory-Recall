@@ -5,6 +5,7 @@ import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/inde
 import { FilesystemArtifactStore } from '../providers/native/artifact-filesystem/src/index.mjs';
 import { DeterministicModelProvider } from '../providers/native/model-deterministic/src/index.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
+import { DeterministicPolicyProvider } from '../providers/native/policy-deterministic/src/index.mjs';
 import { fingerprintAgentPack, validateAgentPack } from '../packages/agentpack/src/index.mjs';
 
 const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-smoke-'));
@@ -42,9 +43,29 @@ try {
   const verified = await identity.verifyPassword({ username: 'owner', password: 'correct horse battery staple' });
   if (!verified.ok || bootstrap.membership.role !== 'owner') throw new Error('native identity smoke failed');
 
+  const policy = new DeterministicPolicyProvider({
+    clock: () => '2026-06-19T10:00:00.000Z',
+    decisionIdFactory: () => 'poldet_smoke'
+  });
+  const policyDecision = await policy.evaluate({
+    schemaVersion: '1.0.0',
+    requestId: 'polreq_smoke',
+    correlationId: 'req_native-smoke-000000',
+    operationId: 'nativeSmokePolicy',
+    principal: { userId: bootstrap.user.id, principalType: 'user', authenticationMethod: 'session', status: 'active' },
+    workspaceId: 'ws_smoke',
+    membership: { workspaceId: 'ws_smoke', role: 'owner', status: 'active' },
+    action: 'run.read',
+    resource: { type: 'run', id: 'run_smoke', workspaceId: 'ws_smoke', dataClass: 'workspace-private' },
+    environment: { deploymentProfile: 'local-dev', locality: 'local-only', interactive: true, externalWritesEnabled: false },
+    trustedTimestamp: '2026-06-19T10:00:00.000Z'
+  });
+  if (policyDecision.outcome !== 'allow') throw new Error('native policy smoke failed');
+
   console.log('PASS native SQLite memory');
   console.log('PASS content-addressed artifact store');
   console.log('PASS native local identity');
+  console.log('PASS deterministic contextual policy provider');
   console.log(`PASS Agent Pack ${pack.metadata.name}@${pack.metadata.version} ${fingerprint}`);
   console.log('PASS deterministic local model provider');
   console.log('Native provider smoke completed without network access.');

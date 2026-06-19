@@ -217,7 +217,7 @@
       "id": "OAF-009",
       "title": "Implement authorization and contextual policy ports",
       "milestone": "Milestone 2",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:security-auditor",
       "dependsOn": [
         "OAF-003",

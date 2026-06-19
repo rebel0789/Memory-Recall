@@ -28,7 +28,9 @@ A model requests undeclared files, domains, secrets, or operations. Mitigation: 
 
 External HTTP requests may be oversized, malformed, ambiguous, compressed, cross-origin, or shaped to trigger parser edge cases before local services execute. Mitigation: the control API validates route contracts at the boundary before stores, workflow runners, Context Compiler, model providers, artifact stores, tool providers, or migration code are called. It enforces body, URL, header, query, path, JSON depth, node, object-key, and array limits; rejects unsupported media types and content encodings; validates responses before sending JSON; and returns stable sanitized error envelopes with correlation IDs.
 
-OAF-008 extends the boundary with native local authentication and deterministic workspace authorization. Non-public routes require an authenticated principal before stores, workflows, the Context Compiler, native providers, or migration code are called. The enforced order is request limits, route matching, path/query/header/body validation, correlation ID, credential extraction, authentication, workspace resolution, authorization, CSRF for cookie-auth unsafe requests, domain handler, and response validation.
+OAF-008 extends the boundary with native local authentication and deterministic workspace authorization. Non-public routes require an authenticated principal before stores, workflows, the Context Compiler, native providers, or migration code are called. OAF-009 then centralizes contextual policy decisions before domain or tool execution. The enforced order is request limits, route matching, path/query/header/body validation, correlation ID, credential extraction, authentication, trusted workspace and membership resolution, contextual policy evaluation, CSRF for cookie-auth unsafe requests, domain or tool handler, policy/audit event recording, and response validation.
+
+Policy denials stop before workflow start, Context Compiler invocation, artifact or memory mutation, model/tool invocation, filesystem write, secret resolution, external network operation, or consequential side effect.
 
 ### Local identity and workspace authorization
 
@@ -39,6 +41,18 @@ Passwords use Node `crypto.scrypt` with a unique random salt and a versioned ser
 Workspace context is explicit per protected route. Direct workspace operations return `403 forbidden` when the authenticated principal lacks authority. Resource-specific lookups such as run detail return `404 resource_not_found` for inaccessible or missing resources. The role/action matrix is deterministic: owner has all actions; builder has workspace/dashboard/run/context/stream actions; operator has workspace/dashboard/run/stream actions; auditor has read and audit actions only.
 
 API tokens are created only from a session protected by CSRF, are returned raw once, are stored as hashes, and are checked against user status, active memberships, allowed workspaces, scopes, expiration, and revocation.
+
+### Contextual policy
+
+Authentication answers who the principal is. Workspace authorization answers which current role the principal holds. Contextual policy answers whether that principal may perform one exact operation on one exact resource with one exact capability and consequence profile.
+
+The policy registry is committed source with a semantic version and deterministic SHA-256 fingerprint. It defines known actions, resource types, role/action permissions, data classes, side-effect classes, budget ceilings, approval and idempotency requirements, tool-capability dimensions, and hard global kill switches. Unknown registry fields fail startup/test validation.
+
+Policy input is strict and server-populated. It can carry safe IDs, membership status, resource type, data class, capability requests, approval metadata, idempotency keys, and trusted timestamps. It cannot carry passwords, cookies, bearer token values, CSRF tokens, secret values, authorization headers, model reasoning, prompts, source bodies, or executable policy text.
+
+Default deny covers missing identity/workspace/membership/action, unknown actions/resources, unsupported roles, workspace mismatch, token-scope mismatch, unregistered tools, undeclared operations, capability requests wider than the manifest, filesystem/network/secret/data-class/sandbox/budget violations, missing or mismatched approval, missing idempotency, and globally disabled external writes.
+
+Models, skills, retrieved content, tool output, and adapter responses may request a capability but cannot grant authority. Approval is necessary for consequential writes but never sufficient by itself; exact operation fingerprints, idempotency, policy permission, and the global external-write switch are still evaluated.
 
 ### Memory poisoning
 

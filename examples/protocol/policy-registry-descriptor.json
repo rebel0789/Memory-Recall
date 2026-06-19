@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0.0",
+  "version": "1.0.0",
+  "fingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "knownActions": ["run.read", "run.execute", "tool.invoke"],
+  "resourceTypes": ["workspace", "run", "tool"],
+  "dataClasses": ["public", "workspace-private", "confidential", "secret"],
+  "sideEffectClasses": ["read-only", "reversible-write", "consequential-write"],
+  "externalWritesEnabled": false
+}

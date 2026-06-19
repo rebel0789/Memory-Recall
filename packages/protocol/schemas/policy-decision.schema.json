@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-decision.schema.json",
+  "title": "Policy Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "decisionId", "outcome", "action", "principalType", "actorId", "workspaceId", "resource", "role", "reasonCodes", "matchedRules", "effectiveCapability", "policyVersion", "policyFingerprint", "evaluatedAt", "correlationId"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "decisionId": { "type": "string", "pattern": "^poldet_[A-Za-z0-9._:-]{1,128}$", "maxLength": 136 },
+    "outcome": { "enum": ["allow", "deny"] },
+    "action": { "type": ["string", "null"], "maxLength": 96 },
+    "principalType": { "type": ["string", "null"], "enum": ["user", "agent", "service", null] },
+    "actorId": { "type": ["string", "null"], "maxLength": 128 },
+    "workspaceId": { "type": ["string", "null"], "maxLength": 128 },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "dataClass"],
+      "properties": {
+        "type": { "type": ["string", "null"], "maxLength": 64 },
+        "id": { "type": ["string", "null"], "maxLength": 128 },
+        "dataClass": { "type": "string", "enum": ["public", "workspace-private", "confidential", "secret"] }
+      }
+    },
+    "role": { "type": ["string", "null"], "enum": ["owner", "builder", "operator", "auditor", null] },
+    "reasonCodes": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": { "enum": ["missing_identity", "missing_workspace", "unknown_action", "unsupported_role", "membership_required", "workspace_mismatch", "resource_denied", "tool_not_registered", "operation_not_declared", "capability_exceeds_manifest", "filesystem_read_denied", "filesystem_write_denied", "network_denied", "secret_scope_denied", "data_class_denied", "sandbox_denied", "budget_exceeded", "approval_required", "approval_invalid", "approval_expired", "approval_scope_mismatch", "idempotency_required", "external_writes_disabled", "policy_configuration_invalid"] }
+    },
+    "matchedRules": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 160 } },
+    "effectiveCapability": { "type": ["object", "null"], "additionalProperties": false },
+    "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "policyFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "evaluatedAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": ["string", "null"], "maxLength": 100 }
+  }
+}

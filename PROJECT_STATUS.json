@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-009",
+  "nextTask": "OAF-010",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -14,6 +14,7 @@
     "memoryProvider": "provider:native:memory:sqlite",
     "artifactProvider": "provider:native:artifact:filesystem",
     "workflowProvider": "provider:native:workflow:embedded",
+    "policyProvider": "provider:native:policy:deterministic",
     "agentPackAuthority": "policy-required",
     "replaySideEffects": "disabled"
   },
@@ -107,10 +108,17 @@
       "status": "reference",
       "evidence": [
         "packages/policy/src/index.mjs",
-        "tests/policy.test.mjs"
+        "providers/native/policy-deterministic/src/index.mjs",
+        "providers/native/policy-deterministic/provider.json",
+        "tests/policy.test.mjs",
+        "tests/policy-contextual.test.mjs",
+        "packages/protocol/schemas/policy-evaluation-request.schema.json",
+        "packages/protocol/schemas/policy-decision.schema.json"
       ],
       "limitations": [
-        "No production identity or relationship store"
+        "Consumes trusted identity and membership context from OAF-008",
+        "No remote OPA deployment",
+        "No production policy administration UI"
       ]
     },
     {
@@ -406,8 +414,8 @@
       "npm run native:smoke",
       "npm run demo"
     ],
-    "testsExpected": 82,
-    "protocolFixturesExpected": 30,
+    "testsExpected": 102,
+    "protocolFixturesExpected": 41,
     "evaluationsExpected": 22,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

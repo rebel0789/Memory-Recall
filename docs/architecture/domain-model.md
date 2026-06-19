@@ -38,9 +38,22 @@ A memory record has kind, scope, lifecycle, confidence, provenance, valid time, 
 
 A tool manifest declares operations and permissions. A grant is short-lived, actor-bound, run-bound, operation-bound, and narrower than the manifest. A tool result cannot broaden its own grant.
 
+OAF-009 policy decisions evaluate the exact tool operation before a provider is
+invoked. Effective capability is the intersection of actor role, current
+membership, action policy, trusted tool manifest, requested operation, workflow
+or run grant, environment policy, data class, sandbox profile, budgets, approval
+context, idempotency, and global kill switches. Requests wider than the manifest
+deny the whole operation rather than silently dropping unsafe scope.
+
 ### Approval
 
 An approval references an exact operation preview, destination, risk, actor, expiry, idempotency key, and policy version. Editing the action invalidates the approval.
+
+The exact operation fingerprint is a SHA-256 digest over stable fields including
+actor, workspace, action, resource, tool operation, requested scopes,
+side-effect class, data class, payload fingerprint, and idempotency key. Approval
+does not replace sandbox enforcement and cannot override the external-write
+kill switch.
 
 ## Identity prefixes
 

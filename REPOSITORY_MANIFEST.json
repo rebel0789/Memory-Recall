@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-19T17:47:44.523Z",
-  "fileCount": 450,
-  "totalBytes": 1020733,
+  "generatedAt": "2026-06-19T18:18:41.028Z",
+  "fileCount": 479,
+  "totalBytes": 1115146,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 3949,
-      "sha256": "7e79584769074149a4b7de3ccb00990d67afc389c9f893e6375c8f2198fa1356"
+      "bytes": 4784,
+      "sha256": "ec8c614a7274ea074aa1a857cd536ca57fb10e3b2f871bacbfda99a4124255c6"
     },
     {
       "path": "CITATION.cff",
@@ -685,6 +685,11 @@
       "sha256": "4c8c5211dc80b93cadf4f0c69f272a77f37879022eac80003a8ec16e93ddddfc"
     },
     {
+      "path": "docs/adr/0016-contextual-policy-source-of-truth.md",
+      "bytes": 2706,
+      "sha256": "9abd37f352732703f09f21c9d95a381e092b12cef5cb756469fc5865b6666847"
+    },
+    {
       "path": "docs/AGENTS.md",
       "bytes": 380,
       "sha256": "0d1b4cd74386d1452893a8979997887cba70bcb1f15a36bcb41aebf16dc2fab7"
@@ -701,8 +706,8 @@
     },
     {
       "path": "docs/architecture/adapter-contracts.md",
-      "bytes": 2464,
-      "sha256": "208f3e9fc951668b5a36f63aa531ee57917749bdb6958db4b4ada39465ca26b9"
+      "bytes": 3151,
+      "sha256": "cbe7e6ff9d416c334902711eefd94bbaf3713074a3766c8c6a8f173710e69a23"
     },
     {
       "path": "docs/architecture/agent-packs.md",
@@ -716,8 +721,8 @@
     },
     {
       "path": "docs/architecture/domain-model.md",
-      "bytes": 4219,
-      "sha256": "53d158dcc1c8f3f0a6a9b744231854b3550811580c6f4f3bb5201b8d5d2b729e"
+      "bytes": 5007,
+      "sha256": "d2512a0f92cd8bd0124fcde16925da318f84192686a56f92257f53a21795436e"
     },
     {
       "path": "docs/architecture/event-model.md",
@@ -736,8 +741,8 @@
     },
     {
       "path": "docs/architecture/native-providers.md",
-      "bytes": 3304,
-      "sha256": "a61fef20407a8f9baee1c75d37506769c5be0cd5930e0e93babb8acd142e3a54"
+      "bytes": 4109,
+      "sha256": "37c619e124ef0e54a99f866cbcb10fffc3afcf6507f7a3a15060707b952d36a9"
     },
     {
       "path": "docs/architecture/overview.md",
@@ -916,13 +921,13 @@
     },
     {
       "path": "docs/security/threat-model.md",
-      "bytes": 6892,
-      "sha256": "b5b2855132c3b3f5730d633644227a6103f125abf1fa63315715ae1ec6fe046f"
+      "bytes": 9039,
+      "sha256": "fec9c961516b62843fcade81e2426d718122191619fd345817692aa2f02b75d7"
     },
     {
       "path": "docs/security/tool-permissions.md",
-      "bytes": 1355,
-      "sha256": "4c0482e10de572fa0ebd483b246635d39c61f0ea82e4947da2a3e27953ce84f2"
+      "bytes": 2735,
+      "sha256": "398e247931a82cc82751c0e4afe8f6f60bf861c367a0ff6e18ac7e07dd5acc05"
     },
     {
       "path": "docs/START_HERE.md",
@@ -1151,8 +1156,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 6980,
-      "sha256": "602ed88985174dd11fe35aff33263e98793a0a2a9d6cdeaf62b030e007247282"
+      "bytes": 9588,
+      "sha256": "bed5dd79ac9da8d2cc5280025110663cf9e550891680be8be80070a72d226170"
     },
     {
       "path": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
@@ -1210,6 +1215,61 @@
       "sha256": "82ebcabb18c902f23a5a0273b7f08a95e14d76b213cebb8963f6bbebca67c19d"
     },
     {
+      "path": "examples/protocol/policy-approval-context.json",
+      "bytes": 356,
+      "sha256": "9a37fc9befeb0c8793386f87b4c51a4c83f73bbe8b75da9619ba2dd0db85db56"
+    },
+    {
+      "path": "examples/protocol/policy-audit-event.json",
+      "bytes": 535,
+      "sha256": "14021d2233cb650a463da01e2b0905fceda923bb09cfd587078fe96537d71ff2"
+    },
+    {
+      "path": "examples/protocol/policy-capability-request.json",
+      "bytes": 537,
+      "sha256": "031c86c91a49cd5cf8d7bcc9e29644c1e2ec2ebdac38d65fa70f0e91479a6eff"
+    },
+    {
+      "path": "examples/protocol/policy-decision.json",
+      "bytes": 642,
+      "sha256": "e4d2626af90565989490ab1f9c8d461c4d6bae9387d16503d15fcb479d8a861f"
+    },
+    {
+      "path": "examples/protocol/policy-effective-capability.json",
+      "bytes": 511,
+      "sha256": "263ac6e04d2e15ae9159405626bafb3e95d4ea5cb30cac1c6397f9fc398b2385"
+    },
+    {
+      "path": "examples/protocol/policy-environment-context.json",
+      "bytes": 124,
+      "sha256": "ed08631fb802524f9887d4f1e5b4e05ded21fb0d24039d0e427d4887394cdaeb"
+    },
+    {
+      "path": "examples/protocol/policy-evaluation-request.json",
+      "bytes": 768,
+      "sha256": "6a371234f429d5f4b54930a8d991395fc3a2b208688ff0eb754a7e4fd6ed05d5"
+    },
+    {
+      "path": "examples/protocol/policy-principal.json",
+      "bytes": 114,
+      "sha256": "b4ce4043d3f7927e2636ab88a11f3821921cd4f7f73c052ede67382ee20c086d"
+    },
+    {
+      "path": "examples/protocol/policy-reason-code.json",
+      "bytes": 27,
+      "sha256": "e71203a6baa66a612ca482cc999b9494dec6c40d36fb3e48c16006034689396f"
+    },
+    {
+      "path": "examples/protocol/policy-registry-descriptor.json",
+      "bytes": 447,
+      "sha256": "82fc5c4f5e8c8a28121344c91e6747815622007582cb08e918e8eeb5b54a0fa6"
+    },
+    {
+      "path": "examples/protocol/policy-resource.json",
+      "bytes": 106,
+      "sha256": "219a78b253c0f5ee2b114893dcaaaae186dc1b629816802ee8e0bd575d8e4bfc"
+    },
+    {
       "path": "examples/protocol/retention-policy.json",
       "bytes": 69,
       "sha256": "a57eb5d1761f65e158752b850c2f68baaa373dcd10f11b926401562eeabf4609"
@@ -1247,7 +1307,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "49d515e2e279bc447e344ee3aa68bdecebb95a6396201a0b6890ab7286fc46bd"
+      "sha256": "c8c31d57d55da619290034a0aee4ae90862628329628ad9f6612f4cf372667b3"
     },
     {
       "path": "LICENSE",
@@ -1276,8 +1336,8 @@
     },
     {
       "path": "package-lock.json",
-      "bytes": 6011,
-      "sha256": "118fad71b9c945094613cd85218b34e096989d617922599f797a6098cee6b137"
+      "bytes": 6553,
+      "sha256": "8fd2024bb3cc5801e8029b3c45893ac30a09cab32b966ff1e08675c24c09ae19"
     },
     {
       "path": "package.json",
@@ -1375,9 +1435,14 @@
       "sha256": "e5881812e964993741ddae6460fd11d46cb7d044e95e72a9ab7e64b45d5ccfed"
     },
     {
+      "path": "packages/policy/README.md",
+      "bytes": 2364,
+      "sha256": "ed9e6e9dd6606a4a3761847cc0145908deed0a1cede9cdba9e078415e2047a71"
+    },
+    {
       "path": "packages/policy/src/index.mjs",
-      "bytes": 3446,
-      "sha256": "5e7dd1f92f8d1d94defcd9f6f74dbdab3c555879b2a1f4838095b439ad14f40b"
+      "bytes": 31031,
+      "sha256": "a1d8434032b0091c8f42df3f984a55c5f29d8046f26721093c198591af88936d"
     },
     {
       "path": "packages/protocol/AGENTS.md",
@@ -1388,6 +1453,11 @@
       "path": "packages/protocol/package.json",
       "bytes": 136,
       "sha256": "342c87d373337f1010a7b97964599a1c77d4c4e837e1283b626695b8442b8c04"
+    },
+    {
+      "path": "packages/protocol/README.md",
+      "bytes": 735,
+      "sha256": "7011547b1d4d0a595140871caa88210b68375e3acd01e1f6809a032c575a11f8"
     },
     {
       "path": "packages/protocol/schemas/adapter-conformance-fixture.schema.json",
@@ -1580,6 +1650,61 @@
       "sha256": "e5e9b8e995772e489fe1827e8ee4f3fed78f06d8419dde38ac0dc4a345817f44"
     },
     {
+      "path": "packages/protocol/schemas/policy-approval-context.schema.json",
+      "bytes": 1103,
+      "sha256": "c216d365547ef15819fc7d7b324af44ec76f4f41283ced486a97920727ece540"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-audit-event.schema.json",
+      "bytes": 1563,
+      "sha256": "b89c842ab11daa9a2d175ef0a9c3034bfec610189d703ad8eb71e821af4f22cb"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-capability-request.schema.json",
+      "bytes": 2827,
+      "sha256": "f653944cae5a77cce8373d6368f519ead11a374d393ad8cecad0d6ea178d02f2"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-decision.schema.json",
+      "bytes": 2657,
+      "sha256": "2bd9d64039bad42ec00b94362a4cf81f845be4821093ee3d504e6742a4ffabfb"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-effective-capability.schema.json",
+      "bytes": 1744,
+      "sha256": "56d20f238d941b81597e9593cd2dffbf472393f21db9720bbcf70d7b8ca51d21"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-environment-context.schema.json",
+      "bytes": 590,
+      "sha256": "ca23c451de172d083b72d663b34dec523e00c99d37f71b2a72f86cb546f096c0"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-evaluation-request.schema.json",
+      "bytes": 6403,
+      "sha256": "146e51ad7e0c48ff6e50d933ffc16590370b7484b4826d9e218d13748386f331"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-principal.schema.json",
+      "bytes": 994,
+      "sha256": "9a7e0d2ed668a498f3663c37bcaa1468b7e196a1bfff2567c3708f01fd1a79b2"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-reason-code.schema.json",
+      "bytes": 855,
+      "sha256": "9406b9dc91b8f6b628fbdf36c5bd0d19ec3c74e7c07aa29771d72d70790ef2e4"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-registry-descriptor.schema.json",
+      "bytes": 1323,
+      "sha256": "0223c1f4945c497acdd66718c58b0b2bf28052c305fd6d9304a91b3640c7ffd3"
+    },
+    {
+      "path": "packages/protocol/schemas/policy-resource.schema.json",
+      "bytes": 702,
+      "sha256": "7f35a802eceb85893ab66227ecf03a2e8a65c7ee9b110836390f0054eac1b035"
+    },
+    {
       "path": "packages/protocol/schemas/project-status.schema.json",
       "bytes": 1587,
       "sha256": "6df789e89a4c10cb6a0623edceeda7cf2482e1df7400e65dec8dd6569b6aa9bc"
@@ -1691,8 +1816,8 @@
     },
     {
       "path": "packages/tool-registry/src/index.mjs",
-      "bytes": 1090,
-      "sha256": "635e8d49f3f32aceb2e688e4d992a4a9d0aad2c25b824c155d464665c437802b"
+      "bytes": 3113,
+      "sha256": "d3623a24e9517d5c58a3d65d82223c130e2d92ea2903ce87e4b0b4548aad7618"
     },
     {
       "path": "packages/ui/package.json",
@@ -1716,8 +1841,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26886,
-      "sha256": "6b36238316147fa58fadef45bfcac66e442944e6d670bf674d8a21b70793fea5"
+      "bytes": 26888,
+      "sha256": "d54133b71c9a4860174294e63126a648a82bdfbab17b5415229eca8c18dacafd"
     },
     {
       "path": "planning/README.md",
@@ -1731,8 +1856,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 13233,
-      "sha256": "5947e6a4d0ebf5de68e8a44ce34b10610fc2a8e60e9687ea738405f2be02f8c6"
+      "bytes": 13709,
+      "sha256": "ad1e671e468389e15fc8d45ad456f6b14cbbc33d1b8dff2ccc211d49ffe83870"
     },
     {
       "path": "providers/AGENTS.md",
@@ -1756,8 +1881,8 @@
     },
     {
       "path": "providers/native/catalog.json",
-      "bytes": 1366,
-      "sha256": "2a862c5d789f23d9f5bf038acebf86178f2e187646d8b4ae0cd671b24569b995"
+      "bytes": 1644,
+      "sha256": "fd27d888a37658a084fbec81483cd2281424ae8058dbb6c8d3cd9809fa99509a"
     },
     {
       "path": "providers/native/identity-local/package.json",
@@ -1818,6 +1943,21 @@
       "path": "providers/native/model-ollama/src/index.mjs",
       "bytes": 4660,
       "sha256": "f0db849ea7827a4d647909bce67b4530495eb6c6153fa0e144f11cd282d3d7c1"
+    },
+    {
+      "path": "providers/native/policy-deterministic/package.json",
+      "bytes": 144,
+      "sha256": "939418209c8e4363799a2f65e257b2b2f51ca6c7aa5202548cf101a6c6a7dba1"
+    },
+    {
+      "path": "providers/native/policy-deterministic/provider.json",
+      "bytes": 921,
+      "sha256": "44a99e8915fcbec224928763990507b69b3f79491f3a1b45ed4304ea22eff65e"
+    },
+    {
+      "path": "providers/native/policy-deterministic/src/index.mjs",
+      "bytes": 1672,
+      "sha256": "8041cc61c555708918e1ab1d1f8f39a786616292ab5b44bdb6c549ff15586672"
     },
     {
       "path": "providers/native/workflow-embedded/package.json",
@@ -1891,8 +2031,8 @@
     },
     {
       "path": "scripts/native-smoke.mjs",
-      "bytes": 3063,
-      "sha256": "a3dcd40b7e0d1cbd27019a2abcd7be5815aacc79bc96e6818c65e69c9e456c0b"
+      "bytes": 4194,
+      "sha256": "86e1fce86899ab9a5fe90d82e60c008cbd7ce7019d40ea183019c6f6474ec6c7"
     },
     {
       "path": "scripts/postgres-recovery-test.mjs",
@@ -1931,8 +2071,8 @@
     },
     {
       "path": "services/control-api/AGENTS.md",
-      "bytes": 1003,
-      "sha256": "38972126947af2c90b4715a8640b3715ff42b45bdc5d43e383d7a78554e054aa"
+      "bytes": 1258,
+      "sha256": "f222eb0f960ea24104bbb350f1ca705c5de4d1c502c09b93f40589978672a5d0"
     },
     {
       "path": "services/control-api/package.json",
@@ -1946,8 +2086,8 @@
     },
     {
       "path": "services/control-api/src/server.mjs",
-      "bytes": 37317,
-      "sha256": "9f6cd50ea892b97aa6d517ca22390b64236aa46a3d9f76f174d4f06ba2858290"
+      "bytes": 39547,
+      "sha256": "4626df82c223ab9b1e6610086230b9cc24f213ee216ff2193703835bf7b8f804"
     },
     {
       "path": "services/README.md",
@@ -2158,6 +2298,11 @@
       "path": "tests/planning.test.mjs",
       "bytes": 903,
       "sha256": "fc7bb0ca3d0a2c5851e202f0d6dd8e4f9c325f8a04a19212c8118cdf94e7efcd"
+    },
+    {
+      "path": "tests/policy-contextual.test.mjs",
+      "bytes": 17171,
+      "sha256": "af5ed271a0e97b680966ddad0b078703f26deff82b6742db949cb43afa4aff38"
     },
     {
       "path": "tests/policy.test.mjs",
