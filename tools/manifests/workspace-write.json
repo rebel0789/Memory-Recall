@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "tool:workspace-write",
+  "name": "Write bounded workspace files",
+  "version": "0.1.0",
+  "riskClass": "reversible-write",
+  "permissions": {
+    "filesystem": {
+      "read": [
+        "."
+      ],
+      "write": [
+        "."
+      ]
+    },
+    "network": []
+  },
+  "allowedRoles": [
+    "agent:context-curator",
+    "agent:backend-builder",
+    "agent:frontend-builder",
+    "agent:designer",
+    "agent:evaluator"
+  ],
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "timeoutMs": 30000,
+  "outputLimitBytes": 1000000,
+  "approval": {
+    "required": false,
+    "binding": "exact-operation-hash"
+  }
+}

@@ -1,0 +1,48 @@
+[
+  {
+    "id": "episode-can-be-proposed",
+    "input": {
+      "kind": "episode",
+      "text": "The local test recovered after one bounded retry.",
+      "source": "run:verified",
+      "sourceTrust": "verified",
+      "stability": "stable"
+    },
+    "expect": {
+      "decision": "propose",
+      "reasons": []
+    }
+  },
+  {
+    "id": "preference-needs-confirmation",
+    "input": {
+      "kind": "preference",
+      "text": "Prefer short release notes.",
+      "source": "model-inference",
+      "sourceTrust": "unverified",
+      "stability": "stable"
+    },
+    "expect": {
+      "decision": "review",
+      "reasons": [
+        "user_confirmation_required"
+      ]
+    }
+  },
+  {
+    "id": "external-fact-needs-verification",
+    "input": {
+      "kind": "fact",
+      "text": "The external service changed its policy.",
+      "source": "external-page",
+      "sourceTrust": "unverified",
+      "stability": "stable"
+    },
+    "expect": {
+      "decision": "review",
+      "reasons": [
+        "source_verification_required"
+      ]
+    }
+  }
+]

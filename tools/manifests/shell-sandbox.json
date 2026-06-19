@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "tool:shell-sandbox",
+  "name": "Execute bounded local development commands",
+  "version": "0.1.0",
+  "riskClass": "reversible-write",
+  "permissions": {
+    "filesystem": {
+      "read": [
+        "."
+      ],
+      "write": [
+        ".local",
+        "coverage",
+        "tmp"
+      ]
+    },
+    "network": [],
+    "process": [
+      "node",
+      "npm",
+      "git",
+      "docker"
+    ]
+  },
+  "allowedRoles": [
+    "agent:backend-builder",
+    "agent:frontend-builder",
+    "agent:reviewer",
+    "agent:security-auditor",
+    "agent:evaluator",
+    "agent:release-manager"
+  ],
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "timeoutMs": 30000,
+  "outputLimitBytes": 1000000,
+  "approval": {
+    "required": false,
+    "binding": "exact-operation-hash"
+  }
+}

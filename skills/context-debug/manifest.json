@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:context-debug",
+  "name": "Context Debug",
+  "version": "0.1.0",
+  "triggers": [
+    "context drift",
+    "wrong retrieval",
+    "manifest"
+  ],
+  "tools": [
+    "tool:filesystem-read",
+    "tool:workspace-write"
+  ],
+  "sideEffectClass": "reversible-write",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

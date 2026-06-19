@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/source-snapshot-1.0.json",
+  "title": "Source Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "provider",
+    "workspaceId",
+    "kind",
+    "hashAlgorithm",
+    "contentHash",
+    "hash",
+    "byteSize",
+    "size",
+    "mediaType",
+    "filename",
+    "dataClass",
+    "retention",
+    "trust",
+    "capturedAt",
+    "createdAt",
+    "collector",
+    "retrievalMethod",
+    "sourceLocator",
+    "metadata"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^src_[A-Za-z0-9._-]{16,128}$", "maxLength": 132 },
+    "provider": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "workspaceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", "maxLength": 128 },
+    "kind": { "const": "source_snapshot" },
+    "hashAlgorithm": { "const": "sha256" },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "byteSize": { "type": "integer", "minimum": 0 },
+    "size": { "type": "integer", "minimum": 0 },
+    "mediaType": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]{0,126}$", "maxLength": 127 },
+    "filename": { "type": ["string", "null"], "maxLength": 255 },
+    "dataClass": { "enum": ["public", "workspace-private", "sensitive"] },
+    "retention": { "$ref": "#/$defs/retention" },
+    "trust": { "const": "untrusted-external" },
+    "capturedAt": { "type": "string", "format": "date-time" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "collector": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "retrievalMethod": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "sourceLocator": { "type": "string", "minLength": 1, "maxLength": 2048 },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["workspace-default", "retain", "expire-at", "legal-hold"] },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

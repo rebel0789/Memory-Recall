@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import { ToolRegistry } from '../packages/tool-registry/src/index.mjs';
+const manifest={id:'tool:test',allowedRoles:['reader'],riskClass:'read-only'};
+test('registry invokes an authorized handler',async()=>{const registry=new ToolRegistry();registry.register(manifest,async input=>({echo:input.value}));const result=await registry.invoke({toolId:'tool:test',actorId:'a',role:'reader',input:{value:3}});assert.equal(result.status,'completed');assert.equal(result.output.echo,3)});
+test('registry does not invoke for a denied actor',async()=>{let called=false;const registry=new ToolRegistry();registry.register(manifest,async()=>{called=true});const result=await registry.invoke({toolId:'tool:test',actorId:'a',role:'writer',input:{}});assert.equal(result.status,'denied');assert.equal(called,false)});

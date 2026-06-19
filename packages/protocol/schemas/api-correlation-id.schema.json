@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-correlation-id-1.0.json",
+  "title": "API Correlation Identifier",
+  "type": "string",
+  "pattern": "^req_[A-Za-z0-9._:-]{8,96}$",
+  "maxLength": 100
+}

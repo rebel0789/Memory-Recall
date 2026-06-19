@@ -1,0 +1,5 @@
+# Copy to CODEOWNERS after replacing OWNER.
+* @OWNER
+/packages/protocol/ @OWNER
+/docs/security/ @OWNER
+/deploy/postgres/migrations/ @OWNER

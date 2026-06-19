@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "exp_0123456789abcdef0123456789abcdef",
+  "provider": "provider:native:artifact:filesystem",
+  "workspaceId": "ws_local",
+  "exportedAt": "2026-06-19T10:00:00.000Z",
+  "includeTombstones": false,
+  "records": [
+    {
+      "id": "art_0123456789abcdef0123456789abcdef",
+      "kind": "artifact",
+      "contentHash": "0967115f2813a3541eaef77de9d9d5773f1c0c04314b0bbfe4ff3b3b1c55b5d5",
+      "hashAlgorithm": "sha256",
+      "byteSize": 4,
+      "relativePath": "records/art_0123456789abcdef0123456789abcdef.json"
+    }
+  ],
+  "objects": [
+    {
+      "hashAlgorithm": "sha256",
+      "contentHash": "0967115f2813a3541eaef77de9d9d5773f1c0c04314b0bbfe4ff3b3b1c55b5d5",
+      "byteSize": 4,
+      "relativePath": "objects/sha256/09/0967115f2813a3541eaef77de9d9d5773f1c0c04314b0bbfe4ff3b3b1c55b5d5"
+    }
+  ],
+  "fingerprintAlgorithm": "sha256",
+  "fingerprint": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+}

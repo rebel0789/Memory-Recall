@@ -1,0 +1,6 @@
+{
+  "name": "ci token",
+  "workspaceIds": ["ws_local"],
+  "scopes": ["run.read", "run.execute"],
+  "expiresAt": "2026-06-20T10:00:00.000Z"
+}

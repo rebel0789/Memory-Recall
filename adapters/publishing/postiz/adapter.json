@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "protocolVersion": "1.0.0",
+  "id": "adapter:publishing:postiz",
+  "name": "Postiz",
+  "version": "0.0.0-plan",
+  "category": "publishing",
+  "status": "planned",
+  "enabledByDefault": false,
+  "upstream": {
+    "repository": "https://github.com/gitroomhq/postiz-app",
+    "commit": "UNPINNED",
+    "checksum": "UNVERIFIED"
+  },
+  "licenseReview": {
+    "status": "required",
+    "spdx": "UNVERIFIED",
+    "reviewedAt": null,
+    "notes": "Re-verify license and notices at the exact pinned commit."
+  },
+  "trustBoundary": {
+    "summary": "Separate service; consequential write; official OAuth; exact approval and idempotency",
+    "network": "deny until reviewed",
+    "filesystem": "deny until reviewed",
+    "secrets": "none until reviewed",
+    "sideEffectClass": "consequential-write"
+  },
+  "contract": "PublisherPort",
+  "capabilities": [
+    "publishing.schedule",
+    "publishing.publish",
+    "publishing.analytics"
+  ],
+  "installation": {
+    "mode": "http",
+    "command": null,
+    "requiresNetwork": true
+  },
+  "conformance": {
+    "fixture": "fixtures/conformance.json",
+    "status": "not-run",
+    "lastRunAt": null
+  },
+  "maintainer": null
+}

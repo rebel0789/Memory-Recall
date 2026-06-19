@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0.0",
+  "protocolVersion": "1.0.0",
+  "id": "adapter:memory:openviking",
+  "name": "OpenViking",
+  "version": "0.0.0-plan",
+  "category": "memory",
+  "status": "planned",
+  "enabledByDefault": false,
+  "upstream": {
+    "repository": "https://github.com/volcengine/OpenViking",
+    "commit": "UNPINNED",
+    "checksum": "UNVERIFIED"
+  },
+  "licenseReview": {
+    "status": "required",
+    "spdx": "UNVERIFIED",
+    "reviewedAt": null,
+    "notes": "Re-verify license and notices at the exact pinned commit."
+  },
+  "trustBoundary": {
+    "summary": "Separate service due maturity/license boundary; verify exact commit",
+    "network": "deny until reviewed",
+    "filesystem": "deny until reviewed",
+    "secrets": "none until reviewed",
+    "sideEffectClass": "read-only or local-derived"
+  },
+  "contract": "MemoryBackendPort",
+  "capabilities": [
+    "memory.search",
+    "context.tiered-retrieval"
+  ],
+  "installation": {
+    "mode": "http",
+    "command": null,
+    "requiresNetwork": false
+  },
+  "conformance": {
+    "fixture": "fixtures/conformance.json",
+    "status": "not-run",
+    "lastRunAt": null
+  },
+  "maintainer": null
+}

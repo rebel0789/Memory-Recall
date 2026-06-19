@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "error": {
+    "code": "request_validation_failed",
+    "message": "The request did not match the API contract.",
+    "correlationId": "req_example-00000000-0000-4000-8000-000000000000",
+    "issues": [
+      {
+        "path": "$.objective",
+        "code": "max_length"
+      }
+    ]
+  }
+}

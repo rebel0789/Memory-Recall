@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-user-summary-1.0.json",
+  "title": "Auth User Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "username", "displayName", "status", "createdAt", "updatedAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^usr_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "username": { "type": "string", "maxLength": 80 },
+    "displayName": { "type": "string", "maxLength": 120 },
+    "status": { "enum": ["active", "disabled"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

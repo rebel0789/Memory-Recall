@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/content-observation-1.0.json",
+  "title": "Content Observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "workspaceId",
+    "source",
+    "platform",
+    "text",
+    "collectedAt",
+    "metricAt",
+    "contentHash",
+    "observed",
+    "inferred",
+    "trust"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string"
+    },
+    "workspaceId": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "creator": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "publishedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "collectedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metricAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "contentHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "observed": {
+      "type": "object"
+    },
+    "inferred": {
+      "type": "object"
+    },
+    "trust": {
+      "type": "string"
+    }
+  }
+}

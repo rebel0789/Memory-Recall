@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/stored-object-descriptor-1.0.json",
+  "title": "Stored Object Descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["hashAlgorithm", "contentHash", "byteSize", "relativePath"],
+  "properties": {
+    "hashAlgorithm": { "const": "sha256" },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "byteSize": { "type": "integer", "minimum": 0 },
+    "relativePath": { "type": "string", "minLength": 1, "maxLength": 4096 }
+  }
+}

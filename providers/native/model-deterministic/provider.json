@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:model:deterministic",
+  "name": "Native Deterministic Model",
+  "version": "0.2.0-dev",
+  "category": "model",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "ModelGatewayPort",
+  "capabilities": [
+    "model.generate.synthetic",
+    "model.structured-output",
+    "model.deterministic"
+  ],
+  "limits": {
+    "purpose": "offline bootstrap and regression tests",
+    "generalReasoning": false
+  },
+  "dataPaths": [],
+  "experimental": false,
+  "notes": [
+    "This is a deterministic fixture generator, not a general language model."
+  ]
+}

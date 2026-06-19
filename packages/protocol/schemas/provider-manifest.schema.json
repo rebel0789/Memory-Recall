@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/provider-manifest.schema.json",
+  "title": "Native Provider Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "category",
+    "enabledByDefault",
+    "locality",
+    "contract",
+    "capabilities",
+    "limits",
+    "dataPaths"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^provider:native:[a-z0-9-]+:[a-z0-9-]+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "category": { "enum": ["memory", "artifact", "workflow", "model", "event", "policy", "identity"] },
+    "enabledByDefault": { "type": "boolean" },
+    "locality": { "enum": ["in-process", "loopback-process"] },
+    "contract": { "type": "string", "minLength": 1 },
+    "contractVersion": { "type": "string", "minLength": 1 },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "limits": { "type": "object" },
+    "dataPaths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "experimental": { "type": "boolean", "default": false },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}

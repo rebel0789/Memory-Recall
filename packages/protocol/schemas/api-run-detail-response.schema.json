@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-run-detail-response-1.0.json",
+  "title": "Run Detail API Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "run", "events"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "run": { "type": "object", "additionalProperties": true },
+    "events": { "type": "array", "maxItems": 128, "items": { "type": "object", "additionalProperties": true } }
+  }
+}

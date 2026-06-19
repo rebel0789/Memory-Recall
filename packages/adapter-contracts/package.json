@@ -1,0 +1,7 @@
+{
+  "name": "@open-agent-fabric/adapter-contracts",
+  "version": "0.2.0-dev",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0"
+}

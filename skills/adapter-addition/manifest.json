@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:adapter-addition",
+  "name": "Adapter Addition",
+  "version": "0.1.0",
+  "triggers": [
+    "new adapter",
+    "integration",
+    "upstream project"
+  ],
+  "tools": [
+    "tool:filesystem-read",
+    "tool:source-read",
+    "tool:workspace-write"
+  ],
+  "sideEffectClass": "reversible-write",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

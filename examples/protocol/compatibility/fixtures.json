@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "1.0.0",
+  "fixtures": [
+    {
+      "id": "event-current-valid",
+      "schema": "packages/protocol/schemas/event.schema.json",
+      "instance": "examples/protocol/event.json",
+      "expectedValid": true
+    },
+    {
+      "id": "event-v1-minimal-backward-compatible",
+      "schema": "packages/protocol/schemas/event.schema.json",
+      "instance": "examples/protocol/compatibility/valid/event-v1-minimal.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-request-current-valid",
+      "schema": "packages/protocol/schemas/context-request.schema.json",
+      "instance": "examples/protocol/context-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-manifest-current-valid",
+      "schema": "packages/protocol/schemas/context-manifest.schema.json",
+      "instance": "examples/protocol/context-manifest.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-current-valid",
+      "schema": "packages/protocol/schemas/memory-record.schema.json",
+      "instance": "examples/protocol/memory-proposal.json",
+      "expectedValid": true
+    },
+    {
+      "id": "artifact-record-current-valid",
+      "schema": "packages/protocol/schemas/artifact-record.schema.json",
+      "instance": "examples/protocol/artifact-record.json",
+      "expectedValid": true
+    },
+    {
+      "id": "source-snapshot-current-valid",
+      "schema": "packages/protocol/schemas/source-snapshot.schema.json",
+      "instance": "examples/protocol/source-snapshot.json",
+      "expectedValid": true
+    },
+    {
+      "id": "stored-object-current-valid",
+      "schema": "packages/protocol/schemas/stored-object-descriptor.schema.json",
+      "instance": "examples/protocol/stored-object-descriptor.json",
+      "expectedValid": true
+    },
+    {
+      "id": "retention-policy-current-valid",
+      "schema": "packages/protocol/schemas/retention-policy.schema.json",
+      "instance": "examples/protocol/retention-policy.json",
+      "expectedValid": true
+    },
+    {
+      "id": "deletion-receipt-current-valid",
+      "schema": "packages/protocol/schemas/deletion-receipt.schema.json",
+      "instance": "examples/protocol/deletion-receipt.json",
+      "expectedValid": true
+    },
+    {
+      "id": "artifact-export-manifest-current-valid",
+      "schema": "packages/protocol/schemas/artifact-export-manifest.schema.json",
+      "instance": "examples/protocol/artifact-export-manifest.json",
+      "expectedValid": true
+    },
+    {
+      "id": "integrity-verification-current-valid",
+      "schema": "packages/protocol/schemas/integrity-verification-result.schema.json",
+      "instance": "examples/protocol/integrity-verification-result.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-correlation-id-current-valid",
+      "schema": "packages/protocol/schemas/api-correlation-id.schema.json",
+      "instance": "examples/protocol/api-correlation-id.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-run-id-path-current-valid",
+      "schema": "packages/protocol/schemas/api-run-id-path-parameter.schema.json",
+      "instance": "examples/protocol/api-run-id-path-parameter.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-error-envelope-current-valid",
+      "schema": "packages/protocol/schemas/api-error-envelope.schema.json",
+      "instance": "examples/protocol/api-error-envelope.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-start-run-request-current-valid",
+      "schema": "packages/protocol/schemas/api-start-run-request.schema.json",
+      "instance": "examples/protocol/api-start-run-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-start-run-response-current-valid",
+      "schema": "packages/protocol/schemas/api-start-run-response.schema.json",
+      "instance": "examples/protocol/api-start-run-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-run-list-response-current-valid",
+      "schema": "packages/protocol/schemas/api-run-list-response.schema.json",
+      "instance": "examples/protocol/api-run-list-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-run-detail-response-current-valid",
+      "schema": "packages/protocol/schemas/api-run-detail-response.schema.json",
+      "instance": "examples/protocol/api-run-detail-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-context-compile-request-current-valid",
+      "schema": "packages/protocol/schemas/api-context-compile-request.schema.json",
+      "instance": "examples/protocol/api-context-compile-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-reset-response-current-valid",
+      "schema": "packages/protocol/schemas/api-reset-response.schema.json",
+      "instance": "examples/protocol/api-reset-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-health-response-current-valid",
+      "schema": "packages/protocol/schemas/api-health-response.schema.json",
+      "instance": "examples/protocol/api-health-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "api-project-status-response-current-valid",
+      "schema": "packages/protocol/schemas/api-project-status-response.schema.json",
+      "instance": "examples/protocol/api-project-status-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "agent-pack-valid",
+      "schema": "packages/protocol/schemas/agent-pack.schema.json",
+      "instance": "examples/agentpacks/content-intelligence.agentpack.json",
+      "expectedValid": true
+    },
+    {
+      "id": "provider-valid",
+      "schema": "packages/protocol/schemas/provider-manifest.schema.json",
+      "instance": "providers/native/memory-sqlite/provider.json",
+      "expectedValid": true
+    },
+    {
+      "id": "adapter-valid",
+      "schema": "packages/protocol/schemas/adapter-manifest.schema.json",
+      "instance": "adapters/tool/graphify/adapter.json",
+      "expectedValid": true
+    },
+    {
+      "id": "event-missing-run-invalid",
+      "schema": "packages/protocol/schemas/event.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/event-missing-run.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-request-invalid",
+      "schema": "packages/protocol/schemas/context-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-request-over-budget-shape.json",
+      "expectedValid": false
+    },
+    {
+      "id": "agent-pack-secret-field-invalid",
+      "schema": "packages/protocol/schemas/agent-pack.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
+      "expectedValid": false
+    },
+    {
+      "id": "provider-locality-invalid",
+      "schema": "packages/protocol/schemas/provider-manifest.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/provider-remote-locality.json",
+      "expectedValid": false
+    }
+  ]
+}

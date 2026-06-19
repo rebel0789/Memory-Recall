@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "agent:researcher",
+  "name": "Researcher",
+  "version": "0.1.0",
+  "role": "Collects and normalizes evidence while keeping inference separate",
+  "description": "Collects and normalizes evidence while keeping inference separate",
+  "allowedTools": [
+    "tool:filesystem-read",
+    "tool:source-read",
+    "tool:local-http"
+  ],
+  "allowedSkills": [
+    "skill:content-research",
+    "skill:source-verification"
+  ],
+  "defaultContextPolicy": {
+    "profile": "implementation",
+    "tokenBudget": 12000,
+    "allowedScopes": [
+      "workspace-private",
+      "public"
+    ]
+  },
+  "completionCriteria": [
+    "Task stop condition met",
+    "Relevant tests pass",
+    "Security and status impact reported"
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0.0",
+  "run": {
+    "id": "run_example",
+    "workspaceId": "ws_local",
+    "workflowId": "workflow:content-intelligence",
+    "workflowVersion": "0.1.0",
+    "objective": "Find evidence-backed local agent angles",
+    "status": "completed",
+    "residency": "local-only",
+    "createdAt": "2026-06-19T10:00:00.000Z",
+    "completedAt": "2026-06-19T10:00:01.000Z",
+    "output": [],
+    "verification": {
+      "valid": true
+    }
+  },
+  "events": [
+    {
+      "schemaVersion": "1.0.0",
+      "id": "evt_example",
+      "workspaceId": "ws_local",
+      "type": "run.created",
+      "runId": "run_example",
+      "actorId": "system",
+      "sequence": 0,
+      "occurredAt": "2026-06-19T10:00:00.000Z",
+      "correlationId": "req_example-00000000-0000-4000-8000-000000000000",
+      "causationId": null,
+      "dataClass": "workspace-private",
+      "producerVersion": "0.2.0-dev",
+      "payload": {}
+    }
+  ]
+}

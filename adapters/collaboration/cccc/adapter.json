@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "protocolVersion": "1.0.0",
+  "id": "adapter:collaboration:cccc",
+  "name": "CCCC",
+  "version": "0.0.0-plan",
+  "category": "collaboration",
+  "status": "planned",
+  "enabledByDefault": false,
+  "upstream": {
+    "repository": "https://github.com/ChesterRa/cccc",
+    "commit": "UNPINNED",
+    "checksum": "UNVERIFIED"
+  },
+  "licenseReview": {
+    "status": "required",
+    "spdx": "UNVERIFIED",
+    "reviewedAt": null,
+    "notes": "Re-verify license and notices at the exact pinned commit."
+  },
+  "trustBoundary": {
+    "summary": "Local service/MCP bridge; messages map to canonical OAF events",
+    "network": "deny until reviewed",
+    "filesystem": "deny until reviewed",
+    "secrets": "none until reviewed",
+    "sideEffectClass": "read-only or local-derived"
+  },
+  "contract": "CollaborationPort",
+  "capabilities": [
+    "collaboration.rooms",
+    "collaboration.handoffs",
+    "collaboration.obligations"
+  ],
+  "installation": {
+    "mode": "mcp",
+    "command": "cccc",
+    "requiresNetwork": false
+  },
+  "conformance": {
+    "fixture": "fixtures/conformance.json",
+    "status": "not-run",
+    "lastRunAt": null
+  },
+  "maintainer": null
+}

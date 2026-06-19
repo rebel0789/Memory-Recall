@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "riskClass",
+    "permissions",
+    "allowedRoles",
+    "inputSchema",
+    "outputSchema"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "riskClass": {
+      "enum": [
+        "read-only",
+        "reversible-write",
+        "consequential-write"
+      ]
+    },
+    "permissions": {
+      "type": "object"
+    },
+    "allowedRoles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "inputSchema": {
+      "type": "object"
+    },
+    "outputSchema": {
+      "type": "object"
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "outputLimitBytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "approval": {
+      "type": "object"
+    }
+  }
+}

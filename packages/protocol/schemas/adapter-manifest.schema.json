@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/adapter-manifest.schema.json",
+  "title": "External Adapter Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "protocolVersion",
+    "id",
+    "name",
+    "version",
+    "category",
+    "status",
+    "enabledByDefault",
+    "upstream",
+    "licenseReview",
+    "trustBoundary",
+    "contract",
+    "capabilities",
+    "installation",
+    "conformance"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "protocolVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^adapter:" },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "category": { "enum": ["memory", "tool", "design", "research", "model", "collaboration", "publishing", "workflow"] },
+    "status": {
+      "enum": ["planned", "pinned", "reviewed", "experimental", "supported", "deprecated", "removed"]
+    },
+    "enabledByDefault": { "type": "boolean" },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "commit", "checksum"],
+      "properties": {
+        "repository": { "type": "string", "pattern": "^https://" },
+        "commit": { "type": "string", "minLength": 1 },
+        "checksum": { "type": "string", "minLength": 1 }
+      }
+    },
+    "licenseReview": {
+      "type": "object",
+      "required": ["status", "spdx", "reviewedAt", "notes"],
+      "properties": {
+        "status": { "enum": ["required", "reviewed", "blocked"] },
+        "spdx": { "type": "string" },
+        "reviewedAt": { "type": ["string", "null"] },
+        "notes": { "type": "string" }
+      }
+    },
+    "trustBoundary": {
+      "type": "object",
+      "required": ["summary", "network", "filesystem", "secrets", "sideEffectClass"],
+      "properties": {
+        "summary": { "type": "string" },
+        "network": { "type": "string" },
+        "filesystem": { "type": "string" },
+        "secrets": { "type": "string" },
+        "sideEffectClass": { "type": "string" }
+      }
+    },
+    "contract": { "type": "string", "minLength": 1 },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "installation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "command", "requiresNetwork"],
+      "properties": {
+        "mode": { "enum": ["none", "cli", "mcp", "http", "container", "library"] },
+        "command": { "type": ["string", "null"] },
+        "requiresNetwork": { "type": "boolean" }
+      }
+    },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fixture", "status", "lastRunAt"],
+      "properties": {
+        "fixture": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["not-run", "failed", "passed"] },
+        "lastRunAt": { "type": ["string", "null"] }
+      }
+    },
+    "maintainer": { "type": ["string", "null"] }
+  }
+}

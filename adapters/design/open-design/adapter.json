@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "protocolVersion": "1.0.0",
+  "id": "adapter:design:open-design",
+  "name": "Open Design",
+  "version": "0.0.0-plan",
+  "category": "design",
+  "status": "planned",
+  "enabledByDefault": false,
+  "upstream": {
+    "repository": "https://github.com/nexu-io/open-design",
+    "commit": "UNPINNED",
+    "checksum": "UNVERIFIED"
+  },
+  "licenseReview": {
+    "status": "required",
+    "spdx": "UNVERIFIED",
+    "reviewedAt": null,
+    "notes": "Re-verify license and notices at the exact pinned commit."
+  },
+  "trustBoundary": {
+    "summary": "MCP or CLI subprocess, file output, optional local model/network",
+    "network": "deny until reviewed",
+    "filesystem": "deny until reviewed",
+    "secrets": "none until reviewed",
+    "sideEffectClass": "read-only or local-derived"
+  },
+  "contract": "DesignArtifactPort",
+  "capabilities": [
+    "design.prototype",
+    "design.deck",
+    "design.image",
+    "design.video"
+  ],
+  "installation": {
+    "mode": "mcp",
+    "command": "od",
+    "requiresNetwork": false
+  },
+  "conformance": {
+    "fixture": "fixtures/conformance.json",
+    "status": "not-run",
+    "lastRunAt": null
+  },
+  "maintainer": null
+}

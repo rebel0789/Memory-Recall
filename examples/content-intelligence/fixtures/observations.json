@@ -1,0 +1,222 @@
+[
+  {
+    "id": "obs_messy_failure",
+    "source": "fixture://builder-a/post-1",
+    "platform": "social",
+    "creator": "builder-a",
+    "text": "I stopped hiding the failed tool calls. The post showing retries, denied permissions, and recovery got more useful replies than the polished demo.",
+    "publishedAt": "2026-06-16T09:00:00Z",
+    "collectedAt": "2026-06-19T08:00:00Z",
+    "metricAt": "2026-06-19T08:00:00Z",
+    "metrics": {
+      "views": 8400,
+      "replies": 74,
+      "saves": 126
+    },
+    "observed": {
+      "format": "build log"
+    },
+    "inferred": {
+      "pattern": "messy failure",
+      "emotion": "relief"
+    }
+  },
+  {
+    "id": "obs_boring_workflow",
+    "source": "fixture://builder-b/post-2",
+    "platform": "social",
+    "creator": "builder-b",
+    "text": "The agent post people understood fastest automated one boring weekly support triage workflow from inbox to cited brief.",
+    "publishedAt": "2026-06-17T12:00:00Z",
+    "collectedAt": "2026-06-19T08:01:00Z",
+    "metricAt": "2026-06-19T08:01:00Z",
+    "metrics": {
+      "views": 12200,
+      "replies": 53,
+      "saves": 241
+    },
+    "observed": {
+      "format": "workflow breakdown"
+    },
+    "inferred": {
+      "pattern": "boring workflow",
+      "emotion": "clarity"
+    }
+  },
+  {
+    "id": "obs_context_selection",
+    "source": "fixture://researcher-c/post-3",
+    "platform": "social",
+    "creator": "researcher-c",
+    "text": "A smaller context built from decisions, current state, and cited evidence beat a raw history dump in our local agent test.",
+    "publishedAt": "2026-06-18T07:00:00Z",
+    "collectedAt": "2026-06-19T08:02:00Z",
+    "metricAt": "2026-06-19T08:02:00Z",
+    "metrics": {
+      "views": 6100,
+      "replies": 41,
+      "saves": 198
+    },
+    "observed": {
+      "format": "experiment"
+    },
+    "inferred": {
+      "pattern": "counterintuitive result",
+      "emotion": "surprise"
+    }
+  },
+  {
+    "id": "obs_checklist",
+    "source": "fixture://creator-d/post-4",
+    "platform": "social",
+    "creator": "creator-d",
+    "text": "The most saved part was not the agent prompt. It was a six-step checklist for reproducing the workflow locally.",
+    "publishedAt": "2026-06-15T11:00:00Z",
+    "collectedAt": "2026-06-19T08:03:00Z",
+    "metricAt": "2026-06-19T08:03:00Z",
+    "metrics": {
+      "views": 9200,
+      "replies": 29,
+      "saves": 354
+    },
+    "observed": {
+      "format": "checklist"
+    },
+    "inferred": {
+      "pattern": "reusable artifact",
+      "emotion": "utility"
+    }
+  },
+  {
+    "id": "obs_local_privacy",
+    "source": "fixture://builder-e/post-5",
+    "platform": "social",
+    "creator": "builder-e",
+    "text": "A local-first agent demo earned trust when it clearly showed which data stayed on-device and which optional connector could use the network.",
+    "publishedAt": "2026-06-14T14:00:00Z",
+    "collectedAt": "2026-06-19T08:04:00Z",
+    "metricAt": "2026-06-19T08:04:00Z",
+    "metrics": {
+      "views": 5300,
+      "replies": 61,
+      "saves": 103
+    },
+    "observed": {
+      "format": "architecture note"
+    },
+    "inferred": {
+      "pattern": "trust boundary",
+      "emotion": "confidence"
+    }
+  },
+  {
+    "id": "obs_generic_ai",
+    "source": "fixture://creator-f/post-6",
+    "platform": "social",
+    "creator": "creator-f",
+    "text": "Ten generic predictions about AI agents with no workflow, benchmark, or source evidence.",
+    "publishedAt": "2026-06-18T15:00:00Z",
+    "collectedAt": "2026-06-19T08:05:00Z",
+    "metricAt": "2026-06-19T08:05:00Z",
+    "metrics": {
+      "views": 1800,
+      "replies": 4,
+      "saves": 8
+    },
+    "observed": {
+      "format": "list"
+    },
+    "inferred": {
+      "pattern": "generic prediction",
+      "emotion": "hype"
+    }
+  },
+  {
+    "id": "obs_unrelated_recipe",
+    "source": "fixture://cook-g/post-7",
+    "platform": "social",
+    "creator": "cook-g",
+    "text": "A detailed recipe for roasted tomatoes and sourdough with no connection to software agents.",
+    "publishedAt": "2026-06-18T17:00:00Z",
+    "collectedAt": "2026-06-19T08:06:00Z",
+    "metricAt": "2026-06-19T08:06:00Z",
+    "metrics": {
+      "views": 45000,
+      "replies": 210,
+      "saves": 900
+    },
+    "observed": {
+      "format": "recipe"
+    },
+    "inferred": {
+      "pattern": "unrelated",
+      "emotion": "comfort"
+    }
+  },
+  {
+    "id": "obs_memory_hype",
+    "source": "fixture://vendor-h/post-8",
+    "platform": "social",
+    "creator": "vendor-h",
+    "text": "Unlimited memory solves every agent problem forever. No evaluation details or architecture are provided.",
+    "publishedAt": "2026-06-13T09:00:00Z",
+    "collectedAt": "2026-06-19T08:07:00Z",
+    "metricAt": "2026-06-19T08:07:00Z",
+    "metrics": {
+      "views": 3000,
+      "replies": 9,
+      "saves": 11
+    },
+    "observed": {
+      "format": "claim"
+    },
+    "inferred": {
+      "pattern": "absolute claim",
+      "emotion": "hype"
+    }
+  },
+  {
+    "id": "obs_trace_debug",
+    "source": "fixture://engineer-i/post-9",
+    "platform": "social",
+    "creator": "engineer-i",
+    "text": "The run timeline cut our debugging time because we could see the selected context, policy decision, and exact failed step.",
+    "publishedAt": "2026-06-16T18:00:00Z",
+    "collectedAt": "2026-06-19T08:08:00Z",
+    "metricAt": "2026-06-19T08:08:00Z",
+    "metrics": {
+      "views": 7400,
+      "replies": 38,
+      "saves": 167
+    },
+    "observed": {
+      "format": "lesson"
+    },
+    "inferred": {
+      "pattern": "debugging result",
+      "emotion": "control"
+    }
+  },
+  {
+    "id": "obs_copying_risk",
+    "source": "fixture://writer-j/post-10",
+    "platform": "social",
+    "creator": "writer-j",
+    "text": "Pattern research helped only after we stopped copying hooks and started adapting the mechanism to our own evidence.",
+    "publishedAt": "2026-06-17T20:00:00Z",
+    "collectedAt": "2026-06-19T08:09:00Z",
+    "metricAt": "2026-06-19T08:09:00Z",
+    "metrics": {
+      "views": 6800,
+      "replies": 35,
+      "saves": 190
+    },
+    "observed": {
+      "format": "lesson"
+    },
+    "inferred": {
+      "pattern": "anti-copying",
+      "emotion": "integrity"
+    }
+  }
+]

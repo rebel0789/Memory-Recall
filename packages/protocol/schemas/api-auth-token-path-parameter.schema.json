@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-token-path-parameter-1.0.json",
+  "title": "Auth Token Path Parameter",
+  "type": "string",
+  "pattern": "^tok_[A-Za-z0-9._:-]{1,120}$",
+  "maxLength": 128
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/deletion-receipt-1.0.json",
+  "title": "Artifact Deletion Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "provider",
+    "workspaceId",
+    "recordId",
+    "kind",
+    "contentHash",
+    "hashAlgorithm",
+    "deleted",
+    "bodyDeleted",
+    "reason",
+    "deletedBy",
+    "deletedAt",
+    "retention"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^tmb_[A-Za-z0-9._-]{16,160}$", "maxLength": 164 },
+    "provider": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "workspaceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", "maxLength": 128 },
+    "recordId": { "type": "string", "pattern": "^(art|src)_[A-Za-z0-9._-]{16,128}$", "maxLength": 132 },
+    "kind": { "enum": ["artifact", "source_snapshot"] },
+    "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "hashAlgorithm": { "const": "sha256" },
+    "deleted": { "type": "boolean" },
+    "bodyDeleted": { "type": "boolean" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "deletedBy": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "deletedAt": { "type": "string", "format": "date-time" },
+    "retention": { "$ref": "#/$defs/retention" }
+  },
+  "$defs": {
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["workspace-default", "retain", "expire-at", "legal-hold"] },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

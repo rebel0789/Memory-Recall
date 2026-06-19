@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:implementation-task",
+  "name": "Implementation Task",
+  "version": "0.1.0",
+  "triggers": [
+    "OAF task",
+    "implementation",
+    "bug fix"
+  ],
+  "tools": [
+    "tool:filesystem-read",
+    "tool:workspace-write",
+    "tool:shell-sandbox"
+  ],
+  "sideEffectClass": "reversible-write",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

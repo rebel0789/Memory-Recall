@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:workflow:embedded",
+  "name": "Native Embedded Workflow Runtime",
+  "version": "0.2.0-dev",
+  "category": "workflow",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "WorkflowRuntimePort",
+  "capabilities": [
+    "workflow.start",
+    "workflow.inspect",
+    "workflow.cancel",
+    "workflow.event-checkpoint"
+  ],
+  "limits": {
+    "durability": "event checkpoints only",
+    "processRecovery": false,
+    "parallelRuns": "bounded by host process"
+  },
+  "dataPaths": [".local/state.json"],
+  "experimental": false,
+  "notes": [
+    "Records checkpoints but cannot resume arbitrary JavaScript closures after process restart.",
+    "Use a durable workflow adapter for team-scale process recovery."
+  ]
+}

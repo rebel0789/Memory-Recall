@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:identity:local",
+  "name": "Local Identity Store",
+  "version": "0.1.0",
+  "category": "identity",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "IdentityStorePort",
+  "contractVersion": "1.0.0",
+  "capabilities": [
+    "first-owner-bootstrap",
+    "scrypt-passwords",
+    "opaque-sessions",
+    "csrf-binding",
+    "hashed-api-tokens",
+    "workspace-memberships",
+    "security-audit"
+  ],
+  "limits": {
+    "users": "local bootstrap",
+    "passwordBytes": 256,
+    "sessionTokenBits": 256,
+    "apiTokenBits": 256
+  },
+  "dataPaths": [
+    ".local/identity/identity.json"
+  ],
+  "notes": [
+    "Stores password credentials and token hashes only; raw session, CSRF, and API token secrets are never persisted.",
+    "No remote fallback or external adapter is enabled."
+  ]
+}

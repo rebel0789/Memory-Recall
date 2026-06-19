@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import { evaluatePolicy } from '../packages/policy/src/index.mjs';
+test('allows an in-scope read',()=>{assert.equal(evaluatePolicy({actorId:'a',workspaceId:'w',action:'read',role:'reader',allowedRoles:['reader'],riskClass:'read-only'}).decision,'allow')});
+test('denies undeclared network access',()=>{const result=evaluatePolicy({actorId:'a',workspaceId:'w',action:'fetch',role:'reader',allowedRoles:['reader'],domain:'evil.example',allowedDomains:['docs.example'],riskClass:'read-only'});assert(result.reasons.includes('network_domain_denied'))});
+test('requires approval and idempotency for consequential writes',()=>{const result=evaluatePolicy({actorId:'a',workspaceId:'w',action:'publish',role:'publisher',allowedRoles:['publisher'],riskClass:'consequential-write'});assert(result.reasons.includes('approval_required'));assert(result.reasons.includes('idempotency_required'))});

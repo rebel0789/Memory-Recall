@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0.0",
+  "decision": "allow",
+  "action": "run.execute",
+  "workspaceId": "ws_local",
+  "actorId": "usr_example",
+  "role": "owner",
+  "reasons": [],
+  "policyVersion": "authz-1"
+}

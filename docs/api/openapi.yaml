@@ -1,0 +1,476 @@
+openapi: 3.1.0
+info:
+  title: Open Agent Fabric Bootstrap API
+  version: 0.2.0-dev
+  description: >-
+    Implemented dependency-free local bootstrap API. OAF-007 adds strict
+    boundary validation, correlation IDs, and sanitized errors. OAF-008 adds
+    native local identity, browser sessions, API tokens, CSRF protection, and
+    deterministic workspace authorization. Durable workflows, publishing, and
+    external adapters are not implied.
+servers:
+  - url: http://127.0.0.1:4310
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      responses:
+        '200':
+          description: Local bootstrap health.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthResponse' }
+  /api/status:
+    get:
+      operationId: getProjectStatus
+      responses:
+        '200':
+          description: Machine-readable project status.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectStatusResponse' }
+  /api/auth/bootstrap-status:
+    get:
+      operationId: getBootstrapStatus
+      responses:
+        '200':
+          description: Safe public bootstrap status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BootstrapStatusResponse' }
+  /api/auth/login:
+    post:
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Authenticated browser session summary. Sets httpOnly session and readable CSRF cookies.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '429': { $ref: '#/components/responses/BoundaryError' }
+        '503': { $ref: '#/components/responses/BoundaryError' }
+  /api/auth/session:
+    get:
+      operationId: getSession
+      responses:
+        '200':
+          description: Current authenticated user, memberships, and effective actions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '401': { $ref: '#/components/responses/AuthError' }
+  /api/auth/logout:
+    post:
+      operationId: logout
+      responses:
+        '200':
+          description: Revokes the server-side session and clears cookies.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LogoutResponse' }
+        '401': { $ref: '#/components/responses/AuthError' }
+  /api/auth/tokens:
+    get:
+      operationId: listApiTokens
+      responses:
+        '200':
+          description: Lists API token metadata without token secrets or hashes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenListResponse' }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+    post:
+      operationId: createApiToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTokenRequest' }
+      responses:
+        '201':
+          description: Creates an API token and returns the raw token once.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreateTokenResponse' }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+  /api/auth/tokens/{tokenId}:
+    delete:
+      operationId: deleteApiToken
+      parameters:
+        - name: tokenId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/TokenId' }
+      responses:
+        '200':
+          description: Revokes an API token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeleteTokenResponse' }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+  /api/dashboard:
+    get:
+      operationId: getDashboard
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Local dashboard projection.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/runs:
+    get:
+      operationId: listRuns
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Runs in reverse insertion order.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunListResponse' }
+    post:
+      operationId: startRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartRunRequest' }
+      responses:
+        '201':
+          description: Completed synchronous bootstrap run.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StartRunResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/runs/{runId}:
+    get:
+      operationId: getRun
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/RunId' }
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Run and canonical bootstrap events.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunDetailResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '404': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/compile:
+    post:
+      operationId: compileContext
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextCompileRequest' }
+      responses:
+        '200':
+          description: Deterministic context manifest.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/reset:
+    post:
+      operationId: resetBootstrap
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Synthetic local state reset.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResetResponse' }
+  /api/stream:
+    get:
+      operationId: streamEvents
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Server-sent run events. JSON response validation does not apply to SSE chunks.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            text/event-stream:
+              schema: { type: string }
+components:
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/WorkspaceId' }
+  responses:
+    AuthError:
+      description: Authentication error with WWW-Authenticate.
+      headers:
+        WWW-Authenticate: { schema: { type: string } }
+        x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    BoundaryError:
+      description: Stable sanitized API error.
+      headers:
+        x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    CorrelationId:
+      type: string
+      pattern: '^req_[A-Za-z0-9._:-]{8,96}$'
+      maxLength: 100
+    RunId:
+      type: string
+      pattern: '^run_[A-Za-z0-9._:-]{1,120}$'
+      maxLength: 128
+    TokenId:
+      type: string
+      pattern: '^tok_[A-Za-z0-9._:-]{1,120}$'
+      maxLength: 128
+    WorkspaceId:
+      type: string
+      pattern: '^ws_[A-Za-z0-9._:-]{1,120}$'
+      maxLength: 128
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, error]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, correlationId]
+          properties:
+            code:
+              enum:
+                - invalid_json
+                - request_validation_failed
+                - invalid_path_parameter
+                - route_not_found
+                - method_not_allowed
+                - request_too_large
+                - unsupported_media_type
+                - unsupported_content_encoding
+                - authentication_required
+                - invalid_credentials
+                - invalid_authentication
+                - csrf_failed
+                - forbidden
+                - resource_not_found
+                - already_bootstrapped
+                - workspace_context_conflict
+                - rate_limited
+                - bootstrap_required
+                - internal_error
+            message: { type: string, maxLength: 240 }
+            correlationId: { $ref: '#/components/schemas/CorrelationId' }
+            issues:
+              type: array
+              maxItems: 32
+              items:
+                type: object
+                additionalProperties: false
+                required: [path, code]
+                properties:
+                  path: { type: string, maxLength: 256 }
+                  code: { type: string, maxLength: 64 }
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, status, mode, version, residency, externalWrites, time]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        status: { const: ok }
+        mode: { const: local-bootstrap }
+        version: { type: string, maxLength: 64 }
+        residency: { const: local-only }
+        externalWrites: { const: false }
+        time: { type: string, format: date-time }
+    ProjectStatusResponse:
+      type: object
+      required: [schemaVersion, project, release, nextTask]
+      additionalProperties: true
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        project: { type: string, maxLength: 128 }
+        release: { type: string, maxLength: 64 }
+        nextTask: { type: string, maxLength: 32 }
+    StartRunRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId]
+      maxProperties: 3
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        workflowId: { const: 'workflow:content-intelligence' }
+        objective: { type: string, minLength: 1, maxLength: 2000 }
+    BootstrapStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, bootstrapRequired]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        bootstrapRequired: { type: boolean }
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username: { type: string, pattern: '^[a-zA-Z0-9._:-]{1,80}$', maxLength: 80 }
+        password: { type: string, minLength: 1, maxLength: 256 }
+    UserSummary:
+      type: object
+      additionalProperties: false
+      required: [id, username, displayName, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, pattern: '^usr_[A-Za-z0-9._:-]{1,120}$' }
+        username: { type: string, maxLength: 80 }
+        displayName: { type: string, maxLength: 120 }
+        status: { enum: [active, disabled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MembershipSummary:
+      type: object
+      additionalProperties: false
+      required: [id, userId, workspaceId, role, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, pattern: '^wsm_[A-Za-z0-9._:-]{1,120}$' }
+        userId: { type: string, pattern: '^usr_[A-Za-z0-9._:-]{1,120}$' }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        role: { enum: [owner, builder, operator, auditor] }
+        status: { enum: [active, disabled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SessionResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, authenticated, user, memberships, actions]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        authenticated: { const: true }
+        user: { $ref: '#/components/schemas/UserSummary' }
+        memberships: { type: array, items: { $ref: '#/components/schemas/MembershipSummary' } }
+        actions: { type: array, items: { type: string } }
+    LogoutResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, loggedOut]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        loggedOut: { const: true }
+    TokenSummary:
+      type: object
+      additionalProperties: false
+      required: [id, userId, name, tokenPrefix, workspaceIds, scopes, createdAt, expiresAt, revokedAt]
+      properties:
+        id: { $ref: '#/components/schemas/TokenId' }
+        userId: { type: string, pattern: '^usr_[A-Za-z0-9._:-]{1,120}$' }
+        name: { type: string, maxLength: 120 }
+        tokenPrefix: { type: string, maxLength: 64 }
+        workspaceIds: { type: array, items: { $ref: '#/components/schemas/WorkspaceId' } }
+        scopes: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        revokedAt: { type: [string, 'null'], format: date-time }
+    CreateTokenRequest:
+      type: object
+      additionalProperties: false
+      required: [name, workspaceIds, scopes]
+      properties:
+        name: { type: string, maxLength: 120 }
+        workspaceIds: { type: array, items: { $ref: '#/components/schemas/WorkspaceId' } }
+        scopes: { type: array, items: { type: string } }
+        expiresAt: { type: [string, 'null'], format: date-time }
+    CreateTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, apiToken, token]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        apiToken: { $ref: '#/components/schemas/TokenSummary' }
+        token: { type: string, maxLength: 256 }
+    TokenListResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, items]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        items: { type: array, items: { $ref: '#/components/schemas/TokenSummary' } }
+    DeleteTokenResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, revoked]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        revoked: { type: boolean }
+    StartRunResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, run, events]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        run: { type: object }
+        events: { type: array, maxItems: 128 }
+    RunListResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, items]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        items: { type: array, maxItems: 1000 }
+    RunDetailResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, run, events]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        run: { type: object }
+        events: { type: array, maxItems: 128 }
+    ContextCompileRequest:
+      type: object
+      additionalProperties: false
+      required: [request, records]
+      properties:
+        request: { type: object }
+        records: { type: array, maxItems: 100 }
+    ResetResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, reset, time]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        reset: { const: true }
+        time: { type: string, format: date-time }

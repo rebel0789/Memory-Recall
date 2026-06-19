@@ -1,0 +1,41 @@
+[
+  {
+    "id": "allow-declared-read",
+    "input": {
+      "actorId": "agent:test",
+      "role": "reader",
+      "workspaceId": "ws_local",
+      "action": "read",
+      "allowedRoles": [
+        "reader"
+      ],
+      "riskClass": "read-only"
+    },
+    "expect": {
+      "decision": "allow",
+      "reasons": []
+    }
+  },
+  {
+    "id": "deny-unapproved-publish",
+    "input": {
+      "actorId": "agent:test",
+      "role": "publisher",
+      "workspaceId": "ws_local",
+      "action": "publish",
+      "allowedRoles": [
+        "publisher"
+      ],
+      "riskClass": "consequential-write",
+      "approvalValid": false,
+      "idempotencyKey": null
+    },
+    "expect": {
+      "decision": "deny",
+      "reasons": [
+        "approval_required",
+        "idempotency_required"
+      ]
+    }
+  }
+]

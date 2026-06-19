@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-session-response-1.0.json",
+  "title": "Auth Session Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "authenticated", "user", "memberships", "actions"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "authenticated": { "const": true },
+    "user": { "$ref": "api-auth-user-summary.schema.json" },
+    "memberships": { "type": "array", "maxItems": 32, "items": { "$ref": "api-auth-membership-summary.schema.json" } },
+    "actions": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "maxLength": 80 } }
+  }
+}

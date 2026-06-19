@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "mem_example",
+  "workspaceId": "ws_local",
+  "kind": "preference",
+  "text": "Prefer concise builder-oriented explanations.",
+  "status": "proposed",
+  "source": "user-confirmed",
+  "confidence": 0.95,
+  "validFrom": null,
+  "validTo": null,
+  "createdAt": "2026-06-19T10:00:00Z",
+  "updatedAt": null,
+  "supersedes": null,
+  "retention": "workspace-default",
+  "dataClass": "workspace-private"
+}

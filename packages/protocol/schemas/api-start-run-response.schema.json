@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-start-run-response-1.0.json",
+  "title": "Start Run API Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "run", "events"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "run": { "$ref": "#/$defs/run" },
+    "events": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/event" } }
+  },
+  "$defs": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "workflowId", "workflowVersion", "objective", "status", "residency", "createdAt", "completedAt", "output", "verification"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^run_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+        "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+        "workflowId": { "const": "workflow:content-intelligence" },
+        "workflowVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "objective": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "status": { "enum": ["completed", "failed", "cancelled", "running"] },
+        "residency": { "const": "local-only" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" },
+        "output": { "type": ["object", "array", "null"], "additionalProperties": true, "maxItems": 16 },
+        "verification": { "type": ["object", "null"], "additionalProperties": true }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "id", "workspaceId", "type", "runId", "actorId", "sequence", "occurredAt", "correlationId", "dataClass", "producerVersion", "payload"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "id": { "type": "string", "pattern": "^evt_", "maxLength": 128 },
+        "workspaceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "type": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "runId": { "type": "string", "pattern": "^run_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+        "actorId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "occurredAt": { "type": "string", "format": "date-time" },
+        "correlationId": { "type": "string", "pattern": "^req_[A-Za-z0-9._:-]{8,96}$", "maxLength": 100 },
+        "causationId": { "type": ["string", "null"], "maxLength": 128 },
+        "dataClass": { "enum": ["public", "workspace-private", "sensitive"] },
+        "producerVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "payload": { "type": "object", "maxProperties": 64, "additionalProperties": true }
+      }
+    }
+  }
+}

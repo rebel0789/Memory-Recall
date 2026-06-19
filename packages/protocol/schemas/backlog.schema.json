@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Delivery Backlog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "project",
+    "sourceOfTruth",
+    "statuses",
+    "tasks"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "project": {
+      "const": "open-agent-fabric"
+    },
+    "sourceOfTruth": {
+      "type": "string"
+    },
+    "statuses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Delivery Task",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "milestone",
+          "status",
+          "ownerAgent",
+          "dependsOn",
+          "objective",
+          "deliverables",
+          "acceptanceCommands",
+          "stopCondition",
+          "requiredReading"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^OAF-[0-9]{3}$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "milestone": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "planned",
+              "in-progress",
+              "blocked",
+              "completed",
+              "cancelled"
+            ]
+          },
+          "ownerAgent": {
+            "type": "string"
+          },
+          "dependsOn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "objective": {
+            "type": "string"
+          },
+          "deliverables": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acceptanceCommands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stopCondition": {
+            "type": "string"
+          },
+          "requiredReading": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "minItems": 1
+    }
+  }
+}

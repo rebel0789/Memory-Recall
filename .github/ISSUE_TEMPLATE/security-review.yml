@@ -1,0 +1,17 @@
+name: Security review
+about: Review a permission, adapter, data, or external-write change
+title: "security-review: "
+labels: ["security-review"]
+body:
+  - type: textarea
+    id: boundary
+    attributes: { label: Trust boundary and assets }
+    validations: { required: true }
+  - type: textarea
+    id: permission
+    attributes: { label: Permission and data-class diff }
+    validations: { required: true }
+  - type: textarea
+    id: adversarial
+    attributes: { label: Adversarial tests }
+    validations: { required: true }

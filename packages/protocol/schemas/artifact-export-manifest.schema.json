@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/artifact-export-manifest-1.0.json",
+  "title": "Portable Artifact Export Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "provider",
+    "workspaceId",
+    "exportedAt",
+    "includeTombstones",
+    "records",
+    "objects",
+    "fingerprintAlgorithm",
+    "fingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^exp_[A-Za-z0-9._-]{16,128}$", "maxLength": 132 },
+    "provider": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "workspaceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", "maxLength": 128 },
+    "exportedAt": { "type": "string", "format": "date-time" },
+    "includeTombstones": { "type": "boolean" },
+    "records": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/exportRecord" }
+    },
+    "objects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/object" }
+    },
+    "tombstones": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/exportTombstone" }
+    },
+    "fingerprintAlgorithm": { "const": "sha256" },
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "exportRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "contentHash", "hashAlgorithm", "byteSize", "relativePath"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^(art|src)_[A-Za-z0-9._-]{16,128}$", "maxLength": 132 },
+        "kind": { "enum": ["artifact", "source_snapshot"] },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "hashAlgorithm": { "const": "sha256" },
+        "byteSize": { "type": "integer", "minimum": 0 },
+        "relativePath": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      }
+    },
+    "object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hashAlgorithm", "contentHash", "byteSize", "relativePath"],
+      "properties": {
+        "hashAlgorithm": { "const": "sha256" },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "byteSize": { "type": "integer", "minimum": 0 },
+        "relativePath": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      }
+    },
+    "exportTombstone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "recordId", "relativePath"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^tmb_[A-Za-z0-9._-]{16,160}$", "maxLength": 164 },
+        "recordId": { "type": "string", "pattern": "^(art|src)_[A-Za-z0-9._-]{16,128}$", "maxLength": 132 },
+        "relativePath": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      }
+    }
+  }
+}

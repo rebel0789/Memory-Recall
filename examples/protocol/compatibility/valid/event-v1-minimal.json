@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evt_compatibility",
+  "workspaceId": "ws_local",
+  "type": "run.started",
+  "runId": "run_compatibility",
+  "actorId": "system",
+  "sequence": 0,
+  "occurredAt": "2026-06-19T10:00:00.000Z",
+  "correlationId": "run_compatibility",
+  "dataClass": "workspace-private",
+  "producerVersion": "0.1.0-dev",
+  "payload": {}
+}

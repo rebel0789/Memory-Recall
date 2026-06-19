@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "1.0.0",
+  "adapterId": "adapter:tool:graphify",
+  "contract": "RepositoryGraphPort",
+  "fixtureVersion": "1.0.0",
+  "cases": [
+    {
+      "id": "health-unavailable",
+      "kind": "health",
+      "input": {
+        "installed": false
+      },
+      "expected": {
+        "status": "unavailable",
+        "safe": true
+      }
+    },
+    {
+      "id": "capabilities-declared",
+      "kind": "capabilities",
+      "input": {},
+      "expected": {
+        "capabilities": [
+          "knowledge.graph.build",
+          "knowledge.graph.export"
+        ]
+      }
+    },
+    {
+      "id": "permission-denied",
+      "kind": "permission-denied",
+      "input": {
+        "grant": null
+      },
+      "expected": {
+        "code": "permission_denied",
+        "invoked": false
+      }
+    },
+    {
+      "id": "malformed-output",
+      "kind": "malformed-output",
+      "input": {
+        "fixture": "invalid-provider-payload"
+      },
+      "expected": {
+        "code": "invalid_provider_output",
+        "canonicalStateChanged": false
+      }
+    }
+  ]
+}

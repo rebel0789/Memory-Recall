@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-project-status-response-1.0.json",
+  "title": "Project Status API Response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schemaVersion", "project", "release", "nextTask"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "project": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "release": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "nextTask": { "type": "string", "minLength": 1, "maxLength": 32 }
+  }
+}

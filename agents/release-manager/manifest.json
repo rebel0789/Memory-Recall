@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "agent:release-manager",
+  "name": "Release Manager",
+  "version": "0.1.0",
+  "role": "Coordinates reproducible, licensed, signed, and recoverable releases",
+  "description": "Coordinates reproducible, licensed, signed, and recoverable releases",
+  "allowedTools": [
+    "tool:filesystem-read",
+    "tool:git-read",
+    "tool:git-write",
+    "tool:shell-sandbox"
+  ],
+  "allowedSkills": [
+    "skill:release-readiness",
+    "skill:security-review"
+  ],
+  "defaultContextPolicy": {
+    "profile": "implementation",
+    "tokenBudget": 12000,
+    "allowedScopes": [
+      "workspace-private",
+      "public"
+    ]
+  },
+  "completionCriteria": [
+    "Task stop condition met",
+    "Relevant tests pass",
+    "Security and status impact reported"
+  ]
+}

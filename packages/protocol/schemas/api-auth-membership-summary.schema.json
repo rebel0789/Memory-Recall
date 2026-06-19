@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-membership-summary-1.0.json",
+  "title": "Auth Membership Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "userId", "workspaceId", "role", "status", "createdAt", "updatedAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^wsm_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "userId": { "type": "string", "pattern": "^usr_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "role": { "enum": ["owner", "builder", "operator", "auditor"] },
+    "status": { "enum": ["active", "disabled"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

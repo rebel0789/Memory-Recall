@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "1.0.0",
+  "adapters": [
+    {
+      "id": "adapter:memory:claude-mem",
+      "path": "adapters/memory/claude-mem",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Progressive session-memory retrieval"
+    },
+    {
+      "id": "adapter:tool:graphify",
+      "path": "adapters/tool/graphify",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Generate queryable code and document graphs"
+    },
+    {
+      "id": "adapter:design:open-design",
+      "path": "adapters/design/open-design",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Generate prototypes and design artifacts from a versioned design contract"
+    },
+    {
+      "id": "adapter:research:last30days",
+      "path": "adapters/research/last30days",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Recent public-signal research"
+    },
+    {
+      "id": "adapter:model:oracle",
+      "path": "adapters/model/oracle",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Cross-model advisory review"
+    },
+    {
+      "id": "adapter:research:agent-reach",
+      "path": "adapters/research/agent-reach",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Read-side research capability routing"
+    },
+    {
+      "id": "adapter:collaboration:cccc",
+      "path": "adapters/collaboration/cccc",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Agent rooms, handoffs, acknowledgements, and obligations"
+    },
+    {
+      "id": "adapter:tool:understand-anything",
+      "path": "adapters/tool/understand-anything",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Repository structure and onboarding graph"
+    },
+    {
+      "id": "adapter:memory:mem0",
+      "path": "adapters/memory/mem0",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Personal and episodic memory backend"
+    },
+    {
+      "id": "adapter:tool:ecc",
+      "path": "adapters/tool/ecc",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Source of individually reviewed procedures"
+    },
+    {
+      "id": "adapter:memory:openviking",
+      "path": "adapters/memory/openviking",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Filesystem-style tiered context experiment"
+    },
+    {
+      "id": "adapter:publishing:postiz",
+      "path": "adapters/publishing/postiz",
+      "status": "planned",
+      "enabledByDefault": false,
+      "purpose": "Approved social scheduling and publication"
+    }
+  ],
+  "protocolVersion": "1.0.0",
+  "note": "Catalog entries are integration targets. A fixture defines the required contract but is not evidence that an adapter implementation passed."
+}

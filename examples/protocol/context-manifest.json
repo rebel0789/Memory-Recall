@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "ctx_example",
+  "workspaceId": "ws_local",
+  "requestId": "ctxreq_example",
+  "compilerVersion": "0.2.0",
+  "createdAt": "2026-06-19T10:00:01Z",
+  "budget": {
+    "available": 180,
+    "used": 44
+  },
+  "selected": [
+    {
+      "id": "policy_evidence",
+      "kind": "policy",
+      "tokens": 22,
+      "score": 1000,
+      "reasonCodes": [
+        "explicit_requirement"
+      ],
+      "source": "workspace-policy",
+      "text": "Every recommendation must cite selected observations."
+    }
+  ],
+  "excluded": [],
+  "conflicts": [],
+  "warnings": []
+}

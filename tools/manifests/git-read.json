@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "tool:git-read",
+  "name": "Inspect local Git history and diff",
+  "version": "0.1.0",
+  "riskClass": "read-only",
+  "permissions": {
+    "filesystem": {
+      "read": [
+        ".git",
+        "."
+      ],
+      "write": []
+    },
+    "network": []
+  },
+  "allowedRoles": [
+    "agent:orchestrator",
+    "agent:backend-builder",
+    "agent:reviewer",
+    "agent:security-auditor",
+    "agent:release-manager"
+  ],
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "timeoutMs": 30000,
+  "outputLimitBytes": 1000000,
+  "approval": {
+    "required": false,
+    "binding": "exact-operation-hash"
+  }
+}

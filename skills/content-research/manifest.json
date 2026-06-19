@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:content-research",
+  "name": "Content Research",
+  "version": "0.1.0",
+  "triggers": [
+    "content ideas",
+    "recent patterns",
+    "research brief"
+  ],
+  "tools": [
+    "tool:source-read",
+    "tool:local-http"
+  ],
+  "sideEffectClass": "read-only",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

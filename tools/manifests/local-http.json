@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "tool:local-http",
+  "name": "Call loopback HTTP services",
+  "version": "0.1.0",
+  "riskClass": "read-only",
+  "permissions": {
+    "network": [
+      "127.0.0.1",
+      "localhost"
+    ]
+  },
+  "allowedRoles": [
+    "agent:researcher",
+    "agent:reviewer"
+  ],
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "timeoutMs": 30000,
+  "outputLimitBytes": 1000000,
+  "approval": {
+    "required": false,
+    "binding": "exact-operation-hash"
+  }
+}

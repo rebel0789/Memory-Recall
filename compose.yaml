@@ -1,0 +1,43 @@
+name: open-agent-fabric
+services:
+  app:
+    profiles: ["app"]
+    build: .
+    ports: ["127.0.0.1:4310:4310"]
+    environment:
+      OAF_HOST: 0.0.0.0
+      OAF_PORT: 4310
+      OAF_DATA_DIR: /data
+      OAF_MODEL_MODE: deterministic
+      OAF_ALLOW_NETWORK: "false"
+      OAF_ALLOW_EXTERNAL_WRITES: "false"
+    volumes: ["oaf_data:/data"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+  postgres:
+    profiles: ["postgres"]
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: oaf
+      POSTGRES_USER: oaf
+      POSTGRES_PASSWORD: local-development-only
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/migrations:/docker-entrypoint-initdb.d:ro
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    ports: ["127.0.0.1:11434:11434"]
+    volumes: ["ollama_data:/root/.ollama"]
+  otel-collector:
+    profiles: ["observability"]
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: ["./deploy/otel/collector.yaml:/etc/otelcol/config.yaml:ro"]
+    ports: ["127.0.0.1:4317:4317","127.0.0.1:4318:4318"]
+volumes:
+  oaf_data: {}
+  postgres_data: {}
+  ollama_data: {}

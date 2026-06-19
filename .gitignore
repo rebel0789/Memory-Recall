@@ -1,0 +1,8 @@
+node_modules/
+.env
+.local/
+coverage/
+*.log
+*.zip
+.DS_Store
+REPOSITORY_MANIFEST.json.tmp

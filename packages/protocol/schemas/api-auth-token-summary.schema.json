@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-token-summary-1.0.json",
+  "title": "Auth Token Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "userId", "name", "tokenPrefix", "workspaceIds", "scopes", "createdAt", "expiresAt", "revokedAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^tok_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "userId": { "type": "string", "pattern": "^usr_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "tokenPrefix": { "type": "string", "minLength": 8, "maxLength": 64 },
+    "workspaceIds": { "type": "array", "minItems": 1, "maxItems": 16, "items": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" } },
+    "scopes": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 80 } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": ["string", "null"], "format": "date-time" },
+    "revokedAt": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

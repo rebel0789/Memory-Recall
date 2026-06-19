@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/memory-record-1.0.json",
+  "title": "Memory Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "workspaceId",
+    "kind",
+    "text",
+    "status",
+    "source",
+    "confidence",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^mem_"
+    },
+    "workspaceId": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "fact",
+        "preference",
+        "decision",
+        "episode",
+        "procedure",
+        "constraint"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "observed",
+        "proposed",
+        "verified",
+        "active",
+        "rejected",
+        "superseded",
+        "retracted",
+        "expired",
+        "quarantined"
+      ]
+    },
+    "source": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "validFrom": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "validTo": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "supersedes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retention": {
+      "type": "string"
+    },
+    "dataClass": {
+      "enum": [
+        "public",
+        "workspace-private",
+        "sensitive"
+      ]
+    }
+  }
+}

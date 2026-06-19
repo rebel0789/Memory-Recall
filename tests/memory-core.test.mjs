@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import { proposeMemory } from '../packages/memory-core/src/index.mjs';
+test('requires user confirmation for preferences',()=>{const result=proposeMemory({kind:'preference',text:'Prefer blue.',source:'model'});assert.equal(result.decision,'review');assert(result.reasons.includes('user_confirmation_required'))});
+test('allows a verified episodic proposal',()=>{const result=proposeMemory({kind:'episode',text:'The run passed.',source:'run:1',sourceTrust:'verified'});assert.equal(result.decision,'propose');assert.equal(result.status,'proposed')});
+test('denies likely secrets from automatic memory',()=>{const result=proposeMemory({kind:'episode',text:'BEGIN RSA PRIVATE KEY',source:'tool'});assert.equal(result.decision,'review');assert(result.reasons.includes('possible_secret'))});

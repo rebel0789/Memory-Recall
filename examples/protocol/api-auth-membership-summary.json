@@ -1,0 +1,9 @@
+{
+  "id": "wsm_example",
+  "userId": "usr_example",
+  "workspaceId": "ws_local",
+  "role": "owner",
+  "status": "active",
+  "createdAt": "2026-06-19T10:00:00.000Z",
+  "updatedAt": "2026-06-19T10:00:00.000Z"
+}

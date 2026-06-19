@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:security-review",
+  "name": "Security Review",
+  "version": "0.1.0",
+  "triggers": [
+    "security review",
+    "permissions",
+    "threat model"
+  ],
+  "tools": [
+    "tool:filesystem-read",
+    "tool:git-read"
+  ],
+  "sideEffectClass": "read-only",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

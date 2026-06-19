@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/context-request-1.0.json",
+  "title": "Context Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "workspaceId",
+    "actorId",
+    "taskId",
+    "step",
+    "objective",
+    "tokenBudget",
+    "allowedScopes"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^ctxreq_"
+    },
+    "workspaceId": {
+      "type": "string"
+    },
+    "actorId": {
+      "type": "string"
+    },
+    "taskId": {
+      "type": "string"
+    },
+    "step": {
+      "type": "string"
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000
+    },
+    "requiredIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "requiredEntities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "tokenBudget": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "allowedScopes": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "public",
+          "workspace-private",
+          "sensitive"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "now": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "profile": {
+      "type": "string"
+    }
+  }
+}

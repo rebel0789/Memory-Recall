@@ -1,0 +1,20 @@
+name: Feature proposal
+description: Propose a user problem and bounded capability
+title: "proposal: "
+labels: ["proposal"]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: User problem }
+    validations: { required: true }
+  - type: textarea
+    id: evidence
+    attributes: { label: Evidence and alternatives }
+  - type: textarea
+    id: boundaries
+    attributes: { label: Contracts, trust boundaries, and non-goals }
+    validations: { required: true }
+  - type: textarea
+    id: acceptance
+    attributes: { label: Acceptance and evaluation }
+    validations: { required: true }

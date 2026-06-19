@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0.0",
+  "protocolVersion": "1.0.0",
+  "id": "adapter:tool:ecc",
+  "name": "ECC",
+  "version": "0.0.0-plan",
+  "category": "tool",
+  "status": "planned",
+  "enabledByDefault": false,
+  "upstream": {
+    "repository": "https://github.com/affaan-m/ECC",
+    "commit": "UNPINNED",
+    "checksum": "UNVERIFIED"
+  },
+  "licenseReview": {
+    "status": "required",
+    "spdx": "UNVERIFIED",
+    "reviewedAt": null,
+    "notes": "Re-verify license and notices at the exact pinned commit."
+  },
+  "trustBoundary": {
+    "summary": "Never bulk-load; copy only reviewed minimal procedures with provenance",
+    "network": "deny until reviewed",
+    "filesystem": "deny until reviewed",
+    "secrets": "none until reviewed",
+    "sideEffectClass": "read-only or local-derived"
+  },
+  "contract": "SkillSourcePort",
+  "capabilities": [
+    "skills.import-source",
+    "skills.review-source"
+  ],
+  "installation": {
+    "mode": "none",
+    "command": null,
+    "requiresNetwork": false
+  },
+  "conformance": {
+    "fixture": "fixtures/conformance.json",
+    "status": "not-run",
+    "lastRunAt": null
+  },
+  "maintainer": null
+}

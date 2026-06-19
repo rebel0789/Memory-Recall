@@ -1,0 +1,201 @@
+[
+  {
+    "id": "select-explicit-and-governance",
+    "request": {
+      "schemaVersion": "1.0.0",
+      "id": "ctxreq_eval1",
+      "workspaceId": "ws_local",
+      "actorId": "agent:test",
+      "taskId": "task:test",
+      "step": "answer",
+      "objective": "authentication failure local agent",
+      "requiredIds": [
+        "decision_auth"
+      ],
+      "requiredEntities": [
+        "topic:auth"
+      ],
+      "tokenBudget": 95,
+      "allowedScopes": [
+        "workspace-private"
+      ],
+      "now": "2026-06-19T10:00:00Z"
+    },
+    "records": [
+      {
+        "id": "policy_safe",
+        "kind": "policy",
+        "text": "Cite evidence and do not expose secrets.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "policy",
+        "tokens": 10
+      },
+      {
+        "id": "decision_auth",
+        "kind": "decision",
+        "text": "Use passkeys for local authentication.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "user",
+        "tokens": 12
+      },
+      {
+        "id": "obs_auth",
+        "kind": "observation",
+        "text": "The authentication failure occurred after the session expired.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "log",
+        "relations": [
+          "topic:auth"
+        ],
+        "tokens": 18
+      },
+      {
+        "id": "obs_recipe",
+        "kind": "observation",
+        "text": "Roasted tomatoes with herbs.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "recipe",
+        "tokens": 20
+      }
+    ],
+    "expect": {
+      "selected": [
+        "policy_safe",
+        "decision_auth",
+        "obs_auth"
+      ],
+      "excluded": [
+        "obs_recipe"
+      ],
+      "conflicts": 0
+    }
+  },
+  {
+    "id": "scope-status-and-supersession",
+    "request": {
+      "schemaVersion": "1.0.0",
+      "id": "ctxreq_eval2",
+      "workspaceId": "ws_local",
+      "actorId": "agent:test",
+      "taskId": "task:test",
+      "step": "plan",
+      "objective": "preferred deployment region",
+      "requiredIds": [],
+      "requiredEntities": [],
+      "tokenBudget": 100,
+      "allowedScopes": [
+        "workspace-private"
+      ],
+      "now": "2026-06-19T10:00:00Z"
+    },
+    "records": [
+      {
+        "id": "pref_old",
+        "kind": "preference",
+        "text": "Deploy in region east.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "user",
+        "tokens": 10
+      },
+      {
+        "id": "pref_new",
+        "kind": "preference",
+        "text": "Deploy in region south.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "user",
+        "supersedes": "pref_old",
+        "tokens": 10
+      },
+      {
+        "id": "secret_note",
+        "kind": "fact",
+        "text": "Sensitive private note.",
+        "scope": "sensitive",
+        "status": "active",
+        "source": "private",
+        "tokens": 10
+      },
+      {
+        "id": "expired_note",
+        "kind": "fact",
+        "text": "Preferred deployment was west.",
+        "scope": "workspace-private",
+        "status": "expired",
+        "source": "old",
+        "tokens": 10
+      }
+    ],
+    "expect": {
+      "selected": [
+        "pref_new"
+      ],
+      "excluded": [
+        "pref_old",
+        "secret_note",
+        "expired_note"
+      ],
+      "conflicts": 0
+    }
+  },
+  {
+    "id": "surface-conflict",
+    "request": {
+      "schemaVersion": "1.0.0",
+      "id": "ctxreq_eval3",
+      "workspaceId": "ws_local",
+      "actorId": "agent:test",
+      "taskId": "task:test",
+      "step": "answer",
+      "objective": "release date",
+      "requiredIds": [],
+      "requiredEntities": [],
+      "tokenBudget": 100,
+      "allowedScopes": [
+        "workspace-private"
+      ],
+      "now": "2026-06-19T10:00:00Z"
+    },
+    "records": [
+      {
+        "id": "date_a",
+        "kind": "fact",
+        "text": "The release date is June 20.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "calendar",
+        "tokens": 12,
+        "metadata": {
+          "conflictKey": "release-date",
+          "value": "2026-06-20"
+        }
+      },
+      {
+        "id": "date_b",
+        "kind": "fact",
+        "text": "The release date is June 24.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "message",
+        "tokens": 12,
+        "metadata": {
+          "conflictKey": "release-date",
+          "value": "2026-06-24"
+        }
+      }
+    ],
+    "expect": {
+      "selected": [
+        "date_a",
+        "date_b"
+      ],
+      "excluded": [],
+      "conflicts": 1
+    }
+  }
+]

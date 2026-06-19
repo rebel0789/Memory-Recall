@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evt_example",
+  "workspaceId": "ws_local",
+  "type": "run.started",
+  "runId": "run_example",
+  "actorId": "system",
+  "sequence": 1,
+  "occurredAt": "2026-06-19T10:00:00Z",
+  "correlationId": "run_example",
+  "causationId": null,
+  "dataClass": "workspace-private",
+  "producerVersion": "0.2.0-dev",
+  "payload": {}
+}

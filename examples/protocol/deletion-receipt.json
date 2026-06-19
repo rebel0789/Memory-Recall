@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "tmb_0123456789abcdef0123456789abcdef01234567",
+  "provider": "provider:native:artifact:filesystem",
+  "workspaceId": "ws_local",
+  "recordId": "art_0123456789abcdef0123456789abcdef",
+  "kind": "artifact",
+  "contentHash": "0967115f2813a3541eaef77de9d9d5773f1c0c04314b0bbfe4ff3b3b1c55b5d5",
+  "hashAlgorithm": "sha256",
+  "deleted": true,
+  "bodyDeleted": false,
+  "reason": "retention expiry",
+  "deletedBy": "system",
+  "deletedAt": "2026-06-20T00:00:00.000Z",
+  "retention": {
+    "mode": "expire-at",
+    "expiresAt": "2026-06-20T00:00:00.000Z"
+  }
+}

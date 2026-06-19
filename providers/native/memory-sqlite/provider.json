@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:memory:sqlite",
+  "name": "Native SQLite Memory",
+  "version": "0.2.0-dev",
+  "category": "memory",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "MemoryBackendPort",
+  "capabilities": [
+    "memory.put",
+    "memory.get",
+    "memory.search.lexical",
+    "memory.supersede",
+    "memory.forget",
+    "memory.export"
+  ],
+  "limits": {
+    "queryLimit": 100,
+    "textBytes": 1000000,
+    "search": "SQLite FTS5; no vector similarity"
+  },
+  "dataPaths": [".local/memory.sqlite"],
+  "experimental": true,
+  "notes": [
+    "Uses Node 22 node:sqlite, which is experimental in Node 22.",
+    "Permanent writes remain governed by memory-core before this provider is called."
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "protocolVersion": "1.0.0",
+  "id": "adapter:research:agent-reach",
+  "name": "Agent-Reach",
+  "version": "0.0.0-plan",
+  "category": "research",
+  "status": "planned",
+  "enabledByDefault": false,
+  "upstream": {
+    "repository": "https://github.com/Panniantong/agent-reach",
+    "commit": "UNPINNED",
+    "checksum": "UNVERIFIED"
+  },
+  "licenseReview": {
+    "status": "required",
+    "spdx": "UNVERIFIED",
+    "reviewedAt": null,
+    "notes": "Re-verify license and notices at the exact pinned commit."
+  },
+  "trustBoundary": {
+    "summary": "CLI subprocess, network, optional browser-derived authentication",
+    "network": "deny until reviewed",
+    "filesystem": "deny until reviewed",
+    "secrets": "none until reviewed",
+    "sideEffectClass": "read-only or local-derived"
+  },
+  "contract": "ResearchSourcePort",
+  "capabilities": [
+    "research.public-sources",
+    "research.transcripts",
+    "research.repositories"
+  ],
+  "installation": {
+    "mode": "cli",
+    "command": "agent-reach",
+    "requiresNetwork": true
+  },
+  "conformance": {
+    "fixture": "fixtures/conformance.json",
+    "status": "not-run",
+    "lastRunAt": null
+  },
+  "maintainer": null
+}

@@ -1,0 +1,22 @@
+{
+  "request": {
+    "schemaVersion": "1.0.0",
+    "id": "ctxreq_example",
+    "workspaceId": "ws_local",
+    "actorId": "agent:test",
+    "taskId": "run_example",
+    "step": "answer",
+    "objective": "Test context",
+    "tokenBudget": 20,
+    "allowedScopes": ["workspace-private"]
+  },
+  "records": [
+    {
+      "id": "obs_example",
+      "kind": "observation",
+      "text": "A bounded record",
+      "source": "fixture",
+      "tokens": 4
+    }
+  ]
+}

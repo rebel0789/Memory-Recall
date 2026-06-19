@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "agent:security-auditor",
+  "name": "Security Auditor",
+  "version": "0.1.0",
+  "role": "Reviews trust boundaries, capabilities, data classes, and supply chain",
+  "description": "Reviews trust boundaries, capabilities, data classes, and supply chain",
+  "allowedTools": [
+    "tool:filesystem-read",
+    "tool:git-read",
+    "tool:shell-sandbox"
+  ],
+  "allowedSkills": [
+    "skill:security-review",
+    "skill:adapter-addition"
+  ],
+  "defaultContextPolicy": {
+    "profile": "implementation",
+    "tokenBudget": 12000,
+    "allowedScopes": [
+      "workspace-private",
+      "public"
+    ]
+  },
+  "completionCriteria": [
+    "Task stop condition met",
+    "Relevant tests pass",
+    "Security and status impact reported"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-health-response-1.0.json",
+  "title": "Health API Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "status", "mode", "version", "residency", "externalWrites", "time"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "status": { "const": "ok" },
+    "mode": { "const": "local-bootstrap" },
+    "version": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "residency": { "const": "local-only" },
+    "externalWrites": { "const": false },
+    "time": { "type": "string", "format": "date-time" }
+  }
+}

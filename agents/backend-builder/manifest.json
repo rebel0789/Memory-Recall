@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "agent:backend-builder",
+  "name": "Backend Builder",
+  "version": "0.1.0",
+  "role": "Implements provider-neutral domain, API, storage, and runtime code",
+  "description": "Implements provider-neutral domain, API, storage, and runtime code",
+  "allowedTools": [
+    "tool:filesystem-read",
+    "tool:workspace-write",
+    "tool:shell-sandbox",
+    "tool:git-read"
+  ],
+  "allowedSkills": [
+    "skill:implementation-task",
+    "skill:database-migration",
+    "skill:adapter-addition"
+  ],
+  "defaultContextPolicy": {
+    "profile": "implementation",
+    "tokenBudget": 12000,
+    "allowedScopes": [
+      "workspace-private",
+      "public"
+    ]
+  },
+  "completionCriteria": [
+    "Task stop condition met",
+    "Relevant tests pass",
+    "Security and status impact reported"
+  ]
+}

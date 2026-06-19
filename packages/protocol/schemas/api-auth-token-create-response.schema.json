@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-token-create-response-1.0.json",
+  "title": "Auth Token Create Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "apiToken", "token"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "apiToken": { "$ref": "api-auth-token-summary.schema.json" },
+    "token": { "type": "string", "pattern": "^oaf_tok_", "maxLength": 256 }
+  }
+}

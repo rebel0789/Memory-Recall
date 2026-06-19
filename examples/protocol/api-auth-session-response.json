@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "authenticated": true,
+  "user": {
+    "id": "usr_example",
+    "username": "owner",
+    "displayName": "Local Owner",
+    "status": "active",
+    "createdAt": "2026-06-19T10:00:00.000Z",
+    "updatedAt": "2026-06-19T10:00:00.000Z"
+  },
+  "memberships": [
+    {
+      "id": "wsm_example",
+      "userId": "usr_example",
+      "workspaceId": "ws_local",
+      "role": "owner",
+      "status": "active",
+      "createdAt": "2026-06-19T10:00:00.000Z",
+      "updatedAt": "2026-06-19T10:00:00.000Z"
+    }
+  ],
+  "actions": ["audit.read", "context.compile", "dashboard.read", "run.execute", "run.read", "stream.read", "system.status.read", "token.manage", "workspace.manage", "workspace.read", "workspace.reset"]
+}

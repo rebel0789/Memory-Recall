@@ -1,0 +1,2 @@
+:root{color-scheme:dark;--ink:#0a0b0d;--paper:#f7f7f4;--slate:#9ca3af;--signal:#56e0c4;--proof:#8ba7ff;--caution:#f2b84b;--danger:#f06a6a;--success:#72d39c;--surface:#111318;--surface-2:#171a20;--surface-3:#20242c;--border:#2c313b;--focus:#56e0c4;--radius-control:8px;--radius-card:12px;--radius-panel:16px;--shadow:0 16px 46px rgba(0,0,0,.24)}
+@media(prefers-color-scheme:light){:root{color-scheme:light;--ink:#f7f7f4;--paper:#111318;--slate:#5f6672;--surface:#fff;--surface-2:#f5f5f2;--surface-3:#ecece8;--border:#d8d9d4;--shadow:0 14px 38px rgba(20,24,32,.10)}}

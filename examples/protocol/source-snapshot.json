@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "src_0123456789abcdef0123456789abcdef",
+  "provider": "provider:native:artifact:filesystem",
+  "workspaceId": "ws_local",
+  "kind": "source_snapshot",
+  "hashAlgorithm": "sha256",
+  "contentHash": "41cf6794ba4200b839c53531555f0f3998df4cbb01a4d5cb0b94e3ca5e23947d",
+  "hash": "41cf6794ba4200b839c53531555f0f3998df4cbb01a4d5cb0b94e3ca5e23947d",
+  "byteSize": 6,
+  "size": 6,
+  "mediaType": "text/plain",
+  "filename": null,
+  "dataClass": "workspace-private",
+  "retention": {
+    "mode": "retain"
+  },
+  "trust": "untrusted-external",
+  "capturedAt": "2026-06-19T09:59:00.000Z",
+  "createdAt": "2026-06-19T10:00:00.000Z",
+  "collector": "fixture",
+  "retrievalMethod": "manual",
+  "sourceLocator": "https://example.test/source",
+  "metadata": {
+    "title": "source"
+  }
+}

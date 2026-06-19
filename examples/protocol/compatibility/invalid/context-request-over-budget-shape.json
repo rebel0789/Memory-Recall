@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "ctxreq_invalid",
+  "workspaceId": "ws_local",
+  "actorId": "agent:researcher",
+  "taskId": "task_invalid",
+  "step": "compile",
+  "objective": "Invalid fixture",
+  "tokenBudget": 0,
+  "allowedScopes": ["workspace-private"],
+  "unexpectedAuthority": true
+}

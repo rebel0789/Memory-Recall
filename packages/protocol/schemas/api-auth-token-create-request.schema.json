@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-token-create-request-1.0.json",
+  "title": "Auth Token Create Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "workspaceIds", "scopes"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "workspaceIds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 }
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": { "enum": ["run.read", "run.execute", "context.compile", "stream.read", "dashboard.read", "workspace.read"] }
+    },
+    "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

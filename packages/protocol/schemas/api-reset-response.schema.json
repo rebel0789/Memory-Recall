@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-reset-response-1.0.json",
+  "title": "Reset API Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reset", "time"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "reset": { "const": true },
+    "time": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Workflow Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "description",
+    "steps"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "inputSchema",
+          "outputSchema",
+          "contextPolicy",
+          "tools",
+          "riskClass",
+          "retry",
+          "timeoutMs",
+          "approval",
+          "idempotency"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "deterministic",
+              "model",
+              "tool",
+              "approval"
+            ]
+          },
+          "inputSchema": {
+            "type": "object"
+          },
+          "outputSchema": {
+            "type": "object"
+          },
+          "contextPolicy": {
+            "type": "object"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "riskClass": {
+            "enum": [
+              "read-only",
+              "reversible-write",
+              "consequential-write"
+            ]
+          },
+          "retry": {
+            "type": "object"
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "approval": {
+            "type": "object"
+          },
+          "idempotency": {
+            "type": "object"
+          },
+          "compensation": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        }
+      },
+      "minItems": 1
+    }
+  }
+}

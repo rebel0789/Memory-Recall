@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Project Status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "project",
+    "release",
+    "phase",
+    "nextTask",
+    "defaults",
+    "capabilities",
+    "qualitySnapshot"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "project": {
+      "const": "open-agent-fabric"
+    },
+    "release": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "nextTask": {
+      "type": "string",
+      "pattern": "^OAF-[0-9]{3}$"
+    },
+    "defaults": {
+      "type": "object"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "evidence",
+          "limitations"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "reference",
+              "implemented",
+              "specified",
+              "disabled",
+              "unsupported"
+            ]
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "qualitySnapshot": {
+      "type": "object"
+    }
+  }
+}

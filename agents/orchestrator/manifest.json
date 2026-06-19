@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "agent:orchestrator",
+  "name": "Orchestrator",
+  "version": "0.1.0",
+  "role": "Coordinates bounded tasks and handoffs without owning domain authority",
+  "description": "Coordinates bounded tasks and handoffs without owning domain authority",
+  "allowedTools": [
+    "tool:filesystem-read",
+    "tool:git-read"
+  ],
+  "allowedSkills": [
+    "skill:repository-onboarding",
+    "skill:implementation-task",
+    "skill:release-readiness"
+  ],
+  "defaultContextPolicy": {
+    "profile": "implementation",
+    "tokenBudget": 12000,
+    "allowedScopes": [
+      "workspace-private",
+      "public"
+    ]
+  },
+  "completionCriteria": [
+    "Task stop condition met",
+    "Relevant tests pass",
+    "Security and status impact reported"
+  ]
+}

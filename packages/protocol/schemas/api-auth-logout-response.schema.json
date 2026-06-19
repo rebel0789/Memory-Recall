@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-logout-response-1.0.json",
+  "title": "Auth Logout Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "loggedOut"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "loggedOut": { "const": true }
+  }
+}

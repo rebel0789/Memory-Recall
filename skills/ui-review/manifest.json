@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:ui-review",
+  "name": "Ui Review",
+  "version": "0.1.0",
+  "triggers": [
+    "UI review",
+    "accessibility",
+    "design QA"
+  ],
+  "tools": [
+    "tool:filesystem-read"
+  ],
+  "sideEffectClass": "read-only",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

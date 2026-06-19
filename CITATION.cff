@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use Open Agent Fabric, cite the project and release."
+title: "Open Agent Fabric"
+version: "0.2.0-dev"
+date-released: 2026-06-19
+license: Apache-2.0
+repository-code: "https://github.com/OWNER/open-agent-fabric"
+authors:
+  - family-names: "Contributors"
+    given-names: "Open Agent Fabric"

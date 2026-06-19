@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-login-request-1.0.json",
+  "title": "Auth Login Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["username", "password"],
+  "properties": {
+    "username": { "type": "string", "pattern": "^[a-zA-Z0-9._:-]{1,80}$", "maxLength": 80 },
+    "password": { "type": "string", "minLength": 1, "maxLength": 256 }
+  }
+}

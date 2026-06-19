@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-bootstrap-status-response-1.0.json",
+  "title": "Auth Bootstrap Status Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "bootstrapRequired"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "bootstrapRequired": { "type": "boolean" }
+  }
+}

@@ -1,0 +1,414 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "open-agent-fabric",
+  "release": "0.2.0-dev",
+  "phase": "native-baselines-and-portable-contracts",
+  "nextTask": "OAF-009",
+  "defaults": {
+    "network": "deny",
+    "externalWrites": false,
+    "modelMode": "deterministic",
+    "dataResidency": "local-only",
+    "permanentMemory": "proposal-only",
+    "adapters": "disabled",
+    "memoryProvider": "provider:native:memory:sqlite",
+    "artifactProvider": "provider:native:artifact:filesystem",
+    "workflowProvider": "provider:native:workflow:embedded",
+    "agentPackAuthority": "policy-required",
+    "replaySideEffects": "disabled"
+  },
+  "capabilities": [
+    {
+      "id": "bootstrap.control-api",
+      "name": "Local control API",
+      "status": "reference",
+      "evidence": [
+        "services/control-api/src/server.mjs",
+        "services/control-api/src/route-contracts.mjs",
+        "tests/control-api.test.mjs"
+      ],
+      "limitations": [
+        "Loopback development server",
+        "No production authentication"
+      ]
+    },
+    {
+      "id": "bootstrap.web",
+      "name": "Responsive evidence-first dashboard",
+      "status": "reference",
+      "evidence": [
+        "apps/web/index.html",
+        "apps/web/app.js",
+        "apps/web/styles.css"
+      ],
+      "limitations": [
+        "Dependency-free conformance UI",
+        "Not the target production frontend"
+      ]
+    },
+    {
+      "id": "events.local",
+      "name": "Append-only run event projection",
+      "status": "reference",
+      "evidence": [
+        "packages/protocol/src/index.mjs",
+        "packages/storage/src/file-store.mjs",
+        "tests/workflow-runtime.test.mjs"
+      ],
+      "limitations": [
+        "File-backed projection is not crash durable"
+      ]
+    },
+    {
+      "id": "context.compiler",
+      "name": "Context Compiler reference",
+      "status": "reference",
+      "evidence": [
+        "packages/context-compiler/src/index.mjs",
+        "evals/context-selection/cases.json",
+        "tests/context-compiler.test.mjs"
+      ],
+      "limitations": [
+        "Exact/lexical scoring only",
+        "Token estimate is approximate",
+        "Manifest not yet persisted separately"
+      ]
+    },
+    {
+      "id": "workflow.content-intelligence",
+      "name": "Synthetic Content Intelligence vertical slice",
+      "status": "reference",
+      "evidence": [
+        "workflows/content-intelligence/runner.mjs",
+        "tests/workflow.test.mjs"
+      ],
+      "limitations": [
+        "Synthetic fixtures",
+        "Deterministic generator",
+        "No publishing"
+      ]
+    },
+    {
+      "id": "content.retrieval-signals",
+      "name": "Deterministic content eligibility and anti-pattern assessment",
+      "status": "reference",
+      "evidence": [
+        "packages/content-intelligence/src/index.mjs",
+        "tests/content-intelligence.test.mjs"
+      ],
+      "limitations": [
+        "Bootstrap heuristics only",
+        "Creator-relative baselines and learned ranking remain planned"
+      ]
+    },
+    {
+      "id": "policy.local",
+      "name": "Deterministic local policy evaluator",
+      "status": "reference",
+      "evidence": [
+        "packages/policy/src/index.mjs",
+        "tests/policy.test.mjs"
+      ],
+      "limitations": [
+        "No production identity or relationship store"
+      ]
+    },
+    {
+      "id": "memory.write-gate",
+      "name": "Memory proposal gate",
+      "status": "reference",
+      "evidence": [
+        "packages/memory-core/src/index.mjs",
+        "tests/memory-core.test.mjs"
+      ],
+      "limitations": [
+        "No persistent versioned memory service"
+      ]
+    },
+    {
+      "id": "evidence.citations",
+      "name": "Observation normalization and citation validation",
+      "status": "reference",
+      "evidence": [
+        "packages/evidence/src/index.mjs",
+        "tests/evidence.test.mjs"
+      ],
+      "limitations": [
+        "No immutable artifact store or citation graph database"
+      ]
+    },
+    {
+      "id": "tool.registry",
+      "name": "Manifest-backed tool registry reference",
+      "status": "reference",
+      "evidence": [
+        "packages/tool-registry/src/index.mjs",
+        "tests/tool-registry.test.mjs"
+      ],
+      "limitations": [
+        "No hardened sandbox or short-lived cryptographic grant"
+      ]
+    },
+    {
+      "id": "model.deterministic",
+      "name": "Deterministic local model gateway",
+      "status": "reference",
+      "evidence": [
+        "packages/model-gateway/src/index.mjs",
+        "workflows/content-intelligence/runner.mjs"
+      ],
+      "limitations": [
+        "No real local model adapter in bootstrap"
+      ]
+    },
+    {
+      "id": "storage.postgres",
+      "name": "PostgreSQL repository layer",
+      "status": "reference",
+      "evidence": [
+        "deploy/postgres/migrations/001_init.sql",
+        "deploy/postgres/migrations/002_identity.sql",
+        "packages/storage/src/postgres-repositories.mjs",
+        "packages/storage/src/postgres-migrations.mjs",
+        "packages/storage/src/psql-session-client.mjs",
+        "tests/postgres-repositories.test.mjs",
+        "tests/postgres-migrations.test.mjs",
+        "scripts/db.mjs",
+        "scripts/postgres-recovery-test.mjs",
+        "docs/architecture/storage.md"
+      ],
+      "limitations": [
+        "Repository layer requires an injected PostgreSQL-compatible client",
+        "Real PostgreSQL recovery test requires an explicit pgvector-capable test database",
+        "Production connection orchestration remains pending",
+        "Offline bootstrap still defaults to file-backed and native providers"
+      ]
+    },
+    {
+      "id": "api.boundary-validation",
+      "name": "Strict local API boundary validation",
+      "status": "reference",
+      "evidence": [
+        "services/control-api/src/server.mjs",
+        "services/control-api/src/route-contracts.mjs",
+        "tests/control-api-boundary.test.mjs",
+        "docs/api/openapi.yaml",
+        "packages/protocol/schemas/api-error-envelope.schema.json",
+        "packages/protocol/schemas/api-start-run-request.schema.json",
+        "packages/protocol/schemas/api-start-run-response.schema.json",
+        "packages/protocol/schemas/api-context-compile-request.schema.json"
+      ],
+      "limitations": [
+        "Boundary validation and authentication are separate enforced layers",
+        "Local identity is not production SSO or MFA",
+        "Bootstrap remains loopback local development"
+      ]
+    },
+    {
+      "id": "auth.local",
+      "name": "Native local identity and workspace authorization",
+      "status": "reference",
+      "evidence": [
+        "providers/native/identity-local/src/index.mjs",
+        "providers/native/identity-local/provider.json",
+        "services/control-api/src/server.mjs",
+        "services/control-api/src/route-contracts.mjs",
+        "packages/policy/src/index.mjs",
+        "packages/adapter-contracts/src/index.mjs",
+        "tests/native-identity-store.test.mjs",
+        "tests/control-api-auth.test.mjs",
+        "docs/security/threat-model.md"
+      ],
+      "limitations": [
+        "Local-first bootstrap identity only",
+        "No production SSO, MFA, or hosted secret manager",
+        "No encrypted-at-rest identity store"
+      ]
+    },
+    {
+      "id": "runtime.durable",
+      "name": "Durable workflow runtime",
+      "status": "specified",
+      "evidence": [
+        "docs/architecture/workflow-runtime.md",
+        "planning/backlog.json"
+      ],
+      "limitations": [
+        "In-process bootstrap does not survive process failure"
+      ]
+    },
+    {
+      "id": "auth.production",
+      "name": "Production authentication and workspace authorization",
+      "status": "specified",
+      "evidence": [
+        "docs/security/threat-model.md",
+        "planning/backlog.json"
+      ],
+      "limitations": [
+        "Production SSO, MFA, secret management, and deployment hardening remain pending",
+        "Bootstrap identity is local-first and loopback-oriented"
+      ]
+    },
+    {
+      "id": "adapters.external",
+      "name": "External project adapters",
+      "status": "disabled",
+      "evidence": [
+        "adapters/catalog.json",
+        "THIRD_PARTY.md"
+      ],
+      "limitations": [
+        "All are unpinned, disabled, and require review"
+      ]
+    },
+    {
+      "id": "publishing.external",
+      "name": "External publishing",
+      "status": "disabled",
+      "evidence": [
+        "tools/manifests/publish.json",
+        "adapters/publishing/postiz/adapter.json"
+      ],
+      "limitations": [
+        "No publisher executes in bootstrap"
+      ]
+    },
+    {
+      "id": "protocol.compatibility",
+      "name": "Dependency-free JSON Schema compatibility validation",
+      "status": "reference",
+      "evidence": [
+        "packages/protocol/src/schema-validator.mjs",
+        "examples/protocol/compatibility/fixtures.json",
+        "tests/protocol-schema-validator.test.mjs"
+      ],
+      "limitations": [
+        "Implements the JSON Schema subset used by OAF v1; not a general replacement for a standards-complete validator"
+      ]
+    },
+    {
+      "id": "ports.conformance",
+      "name": "Provider-neutral ports and smoke conformance",
+      "status": "reference",
+      "evidence": [
+        "packages/adapter-contracts/src/index.mjs",
+        "tests/adapter-contracts.test.mjs"
+      ],
+      "limitations": [
+        "Category-specific production suites remain milestone work"
+      ]
+    },
+    {
+      "id": "agentpack.portable",
+      "name": "Portable Agent Pack validation and fingerprinting",
+      "status": "reference",
+      "evidence": [
+        "packages/agentpack/src/index.mjs",
+        "packages/protocol/schemas/agent-pack.schema.json",
+        "examples/agentpacks/content-intelligence.agentpack.json"
+      ],
+      "limitations": [
+        "No signed registry or activation service yet"
+      ]
+    },
+    {
+      "id": "memory.sqlite",
+      "name": "Workspace-scoped SQLite and FTS5 memory provider",
+      "status": "reference",
+      "evidence": [
+        "providers/native/memory-sqlite/src/index.mjs",
+        "tests/native-memory-sqlite.test.mjs"
+      ],
+      "limitations": [
+        "Node 22 node:sqlite is experimental",
+        "No vector retrieval or evented review service yet"
+      ]
+    },
+    {
+      "id": "artifacts.filesystem",
+      "name": "Content-addressed local artifact provider",
+      "status": "reference",
+      "evidence": [
+        "providers/native/artifact-filesystem/src/index.mjs",
+        "tests/native-artifact-filesystem.test.mjs",
+        "packages/protocol/schemas/artifact-record.schema.json",
+        "packages/protocol/schemas/source-snapshot.schema.json",
+        "packages/protocol/schemas/stored-object-descriptor.schema.json",
+        "packages/protocol/schemas/retention-policy.schema.json",
+        "packages/protocol/schemas/deletion-receipt.schema.json",
+        "packages/protocol/schemas/artifact-export-manifest.schema.json",
+        "packages/protocol/schemas/integrity-verification-result.schema.json"
+      ],
+      "limitations": [
+        "No restore/import service yet",
+        "No background retention worker",
+        "No encrypted-at-rest artifact store"
+      ]
+    },
+    {
+      "id": "runtime.embedded",
+      "name": "Cancellable embedded workflow provider with event checkpoints",
+      "status": "reference",
+      "evidence": [
+        "providers/native/workflow-embedded/src/index.mjs",
+        "tests/native-workflow-embedded.test.mjs"
+      ],
+      "limitations": [
+        "Cannot resume arbitrary JavaScript closures after process restart"
+      ]
+    },
+    {
+      "id": "model.ollama",
+      "name": "Explicit loopback-only Ollama provider",
+      "status": "reference",
+      "evidence": [
+        "providers/native/model-ollama/src/index.mjs",
+        "tests/native-model-ollama.test.mjs"
+      ],
+      "limitations": [
+        "Requires separately installed Ollama and selected model",
+        "Disabled by default; no silent fallback"
+      ]
+    },
+    {
+      "id": "replay.safe",
+      "name": "Side-effect-free replay plans, run comparison, and learning proposals",
+      "status": "reference",
+      "evidence": [
+        "packages/replay/src/index.mjs",
+        "tests/replay.test.mjs"
+      ],
+      "limitations": [
+        "No persisted replay executor or shadow scheduler yet"
+      ]
+    },
+    {
+      "id": "adapters.contract-fixtures",
+      "name": "Versioned external adapter contract fixtures",
+      "status": "reference",
+      "evidence": [
+        "adapters/CONFORMANCE.md",
+        "tests/adapter-contract-fixtures.test.mjs"
+      ],
+      "limitations": [
+        "Fixtures are expectations, not evidence that adapters are installed or passing"
+      ]
+    }
+  ],
+  "qualitySnapshot": {
+    "asOf": "2026-06-19",
+    "commands": [
+      "npm run check",
+      "npm run protocol:validate",
+      "npm test",
+      "npm run eval",
+      "npm run native:smoke",
+      "npm run demo"
+    ],
+    "testsExpected": 82,
+    "protocolFixturesExpected": 30,
+    "evaluationsExpected": 22,
+    "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
+  }
+}

@@ -1,0 +1,52 @@
+# Adapter Contracts
+
+Adapters translate external systems into OAF domain contracts. They do not redefine canonical identity, policy, events, or memory semantics.
+
+## Required metadata
+
+- exact upstream repository and commit;
+- archive or source checksum;
+- reviewed license and notices;
+- maintainer and review date;
+- supported platforms and versions;
+- required processes, files, domains, and secrets;
+- input/output limits and timeout;
+- side-effect class;
+- sandbox profile;
+- health and conformance evidence.
+
+## Lifecycle
+
+```text
+planned → pinned → reviewed → experimental → supported → deprecated → removed
+```
+
+No adapter skips `pinned` and `reviewed`. Supported status requires release evidence; popularity is not evidence.
+
+## Conformance
+
+Test success, malformed output, timeout, cancellation, partial output, oversized data, prompt injection, permission denial, unavailable dependency, upstream version mismatch, and clean removal.
+
+`ArtifactStorePort` is versioned as `1.1.0` for the native artifact baseline. Implementations keep the compatibility methods `put`, `get`, `list`, and `remove`, and add explicit methods for source snapshots, metadata reads, body reads, integrity verification, retention planning/application, tombstoned record removal, and portable workspace export. Public results expose record IDs, hashes, sizes, schema versions, and relative export paths, never provider filesystem handles or absolute storage paths.
+
+## Isolation
+
+Prefer subprocess, container, or service boundaries for complex or restrictive upstream projects. The Apache core must operate without every optional adapter.
+
+## Native providers versus external adapters
+
+`providers/native/` contains local implementations maintained as part of OAF. `adapters/` contains external integration boundaries. Both implement provider-neutral ports, but only external adapters require an upstream pin and third-party license review.
+
+Every external adapter now carries a `fixtures/conformance.json` expectation. The fixture does not mean the adapter works; it describes the minimum cases executable code must pass before promotion.
+
+## Dependency boundary
+
+```text
+packages/* domain contracts
+      ↑                  ↑
+providers/native/*   adapters/*
+      ↑                  ↑
+application composition selects one
+```
+
+Core packages never import either provider family. Provider payloads enter canonical state only after validation and normalization.

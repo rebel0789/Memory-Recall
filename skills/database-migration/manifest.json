@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:database-migration",
+  "name": "Database Migration",
+  "version": "0.1.0",
+  "triggers": [
+    "migration",
+    "schema change"
+  ],
+  "tools": [
+    "tool:filesystem-read",
+    "tool:workspace-write",
+    "tool:shell-sandbox"
+  ],
+  "sideEffectClass": "reversible-write",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

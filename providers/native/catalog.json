@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "providers": [
+    {
+      "id": "provider:native:memory:sqlite",
+      "path": "providers/native/memory-sqlite",
+      "enabledByDefault": true,
+      "purpose": "Workspace-scoped temporal memory and FTS5 candidate search"
+    },
+    {
+      "id": "provider:native:artifact:filesystem",
+      "path": "providers/native/artifact-filesystem",
+      "enabledByDefault": true,
+      "purpose": "Content-addressed local artifacts and source snapshots"
+    },
+    {
+      "id": "provider:native:workflow:embedded",
+      "path": "providers/native/workflow-embedded",
+      "enabledByDefault": true,
+      "purpose": "Bounded local execution with event checkpoints"
+    },
+    {
+      "id": "provider:native:model:deterministic",
+      "path": "providers/native/model-deterministic",
+      "enabledByDefault": true,
+      "purpose": "Offline deterministic demo and regression output"
+    },
+    {
+      "id": "provider:native:identity:local",
+      "path": "providers/native/identity-local",
+      "enabledByDefault": true,
+      "purpose": "Local-first users, sessions, API tokens, workspace memberships, and security audit"
+    },
+    {
+      "id": "provider:native:model:ollama",
+      "path": "providers/native/model-ollama",
+      "enabledByDefault": false,
+      "purpose": "Explicit loopback-only local model generation"
+    }
+  ]
+}

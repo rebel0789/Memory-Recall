@@ -1,0 +1,23 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { ContractViolation, MemoryBackendPort, assertCanonicalEnvelope, assertPortImplementation, createProviderEnvelope, normalizeCapabilities, normalizeHealthResult } from '../packages/adapter-contracts/src/index.mjs';
+
+test('port implementation check reports exact missing methods', () => {
+  assert.throws(
+    () => assertPortImplementation({ health() {} }, MemoryBackendPort),
+    (error) => error instanceof ContractViolation && error.code === 'missing_methods' && error.details.missing.includes('queryCandidates')
+  );
+});
+
+test('health and capabilities normalize provider output', () => {
+  const health = normalizeHealthResult({ status: 'healthy', details: { ok: true } }, 'provider:test');
+  assert.equal(health.providerId, 'provider:test');
+  assert.deepEqual(normalizeCapabilities(['b', 'a', 'a'], 'provider:test'), ['a', 'b']);
+  assert.throws(() => normalizeHealthResult({ status: 'unknown' }, 'provider:test'), /unsupported/);
+});
+
+test('provider envelopes preserve identity and reject mismatches', () => {
+  const envelope = createProviderEnvelope({ providerId: 'provider:test', operation: 'read', payload: { id: 'one' } });
+  assert.equal(assertCanonicalEnvelope(envelope, 'provider:test').payload.id, 'one');
+  assert.throws(() => assertCanonicalEnvelope(envelope, 'provider:other'), /expected provider:other/);
+});

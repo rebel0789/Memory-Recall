@@ -1,0 +1,67 @@
+# Execution Queue
+
+The authoritative acceptance criteria live in `docs/implementation/BUILD_ORDER.md`. The machine-readable queue lives in `planning/backlog.json`.
+
+```bash
+npm run status
+npm run task -- OAF-004
+```
+
+## Foundation
+
+- [x] OAF-001 Verify the kit from a clean checkout.
+- [x] OAF-002 Ratify protocol RFC and compatibility fixtures.
+- [x] OAF-003 Define application ports and conformance tests.
+
+## Canonical data
+
+- [ ] **OAF-004 Implement PostgreSQL repositories — next.**
+- [ ] OAF-005 Implement migration runner and recovery tests.
+- [ ] OAF-006 Complete content-addressed artifact and source snapshots.
+
+## API and authority
+
+- [ ] OAF-007 Add strict API boundary validation.
+- [ ] OAF-008 Implement local identity and workspace authorization.
+- [ ] OAF-009 Implement authorization and contextual policy ports.
+
+## Context Compiler
+
+- [ ] OAF-010 Add candidate-source ports.
+- [ ] OAF-011 Add hybrid fusion, reranking, diversity, and reserved budgets.
+- [ ] OAF-012 Persist assembly and context manifests.
+
+## Runtime
+
+- [ ] OAF-013 Complete the model-gateway contract and local integration tests.
+- [ ] OAF-014 Add a durable workflow adapter and crash recovery.
+- [ ] OAF-015 Implement tool registry, bounded grants, and sandbox execution.
+
+## Evidence and memory
+
+- [ ] OAF-016 Implement the evidence service and citation graph.
+- [ ] OAF-017 Complete native versioned memory and the write gate.
+- [ ] OAF-018 Add context-use and outcome feedback without causal overclaiming.
+
+## Content Intelligence
+
+- [ ] OAF-019 Implement file and RSS ingestion.
+- [ ] OAF-020 Implement patterns, relative performance, saturation, and copying risk.
+- [ ] OAF-021 Implement approval, local drafting, and outcome recording.
+
+## Product interface
+
+- [ ] OAF-022 Build the production web shell while preserving bootstrap contracts.
+- [ ] OAF-023 Build Run and Context Inspector views.
+- [ ] OAF-024 Build Memory, Evidence, and Approval views.
+
+## Quality and ecosystem
+
+- [ ] OAF-025 Add OpenTelemetry-compatible instrumentation.
+- [ ] OAF-026 Build the evaluation laboratory.
+- [ ] OAF-027 Promote one low-risk read-only adapter.
+- [ ] OAF-028 Add protocol bridges through accepted RFCs.
+- [ ] OAF-029 Complete operations, backup, restore, upgrade, and rollback.
+- [ ] OAF-030 Complete 1.0 open-source release readiness.
+
+Never enable external writes before authorization, exact approval, idempotency, reconciliation, and adversarial tests pass.

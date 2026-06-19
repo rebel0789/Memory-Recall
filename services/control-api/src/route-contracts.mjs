@@ -1,0 +1,550 @@
+const id = (prefix) => `^${prefix}_[A-Za-z0-9._:-]{1,120}$`;
+const boundedString = (maxLength) => ({ type: 'string', minLength: 1, maxLength });
+const correlationId = { type: 'string', pattern: '^req_[A-Za-z0-9._:-]{8,96}$', maxLength: 100 };
+const runId = { type: 'string', pattern: id('run'), maxLength: 128 };
+const tokenId = { type: 'string', pattern: id('tok'), maxLength: 128 };
+const workspaceId = { type: 'string', pattern: id('ws'), maxLength: 128 };
+const username = { type: 'string', pattern: '^[a-zA-Z0-9._:-]{1,80}$', maxLength: 80 };
+const password = { type: 'string', minLength: 1, maxLength: 256 };
+const event = {
+  type: 'object',
+  additionalProperties: true,
+  required: ['schemaVersion', 'id', 'workspaceId', 'type', 'runId', 'actorId', 'sequence', 'occurredAt', 'correlationId', 'dataClass', 'producerVersion', 'payload'],
+  properties: {
+    schemaVersion: { const: '1.0.0' },
+    id: { type: 'string', pattern: id('evt'), maxLength: 128 },
+    workspaceId: boundedString(128),
+    type: boundedString(128),
+    runId,
+    actorId: boundedString(128),
+    sequence: { type: 'integer', minimum: 0 },
+    occurredAt: { type: 'string', format: 'date-time' },
+    correlationId,
+    causationId: { type: ['string', 'null'], maxLength: 128 },
+    dataClass: { enum: ['public', 'workspace-private', 'sensitive'] },
+    producerVersion: boundedString(64),
+    payload: { type: 'object', maxProperties: 64, additionalProperties: true }
+  }
+};
+
+const run = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['id', 'workspaceId', 'workflowId', 'workflowVersion', 'objective', 'status', 'residency', 'createdAt', 'completedAt', 'output', 'verification'],
+  properties: {
+    id: runId,
+    workspaceId,
+    workflowId: { const: 'workflow:content-intelligence' },
+    workflowVersion: boundedString(64),
+    objective: boundedString(2000),
+    status: { enum: ['completed', 'failed', 'cancelled', 'running'] },
+    residency: { const: 'local-only' },
+    createdAt: { type: 'string', format: 'date-time' },
+    completedAt: { type: ['string', 'null'], format: 'date-time' },
+    output: { type: ['object', 'array', 'null'], additionalProperties: true, maxItems: 16 },
+    verification: { type: ['object', 'null'], additionalProperties: true }
+  }
+};
+
+const errorEnvelope = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['schemaVersion', 'error'],
+  properties: {
+    schemaVersion: { const: '1.0.0' },
+    error: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['code', 'message', 'correlationId'],
+      properties: {
+        code: {
+          enum: [
+            'invalid_json',
+            'request_validation_failed',
+            'invalid_path_parameter',
+            'route_not_found',
+            'method_not_allowed',
+            'request_too_large',
+            'unsupported_media_type',
+            'unsupported_content_encoding',
+            'authentication_required',
+            'invalid_credentials',
+            'invalid_authentication',
+            'csrf_failed',
+            'forbidden',
+            'resource_not_found',
+            'already_bootstrapped',
+            'workspace_context_conflict',
+            'rate_limited',
+            'bootstrap_required',
+            'internal_error'
+          ]
+        },
+        message: boundedString(240),
+        correlationId,
+        issues: {
+          type: 'array',
+          maxItems: 32,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['path', 'code'],
+            properties: {
+              path: { type: 'string', minLength: 1, maxLength: 256 },
+              code: { type: 'string', minLength: 1, maxLength: 64 }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+function contextRequestSchema(limits) {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'id', 'workspaceId', 'actorId', 'taskId', 'step', 'objective', 'tokenBudget', 'allowedScopes'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      id: { type: 'string', pattern: id('ctxreq'), maxLength: 128 },
+      workspaceId: boundedString(128),
+      actorId: boundedString(128),
+      taskId: boundedString(128),
+      step: boundedString(128),
+      objective: boundedString(limits.objectiveLength),
+      requiredIds: { type: 'array', maxItems: limits.jsonArrayItems, uniqueItems: true, items: boundedString(128) },
+      requiredEntities: { type: 'array', maxItems: limits.jsonArrayItems, uniqueItems: true, items: boundedString(128) },
+      tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 },
+      allowedScopes: { type: 'array', minItems: 1, maxItems: 3, uniqueItems: true, items: { enum: ['public', 'workspace-private', 'sensitive'] } },
+      now: { type: 'string', format: 'date-time' },
+      profile: boundedString(64)
+    }
+  };
+}
+
+function recordSchema(limits) {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'kind', 'text'],
+    properties: {
+      id: boundedString(128),
+      kind: boundedString(64),
+      text: boundedString(5000),
+      scope: { enum: ['public', 'workspace-private', 'sensitive'] },
+      status: boundedString(64),
+      source: boundedString(256),
+      tokens: { type: 'integer', minimum: 0, maximum: 100000 },
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+      authority: { type: 'number', minimum: 0, maximum: 1 },
+      supersedes: { type: ['string', 'null'], maxLength: 128 },
+      metadata: { type: 'object', maxProperties: limits.jsonObjectKeys, additionalProperties: true }
+    }
+  };
+}
+
+export function createApiRouteContracts(limits = {}) {
+  const routeBodyBytes = {
+    login: Math.min(limits.bodyBytes ?? 1_000_000, 4 * 1024),
+    createApiToken: Math.min(limits.bodyBytes ?? 1_000_000, 8 * 1024),
+    startRun: Math.min(limits.bodyBytes ?? 1_000_000, 32 * 1024),
+    compileContext: Math.min(limits.bodyBytes ?? 1_000_000, 256 * 1024),
+    resetBootstrap: 0
+  };
+  const limitShape = {
+    objectiveLength: limits.objectiveLength ?? 2000,
+    jsonArrayItems: limits.jsonArrayItems ?? 100,
+    jsonObjectKeys: limits.jsonObjectKeys ?? 100
+  };
+  const startRunRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId'],
+    maxProperties: 3,
+    properties: {
+      workspaceId,
+      workflowId: { const: 'workflow:content-intelligence' },
+      objective: boundedString(limitShape.objectiveLength)
+    }
+  };
+  const loginRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['username', 'password'],
+    properties: { username, password }
+  };
+  const userSummary = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'username', 'displayName', 'status', 'createdAt', 'updatedAt'],
+    properties: {
+      id: { type: 'string', pattern: id('usr'), maxLength: 128 },
+      username,
+      displayName: boundedString(120),
+      status: { enum: ['active', 'disabled'] },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' }
+    }
+  };
+  const membershipSummary = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'userId', 'workspaceId', 'role', 'status', 'createdAt', 'updatedAt'],
+    properties: {
+      id: { type: 'string', pattern: id('wsm'), maxLength: 128 },
+      userId: { type: 'string', pattern: id('usr'), maxLength: 128 },
+      workspaceId,
+      role: { enum: ['owner', 'builder', 'operator', 'auditor'] },
+      status: { enum: ['active', 'disabled'] },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' }
+    }
+  };
+  const sessionResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'authenticated', 'user', 'memberships', 'actions'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      authenticated: { const: true },
+      user: userSummary,
+      memberships: { type: 'array', maxItems: 32, items: membershipSummary },
+      actions: { type: 'array', maxItems: 32, uniqueItems: true, items: boundedString(80) }
+    }
+  };
+  const apiTokenSummary = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'userId', 'name', 'tokenPrefix', 'workspaceIds', 'scopes', 'createdAt', 'expiresAt', 'revokedAt'],
+    properties: {
+      id: tokenId,
+      userId: { type: 'string', pattern: id('usr'), maxLength: 128 },
+      name: boundedString(120),
+      tokenPrefix: { type: 'string', minLength: 8, maxLength: 64 },
+      workspaceIds: { type: 'array', minItems: 1, maxItems: 16, uniqueItems: true, items: workspaceId },
+      scopes: { type: 'array', maxItems: 16, uniqueItems: true, items: boundedString(80) },
+      createdAt: { type: 'string', format: 'date-time' },
+      expiresAt: { type: ['string', 'null'], format: 'date-time' },
+      revokedAt: { type: ['string', 'null'], format: 'date-time' }
+    }
+  };
+  const createApiTokenRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['name', 'workspaceIds', 'scopes'],
+    properties: {
+      name: boundedString(120),
+      workspaceIds: { type: 'array', minItems: 1, maxItems: 16, uniqueItems: true, items: workspaceId },
+      scopes: { type: 'array', minItems: 1, maxItems: 16, uniqueItems: true, items: { enum: ['run.read', 'run.execute', 'context.compile', 'stream.read', 'dashboard.read', 'workspace.read'] } },
+      expiresAt: { type: ['string', 'null'], format: 'date-time' }
+    }
+  };
+  const contextCompileRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['request', 'records'],
+    properties: {
+      request: contextRequestSchema(limitShape),
+      records: { type: 'array', maxItems: limitShape.jsonArrayItems, items: recordSchema(limitShape) }
+    }
+  };
+  const contextManifest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'id', 'workspaceId', 'compilerVersion', 'createdAt', 'budget', 'selected', 'excluded', 'conflicts'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      id: { type: 'string', pattern: id('ctx'), maxLength: 128 },
+      workspaceId: boundedString(128),
+      requestId: { type: ['string', 'null'], maxLength: 128 },
+      compilerVersion: boundedString(64),
+      createdAt: { type: 'string', format: 'date-time' },
+      budget: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['available', 'used'],
+        properties: { available: { type: 'integer', minimum: 1 }, used: { type: 'integer', minimum: 0 } }
+      },
+      selected: { type: 'array', maxItems: limitShape.jsonArrayItems, items: { type: 'object', additionalProperties: true } },
+      excluded: { type: 'array', maxItems: limitShape.jsonArrayItems, items: { type: 'object', additionalProperties: true } },
+      conflicts: { type: 'array', maxItems: limitShape.jsonArrayItems, items: { type: 'object', additionalProperties: true } },
+      warnings: { type: 'array', maxItems: limitShape.jsonArrayItems, items: boundedString(256) }
+    }
+  };
+
+  return Object.freeze([
+    {
+      method: 'GET',
+      path: '/api/health',
+      operationId: 'getHealth',
+      security: { public: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: {
+        200: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['schemaVersion', 'status', 'mode', 'version', 'residency', 'externalWrites', 'time'],
+          properties: {
+            schemaVersion: { const: '1.0.0' },
+            status: { const: 'ok' },
+            mode: { const: 'local-bootstrap' },
+            version: boundedString(64),
+            residency: { const: 'local-only' },
+            externalWrites: { const: false },
+            time: { type: 'string', format: 'date-time' }
+          }
+        }
+      }
+    },
+    {
+      method: 'GET',
+      path: '/api/auth/bootstrap-status',
+      operationId: 'getBootstrapStatus',
+      security: { public: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: {
+        200: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['schemaVersion', 'bootstrapRequired'],
+          properties: {
+            schemaVersion: { const: '1.0.0' },
+            bootstrapRequired: { type: 'boolean' }
+          }
+        }
+      }
+    },
+    {
+      method: 'POST',
+      path: '/api/auth/login',
+      operationId: 'login',
+      security: { public: true, origin: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: loginRequest,
+      maxBodyBytes: routeBodyBytes.login,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: sessionResponse }
+    },
+    {
+      method: 'GET',
+      path: '/api/auth/session',
+      operationId: 'getSession',
+      security: { authenticated: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: sessionResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/auth/logout',
+      operationId: 'logout',
+      security: { authenticated: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: { type: 'object', additionalProperties: false, required: ['schemaVersion', 'loggedOut'], properties: { schemaVersion: { const: '1.0.0' }, loggedOut: { const: true } } } }
+    },
+    {
+      method: 'POST',
+      path: '/api/auth/tokens',
+      operationId: 'createApiToken',
+      security: { authenticated: true, sessionOnly: true, csrf: true, action: 'token.manage' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: createApiTokenRequest,
+      maxBodyBytes: routeBodyBytes.createApiToken,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 201: { type: 'object', additionalProperties: false, required: ['schemaVersion', 'apiToken', 'token'], properties: { schemaVersion: { const: '1.0.0' }, apiToken: apiTokenSummary, token: boundedString(256) } } }
+    },
+    {
+      method: 'GET',
+      path: '/api/auth/tokens',
+      operationId: 'listApiTokens',
+      security: { authenticated: true, sessionOnly: true, action: 'token.manage' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: { type: 'object', additionalProperties: false, required: ['schemaVersion', 'items'], properties: { schemaVersion: { const: '1.0.0' }, items: { type: 'array', maxItems: 100, items: apiTokenSummary } } } }
+    },
+    {
+      method: 'DELETE',
+      path: '/api/auth/tokens/{tokenId}',
+      operationId: 'deleteApiToken',
+      security: { authenticated: true, sessionOnly: true, csrf: true, action: 'token.manage' },
+      pathParameters: { tokenId },
+      query: { additionalProperties: false, properties: {} },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: { type: 'object', additionalProperties: false, required: ['schemaVersion', 'revoked'], properties: { schemaVersion: { const: '1.0.0' }, revoked: { type: 'boolean' } } } }
+    },
+    {
+      method: 'GET',
+      path: '/api/status',
+      operationId: 'getProjectStatus',
+      security: { authenticated: true, action: 'system.status.read' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: { type: 'object', additionalProperties: true, required: ['schemaVersion', 'project', 'release', 'nextTask'], properties: { schemaVersion: { const: '1.0.0' }, project: boundedString(128), release: boundedString(64), nextTask: boundedString(32) } } }
+    },
+    {
+      method: 'GET',
+      path: '/api/dashboard',
+      operationId: 'getDashboard',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: { type: 'object', additionalProperties: true, required: ['metrics', 'latestRun', 'latestManifest', 'runs'], properties: { metrics: { type: 'object', additionalProperties: true }, latestRun: { type: ['object', 'null'], additionalProperties: true }, latestManifest: { type: ['object', 'null'], additionalProperties: true }, runs: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } } } } }
+    },
+    {
+      method: 'GET',
+      path: '/api/runs',
+      operationId: 'listRuns',
+      security: { authenticated: true, action: 'run.read', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: { type: 'object', additionalProperties: false, required: ['schemaVersion', 'items'], properties: { schemaVersion: { const: '1.0.0' }, items: { type: 'array', maxItems: 1000, items: run } } } }
+    },
+    {
+      method: 'POST',
+      path: '/api/runs',
+      operationId: 'startRun',
+      security: { authenticated: true, action: 'run.execute', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId } },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: startRunRequest,
+      maxBodyBytes: routeBodyBytes.startRun,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 201: { type: 'object', additionalProperties: false, required: ['schemaVersion', 'run', 'events'], properties: { schemaVersion: { const: '1.0.0' }, run, events: { type: 'array', maxItems: 128, items: event } } } }
+    },
+    {
+      method: 'GET',
+      path: '/api/runs/{runId}',
+      operationId: 'getRun',
+      security: { authenticated: true, action: 'run.read', workspace: 'query', resourceLookup: true },
+      pathParameters: { runId },
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: { type: 'object', additionalProperties: false, required: ['schemaVersion', 'run', 'events'], properties: { schemaVersion: { const: '1.0.0' }, run, events: { type: 'array', maxItems: 128, items: event } } } }
+    },
+    {
+      method: 'POST',
+      path: '/api/context/compile',
+      operationId: 'compileContext',
+      security: { authenticated: true, action: 'context.compile', workspace: 'contextRequest', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: contextCompileRequest,
+      maxBodyBytes: routeBodyBytes.compileContext,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: contextManifest }
+    },
+    {
+      method: 'POST',
+      path: '/api/reset',
+      operationId: 'resetBootstrap',
+      security: { authenticated: true, action: 'workspace.reset', workspace: 'query', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: { type: 'object', additionalProperties: false, required: ['schemaVersion', 'reset', 'time'], properties: { schemaVersion: { const: '1.0.0' }, reset: { const: true }, time: { type: 'string', format: 'date-time' } } } }
+    },
+    {
+      method: 'GET',
+      path: '/api/stream',
+      operationId: 'streamEvents',
+      security: { authenticated: true, action: 'stream.read', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: true,
+      responses: {}
+    }
+  ]);
+}
+
+export const API_ERROR_SCHEMA = errorEnvelope;
+export const API_ROUTE_CONTRACTS = createApiRouteContracts();

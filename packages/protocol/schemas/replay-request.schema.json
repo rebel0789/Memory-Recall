@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/replay-request.schema.json",
+  "title": "Replay Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workspaceId", "sourceRunId", "mode", "sideEffects"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "workspaceId": { "type": "string", "minLength": 1 },
+    "sourceRunId": { "type": "string", "minLength": 1 },
+    "mode": { "enum": ["exact", "alternate-model", "alternate-context", "fork-from-step", "shadow"] },
+    "sideEffects": { "const": "disabled" },
+    "modelOverrides": { "type": "object", "additionalProperties": { "type": "string" } },
+    "contextPolicyOverride": { "type": ["string", "null"] },
+    "forkStepId": { "type": ["string", "null"] },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}

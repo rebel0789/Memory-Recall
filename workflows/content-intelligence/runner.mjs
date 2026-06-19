@@ -1,0 +1,23 @@
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { compileContext } from '../../packages/context-compiler/src/index.mjs';
+import { modelFromEnv } from '../../packages/model-gateway/src/index.mjs';
+import { executeSteps } from '../../packages/workflow-runtime/src/index.mjs';
+import { prefixedId } from '../../packages/protocol/src/index.mjs';
+import { normalizeObservation, validateClaimCitations } from '../../packages/evidence/src/index.mjs';
+import { assessContentObservation, observationRecordKind } from '../../packages/content-intelligence/src/index.mjs';
+const here=path.dirname(fileURLToPath(import.meta.url));
+const fixturePath=path.resolve(here,'../../examples/content-intelligence/fixtures/observations.json');
+export async function runContentIntelligence({emit=async()=>{},env=process.env,objective='Find evidence-backed content angles about reliable local agents'}={}) {
+  const runId=prefixedId('run');
+  const steps=[
+    {id:'collect',kind:'deterministic',timeoutMs:5000,retry:{maxAttempts:1},actorId:'agent:researcher',run:async()=>JSON.parse(await readFile(fixturePath,'utf8')),summarize:rows=>({observations:rows.length,source:'synthetic-fixture'})},
+    {id:'normalize',kind:'deterministic',timeoutMs:5000,retry:{maxAttempts:1},actorId:'agent:researcher',run:async({outputs})=>outputs.collect.map(item=>{const obs=normalizeObservation(item);const retrieval=assessContentObservation(item);return {id:obs.id,workspaceId:'ws_local',kind:observationRecordKind(retrieval),text:obs.text,scope:'workspace-private',status:'active',observedAt:obs.collectedAt,updatedAt:obs.collectedAt,source:obs.source,confidence:.72,authority:.55,tags:[obs.inferred.pattern,obs.platform],relations:retrieval.candidateEligible?[`creator:${obs.creator}`,'topic:agent-systems']:[`creator:${obs.creator}`],metadata:{metrics:item.metrics,observed:obs.observed,inferred:obs.inferred,retrieval}}}),summarize:rows=>({normalized:rows.length,eligible:rows.filter(row=>row.metadata.retrieval.candidateEligible).length,antiPatterns:rows.filter(row=>row.kind==='negative-context').length})},
+    {id:'compile-context',kind:'deterministic',timeoutMs:5000,retry:{maxAttempts:1},actorId:'agent:context-curator',run:async({outputs,emitEvent})=>{const records=[{id:'policy_evidence',kind:'policy',text:'Every recommendation must cite selected observations and state uncertainty.',scope:'workspace-private',status:'active',source:'workspace-policy',confidence:1,authority:1,tokens:22},{id:'constraint_no_copying',kind:'constraint',text:'Transfer content mechanisms, never copy distinctive source wording.',scope:'workspace-private',status:'active',source:'workspace-policy',confidence:1,authority:1,tokens:18},...outputs.normalize];const manifest=compileContext({schemaVersion:'1.0.0',id:'ctxreq_demo',workspaceId:'ws_local',actorId:'agent:researcher',taskId:runId,step:'generate-angles',objective,requiredEntities:['topic:agent-systems'],tokenBudget:245,allowedScopes:['workspace-private'],now:'2026-06-19T10:00:00Z'},records);await emitEvent('context.compiled',manifest,'agent:context-curator');return manifest},summarize:manifest=>({selected:manifest.selected.length,excluded:manifest.excluded.length,tokens:manifest.budget})},
+    {id:'generate-angles',kind:'model',timeoutMs:120000,retry:{maxAttempts:2,retryable:true},actorId:'agent:researcher',run:async({outputs})=>modelFromEnv(env).generate({objective,context:outputs['compile-context'],outputSchema:{type:'array',minItems:3,maxItems:3}}),summarize:result=>({model:result.model,recommendations:Array.isArray(result.output)?result.output.length:0})},
+    {id:'verify-recommendations',kind:'deterministic',timeoutMs:5000,retry:{maxAttempts:1},actorId:'agent:reviewer',run:async({outputs})=>{const recommendations=outputs['generate-angles']?.output??[];const available=outputs['compile-context'].selected.filter(item=>item.kind==='observation').map(item=>item.id);const claims=recommendations.map(item=>({id:`recommendation:${item.rank}`,text:`${item.angle} ${item.hook}`,evidenceIds:item.evidenceIds}));const result=validateClaimCitations(claims,available);if(!result.valid){const error=new Error('Generated recommendations contain missing or unavailable evidence citations');error.code='citation_validation_failed';error.retryable=false;error.failures=result.failures;throw error}return {valid:true,verifiedRecommendations:recommendations.length,availableEvidenceIds:available}},summarize:result=>({valid:result.valid,verifiedRecommendations:result.verifiedRecommendations})}
+  ];
+  const result=await executeSteps({runId,steps,emit});
+  return {runId,objective,...result};
+}

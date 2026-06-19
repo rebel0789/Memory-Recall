@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "ok",
+  "mode": "local-bootstrap",
+  "version": "0.2.0-dev",
+  "residency": "local-only",
+  "externalWrites": false,
+  "time": "2026-06-19T10:00:00.000Z"
+}

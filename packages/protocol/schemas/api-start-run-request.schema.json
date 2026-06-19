@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-start-run-request-1.0.json",
+  "title": "Start Run API Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["workspaceId"],
+  "maxProperties": 3,
+  "properties": {
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "workflowId": { "const": "workflow:content-intelligence" },
+    "objective": { "type": "string", "minLength": 1, "maxLength": 2000 }
+  }
+}

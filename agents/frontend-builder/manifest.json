@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "agent:frontend-builder",
+  "name": "Frontend Builder",
+  "version": "0.1.0",
+  "role": "Implements accessible evidence-first product interfaces",
+  "description": "Implements accessible evidence-first product interfaces",
+  "allowedTools": [
+    "tool:filesystem-read",
+    "tool:workspace-write",
+    "tool:shell-sandbox"
+  ],
+  "allowedSkills": [
+    "skill:implementation-task",
+    "skill:ui-review"
+  ],
+  "defaultContextPolicy": {
+    "profile": "implementation",
+    "tokenBudget": 12000,
+    "allowedScopes": [
+      "workspace-private",
+      "public"
+    ]
+  },
+  "completionCriteria": [
+    "Task stop condition met",
+    "Relevant tests pass",
+    "Security and status impact reported"
+  ]
+}

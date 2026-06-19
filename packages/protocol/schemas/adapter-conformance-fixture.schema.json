@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/adapter-conformance-fixture.schema.json",
+  "title": "Adapter Conformance Fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "adapterId", "contract", "fixtureVersion", "cases"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "adapterId": { "type": "string", "pattern": "^adapter:" },
+    "contract": { "type": "string", "minLength": 1 },
+    "fixtureVersion": { "type": "string", "minLength": 1 },
+    "cases": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "input", "expected"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["health", "capabilities", "permission-denied", "malformed-output", "timeout", "success"] },
+          "input": { "type": "object" },
+          "expected": { "type": "object" }
+        }
+      }
+    }
+  }
+}

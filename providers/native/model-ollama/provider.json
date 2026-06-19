@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:model:ollama",
+  "name": "Native Ollama Model Provider",
+  "version": "0.2.0-dev",
+  "category": "model",
+  "enabledByDefault": false,
+  "locality": "loopback-process",
+  "contract": "ModelGatewayPort",
+  "capabilities": [
+    "model.generate.text",
+    "model.structured-output",
+    "model.local-loopback"
+  ],
+  "limits": {
+    "defaultTimeoutMs": 120000,
+    "baseUrlPolicy": "loopback HTTP only unless explicitly overridden",
+    "silentFallback": false
+  },
+  "dataPaths": [],
+  "experimental": true,
+  "notes": [
+    "Requires a separately installed Ollama server and an explicitly selected local model.",
+    "Never falls back to a cloud provider."
+  ]
+}

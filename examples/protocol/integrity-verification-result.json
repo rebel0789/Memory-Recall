@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "provider": "provider:native:artifact:filesystem",
+  "workspaceId": "ws_local",
+  "checkedAt": "2026-06-19T10:00:00.000Z",
+  "ok": true,
+  "findings": []
+}

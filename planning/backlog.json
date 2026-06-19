@@ -1,0 +1,782 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "open-agent-fabric",
+  "sourceOfTruth": "docs/implementation/BUILD_ORDER.md",
+  "statuses": [
+    "planned",
+    "in-progress",
+    "blocked",
+    "completed",
+    "cancelled"
+  ],
+  "tasks": [
+    {
+      "id": "OAF-001",
+      "title": "Verify the agent-ready kit",
+      "milestone": "Milestone 0",
+      "status": "completed",
+      "ownerAgent": "agent:reviewer",
+      "dependsOn": [],
+      "objective": "Prove a fresh checkout is complete, local-only, and reproducible before product work begins.",
+      "deliverables": [
+        "Run bootstrap, doctor, CI, demo, UI, and health checks from a clean tree.",
+        "Record exact runtime and operating-system information.",
+        "Fix packaging defects only."
+      ],
+      "acceptanceCommands": [
+        "npm ci --ignore-scripts --no-audit --no-fund",
+        "npm run bootstrap",
+        "npm run doctor",
+        "npm run ci",
+        "npm run demo"
+      ],
+      "stopCondition": "Stop when a clean checkout passes every command and BOOTSTRAP_REPORT.md matches the evidence.",
+      "requiredReading": [
+        "ASSIGN_TO_AGENT.md",
+        "AGENTS.md",
+        "LOCAL_DEVELOPMENT.md",
+        "docs/testing/golden-path.md"
+      ]
+    },
+    {
+      "id": "OAF-002",
+      "title": "Ratify protocol RFC and compatibility fixtures",
+      "milestone": "Milestone 0",
+      "status": "completed",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-001"
+      ],
+      "objective": "Freeze provider-neutral v1 contracts before persistent implementations depend on them.",
+      "deliverables": [
+        "Review RFC 0001 and all schemas.",
+        "Add correlation, causation, workspace, classification, and stable errors additively.",
+        "Add valid, invalid, and backward-compatibility fixtures."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when ratify protocol rfc and compatibility fixtures meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "rfcs/0001-protocol-contracts.md",
+        "packages/protocol/schemas",
+        "examples/protocol",
+        "docs/architecture/event-model.md"
+      ]
+    },
+    {
+      "id": "OAF-003",
+      "title": "Define application ports and conformance tests",
+      "milestone": "Milestone 0",
+      "status": "completed",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-002"
+      ],
+      "objective": "Create replaceable application interfaces for every provider boundary.",
+      "deliverables": [
+        "Define state, events, artifacts, models, workflows, policy, candidates, memory, and health ports.",
+        "Add bootstrap conformance tests.",
+        "Prohibit provider payloads in domain types."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when define application ports and conformance tests meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "packages/adapter-contracts",
+        "docs/architecture/adapter-contracts.md"
+      ]
+    },
+    {
+      "id": "OAF-004",
+      "title": "Implement PostgreSQL repositories",
+      "milestone": "Milestone 1",
+      "status": "completed",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-003"
+      ],
+      "objective": "Replace file projections with workspace-scoped PostgreSQL repositories behind ports.",
+      "deliverables": [
+        "Implement reviewed migration repositories.",
+        "Enforce append-only event sequence and workspace scope.",
+        "Keep file conformance implementation."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when implement postgresql repositories meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "deploy/postgres/migrations/001_init.sql",
+        "packages/storage",
+        "docs/architecture/storage.md"
+      ]
+    },
+    {
+      "id": "OAF-005",
+      "title": "Implement migration runner and recovery tests",
+      "milestone": "Milestone 1",
+      "status": "completed",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-004"
+      ],
+      "objective": "Make schema evolution ordered, checksummed, inspectable, and recoverable.",
+      "deliverables": [
+        "Implement status, dry-run, apply, and checksum verification.",
+        "Reject changed applied migrations.",
+        "Test interruption and restore."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when implement migration runner and recovery tests meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "skills/database-migration/SKILL.md",
+        "docs/operations/backup-restore.md"
+      ]
+    },
+    {
+      "id": "OAF-006",
+      "title": "Implement content-addressed artifacts and snapshots",
+      "milestone": "Milestone 1",
+      "status": "completed",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-004"
+      ],
+      "objective": "Persist immutable source and artifact bodies behind a portable store.",
+      "deliverables": [
+        "Add local content-addressed storage and object-store port.",
+        "Enforce hash, media, size, scope, retention, export, and deletion."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when implement content-addressed artifacts and snapshots meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "packages/storage",
+        "packages/evidence",
+        "docs/architecture/storage.md"
+      ]
+    },
+    {
+      "id": "OAF-007",
+      "title": "Add strict API boundary validation",
+      "milestone": "Milestone 2",
+      "status": "completed",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-002",
+        "OAF-003"
+      ],
+      "objective": "Reject malformed, oversized, or unsupported requests before domain execution.",
+      "deliverables": [
+        "Validate implemented routes from contracts.",
+        "Return stable sanitized errors and correlation IDs.",
+        "Add adversarial API tests."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when add strict api boundary validation meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "docs/api/openapi.yaml",
+        "services/control-api",
+        "packages/protocol/schemas"
+      ]
+    },
+    {
+      "id": "OAF-008",
+      "title": "Implement local identity and workspace authorization",
+      "milestone": "Milestone 2",
+      "status": "completed",
+      "ownerAgent": "agent:security-auditor",
+      "dependsOn": [
+        "OAF-004",
+        "OAF-007"
+      ],
+      "objective": "Introduce replaceable local identity and fail-closed workspace isolation.",
+      "deliverables": [
+        "Create authentication port and single-user local adapter.",
+        "Remove implicit authority.",
+        "Add cross-workspace denial tests."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when implement local identity and workspace authorization meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "packages/policy",
+        "services/control-api",
+        "docs/security/threat-model.md"
+      ]
+    },
+    {
+      "id": "OAF-009",
+      "title": "Implement authorization and contextual policy ports",
+      "milestone": "Milestone 2",
+      "status": "planned",
+      "ownerAgent": "agent:security-auditor",
+      "dependsOn": [
+        "OAF-003",
+        "OAF-008"
+      ],
+      "objective": "Centralize deterministic authorization for resources, tools, and consequences.",
+      "deliverables": [
+        "Evaluate actor, workspace, action, environment, class, and risk.",
+        "Emit policy events.",
+        "Test default deny and all permission dimensions."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop before enabling any external write.",
+      "requiredReading": [
+        "packages/policy",
+        "deploy/opa/tool_policy.rego",
+        "docs/security/tool-permissions.md"
+      ]
+    },
+    {
+      "id": "OAF-010",
+      "title": "Add context candidate-source ports",
+      "milestone": "Milestone 3",
+      "status": "planned",
+      "ownerAgent": "agent:context-curator",
+      "dependsOn": [
+        "OAF-003",
+        "OAF-008"
+      ],
+      "objective": "Make candidate generation modular while preserving provenance and access decisions.",
+      "deliverables": [
+        "Define exact, lexical, vector, graph, temporal, preference, and episode sources.",
+        "Implement exact and lexical bootstrap sources.",
+        "Expose partial source failure."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when add context candidate-source ports meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "packages/context-compiler",
+        "docs/architecture/context-compiler.md"
+      ]
+    },
+    {
+      "id": "OAF-011",
+      "title": "Implement hybrid fusion, reranking, diversity, and budgets",
+      "milestone": "Milestone 3",
+      "status": "planned",
+      "ownerAgent": "agent:context-curator",
+      "dependsOn": [
+        "OAF-010"
+      ],
+      "objective": "Select complementary evidence with inspectable scoring under reserved budgets.",
+      "deliverables": [
+        "Add task profiles, fusion, diversity, and deterministic ties.",
+        "Expand distractor, recency, conflict, supersession, and lost-in-middle evals."
+      ],
+      "acceptanceCommands": [
+        "npm run ci",
+        "npm run eval"
+      ],
+      "stopCondition": "Stop when implement hybrid fusion, reranking, diversity, and budgets meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "packages/context-compiler",
+        "evals/context-selection",
+        "docs/testing/evaluation-strategy.md"
+      ]
+    },
+    {
+      "id": "OAF-012",
+      "title": "Persist context assembly and manifests",
+      "milestone": "Milestone 3",
+      "status": "planned",
+      "ownerAgent": "agent:context-curator",
+      "dependsOn": [
+        "OAF-004",
+        "OAF-011"
+      ],
+      "objective": "Make every model request reproducible by storing selection, exclusion, conflict, and order.",
+      "deliverables": [
+        "Add reserved assembly sections.",
+        "Persist and compare manifests.",
+        "Fail when required governance cannot fit."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when persist context assembly and manifests meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "packages/context-compiler",
+        "packages/storage",
+        "packages/protocol/schemas/context-manifest.schema.json"
+      ]
+    },
+    {
+      "id": "OAF-013",
+      "title": "Complete model gateway and local integration tests",
+      "milestone": "Milestone 4",
+      "status": "planned",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-003",
+        "OAF-012"
+      ],
+      "objective": "Support deterministic and explicit local models through one capability-aware contract.",
+      "deliverables": [
+        "Add capabilities, structured generation, timeout, cancellation, usage, and bounded repair.",
+        "Record model, prompt, schema, and context versions."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop before any silent hosted fallback.",
+      "requiredReading": [
+        "packages/model-gateway",
+        "docs/architecture/local-first.md"
+      ]
+    },
+    {
+      "id": "OAF-014",
+      "title": "Add durable workflow adapter and crash recovery",
+      "milestone": "Milestone 4",
+      "status": "planned",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-003",
+        "OAF-004",
+        "OAF-009"
+      ],
+      "objective": "Make long workflows resume across process failure without repeated side effects.",
+      "deliverables": [
+        "Implement accepted durable adapter.",
+        "Test kill, restart, timer, retry, approval wait, and idempotency.",
+        "Map history to canonical events."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when add durable workflow adapter and crash recovery meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "packages/workflow-runtime",
+        "docs/architecture/workflow-runtime.md"
+      ]
+    },
+    {
+      "id": "OAF-015",
+      "title": "Implement bounded tool execution and grants",
+      "milestone": "Milestone 4",
+      "status": "planned",
+      "ownerAgent": "agent:security-auditor",
+      "dependsOn": [
+        "OAF-009",
+        "OAF-014"
+      ],
+      "objective": "Execute only registered capabilities under short-lived least-privilege grants.",
+      "deliverables": [
+        "Load reviewed manifests.",
+        "Enforce sandbox, egress, files, secrets, time, output, approval, and idempotency."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop before any real consequential adapter is enabled.",
+      "requiredReading": [
+        "packages/tool-registry",
+        "tools/manifests",
+        "docs/security/tool-permissions.md"
+      ]
+    },
+    {
+      "id": "OAF-016",
+      "title": "Implement evidence service and citation graph",
+      "milestone": "Milestone 5",
+      "status": "planned",
+      "ownerAgent": "agent:researcher",
+      "dependsOn": [
+        "OAF-006",
+        "OAF-007"
+      ],
+      "objective": "Create immutable traceable evidence with observations and inference separated.",
+      "deliverables": [
+        "Normalize snapshots and observations.",
+        "Add deduplication, citations, claim edges, staleness, and conflict."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when implement evidence service and citation graph meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "packages/evidence",
+        "packages/protocol/schemas/content-observation.schema.json",
+        "docs/product/content-intelligence.md"
+      ]
+    },
+    {
+      "id": "OAF-017",
+      "title": "Implement native versioned memory and write gate",
+      "milestone": "Milestone 5",
+      "status": "planned",
+      "ownerAgent": "agent:context-curator",
+      "dependsOn": [
+        "OAF-004",
+        "OAF-009",
+        "OAF-016"
+      ],
+      "objective": "Persist durable knowledge safely through proposals, review, lifecycle, and retention.",
+      "deliverables": [
+        "Implement verification, activation, rejection, supersession, retraction, and expiry.",
+        "Test preferences, facts, duplicates, secrets, conflicts, export, and expiry."
+      ],
+      "acceptanceCommands": [
+        "npm run ci",
+        "npm run eval"
+      ],
+      "stopCondition": "Stop when no model output can silently become active memory.",
+      "requiredReading": [
+        "packages/memory-core",
+        "packages/protocol/schemas/memory-record.schema.json",
+        "docs/security/data-classification.md"
+      ]
+    },
+    {
+      "id": "OAF-018",
+      "title": "Add context-use and outcome feedback",
+      "milestone": "Milestone 5",
+      "status": "planned",
+      "ownerAgent": "agent:evaluator",
+      "dependsOn": [
+        "OAF-012",
+        "OAF-017"
+      ],
+      "objective": "Measure context usefulness and outcomes without causal overclaiming.",
+      "deliverables": [
+        "Record selected-record use and outcome references.",
+        "Support reversible selector experiments.",
+        "Require evaluation for defaults."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when add context-use and outcome feedback meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "evals",
+        "docs/testing/evaluation-strategy.md",
+        "docs/product/success-metrics.md"
+      ]
+    },
+    {
+      "id": "OAF-019",
+      "title": "Implement file and RSS ingestion",
+      "milestone": "Milestone 6",
+      "status": "planned",
+      "ownerAgent": "agent:researcher",
+      "dependsOn": [
+        "OAF-006",
+        "OAF-016"
+      ],
+      "objective": "Ship useful read-only research without cookies, paid APIs, or browser automation.",
+      "deliverables": [
+        "Ingest bounded text, JSON, Markdown, RSS, and Atom.",
+        "Snapshot, normalize, deduplicate, and handle malformed input."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop before authenticated social connectors.",
+      "requiredReading": [
+        "services",
+        "packages/evidence",
+        "workflows/content-intelligence"
+      ]
+    },
+    {
+      "id": "OAF-020",
+      "title": "Implement pattern, saturation, and copying-risk pipeline",
+      "milestone": "Milestone 6",
+      "status": "planned",
+      "ownerAgent": "agent:researcher",
+      "dependsOn": [
+        "OAF-011",
+        "OAF-016",
+        "OAF-019"
+      ],
+      "objective": "Turn evidence into inspectable, differentiated, non-copying opportunities.",
+      "deliverables": [
+        "Separate metrics from inference.",
+        "Add relative performance, clusters, lifecycle, proof-needed, uncertainty, and similarity."
+      ],
+      "acceptanceCommands": [
+        "npm run ci",
+        "npm run eval"
+      ],
+      "stopCondition": "Stop when implement pattern, saturation, and copying-risk pipeline meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "workflows/content-intelligence",
+        "docs/product/content-intelligence.md"
+      ]
+    },
+    {
+      "id": "OAF-021",
+      "title": "Implement approval, local drafting, and outcomes",
+      "milestone": "Milestone 6",
+      "status": "planned",
+      "ownerAgent": "agent:orchestrator",
+      "dependsOn": [
+        "OAF-009",
+        "OAF-015",
+        "OAF-020"
+      ],
+      "objective": "Complete the creator workflow locally while publishing remains disabled.",
+      "deliverables": [
+        "Add editable candidate approval and local drafting.",
+        "Verify evidence and similarity.",
+        "Record objective-specific outcomes and edit distance."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop before enabling a publisher.",
+      "requiredReading": [
+        "workflows/content-intelligence",
+        "docs/ux/flows.md",
+        "adapters/publishing/postiz"
+      ]
+    },
+    {
+      "id": "OAF-022",
+      "title": "Build production web shell",
+      "milestone": "Milestone 7",
+      "status": "planned",
+      "ownerAgent": "agent:frontend-builder",
+      "dependsOn": [
+        "OAF-007",
+        "OAF-008"
+      ],
+      "objective": "Create a maintainable routed frontend while preserving the conformance UI.",
+      "deliverables": [
+        "Implement stable routes and shared tokens.",
+        "Cover all states and accessibility matrix."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when build production web shell meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "apps/web",
+        "DESIGN.md",
+        "docs/ux/screen-specs.md"
+      ]
+    },
+    {
+      "id": "OAF-023",
+      "title": "Build Run and Context Inspector views",
+      "milestone": "Milestone 7",
+      "status": "planned",
+      "ownerAgent": "agent:frontend-builder",
+      "dependsOn": [
+        "OAF-012",
+        "OAF-014",
+        "OAF-022"
+      ],
+      "objective": "Make execution and selection decisions understandable without raw logs.",
+      "deliverables": [
+        "Add timeline, step detail, selected/excluded, conflicts, assembly, comparison, and deep links."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when build run and context inspector views meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "apps/web",
+        "docs/ux/component-contracts.md",
+        "docs/ux/screen-specs.md"
+      ]
+    },
+    {
+      "id": "OAF-024",
+      "title": "Build Memory, Evidence, and Approval views",
+      "milestone": "Milestone 7",
+      "status": "planned",
+      "ownerAgent": "agent:frontend-builder",
+      "dependsOn": [
+        "OAF-016",
+        "OAF-017",
+        "OAF-022"
+      ],
+      "objective": "Expose provenance, lifecycle, uncertainty, and exact consequential actions.",
+      "deliverables": [
+        "Add memory diffs, source snapshots, claim links, and safe approval cards.",
+        "Pass keyboard and mobile review."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when build memory, evidence, and approval views meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "apps/web",
+        "docs/ux/component-contracts.md",
+        "docs/security/tool-permissions.md"
+      ]
+    },
+    {
+      "id": "OAF-025",
+      "title": "Add OpenTelemetry-compatible instrumentation",
+      "milestone": "Milestone 8",
+      "status": "planned",
+      "ownerAgent": "agent:evaluator",
+      "dependsOn": [
+        "OAF-007",
+        "OAF-012",
+        "OAF-014",
+        "OAF-015"
+      ],
+      "objective": "Trace critical boundaries without leaking secrets or private bodies.",
+      "deliverables": [
+        "Define stable attributes and redaction.",
+        "Propagate run trace context.",
+        "Support offline no-op and optional collector."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when add opentelemetry-compatible instrumentation meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "deploy/otel/collector.yaml",
+        "docs/operations/observability.md"
+      ]
+    },
+    {
+      "id": "OAF-026",
+      "title": "Build evaluation laboratory",
+      "milestone": "Milestone 8",
+      "status": "planned",
+      "ownerAgent": "agent:evaluator",
+      "dependsOn": [
+        "OAF-011",
+        "OAF-013",
+        "OAF-018"
+      ],
+      "objective": "Make models, prompts, selectors, tools, and workflows comparable and regression-gated.",
+      "deliverables": [
+        "Add versioned datasets, experiments, reports, and sanitized trace promotion.",
+        "Separate deterministic and model-quality suites."
+      ],
+      "acceptanceCommands": [
+        "npm run ci",
+        "npm run eval"
+      ],
+      "stopCondition": "Stop when build evaluation laboratory meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "evals",
+        "docs/testing/evaluation-strategy.md"
+      ]
+    },
+    {
+      "id": "OAF-027",
+      "title": "Promote one low-risk read-only adapter",
+      "milestone": "Milestone 9",
+      "status": "planned",
+      "ownerAgent": "agent:security-auditor",
+      "dependsOn": [
+        "OAF-015",
+        "OAF-026"
+      ],
+      "objective": "Prove the adapter lifecycle with one local or read-only integration.",
+      "deliverables": [
+        "Choose by use case.",
+        "Pin and review commit, checksum, license, install, and permissions.",
+        "Pass conformance and adversarial tests."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop after one adapter reaches experimental status; do not bulk-enable catalog.",
+      "requiredReading": [
+        "adapters",
+        "skills/adapter-addition/SKILL.md",
+        "THIRD_PARTY.md"
+      ]
+    },
+    {
+      "id": "OAF-028",
+      "title": "Add protocol bridges through accepted RFCs",
+      "milestone": "Milestone 9",
+      "status": "planned",
+      "ownerAgent": "agent:backend-builder",
+      "dependsOn": [
+        "OAF-015",
+        "OAF-027"
+      ],
+      "objective": "Use standard agent protocols without inheriting remote authority.",
+      "deliverables": [
+        "Implement MCP exposure first.",
+        "Add A2A, AG-UI, ACP, or CCCC only through accepted use-case RFCs.",
+        "Test identity, replay, disconnect, malformed messages, and grants."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when add protocol bridges through accepted rfcs meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "adapters/collaboration/cccc",
+        "docs/architecture/adapter-contracts.md"
+      ]
+    },
+    {
+      "id": "OAF-029",
+      "title": "Complete operations, backup, upgrade, and rollback",
+      "milestone": "Milestone 10",
+      "status": "planned",
+      "ownerAgent": "agent:release-manager",
+      "dependsOn": [
+        "OAF-025",
+        "OAF-026"
+      ],
+      "objective": "Make the self-hosted platform recoverable and operable before stability.",
+      "deliverables": [
+        "Test backup/restore.",
+        "Document upgrade, rollback, retention, health, diagnostics, and incidents.",
+        "Verify deployment profiles."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when complete operations, backup, upgrade, and rollback meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "docs/operations",
+        "deploy"
+      ]
+    },
+    {
+      "id": "OAF-030",
+      "title": "Complete 1.0 open-source release readiness",
+      "milestone": "Milestone 10",
+      "status": "planned",
+      "ownerAgent": "agent:release-manager",
+      "dependsOn": [
+        "OAF-027",
+        "OAF-028",
+        "OAF-029"
+      ],
+      "objective": "Prepare a transparent, secure, reproducible 1.0 release and community process.",
+      "deliverables": [
+        "Complete governance, matrix, signed release, SBOM, provenance, security review, and adapter certification.",
+        "Remove placeholders."
+      ],
+      "acceptanceCommands": [
+        "npm run ci"
+      ],
+      "stopCondition": "Stop when complete 1.0 open-source release readiness meets the acceptance gate without expanding adjacent scope.",
+      "requiredReading": [
+        "docs/open-source",
+        "docs/operations/release-checklist.md",
+        "GOVERNANCE.md",
+        "SECURITY.md"
+      ]
+    }
+  ]
+}

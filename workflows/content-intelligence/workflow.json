@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "workflow:content-intelligence",
+  "name": "Content Intelligence local demo",
+  "version": "0.1.0",
+  "description": "Collect synthetic observations, compile bounded context, generate three candidates, and verify citations.",
+  "steps": [
+    {
+      "id": "collect",
+      "kind": "deterministic",
+      "inputSchema": {},
+      "outputSchema": {
+        "type": "array"
+      },
+      "contextPolicy": {
+        "mode": "none"
+      },
+      "tools": [],
+      "riskClass": "read-only",
+      "retry": {
+        "maxAttempts": 1
+      },
+      "timeoutMs": 5000,
+      "approval": {
+        "required": false
+      },
+      "idempotency": {
+        "required": false
+      },
+      "compensation": null
+    },
+    {
+      "id": "normalize",
+      "kind": "deterministic",
+      "inputSchema": {
+        "type": "array"
+      },
+      "outputSchema": {
+        "type": "array"
+      },
+      "contextPolicy": {
+        "mode": "none"
+      },
+      "tools": [],
+      "riskClass": "read-only",
+      "retry": {
+        "maxAttempts": 1
+      },
+      "timeoutMs": 5000,
+      "approval": {
+        "required": false
+      },
+      "idempotency": {
+        "required": false
+      },
+      "compensation": null
+    },
+    {
+      "id": "compile-context",
+      "kind": "deterministic",
+      "inputSchema": {
+        "type": "array"
+      },
+      "outputSchema": {
+        "$ref": "context-manifest.schema.json"
+      },
+      "contextPolicy": {
+        "profile": "content-research",
+        "tokenBudget": 180
+      },
+      "tools": [],
+      "riskClass": "read-only",
+      "retry": {
+        "maxAttempts": 1
+      },
+      "timeoutMs": 5000,
+      "approval": {
+        "required": false
+      },
+      "idempotency": {
+        "required": false
+      },
+      "compensation": null
+    },
+    {
+      "id": "generate-angles",
+      "kind": "model",
+      "inputSchema": {
+        "$ref": "context-manifest.schema.json"
+      },
+      "outputSchema": {
+        "type": "array",
+        "minItems": 3,
+        "maxItems": 3
+      },
+      "contextPolicy": {
+        "manifestRequired": true
+      },
+      "tools": [],
+      "riskClass": "read-only",
+      "retry": {
+        "maxAttempts": 2,
+        "retryable": true
+      },
+      "timeoutMs": 120000,
+      "approval": {
+        "required": false
+      },
+      "idempotency": {
+        "required": false
+      },
+      "compensation": null
+    },
+    {
+      "id": "verify-recommendations",
+      "kind": "deterministic",
+      "inputSchema": {
+        "type": "array"
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "contextPolicy": {
+        "manifestRequired": true
+      },
+      "tools": [],
+      "riskClass": "read-only",
+      "retry": {
+        "maxAttempts": 1
+      },
+      "timeoutMs": 5000,
+      "approval": {
+        "required": false
+      },
+      "idempotency": {
+        "required": false
+      },
+      "compensation": null
+    }
+  ]
+}

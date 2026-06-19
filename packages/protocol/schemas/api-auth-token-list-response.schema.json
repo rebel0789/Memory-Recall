@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-auth-token-list-response-1.0.json",
+  "title": "Auth Token List Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "items"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "items": { "type": "array", "maxItems": 100, "items": { "$ref": "api-auth-token-summary.schema.json" } }
+  }
+}

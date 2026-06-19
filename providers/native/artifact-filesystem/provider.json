@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:artifact:filesystem",
+  "name": "Native Content-Addressed Artifact Store",
+  "version": "0.2.0-dev",
+  "category": "artifact",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "ArtifactStorePort",
+  "contractVersion": "1.1.0",
+  "capabilities": [
+    "artifact.put",
+    "artifact.get",
+    "artifact.list",
+    "artifact.remove",
+    "artifact.metadata.get",
+    "artifact.body.get",
+    "artifact.source-snapshot",
+    "artifact.content-addressed",
+    "artifact.retention.plan",
+    "artifact.retention.apply",
+    "artifact.integrity.verify",
+    "artifact.export"
+  ],
+  "limits": {
+    "defaultMaxBytes": 52428800,
+    "defaultMaxMetadataBytes": 65536,
+    "defaultMaxFilenameLength": 255,
+    "defaultMaxMediaTypeLength": 127,
+    "defaultMaxSourceLocatorLength": 2048,
+    "defaultMaxListLimit": 1000,
+    "hash": "sha256",
+    "retentionModes": ["workspace-default", "retain", "expire-at", "legal-hold"]
+  },
+  "dataPaths": [
+    ".local/artifacts/workspaces/<workspace-id>/objects/sha256",
+    ".local/artifacts/workspaces/<workspace-id>/records",
+    ".local/artifacts/workspaces/<workspace-id>/tombstones",
+    ".local/artifacts/workspaces/<workspace-id>/exports"
+  ],
+  "experimental": false,
+  "notes": [
+    "Artifact and source-snapshot bodies are immutable raw bytes addressed by workspace-scoped SHA-256.",
+    "Logical records carry provenance, retention, data class, and display metadata separately from stored objects.",
+    "Deletion tombstones records and removes object bytes only when no active record still references the body."
+  ]
+}

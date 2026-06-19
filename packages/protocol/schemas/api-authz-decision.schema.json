@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/api-authz-decision-1.0.json",
+  "title": "Authorization Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "decision", "action", "workspaceId", "actorId", "role", "reasons", "policyVersion"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "decision": { "enum": ["allow", "deny"] },
+    "action": { "type": "string", "maxLength": 80 },
+    "workspaceId": { "type": ["string", "null"], "maxLength": 128 },
+    "actorId": { "type": ["string", "null"], "maxLength": 128 },
+    "role": { "type": ["string", "null"], "maxLength": 32 },
+    "reasons": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 80 } },
+    "policyVersion": { "type": "string", "maxLength": 64 }
+  }
+}

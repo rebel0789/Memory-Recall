@@ -1,0 +1,69 @@
+{
+  "apiVersion": "openagentfabric.dev/v1",
+  "kind": "AgentPack",
+  "metadata": {
+    "name": "content-intelligence",
+    "version": "0.1.0",
+    "description": "Research-first content intelligence with evidence, approval, and outcome capture.",
+    "license": "Apache-2.0",
+    "provenance": {
+      "repository": "open-agent-fabric",
+      "path": "examples/agentpacks/content-intelligence.agentpack.json"
+    },
+    "labels": {
+      "profile": "local-workbench",
+      "risk": "read-mostly"
+    }
+  },
+  "runtime": {
+    "runner": "native-embedded",
+    "localOnly": true,
+    "minimumVersion": "0.2.0-dev"
+  },
+  "models": {
+    "analyst": {
+      "capabilities": {
+        "structuredOutput": true,
+        "toolUse": false,
+        "vision": false
+      },
+      "preferredProvider": "provider:native:model:deterministic",
+      "fallbackAllowed": false
+    }
+  },
+  "context": {
+    "policy": "smallest-sufficient-v1",
+    "defaultTokenBudget": 8000,
+    "recordManifest": true
+  },
+  "memory": {
+    "provider": "provider:native:memory:sqlite",
+    "writePolicy": "propose",
+    "retentionPolicy": "workspace-default"
+  },
+  "capabilities": [
+    "artifact.put",
+    "memory.search.lexical",
+    "model.generate.synthetic"
+  ],
+  "skills": [
+    { "id": "skill:content-research", "version": "1.0.0", "required": true },
+    { "id": "skill:source-verification", "version": "1.0.0", "required": true }
+  ],
+  "workflows": [
+    { "id": "workflow:content-intelligence", "version": "1.0.0", "required": true }
+  ],
+  "permissions": {
+    "dataClasses": ["public", "workspace-private"],
+    "network": [],
+    "filesystem": ["workspace/artifacts/**"],
+    "consequentialWrites": false
+  },
+  "evaluations": [
+    { "id": "eval:context-selection", "version": "1.0.0", "required": true },
+    { "id": "eval:source-grounding", "version": "1.0.0", "required": true }
+  ],
+  "ui": {
+    "surfaces": ["today", "evidence", "context-inspector", "run-timeline"]
+  }
+}

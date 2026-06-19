@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "agent:reviewer",
+  "name": "Reviewer",
+  "version": "0.1.0",
+  "role": "Reviews correctness, scope, tests, docs, and status claims",
+  "description": "Reviews correctness, scope, tests, docs, and status claims",
+  "allowedTools": [
+    "tool:filesystem-read",
+    "tool:git-read",
+    "tool:shell-sandbox"
+  ],
+  "allowedSkills": [
+    "skill:implementation-task",
+    "skill:source-verification",
+    "skill:release-readiness"
+  ],
+  "defaultContextPolicy": {
+    "profile": "implementation",
+    "tokenBudget": 12000,
+    "allowedScopes": [
+      "workspace-private",
+      "public"
+    ]
+  },
+  "completionCriteria": [
+    "Task stop condition met",
+    "Relevant tests pass",
+    "Security and status impact reported"
+  ]
+}

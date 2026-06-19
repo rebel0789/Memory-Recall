@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "ctxreq_example",
+  "workspaceId": "ws_local",
+  "actorId": "agent:researcher",
+  "taskId": "run_example",
+  "step": "generate-angles",
+  "objective": "Find evidence-backed local-agent content angles",
+  "requiredIds": [
+    "policy_evidence"
+  ],
+  "requiredEntities": [
+    "topic:agent-systems"
+  ],
+  "tokenBudget": 180,
+  "allowedScopes": [
+    "workspace-private"
+  ],
+  "now": "2026-06-19T10:00:00Z",
+  "profile": "content-research"
+}

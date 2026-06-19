@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0.0",
+  "protocolVersion": "1.0.0",
+  "id": "adapter:model:oracle",
+  "name": "Oracle",
+  "version": "0.0.0-plan",
+  "category": "model",
+  "status": "planned",
+  "enabledByDefault": false,
+  "upstream": {
+    "repository": "https://github.com/steipete/oracle",
+    "commit": "UNPINNED",
+    "checksum": "UNVERIFIED"
+  },
+  "licenseReview": {
+    "status": "required",
+    "spdx": "UNVERIFIED",
+    "reviewedAt": null,
+    "notes": "Re-verify license and notices at the exact pinned commit."
+  },
+  "trustBoundary": {
+    "summary": "CLI/browser/API process, files and optional provider credentials",
+    "network": "deny until reviewed",
+    "filesystem": "deny until reviewed",
+    "secrets": "none until reviewed",
+    "sideEffectClass": "read-only or local-derived"
+  },
+  "contract": "AdvisoryPanelPort",
+  "capabilities": [
+    "evaluation.multi-model",
+    "evaluation.disagreement"
+  ],
+  "installation": {
+    "mode": "cli",
+    "command": "oracle",
+    "requiresNetwork": true
+  },
+  "conformance": {
+    "fixture": "fixtures/conformance.json",
+    "status": "not-run",
+    "lastRunAt": null
+  },
+  "maintainer": null
+}

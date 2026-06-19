@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "agent:context-curator",
+  "name": "Context Curator",
+  "version": "0.1.0",
+  "role": "Develops and evaluates context selection and memory governance",
+  "description": "Develops and evaluates context selection and memory governance",
+  "allowedTools": [
+    "tool:filesystem-read",
+    "tool:workspace-write"
+  ],
+  "allowedSkills": [
+    "skill:context-debug",
+    "skill:implementation-task"
+  ],
+  "defaultContextPolicy": {
+    "profile": "implementation",
+    "tokenBudget": 12000,
+    "allowedScopes": [
+      "workspace-private",
+      "public"
+    ]
+  },
+  "completionCriteria": [
+    "Task stop condition met",
+    "Relevant tests pass",
+    "Security and status impact reported"
+  ]
+}
