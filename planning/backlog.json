@@ -268,7 +268,7 @@
       "id": "OAF-011",
       "title": "Implement hybrid fusion, reranking, diversity, and budgets",
       "milestone": "Milestone 3",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:context-curator",
       "dependsOn": [
         "OAF-010"

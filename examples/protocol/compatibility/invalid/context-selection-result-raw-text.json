@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "ccreq_oaf011",
+  "workspaceId": "ws_local",
+  "selectionPolicyVersion": "1.0.0",
+  "selectionPolicyFingerprint": "sha256:af3bf37d75c10172566bf83aa802ef908316f25765d71c6756308803eddf988b",
+  "candidateGenerationFingerprint": "sha256:20ee875a12fdcdbed7610dc9318592fa3d2207d44df2ddf4575cf7104ee12ad3",
+  "totalCandidateCount": 1,
+  "eligibleCandidateCount": 1,
+  "selectedCandidateCount": 1,
+  "selectedTokenCount": 14,
+  "availableTokenBudget": 100,
+  "categoryBudgets": {
+    "governance": { "cap": 6, "softReserveRatio": 0.15, "softReserveTokens": 15, "selectedCount": 1, "selectedTokens": 14 },
+    "workingState": { "cap": 4, "softReserveRatio": 0.15, "softReserveTokens": 15, "selectedCount": 0, "selectedTokens": 0 },
+    "decisions": { "cap": 4, "softReserveRatio": 0.1, "softReserveTokens": 10, "selectedCount": 0, "selectedTokens": 0 },
+    "preferences": { "cap": 3, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "evidence": { "cap": 4, "softReserveRatio": 0.35, "softReserveTokens": 35, "selectedCount": 0, "selectedTokens": 0 },
+    "procedures": { "cap": 3, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "episodes": { "cap": 3, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "artifacts": { "cap": 3, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "negative": { "cap": 2, "softReserveRatio": 0, "softReserveTokens": 0, "selectedCount": 0, "selectedTokens": 0 },
+    "examples": { "cap": 2, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "other": { "cap": 2, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 }
+  },
+  "coverage": {
+    "requested": [],
+    "eligible": [],
+    "selected": [],
+    "unresolved": []
+  },
+  "selectedDecisions": [
+    {
+      "id": "policy_context_manifest",
+      "order": 1,
+      "tokens": 14,
+      "category": "governance",
+      "utility": 1000,
+      "reasonCodes": ["required"],
+      "text": "Raw record text must not appear in the internal selection trace."
+    }
+  ],
+  "excludedDecisions": [],
+  "conflicts": [],
+  "warnings": [],
+  "sufficiency": {
+    "state": "sufficient",
+    "requiredIds": {
+      "requested": [],
+      "resolved": [],
+      "unresolvedCount": 0
+    },
+    "entities": {
+      "requested": [],
+      "eligible": [],
+      "selected": [],
+      "unresolved": []
+    },
+    "evidenceCount": 0,
+    "conflictCount": 0
+  },
+  "scoreBreakdowns": [],
+  "bounds": {
+    "pairwiseSimilarityComparisons": 0,
+    "selectionIterations": 0
+  },
+  "resultFingerprint": "sha256:48de2879ddb6dc63435b492e619c682b4e17302908ec3e606a03f7b526451710"
+}

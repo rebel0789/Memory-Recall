@@ -6,19 +6,15 @@
       "id": "ctxreq_eval1",
       "workspaceId": "ws_local",
       "actorId": "agent:test",
-      "taskId": "task:test",
+      "taskId": "task_test",
       "step": "answer",
       "objective": "authentication failure local agent",
-      "requiredIds": [
-        "decision_auth"
-      ],
-      "requiredEntities": [
-        "topic:auth"
-      ],
+      "requiredIds": ["decision_auth"],
+      "requiredEntities": ["topic:auth"],
       "tokenBudget": 95,
-      "allowedScopes": [
-        "workspace-private"
-      ],
+      "allowedScopes": ["workspace-private"],
+      "allowedDataClasses": ["workspace-private"],
+      "allowedTrustClasses": ["verified", "trusted", "observed"],
       "now": "2026-06-19T10:00:00Z"
     },
     "records": [
@@ -38,6 +34,8 @@
         "scope": "workspace-private",
         "status": "active",
         "source": "user",
+        "tags": ["topic:auth"],
+        "relations": ["topic:auth"],
         "tokens": 12
       },
       {
@@ -47,9 +45,17 @@
         "scope": "workspace-private",
         "status": "active",
         "source": "log",
-        "relations": [
-          "topic:auth"
-        ],
+        "relations": ["topic:auth"],
+        "tokens": 18
+      },
+      {
+        "id": "obs_auth_trace",
+        "kind": "observation",
+        "text": "The login trace shows the local agent session expiry caused authentication failure.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "log",
+        "tags": ["topic:auth"],
         "tokens": 18
       },
       {
@@ -63,15 +69,13 @@
       }
     ],
     "expect": {
-      "selected": [
-        "policy_safe",
-        "decision_auth",
-        "obs_auth"
-      ],
-      "excluded": [
-        "obs_recipe"
-      ],
-      "conflicts": 0
+      "selected": ["policy_safe", "decision_auth", "obs_auth"],
+      "excluded": ["obs_recipe"],
+      "conflicts": 0,
+      "coverageSelected": ["topic:auth"],
+      "selectionPolicyFingerprint": true,
+      "resultFingerprint": true,
+      "noPendingScoreStates": true
     }
   },
   {
@@ -81,15 +85,15 @@
       "id": "ctxreq_eval2",
       "workspaceId": "ws_local",
       "actorId": "agent:test",
-      "taskId": "task:test",
+      "taskId": "task_test",
       "step": "plan",
       "objective": "preferred deployment region",
       "requiredIds": [],
       "requiredEntities": [],
       "tokenBudget": 100,
-      "allowedScopes": [
-        "workspace-private"
-      ],
+      "allowedScopes": ["workspace-private"],
+      "allowedDataClasses": ["workspace-private"],
+      "allowedTrustClasses": ["verified", "trusted", "observed"],
       "now": "2026-06-19T10:00:00Z"
     },
     "records": [
@@ -116,7 +120,8 @@
         "id": "secret_note",
         "kind": "fact",
         "text": "Sensitive private note.",
-        "scope": "sensitive",
+        "scope": "workspace-private",
+        "dataClass": "secret",
         "status": "active",
         "source": "private",
         "tokens": 10
@@ -132,15 +137,15 @@
       }
     ],
     "expect": {
-      "selected": [
-        "pref_new"
-      ],
-      "excluded": [
-        "pref_old",
-        "secret_note",
-        "expired_note"
-      ],
-      "conflicts": 0
+      "selected": ["pref_new"],
+      "excluded": ["pref_old", "secret_note", "expired_note"],
+      "excludedReasons": {
+        "pref_old": ["superseded_by_newer_record"],
+        "secret_note": ["secret_context_denied"],
+        "expired_note": ["expired"]
+      },
+      "conflicts": 0,
+      "selectionPolicyFingerprint": true
     }
   },
   {
@@ -150,15 +155,15 @@
       "id": "ctxreq_eval3",
       "workspaceId": "ws_local",
       "actorId": "agent:test",
-      "taskId": "task:test",
+      "taskId": "task_test",
       "step": "answer",
       "objective": "release date",
       "requiredIds": [],
       "requiredEntities": [],
       "tokenBudget": 100,
-      "allowedScopes": [
-        "workspace-private"
-      ],
+      "allowedScopes": ["workspace-private"],
+      "allowedDataClasses": ["workspace-private"],
+      "allowedTrustClasses": ["verified", "trusted", "observed"],
       "now": "2026-06-19T10:00:00Z"
     },
     "records": [
@@ -170,10 +175,7 @@
         "status": "active",
         "source": "calendar",
         "tokens": 12,
-        "metadata": {
-          "conflictKey": "release-date",
-          "value": "2026-06-20"
-        }
+        "metadata": { "conflictKey": "release-date", "value": "2026-06-20" }
       },
       {
         "id": "date_b",
@@ -183,19 +185,242 @@
         "status": "active",
         "source": "message",
         "tokens": 12,
-        "metadata": {
-          "conflictKey": "release-date",
-          "value": "2026-06-24"
-        }
+        "metadata": { "conflictKey": "release-date", "value": "2026-06-24" }
       }
     ],
     "expect": {
-      "selected": [
-        "date_a",
-        "date_b"
-      ],
+      "selected": ["date_a", "date_b"],
       "excluded": [],
-      "conflicts": 1
+      "conflicts": 1,
+      "sufficiencyState": "sufficient"
+    }
+  },
+  {
+    "id": "diverse-complementary-evidence",
+    "request": {
+      "schemaVersion": "1.0.0",
+      "id": "ctxreq_eval4",
+      "workspaceId": "ws_local",
+      "actorId": "agent:test",
+      "taskId": "task_test",
+      "step": "answer authentication incident",
+      "objective": "authentication incident evidence",
+      "requiredIds": [],
+      "requiredEntities": ["topic:auth"],
+      "tokenBudget": 90,
+      "allowedScopes": ["workspace-private"],
+      "allowedDataClasses": ["workspace-private"],
+      "allowedTrustClasses": ["verified", "trusted", "observed"],
+      "now": "2026-06-19T10:00:00Z"
+    },
+    "records": [
+      {
+        "id": "obs_auth_a",
+        "kind": "observation",
+        "text": "Authentication failure happened after session expiry in the local agent.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "log",
+        "tags": ["topic:auth"],
+        "tokens": 12
+      },
+      {
+        "id": "obs_auth_b",
+        "kind": "observation",
+        "text": "Authentication failure happened after session expiry in the local agent.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "log",
+        "tags": ["topic:auth"],
+        "tokens": 12
+      },
+      {
+        "id": "obs_auth_c",
+        "kind": "observation",
+        "text": "The login trace shows token refresh failed during authentication.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "trace",
+        "tags": ["topic:auth"],
+        "tokens": 12
+      },
+      {
+        "id": "obs_noise",
+        "kind": "observation",
+        "text": "A recipe for roasted tomatoes.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "recipe",
+        "tokens": 12
+      }
+    ],
+    "expect": {
+      "selected": ["obs_auth_a", "obs_auth_c"],
+      "excluded": ["obs_auth_b", "obs_noise"],
+      "excludedReasons": {
+        "obs_auth_b": ["redundant"],
+        "obs_noise": ["insufficient_marginal_utility"]
+      },
+      "conflicts": 0,
+      "sufficiencyState": "sufficient"
+    }
+  },
+  {
+    "id": "deterministic-order-and-smallest-sufficient",
+    "request": {
+      "schemaVersion": "1.0.0",
+      "id": "ctxreq_eval5",
+      "workspaceId": "ws_local",
+      "actorId": "agent:test",
+      "taskId": "task_test",
+      "step": "answer context selection",
+      "objective": "context selection evidence",
+      "requiredIds": ["decision_context"],
+      "requiredEntities": ["context-selection"],
+      "tokenBudget": 120,
+      "allowedScopes": ["workspace-private"],
+      "allowedDataClasses": ["workspace-private"],
+      "allowedTrustClasses": ["verified", "trusted", "observed"],
+      "now": "2026-06-19T10:00:00Z"
+    },
+    "records": [
+      {
+        "id": "noise_high_tokens",
+        "kind": "evidence",
+        "text": "Context selection unrelated archive note with many tokens.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "archive",
+        "tokens": 70
+      },
+      {
+        "id": "decision_context",
+        "kind": "decision",
+        "text": "Use deterministic context selection with required records first.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "user",
+        "tags": ["context-selection"],
+        "tokens": 16
+      },
+      {
+        "id": "evidence_context_a",
+        "kind": "evidence",
+        "text": "Context selection records source fusion and selected evidence.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "fixture",
+        "tags": ["context-selection"],
+        "tokens": 14
+      },
+      {
+        "id": "evidence_context_b",
+        "kind": "evidence",
+        "text": "Context selection stops once enough complementary evidence is selected.",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "fixture",
+        "tags": ["context-selection"],
+        "tokens": 14
+      }
+    ],
+    "expect": {
+      "selected": ["decision_context", "evidence_context_a", "evidence_context_b"],
+      "selectedOrder": ["decision_context", "evidence_context_a", "evidence_context_b"],
+      "excluded": ["noise_high_tokens"],
+      "conflicts": 0,
+      "sufficiencyState": "sufficient",
+      "noPendingScoreStates": true
+    }
+  },
+  {
+    "id": "source-failure-is-visible-with-native-baselines",
+    "mode": "sources",
+    "trustedContext": {
+      "principal": {
+        "userId": "usr_owner",
+        "principalType": "user",
+        "authenticationMethod": "session",
+        "status": "active"
+      },
+      "membership": {
+        "workspaceId": "ws_local",
+        "role": "owner",
+        "status": "active"
+      },
+      "environment": {
+        "deploymentProfile": "local-dev",
+        "locality": "local-only",
+        "interactive": true,
+        "externalWritesEnabled": false
+      }
+    },
+    "request": {
+      "schemaVersion": "1.0.0",
+      "requestId": "ctxreq_eval6",
+      "correlationId": "req_eval6_000000",
+      "workspaceId": "ws_local",
+      "actorId": "usr_owner",
+      "taskId": "task_test",
+      "step": "answer context manifest policy evidence",
+      "objective": "context manifest policy evidence",
+      "requiredIds": ["mem_required"],
+      "requiredEntities": ["context-manifest"],
+      "tokenBudget": 90,
+      "allowedScopes": ["workspace-private"],
+      "allowedDataClasses": ["workspace-private"],
+      "allowedTrustClasses": ["verified", "trusted", "observed"],
+      "perSourceLimit": 5,
+      "totalCandidateLimit": 10,
+      "trustedTimestamp": "2026-06-19T10:00:00Z",
+      "sourcePlan": [
+        { "kind": "exact", "required": true },
+        { "kind": "lexical", "required": false },
+        { "kind": "vector", "required": false }
+      ]
+    },
+    "records": [
+      {
+        "id": "mem_required",
+        "version": "v1",
+        "kind": "policy",
+        "workspaceId": "ws_local",
+        "text": "Every model call records a context manifest with selected and excluded records.",
+        "tags": ["context-manifest"],
+        "relations": ["context-manifest"],
+        "source": "fixture",
+        "dataClass": "workspace-private",
+        "scope": "workspace-private",
+        "trustClass": "verified",
+        "confidence": 0.91,
+        "authority": 0.9,
+        "updatedAt": "2026-06-19T10:00:00Z"
+      },
+      {
+        "id": "mem_lexical",
+        "version": "v1",
+        "kind": "evidence",
+        "workspaceId": "ws_local",
+        "text": "Policy evidence for context compilation keeps provenance and access decisions.",
+        "tags": ["context-manifest"],
+        "relations": ["context-manifest"],
+        "source": "fixture",
+        "dataClass": "workspace-private",
+        "scope": "workspace-private",
+        "trustClass": "observed",
+        "confidence": 0.8,
+        "authority": 0.72,
+        "updatedAt": "2026-06-19T10:00:00Z"
+      }
+    ],
+    "expect": {
+      "selected": ["mem_required", "mem_lexical"],
+      "excluded": [],
+      "conflicts": 0,
+      "candidateWarnings": ["candidate_source_unavailable"],
+      "warnings": ["candidate_source_unavailable"],
+      "selectionPolicyFingerprint": true,
+      "coverageSelected": ["context-manifest"]
     }
   }
 ]

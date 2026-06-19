@@ -1,0 +1,16 @@
+{
+  "state": "sufficient",
+  "requiredIds": {
+    "requested": ["policy_context_manifest"],
+    "resolved": ["policy_context_manifest"],
+    "unresolvedCount": 0
+  },
+  "entities": {
+    "requested": ["context-manifest"],
+    "eligible": ["context-manifest"],
+    "selected": ["context-manifest"],
+    "unresolved": []
+  },
+  "evidenceCount": 2,
+  "conflictCount": 0
+}

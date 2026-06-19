@@ -41,6 +41,20 @@ uses the same contextual policy service and `context.compile` action; a denied
 source is not invoked. Candidate-level policy checks filter data class, trust
 class, workspace, and secret records before candidate output.
 
+OAF-011 keeps final context selection deterministic and inspectable. The
+selection policy is checked in, strictly validated, and fingerprinted; clients
+cannot submit alternative weights, source authority, model reranking results,
+or hidden provider state. Required records fail closed when missing,
+inaccessible, conflicting, or over budget. Optional records are excluded before
+scoring for workspace mismatch, denied scopes or data classes, secret data,
+expired or retracted status, quarantine, supersession, temporal invalidity, or
+candidate ineligibility.
+
+The internal selection trace is sanitized. It records IDs, bounded reason
+codes, numeric scores, fingerprints, coverage, and warnings, but not raw source
+bodies, prompts, model reasoning, secrets, authorization material, local
+filesystem paths, SQL, or database configuration.
+
 ### Local identity and workspace authorization
 
 Browser sessions are opaque server-side records. The session cookie stores only a random token; the native provider stores a SHA-256 token hash and revokes the server-side record on logout. Login rotates active sessions. CSRF uses a readable SameSite=Strict cookie plus matching `x-csrf-token` header, and the session stores only a hash bound to that session. Bearer API tokens are exempt from CSRF but cannot create or manage API tokens.

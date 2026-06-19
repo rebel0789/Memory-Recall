@@ -22,8 +22,16 @@ fingerprints, contextual-policy denial before provider invocation, candidate
 data-class filtering, source report status, optional-source warning behavior,
 required-source failure behavior, cancellation/timeout handling, and
 same-identity union conflict handling. These checks do not score hybrid fusion,
-reserved token budgets, or diversity selection; those remain later compiler
-selection work.
+reserved token budgets, or diversity selection.
+
+OAF-011 adds deterministic selection evaluations for required-record recall,
+required-entity coverage, distractor exclusion, duplicate suppression,
+complementary evidence, precision under order changes, smallest-sufficient
+stopping, conflict preservation, supersession, workspace and data-class
+filtering, and optional source-failure propagation from native candidate
+sources. The eval runner also asserts safe internal trace fields including
+policy fingerprint, result fingerprint, selected/excluded score states, and
+coverage summaries.
 
 ## Model-backed changes
 

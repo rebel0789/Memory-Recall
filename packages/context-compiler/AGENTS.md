@@ -7,3 +7,9 @@ workspace-scoped, policy-filtered, provenance-preserving, and deterministic.
 Do not move global reranking, diversity selection, token-budget reservation,
 context assembly, embeddings, graph traversal, external search, or adapter
 activation into source implementations.
+
+OAF-011 selection traces are internal contracts. Keep the public context
+manifest schema-compatible for existing callers, and keep raw record text,
+secrets, local paths, SQL, hidden reasoning, source bodies, and provider
+configuration out of `selection.scoreBreakdowns`, selected decisions, and
+excluded decisions.

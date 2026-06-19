@@ -31,9 +31,17 @@ rank/score, bounded reasons, a SHA-256 query fingerprint over non-secret query
 material, an access-decision reference, and retrieval time.
 
 Candidate sources are discovery ports. They do not grant authority, perform
-final selection, or change canonical record identity. The existing Context
-Compiler remains responsible for eligibility, scoring, conflict detection,
-budgeting, and selected/excluded manifest output.
+final selection, or change canonical record identity. The Context Compiler
+selection policy owns weighted source fusion, feature scoring, diversity,
+category caps, token budgeting, sufficiency checks, conflict surfacing, and
+selected/excluded manifest output.
+
+A context selection result is an internal trace separate from the public
+manifest. It records policy version and fingerprint, candidate-generation
+fingerprint, selected and excluded decisions, coverage, sufficiency, conflicts,
+safe score breakdowns, bounded warnings, and deterministic result fingerprint.
+It does not include raw record text, prompts, secrets, local paths, SQL, or
+hidden model reasoning.
 
 ### Evidence
 

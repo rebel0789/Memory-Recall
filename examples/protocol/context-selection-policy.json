@@ -1,0 +1,80 @@
+{
+  "schemaVersion": "1.0.0",
+  "policyVersion": "1.0.0",
+  "fusion": {
+    "method": "weighted_rrf",
+    "rrfK": 60
+  },
+  "sourceWeights": {
+    "direct": 2,
+    "exact": 8,
+    "lexical": 4,
+    "vector": 3,
+    "graph": 3,
+    "temporal": 2,
+    "preference": 2,
+    "episode": 2
+  },
+  "featureWeights": {
+    "sourceFusion": 12,
+    "objectiveRelevance": 4,
+    "stepRelevance": 2,
+    "entityCoverage": 4,
+    "relationCoverage": 2,
+    "authority": 1,
+    "confidence": 1,
+    "preferenceApplicable": 1.5,
+    "outcomeEvidence": 1.5,
+    "temporalApplicability": 0.5,
+    "kindPriority": 1.5,
+    "tokenEfficiency": 1
+  },
+  "diversity": {
+    "method": "bounded_mmr",
+    "diversityWeight": 1.25,
+    "coverageBonus": 0.75,
+    "kindCoverageBonus": 0.15,
+    "duplicateSimilarityThreshold": 0.92,
+    "nearDuplicateSimilarityThreshold": 0.72
+  },
+  "similarity": {
+    "normalization": "unicode_nfkc_lower_ascii_terms",
+    "shingleSize": 3,
+    "maxTextBytes": 4096,
+    "minTokenLength": 2,
+    "maxTokens": 256,
+    "maxPairwiseComparisons": 2000
+  },
+  "categoryBudgets": {
+    "governance": { "cap": 6, "softReserveRatio": 0.15 },
+    "workingState": { "cap": 4, "softReserveRatio": 0.15 },
+    "decisions": { "cap": 4, "softReserveRatio": 0.1 },
+    "preferences": { "cap": 3, "softReserveRatio": 0.05 },
+    "evidence": { "cap": 4, "softReserveRatio": 0.35 },
+    "procedures": { "cap": 3, "softReserveRatio": 0.05 },
+    "episodes": { "cap": 3, "softReserveRatio": 0.05 },
+    "artifacts": { "cap": 3, "softReserveRatio": 0.05 },
+    "negative": { "cap": 2, "softReserveRatio": 0 },
+    "examples": { "cap": 2, "softReserveRatio": 0.05 },
+    "other": { "cap": 2, "softReserveRatio": 0.05 }
+  },
+  "thresholds": {
+    "minimumUtility": 0.35,
+    "marginalUtility": 0.2,
+    "minimumEvidenceCount": 2
+  },
+  "limits": {
+    "maxSelectedCandidates": 12,
+    "maxCandidates": 200,
+    "maxSourceHitsPerCandidate": 16,
+    "maxScoreFactorsPerCandidate": 16,
+    "maxCandidateTokens": 8192,
+    "maxTotalCandidateTokens": 50000,
+    "requiredBudgetRatio": 1
+  },
+  "tokenEstimation": {
+    "method": "ceil_chars_div_4",
+    "zeroTokensAllowed": false
+  },
+  "tieBreak": ["required_first", "utility_desc", "tokens_asc", "record_id_asc"]
+}

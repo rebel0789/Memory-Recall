@@ -5,6 +5,7 @@
 ### Added
 
 - OAF-010 context candidate-source ports with exact and lexical native providers, strict candidate-source protocol schemas/fixtures, source registry validation, provenance-preserving source hits, partial failure reports, candidate union conflict handling, and source-to-compiler composition helpers that preserve the existing synchronous compiler API.
+- OAF-011 deterministic context selection policy with weighted reciprocal-rank source fusion, feature scoring, required-record fail-closed behavior, diversity and duplicate suppression, category caps and budget traces, safe selection-result schemas, and expanded context-selection evaluations.
 - OAF-009 contextual policy engine with a versioned source registry, deterministic policy fingerprint, stable denial reason codes, strict policy request/decision schemas, native deterministic `PolicyEvaluatorPort` provider, and route/tool conformance tests.
 - OAF-008 native local identity provider, first-owner CLI bootstrap, browser sessions, CSRF, API tokens, deterministic workspace role/action authorization, and security audit events.
 - PostgreSQL `002_identity.sql` migration for users, memberships, sessions, API tokens, and security audit events.
@@ -14,6 +15,7 @@
 ### Security
 
 - Candidate-source generation uses contextual policy before source invocation and candidate output, denies secret model-context records by default, preserves workspace isolation, treats exact denied/missing IDs indistinguishably, and keeps external adapters, outbound network, vector stores, embeddings, graph stores, browser automation, and public search endpoints disabled.
+- Context selection uses a checked-in policy fingerprint and safe internal traces; raw source text, prompts, model reasoning, secrets, local paths, SQL, provider configuration, and authorization material are excluded from score breakdowns and decisions.
 - Route authorization and tool invocation now use one contextual policy service after authentication and current membership resolution; denials stop before workflows, Context Compiler, model/tool providers, artifact or memory mutation, secret resolution, filesystem writes, network operations, or consequential effects.
 - Policy evaluates workspace/resource ownership, API-token scope intersection, manifest-bounded tool capability, filesystem/network/secret/data-class/sandbox/budget dimensions, exact approval binding, idempotency, and the global external-write kill switch.
 - Control API rejects malformed paths, unknown queries, oversized bodies, unsupported media types, unsupported content encodings, cross-origin state-changing requests, excessive JSON complexity, and invalid bodies before domain execution.

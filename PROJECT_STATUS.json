@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-011",
+  "nextTask": "OAF-012",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -67,14 +67,18 @@
       "evidence": [
         "packages/context-compiler/src/index.mjs",
         "evals/context-selection/cases.json",
+        "tests/context-selection.test.mjs",
         "tests/context-compiler.test.mjs",
         "tests/context-candidate-sources.test.mjs",
         "packages/protocol/schemas/candidate-source-request.schema.json",
-        "packages/protocol/schemas/context-candidate.schema.json"
+        "packages/protocol/schemas/context-candidate.schema.json",
+        "packages/protocol/schemas/context-selection-policy.schema.json",
+        "packages/protocol/schemas/context-selection-result.schema.json",
+        "docs/architecture/context-compiler.md"
       ],
       "limitations": [
         "Exact and lexical candidate sources only",
-        "Hybrid fusion, global reranking, diversity, and reserved budgets remain planned",
+        "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Token estimate is approximate",
         "Manifest not yet persisted separately"
       ]
@@ -97,7 +101,7 @@
       "limitations": [
         "Only native exact and lexical sources are implemented and enabled",
         "Vector, graph, temporal, preference, and episode sources are declared but unavailable",
-        "Sources generate candidates only; final selection remains in the existing compiler",
+        "Sources generate candidates only; final selection remains in the Context Compiler selector",
         "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
       ]
     },
@@ -440,9 +444,9 @@
       "npm run native:smoke",
       "npm run demo"
     ],
-    "testsExpected": 111,
-    "protocolFixturesExpected": 54,
-    "evaluationsExpected": 22,
+    "testsExpected": 118,
+    "protocolFixturesExpected": 67,
+    "evaluationsExpected": 53,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
 }

@@ -24,3 +24,15 @@ conflict. These schemas describe trusted internal composition between the
 Context Compiler and enabled native sources. They do not expose a generic public
 search route, provider selection, external adapters, vector stores, embeddings,
 graph stores, browser automation, or outbound network access.
+
+## Context selection schemas
+
+OAF-011 adds internal selection contracts for source-fusion config, feature
+weights, category budgets, stable selection and exclusion reason codes,
+selection decisions, coverage summaries, sufficiency results, score
+breakdowns, the versioned selection policy, and the safe selection result.
+
+These schemas are internal service contracts for deterministic selection. They
+do not expose client-supplied weights, model reranking, embeddings, vector or
+graph stores, external search, publishing, browser automation, external
+adapters, or raw context bodies.

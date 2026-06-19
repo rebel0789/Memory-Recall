@@ -1,0 +1,14 @@
+{
+  "sourceFusion": 12,
+  "objectiveRelevance": 4,
+  "stepRelevance": 2,
+  "entityCoverage": 4,
+  "relationCoverage": 2,
+  "authority": 1,
+  "confidence": 1,
+  "preferenceApplicable": 1.5,
+  "outcomeEvidence": 1.5,
+  "temporalApplicability": 0.5,
+  "kindPriority": 1.5,
+  "tokenEfficiency": 1
+}

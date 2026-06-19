@@ -1,0 +1,8 @@
+{
+  "id": "evidence_context_manifest",
+  "order": 2,
+  "tokens": 18,
+  "category": "evidence",
+  "utility": 12.828102,
+  "reasonCodes": ["complementary_evidence", "entity_coverage", "source_fusion"]
+}

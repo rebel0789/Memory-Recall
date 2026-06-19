@@ -266,6 +266,72 @@
       "expectedValid": true
     },
     {
+      "id": "context-source-fusion-config-current-valid",
+      "schema": "packages/protocol/schemas/context-source-fusion-config.schema.json",
+      "instance": "examples/protocol/context-source-fusion-config.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-feature-weight-config-current-valid",
+      "schema": "packages/protocol/schemas/context-feature-weight-config.schema.json",
+      "instance": "examples/protocol/context-feature-weight-config.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-category-budget-config-current-valid",
+      "schema": "packages/protocol/schemas/context-category-budget-config.schema.json",
+      "instance": "examples/protocol/context-category-budget-config.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-reason-code-current-valid",
+      "schema": "packages/protocol/schemas/context-selection-reason-code.schema.json",
+      "instance": "examples/protocol/context-selection-reason-code.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-exclusion-reason-code-current-valid",
+      "schema": "packages/protocol/schemas/context-exclusion-reason-code.schema.json",
+      "instance": "examples/protocol/context-exclusion-reason-code.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-decision-current-valid",
+      "schema": "packages/protocol/schemas/context-selection-decision.schema.json",
+      "instance": "examples/protocol/context-selection-decision.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-coverage-summary-current-valid",
+      "schema": "packages/protocol/schemas/context-coverage-summary.schema.json",
+      "instance": "examples/protocol/context-coverage-summary.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-sufficiency-result-current-valid",
+      "schema": "packages/protocol/schemas/context-sufficiency-result.schema.json",
+      "instance": "examples/protocol/context-sufficiency-result.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-score-breakdown-current-valid",
+      "schema": "packages/protocol/schemas/context-score-breakdown.schema.json",
+      "instance": "examples/protocol/context-score-breakdown.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-policy-current-valid",
+      "schema": "packages/protocol/schemas/context-selection-policy.schema.json",
+      "instance": "examples/protocol/context-selection-policy.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-result-current-valid",
+      "schema": "packages/protocol/schemas/context-selection-result.schema.json",
+      "instance": "examples/protocol/context-selection-result.json",
+      "expectedValid": true
+    },
+    {
       "id": "agent-pack-valid",
       "schema": "packages/protocol/schemas/agent-pack.schema.json",
       "instance": "examples/agentpacks/content-intelligence.agentpack.json",
@@ -323,6 +389,18 @@
       "id": "candidate-source-hit-secret-path-invalid",
       "schema": "packages/protocol/schemas/candidate-source-hit.schema.json",
       "instance": "examples/protocol/compatibility/invalid/candidate-source-hit-secret-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-selection-policy-unknown-field-invalid",
+      "schema": "packages/protocol/schemas/context-selection-policy.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-selection-policy-unknown-field.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-selection-result-raw-text-invalid",
+      "schema": "packages/protocol/schemas/context-selection-result.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-selection-result-raw-text.json",
       "expectedValid": false
     }
   ]

@@ -93,3 +93,9 @@ headers, or database configuration.
 Both sources require contextual policy allow decisions before invocation and
 candidate-level policy allow decisions before output. Secret data is denied for
 model-context candidate generation by default.
+
+OAF-011 preserves these providers as conformance baselines. Hybrid fusion,
+global reranking, diversity, category caps, and token budgeting live in
+`packages/context-compiler/src/index.mjs`, not in the exact or lexical source
+providers. Vector, graph, temporal, preference, and episode source kinds remain
+declared but unavailable until later tasks add explicit providers.

@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "ccreq_oaf011",
+  "workspaceId": "ws_local",
+  "selectionPolicyVersion": "1.0.0",
+  "selectionPolicyFingerprint": "sha256:af3bf37d75c10172566bf83aa802ef908316f25765d71c6756308803eddf988b",
+  "candidateGenerationFingerprint": "sha256:20ee875a12fdcdbed7610dc9318592fa3d2207d44df2ddf4575cf7104ee12ad3",
+  "totalCandidateCount": 4,
+  "eligibleCandidateCount": 4,
+  "selectedCandidateCount": 3,
+  "selectedTokenCount": 48,
+  "availableTokenBudget": 100,
+  "categoryBudgets": {
+    "governance": { "cap": 6, "softReserveRatio": 0.15, "softReserveTokens": 15, "selectedCount": 1, "selectedTokens": 14 },
+    "workingState": { "cap": 4, "softReserveRatio": 0.15, "softReserveTokens": 15, "selectedCount": 0, "selectedTokens": 0 },
+    "decisions": { "cap": 4, "softReserveRatio": 0.1, "softReserveTokens": 10, "selectedCount": 0, "selectedTokens": 0 },
+    "preferences": { "cap": 3, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "evidence": { "cap": 4, "softReserveRatio": 0.35, "softReserveTokens": 35, "selectedCount": 2, "selectedTokens": 34 },
+    "procedures": { "cap": 3, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "episodes": { "cap": 3, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "artifacts": { "cap": 3, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "negative": { "cap": 2, "softReserveRatio": 0, "softReserveTokens": 0, "selectedCount": 0, "selectedTokens": 0 },
+    "examples": { "cap": 2, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 },
+    "other": { "cap": 2, "softReserveRatio": 0.05, "softReserveTokens": 5, "selectedCount": 0, "selectedTokens": 0 }
+  },
+  "coverage": {
+    "requested": ["context-manifest"],
+    "eligible": ["context-manifest"],
+    "selected": ["context-manifest"],
+    "unresolved": []
+  },
+  "selectedDecisions": [
+    {
+      "id": "policy_context_manifest",
+      "order": 1,
+      "tokens": 14,
+      "category": "governance",
+      "utility": 1000,
+      "reasonCodes": ["required", "explicit_requirement", "forced_governance", "source_fusion"]
+    },
+    {
+      "id": "evidence_context_manifest",
+      "order": 2,
+      "tokens": 18,
+      "category": "evidence",
+      "utility": 12.828102,
+      "reasonCodes": ["complementary_evidence", "entity_coverage", "source_fusion"]
+    }
+  ],
+  "excludedDecisions": [
+    {
+      "id": "note_unrelated",
+      "order": null,
+      "tokens": 7,
+      "category": "evidence",
+      "utility": 0.175,
+      "reasonCodes": ["insufficient_marginal_utility"]
+    }
+  ],
+  "conflicts": [],
+  "warnings": [],
+  "sufficiency": {
+    "state": "sufficient",
+    "requiredIds": {
+      "requested": ["policy_context_manifest"],
+      "resolved": ["policy_context_manifest"],
+      "unresolvedCount": 0
+    },
+    "entities": {
+      "requested": ["context-manifest"],
+      "eligible": ["context-manifest"],
+      "selected": ["context-manifest"],
+      "unresolved": []
+    },
+    "evidenceCount": 2,
+    "conflictCount": 0
+  },
+  "scoreBreakdowns": [
+    {
+      "id": "evidence_context_manifest",
+      "category": "evidence",
+      "fusion": {
+        "score": 0.032787,
+        "contributions": [
+          {
+            "sourceId": "provider:native:context-selection:direct",
+            "sourceKind": "direct",
+            "localRank": 1,
+            "contribution": 0.032787
+          }
+        ]
+      },
+      "featureValues": {
+        "sourceFusion": 0.032787,
+        "objectiveRelevance": 0.408248,
+        "stepRelevance": 0.333333,
+        "entityCoverage": 1,
+        "relationCoverage": 1,
+        "authority": 0.7,
+        "confidence": 0.81,
+        "preferenceApplicable": 0,
+        "outcomeEvidence": 0,
+        "temporalApplicability": 1,
+        "kindPriority": 0.65,
+        "tokenEfficiency": 1
+      },
+      "weightedContributions": {
+        "sourceFusion": 0.393444,
+        "objectiveRelevance": 1.632992,
+        "stepRelevance": 0.666666,
+        "entityCoverage": 4,
+        "relationCoverage": 2,
+        "authority": 0.7,
+        "confidence": 0.81,
+        "preferenceApplicable": 0,
+        "outcomeEvidence": 0,
+        "temporalApplicability": 0.5,
+        "kindPriority": 0.975,
+        "tokenEfficiency": 1
+      },
+      "preDiversityUtility": 12.678102,
+      "selectedOrExcluded": "selected",
+      "reasonCodes": ["entity_coverage", "entity_relation", "source_fusion", "task_relevance"]
+    }
+  ],
+  "bounds": {
+    "pairwiseSimilarityComparisons": 7,
+    "selectionIterations": 2
+  },
+  "resultFingerprint": "sha256:48de2879ddb6dc63435b492e619c682b4e17302908ec3e606a03f7b526451710"
+}
