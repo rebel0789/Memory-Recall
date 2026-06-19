@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:context-candidate:lexical",
+  "name": "Native Lexical Context Candidate Source",
+  "version": "0.2.0-dev",
+  "category": "context-candidate",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "CandidateSourcePort",
+  "contractVersion": "1.0.0",
+  "capabilities": [
+    "context.candidate.lexical"
+  ],
+  "limits": {
+    "search": "Deterministic term overlap over safe normalized fields",
+    "writes": false,
+    "network": false,
+    "embeddings": false
+  },
+  "dataPaths": [],
+  "experimental": false,
+  "notes": [
+    "Requires an injected provider-neutral record reader.",
+    "Does not perform global reranking, embeddings, vector search, stemming, recency, authority, diversity, or token-budget selection."
+  ]
+}

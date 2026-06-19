@@ -206,6 +206,66 @@
       "expectedValid": true
     },
     {
+      "id": "candidate-source-kind-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-kind.schema.json",
+      "instance": "examples/protocol/candidate-source-kind.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-failure-code-current-valid",
+      "schema": "packages/protocol/schemas/candidate-failure-code.schema.json",
+      "instance": "examples/protocol/candidate-failure-code.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-descriptor-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-descriptor.schema.json",
+      "instance": "examples/protocol/candidate-source-descriptor.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-plan-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-plan.schema.json",
+      "instance": "examples/protocol/candidate-source-plan.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-request-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-request.schema.json",
+      "instance": "examples/protocol/candidate-source-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-hit-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-hit.schema.json",
+      "instance": "examples/protocol/candidate-source-hit.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-candidate-current-valid",
+      "schema": "packages/protocol/schemas/context-candidate.schema.json",
+      "instance": "examples/protocol/context-candidate.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-report-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-report.schema.json",
+      "instance": "examples/protocol/candidate-source-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-generation-result-current-valid",
+      "schema": "packages/protocol/schemas/candidate-generation-result.schema.json",
+      "instance": "examples/protocol/candidate-generation-result.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-identity-conflict-current-valid",
+      "schema": "packages/protocol/schemas/candidate-identity-conflict.schema.json",
+      "instance": "examples/protocol/candidate-identity-conflict.json",
+      "expectedValid": true
+    },
+    {
       "id": "agent-pack-valid",
       "schema": "packages/protocol/schemas/agent-pack.schema.json",
       "instance": "examples/agentpacks/content-intelligence.agentpack.json",
@@ -245,6 +305,24 @@
       "id": "provider-locality-invalid",
       "schema": "packages/protocol/schemas/provider-manifest.schema.json",
       "instance": "examples/protocol/compatibility/invalid/provider-remote-locality.json",
+      "expectedValid": false
+    },
+    {
+      "id": "candidate-source-request-authority-injection-invalid",
+      "schema": "packages/protocol/schemas/candidate-source-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/candidate-source-request-authority-injection.json",
+      "expectedValid": false
+    },
+    {
+      "id": "candidate-source-kind-unknown-invalid",
+      "schema": "packages/protocol/schemas/candidate-source-kind.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/candidate-source-kind-unknown.json",
+      "expectedValid": false
+    },
+    {
+      "id": "candidate-source-hit-secret-path-invalid",
+      "schema": "packages/protocol/schemas/candidate-source-hit.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/candidate-source-hit-secret-path.json",
       "expectedValid": false
     }
   ]

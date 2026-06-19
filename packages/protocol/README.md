@@ -14,3 +14,13 @@ These schemas document trusted service-to-service contracts. They do not expose
 a public policy-evaluation route. Control API handlers build policy inputs after
 authentication and current membership resolution; clients cannot supply roles,
 environment authority, registry rules, or executable policy text.
+
+## Context candidate-source schemas
+
+OAF-010 adds candidate-source contracts for provider-neutral context candidate
+generation: source kind, descriptor, request, source plan, context candidate,
+source hit, source report, generation result, failure code, and identity
+conflict. These schemas describe trusted internal composition between the
+Context Compiler and enabled native sources. They do not expose a generic public
+search route, provider selection, external adapters, vector stores, embeddings,
+graph stores, browser automation, or outbound network access.

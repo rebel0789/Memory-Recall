@@ -1,0 +1,14 @@
+{
+  "sourceId": "provider:native:context-candidate:exact",
+  "sourceKind": "exact",
+  "sourceVersion": "1.0.0",
+  "retrievalMethod": "id_lookup",
+  "localRank": 1,
+  "localScore": 1,
+  "reasonCodes": [
+    "exact_id_match"
+  ],
+  "queryFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "accessDecisionRef": "poldet_candidate_allow",
+  "retrievedAt": "2026-06-19T10:00:00.000Z"
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "failureCode": "candidate_identity_conflict",
+  "recordId": "mem_required",
+  "sourceIds": [
+    "provider:native:context-candidate:exact",
+    "provider:native:context-candidate:lexical"
+  ]
+}

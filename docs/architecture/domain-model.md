@@ -22,6 +22,19 @@ A workflow is an immutable versioned definition. A run references one workflow v
 
 A request states objective, step, actor, required entities and records, token budget, allowed data classes, and time. A manifest records candidates considered, selections, exclusions, conflicts, assembly order, token accounting, and compiler version.
 
+A context candidate is a canonical record plus provider-neutral candidate
+metadata. It carries workspace ID, data class, scope, trust class, lifecycle
+status, token estimate, confidence, authority, timestamps, content hash or
+fingerprint, provenance references, and one or more source hits. A source hit
+records source ID, source kind, source version, retrieval method, local
+rank/score, bounded reasons, a SHA-256 query fingerprint over non-secret query
+material, an access-decision reference, and retrieval time.
+
+Candidate sources are discovery ports. They do not grant authority, perform
+final selection, or change canonical record identity. The existing Context
+Compiler remains responsible for eligibility, scoring, conflict detection,
+budgeting, and selected/excluded manifest output.
+
 ### Evidence
 
 A source snapshot is an immutable body and metadata record. An observation is normalized from a snapshot. An inference is a model-generated interpretation linked to evidence IDs. These never share one ambiguous field.

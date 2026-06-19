@@ -6,6 +6,9 @@ import { FilesystemArtifactStore } from '../providers/native/artifact-filesystem
 import { DeterministicModelProvider } from '../providers/native/model-deterministic/src/index.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
 import { DeterministicPolicyProvider } from '../providers/native/policy-deterministic/src/index.mjs';
+import { createNativeExactCandidateSource } from '../providers/native/context-candidate-exact/src/index.mjs';
+import { createNativeLexicalCandidateSource } from '../providers/native/context-candidate-lexical/src/index.mjs';
+import { createCandidateSourceRegistry, createFixtureRecordReader, generateContextCandidates } from '../packages/context-compiler/src/index.mjs';
 import { fingerprintAgentPack, validateAgentPack } from '../packages/agentpack/src/index.mjs';
 
 const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-smoke-'));
@@ -62,10 +65,57 @@ try {
   });
   if (policyDecision.outcome !== 'allow') throw new Error('native policy smoke failed');
 
+  const candidateRegistry = createCandidateSourceRegistry([
+    createNativeExactCandidateSource(),
+    createNativeLexicalCandidateSource()
+  ]);
+  const candidateGeneration = await generateContextCandidates({
+    schemaVersion: '1.0.0',
+    requestId: 'ccreq_smoke',
+    correlationId: 'req_native-smoke-000001',
+    workspaceId: 'ws_smoke',
+    actorId: bootstrap.user.id,
+    taskId: 'task_smoke',
+    objective: 'Find context manifest evidence',
+    step: 'compile safe local context candidates',
+    requiredIds: ['mem_smoke_context'],
+    requiredEntities: ['context-manifest'],
+    allowedDataClasses: ['workspace-private'],
+    allowedTrustClasses: ['observed'],
+    perSourceLimit: 5,
+    totalCandidateLimit: 5,
+    trustedTimestamp: '2026-06-19T10:00:00.000Z',
+    tokenBudget: 64
+  }, {
+    registry: candidateRegistry,
+    recordReader: createFixtureRecordReader([{
+      id: 'mem_smoke_context',
+      version: 'v1',
+      workspaceId: 'ws_smoke',
+      kind: 'policy',
+      text: 'Every model call records a context manifest for safe local context.',
+      tags: ['context-manifest'],
+      source: 'smoke',
+      dataClass: 'workspace-private',
+      scope: 'workspace-private',
+      trustClass: 'observed',
+      updatedAt: '2026-06-19T10:00:00.000Z'
+    }]),
+    policyService: policy,
+    trustedContext: {
+      principal: { userId: bootstrap.user.id, principalType: 'user', authenticationMethod: 'session', status: 'active' },
+      membership: { workspaceId: 'ws_smoke', role: 'owner', status: 'active' },
+      environment: { deploymentProfile: 'local-dev', locality: 'local-only', interactive: true, externalWritesEnabled: false }
+    },
+    clock: () => '2026-06-19T10:00:00.000Z'
+  });
+  if (!candidateGeneration.candidates.some((candidate) => candidate.record.id === 'mem_smoke_context')) throw new Error('native context candidate smoke failed');
+
   console.log('PASS native SQLite memory');
   console.log('PASS content-addressed artifact store');
   console.log('PASS native local identity');
   console.log('PASS deterministic contextual policy provider');
+  console.log('PASS native exact and lexical context candidate sources');
   console.log(`PASS Agent Pack ${pack.metadata.name}@${pack.metadata.version} ${fingerprint}`);
   console.log('PASS deterministic local model provider');
   console.log('Native provider smoke completed without network access.');

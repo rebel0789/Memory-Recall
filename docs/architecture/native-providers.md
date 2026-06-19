@@ -12,6 +12,8 @@ Native providers make the local product useful without optional integrations. Th
 | `native.model.deterministic` | on | Reproducible tests and offline demo |
 | `native.identity.local` | on | Local users, sessions, API tokens, memberships, and security audit |
 | `native.policy.deterministic` | on | Contextual policy decisions for resources, tools, data classes, approvals, and budgets |
+| `native.context-candidate.exact` | on | Workspace-scoped exact candidate lookup by canonical record ID |
+| `native.context-candidate.lexical` | on | Deterministic lexical candidate lookup over safe record fields |
 | `native.model.ollama` | off | Explicit loopback local-model generation |
 
 ## Rules
@@ -67,3 +69,27 @@ and current membership resolution. It returns structured allow/deny decisions,
 bounded stable reason codes, safe effective capability scopes, and audit-ready
 metadata. It denies unknown or malformed dimensions by default and keeps
 external writes disabled.
+
+## Context candidate-source providers
+
+The native exact and lexical providers implement `CandidateSourcePort` version
+`1.0.0`. They are conformance baselines for OAF-010 candidate generation, not
+storage engines and not final selectors.
+
+The exact source performs workspace-scoped batch lookup through an injected
+provider-neutral record reader. It deduplicates requested IDs, preserves request
+order as local rank, records an exact-match source hit, supports cancellation,
+and does not fuzzy match, substring search, scan all workspace records, write
+state, or reveal inaccessible exact IDs.
+
+The lexical source reuses deterministic term-overlap behavior over safe fields:
+objective, step, required entities, record text, tags, relations, and safe title
+fields. It sorts by local score then canonical record ID. It does not use regex
+queries, embeddings, vector databases, graph databases, stemming, model
+expansion, global reranking, recency, authority, diversity, token budgeting,
+network access, external adapters, credentials, private paths, cookies, auth
+headers, or database configuration.
+
+Both sources require contextual policy allow decisions before invocation and
+candidate-level policy allow decisions before output. Secret data is denied for
+model-context candidate generation by default.

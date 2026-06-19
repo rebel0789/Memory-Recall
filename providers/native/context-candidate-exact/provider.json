@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:context-candidate:exact",
+  "name": "Native Exact Context Candidate Source",
+  "version": "0.2.0-dev",
+  "category": "context-candidate",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "CandidateSourcePort",
+  "contractVersion": "1.0.0",
+  "capabilities": [
+    "context.candidate.exact"
+  ],
+  "limits": {
+    "lookup": "Workspace-scoped canonical record ids only",
+    "writes": false,
+    "network": false
+  },
+  "dataPaths": [],
+  "experimental": false,
+  "notes": [
+    "Requires an injected provider-neutral record reader.",
+    "Does not fuzzy match, scan all workspace records, or reveal inaccessible exact ids."
+  ]
+}

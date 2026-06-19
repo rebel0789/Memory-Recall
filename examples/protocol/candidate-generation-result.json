@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "ccreq_example",
+  "workspaceId": "ws_local",
+  "status": "succeeded",
+  "candidates": [
+    {
+      "schemaVersion": "1.0.0",
+      "record": {
+        "id": "mem_required",
+        "kind": "policy",
+        "workspaceId": "ws_local",
+        "text": "Every model call records a context manifest with selected and excluded records.",
+        "dataClass": "workspace-private",
+        "scope": "workspace-private",
+        "trustClass": "verified",
+        "status": "active",
+        "tokens": 18,
+        "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "hits": [
+        {
+          "sourceId": "provider:native:context-candidate:exact",
+          "sourceKind": "exact",
+          "sourceVersion": "1.0.0",
+          "retrievalMethod": "id_lookup",
+          "localRank": 1,
+          "localScore": 1,
+          "reasonCodes": [
+            "exact_id_match"
+          ],
+          "queryFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "accessDecisionRef": "poldet_candidate_allow",
+          "retrievedAt": "2026-06-19T10:00:00.000Z"
+        }
+      ]
+    }
+  ],
+  "reports": [
+    {
+      "schemaVersion": "1.0.0",
+      "requestId": "ccreq_example",
+      "sourceId": "provider:native:context-candidate:exact",
+      "sourceKind": "exact",
+      "sourceVersion": "1.0.0",
+      "required": true,
+      "status": "succeeded",
+      "failureCode": null,
+      "candidateCount": 1,
+      "deniedCount": 0,
+      "unresolvedCount": 0,
+      "accessDecisionRef": "poldet_candidate_allow",
+      "reportedAt": "2026-06-19T10:00:00.000Z"
+    }
+  ],
+  "warnings": []
+}

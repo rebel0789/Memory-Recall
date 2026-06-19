@@ -1,3 +1,9 @@
 # Context Compiler Agent Rules
 
 Selection behavior is versioned and evaluation-gated. Preserve exact exclusion reasons, deterministic tie-breaking, scope filtering before ranking, and hard failure for missing required governance. Never optimize solely for more tokens or similarity.
+
+Candidate sources are discovery only. Keep source logic provider-neutral,
+workspace-scoped, policy-filtered, provenance-preserving, and deterministic.
+Do not move global reranking, diversity selection, token-budget reservation,
+context assembly, embeddings, graph traversal, external search, or adapter
+activation into source implementations.

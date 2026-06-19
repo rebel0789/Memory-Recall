@@ -16,6 +16,15 @@ Every evaluation records dataset version, code commit, compiler/prompt/model ver
 
 Compare against fixed recent-history, vector top-k, full-available-context, and exact-reference baselines. Hold task, model, and output scoring constant. Measure precision, required recall, distractor rate, conflict/supersession correctness, scope leakage, tokens, and downstream success.
 
+OAF-010 adds deterministic candidate-generation checks before selection:
+exact-ID recall, lexical candidate discovery, source provenance, query
+fingerprints, contextual-policy denial before provider invocation, candidate
+data-class filtering, source report status, optional-source warning behavior,
+required-source failure behavior, cancellation/timeout handling, and
+same-identity union conflict handling. These checks do not score hybrid fusion,
+reserved token budgets, or diversity selection; those remain later compiler
+selection work.
+
 ## Model-backed changes
 
 Separate nondeterministic quality tests from merge-blocking contract tests. A model default may change only after a versioned evaluation report and rollback plan.

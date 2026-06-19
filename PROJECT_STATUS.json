@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-010",
+  "nextTask": "OAF-011",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -67,12 +67,38 @@
       "evidence": [
         "packages/context-compiler/src/index.mjs",
         "evals/context-selection/cases.json",
-        "tests/context-compiler.test.mjs"
+        "tests/context-compiler.test.mjs",
+        "tests/context-candidate-sources.test.mjs",
+        "packages/protocol/schemas/candidate-source-request.schema.json",
+        "packages/protocol/schemas/context-candidate.schema.json"
       ],
       "limitations": [
-        "Exact/lexical scoring only",
+        "Exact and lexical candidate sources only",
+        "Hybrid fusion, global reranking, diversity, and reserved budgets remain planned",
         "Token estimate is approximate",
         "Manifest not yet persisted separately"
+      ]
+    },
+    {
+      "id": "context.candidate-sources",
+      "name": "Provider-neutral context candidate-source generation",
+      "status": "reference",
+      "evidence": [
+        "packages/context-compiler/src/index.mjs",
+        "providers/native/context-candidate-exact/provider.json",
+        "providers/native/context-candidate-lexical/provider.json",
+        "providers/native/catalog.json",
+        "tests/context-candidate-sources.test.mjs",
+        "packages/adapter-contracts/src/index.mjs",
+        "packages/protocol/schemas/candidate-source-descriptor.schema.json",
+        "packages/protocol/schemas/candidate-source-hit.schema.json",
+        "docs/architecture/context-compiler.md"
+      ],
+      "limitations": [
+        "Only native exact and lexical sources are implemented and enabled",
+        "Vector, graph, temporal, preference, and episode sources are declared but unavailable",
+        "Sources generate candidates only; final selection remains in the existing compiler",
+        "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
       ]
     },
     {
@@ -405,7 +431,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-06-19",
+    "asOf": "2026-06-20",
     "commands": [
       "npm run check",
       "npm run protocol:validate",
@@ -414,8 +440,8 @@
       "npm run native:smoke",
       "npm run demo"
     ],
-    "testsExpected": 102,
-    "protocolFixturesExpected": 41,
+    "testsExpected": 111,
+    "protocolFixturesExpected": 54,
     "evaluationsExpected": 22,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

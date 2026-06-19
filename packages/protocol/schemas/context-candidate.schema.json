@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-candidate-1.0.json",
+  "title": "Context Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "record", "hits"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "kind", "text", "workspaceId", "dataClass", "scope", "trustClass", "status", "tokens", "contentHash"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_.:-]*$" },
+        "kind": { "type": "string", "minLength": 1 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 65536 },
+        "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "dataClass": { "enum": ["public", "workspace-private", "confidential", "secret"] },
+        "scope": { "enum": ["public", "workspace-private", "sensitive"] },
+        "trustClass": { "enum": ["verified", "trusted", "observed", "untrusted"] },
+        "status": { "type": "string", "minLength": 1 },
+        "tokens": { "type": "integer", "minimum": 1 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "authority": { "type": "number", "minimum": 0, "maximum": 1 },
+        "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "hits": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["sourceId", "sourceKind", "sourceVersion", "retrievalMethod", "localRank", "localScore", "reasonCodes", "queryFingerprint", "accessDecisionRef", "retrievedAt"],
+        "properties": {
+          "sourceId": { "type": "string" },
+          "sourceKind": { "enum": ["exact", "lexical", "vector", "graph", "temporal", "preference", "episode"] },
+          "sourceVersion": { "type": "string" },
+          "retrievalMethod": { "type": "string" },
+          "localRank": { "type": "integer", "minimum": 1 },
+          "localScore": { "type": "number", "minimum": 0, "maximum": 1 },
+          "reasonCodes": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "queryFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "accessDecisionRef": { "type": "string" },
+          "retrievedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

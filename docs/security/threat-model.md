@@ -32,6 +32,15 @@ OAF-008 extends the boundary with native local authentication and deterministic 
 
 Policy denials stop before workflow start, Context Compiler invocation, artifact or memory mutation, model/tool invocation, filesystem write, secret resolution, external network operation, or consequential side effect.
 
+OAF-010 adds an internal candidate-source layer to the Context Compiler.
+Candidate-source requests are server/trusted-service populated and reject
+client-supplied roles, policy outcomes, provider implementation objects, source
+success claims, raw secrets, cookies, authorization headers, signed URL query
+material, absolute paths, database details, and executable values. Source access
+uses the same contextual policy service and `context.compile` action; a denied
+source is not invoked. Candidate-level policy checks filter data class, trust
+class, workspace, and secret records before candidate output.
+
 ### Local identity and workspace authorization
 
 Browser sessions are opaque server-side records. The session cookie stores only a random token; the native provider stores a SHA-256 token hash and revokes the server-side record on logout. Login rotates active sessions. CSRF uses a readable SameSite=Strict cookie plus matching `x-csrf-token` header, and the session stores only a hash bound to that session. Bearer API tokens are exempt from CSRF but cannot create or manage API tokens.
@@ -61,6 +70,11 @@ Untrusted or incorrect inference becomes permanent context. Mitigation: proposal
 ### Cross-workspace leakage
 
 Retrieval or storage returns another workspace's records. Mitigation: scope in every repository key and query, policy at service and repository layers, and explicit adversarial tests.
+
+Context candidate sources operate through provider-neutral `getManyByIds` and
+`searchLexical` record-reader operations and never scan all workspaces. Exact ID
+requests do not distinguish inaccessible IDs from nonexistent IDs in public
+candidate output; reports may aggregate denied or unresolved counts only.
 
 Artifact bodies are also scoped by workspace. The native filesystem provider derives object, record, tombstone, and export paths internally under `workspaces/<workspace-id>`, rejects unsupported workspace IDs, and does not deduplicate across workspaces. Exports contain relative paths only and must not reveal absolute local storage paths.
 

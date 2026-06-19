@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/candidate-source-report-1.0.json",
+  "title": "Candidate Source Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "sourceId", "sourceKind", "sourceVersion", "required", "status", "candidateCount", "deniedCount", "unresolvedCount", "reportedAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "requestId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "sourceId": { "type": "string", "minLength": 1 },
+    "sourceKind": { "enum": ["exact", "lexical", "vector", "graph", "temporal", "preference", "episode"] },
+    "sourceVersion": { "type": ["string", "null"] },
+    "required": { "type": "boolean" },
+    "status": { "enum": ["succeeded", "failed", "timed_out", "cancelled", "unavailable", "denied", "invalid_output", "skipped"] },
+    "failureCode": {
+      "enum": [
+        null,
+        "source_unavailable",
+        "candidate_source_failed",
+        "candidate_source_required_failed",
+        "candidate_source_required_denied",
+        "candidate_source_required_unavailable",
+        "candidate_generation_unavailable",
+        "candidate_identity_conflict",
+        "invalid_candidate_output",
+        "candidate_source_cancelled",
+        "candidate_source_timed_out"
+      ]
+    },
+    "candidateCount": { "type": "integer", "minimum": 0 },
+    "deniedCount": { "type": "integer", "minimum": 0 },
+    "unresolvedCount": { "type": "integer", "minimum": 0 },
+    "accessDecisionRef": { "type": ["string", "null"] },
+    "reportedAt": { "type": "string", "format": "date-time" }
+  }
+}

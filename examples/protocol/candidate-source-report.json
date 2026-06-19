@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "ccreq_example",
+  "sourceId": "provider:native:context-candidate:exact",
+  "sourceKind": "exact",
+  "sourceVersion": "1.0.0",
+  "required": true,
+  "status": "succeeded",
+  "failureCode": null,
+  "candidateCount": 1,
+  "deniedCount": 0,
+  "unresolvedCount": 0,
+  "accessDecisionRef": "poldet_candidate_allow",
+  "reportedAt": "2026-06-19T10:00:00.000Z"
+}

@@ -154,10 +154,11 @@ export class SecurityAuditSinkPort {
 
 export class CandidateSourcePort {
   static contract = 'CandidateSourcePort';
-  static requiredMethods = ['health', 'capabilities', 'queryCandidates'];
+  static version = '1.0.0';
+  static requiredMethods = ['descriptor', 'health', 'query'];
+  async descriptor() { return notImplemented(CandidateSourcePort.contract, 'descriptor'); }
   async health() { return notImplemented(CandidateSourcePort.contract, 'health'); }
-  async capabilities() { return notImplemented(CandidateSourcePort.contract, 'capabilities'); }
-  async queryCandidates() { return notImplemented(CandidateSourcePort.contract, 'queryCandidates'); }
+  async query() { return notImplemented(CandidateSourcePort.contract, 'query'); }
 }
 
 export class RepositoryGraphPort {
