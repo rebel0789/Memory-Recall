@@ -68,6 +68,12 @@
       "expectedValid": true
     },
     {
+      "id": "content-local-draft-outcome-current-valid",
+      "schema": "packages/protocol/schemas/content-local-draft-outcome.schema.json",
+      "instance": "examples/protocol/content-local-draft-outcome.json",
+      "expectedValid": true
+    },
+    {
       "id": "stored-object-current-valid",
       "schema": "packages/protocol/schemas/stored-object-descriptor.schema.json",
       "instance": "examples/protocol/stored-object-descriptor.json",

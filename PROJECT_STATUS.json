@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-021",
+  "nextTask": "OAF-022",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -158,11 +158,15 @@
         "workflows/content-intelligence/workflow.json",
         "tests/workflow.test.mjs",
         "tests/research-ingestion.test.mjs",
-        "tests/content-intelligence.test.mjs"
+        "tests/content-intelligence.test.mjs",
+        "packages/protocol/schemas/content-local-draft-outcome.schema.json",
+        "examples/protocol/content-local-draft-outcome.json",
+        "docs/implementation/OAF-021-approval-local-drafting-outcomes-note.md"
       ],
       "limitations": [
         "Synthetic fixtures by default; optional read-only source ingestion remains caller supplied",
         "Deterministic generator",
+        "Local approval and drafting only",
         "No publishing"
       ]
     },
@@ -203,6 +207,28 @@
         "Relative performance requires caller-supplied baselines and otherwise reports proof needed",
         "Similarity and copying risk are lexical safeguards, not legal review or plagiarism certification",
         "Publishing remains disabled"
+      ]
+    },
+    {
+      "id": "content.local-drafting",
+      "name": "Local approval, drafting, and outcome recording",
+      "status": "reference",
+      "evidence": [
+        "packages/content-intelligence/src/index.mjs",
+        "workflows/content-intelligence/runner.mjs",
+        "workflows/content-intelligence/workflow.json",
+        "packages/protocol/schemas/content-local-draft-outcome.schema.json",
+        "examples/protocol/content-local-draft-outcome.json",
+        "tests/content-intelligence.test.mjs",
+        "tests/workflow.test.mjs",
+        "scripts/run-evals.mjs",
+        "docs/implementation/OAF-021-approval-local-drafting-outcomes-note.md"
+      ],
+      "limitations": [
+        "Approval is a local deterministic record, not a production approval UI",
+        "Draft records are local-only and do not invoke a publisher",
+        "Similarity and copying risk are lexical safeguards, not legal review or plagiarism certification",
+        "No publisher, authenticated social connector, external adapter, external write, browser automation, hosted analytics, vector database, graph database, or embedding store"
       ]
     },
     {
@@ -581,9 +607,9 @@
         "npm run native:smoke",
         "npm run verify:handoff"
       ],
-    "testsExpected": 154,
-    "protocolFixturesExpected": 91,
-    "evaluationsExpected": 88,
+    "testsExpected": 176,
+    "protocolFixturesExpected": 96,
+    "evaluationsExpected": 101,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
 }

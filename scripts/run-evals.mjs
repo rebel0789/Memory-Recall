@@ -29,7 +29,7 @@ import {
   loadReviewedToolCatalog,
   stableToolFingerprint
 } from '../packages/tool-registry/src/index.mjs';
-import { analyzeContentPatterns } from '../packages/content-intelligence/src/index.mjs';
+import { analyzeContentPatterns, completeLocalCreatorWorkflow } from '../packages/content-intelligence/src/index.mjs';
 import {
   DurableSQLiteWorkflowRuntime,
   createDurableSmokeWorkflowDefinition,
@@ -111,6 +111,26 @@ check('content-patterns: metrics separate from inference',patternAnalysis.safegu
 check('content-patterns: relative performance and lifecycle',patternA.metrics.relativePerformance.state==='above_baseline'&&patternA.inference.lifecycle==='accelerating');
 check('content-patterns: proof needed without comparable baseline',patternB.metrics.relativePerformance.state==='insufficient_baseline'&&patternB.inference.proofNeeded.includes('creator_or_format_baseline')&&patternB.inference.uncertainty.level==='high');
 check('content-patterns: copying risk from similarity without cluster text leakage',patternD.inference.copyingRisk.level==='high'&&patternD.inference.similarity.maxScore===1&&!JSON.stringify(patternAnalysis.clusters).includes('failed tool calls'));
+const localDraftCompletion=completeLocalCreatorWorkflow({
+  workspaceId:'ws_eval',
+  actorId:'usr_eval_creator',
+  objective:'Find evidence-backed content angles about reliable local agents',
+  candidate:{rank:1,angle:'Turn one agent failure into a checklist people can reuse',hook:'Show the recovery boundary before asking for trust.',evidenceIds:['obs_eval_pattern_a','obs_eval_pattern_b']},
+  availableEvidenceIds:['obs_eval_pattern_a','obs_eval_pattern_b'],
+  contextManifest:{id:'ctx_eval_local_draft',manifestFingerprint:`sha256:${'8'.repeat(64)}`,assemblyFingerprint:`sha256:${'9'.repeat(64)}`,compilerVersion:'1.0.0',assemblyPolicyVersion:'1.0.0',assemblyPolicyFingerprint:`sha256:${'a'.repeat(64)}`,selectedCount:2,excludedCount:0},
+  modelResult:{provider:'provider:native:model:deterministic',model:'deterministic-v1',promptVersion:'content-intelligence.generate-angles.v1',outputSchemaName:'content-intelligence.recommendations',outputSchemaVersion:'1.0.0'},
+  editedText:'Turn one failure into a reusable checklist.\n\nShow retries, denied actions, and evidence IDs before asking readers to trust the local agent.',
+  sourceRecords:[
+    {id:'obs_eval_pattern_a',text:'A six-step recovery checklist showing retries got more saves and cut debugging time.'},
+    {id:'obs_eval_pattern_b',text:'A broad prediction about agents changing everything soon.'}
+  ],
+  patternAnalysis,
+  now:'2026-06-20T00:03:00.000Z',
+  expiresAt:'2026-06-20T00:10:00.000Z'
+});
+check('content-local-draft: approval bound to context manifest',localDraftCompletion.approval.status==='approved'&&localDraftCompletion.approval.binding.contextManifest.manifestFingerprint===`sha256:${'8'.repeat(64)}`&&/^sha256:[a-f0-9]{64}$/.test(localDraftCompletion.approval.operationFingerprint));
+check('content-local-draft: draft verified without publisher',localDraftCompletion.verification.valid===true&&localDraftCompletion.draft.publisher.enabled===false&&localDraftCompletion.safeguards.externalWrites===false);
+check('content-local-draft: outcome records edit distance without causality',localDraftCompletion.outcome.editDistance.distance>0&&localDraftCompletion.outcome.causalClaim==='none'&&localDraftCompletion.outcome.objectiveMetric.name==='creator_judgment');
 const durableDir=await mkdtemp(path.join(os.tmpdir(),'oaf-eval-durable-'));
 try{
   let evalNow=Date.parse('2026-06-20T00:00:00.000Z');

@@ -6,7 +6,9 @@
 2. User starts Content Intelligence.
 3. Run moves through collection, normalization, context compilation, generation, and citation verification.
 4. Completion shows three candidates with evidence IDs and uncertainty.
-5. Context opens to inclusion and exclusion reasons.
+5. Local approval opens the exact editable preview and records the selected candidate, evidence, prompt, schema, and context manifest binding.
+6. Local drafting verifies citations, rechecks similarity after edits, records the objective-specific outcome and edit distance, and leaves publishing disabled.
+7. Context opens to inclusion and exclusion reasons.
 
 Failure preserves the objective, shows the failed step and safe error, and offers retry only when retryable.
 

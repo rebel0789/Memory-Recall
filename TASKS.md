@@ -39,19 +39,19 @@ npm run task -- <OAF-ID>
 
 ## Evidence and memory
 
-- [ ] **OAF-016 Implement the evidence service and citation graph — next.**
-- [ ] OAF-017 Complete native versioned memory and the write gate.
-- [ ] OAF-018 Add context-use and outcome feedback without causal overclaiming.
+- [x] OAF-016 Implement the evidence service and citation graph.
+- [x] OAF-017 Complete native versioned memory and the write gate.
+- [x] OAF-018 Add context-use and outcome feedback without causal overclaiming.
 
 ## Content Intelligence
 
 - [x] OAF-019 Implement file and RSS ingestion.
 - [x] OAF-020 Implement patterns, relative performance, saturation, and copying risk.
-- [ ] OAF-021 Implement approval, local drafting, and outcome recording.
+- [x] OAF-021 Implement approval, local drafting, and outcome recording.
 
 ## Product interface
 
-- [ ] OAF-022 Build the production web shell while preserving bootstrap contracts.
+- [ ] **OAF-022 Build the production web shell while preserving bootstrap contracts — next.**
 - [ ] OAF-023 Build Run and Context Inspector views.
 - [ ] OAF-024 Build Memory, Evidence, and Approval views.
 

@@ -32,6 +32,8 @@ OAF-019 adds a read-only native ingestion path for text, Markdown, JSON, RSS, an
 
 OAF-020 adds deterministic pattern analysis after normalization. Raw metrics and baselines stay under `metrics`; lifecycle, relative-performance state, proof-needed reasons, uncertainty, similarity, and copying risk stay under `inference`. When baselines are missing, raw views or saves are not promoted into truth claims. Similar source wording raises copying risk and requires rewriting the mechanism rather than copying phrases.
 
+OAF-021 completes the local creator workflow without a publisher. Candidate approval records preserve the exact editable preview and bind the approval to candidate/evidence fingerprints, prompt and output-schema versions, provider/model metadata, and the persisted context manifest. Local drafts recheck evidence citations and edited-text similarity before recording objective-specific outcomes, edit distance, and `causalClaim: none`.
+
 ## Default dashboard
 
 - Today

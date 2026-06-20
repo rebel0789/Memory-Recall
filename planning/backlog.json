@@ -523,7 +523,7 @@
       "id": "OAF-021",
       "title": "Implement approval, local drafting, and outcomes",
       "milestone": "Milestone 6",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:orchestrator",
       "dependsOn": [
         "OAF-009",
