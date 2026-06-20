@@ -62,6 +62,12 @@
       "expectedValid": true
     },
     {
+      "id": "content-pattern-analysis-current-valid",
+      "schema": "packages/protocol/schemas/content-pattern-analysis.schema.json",
+      "instance": "examples/protocol/content-pattern-analysis.json",
+      "expectedValid": true
+    },
+    {
       "id": "stored-object-current-valid",
       "schema": "packages/protocol/schemas/stored-object-descriptor.schema.json",
       "instance": "examples/protocol/stored-object-descriptor.json",

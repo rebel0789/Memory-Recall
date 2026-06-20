@@ -29,6 +29,7 @@ import {
   loadReviewedToolCatalog,
   stableToolFingerprint
 } from '../packages/tool-registry/src/index.mjs';
+import { analyzeContentPatterns } from '../packages/content-intelligence/src/index.mjs';
 import {
   DurableSQLiteWorkflowRuntime,
   createDurableSmokeWorkflowDefinition,
@@ -97,6 +98,19 @@ let blockedDefault=false;try{promoteSelectorDefault({candidatePolicy:selectorVar
 check('context-feedback: selector default requires evaluation',blockedDefault);
 const defaultPlan=promoteSelectorDefault({candidatePolicy:selectorVariant,evaluationReport:{reportId:'eval_selector_default',passed:true,evaluationCount:5,regressionCount:0,metrics:{requiredRecall:1,contextUseFeedbackCount:2},rollbackPlan:'Restore baseline selector fingerprint.'},createdAt:'2026-06-20T00:00:00.000Z'});
 check('context-feedback: selector default promotion remains review-only',defaultPlan.status==='review_required'&&defaultPlan.defaultChanged===false&&defaultPlan.requiresHumanApproval===true);
+const patternAnalysis=analyzeContentPatterns([
+  {id:'obs_eval_pattern_a',text:'A six-step recovery checklist showing retries got more saves and cut debugging time.',collectedAt:'2026-06-20T00:00:00.000Z',publishedAt:'2026-06-19T00:00:00.000Z',metrics:{views:12000,replies:80,saves:450},baselines:{views:4000,replies:20,saves:100},inferred:{pattern:'reusable artifact'}},
+  {id:'obs_eval_pattern_b',text:'A broad prediction about agents changing everything soon.',collectedAt:'2026-06-20T00:00:00.000Z',metrics:{views:90000},inferred:{pattern:'generic prediction'}},
+  {id:'obs_eval_pattern_c',text:'Show the failed tool calls and retries so readers trust the local agent workflow.',collectedAt:'2026-06-20T00:01:00.000Z',metrics:{views:1000,saves:10},baselines:{views:1000,saves:10},inferred:{pattern:'reusable artifact'}},
+  {id:'obs_eval_pattern_d',text:'Show the failed tool calls and retries so readers trust the local agent workflow.',collectedAt:'2026-06-20T00:02:00.000Z',metrics:{views:1100,saves:12},baselines:{views:1000,saves:10},inferred:{pattern:'reusable artifact'}}
+],{generatedAt:'2026-06-20T00:02:00.000Z'});
+const patternA=patternAnalysis.observations.find(item=>item.observationId==='obs_eval_pattern_a');
+const patternB=patternAnalysis.observations.find(item=>item.observationId==='obs_eval_pattern_b');
+const patternD=patternAnalysis.observations.find(item=>item.observationId==='obs_eval_pattern_d');
+check('content-patterns: metrics separate from inference',patternAnalysis.safeguards.metricsSeparatedFromInference===true&&patternA.metrics.raw.views===12000&&patternA.inference.views===undefined);
+check('content-patterns: relative performance and lifecycle',patternA.metrics.relativePerformance.state==='above_baseline'&&patternA.inference.lifecycle==='accelerating');
+check('content-patterns: proof needed without comparable baseline',patternB.metrics.relativePerformance.state==='insufficient_baseline'&&patternB.inference.proofNeeded.includes('creator_or_format_baseline')&&patternB.inference.uncertainty.level==='high');
+check('content-patterns: copying risk from similarity without cluster text leakage',patternD.inference.copyingRisk.level==='high'&&patternD.inference.similarity.maxScore===1&&!JSON.stringify(patternAnalysis.clusters).includes('failed tool calls'));
 const durableDir=await mkdtemp(path.join(os.tmpdir(),'oaf-eval-durable-'));
 try{
   let evalNow=Date.parse('2026-06-20T00:00:00.000Z');

@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-020",
+  "nextTask": "OAF-021",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -155,8 +155,10 @@
       "status": "reference",
       "evidence": [
         "workflows/content-intelligence/runner.mjs",
+        "workflows/content-intelligence/workflow.json",
         "tests/workflow.test.mjs",
-        "tests/research-ingestion.test.mjs"
+        "tests/research-ingestion.test.mjs",
+        "tests/content-intelligence.test.mjs"
       ],
       "limitations": [
         "Synthetic fixtures by default; optional read-only source ingestion remains caller supplied",
@@ -183,16 +185,39 @@
       ]
     },
     {
+      "id": "content.pattern-analysis",
+      "name": "Pattern, saturation, and copying-risk analysis",
+      "status": "reference",
+      "evidence": [
+        "packages/content-intelligence/src/index.mjs",
+        "workflows/content-intelligence/runner.mjs",
+        "packages/protocol/schemas/content-pattern-analysis.schema.json",
+        "examples/protocol/content-pattern-analysis.json",
+        "tests/content-intelligence.test.mjs",
+        "tests/workflow.test.mjs",
+        "scripts/run-evals.mjs",
+        "docs/implementation/OAF-020-pattern-saturation-copying-risk-note.md"
+      ],
+      "limitations": [
+        "Deterministic bootstrap heuristics only; no learned ranking, embeddings, vector database, graph database, hosted analytics, or external telemetry",
+        "Relative performance requires caller-supplied baselines and otherwise reports proof needed",
+        "Similarity and copying risk are lexical safeguards, not legal review or plagiarism certification",
+        "Publishing remains disabled"
+      ]
+    },
+    {
       "id": "content.retrieval-signals",
       "name": "Deterministic content eligibility and anti-pattern assessment",
       "status": "reference",
       "evidence": [
         "packages/content-intelligence/src/index.mjs",
-        "tests/content-intelligence.test.mjs"
+        "tests/content-intelligence.test.mjs",
+        "scripts/run-evals.mjs"
       ],
       "limitations": [
         "Bootstrap heuristics only",
-        "Creator-relative baselines and learned ranking remain planned"
+        "Creator-relative baselines must be supplied by the caller",
+        "Learned ranking remains planned"
       ]
     },
     {

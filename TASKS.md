@@ -46,7 +46,7 @@ npm run task -- <OAF-ID>
 ## Content Intelligence
 
 - [x] OAF-019 Implement file and RSS ingestion.
-- [ ] OAF-020 Implement patterns, relative performance, saturation, and copying risk.
+- [x] OAF-020 Implement patterns, relative performance, saturation, and copying risk.
 - [ ] OAF-021 Implement approval, local drafting, and outcome recording.
 
 ## Product interface

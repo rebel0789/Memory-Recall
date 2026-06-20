@@ -67,6 +67,8 @@ The native evidence service constructs an immutable citation graph from source s
 
 The native research ingestion path accepts bounded caller-supplied text, Markdown, JSON, RSS, and Atom bodies. It does not fetch URLs or authenticate to sources. Each accepted source creates an immutable source snapshot; each usable document, JSON record, RSS item, or Atom entry becomes an observation linked to that snapshot with `inferred: {}`. Malformed, oversized, or credential-bearing sources are reported as ingestion failures rather than executed, retried through the network, or silently skipped.
 
+Content pattern analysis is derived data. Raw observed metrics and caller-supplied baselines remain in a `metrics` object. Relative performance, lifecycle, proof-needed reasons, uncertainty, similarity, and copying risk are separate inference fields with reason codes. Analysis records can be supplied to context as summaries, but they do not overwrite source observations and do not authorize drafting, publishing, or memory writes.
+
 Artifact records use the `art_` prefix. Both artifact records and source snapshots reference immutable stored objects by `hashAlgorithm: sha256`, `contentHash`, and `byteSize`; the stored object itself has no provenance or authority. Deleting a logical record creates an audit tombstone and does not imply that shared object bytes are removable.
 
 ### Memory

@@ -3,7 +3,7 @@
   "id": "workflow:content-intelligence",
   "name": "Content Intelligence local demo",
   "version": "0.1.0",
-  "description": "Collect synthetic observations, compile bounded context, generate three candidates, and verify citations.",
+  "description": "Collect observations, normalize evidence, analyze patterns and copying risk, compile bounded context, generate three candidates, and verify citations.",
   "steps": [
     {
       "id": "collect",
@@ -37,6 +37,32 @@
       },
       "outputSchema": {
         "type": "array"
+      },
+      "contextPolicy": {
+        "mode": "none"
+      },
+      "tools": [],
+      "riskClass": "read-only",
+      "retry": {
+        "maxAttempts": 1
+      },
+      "timeoutMs": 5000,
+      "approval": {
+        "required": false
+      },
+      "idempotency": {
+        "required": false
+      },
+      "compensation": null
+    },
+    {
+      "id": "analyze-patterns",
+      "kind": "deterministic",
+      "inputSchema": {
+        "type": "array"
+      },
+      "outputSchema": {
+        "type": "object"
       },
       "contextPolicy": {
         "mode": "none"

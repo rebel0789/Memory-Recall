@@ -497,7 +497,7 @@
       "id": "OAF-020",
       "title": "Implement pattern, saturation, and copying-risk pipeline",
       "milestone": "Milestone 6",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:researcher",
       "dependsOn": [
         "OAF-011",

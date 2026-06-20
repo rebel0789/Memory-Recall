@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-06-20T00:00:00.000Z",
+  "observations": [
+    {
+      "schemaVersion": "1.0.0",
+      "observationId": "obs_pattern_example",
+      "metrics": {
+        "raw": {
+          "views": 12000,
+          "saves": 450
+        },
+        "baselines": {
+          "views": 4000,
+          "saves": 100
+        },
+        "relativePerformance": {
+          "state": "above_baseline",
+          "dimensions": {
+            "views": {
+              "value": 12000,
+              "baseline": 4000,
+              "ratio": 3,
+              "state": "above_baseline"
+            }
+          },
+          "reasonCodes": [
+            "baseline_compared",
+            "relative_outperformer"
+          ]
+        }
+      },
+      "inference": {
+        "pattern": {
+          "label": "reusable artifact",
+          "hookMechanism": "failure-recovery",
+          "claimType": "lesson",
+          "evidenceType": "outcome-backed",
+          "narrative": "reusable artifact",
+          "format": "checklist",
+          "emotion": "clarity",
+          "reader": "builders",
+          "takeaway": "transfer the mechanism, not source phrasing"
+        },
+        "clusterId": "clu_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "lifecycle": "accelerating",
+        "proofNeeded": [],
+        "uncertainty": {
+          "level": "low",
+          "reasonCodes": []
+        },
+        "similarity": {
+          "maxScore": 0,
+          "nearestObservationId": null
+        },
+        "copyingRisk": {
+          "level": "low",
+          "reasonCodes": []
+        },
+        "reasonCodes": [
+          "candidate_eligible",
+          "baseline_compared",
+          "relative_outperformer",
+          "lifecycle_accelerating",
+          "copying_risk_low",
+          "proof_sufficient"
+        ]
+      }
+    }
+  ],
+  "clusters": [
+    {
+      "id": "clu_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "observationIds": [
+        "obs_pattern_example"
+      ],
+      "size": 1,
+      "lifecycle": "emerging",
+      "saturation": "low",
+      "reasonCodes": [
+        "bounded_cluster"
+      ]
+    }
+  ],
+  "safeguards": {
+    "metricsSeparatedFromInference": true,
+    "rawMetricsAreNotTruth": true,
+    "sourceTextExcludedFromClusters": true,
+    "copyingRequiresRewrite": true
+  }
+}

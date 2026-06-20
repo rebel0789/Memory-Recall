@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T12:20:25.443Z",
-  "fileCount": 625,
-  "totalBytes": 1811054,
+  "generatedAt": "2026-06-20T12:27:55.445Z",
+  "fileCount": 628,
+  "totalBytes": 1841669,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 11253,
-      "sha256": "56c66d6e03d228803cb4356fb0c43609510bf484080bf5e09869f9c116a060e1"
+      "bytes": 11933,
+      "sha256": "1ee1de0baeb74e3400a15e3620b3c625bd17a9daf47fe6e859cf48de9a36966c"
     },
     {
       "path": "CITATION.cff",
@@ -731,8 +731,8 @@
     },
     {
       "path": "docs/architecture/domain-model.md",
-      "bytes": 8681,
-      "sha256": "e239d757747816e5b4fe02cf9f72364cd434424ae6aa6e7d7af3199cde517da5"
+      "bytes": 9116,
+      "sha256": "b9efb25df38746fff107649da35093d15c8dcdbb71cf3e5e401e50032530a6e1"
     },
     {
       "path": "docs/architecture/event-model.md",
@@ -850,6 +850,11 @@
       "sha256": "f2e4201bf535d6d88f3cf72db01287766aedb3f7bdb4cffdfdb0b9cd9eafde6f"
     },
     {
+      "path": "docs/implementation/OAF-020-pattern-saturation-copying-risk-note.md",
+      "bytes": 1487,
+      "sha256": "625f90053c64289230a491b33ed54155869c409025fe058dd6a0a7dc5c62d6ce"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -916,8 +921,8 @@
     },
     {
       "path": "docs/product/content-intelligence.md",
-      "bytes": 2919,
-      "sha256": "db599df951a4a30078a0ac58327656026e7ea5f325b124e1792ec2f05219ada1"
+      "bytes": 3352,
+      "sha256": "d84294d4c4d2e2c029626f0613c5c68ac4fbb6111fad6a343bf83b606f3683d9"
     },
     {
       "path": "docs/product/prd.md",
@@ -1346,8 +1351,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 23221,
-      "sha256": "c40b6249a9722898ffc99587cc9b1dddbd1396aedacaf5644314f164b4991955"
+      "bytes": 23467,
+      "sha256": "a136eb4badc731880eece56c31287363f42b31da6608ff6b3a5be901f7b0b390"
     },
     {
       "path": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
@@ -1408,6 +1413,11 @@
       "path": "examples/protocol/content-observation.json",
       "bytes": 638,
       "sha256": "c4249f606d8185544d35573450f5e6ad962e7f8495492f36fe04636b2af0f439"
+    },
+    {
+      "path": "examples/protocol/content-pattern-analysis.json",
+      "bytes": 2298,
+      "sha256": "203eddeaf0183637696f4c6c0e1a51dba696941fc71554f8a8590e97ea70fa1c"
     },
     {
       "path": "examples/protocol/context-candidate.json",
@@ -1622,7 +1632,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "af73286f2f58f2ab914fc59ce7f0a28fea4cd1a5deab7ecb2a864c0a45efe54f"
+      "sha256": "92fd65494105f8b8a03aa37b117b5fc198c2dba0dd4ebe78a70f697a2a410f0e"
     },
     {
       "path": "LICENSE",
@@ -1696,8 +1706,8 @@
     },
     {
       "path": "packages/content-intelligence/src/index.mjs",
-      "bytes": 2528,
-      "sha256": "1747fcdf9100ea8ae602844d20a58d872f76f977e9fe38adf52ceedc1524a149"
+      "bytes": 12564,
+      "sha256": "adb1f39ec10f933504a0cf2e66201ca15283840f883cbb43b71dcd33eab66e73"
     },
     {
       "path": "packages/context-compiler/AGENTS.md",
@@ -1973,6 +1983,11 @@
       "path": "packages/protocol/schemas/content-observation.schema.json",
       "bytes": 1508,
       "sha256": "0f3dfaecab6f11f0d18781cc6cfbe10ef0b7893cc723c17a36b4ee1c5d862904"
+    },
+    {
+      "path": "packages/protocol/schemas/content-pattern-analysis.schema.json",
+      "bytes": 4716,
+      "sha256": "93c89ac5520fe32f5cba5fcb702ae279897417b34e58ad238f8efdc0872e1333"
     },
     {
       "path": "packages/protocol/schemas/context-candidate.schema.json",
@@ -2376,8 +2391,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26908,
-      "sha256": "7216cb7a834b200749ebafd896300ab6f4b01c50c929b1cd05ea93a3dca2eca9"
+      "bytes": 26910,
+      "sha256": "83ba351cb8cb8eccaa0e434800d3c72314d29b6bd3d5791e846a6d2325af8524"
     },
     {
       "path": "planning/README.md",
@@ -2391,8 +2406,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 22375,
-      "sha256": "51e0e5521af6dc20630e7b1b047ff9e8d93dde8eaa0afd254314899911751e8e"
+      "bytes": 23595,
+      "sha256": "95a6e4fb9267bebaeb8fa3f2017ba5f9d0584144af403364f5a73b380bdc1dc4"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2651,8 +2666,8 @@
     },
     {
       "path": "scripts/run-evals.mjs",
-      "bytes": 29559,
-      "sha256": "1b639615879eef5a2777c7e8c1c05ae6189985c7399e31d10868a70e1ee35a74"
+      "bytes": 31947,
+      "sha256": "eaab358016852f82d6eda49ad9d6033b8c3a6af6f4f102305e1cf12e597eaf89"
     },
     {
       "path": "scripts/status.mjs",
@@ -2842,7 +2857,7 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "dfaecb2c70789d8600164ff9b8f7caf4773bfa7188a8ffc672d7fa3299049716"
+      "sha256": "fd9fabcea5f72da7cccaaf67e8dc3ea392954b7797475da3f324b8e0025cb96b"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -2866,8 +2881,8 @@
     },
     {
       "path": "tests/content-intelligence.test.mjs",
-      "bytes": 1365,
-      "sha256": "0a269afd160c93f7319fc616eca91fd76a1fb1374d0744e1ffb413194804e858"
+      "bytes": 4508,
+      "sha256": "42af1ebbc990ff52c04b6067f1906be2870acc771f12b40915ea0f2e3d30168e"
     },
     {
       "path": "tests/context-assembly.test.mjs",
@@ -3051,8 +3066,8 @@
     },
     {
       "path": "tests/workflow.test.mjs",
-      "bytes": 1657,
-      "sha256": "64c9344738c2817346f6458c01123b4e1ca44f235300e55f674e4804cc68ba57"
+      "bytes": 2350,
+      "sha256": "2259cc16bb277ce53b79e8ba2a58f778a4fef847ef285ca9a2a06d4c62bec9c4"
     },
     {
       "path": "THIRD_PARTY.md",
@@ -3131,13 +3146,13 @@
     },
     {
       "path": "workflows/content-intelligence/runner.mjs",
-      "bytes": 8366,
-      "sha256": "5824308296db763058d3e30e7ffc59bcbc28f091ab06ffcff515202cfdbc56d2"
+      "bytes": 10645,
+      "sha256": "e850b29973b6e3359974d85c382e83a9f94eb066eb0beca1da9712d6e9975acf"
     },
     {
       "path": "workflows/content-intelligence/workflow.json",
-      "bytes": 2981,
-      "sha256": "27dc65a14959469862dc92ab6d757dcd2b507f749287546e4370c4052165cf84"
+      "bytes": 3540,
+      "sha256": "98d84ca87546c83a35d3832764a838b6ee575ab0668ad5c2c7a804c63c614736"
     }
   ]
 }

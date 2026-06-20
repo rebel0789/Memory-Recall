@@ -30,6 +30,8 @@ The native evidence service builds deterministic citation graph records from sna
 
 OAF-019 adds a read-only native ingestion path for text, Markdown, JSON, RSS, and Atom. It snapshots each bounded source body, normalizes usable entries into `ContentObservation` records with empty inference, collapses repeated observations by content hash, and reports malformed or oversized sources without fetching network content or using cookies, paid APIs, browser automation, external adapters, external writes, or publishing.
 
+OAF-020 adds deterministic pattern analysis after normalization. Raw metrics and baselines stay under `metrics`; lifecycle, relative-performance state, proof-needed reasons, uncertainty, similarity, and copying risk stay under `inference`. When baselines are missing, raw views or saves are not promoted into truth claims. Similar source wording raises copying risk and requires rewriting the mechanism rather than copying phrases.
+
 ## Default dashboard
 
 - Today
