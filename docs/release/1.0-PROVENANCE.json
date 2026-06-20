@@ -10,9 +10,9 @@
   "builder": {
     "id": "@open-agent-fabric/release-readiness",
     "version": "1.0.0-rc-readiness",
-    "node": "22.22.3",
-    "platform": "darwin",
-    "arch": "arm64"
+    "node": ">=22",
+    "platform": "current-runner",
+    "arch": "current-runner"
   },
   "sourcePolicy": {
     "generatedFromGitArchiveRequiredForPublication": true,

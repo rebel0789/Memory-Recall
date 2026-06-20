@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 
 export const RELEASE_READINESS_VERSION = '1.0.0-rc-readiness';
@@ -244,9 +243,9 @@ async function buildProvenance(root, evidence, files, outputs) {
     builder: {
       id: '@open-agent-fabric/release-readiness',
       version: RELEASE_READINESS_VERSION,
-      node: process.versions.node,
-      platform: os.platform(),
-      arch: os.arch()
+      node: '>=22',
+      platform: 'current-runner',
+      arch: 'current-runner'
     },
     sourcePolicy: {
       generatedFromGitArchiveRequiredForPublication: true,
@@ -365,7 +364,7 @@ ${table(['Dimension', 'Supported / Verified'], [
   ['Node.js', '`>=22` from `package.json`'],
   ['Package manager', '`npm ci --ignore-scripts --no-audit --no-fund`'],
   ['Offline deterministic bootstrap', 'Supported; no runtime npm dependencies'],
-  ['Verified local platform for this evidence', `${os.platform()} ${os.release()} ${os.arch()}`],
+  ['Verification runner', 'Current local or CI runner; exact platform belongs in handoff evidence, not checked release artifacts'],
   ['Standard CI', '`npm run ci`'],
   ['Network default', evidence.defaults.network],
   ['External writes', String(evidence.defaults.externalWrites)]

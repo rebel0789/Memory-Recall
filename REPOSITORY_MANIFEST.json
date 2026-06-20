@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T17:16:54.912Z",
+  "generatedAt": "2026-06-20T17:23:26.406Z",
   "fileCount": 689,
-  "totalBytes": 2205229,
+  "totalBytes": 2205322,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -81,8 +81,8 @@
     },
     {
       "path": ".github/workflows/codeql.yml",
-      "bytes": 389,
-      "sha256": "3d1aeb7da1a28fd0676620c1b5c24fb533db40d915fc48e68347692e1e346f2c"
+      "bytes": 405,
+      "sha256": "b5c7f26cade7b19f8c8e6231ebae20e2f7bc7c099df7ccc247acaab8d946d305"
     },
     {
       "path": ".gitignore",
@@ -1011,8 +1011,8 @@
     },
     {
       "path": "docs/release/1.0-COMPATIBILITY-MATRIX.md",
-      "bytes": 4938,
-      "sha256": "2baf8e2e0a7479489dada76665a00c709def73bf88027c776742f3c351424264"
+      "bytes": 4998,
+      "sha256": "8f9278df9af3d36258f730dc10b60e65c74058d69737543fcedb742a33ef3a6b"
     },
     {
       "path": "docs/release/1.0-NORTH-STAR-GAP-AUDIT.md",
@@ -1021,8 +1021,8 @@
     },
     {
       "path": "docs/release/1.0-PROVENANCE.json",
-      "bytes": 1835,
-      "sha256": "e187c4939bd6601f18bafa33475f3df38ff2516b7481a57a9b33771f2f66fb4d"
+      "bytes": 1849,
+      "sha256": "2fb0f8c454b7e1c32517677d7eca2bf2fe3692e990484e80f7461bb118b513a4"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -1812,7 +1812,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "89afee2e3b69ee4af2cff9c285ade6effe3d11be1ce1db1a51da4ef43ec08ba5"
+      "sha256": "dd0b7e5976df032f600ba11f0698c4853aa7b652f747b05f81d48e19dbe4267d"
     },
     {
       "path": "LICENSE",
@@ -2566,8 +2566,8 @@
     },
     {
       "path": "packages/release-readiness/src/index.mjs",
-      "bytes": 22139,
-      "sha256": "1bcc6480d2b1d0411fb37ed75d925a00dee6b989fec34062f37e807811fd7c89"
+      "bytes": 22142,
+      "sha256": "c5513520caaffbf5374f087fb106cf8be06df88939e11033e0cbf1511534732e"
     },
     {
       "path": "packages/replay/AGENTS.md",
