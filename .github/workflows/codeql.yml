@@ -18,3 +18,5 @@ jobs:
         with:
           languages: javascript-typescript
       - uses: github/codeql-action/analyze@v3
+        with:
+          upload: failure-only

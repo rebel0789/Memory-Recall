@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T17:23:26.406Z",
+  "generatedAt": "2026-06-20T17:28:29.701Z",
   "fileCount": 689,
-  "totalBytes": 2205322,
+  "totalBytes": 2205367,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -81,8 +81,8 @@
     },
     {
       "path": ".github/workflows/codeql.yml",
-      "bytes": 405,
-      "sha256": "b5c7f26cade7b19f8c8e6231ebae20e2f7bc7c099df7ccc247acaab8d946d305"
+      "bytes": 450,
+      "sha256": "ac4725af2f1a2202dbb559bf224e4e1286dc60e5909ed751e9a3a8e7af62fed0"
     },
     {
       "path": ".gitignore",
@@ -1812,7 +1812,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "dd0b7e5976df032f600ba11f0698c4853aa7b652f747b05f81d48e19dbe4267d"
+      "sha256": "5e6b2e5377cabb44d8bf102a1f58bd53bc81852c777eb3b99f6a214071c93c5a"
     },
     {
       "path": "LICENSE",
