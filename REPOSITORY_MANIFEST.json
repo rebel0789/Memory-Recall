@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T18:00:10.451Z",
+  "generatedAt": "2026-06-20T18:15:23.673Z",
   "fileCount": 689,
-  "totalBytes": 2216591,
+  "totalBytes": 2224554,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -316,8 +316,8 @@
     },
     {
       "path": "adapters/tool/ecc/src/index.mjs",
-      "bytes": 9438,
-      "sha256": "90ea9371903260ab03cbc8d0bdb6ea793591dd94fcab97b6e1a23ee98800163b"
+      "bytes": 10698,
+      "sha256": "0cbf5599b468cdd026d8ed01c8c3b9aaf37f51fb17fdce092d3aa9c42a88cb3f"
     },
     {
       "path": "adapters/tool/ecc/UPSTREAM.lock",
@@ -1812,7 +1812,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "310e56673bdf6944316ecd4d738974c0b7987ebbbbbe1b6119e18bb606a2d5ee"
+      "sha256": "7e34fc57acd1ab5ba2205320f21bfd9e33001f15118f58a4e76e8ed33eda43a8"
     },
     {
       "path": "LICENSE",
@@ -1901,8 +1901,8 @@
     },
     {
       "path": "packages/context-compiler/src/index.mjs",
-      "bytes": 100435,
-      "sha256": "27e507ed9c8856c1acb7b8cea2cdece51e72e49f151c93ae8fb6ec94ffaef62a"
+      "bytes": 100372,
+      "sha256": "7dc86f27c14204966a1379644bf1f16bc64ce1fb953570469e424038b59e0862"
     },
     {
       "path": "packages/evaluation-lab/package.json",
@@ -2621,8 +2621,8 @@
     },
     {
       "path": "packages/tool-registry/src/index.mjs",
-      "bytes": 57098,
-      "sha256": "40d6c1cd028271ed9d89ad2e7a4b6c2c0f4fa07c8a0c1a5e98257cd8d108b40e"
+      "bytes": 58328,
+      "sha256": "0b96400031aee7447fc68d3e7244a408c63efc716dfec123c96ec9d403af8b6b"
     },
     {
       "path": "packages/ui/package.json",
@@ -3181,8 +3181,8 @@
     },
     {
       "path": "tests/context-selection.test.mjs",
-      "bytes": 11094,
-      "sha256": "83ed9ec5d53121d3bcfeeb2b60e8247ab93ff359b53477b49e8daedcc0737435"
+      "bytes": 11750,
+      "sha256": "a1b16e3db6f0ca67ec8a0cd289e4aaf2f383e1bd3957d7ea2efee80a5b872b34"
     },
     {
       "path": "tests/control-api-auth.test.mjs",
@@ -3201,8 +3201,8 @@
     },
     {
       "path": "tests/ecc-adapter.test.mjs",
-      "bytes": 4740,
-      "sha256": "56a96c0855caa5e3e8a1af347f41d889aa3db800cb659984fbabbe2385bbe187"
+      "bytes": 5849,
+      "sha256": "47d0d9aecf55167b4e14f4a07f726118385dae5e15d31888c5c6e1ac3f5d273a"
     },
     {
       "path": "tests/evaluation-lab.test.mjs",
@@ -3331,8 +3331,8 @@
     },
     {
       "path": "tests/tool-executor.test.mjs",
-      "bytes": 8100,
-      "sha256": "23198ec4368a6f19f43d25ac0f6bcedfb44cc526e79c34f6166b68f42e6ee0d8"
+      "bytes": 11871,
+      "sha256": "7d4aec7f92934b70ae86f5f7c207cbde136c51b864f82b3b231ea50062f1a328"
     },
     {
       "path": "tests/tool-grants.test.mjs",

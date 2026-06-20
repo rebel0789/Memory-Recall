@@ -40,7 +40,32 @@ async function withinAdapterBoundary(operation, { signal = null, timeoutMs = 100
   if (!Number.isFinite(timeoutMs) || timeoutMs < 1) {
     throw new ContractViolation('adapter_timeout', 'ECC adapter operation timed out before invocation');
   }
-  return operation();
+  const controller = new AbortController();
+  let timer = null;
+  let abortListener = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new ContractViolation('adapter_timeout', 'ECC adapter operation timed out');
+      controller.abort(error);
+      reject(error);
+    }, timeoutMs);
+  });
+  const cancellation = signal ? new Promise((_, reject) => {
+    abortListener = () => {
+      const error = new ContractViolation('adapter_cancelled', 'ECC adapter operation was cancelled');
+      controller.abort(error);
+      reject(error);
+    };
+    signal.addEventListener('abort', abortListener, { once: true });
+  }) : new Promise(() => {});
+  const operationPromise = Promise.resolve().then(() => operation(controller.signal));
+  operationPromise.catch(() => {});
+  try {
+    return await Promise.race([operationPromise, timeout, cancellation]);
+  } finally {
+    clearTimeout(timer);
+    if (abortListener) signal.removeEventListener('abort', abortListener);
+  }
 }
 
 function assertBoundedOutput(value) {
@@ -92,8 +117,8 @@ function safeProcedure(record, upstream) {
   });
 }
 
-async function loadReviewedProcedures(url = new URL('../reviewed-procedures.json', import.meta.url)) {
-  const data = JSON.parse(await readFile(url, 'utf8'));
+async function loadReviewedProcedures(url = new URL('../reviewed-procedures.json', import.meta.url), { signal = null } = {}) {
+  const data = JSON.parse(await readFile(url, { encoding: 'utf8', signal }));
   if (data.adapterId !== ECC_ADAPTER_ID) {
     throw new ContractViolation('invalid_provider_output', 'reviewed procedure index belongs to another adapter');
   }
@@ -108,8 +133,10 @@ export class EccSkillSourceAdapter extends SkillSourcePort {
     assertPortImplementation(this, SkillSourcePort);
   }
 
-  async index() {
-    if (!this.procedureIndex) this.procedureIndex = await loadReviewedProcedures();
+  async index({ signal = null } = {}) {
+    assertNotAborted(signal);
+    if (!this.procedureIndex) this.procedureIndex = await loadReviewedProcedures(new URL('../reviewed-procedures.json', import.meta.url), { signal });
+    assertNotAborted(signal);
     return this.procedureIndex;
   }
 
@@ -132,8 +159,8 @@ export class EccSkillSourceAdapter extends SkillSourcePort {
   }
 
   async inspect({ procedureId, signal = null, timeoutMs = 1000 } = {}) {
-    return withinAdapterBoundary(async () => {
-      const index = await this.index();
+    return withinAdapterBoundary(async (boundarySignal) => {
+      const index = await this.index({ signal: boundarySignal });
       const record = index.procedures.find((item) => item.id === procedureId);
       if (!record) throw new ContractViolation('procedure_not_found', `reviewed ECC procedure not found: ${procedureId}`);
       const procedure = safeProcedure(record, index.upstream);
@@ -154,13 +181,13 @@ export class EccSkillSourceAdapter extends SkillSourcePort {
   }
 
   async importProposal({ procedureId, grant, providerEnvelope = null, signal = null, timeoutMs = 1000 } = {}) {
-    return withinAdapterBoundary(async () => {
+    return withinAdapterBoundary(async (boundarySignal) => {
       if (!exactGrantAllowed(grant, 'skills.importProposal', procedureId)) {
         throw new ContractViolation('permission_denied', 'ECC import proposal requires an exact reviewed grant');
       }
       const envelope = providerEnvelope
         ? assertCanonicalEnvelope(providerEnvelope, ECC_ADAPTER_ID)
-        : await this.inspect({ procedureId, signal, timeoutMs });
+        : await this.inspect({ procedureId, signal: boundarySignal, timeoutMs });
       assertNoRawFields(envelope.payload);
       const procedure = envelope.payload?.procedure;
       if (!procedure?.id || procedure.id !== procedureId || procedure.allowedUse !== 'proposal-only') {

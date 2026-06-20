@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -210,4 +210,100 @@ test('approval-required reversible writes fail closed without server-verified ap
   assert.equal(result.error.code, 'tool_policy_denied');
   assert(result.policy.reasonCodes.includes('approval_invalid'));
   assert.equal(called, false);
+});
+
+test('workspace filesystem broker enforces reviewed manifest scopes', async (t) => {
+  const workspaceRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-tool-scope-'));
+  t.after(() => rm(workspaceRoot, { recursive: true, force: true }));
+  await mkdir(path.join(workspaceRoot, 'docs'), { recursive: true });
+  await writeFile(path.join(workspaceRoot, 'docs', 'inside.txt'), 'inside');
+  await writeFile(path.join(workspaceRoot, 'outside.txt'), 'outside');
+  const handlerBindingId = 'handler:scoped-filesystem@1.0.0';
+  const manifest = {
+    schemaVersion: '1.1.0',
+    contractVersion: '1.0.0',
+    id: 'tool:scoped-filesystem',
+    name: 'Scoped filesystem',
+    version: '1.0.0',
+    handlerBindingId,
+    operations: {
+      invoke: {
+        sideEffectClass: 'reversible-write',
+        inputSchema: { type: 'object', additionalProperties: true },
+        outputSchema: { type: 'object', additionalProperties: true },
+        filesystem: { read: ['workspace:docs'], write: ['workspace:docs'] },
+        network: [],
+        secretReferences: [],
+        dataClasses: ['workspace-private'],
+        sandbox: 'brokered-filesystem-write',
+        limits: { runtimeMs: 1000, inputBytes: 4096, outputBytes: 4096, costUnits: 0 },
+        approval: { required: false },
+        idempotency: { required: true }
+      }
+    }
+  };
+  const registry = new ToolRegistry({
+    catalog: {
+      tools: [{
+        entry: { toolId: manifest.id, enabled: true, handlerBindingId, reviewStatus: 'reviewed', reviewVersion: 'test' },
+        manifest,
+        enabled: true,
+        manifestFingerprint: stableToolFingerprint(manifest)
+      }]
+    },
+    handlers: {
+      [handlerBindingId]: async ({ input, brokers }) => {
+        if (input.mode === 'read-outside') return brokers.filesystem.readText('outside.txt');
+        if (input.mode === 'write-outside') return brokers.filesystem.writeText('outside.txt', 'changed');
+        if (input.mode === 'write-inside') return brokers.filesystem.writeText('docs/created.txt', 'created');
+        return brokers.filesystem.readText('docs/inside.txt');
+      }
+    },
+    workspaceRoot,
+    clock: () => fixedNow
+  });
+
+  const allowedRead = await registry.execute(baseInvocation({
+    toolId: 'tool:scoped-filesystem',
+    toolVersion: '1.0.0',
+    operation: 'invoke',
+    input: { mode: 'read-inside' },
+    idempotencyKey: 'idem_scope_read',
+    effectBoundary: createMemoryEffectBoundary()
+  }));
+  assert.equal(allowedRead.status, 'completed');
+  assert.equal(allowedRead.output.path, 'docs/inside.txt');
+
+  const allowedWrite = await registry.execute(baseInvocation({
+    toolId: 'tool:scoped-filesystem',
+    toolVersion: '1.0.0',
+    operation: 'invoke',
+    input: { mode: 'write-inside' },
+    idempotencyKey: 'idem_scope_write',
+    effectBoundary: createMemoryEffectBoundary()
+  }));
+  assert.equal(allowedWrite.status, 'completed');
+  assert.equal(allowedWrite.output.path, 'docs/created.txt');
+
+  const deniedRead = await registry.execute(baseInvocation({
+    toolId: 'tool:scoped-filesystem',
+    toolVersion: '1.0.0',
+    operation: 'invoke',
+    input: { mode: 'read-outside' },
+    idempotencyKey: 'idem_scope_read_outside',
+    effectBoundary: createMemoryEffectBoundary()
+  }));
+  assert.equal(deniedRead.status, 'failed');
+  assert.equal(deniedRead.error.code, 'tool_filesystem_denied');
+
+  const deniedWrite = await registry.execute(baseInvocation({
+    toolId: 'tool:scoped-filesystem',
+    toolVersion: '1.0.0',
+    operation: 'invoke',
+    input: { mode: 'write-outside' },
+    idempotencyKey: 'idem_scope_write_outside',
+    effectBoundary: createMemoryEffectBoundary()
+  }));
+  assert.equal(deniedWrite.status, 'failed');
+  assert.equal(deniedWrite.error.code, 'tool_filesystem_denied');
 });

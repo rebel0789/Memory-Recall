@@ -1515,7 +1515,7 @@ function isSufficient({ request, selectedScored, conflicts, policy }) {
     for (const item of selectedScored) for (const entity of [...(item.record.tags ?? []), ...(item.record.relations ?? [])]) selectedEntities.add(entity);
     for (const entity of request.requiredEntities) if (!selectedEntities.has(entity)) return false;
   }
-  if (evidenceCount(selectedScored) < policy.thresholds.minimumEvidenceCount && selectedScored.some((item) => item.category === 'evidence')) return false;
+  if (evidenceCount(selectedScored) < policy.thresholds.minimumEvidenceCount) return false;
   if (conflicts.length && !conflicts.every((conflict) => conflict.records.every((record) => selectedScored.some((item) => item.record.id === record.id)))) return false;
   return true;
 }

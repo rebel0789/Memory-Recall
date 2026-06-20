@@ -174,10 +174,17 @@ function validateFilesystemShape(value, label) {
   assertPlainObject(value, label);
   assertNoUnknown(value, FILESYSTEM_KEYS, label, 'tool_manifest_invalid');
   for (const key of ['read', 'write']) {
-    if (!Array.isArray(value[key]) || value[key].some((item) => typeof item !== 'string' || item.length > 256 || !item.startsWith('workspace:'))) {
+    if (!Array.isArray(value[key]) || value[key].some((item) => !validWorkspaceScope(item))) {
       throw toolError('tool_manifest_invalid', `${label}.${key} must be bounded workspace scopes`);
     }
   }
+}
+
+function validWorkspaceScope(scope) {
+  if (typeof scope !== 'string' || scope.length > 256 || !scope.startsWith('workspace:') || /[\u0000-\u001f\u007f]/u.test(scope) || scope.includes('\\')) return false;
+  const scopePath = scope.slice('workspace:'.length);
+  if (!scopePath) return false;
+  return !scopePath.split('/').some((part) => !part || part === '.' || part === '..');
 }
 
 function validateNetworkShape(value, label) {
@@ -540,8 +547,10 @@ async function withDeadline({ run, timeoutMs, signal, onAbort }) {
 }
 
 class WorkspaceFilesystemBroker {
-  constructor({ root, readBytes = DEFAULT_LIMITS.readBytes, writeBytes = DEFAULT_LIMITS.writeBytes, signal, isActive }) {
+  constructor({ root, readScopes = [], writeScopes = [], readBytes = DEFAULT_LIMITS.readBytes, writeBytes = DEFAULT_LIMITS.writeBytes, signal, isActive }) {
     this.root = path.resolve(root);
+    this.readScopes = readScopes;
+    this.writeScopes = writeScopes;
     this.readBytes = readBytes;
     this.writeBytes = writeBytes;
     this.signal = signal;
@@ -560,6 +569,18 @@ class WorkspaceFilesystemBroker {
       throw toolError('tool_filesystem_denied', 'control or secret file denied');
     }
     return inputPath;
+  }
+  #assertScope(kind, relative) {
+    const scopes = kind === 'read' ? this.readScopes : this.writeScopes;
+    if (!scopes.some((scope) => this.#scopeAllowsRelative(scope, relative))) {
+      throw toolError('tool_filesystem_denied', `filesystem ${kind} scope denied`);
+    }
+  }
+  #scopeAllowsRelative(scope, relative) {
+    if (!validWorkspaceScope(scope)) return false;
+    const scopePath = scope.slice('workspace:'.length);
+    if (scopePath === 'root') return true;
+    return relative === scopePath || relative.startsWith(`${scopePath}/`);
   }
   async #resolve(inputPath, mustExist = true) {
     const relative = this.#validateRelative(inputPath);
@@ -593,6 +614,7 @@ class WorkspaceFilesystemBroker {
   async readText(inputPath) {
     this.#checkActive();
     const { relative, absolute } = await this.#resolve(inputPath, true);
+    this.#assertScope('read', relative);
     const info = await stat(absolute);
     if (!info.isFile() || info.size > this.readBytes) throw toolError('tool_filesystem_denied', 'file read denied');
     const body = await readFile(absolute, 'utf8');
@@ -603,6 +625,7 @@ class WorkspaceFilesystemBroker {
     this.#checkActive();
     if (typeof content !== 'string' || Buffer.byteLength(content, 'utf8') > this.writeBytes) throw toolError('tool_filesystem_denied', 'write content denied');
     const { relative, absolute } = await this.#resolve(inputPath, false);
+    this.#assertScope('write', relative);
     await mkdir(this.root, { recursive: true });
     await this.#assertWriteParentInside(path.dirname(absolute));
     await mkdir(path.dirname(absolute), { recursive: true });
@@ -1027,8 +1050,9 @@ export class ToolRegistry {
       const timeoutMs = Math.max(1, Math.min(operation.limits.runtimeMs ?? DEFAULT_LIMITS.runtimeMs, request.timeoutMs ?? operation.limits.runtimeMs ?? DEFAULT_LIMITS.runtimeMs));
       const outputLimit = Math.max(1, Math.min(operation.limits.outputBytes ?? DEFAULT_LIMITS.outputBytes, request.outputLimitBytes ?? operation.limits.outputBytes ?? DEFAULT_LIMITS.outputBytes));
       const run = async (signal) => {
+        const filesystem = policy.effectiveCapability?.filesystem ?? operation.filesystem;
         const brokers = {
-          filesystem: new WorkspaceFilesystemBroker({ root: this.#workspaceRoot, signal, isActive: () => active }),
+          filesystem: new WorkspaceFilesystemBroker({ root: this.#workspaceRoot, readScopes: filesystem.read ?? [], writeScopes: filesystem.write ?? [], signal, isActive: () => active }),
           egress: new LoopbackEgressBroker({ operation, signal, isActive: () => active }),
           secrets: new SecretReferenceBroker({ operation, resolver: request.secretResolver ?? this.#secretResolver, signal, isActive: () => active })
         };

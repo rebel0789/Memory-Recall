@@ -101,6 +101,37 @@ test('ECC adapter fails closed on malformed output, oversize, timeout, and cance
   );
 });
 
+test('ECC adapter races positive timeout boundaries around stalled work', async () => {
+  const slowIndex = {
+    adapterId: ECC_ADAPTER_ID,
+    upstream: {
+      repository: 'https://github.com/example/ecc',
+      commit: ECC_UPSTREAM_COMMIT,
+      archiveSha256: ECC_ARCHIVE_SHA256,
+      licenseSpdx: ECC_LICENSE_SPDX
+    },
+    procedures: [{
+      id: procedureId,
+      title: 'Slow reviewed procedure',
+      summary: 'A deliberately slow reviewed procedure.',
+      sourcePath: 'procedures/slow.md',
+      reviewStatus: 'reviewed',
+      allowedUse: 'proposal-only'
+    }]
+  };
+  const adapter = new EccSkillSourceAdapter();
+  adapter.index = async () => new Promise((resolve) => setTimeout(() => resolve(slowIndex), 50));
+
+  await assert.rejects(
+    () => adapter.inspect({ procedureId, timeoutMs: 5 }),
+    (error) => error instanceof ContractViolation && error.code === 'adapter_timeout'
+  );
+  await assert.rejects(
+    () => adapter.importProposal({ procedureId, grant: exactGrant, timeoutMs: 5 }),
+    (error) => error instanceof ContractViolation && error.code === 'adapter_timeout'
+  );
+});
+
 test('ECC promotion does not enable any external adapter by default', async () => {
   const catalog = JSON.parse(await readFile(new URL('../adapters/catalog.json', import.meta.url), 'utf8'));
   const experimental = catalog.adapters.filter((adapter) => adapter.status === 'experimental');

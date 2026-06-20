@@ -174,6 +174,16 @@ test('diversity, category caps, and smallest-sufficient stopping prefer compleme
   assert.equal(result.selection.categoryBudgets.evidence.selectedCount, 2);
 });
 
+test('sufficiency requires the configured minimum evidence count', () => {
+  const result = selectContextCandidates(request({ requiredEntities: [], tokenBudget: 80 }), [
+    candidate({ id: 'decision_auth', kind: 'decision', text: 'Use passkeys for authentication.', tags: ['topic:auth'], relations: ['topic:auth'], tokens: 12 }),
+    candidate({ id: 'procedure_auth', kind: 'procedure', text: 'Rotate authentication sessions after policy updates.', tags: ['topic:auth'], relations: ['topic:auth'], tokens: 12 })
+  ]);
+
+  assert.equal(result.selection.sufficiency.evidenceCount, 0);
+  assert.equal(result.selection.sufficiency.state, 'insufficient');
+});
+
 test('eligibility remains fail closed before scoring optional candidates', () => {
   const result = selectContextCandidates(request({ tokenBudget: 80 }), [
     candidate({ id: 'obs_valid', text: 'Authentication context manifest evidence.', tags: ['topic:auth'] }),
