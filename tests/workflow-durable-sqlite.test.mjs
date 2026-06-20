@@ -269,3 +269,59 @@ test('durable leases prevent concurrent execution and stale commits', async (t) 
   first.close();
   second.close();
 });
+
+test('durable runtime rejects effects attempted after timeout', async (t) => {
+  const directory = await tempDir(t);
+  const effectLog = [];
+  let lateEffectAttempt;
+  const registry = new DurableWorkflowHandlerRegistry();
+  registry.register({
+    id: 'handler:late-effect',
+    version: '1.0.0',
+    capabilities: ['local.effect-reference'],
+    run: async ({ effect }) => {
+      lateEffectAttempt = new Promise((resolve) => {
+        setTimeout(() => {
+          effect({
+            idempotencyKey: 'idem_late_effect',
+            operationFingerprint: 'sha256:late-effect',
+            execute: async () => {
+              effectLog.push('late');
+              return { ok: true };
+            }
+          }).then(resolve, resolve);
+        }, 25);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return { ignored: true };
+    }
+  });
+  const definition = {
+    schemaVersion: '1.0.0',
+    id: 'workflow:late-effect',
+    version: '1.0.0',
+    name: 'Late effect workflow',
+    description: 'Proves timed-out attempts cannot commit effects',
+    steps: [{
+      id: 'late',
+      kind: 'activity',
+      handler: { id: 'handler:late-effect', version: '1.0.0' },
+      timeoutMs: 5,
+      retry: { maxAttempts: 1 },
+      approval: { required: false },
+      idempotency: { required: true },
+      riskClass: 'reversible-write',
+      inputSchema: {},
+      outputSchema: {}
+    }]
+  };
+  const runtime = new DurableSQLiteWorkflowRuntime({ dataRoot: directory, registry });
+  await runtime.registerWorkflow(definition);
+  await runtime.start({ workspaceId: 'ws_local', workflowId: definition.id, workflowVersion: definition.version, runId: 'run_late_effect', input: {} });
+  await runtime.tick({ workerId: 'worker_late' });
+  const lateResult = await lateEffectAttempt;
+  assert.equal(lateResult.code, 'step_timeout');
+  assert.deepEqual(effectLog, []);
+  assert.equal((await runtime.get({ workspaceId: 'ws_local', runId: 'run_late_effect' })).status, 'failed');
+  runtime.close();
+});

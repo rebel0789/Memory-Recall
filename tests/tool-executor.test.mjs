@@ -175,3 +175,39 @@ test('input, output, timeout, cancellation, approval, and idempotency checks fai
   assert.equal(approved.status, 'completed');
   assert.equal(effectBoundary.count(), 1);
 });
+
+test('approval-required reversible writes fail closed without server-verified approval', async () => {
+  let called = false;
+  const registry = ToolRegistry.createForTests({
+    tools: [],
+    handlers: {},
+    clock: () => fixedNow
+  });
+  registry.register({
+    id: 'tool:approval-write',
+    version: '1.0.0',
+    riskClass: 'reversible-write',
+    permissions: { filesystem: { read: [], write: ['workspace:project'] } },
+    approval: { required: true },
+    inputSchema: { type: 'object', additionalProperties: true },
+    outputSchema: { type: 'object', additionalProperties: true }
+  }, async () => {
+    called = true;
+    return { ok: true };
+  });
+
+  const result = await registry.execute(baseInvocation({
+    toolId: 'tool:approval-write',
+    toolVersion: '1.0.0',
+    operation: 'invoke',
+    input: { value: 'write' },
+    idempotencyKey: 'idem_approval_write',
+    effectBoundary: createMemoryEffectBoundary(),
+    approvalContext: { approvalId: 'appr_fake', status: 'active' }
+  }));
+
+  assert.equal(result.status, 'denied');
+  assert.equal(result.error.code, 'tool_policy_denied');
+  assert(result.policy.reasonCodes.includes('approval_invalid'));
+  assert.equal(called, false);
+});

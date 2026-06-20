@@ -41,6 +41,11 @@ function canonicalStringify(value) {
   return JSON.stringify(value);
 }
 
+function exportManifestFingerprint(manifest) {
+  const { fingerprint, ...fingerprintInput } = manifest;
+  return sha256(canonicalStringify(fingerprintInput));
+}
+
 function safeWorkspace(value) {
   if (typeof value !== 'string' || !WORKSPACE_PATTERN.test(value)) throw new Error('workspaceId contains unsupported characters');
   return value;
@@ -471,7 +476,7 @@ export class FilesystemArtifactStore {
     manifest.records.sort((a, b) => a.id.localeCompare(b.id));
     manifest.objects.sort((a, b) => a.contentHash.localeCompare(b.contentHash));
     if (manifest.tombstones) manifest.tombstones.sort((a, b) => a.recordId.localeCompare(b.recordId));
-    manifest.fingerprint = sha256(canonicalStringify(manifest));
+    manifest.fingerprint = exportManifestFingerprint(manifest);
     await this.#writeExportJson(path.join(exportRoot, 'manifest.json'), manifest);
 
     const verification = await this.#verifyExport(exportRoot, manifest);
@@ -491,6 +496,7 @@ export class FilesystemArtifactStore {
 
     const manifest = await this.#readExportJson(exportRoot, 'manifest.json');
     if (manifest.provider !== PROVIDER_ID) throw new Error('artifact export provider mismatch');
+    if (manifest.fingerprint !== exportManifestFingerprint(manifest)) throw new Error('artifact export manifest fingerprint mismatch');
     const restoredWorkspace = safeWorkspace(workspaceId ?? manifest.workspaceId);
     if (manifest.workspaceId !== restoredWorkspace) throw new Error('artifact export workspace mismatch');
     await this.#ensureWorkspaceDirs(restoredWorkspace);

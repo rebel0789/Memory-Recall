@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T17:45:24.105Z",
+  "generatedAt": "2026-06-20T18:00:10.451Z",
   "fileCount": 689,
-  "totalBytes": 2209779,
+  "totalBytes": 2216591,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -1812,7 +1812,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "a0a742baa804c3c64ccf71e6a9003f9cc460b593aa8548b23ff3b3cad6ad5b82"
+      "sha256": "310e56673bdf6944316ecd4d738974c0b7987ebbbbbe1b6119e18bb606a2d5ee"
     },
     {
       "path": "LICENSE",
@@ -1976,8 +1976,8 @@
     },
     {
       "path": "packages/policy/src/index.mjs",
-      "bytes": 31168,
-      "sha256": "918d1a0db5400593ab186f5ddf364ec55f10a6965e78ca077d460a2fa7c8892c"
+      "bytes": 31793,
+      "sha256": "4bb67a1d689867ee2a94af8968d1955bf4b4f72e8c7fd6a25330f7e5b69327c8"
     },
     {
       "path": "packages/protocol-bridges/package.json",
@@ -2621,8 +2621,8 @@
     },
     {
       "path": "packages/tool-registry/src/index.mjs",
-      "bytes": 57062,
-      "sha256": "5a1a6614b2fb147c102781f417da491fab6f474f6503db8112adca93be097817"
+      "bytes": 57098,
+      "sha256": "40d6c1cd028271ed9d89ad2e7a4b6c2c0f4fa07c8a0c1a5e98257cd8d108b40e"
     },
     {
       "path": "packages/ui/package.json",
@@ -2686,8 +2686,8 @@
     },
     {
       "path": "providers/native/artifact-filesystem/src/index.mjs",
-      "bytes": 39918,
-      "sha256": "921e275c330d9534e9afd1b518e146a1a55f1e1883b70369112d3fc5f8f41692"
+      "bytes": 40215,
+      "sha256": "d6570d078edcb4a25edbfdf582f2e9e0a3e896beb8a954797812538e7649c7b2"
     },
     {
       "path": "providers/native/catalog.json",
@@ -2841,8 +2841,8 @@
     },
     {
       "path": "providers/native/workflow-durable-sqlite/src/index.mjs",
-      "bytes": 48723,
-      "sha256": "dca0f5595849cdf591efed7d97c244bf6f3852e7770ca9965d8efd6492d2edf4"
+      "bytes": 49802,
+      "sha256": "6377ca80fddf884dc2b44855547a47e021d066e445062cc201e8fbf9a7244be4"
     },
     {
       "path": "providers/native/workflow-embedded/package.json",
@@ -3001,8 +3001,8 @@
     },
     {
       "path": "services/control-api/src/server.mjs",
-      "bytes": 41788,
-      "sha256": "bc46684c525c48360b32701e3321d8d7c19f72266087e7bdb9634de10676ae62"
+      "bytes": 41848,
+      "sha256": "10206aacc2a91278832f77c18c1e08e17b15ac6785eaa7ace5c15b96b02e376c"
     },
     {
       "path": "services/README.md",
@@ -3191,8 +3191,8 @@
     },
     {
       "path": "tests/control-api-boundary.test.mjs",
-      "bytes": 17938,
-      "sha256": "024f807ac25947d222b8aa492c2783d50cf6d43b4b521cbc219bca5b87e90606"
+      "bytes": 18974,
+      "sha256": "99a9d62ead61836a13a74c30b8b60bf2b306c4bac7950818e9e66530d04368ea"
     },
     {
       "path": "tests/control-api.test.mjs",
@@ -3236,8 +3236,8 @@
     },
     {
       "path": "tests/native-artifact-filesystem.test.mjs",
-      "bytes": 11844,
-      "sha256": "2846f3e132afb094ae68d64f131b08b3b18babf88965d0cbfc402e538770d441"
+      "bytes": 12297,
+      "sha256": "dc5b83cfb42fa58001520c7172efccb295b2722d734f2de308b600cb5ff8669d"
     },
     {
       "path": "tests/native-identity-store.test.mjs",
@@ -3331,8 +3331,8 @@
     },
     {
       "path": "tests/tool-executor.test.mjs",
-      "bytes": 6898,
-      "sha256": "8407dc65fe13d0de08a22ace4eb3a65313eb7ff53f2b01117cda720a68baf393"
+      "bytes": 8100,
+      "sha256": "23198ec4368a6f19f43d25ac0f6bcedfb44cc526e79c34f6166b68f42e6ee0d8"
     },
     {
       "path": "tests/tool-grants.test.mjs",
@@ -3361,8 +3361,8 @@
     },
     {
       "path": "tests/workflow-durable-sqlite.test.mjs",
-      "bytes": 11271,
-      "sha256": "75e107e76f5c135f4e10956ffa8b415ebf537584433b1f835dcdcb956a462add"
+      "bytes": 13295,
+      "sha256": "8cd996e95605a01a3acd94a2bd12655acf87c4ce6a0240d0396dcdcd0884c34f"
     },
     {
       "path": "tests/workflow-runtime.test.mjs",

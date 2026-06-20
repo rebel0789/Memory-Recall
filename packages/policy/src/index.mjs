@@ -126,7 +126,8 @@ const NETWORK_KEYS = new Set(['protocol', 'host', 'port', 'methods', 'consequenc
 const LIMIT_KEYS = new Set(['runtimeMs', 'memoryBytes', 'outputBytes', 'inputBytes', 'invocationCount', 'costUnits', 'retryCount']);
 const APPROVAL_KEYS = new Set(['approvalId', 'operationFingerprint', 'workspaceId', 'actorId', 'approverId', 'approvedAt', 'expiresAt', 'status', 'policyVersion', 'serverVerified']);
 const TOOL_KEYS = new Set(['id', 'allowedRoles', 'riskClass', 'operations', 'permissions', 'timeoutMs', 'outputLimitBytes', 'approval']);
-const OPERATION_KEYS = new Set(['sideEffectClass', 'filesystem', 'network', 'secretReferences', 'dataClasses', 'sandbox', 'limits']);
+const OPERATION_KEYS = new Set(['sideEffectClass', 'filesystem', 'network', 'secretReferences', 'dataClasses', 'sandbox', 'limits', 'approval']);
+const OPERATION_APPROVAL_KEYS = new Set(['required']);
 
 export const POLICY_REGISTRY = createPolicyRegistry();
 
@@ -255,7 +256,8 @@ export function evaluateContextualPolicy(request, {
   }
 
   const sideEffectClass = capability?.sideEffectClass ?? 'read-only';
-  if (sideEffectClass === 'consequential-write') {
+  const requiresApproval = sideEffectClass === 'consequential-write' || operationRequiresApproval(manifest, capability?.operation ?? 'invoke');
+  if (requiresApproval) {
     if (!validated.approvalContext) reasons.add('approval_required');
     validateApproval({ request: validated, approval: validated.approvalContext, evaluatedAt, reasons });
   }
@@ -580,8 +582,17 @@ function validateToolManifestShape(manifest) {
       if (!name) throw new TypeError('policy_request_invalid:operation');
       assertPlainObject(operation, 'trusted tool operation');
       assertNoUnknown(operation, OPERATION_KEYS, 'trusted tool operation');
+      if (operation.approval !== undefined) {
+        assertPlainObject(operation.approval, 'trusted tool operation approval');
+        assertNoUnknown(operation.approval, OPERATION_APPROVAL_KEYS, 'trusted tool operation approval');
+      }
     }
   }
+}
+
+function operationRequiresApproval(manifest, operationName) {
+  const operations = manifest ? normalizeOperations(manifest) : {};
+  return operations[operationName]?.approval?.required === true;
 }
 
 function validateLimits(requested, maxima, throwOnInvalid = true) {

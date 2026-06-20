@@ -186,6 +186,14 @@ test('portable export is deterministic, workspace scoped, deduplicated, and excl
   assert.equal(JSON.stringify(exported.manifest).includes(directory), false);
   assert.match(exported.manifest.fingerprint, /^[a-f0-9]{64}$/);
   assert.equal((await readFile(path.join(exportDirectory, 'manifest.json'), 'utf8')).includes('tombstones'), false);
+  const corruptedManifest = JSON.parse(await readFile(path.join(exportDirectory, 'manifest.json'), 'utf8'));
+  corruptedManifest.records = [];
+  corruptedManifest.objects = [];
+  await writeFile(path.join(exportDirectory, 'manifest.json'), `${JSON.stringify(corruptedManifest, null, 2)}\n`);
+  await assert.rejects(
+    () => provider.importWorkspaceExport({ source: exportDirectory, workspaceId: 'ws_local' }),
+    /manifest fingerprint mismatch/
+  );
 
   const exportDirectoryWithTombstones = await tempArtifactsRoot(t, 'oaf export tombstones ');
   await rm(exportDirectoryWithTombstones, { recursive: true, force: true });

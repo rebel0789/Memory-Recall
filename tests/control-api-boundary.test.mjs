@@ -195,6 +195,28 @@ test('valid requests receive correlation IDs and preserve local-only behavior', 
   assert.equal(api.calls.compile, 1);
 });
 
+test('dashboard counters are scoped to the authorized workspace', async (t) => {
+  const api = await startServer(t);
+  api.store.state.memories = [
+    { id: 'mem_local', workspaceId: 'ws_local', status: 'active' },
+    { id: 'mem_other', workspaceId: 'ws_other', status: 'active' }
+  ];
+  api.store.state.approvals = [
+    { id: 'apr_local_pending', workspaceId: 'ws_local', status: 'pending' },
+    { id: 'apr_local_done', workspaceId: 'ws_local', status: 'approved' },
+    { id: 'apr_other_pending', workspaceId: 'ws_other', status: 'pending' }
+  ];
+
+  const response = await request(api.base, '/api/dashboard?workspaceId=ws_local', {
+    headers: { cookie: api.auth.cookie }
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.metrics.memories, 1);
+  assert.equal(response.body.metrics.pendingApprovals, 1);
+  assert.deepEqual(response.body.memories.map((item) => item.id), ['mem_local']);
+  assert.deepEqual(response.body.approvals.map((item) => item.id).sort(), ['apr_local_done', 'apr_local_pending']);
+});
+
 test('start-run validates input and propagates API correlation into persisted events', async (t) => {
   const api = await startServer(t);
   const response = await request(api.base, '/api/runs', {

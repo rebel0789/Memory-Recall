@@ -186,6 +186,8 @@ export function createControlApiServer({
         const state = await store.read();
         const runs = state.runs.filter((run) => run.workspaceId === context.workspaceId);
         const events = state.events.filter((event) => event.workspaceId === context.workspaceId);
+        const memories = state.memories.filter((memory) => (memory.workspaceId ?? context.workspaceId) === context.workspaceId);
+        const approvals = state.approvals.filter((approval) => (approval.workspaceId ?? context.workspaceId) === context.workspaceId);
         const latestRun = runs.at(-1) ?? null;
         const latestManifest = [...events].reverse().find((event) => event.type === 'context.compiled')?.payload ?? null;
         return {
@@ -193,14 +195,14 @@ export function createControlApiServer({
             runs: runs.length,
             completed: runs.filter((run) => run.status === 'completed').length,
             events: events.length,
-            memories: state.memories.length,
-            pendingApprovals: state.approvals.filter((approval) => approval.status === 'pending').length
+            memories: memories.length,
+            pendingApprovals: approvals.filter((approval) => approval.status === 'pending').length
           },
           latestRun,
           latestManifest,
           runs: runs.slice(-8).reverse(),
-          memories: state.memories.filter((memory) => (memory.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse(),
-          approvals: state.approvals.filter((approval) => (approval.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse(),
+          memories: memories.slice(-20).reverse(),
+          approvals: approvals.slice(-20).reverse(),
           artifacts: state.artifacts.filter((artifact) => (artifact.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse()
         };
       }

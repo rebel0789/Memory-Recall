@@ -756,7 +756,7 @@ export class DurableSQLiteWorkflowRuntime {
         signal: abort.signal,
         clock: this.clock,
         emitEvent: async (type, payload) => this.#transaction(() => this.#appendEvent({ workspaceId, runId, type, payload })),
-        effect: async ({ idempotencyKey: key = idempotencyKey, operationFingerprint: fingerprint = operationFingerprint, execute }) => this.#commitEffect({ workspaceId, runId, stepId: stepRow.step_id, idempotencyKey: key, operationFingerprint: fingerprint, execute })
+        effect: async ({ idempotencyKey: key = idempotencyKey, operationFingerprint: fingerprint = operationFingerprint, execute }) => this.#commitEffect({ workspaceId, runId, stepId: stepRow.step_id, idempotencyKey: key, operationFingerprint: fingerprint, execute, workerId, signal: abort.signal })
       };
       const output = await Promise.race([handler.run(context), timeout.promise]);
       timeout.clear();
@@ -771,17 +771,29 @@ export class DurableSQLiteWorkflowRuntime {
     }
   }
 
-  async #commitEffect({ workspaceId, runId, stepId, idempotencyKey, operationFingerprint, execute }) {
+  #assertEffectCommitAllowed({ workspaceId, runId, stepId, workerId, signal }) {
+    if (signal?.aborted) throw signal.reason ?? workflowError('run_cancelled', 'workflow attempt is no longer active');
+    const run = this.#run(workspaceId, runId);
+    if (!run || TERMINAL.has(run.status) || run.lease_owner !== workerId) throw workflowError('run_cancelled', 'workflow attempt is no longer active');
+    const step = this.database.prepare('SELECT status FROM steps WHERE workspace_id = ? AND run_id = ? AND step_id = ?').get(workspaceId, runId, stepId);
+    if (!step || step.status !== 'running') throw workflowError('run_cancelled', 'workflow step is no longer running');
+  }
+
+  async #commitEffect({ workspaceId, runId, stepId, idempotencyKey, operationFingerprint, execute, workerId, signal }) {
     assertString(idempotencyKey, 'idempotencyKey');
     assertString(operationFingerprint, 'operationFingerprint');
+    this.#assertEffectCommitAllowed({ workspaceId, runId, stepId, workerId, signal });
     const existing = this.database.prepare('SELECT * FROM effects WHERE workspace_id = ? AND idempotency_key = ?').get(workspaceId, idempotencyKey);
     if (existing) {
       if (existing.operation_fingerprint !== operationFingerprint) throw workflowError('idempotency_fingerprint_conflict', 'same idempotency key has different operation fingerprint');
       return parseJson(existing.output_json, {});
     }
+    this.#assertEffectCommitAllowed({ workspaceId, runId, stepId, workerId, signal });
     const output = await execute();
+    this.#assertEffectCommitAllowed({ workspaceId, runId, stepId, workerId, signal });
     const outputJson = boundedJson(output, 'effect output', this.limits.stepOutputBytes);
     this.#transaction(() => {
+      this.#assertEffectCommitAllowed({ workspaceId, runId, stepId, workerId, signal });
       const found = this.database.prepare('SELECT * FROM effects WHERE workspace_id = ? AND idempotency_key = ?').get(workspaceId, idempotencyKey);
       if (found) {
         if (found.operation_fingerprint !== operationFingerprint) throw workflowError('idempotency_fingerprint_conflict', 'same idempotency key has different operation fingerprint');

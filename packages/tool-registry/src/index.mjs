@@ -397,7 +397,8 @@ function operationToPolicyManifest(tool, operationName = null) {
       secretReferences: operation.secretReferences,
       dataClasses: operation.dataClasses,
       sandbox: operation.sandbox,
-      limits: operation.limits
+      limits: operation.limits,
+      approval: operation.approval
     };
   }
   return {
