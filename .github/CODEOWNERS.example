@@ -1,5 +1,5 @@
-# Copy to CODEOWNERS after replacing OWNER.
-* @OWNER
-/packages/protocol/ @OWNER
-/docs/security/ @OWNER
-/deploy/postgres/migrations/ @OWNER
+# Copy to CODEOWNERS when branch protection is enabled.
+* @rebel0789
+/packages/protocol/ @rebel0789
+/docs/security/ @rebel0789
+/deploy/postgres/migrations/ @rebel0789

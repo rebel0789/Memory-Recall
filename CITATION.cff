@@ -4,7 +4,7 @@ title: "Open Agent Fabric"
 version: "0.2.0-dev"
 date-released: 2026-06-19
 license: Apache-2.0
-repository-code: "https://github.com/OWNER/open-agent-fabric"
+repository-code: "https://github.com/rebel0789/open-agent-fabric"
 authors:
   - family-names: "Contributors"
     given-names: "Open Agent Fabric"

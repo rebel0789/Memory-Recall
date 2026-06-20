@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
-  "phase": "native-baselines-and-portable-contracts",
+  "phase": "1.0-release-candidate-readiness",
   "nextTask": "OAF-030",
   "defaults": {
     "network": "deny",
@@ -508,6 +508,31 @@
       ]
     },
     {
+      "id": "release.readiness",
+      "name": "1.0 open-source release readiness evidence",
+      "status": "reference",
+      "evidence": [
+        "packages/release-readiness/src/index.mjs",
+        "scripts/release-readiness.mjs",
+        "tests/release-readiness.test.mjs",
+        "docs/release/1.0-READINESS-REPORT.md",
+        "docs/release/1.0-NORTH-STAR-GAP-AUDIT.md",
+        "docs/release/1.0-SECURITY-REVIEW.md",
+        "docs/release/1.0-COMPATIBILITY-MATRIX.md",
+        "docs/release/1.0-REPRODUCIBILITY.md",
+        "docs/release/1.0-SBOM.json",
+        "docs/release/1.0-PROVENANCE.json",
+        "docs/release/1.0-ADAPTER-CERTIFICATION.md",
+        "docs/release/1.0-THIRD-PARTY-NOTICE-REVIEW.md",
+        "docs/release/1.0-RELEASE-CHECKLIST.md"
+      ],
+      "limitations": [
+        "Release-candidate readiness evidence only; product 1.0 is not published",
+        "Final merge, tag creation, artifact signing, and product release publication require explicit maintainer approval",
+        "No signing keys, release credentials, hosted publishing automation, external writes, or external adapter activation are added"
+      ]
+    },
+    {
       "id": "adapters.external",
       "name": "External project adapters",
       "status": "disabled",
@@ -711,11 +736,12 @@
       "npm run tool:bounded:smoke",
       "npm run workflow:durable:smoke",
       "npm run ops:smoke",
+      "npm run release:readiness",
       "npm run demo",
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 204,
+    "testsExpected": 207,
     "protocolFixturesExpected": 103,
     "evaluationsExpected": 105,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

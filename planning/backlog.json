@@ -755,7 +755,7 @@
       "id": "OAF-030",
       "title": "Complete 1.0 open-source release readiness",
       "milestone": "Milestone 10",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:release-manager",
       "dependsOn": [
         "OAF-027",

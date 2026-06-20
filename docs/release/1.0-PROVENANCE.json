@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "predicateType": "https://openagentfabric.dev/provenance/release-readiness/v1",
+  "subject": {
+    "name": "open-agent-fabric",
+    "version": "0.2.0-dev",
+    "releaseCandidate": "1.0-readiness"
+  },
+  "buildType": "local-deterministic-source-readiness",
+  "builder": {
+    "id": "@open-agent-fabric/release-readiness",
+    "version": "1.0.0-rc-readiness",
+    "node": "22.22.3",
+    "platform": "darwin",
+    "arch": "arm64"
+  },
+  "sourcePolicy": {
+    "generatedFromGitArchiveRequiredForPublication": true,
+    "finalProductPublicationRequiresHumanApproval": true,
+    "forcePushAllowed": false,
+    "mergePerformedByThisTask": false
+  },
+  "sourceHashes": {
+    "package.json": "sha256:abdd06247cff26419c4255e73293e96ab93442f2ef118a43405aee59577df36a",
+    "package-lock.json": "sha256:cfe58a6020832913f64b877df1c18429f608afe252c579e8fd84041a9681dcd0",
+    "PROJECT_STATUS.json": "sha256:cfed007d3b9bfd5c479b7f45288978172c758a9466b1e26624ebad3a2d9cd401",
+    "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
+    "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
+    "THIRD_PARTY.md": "sha256:7185e41e48f57870036f32c0da84bc2726d4afbdc73d1a8f37a001e6624c43d3",
+    "SECURITY.md": "sha256:a5d5b9d1e786d26bedaca01aa84c34699a4e258f07838193a0d0e8d752b2fc12",
+    "GOVERNANCE.md": "sha256:ef85f7b2d9ec6271150741d5f4c69d42e1fa4809e630314297f348b2a4fd2e3e"
+  },
+  "generatedFiles": [
+    "1.0-ADAPTER-CERTIFICATION.md",
+    "1.0-COMPATIBILITY-MATRIX.md",
+    "1.0-NORTH-STAR-GAP-AUDIT.md",
+    "1.0-PROVENANCE.json",
+    "1.0-READINESS-REPORT.md",
+    "1.0-RELEASE-CHECKLIST.md",
+    "1.0-REPRODUCIBILITY.md",
+    "1.0-SBOM.json",
+    "1.0-SECURITY-REVIEW.md",
+    "1.0-THIRD-PARTY-NOTICE-REVIEW.md"
+  ]
+}

@@ -62,6 +62,8 @@ npm run task -- <OAF-ID>
 - [x] OAF-027 Promote one low-risk read-only adapter.
 - [x] OAF-028 Add protocol bridges through accepted RFCs.
 - [x] OAF-029 Complete operations, backup, restore, upgrade, and rollback.
-- [ ] **OAF-030 Complete 1.0 open-source release readiness — next.**
+- [x] OAF-030 Complete 1.0 open-source release readiness.
+
+Final product merge and 1.0 publication require explicit human approval.
 
 Never enable external writes before authorization, exact approval, idempotency, reconciliation, and adversarial tests pass.
