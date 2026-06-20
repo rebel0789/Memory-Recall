@@ -12,6 +12,8 @@
 
 Failure preserves the objective, shows the failed step and safe error, and offers retry only when retryable.
 
+The production shell keeps this flow route-addressable: Home starts or resets the local demo, Runs opens history and detail, Context opens manifest decisions, Evidence opens selected observations, Approvals shows the disabled publisher boundary, and Content Lab shows candidate and local outcome state. API denial or error renders a safe local state instead of reading storage directly or fabricating success.
+
 ## Inspect context
 
 1. Select `context.compiled` from a run.

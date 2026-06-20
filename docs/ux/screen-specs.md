@@ -2,7 +2,11 @@
 
 ## Global shell
 
-Desktop uses persistent navigation and an optional inspector. Mobile uses a compact bottom or drawer navigation. Header exposes workspace, local/network state, global run status, and pending approvals.
+Desktop uses persistent navigation and an optional inspector. Mobile uses compact bottom navigation. Header exposes workspace, local/network state, global run status, and pending approvals.
+
+The implemented shell has stable routes for Home, Runs, Workflows, Context, Memory, Evidence, Approvals, Content Lab, Agents and Tools, and Settings. Legacy `?view=` links remain compatible. Every route must preserve loading, empty, partial, stale, success, denied, and error states without direct storage access or external fallback.
+
+Accessibility requirements: skip link to main content, primary and mobile navigation landmarks, `aria-current` for active route, visible focus, reduced-motion support, text labels for every status, a live region for run actions, 44 px minimum action targets, and an outline equivalent for graph information.
 
 ## Home
 

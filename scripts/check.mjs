@@ -1,4 +1,5 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -180,11 +181,8 @@ if (agentPack) {
   if (agentPack.permissions?.consequentialWrites !== false) errors.push('example Agent Pack: consequential writes must be disabled');
 }
 
-try {
-  new Function(await readFile(path.join(root, 'apps/web/app.js'), 'utf8'));
-} catch (error) {
-  errors.push(`apps/web/app.js: JavaScript syntax error (${error.message})`);
-}
+const webSyntax = spawnSync(process.execPath, ['--check', path.join(root, 'apps/web/app.js')], { encoding: 'utf8' });
+if (webSyntax.status !== 0) errors.push(`apps/web/app.js: JavaScript syntax error (${webSyntax.stderr || webSyntax.stdout})`.trim());
 
 const forbidden = [
   /sk-[A-Za-z0-9_-]{20,}/,

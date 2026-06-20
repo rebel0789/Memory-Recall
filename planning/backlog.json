@@ -550,7 +550,7 @@
       "id": "OAF-022",
       "title": "Build production web shell",
       "milestone": "Milestone 7",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:frontend-builder",
       "dependsOn": [
         "OAF-007",

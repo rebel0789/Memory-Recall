@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-022",
+  "nextTask": "OAF-023",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -41,11 +41,14 @@
       "evidence": [
         "apps/web/index.html",
         "apps/web/app.js",
-        "apps/web/styles.css"
+        "apps/web/styles.css",
+        "apps/web/tokens.css",
+        "tests/web-shell.test.mjs",
+        "docs/implementation/OAF-022-production-web-shell-note.md"
       ],
       "limitations": [
-        "Dependency-free conformance UI",
-        "Not the target production frontend"
+        "Dependency-free routed shell; no production frontend framework",
+        "Uses the loopback Control API only and does not read storage directly"
       ]
     },
     {
@@ -607,7 +610,7 @@
         "npm run native:smoke",
         "npm run verify:handoff"
       ],
-    "testsExpected": 176,
+    "testsExpected": 180,
     "protocolFixturesExpected": 96,
     "evaluationsExpected": 101,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

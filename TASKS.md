@@ -51,8 +51,8 @@ npm run task -- <OAF-ID>
 
 ## Product interface
 
-- [ ] **OAF-022 Build the production web shell while preserving bootstrap contracts — next.**
-- [ ] OAF-023 Build Run and Context Inspector views.
+- [x] OAF-022 Build the production web shell while preserving bootstrap contracts.
+- [ ] **OAF-023 Build Run and Context Inspector views — next.**
 - [ ] OAF-024 Build Memory, Evidence, and Approval views.
 
 ## Quality and ecosystem
