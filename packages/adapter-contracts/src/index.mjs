@@ -93,9 +93,11 @@ export class MemoryBackendPort {
 
 export class ModelGatewayPort {
   static contract = 'ModelGatewayPort';
-  static requiredMethods = ['health', 'capabilities', 'generate'];
+  static version = '1.0.0';
+  static requiredMethods = ['health', 'capabilities', 'profile', 'generate'];
   async health() { return notImplemented(ModelGatewayPort.contract, 'health'); }
   async capabilities() { return notImplemented(ModelGatewayPort.contract, 'capabilities'); }
+  profile() { return notImplemented(ModelGatewayPort.contract, 'profile'); }
   async generate() { return notImplemented(ModelGatewayPort.contract, 'generate'); }
 }
 

@@ -6,6 +6,7 @@ export const EVENT_TYPES = Object.freeze([
   'context.compiled','context.manifest.persisted','context.failed',
   'memory.proposed','memory.verified','memory.activated','memory.rejected','memory.superseded','memory.retracted','memory.expired',
   'tool.requested','tool.authorized','tool.denied','tool.completed','tool.failed',
+  'model.requested','model.completed','model.failed',
   'approval.requested','approval.resolved','approval.expired',
   'artifact.created','evaluation.completed','policy.evaluated','adapter.health_changed',
   'replay.created','replay.completed','replay.failed',

@@ -319,7 +319,7 @@
       "id": "OAF-013",
       "title": "Complete model gateway and local integration tests",
       "milestone": "Milestone 4",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:backend-builder",
       "dependsOn": [
         "OAF-003",

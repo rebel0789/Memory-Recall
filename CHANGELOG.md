@@ -7,6 +7,7 @@
 - OAF-010 context candidate-source ports with exact and lexical native providers, strict candidate-source protocol schemas/fixtures, source registry validation, provenance-preserving source hits, partial failure reports, candidate union conflict handling, and source-to-compiler composition helpers that preserve the existing synchronous compiler API.
 - OAF-011 deterministic context selection policy with weighted reciprocal-rank source fusion, feature scoring, required-record fail-closed behavior, diversity and duplicate suppression, category caps and budget traces, safe selection-result schemas, and expanded context-selection evaluations.
 - OAF-012 persisted context assembly and manifests with deterministic reserved sections, manifest and assembly fingerprints, provider-neutral manifest repository port, native local manifest provider, PostgreSQL append/get/list/compare/verify support, workflow/API durable composition, and expanded persisted-manifest evaluations.
+- OAF-013 local model gateway with provider capability profiles, persisted context-manifest references for every structured model call, schema-validated structured output, one-call bounded repair to the same selected provider/model, timeout and cancellation propagation, safe model events, deterministic default generation, and loopback Ollama integration tests.
 - OAF-009 contextual policy engine with a versioned source registry, deterministic policy fingerprint, stable denial reason codes, strict policy request/decision schemas, native deterministic `PolicyEvaluatorPort` provider, and route/tool conformance tests.
 - OAF-008 native local identity provider, first-owner CLI bootstrap, browser sessions, CSRF, API tokens, deterministic workspace role/action authorization, and security audit events.
 - PostgreSQL `002_identity.sql` migration for users, memberships, sessions, API tokens, and security audit events.
@@ -18,6 +19,7 @@
 - Candidate-source generation uses contextual policy before source invocation and candidate output, denies secret model-context records by default, preserves workspace isolation, treats exact denied/missing IDs indistinguishably, and keeps external adapters, outbound network, vector stores, embeddings, graph stores, browser automation, and public search endpoints disabled.
 - Context selection uses a checked-in policy fingerprint and safe internal traces; raw source text, prompts, model reasoning, secrets, local paths, SQL, provider configuration, and authorization material are excluded from score breakdowns and decisions.
 - Durable context manifest persistence now stops before model invocation when required governance is over budget or manifest append/verification fails; persisted excluded decisions omit raw text, and the persistence event contains only safe IDs, counts, fingerprints, and timestamps.
+- Model gateway events record provider/model IDs, prompt/schema/output/context fingerprints, usage, validation state, and bounded repair counts only; raw prompts, context bodies, outputs, credentials, provider URLs, local paths, hidden reasoning, hosted fallback, downloads, tool calling, external connectors, publishing, embeddings, vector stores, graph stores, and browser automation remain disabled.
 - Route authorization and tool invocation now use one contextual policy service after authentication and current membership resolution; denials stop before workflows, Context Compiler, model/tool providers, artifact or memory mutation, secret resolution, filesystem writes, network operations, or consequential effects.
 - Policy evaluates workspace/resource ownership, API-token scope intersection, manifest-bounded tool capability, filesystem/network/secret/data-class/sandbox/budget dimensions, exact approval binding, idempotency, and the global external-write kill switch.
 - Control API rejects malformed paths, unknown queries, oversized bodies, unsupported media types, unsupported content encodings, cross-origin state-changing requests, excessive JSON complexity, and invalid bodies before domain execution.
@@ -27,7 +29,6 @@
 
 ### Planned
 
-- OAF-013 model gateway and local integration tests.
 - Complete retention/export semantics for the artifact provider.
 - Persisted replay and shadow execution service.
 

@@ -13,26 +13,32 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw cancelledError(signal.reason);
 }
 
-async function withTimeout(promise, ms, signal) {
+async function withTimeout(run, ms, signal) {
   let timer;
   let abortListener;
+  const controller = new AbortController();
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => {
       const error = new Error(`step timed out after ${ms}ms`);
       error.code = 'step_timeout';
       error.retryable = true;
+      controller.abort(error);
       reject(error);
     }, ms);
   });
   const cancellation = signal
     ? new Promise((_, reject) => {
-        abortListener = () => reject(cancelledError(signal.reason));
+        abortListener = () => {
+          const error = cancelledError(signal.reason);
+          controller.abort(error);
+          reject(error);
+        };
         signal.addEventListener('abort', abortListener, { once: true });
       })
     : new Promise(() => {});
   try {
     throwIfAborted(signal);
-    return await Promise.race([promise, timeout, cancellation]);
+    return await Promise.race([Promise.resolve(run(controller.signal)), timeout, cancellation]);
   } finally {
     clearTimeout(timer);
     if (abortListener) signal.removeEventListener('abort', abortListener);
@@ -64,7 +70,7 @@ export async function executeSteps({ runId, workspaceId = 'ws_local', steps, emi
         await append('step.started', { stepId: step.id, kind: step.kind, attempt }, step.actorId ?? 'system');
         try {
           const output = await withTimeout(
-            Promise.resolve(step.run({ outputs, attempt, emitEvent: append, signal })),
+            (stepSignal) => step.run({ outputs, attempt, emitEvent: append, signal: stepSignal }),
             step.timeoutMs ?? 30000,
             signal
           );

@@ -332,6 +332,18 @@
       "expectedValid": true
     },
     {
+      "id": "model-generation-request-current-valid",
+      "schema": "packages/protocol/schemas/model-generation-request.schema.json",
+      "instance": "examples/protocol/model-generation-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "model-generation-result-current-valid",
+      "schema": "packages/protocol/schemas/model-generation-result.schema.json",
+      "instance": "examples/protocol/model-generation-result.json",
+      "expectedValid": true
+    },
+    {
       "id": "agent-pack-valid",
       "schema": "packages/protocol/schemas/agent-pack.schema.json",
       "instance": "examples/agentpacks/content-intelligence.agentpack.json",
@@ -401,6 +413,12 @@
       "id": "context-selection-result-raw-text-invalid",
       "schema": "packages/protocol/schemas/context-selection-result.schema.json",
       "instance": "examples/protocol/compatibility/invalid/context-selection-result-raw-text.json",
+      "expectedValid": false
+    },
+    {
+      "id": "model-generation-request-raw-prompt-invalid",
+      "schema": "packages/protocol/schemas/model-generation-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/model-generation-request-raw-prompt.json",
       "expectedValid": false
     }
   ]

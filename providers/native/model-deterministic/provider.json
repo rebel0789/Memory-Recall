@@ -7,14 +7,20 @@
   "enabledByDefault": true,
   "locality": "in-process",
   "contract": "ModelGatewayPort",
+  "contractVersion": "1.0.0",
   "capabilities": [
     "model.generate.synthetic",
     "model.structured-output",
-    "model.deterministic"
+    "model.deterministic",
+    "model.safe-events",
+    "model.bounded-repair"
   ],
   "limits": {
     "purpose": "offline bootstrap and regression tests",
-    "generalReasoning": false
+    "generalReasoning": false,
+    "requiresPersistedContextManifest": true,
+    "maxRepairAttempts": 1,
+    "recordsRawPromptOrOutput": false
   },
   "dataPaths": [],
   "experimental": false,

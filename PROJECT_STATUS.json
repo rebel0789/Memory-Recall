@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-013",
+  "nextTask": "OAF-014",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -216,10 +216,15 @@
       "status": "reference",
       "evidence": [
         "packages/model-gateway/src/index.mjs",
-        "workflows/content-intelligence/runner.mjs"
+        "workflows/content-intelligence/runner.mjs",
+        "tests/model-gateway.test.mjs",
+        "tests/workflow.test.mjs",
+        "docs/architecture/model-gateway.md",
+        "docs/implementation/OAF-013-local-model-gateway-note.md"
       ],
       "limitations": [
-        "No real local model adapter in bootstrap"
+        "Deterministic provider is a fixture generator, not a general language model",
+        "No hosted model providers, cloud API keys, LiteLLM deployment, tool calling, embeddings, vector databases, graph databases, browser automation, publishing, or external connectors"
       ]
     },
     {
@@ -425,11 +430,14 @@
       "status": "reference",
       "evidence": [
         "providers/native/model-ollama/src/index.mjs",
-        "tests/native-model-ollama.test.mjs"
+        "tests/native-model-ollama.test.mjs",
+        "tests/model-gateway-local-integration.test.mjs",
+        "docs/architecture/model-gateway.md"
       ],
       "limitations": [
         "Requires separately installed Ollama and selected model",
-        "Disabled by default; no silent fallback"
+        "Disabled by default; no silent fallback",
+        "Loopback-only integration test uses a local fake Ollama-compatible server; no model download or hosted provider is implied"
       ]
     },
     {

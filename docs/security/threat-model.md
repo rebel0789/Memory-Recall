@@ -62,6 +62,15 @@ Excluded records do not store raw text. Persistence emits only safe IDs, counts,
 fingerprints, and timestamps; a persistence or verification failure stops before
 the model provider is invoked.
 
+OAF-013 routes local model calls through a capability-aware gateway. Structured
+calls must reference the persisted context manifest and validate output against
+an explicit schema before downstream use. Repair is bounded to one additional
+call to the same selected local provider and model. Timeouts and cancellation
+abort the provider signal. Model events record provider/model IDs, prompt and
+schema fingerprints, context-manifest fingerprints, usage, validation status,
+and repair counts only; they do not record raw prompts, selected context
+bodies, outputs, credentials, provider URLs, local paths, or hidden reasoning.
+
 ### Local identity and workspace authorization
 
 Browser sessions are opaque server-side records. The session cookie stores only a random token; the native provider stores a SHA-256 token hash and revokes the server-side record on logout. Login rotates active sessions. CSRF uses a readable SameSite=Strict cookie plus matching `x-csrf-token` header, and the session stores only a hash bound to that session. Bearer API tokens are exempt from CSRF but cannot create or manage API tokens.

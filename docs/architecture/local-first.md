@@ -14,4 +14,13 @@ Local-first means the useful core runs without an account, API key, or network. 
 
 ## Local model strategy
 
-Support explicit OpenAI-compatible local endpoints and native adapters only behind `ModelGateway`. Capability discovery, structured-output limitations, context length, tool support, latency, and resource requirements are recorded. A missing local model yields an actionable error, not a cloud call.
+Support explicit local endpoints and native adapters only behind
+`ModelGateway`. Capability discovery, structured-output limitations, context
+length, tool support, latency, and resource requirements are recorded. A
+missing local model yields an actionable error, not a cloud call.
+
+OAF-013 keeps deterministic mode as the offline default and adds a
+capability-aware local gateway contract. Structured calls require a persisted
+context manifest reference and emit safe fingerprints instead of raw prompts or
+outputs. The Ollama provider remains explicit, disabled by default,
+loopback-only, and never falls back to hosted inference.

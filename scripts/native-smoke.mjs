@@ -32,6 +32,10 @@ try {
   const model = new DeterministicModelProvider();
   const health = await model.health();
   if (health.status !== 'healthy') throw new Error('deterministic model provider unhealthy');
+  const profile = model.profile();
+  if (profile.providerId !== 'provider:native:model:deterministic' || profile.capabilities.structuredOutput !== true) {
+    throw new Error('deterministic model gateway profile failed');
+  }
 
   const identity = await new LocalIdentityStore({
     directory: path.join(directory, 'identity'),
@@ -159,7 +163,7 @@ try {
   console.log('PASS native exact and lexical context candidate sources');
   console.log('PASS native local context manifest repository');
   console.log(`PASS Agent Pack ${pack.metadata.name}@${pack.metadata.version} ${fingerprint}`);
-  console.log('PASS deterministic local model provider');
+  console.log('PASS deterministic local model provider and gateway profile');
   console.log('Native provider smoke completed without network access.');
 } finally {
   await rm(directory, { recursive: true, force: true });

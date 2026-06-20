@@ -112,3 +112,22 @@ manifest ID and fingerprint is idempotent; appending the same ID with a
 different fingerprint fails closed. Verification detects tampering and does not
 repair or overwrite files. The provider has no network access, no external
 writes, and no remote fallback.
+
+## Local model providers
+
+The deterministic and Ollama native model providers implement
+`ModelGatewayPort` version `1.0.0`.
+
+The deterministic provider is enabled by default and runs in process. It is a
+structured-output conformance baseline for the demo workflow and tests. It has
+no network, tool-use, hosted fallback, or general reasoning claim.
+
+The Ollama provider is disabled by default. It requires an explicit loopback
+HTTP base URL and model name, propagates timeout and cancellation to `fetch`,
+and reports unavailable or degraded health locally. It does not download
+models, call hosted APIs, expose provider URLs in events, or silently switch
+providers.
+
+Both providers are invoked through `packages/model-gateway`, which validates
+structured output, allows at most one repair call to the same provider/model,
+and records only safe model metadata.
