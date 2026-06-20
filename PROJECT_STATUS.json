@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-027",
+  "nextTask": "OAF-028",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -495,10 +495,32 @@
       "status": "disabled",
       "evidence": [
         "adapters/catalog.json",
-        "THIRD_PARTY.md"
+        "THIRD_PARTY.md",
+        "adapters/tool/ecc/adapter.json",
+        "tests/ecc-adapter.test.mjs"
       ],
       "limitations": [
-        "All are unpinned, disabled, and require review"
+        "Catalog-level external adapter execution remains disabled by default",
+        "Only adapter:tool:ecc is experimental, no-install, proposal-only, and disabled by default",
+        "All other external adapters remain planned, unpinned, disabled, and require review"
+      ]
+    },
+    {
+      "id": "adapter.ecc-reviewed-procedures",
+      "name": "ECC reviewed procedure adapter",
+      "status": "experimental",
+      "evidence": [
+        "adapters/tool/ecc/adapter.json",
+        "adapters/tool/ecc/UPSTREAM.lock",
+        "adapters/tool/ecc/src/index.mjs",
+        "adapters/tool/ecc/reviewed-procedures.json",
+        "adapters/tool/ecc/fixtures/conformance.json",
+        "tests/ecc-adapter.test.mjs"
+      ],
+      "limitations": [
+        "No-install adapter boundary only; upstream ECC source is not vendored, installed, executed, or bulk-loaded",
+        "Produces reviewed import proposals only and never mutates canonical state directly",
+        "Requires exact operation grants and remains disabled by default"
       ]
     },
     {
@@ -631,10 +653,13 @@
       "status": "reference",
       "evidence": [
         "adapters/CONFORMANCE.md",
-        "tests/adapter-contract-fixtures.test.mjs"
+        "tests/adapter-contract-fixtures.test.mjs",
+        "adapters/tool/ecc/fixtures/conformance.json",
+        "tests/ecc-adapter.test.mjs"
       ],
       "limitations": [
-        "Fixtures are expectations, not evidence that adapters are installed or passing"
+        "Most fixtures are expectations, not evidence that adapters are installed or passing",
+        "adapter:tool:ecc is the single experimental exception with executable conformance evidence"
       ]
     }
   ],
@@ -654,7 +679,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 192,
+    "testsExpected": 196,
     "protocolFixturesExpected": 101,
     "evaluationsExpected": 105,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

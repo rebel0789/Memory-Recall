@@ -13,7 +13,7 @@ External projects are research inputs or optional adapter targets. **No upstream
 | CCCC | agent collaboration | optional service bridge |
 | Understand Anything | repository intelligence | optional CLI adapter |
 | Mem0 | memory backend | optional memory adapter |
-| ECC | source of reviewed procedures | never bulk-loaded |
+| ECC | source of reviewed procedures | `adapter:tool:ecc` is pinned at `34faa39bd3cd496a0aece0245f2b7e38b7923abc`, archive SHA-256 `c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0`, MIT reviewed, no-install, experimental, disabled by default, and never bulk-loaded |
 | OpenViking | context backend experiment | isolated adapter |
 | Postiz | social publishing | separate approved-write service |
 

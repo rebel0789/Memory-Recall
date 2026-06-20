@@ -39,6 +39,14 @@ Prefer subprocess, container, or service boundaries for complex or restrictive u
 
 Every external adapter now carries a `fixtures/conformance.json` expectation. The fixture does not mean the adapter works; it describes the minimum cases executable code must pass before promotion.
 
+OAF-027 promotes exactly one adapter, `adapter:tool:ecc`, to `experimental`.
+It is a no-install `SkillSourcePort` adapter for reviewed procedure proposals
+only. It records an exact upstream commit, archive checksum, MIT license
+review, executable conformance output, and adversarial tests while remaining
+disabled by default. The adapter does not run ECC installers or scripts,
+vendor upstream source, bulk-load skills, execute networked instructions, or
+mutate canonical state directly.
+
 ## Dependency boundary
 
 ```text
@@ -61,5 +69,6 @@ metadata, or upstream SDK responses cannot grant filesystem, network, secret,
 data-class, approval, budget, or external-write authority.
 
 External adapters remain disabled by default. OAF-009 adds the policy boundary
-and conformance tests; it does not enable Agent-Reach, last30days, Postiz,
-browser automation, publishing, or any external connector.
+and conformance tests; OAF-027 adds one disabled experimental ECC adapter. This
+does not enable Agent-Reach, last30days, Postiz, browser automation,
+publishing, network connectors, external writes, or any bulk adapter catalog.

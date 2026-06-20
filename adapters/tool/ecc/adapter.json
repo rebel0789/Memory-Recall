@@ -3,27 +3,27 @@
   "protocolVersion": "1.0.0",
   "id": "adapter:tool:ecc",
   "name": "ECC",
-  "version": "0.0.0-plan",
+  "version": "0.1.0-experimental",
   "category": "tool",
-  "status": "planned",
+  "status": "experimental",
   "enabledByDefault": false,
   "upstream": {
     "repository": "https://github.com/affaan-m/ECC",
-    "commit": "UNPINNED",
-    "checksum": "UNVERIFIED"
+    "commit": "34faa39bd3cd496a0aece0245f2b7e38b7923abc",
+    "checksum": "sha256:c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0"
   },
   "licenseReview": {
-    "status": "required",
-    "spdx": "UNVERIFIED",
-    "reviewedAt": null,
-    "notes": "Re-verify license and notices at the exact pinned commit."
+    "status": "reviewed",
+    "spdx": "MIT",
+    "reviewedAt": "2026-06-20T16:24:00Z",
+    "notes": "GitHub license metadata and pinned archive LICENSE reviewed at commit 34faa39bd3cd496a0aece0245f2b7e38b7923abc. Adapter does not install, execute, or bulk-load upstream ECC content."
   },
   "trustBoundary": {
-    "summary": "Never bulk-load; copy only reviewed minimal procedures with provenance",
-    "network": "deny until reviewed",
-    "filesystem": "deny until reviewed",
+    "summary": "No-install reviewed procedure source; never bulk-load upstream skills, hooks, rules, commands, or installers",
+    "network": "deny",
+    "filesystem": "read reviewed metadata only",
     "secrets": "none until reviewed",
-    "sideEffectClass": "read-only or local-derived"
+    "sideEffectClass": "read-only proposal"
   },
   "contract": "SkillSourcePort",
   "capabilities": [
@@ -37,8 +37,8 @@
   },
   "conformance": {
     "fixture": "fixtures/conformance.json",
-    "status": "not-run",
-    "lastRunAt": null
+    "status": "passed",
+    "lastRunAt": "2026-06-20T16:24:00Z"
   },
-  "maintainer": null
+  "maintainer": "agent:security-auditor"
 }

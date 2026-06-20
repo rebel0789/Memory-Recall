@@ -679,7 +679,7 @@
       "id": "OAF-027",
       "title": "Promote one low-risk read-only adapter",
       "milestone": "Milestone 9",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:security-auditor",
       "dependsOn": [
         "OAF-015",

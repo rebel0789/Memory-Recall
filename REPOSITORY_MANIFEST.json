@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T16:06:29.788Z",
-  "fileCount": 657,
-  "totalBytes": 2047878,
+  "generatedAt": "2026-06-20T16:19:07.973Z",
+  "fileCount": 661,
+  "totalBytes": 2069951,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -106,8 +106,8 @@
     },
     {
       "path": "adapters/catalog.json",
-      "bytes": 2854,
-      "sha256": "c911639c11948000256fde9960c537541f4872a2c5194ce11f637c3e5a9d078e"
+      "bytes": 2859,
+      "sha256": "11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283"
     },
     {
       "path": "adapters/collaboration/cccc/adapter.json",
@@ -296,23 +296,33 @@
     },
     {
       "path": "adapters/tool/ecc/adapter.json",
-      "bytes": 1140,
-      "sha256": "f8c6f96e8c4ee8ad7d5e61aaf65aa503667e1b00640197c8b92a2e5fcf8a5ab0"
+      "bytes": 1441,
+      "sha256": "991cbfa351f3d1ac693b05f58d781b243372ae0cf75bd4dd52ef8d693b384343"
     },
     {
       "path": "adapters/tool/ecc/fixtures/conformance.json",
-      "bytes": 1061,
-      "sha256": "fa9aa646542d2c5420581863be08137b98f93a962bcddce6213effc1be24316f"
+      "bytes": 1887,
+      "sha256": "32b1c490e1ea7215ddc535016fc9ddd75b54c056f4f5984a7c60a605f2c619e9"
     },
     {
       "path": "adapters/tool/ecc/README.md",
-      "bytes": 829,
-      "sha256": "02f70e290412e82aebfc3273e32ef669998a059b38b7dc37b0e5c08efa9caaba"
+      "bytes": 1648,
+      "sha256": "ce6b5e2f1ded99a2f550330f47abacff1f6b77111e850491d2e309c03eda760a"
+    },
+    {
+      "path": "adapters/tool/ecc/reviewed-procedures.json",
+      "bytes": 766,
+      "sha256": "bd9373a0534d152b709be110186ee33e14d7e95392da6ce3c4f550eca97b058b"
+    },
+    {
+      "path": "adapters/tool/ecc/src/index.mjs",
+      "bytes": 9438,
+      "sha256": "90ea9371903260ab03cbc8d0bdb6ea793591dd94fcab97b6e1a23ee98800163b"
     },
     {
       "path": "adapters/tool/ecc/UPSTREAM.lock",
-      "bytes": 132,
-      "sha256": "2d529252e2d3026c7a8beb5a8c5097c8f1a0b1d8cb0a17d4f0c8bca32ba75bf1"
+      "bytes": 418,
+      "sha256": "69f761e53589ef5a79c46d77fed8ba437f878a140b4a59e27e69cb0ede9d1166"
     },
     {
       "path": "adapters/tool/graphify/adapter.json",
@@ -536,8 +546,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 15558,
-      "sha256": "27e4d4572bbdb415ca761027876bea11242c667c548ca43182b46a60daae1031"
+      "bytes": 16251,
+      "sha256": "10171bf373c119afe25790e1818282793c3f6e28e955709314759481c730423f"
     },
     {
       "path": "CITATION.cff",
@@ -716,8 +726,8 @@
     },
     {
       "path": "docs/architecture/adapter-contracts.md",
-      "bytes": 3151,
-      "sha256": "cbe7e6ff9d416c334902711eefd94bbaf3713074a3766c8c6a8f173710e69a23"
+      "bytes": 3733,
+      "sha256": "d99e81b3a2f7c717faf487c6049e1f51454dcb98d523a6025b19d8e967210be0"
     },
     {
       "path": "docs/architecture/agent-packs.md",
@@ -883,6 +893,11 @@
       "path": "docs/implementation/OAF-026-evaluation-laboratory-note.md",
       "bytes": 1566,
       "sha256": "0ed09de8a239d3ba497d3eb9ae2f2e28632345ce8f2677bce491a4b5bf77ef42"
+    },
+    {
+      "path": "docs/implementation/OAF-027-read-only-adapter-note.md",
+      "bytes": 1674,
+      "sha256": "fd4908efe0107683b0c63f7fcf8f63aac28f839feacb6f605225161bb78c87c3"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1717,7 +1732,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "6318ef503d1e1a2f311414969b04104dfcf0b2fedeef78ceaa31a28bbd0095e6"
+      "sha256": "289e243d7112b7b2ece8d7096a604a1840d13298fda4af9a5c574417552dc502"
     },
     {
       "path": "LICENSE",
@@ -2521,8 +2536,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26922,
-      "sha256": "38ad8367013e19173838b27d5a3b2a925479ee754245e750f160bc92c210b9b9"
+      "bytes": 26924,
+      "sha256": "d5b840c06473ae1367514767d03cc13a917310587e16a3432066ec7a705dd94e"
     },
     {
       "path": "planning/README.md",
@@ -2536,8 +2551,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 27445,
-      "sha256": "20636c6f977fcc40af9d0a90cf748393ff0ac93f83cb14d7178c704ae2e75439"
+      "bytes": 28702,
+      "sha256": "79f38c7293d2314f9de3baf85bbb704f0a264cda82c0dfa8ac509642be8042ca"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2801,8 +2816,8 @@
     },
     {
       "path": "scripts/status.mjs",
-      "bytes": 758,
-      "sha256": "1bd975153c65ba1cadd5af3a25c27e2c6b3bc61a83d909fdb73ff9f100a613b9"
+      "bytes": 773,
+      "sha256": "64f9b1d2ef083c3cd4cca144bcc3e3f78e827eab1dfdfe760bd62592db271a6c"
     },
     {
       "path": "scripts/task.mjs",
@@ -2987,12 +3002,12 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "4000af2adecaaf57c499500edd8fee1cbec5489868f781a27cdb5ddbf7130825"
+      "sha256": "060293cd31043fb1f206aae4717b6910a0140e4891079113c61e1882e5a5f7f2"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
-      "bytes": 1470,
-      "sha256": "03ce7e8e88999b0f8fdaa3de622fe5636380e8820f6802a342db01193a3e2890"
+      "bytes": 1914,
+      "sha256": "2325ef517e033e7b8264163aa1ae22554bc4c57807a305412922d6709ee62be1"
     },
     {
       "path": "tests/adapter-contracts.test.mjs",
@@ -3058,6 +3073,11 @@
       "path": "tests/control-api.test.mjs",
       "bytes": 3979,
       "sha256": "5efb80641b7f37423c4b90d2f468777c4910d3dfaf58c9124e4ffef5e704d790"
+    },
+    {
+      "path": "tests/ecc-adapter.test.mjs",
+      "bytes": 4740,
+      "sha256": "56a96c0855caa5e3e8a1af347f41d889aa3db800cb659984fbabbe2385bbe187"
     },
     {
       "path": "tests/evaluation-lab.test.mjs",
@@ -3216,8 +3236,8 @@
     },
     {
       "path": "THIRD_PARTY.md",
-      "bytes": 1379,
-      "sha256": "1f8fae682075393a826475917c8799b4df4f52cb55e4f48adc92a1de6d61fa16"
+      "bytes": 1604,
+      "sha256": "7185e41e48f57870036f32c0da84bc2726d4afbdc73d1a8f37a001e6624c43d3"
     },
     {
       "path": "tools/catalog.json",
