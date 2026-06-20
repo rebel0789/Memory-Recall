@@ -28,6 +28,13 @@ timeout and cancellation propagation, output schema validation, OAF-009
 approval/idempotency gates, durable idempotent write reuse, and safe event
 payloads.
 
+## Evaluation lab
+
+Dataset versioning, deterministic versus model-quality suite separation,
+experiment fingerprints, merge-gated reports, shadow-only model-quality
+failures, sanitized trace promotion, classification review, and zero raw
+prompt/body/output/path/token leakage in promoted fixtures.
+
 ## UI
 
 Empty, loading, running, waiting, complete, warning, denied, failed, expired, inaccessible; keyboard; focus; mobile; zoom; dark/light; reduced motion; deep-link reload; long text; sanitized trace.

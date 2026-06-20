@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-026",
+  "nextTask": "OAF-027",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -432,6 +432,30 @@
       ]
     },
     {
+      "id": "evaluation.laboratory",
+      "name": "Evaluation laboratory",
+      "status": "reference",
+      "evidence": [
+        "packages/evaluation-lab/src/index.mjs",
+        "tests/evaluation-lab.test.mjs",
+        "scripts/run-evals.mjs",
+        "evals/lab/datasets/deterministic-regression.v1.json",
+        "evals/lab/datasets/model-quality-shadow.v1.json",
+        "evals/lab/experiments/oaf-026-selector-smoke.json",
+        "evals/lab/reports/oaf-026-selector-smoke-report.json",
+        "packages/protocol/schemas/evaluation-dataset.schema.json",
+        "packages/protocol/schemas/evaluation-experiment.schema.json",
+        "packages/protocol/schemas/evaluation-report.schema.json",
+        "packages/protocol/schemas/evaluation-trace-promotion.schema.json",
+        "docs/implementation/OAF-026-evaluation-laboratory-note.md"
+      ],
+      "limitations": [
+        "Deterministic regression suite is local and fixture-backed",
+        "Model-quality suites are shadow-only and non-blocking by default",
+        "No hosted judge, external telemetry upload, online experimentation service, external adapter, external write, browser automation, vector database, graph database, or embedding store"
+      ]
+    },
+    {
       "id": "runtime.durable",
       "name": "Durable workflow runtime",
       "status": "reference",
@@ -616,23 +640,23 @@
   ],
   "qualitySnapshot": {
     "asOf": "2026-06-20",
-      "commands": [
-        "npm ci --ignore-scripts --no-audit --no-fund",
-        "npm run bootstrap",
-        "npm run doctor",
-        "node --test tests/tool-manifest-loader.test.mjs tests/tool-grants.test.mjs tests/tool-executor.test.mjs tests/tool-executor-brokers.test.mjs tests/tool-durable-integration.test.mjs tests/tool-registry.test.mjs tests/policy-contextual.test.mjs tests/workflow-durable-sqlite.test.mjs tests/workflow-durable-crash.test.mjs",
-        "npm run protocol:validate",
-        "npm run eval",
-        "npm run ci",
-        "npm run tool:bounded:smoke",
-        "npm run workflow:durable:smoke",
-        "npm run demo",
-        "npm run native:smoke",
-        "npm run verify:handoff"
-      ],
-    "testsExpected": 189,
-    "protocolFixturesExpected": 96,
-    "evaluationsExpected": 101,
+    "commands": [
+      "npm ci --ignore-scripts --no-audit --no-fund",
+      "npm run bootstrap",
+      "npm run doctor",
+      "node --test tests/tool-manifest-loader.test.mjs tests/tool-grants.test.mjs tests/tool-executor.test.mjs tests/tool-executor-brokers.test.mjs tests/tool-durable-integration.test.mjs tests/tool-registry.test.mjs tests/policy-contextual.test.mjs tests/workflow-durable-sqlite.test.mjs tests/workflow-durable-crash.test.mjs",
+      "npm run protocol:validate",
+      "npm run eval",
+      "npm run ci",
+      "npm run tool:bounded:smoke",
+      "npm run workflow:durable:smoke",
+      "npm run demo",
+      "npm run native:smoke",
+      "npm run verify:handoff"
+    ],
+    "testsExpected": 192,
+    "protocolFixturesExpected": 101,
+    "evaluationsExpected": 105,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
 }

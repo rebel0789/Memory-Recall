@@ -653,7 +653,7 @@
       "id": "OAF-026",
       "title": "Build evaluation laboratory",
       "milestone": "Milestone 8",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:evaluator",
       "dependsOn": [
         "OAF-011",

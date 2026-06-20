@@ -494,6 +494,36 @@
       "expectedValid": true
     },
     {
+      "id": "evaluation-dataset-current-valid",
+      "schema": "packages/protocol/schemas/evaluation-dataset.schema.json",
+      "instance": "examples/protocol/evaluation-dataset.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evaluation-experiment-current-valid",
+      "schema": "packages/protocol/schemas/evaluation-experiment.schema.json",
+      "instance": "examples/protocol/evaluation-experiment.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evaluation-report-current-valid",
+      "schema": "packages/protocol/schemas/evaluation-report.schema.json",
+      "instance": "examples/protocol/evaluation-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evaluation-trace-promotion-current-valid",
+      "schema": "packages/protocol/schemas/evaluation-trace-promotion.schema.json",
+      "instance": "examples/protocol/evaluation-trace-promotion.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evaluation-trace-promotion-raw-prompt-invalid",
+      "schema": "packages/protocol/schemas/evaluation-trace-promotion.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/evaluation-trace-promotion-raw-prompt.json",
+      "expectedValid": false
+    },
+    {
       "id": "event-missing-run-invalid",
       "schema": "packages/protocol/schemas/event.schema.json",
       "instance": "examples/protocol/compatibility/invalid/event-missing-run.json",

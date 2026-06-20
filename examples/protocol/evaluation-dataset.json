@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalds_context_regression",
+  "suite": "deterministic-regression",
+  "version": "1.0.0",
+  "owner": "agent:evaluator",
+  "description": "Deterministic context-selection regression dataset.",
+  "mergeGate": true,
+  "sourceRefs": ["evals/context-selection/cases.json"],
+  "cases": [
+    {
+      "id": "evalcase_required_recall",
+      "kind": "context-selection",
+      "inputFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "assertions": ["distractor_exclusion", "required_recall"],
+      "tags": ["context", "deterministic"]
+    }
+  ],
+  "createdAt": "2026-06-20T00:00:00.000Z",
+  "labVersion": "1.0.0",
+  "datasetFingerprint": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+}

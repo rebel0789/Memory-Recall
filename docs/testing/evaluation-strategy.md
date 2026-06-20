@@ -56,3 +56,26 @@ Separate nondeterministic quality tests from merge-blocking contract tests. A mo
 ## Production-to-regression loop
 
 A failed trace may become a fixture only after sanitization, classification review, minimal reproduction, and explicit provenance. Do not copy private user data into the public suite.
+
+## OAF-026 Evaluation Lab
+
+Evaluation records now use four protocol shapes:
+
+- evaluation datasets: versioned case collections with a suite type and
+  fingerprint;
+- evaluation experiments: dataset, subject, baseline, candidate, mode, and
+  fingerprint;
+- evaluation reports: runner, commit, compiler, prompt, model, policy, counts,
+  results, and gate decision;
+- trace promotions: reviewed, sanitized run fragments promoted into regression
+  cases.
+
+`deterministic-regression` datasets are merge gates. `model-quality-shadow`
+datasets are explicit non-blocking suites for local model/prompt comparisons.
+Shadow failures are recorded as `shadow_failed_non_blocking`; they do not change
+defaults or fail CI by themselves.
+
+Trace promotion stores original and sanitized fingerprints plus safe attributes
+only. Raw prompts, context bodies, outputs, credentials, provider URLs, local
+paths, hidden reasoning, SQL, cookies, tokens, authorization material, and
+private source bodies remain out of fixtures and reports.

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalrep_oaf026_selector_smoke",
+  "experiment": {
+    "id": "evalexp_oaf026_selector_smoke",
+    "mode": "deterministic",
+    "mergeGate": true,
+    "experimentFingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+    "dataset": {
+      "id": "evalds_oaf_deterministic_regression",
+      "suite": "deterministic-regression",
+      "version": "1.0.0",
+      "mergeGate": true,
+      "datasetFingerprint": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    }
+  },
+  "mergeGate": true,
+  "commitSha": "7a7630903d27137a425536b1eee6a40d8b41fd1c",
+  "runner": {
+    "name": "scripts/run-evals.mjs",
+    "version": "1.0.0"
+  },
+  "versions": {
+    "compiler": "1.0.0",
+    "prompt": "none",
+    "model": "deterministic-v1",
+    "policy": "1.0.0"
+  },
+  "results": [
+    {
+      "caseId": "evalcase_context_required_recall",
+      "status": "passed",
+      "metrics": {
+        "requiredRecall": 1,
+        "budgetWithinLimit": true
+      }
+    }
+  ],
+  "counts": {
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0
+  },
+  "gateDecision": "pass",
+  "generatedAt": "2026-06-20T00:02:00.000Z",
+  "labVersion": "1.0.0",
+  "reportFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

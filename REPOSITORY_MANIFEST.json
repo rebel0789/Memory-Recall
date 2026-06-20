@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T15:53:16.066Z",
-  "fileCount": 639,
-  "totalBytes": 1990854,
+  "generatedAt": "2026-06-20T16:06:29.788Z",
+  "fileCount": 657,
+  "totalBytes": 2047878,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 14852,
-      "sha256": "e52dcff3f838779ae9e91c71b7eb548990a9e9054d94160fcef61eacaf5a3b1e"
+      "bytes": 15558,
+      "sha256": "27e4d4572bbdb415ca761027876bea11242c667c548ca43182b46a60daae1031"
     },
     {
       "path": "CITATION.cff",
@@ -880,6 +880,11 @@
       "sha256": "5d45e3a0873929c8c0b40356dcf9fa41c388a9f17da4f6bc3691c0a5d7cf6baa"
     },
     {
+      "path": "docs/implementation/OAF-026-evaluation-laboratory-note.md",
+      "bytes": 1566,
+      "sha256": "0ed09de8a239d3ba497d3eb9ae2f2e28632345ce8f2677bce491a4b5bf77ef42"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -1031,8 +1036,8 @@
     },
     {
       "path": "docs/testing/evaluation-strategy.md",
-      "bytes": 3369,
-      "sha256": "7c394e5b8fdbec5cd33a3bd55bc783c99e9a722cebd62e0503f0733284ddcdd8"
+      "bytes": 4384,
+      "sha256": "156620cc3e4c83cc8271b49846deea7531f598100f72773829b4d625f46c1ba0"
     },
     {
       "path": "docs/testing/golden-path.md",
@@ -1041,13 +1046,13 @@
     },
     {
       "path": "docs/testing/quality-gates.md",
-      "bytes": 827,
-      "sha256": "1e47c8432c5a24d15340e6774fb9a9cc3f0b2829eadf00f8108fabba01bb94d5"
+      "bytes": 937,
+      "sha256": "d9d89c6232085630dfbf1811b5888663913771126499f445f28e0e0e794f5731"
     },
     {
       "path": "docs/testing/test-matrix.md",
-      "bytes": 1766,
-      "sha256": "ae2d5d9920924d5acb3e0b18aab08e22355d39cc5402759c530f24cbd85a4403"
+      "bytes": 2064,
+      "sha256": "a47cd55621d909939386754b7de2b7d38691f50a92fd63a44ec6c346828cd638"
     },
     {
       "path": "docs/ux/accessibility.md",
@@ -1095,6 +1100,31 @@
       "sha256": "728e66e3f46ef33be9fa96c8860fe4ce51174c1d2ea9c2ed264bfe7473bddccf"
     },
     {
+      "path": "evals/lab/datasets/deterministic-regression.v1.json",
+      "bytes": 1314,
+      "sha256": "baf8f69ae1d3b693d2f44675910f404e027c1769c0ba8f54b8445592b6ad21f2"
+    },
+    {
+      "path": "evals/lab/datasets/model-quality-shadow.v1.json",
+      "bytes": 935,
+      "sha256": "7b633847f78c0bc64c1d15aa09c6d304c391b3ad45a0edd98022b48cb68433da"
+    },
+    {
+      "path": "evals/lab/experiments/oaf-026-selector-smoke.json",
+      "bytes": 1129,
+      "sha256": "882e915c4808be8e997fc7e6cab5c9fe97f3e7d026e543155b5da02a8f038e52"
+    },
+    {
+      "path": "evals/lab/README.md",
+      "bytes": 675,
+      "sha256": "1ee6012aac7999bff9998ec945eba4bb00110056ea335a3817643ac53dcf176c"
+    },
+    {
+      "path": "evals/lab/reports/oaf-026-selector-smoke-report.json",
+      "bytes": 1310,
+      "sha256": "ef48e686a84269b4010da9d0ac101fadb5f74a3db626d9a05732901ab24cb47f"
+    },
+    {
       "path": "evals/memory/cases.json",
       "bytes": 1055,
       "sha256": "73c137725dd5bdd7173ef761cf28e0c5e1d2ccece04877f56b1b839462717b90"
@@ -1106,8 +1136,8 @@
     },
     {
       "path": "evals/README.md",
-      "bytes": 224,
-      "sha256": "64bc2706f1e83d03b6f5a314c29043ca28debbf65da3ddee2cc568ae278f6d01"
+      "bytes": 887,
+      "sha256": "48c19210e459f40c1e7d69d89e3adc5a28c4d97eca50661cab89e7eb44508e58"
     },
     {
       "path": "examples/agent-handoff/first-task.md",
@@ -1376,8 +1406,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 23722,
-      "sha256": "7d582ed644c496d75c590d4c1aad8cbfcb5cc031b3089c657cfa6555f1b74387"
+      "bytes": 24955,
+      "sha256": "1845b317c36eb997f8daf14b4d48dcdbd31cffcee266b23f97c90d58b5926f19"
     },
     {
       "path": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
@@ -1413,6 +1443,11 @@
       "path": "examples/protocol/compatibility/invalid/context-selection-result-raw-text.json",
       "bytes": 2845,
       "sha256": "515d4086edafecb6115959ad2a45d2d2575077ee0595c7169c23439b3912216f"
+    },
+    {
+      "path": "examples/protocol/compatibility/invalid/evaluation-trace-promotion-raw-prompt.json",
+      "bytes": 1405,
+      "sha256": "b3619c066384370bfcc6b4931cebadcb0d8bed993dfe42a69fc85f2be2607935"
     },
     {
       "path": "examples/protocol/compatibility/invalid/event-missing-run.json",
@@ -1533,6 +1568,26 @@
       "path": "examples/protocol/deletion-receipt.json",
       "bytes": 593,
       "sha256": "d80cb37f9671f9d26b9f14918d657c6073a02eadf94b06c8f4163ba758fa6923"
+    },
+    {
+      "path": "examples/protocol/evaluation-dataset.json",
+      "bytes": 789,
+      "sha256": "d5185025e4c863b1cf7eb3f1549371ae7843384e9c33d8e4cfed65d93cf115e5"
+    },
+    {
+      "path": "examples/protocol/evaluation-experiment.json",
+      "bytes": 1089,
+      "sha256": "c132c5b35e6b3c6c1c060ed8f7b277c0bd0a4e5d986a0aa6fab8813d2378a32c"
+    },
+    {
+      "path": "examples/protocol/evaluation-report.json",
+      "bytes": 1287,
+      "sha256": "ecd3e5dc59ed22b1e32ee6e66083e1b6c987bc39ed40ca1784e07e6f045ab639"
+    },
+    {
+      "path": "examples/protocol/evaluation-trace-promotion.json",
+      "bytes": 1681,
+      "sha256": "d80466a52b13e843e18bc0d0d30196ea344f9943ec50ee702bc2f50a5b26f7ad"
     },
     {
       "path": "examples/protocol/event.json",
@@ -1662,7 +1717,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "e1caf7250dc36b2f5e8199ff38b280d3c5418f0e441288c7a79f3de1ed21d3b9"
+      "sha256": "6318ef503d1e1a2f311414969b04104dfcf0b2fedeef78ceaa31a28bbd0095e6"
     },
     {
       "path": "LICENSE",
@@ -1753,6 +1808,16 @@
       "path": "packages/context-compiler/src/index.mjs",
       "bytes": 100435,
       "sha256": "27e507ed9c8856c1acb7b8cea2cdece51e72e49f151c93ae8fb6ec94ffaef62a"
+    },
+    {
+      "path": "packages/evaluation-lab/package.json",
+      "bytes": 174,
+      "sha256": "e6307043dc86674707662a3e1021a93445ceec192311a584b362cc9ba16233d8"
+    },
+    {
+      "path": "packages/evaluation-lab/src/index.mjs",
+      "bytes": 14098,
+      "sha256": "a56ae411f38107845687213c430ffba606c7642edf813448d64113ba4fbc1a01"
     },
     {
       "path": "packages/evidence/package.json",
@@ -2145,6 +2210,26 @@
       "sha256": "a229211cbc3c243e952883f2fe1af8f4b9480ca83fc285ac751034809b5aba51"
     },
     {
+      "path": "packages/protocol/schemas/evaluation-dataset.schema.json",
+      "bytes": 1917,
+      "sha256": "6547839f77ef068e4849a1a24128a3e893963ba44dfc0ecd46f3df823259bc33"
+    },
+    {
+      "path": "packages/protocol/schemas/evaluation-experiment.schema.json",
+      "bytes": 2507,
+      "sha256": "256a36725c99f0796834f28e4fcb55e0602c7bba3541882bf12cdd7307db4da0"
+    },
+    {
+      "path": "packages/protocol/schemas/evaluation-report.schema.json",
+      "bytes": 3799,
+      "sha256": "f95cd1f1cf1b4400b7e7005382368ffa8b7797e654ae8a739759dbdf320a1acc"
+    },
+    {
+      "path": "packages/protocol/schemas/evaluation-trace-promotion.schema.json",
+      "bytes": 3808,
+      "sha256": "4ba4b8283e00d54fc7a4a42e9e979b374aacf52f15806a9022164e304ded5083"
+    },
+    {
       "path": "packages/protocol/schemas/event.schema.json",
       "bytes": 1414,
       "sha256": "598815892780e08d9edcc3b59a5c8f68c7527c9281a6f14aa86f560422932817"
@@ -2436,8 +2521,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26920,
-      "sha256": "2f417a8da61cf3ae11b4a87743b8496dbaa35cc39ed9e539dc6bf8347a714295"
+      "bytes": 26922,
+      "sha256": "38ad8367013e19173838b27d5a3b2a925479ee754245e750f160bc92c210b9b9"
     },
     {
       "path": "planning/README.md",
@@ -2451,8 +2536,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 26236,
-      "sha256": "c2ff13936e5eba97489e9fb73a8a1068a2d24ffbcf0d478f06468fbe5bb12444"
+      "bytes": 27445,
+      "sha256": "20636c6f977fcc40af9d0a90cf748393ff0ac93f83cb14d7178c704ae2e75439"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2711,8 +2796,8 @@
     },
     {
       "path": "scripts/run-evals.mjs",
-      "bytes": 34221,
-      "sha256": "ae67882eab7fdcac640a79d01e79b73373280d4a364290103b95878c2d4e8286"
+      "bytes": 38785,
+      "sha256": "6c7abe469f068c950188cc06a6014973b1d1430c7cdc8cc90a323b7513135c33"
     },
     {
       "path": "scripts/status.mjs",
@@ -2902,7 +2987,7 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "28d70536593a183b8f260571d1a4fc80039cfa491601209d1f88f9c1a263939f"
+      "sha256": "4000af2adecaaf57c499500edd8fee1cbec5489868f781a27cdb5ddbf7130825"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -2973,6 +3058,11 @@
       "path": "tests/control-api.test.mjs",
       "bytes": 3979,
       "sha256": "5efb80641b7f37423c4b90d2f468777c4910d3dfaf58c9124e4ffef5e704d790"
+    },
+    {
+      "path": "tests/evaluation-lab.test.mjs",
+      "bytes": 7741,
+      "sha256": "44b4da188ce2694f07ba4c8f6d0accd84bb169371425202bcf0f51978575918f"
     },
     {
       "path": "tests/evidence.test.mjs",

@@ -1,0 +1,8 @@
+{
+  "name": "@open-agent-fabric/evaluation-lab",
+  "version": "0.2.0-dev",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.mjs",
+  "license": "Apache-2.0"
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evaltp_raw_prompt",
+  "datasetId": "evalds_context_regression",
+  "sourceRunId": "run_failed_trace",
+  "originalTraceFingerprint": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+  "sanitizedTrace": {
+    "schemaVersion": "1.0.0",
+    "events": [
+      {
+        "type": "model.requested",
+        "occurredAt": "2026-06-20T00:00:00.000Z",
+        "payloadFingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "safeAttributes": {},
+        "prompt": "raw prompt must never be present"
+      }
+    ],
+    "spans": [],
+    "traceFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "case": {
+    "id": "evalcase_promoted_failed_model_trace",
+    "kind": "promoted-trace",
+    "inputFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "assertions": ["regression_reproduces", "sensitive_data_absent"],
+    "tags": ["promoted-trace", "run_failed_trace"]
+  },
+  "review": {
+    "reviewedBy": "usr_eval_reviewer",
+    "approved": true,
+    "dataClasses": ["workspace-private"],
+    "reason": "Minimal reproduction after private body redaction."
+  },
+  "createdAt": "2026-06-20T00:03:00.000Z",
+  "labVersion": "1.0.0",
+  "promotionFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

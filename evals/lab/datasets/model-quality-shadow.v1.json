@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalds_oaf_model_quality_shadow",
+  "suite": "model-quality-shadow",
+  "version": "1.0.0",
+  "owner": "agent:evaluator",
+  "description": "Non-blocking local model-quality suite for structured output, evidence use, copying risk, calibration, and task utility.",
+  "mergeGate": false,
+  "sourceRefs": [
+    "docs/testing/evaluation-strategy.md",
+    "workflows/content-intelligence/workflow.json"
+  ],
+  "cases": [
+    {
+      "id": "evalcase_content_angle_quality",
+      "kind": "model-quality",
+      "inputFingerprint": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "assertions": ["schema_valid", "evidence_use", "copying_risk_absent"],
+      "tags": ["model-quality", "shadow"]
+    }
+  ],
+  "createdAt": "2026-06-20T00:00:00.000Z",
+  "labVersion": "1.0.0",
+  "datasetFingerprint": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+}

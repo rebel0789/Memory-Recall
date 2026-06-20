@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/evaluation-trace-promotion.schema.json",
+  "title": "Evaluation Trace Promotion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "datasetId", "sourceRunId", "originalTraceFingerprint", "sanitizedTrace", "case", "review", "createdAt", "labVersion", "promotionFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^evaltp_[A-Za-z0-9._:-]+$" },
+    "datasetId": { "type": "string", "pattern": "^evalds_[A-Za-z0-9._:-]+$" },
+    "sourceRunId": { "type": "string", "minLength": 1 },
+    "originalTraceFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sanitizedTrace": { "$ref": "#/$defs/sanitizedTrace" },
+    "case": { "$ref": "#/$defs/case" },
+    "review": { "$ref": "#/$defs/review" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "labVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "promotionFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "sanitizedTrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "events", "spans", "traceFingerprint"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "events": { "type": "array", "items": { "$ref": "#/$defs/sanitizedEvent" } },
+        "spans": { "type": "array", "items": { "$ref": "#/$defs/sanitizedSpan" } },
+        "traceFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "sanitizedEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "occurredAt", "payloadFingerprint", "safeAttributes"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "occurredAt": { "type": ["string", "null"], "format": "date-time" },
+        "payloadFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "safeAttributes": { "type": "object", "additionalProperties": { "type": ["string", "number", "integer", "boolean"] } }
+      }
+    },
+    "sanitizedSpan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "attributesFingerprint", "safeAttributes"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "attributesFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "safeAttributes": { "type": "object", "additionalProperties": { "type": ["string", "number", "integer", "boolean"] } }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "inputFingerprint", "assertions", "tags"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^evalcase_[A-Za-z0-9._:-]+$" },
+        "kind": { "type": "string", "minLength": 1 },
+        "inputFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "assertions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "tags": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewedBy", "approved", "dataClasses", "reason"],
+      "properties": {
+        "reviewedBy": { "type": "string", "minLength": 1 },
+        "approved": { "const": true },
+        "dataClasses": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 240 }
+      }
+    }
+  }
+}

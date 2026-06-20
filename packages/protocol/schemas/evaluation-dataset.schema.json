@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/evaluation-dataset.schema.json",
+  "title": "Evaluation Dataset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "suite", "version", "owner", "description", "mergeGate", "sourceRefs", "cases", "createdAt", "labVersion", "datasetFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^evalds_[A-Za-z0-9._:-]+$" },
+    "suite": { "enum": ["deterministic-regression", "model-quality-shadow"] },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "owner": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "maxLength": 240 },
+    "mergeGate": { "type": "boolean" },
+    "sourceRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "cases": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/case" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "labVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "datasetFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "inputFingerprint", "assertions", "tags"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^evalcase_[A-Za-z0-9._:-]+$" },
+        "kind": { "type": "string", "minLength": 1 },
+        "inputFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "assertions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "tags": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    }
+  }
+}

@@ -35,6 +35,12 @@ import {
   createDurableSmokeWorkflowDefinition,
   createDurableSmokeWorkflowRegistry
 } from '../providers/native/workflow-durable-sqlite/src/index.mjs';
+import {
+  createEvaluationDataset,
+  createEvaluationExperiment,
+  promoteTraceToEvaluationCase,
+  recordEvaluationReport
+} from '../packages/evaluation-lab/src/index.mjs';
 let passed=0,failed=0;const check=(label,condition)=>{if(condition){console.log(`PASS ${label}`);passed++}else{console.error(`FAIL ${label}`);failed++}};
 const contextCases=JSON.parse(await readFile('evals/context-selection/cases.json','utf8'));
 for(const test of contextCases){
@@ -98,6 +104,18 @@ let blockedDefault=false;try{promoteSelectorDefault({candidatePolicy:selectorVar
 check('context-feedback: selector default requires evaluation',blockedDefault);
 const defaultPlan=promoteSelectorDefault({candidatePolicy:selectorVariant,evaluationReport:{reportId:'eval_selector_default',passed:true,evaluationCount:5,regressionCount:0,metrics:{requiredRecall:1,contextUseFeedbackCount:2},rollbackPlan:'Restore baseline selector fingerprint.'},createdAt:'2026-06-20T00:00:00.000Z'});
 check('context-feedback: selector default promotion remains review-only',defaultPlan.status==='review_required'&&defaultPlan.defaultChanged===false&&defaultPlan.requiresHumanApproval===true);
+const evalLabDataset=createEvaluationDataset({id:'evalds_context_regression',suite:'deterministic-regression',version:'1.0.0',owner:'agent:evaluator',sourceRefs:['evals/context-selection/cases.json'],createdAt:'2026-06-20T00:00:00.000Z',cases:[{id:'evalcase_required_recall',kind:'context-selection',inputFingerprint:`sha256:${'1'.repeat(64)}`,assertions:['required_recall','distractor_exclusion'],tags:['context','deterministic']}]});
+const evalLabShadowDataset=createEvaluationDataset({id:'evalds_model_quality_shadow',suite:'model-quality-shadow',version:'1.0.0',owner:'agent:evaluator',sourceRefs:['evals/lab/datasets/model-quality-shadow.v1.json'],createdAt:'2026-06-20T00:00:00.000Z',cases:[{id:'evalcase_model_quality_shadow',kind:'model-quality',inputFingerprint:`sha256:${'2'.repeat(64)}`,assertions:['schema_valid','evidence_use'],tags:['model-quality','shadow']}]});
+check('evaluation-lab: separates deterministic and model-quality suites',evalLabDataset.mergeGate===true&&evalLabShadowDataset.mergeGate===false&&/^sha256:[a-f0-9]{64}$/.test(evalLabDataset.datasetFingerprint));
+const evalLabExperiment=createEvaluationExperiment({id:'evalexp_selector_policy_v1',dataset:evalLabDataset,subject:{kind:'selector',id:'context.selection',version:'1.0.0',fingerprint:`sha256:${'3'.repeat(64)}`},baseline:{id:'selector-baseline',version:'1.0.0',fingerprint:`sha256:${'4'.repeat(64)}`},candidate:{id:'selector-candidate',version:'1.0.1',fingerprint:`sha256:${'5'.repeat(64)}`},mode:'deterministic',createdAt:'2026-06-20T00:01:00.000Z'});
+const evalLabReport=recordEvaluationReport({id:'evalrep_selector_policy_v1',experiment:evalLabExperiment,commitSha:'7a7630903d27137a425536b1eee6a40d8b41fd1c',runner:{name:'scripts/run-evals.mjs',version:'1.0.0'},versions:{compiler:'1.0.0',prompt:'none',model:'deterministic-v1',policy:'1.0.0'},results:[{caseId:'evalcase_required_recall',status:'passed',metrics:{requiredRecall:1}}],generatedAt:'2026-06-20T00:02:00.000Z'});
+check('evaluation-lab: deterministic reports are merge gated',evalLabReport.gateDecision==='pass'&&evalLabReport.mergeGate===true&&evalLabReport.counts.failed===0);
+const evalLabShadowExperiment=createEvaluationExperiment({id:'evalexp_shadow_quality',dataset:evalLabShadowDataset,subject:{kind:'model',id:'provider:native:model:deterministic',version:'1.0.0',fingerprint:`sha256:${'6'.repeat(64)}`},baseline:{id:'deterministic-v1',version:'1.0.0',fingerprint:`sha256:${'7'.repeat(64)}`},candidate:{id:'explicit-local-quality-run',version:'manual',fingerprint:`sha256:${'8'.repeat(64)}`},mode:'model-quality',createdAt:'2026-06-20T00:01:00.000Z'});
+const evalLabShadowReport=recordEvaluationReport({id:'evalrep_shadow_quality',experiment:evalLabShadowExperiment,commitSha:'7a7630903d27137a425536b1eee6a40d8b41fd1c',runner:{name:'manual-shadow',version:'0.0.0'},versions:{compiler:'1.0.0',prompt:'content-intelligence.generate-angles.v1',model:'explicit-local-only',policy:'1.0.0'},results:[{caseId:'evalcase_model_quality_shadow',status:'failed',metrics:{calibration:0.4}}],generatedAt:'2026-06-20T00:02:00.000Z'});
+check('evaluation-lab: model-quality reports remain shadow only',evalLabShadowReport.gateDecision==='shadow_failed_non_blocking'&&evalLabShadowReport.mergeGate===false);
+const evalLabPromoted=promoteTraceToEvaluationCase({id:'evaltp_failed_model_trace',datasetId:'evalds_context_regression',caseId:'evalcase_promoted_failed_model_trace',sourceRunId:'run_failed_trace',createdAt:'2026-06-20T00:03:00.000Z',review:{reviewedBy:'usr_eval_reviewer',approved:true,dataClasses:['workspace-private'],reason:'Minimal reproduction after private body redaction.'},trace:{events:[{type:'model.requested',occurredAt:'2026-06-20T00:00:00.000Z',payload:{prompt:'private prompt',contextBody:'private source body',contextManifestId:'ctx_safe',output:'raw model output'}}],spans:[{name:'oaf.model.generate',attributes:{localPath:'/Users/rebel/project/file.txt','model.provider':'provider:native:model:deterministic'}}]}});
+const evalLabPromotedText=JSON.stringify(evalLabPromoted);
+check('evaluation-lab: trace promotion is sanitized',evalLabPromoted.case.inputFingerprint===evalLabPromoted.sanitizedTrace.traceFingerprint&&!evalLabPromotedText.includes('private prompt')&&!evalLabPromotedText.includes('private source body')&&!evalLabPromotedText.includes('raw model output')&&!evalLabPromotedText.includes('/Users/rebel'));
 const patternAnalysis=analyzeContentPatterns([
   {id:'obs_eval_pattern_a',text:'A six-step recovery checklist showing retries got more saves and cut debugging time.',collectedAt:'2026-06-20T00:00:00.000Z',publishedAt:'2026-06-19T00:00:00.000Z',metrics:{views:12000,replies:80,saves:450},baselines:{views:4000,replies:20,saves:100},inferred:{pattern:'reusable artifact'}},
   {id:'obs_eval_pattern_b',text:'A broad prediction about agents changing everything soon.',collectedAt:'2026-06-20T00:00:00.000Z',metrics:{views:90000},inferred:{pattern:'generic prediction'}},
