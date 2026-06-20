@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-use-feedback-1.0.json",
+  "title": "Context Use Feedback",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "workspaceId",
+    "runId",
+    "taskId",
+    "actorId",
+    "createdAt",
+    "contextManifest",
+    "selectedRecordUse",
+    "outcomeReferences",
+    "causalClaim",
+    "feedbackFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^ctxuse_[A-Za-z0-9._:-]+$" },
+    "workspaceId": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "taskId": { "type": ["string", "null"] },
+    "actorId": { "type": ["string", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "contextManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "requestId",
+        "manifestFingerprint",
+        "assemblyFingerprint",
+        "compilerVersion",
+        "selectionPolicyVersion",
+        "selectionPolicyFingerprint",
+        "selectionResultFingerprint",
+        "selectedRecordIds"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "requestId": { "type": ["string", "null"] },
+        "manifestFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "assemblyFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+        "compilerVersion": { "type": "string", "minLength": 1 },
+        "selectionPolicyVersion": { "type": ["string", "null"] },
+        "selectionPolicyFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+        "selectionResultFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+        "selectedRecordIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "selectedRecordUse": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["recordId", "selectedOrder", "useState", "evidenceRefs", "outcomeRefs"],
+        "properties": {
+          "recordId": { "type": "string", "minLength": 1 },
+          "selectedOrder": { "type": "integer", "minimum": 1 },
+          "useState": { "enum": ["used", "not_observed"] },
+          "evidenceRefs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "outcomeRefs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "outcomeReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["outcomeId", "kind", "metric", "direction", "observedAt", "evidenceRef"],
+        "properties": {
+          "outcomeId": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "metric": { "type": "string", "minLength": 1 },
+          "direction": { "enum": ["positive", "negative", "neutral", "unknown"] },
+          "observedAt": { "type": "string", "format": "date-time" },
+          "evidenceRef": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "causalClaim": { "const": "none" },
+    "feedbackFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

@@ -1860,6 +1860,264 @@ export async function compileAndPersistContext(request, input, {
   };
 }
 
+const RAW_FEEDBACK_KEYS = new Set(['rawOutput', 'rawPrompt', 'rawContext', 'rawBody', 'body', 'text', 'content', 'localPath', 'path', 'credential', 'credentials', 'secret', 'token', 'hiddenReasoning']);
+const OUTCOME_DIRECTIONS = new Set(['positive', 'negative', 'neutral', 'unknown']);
+const EXPERIMENT_ARMS = new Set(['baseline', 'variant', 'rollback']);
+
+function assertFeedbackId(value, name) {
+  return requireString(value, name, { maxBytes: 160, pattern: /^[a-z][a-z0-9_.:-]*$/ });
+}
+
+function assertNoRawFeedbackFields(value, name) {
+  if (!value || typeof value !== 'object') return;
+  for (const key of Object.keys(value)) {
+    if (RAW_FEEDBACK_KEYS.has(key) || key.toLowerCase().includes('raw')) {
+      const error = new Error(`${name}_raw_field`);
+      error.code = `${name}_raw_field`;
+      throw error;
+    }
+  }
+}
+
+function normalizeOutcomeReference(input) {
+  assertPlainObject(input, 'context outcome reference');
+  assertNoRawFeedbackFields(input, 'context_outcome');
+  const outcomeId = assertFeedbackId(input.outcomeId ?? input.id, 'context outcome id');
+  requireString(input.kind, 'context outcome kind', { maxBytes: 64, pattern: /^[a-z][a-z0-9_.:-]*$/ });
+  requireString(input.metric, 'context outcome metric', { maxBytes: 128, pattern: /^[a-z][a-z0-9_.:-]*$/ });
+  requireIsoTimestamp(input.observedAt, 'context outcome observedAt');
+  const direction = input.direction ?? 'unknown';
+  if (!OUTCOME_DIRECTIONS.has(direction)) throw new Error('context_outcome_direction_invalid');
+  return {
+    outcomeId,
+    kind: input.kind,
+    metric: input.metric,
+    direction,
+    observedAt: input.observedAt,
+    evidenceRef: input.evidenceRef ? assertFeedbackId(input.evidenceRef, 'context outcome evidenceRef') : null
+  };
+}
+
+function normalizeUsedRecord(input, selectedIds, outcomeIds) {
+  assertPlainObject(input, 'context selected record use');
+  assertNoRawFeedbackFields(input, 'context_use');
+  const recordId = assertFeedbackId(input.recordId ?? input.id, 'context use recordId');
+  if (!selectedIds.has(recordId)) {
+    const error = new Error('context_use_unselected_record');
+    error.code = 'context_use_unselected_record';
+    throw error;
+  }
+  const evidenceRefs = normalizeStringArray(input.evidenceRefs ?? [], 'context use evidenceRefs', { max: 32, pattern: /^[a-z][a-z0-9_.:-]*$/ });
+  const refs = normalizeStringArray(input.outcomeRefs ?? [], 'context use outcomeRefs', { max: 32, pattern: /^[a-z][a-z0-9_.:-]*$/ });
+  for (const ref of refs) if (!outcomeIds.has(ref)) throw new Error('context_use_unknown_outcome_ref');
+  return {
+    recordId,
+    useState: 'used',
+    evidenceRefs,
+    outcomeRefs: refs
+  };
+}
+
+function manifestSelectionPolicy(manifest) {
+  return manifest.selectionPolicy ?? {
+    version: manifest.selection?.selectionPolicyVersion ?? manifest.selectionSummary?.selectionPolicyVersion ?? null,
+    fingerprint: manifest.selection?.selectionPolicyFingerprint ?? manifest.selectionSummary?.selectionPolicyFingerprint ?? null,
+    resultFingerprint: manifest.selection?.resultFingerprint ?? manifest.selectionSummary?.resultFingerprint ?? null,
+    candidateGenerationFingerprint: manifest.selection?.candidateGenerationFingerprint ?? manifest.selectionSummary?.candidateGenerationFingerprint ?? null
+  };
+}
+
+export function recordContextUseFeedback({
+  id = null,
+  manifest,
+  runId,
+  taskId = null,
+  actorId = null,
+  usedRecords = [],
+  outcomeReferences = [],
+  createdAt = null
+} = {}) {
+  assertPlainObject(manifest, 'context manifest');
+  assertFeedbackId(runId, 'context feedback runId');
+  if (!Array.isArray(usedRecords)) throw new Error('context_use_records_array_required');
+  if (!Array.isArray(outcomeReferences)) throw new Error('context_outcome_references_array_required');
+  const selected = (manifest.selected ?? []).map((item, index) => ({
+    recordId: assertFeedbackId(item.id, 'context feedback selected id'),
+    selectedOrder: Number.isInteger(item.order) ? item.order : index + 1
+  }));
+  const selectedIds = new Set(selected.map((item) => item.recordId));
+  const outcomes = outcomeReferences.map(normalizeOutcomeReference).sort((a, b) => a.outcomeId.localeCompare(b.outcomeId));
+  const outcomeIds = new Set(outcomes.map((item) => item.outcomeId));
+  const usedById = new Map(usedRecords.map((item) => {
+    const normalized = normalizeUsedRecord(item, selectedIds, outcomeIds);
+    return [normalized.recordId, normalized];
+  }));
+  const selectionPolicy = manifestSelectionPolicy(manifest);
+  const feedback = {
+    schemaVersion: '1.0.0',
+    id: id ?? prefixedId('ctxuse'),
+    workspaceId: manifest.workspaceId,
+    runId,
+    taskId,
+    actorId,
+    createdAt: createdAt ?? nowIso(),
+    contextManifest: {
+      id: manifest.id,
+      requestId: manifest.requestId ?? null,
+      manifestFingerprint: manifest.manifestFingerprint ?? hashRef(stableStringify({
+        id: manifest.id,
+        selected: selected.map((item) => item.recordId),
+        excluded: (manifest.excluded ?? []).map((item) => item.id)
+      })),
+      assemblyFingerprint: manifest.assembly?.assemblyFingerprint ?? null,
+      compilerVersion: manifest.compilerVersion ?? COMPILER_VERSION,
+      selectionPolicyVersion: selectionPolicy.version,
+      selectionPolicyFingerprint: selectionPolicy.fingerprint,
+      selectionResultFingerprint: selectionPolicy.resultFingerprint,
+      selectedRecordIds: selected.map((item) => item.recordId)
+    },
+    selectedRecordUse: selected.map((item) => {
+      const used = usedById.get(item.recordId);
+      return {
+        recordId: item.recordId,
+        selectedOrder: item.selectedOrder,
+        useState: used?.useState ?? 'not_observed',
+        evidenceRefs: used?.evidenceRefs ?? [],
+        outcomeRefs: used?.outcomeRefs ?? []
+      };
+    }),
+    outcomeReferences: outcomes,
+    causalClaim: 'none'
+  };
+  feedback.feedbackFingerprint = hashRef(stableStringify(feedback));
+  return deepFreeze(feedback);
+}
+
+export function summarizeContextUseFeedback(records) {
+  if (!Array.isArray(records)) throw new Error('context feedback records must be an array');
+  const recordUse = {};
+  const outcomes = { positive: 0, negative: 0, neutral: 0, unknown: 0 };
+  for (const record of records) {
+    assertPlainObject(record, 'context feedback record');
+    for (const item of record.selectedRecordUse ?? []) {
+      const summary = recordUse[item.recordId] ?? { selectedCount: 0, usedCount: 0, notObservedCount: 0, outcomeRefs: [] };
+      summary.selectedCount += 1;
+      if (item.useState === 'used') summary.usedCount += 1;
+      else summary.notObservedCount += 1;
+      summary.outcomeRefs.push(...(item.outcomeRefs ?? []));
+      summary.outcomeRefs = [...new Set(summary.outcomeRefs)].sort();
+      recordUse[item.recordId] = summary;
+    }
+    for (const outcome of record.outcomeReferences ?? []) outcomes[outcome.direction ?? 'unknown'] = (outcomes[outcome.direction ?? 'unknown'] ?? 0) + 1;
+  }
+  return deepFreeze({
+    schemaVersion: '1.0.0',
+    totalFeedbackRecords: records.length,
+    recordUse: Object.fromEntries(Object.entries(recordUse).sort(([left], [right]) => left.localeCompare(right))),
+    outcomes,
+    causalClaim: 'none'
+  });
+}
+
+function validateEvaluationReport(report, name = 'selector evaluation report') {
+  assertPlainObject(report, name);
+  if (report.passed !== true) throw new Error('selector_default_requires_passing_evaluation');
+  assertFeedbackId(report.reportId, `${name} reportId`);
+  if (!Number.isInteger(report.evaluationCount) || report.evaluationCount < 1) throw new Error('selector_default_requires_evaluation_count');
+  if (!Number.isInteger(report.regressionCount) || report.regressionCount !== 0) throw new Error('selector_default_requires_zero_regressions');
+  assertPlainObject(report.metrics ?? {}, `${name} metrics`);
+  if (Number(report.metrics.requiredRecall ?? 0) < 1) throw new Error('selector_default_requires_required_recall');
+  if (Number(report.metrics.contextUseFeedbackCount ?? 0) < 1) throw new Error('selector_default_requires_feedback_evidence');
+  requireString(report.rollbackPlan, `${name} rollbackPlan`, { maxBytes: 4096 });
+  return {
+    reportId: report.reportId,
+    passed: true,
+    evaluationCount: report.evaluationCount,
+    regressionCount: report.regressionCount,
+    metrics: cloneJson(report.metrics),
+    rollbackPlan: report.rollbackPlan
+  };
+}
+
+export function createSelectorExperiment({
+  id = null,
+  workspaceId = 'ws_local',
+  baselinePolicy = CONTEXT_SELECTION_POLICY,
+  variantPolicy,
+  evaluationReport,
+  createdAt = null
+} = {}) {
+  const baseline = validateContextSelectionPolicy(baselinePolicy);
+  const variant = validateContextSelectionPolicy(variantPolicy);
+  const baselineFingerprint = contextSelectionPolicyFingerprint(baseline);
+  const variantFingerprint = contextSelectionPolicyFingerprint(variant);
+  if (baselineFingerprint === variantFingerprint) throw new Error('selector_experiment_requires_distinct_variant');
+  const experiment = {
+    schemaVersion: '1.0.0',
+    id: id ?? prefixedId('ctxexp'),
+    workspaceId,
+    status: 'review',
+    reversible: true,
+    createdAt: createdAt ?? nowIso(),
+    baseline: {
+      policyVersion: baseline.policyVersion,
+      policyFingerprint: baselineFingerprint,
+      policy: baseline
+    },
+    variant: {
+      policyVersion: variant.policyVersion,
+      policyFingerprint: variantFingerprint,
+      policy: variant
+    },
+    evaluationReport: validateEvaluationReport(evaluationReport, 'selector experiment evaluation report'),
+    defaultChanged: false
+  };
+  experiment.experimentFingerprint = hashRef(stableStringify({
+    id: experiment.id,
+    workspaceId: experiment.workspaceId,
+    baseline: experiment.baseline.policyFingerprint,
+    variant: experiment.variant.policyFingerprint,
+    evaluationReportId: experiment.evaluationReport.reportId
+  }));
+  return deepFreeze(experiment);
+}
+
+export function resolveSelectorExperimentPolicy(experiment, { arm = 'baseline' } = {}) {
+  assertPlainObject(experiment, 'selector experiment');
+  if (!EXPERIMENT_ARMS.has(arm)) throw new Error('selector_experiment_arm_invalid');
+  const selected = arm === 'variant' ? experiment.variant : experiment.baseline;
+  return deepFreeze({
+    schemaVersion: '1.0.0',
+    experimentId: experiment.id,
+    arm,
+    policyVersion: selected.policyVersion,
+    policyFingerprint: selected.policyFingerprint,
+    policy: selected.policy,
+    reversibleToFingerprint: experiment.baseline.policyFingerprint,
+    defaultChanged: false
+  });
+}
+
+export function promoteSelectorDefault({ candidatePolicy, evaluationReport, createdAt = null } = {}) {
+  const policy = validateContextSelectionPolicy(candidatePolicy);
+  const report = validateEvaluationReport(evaluationReport);
+  const plan = {
+    schemaVersion: '1.0.0',
+    id: prefixedId('ctxprom'),
+    status: 'review_required',
+    createdAt: createdAt ?? nowIso(),
+    candidatePolicyVersion: policy.policyVersion,
+    candidatePolicyFingerprint: contextSelectionPolicyFingerprint(policy),
+    evaluationReportId: report.reportId,
+    evaluationReport: report,
+    requiresHumanApproval: true,
+    defaultChanged: false,
+    rollbackPlan: report.rollbackPlan
+  };
+  plan.promotionFingerprint = hashRef(stableStringify(plan));
+  return deepFreeze(plan);
+}
+
 function throwIfAborted(signal) {
   if (signal?.aborted) {
     const error = new Error('candidate_source_cancelled');

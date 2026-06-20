@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-selector-experiment-1.0.json",
+  "title": "Context Selector Experiment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "workspaceId",
+    "status",
+    "reversible",
+    "createdAt",
+    "baseline",
+    "variant",
+    "evaluationReport",
+    "defaultChanged",
+    "experimentFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^ctxexp_[A-Za-z0-9._:-]+$" },
+    "workspaceId": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["review", "active", "completed", "cancelled"] },
+    "reversible": { "const": true },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "baseline": { "$ref": "#/$defs/policyRef" },
+    "variant": { "$ref": "#/$defs/policyRef" },
+    "evaluationReport": { "$ref": "#/$defs/evaluationReport" },
+    "defaultChanged": { "const": false },
+    "experimentFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "policyRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyVersion", "policyFingerprint", "policy"],
+      "properties": {
+        "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "policyFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "policy": { "type": "object" }
+      }
+    },
+    "evaluationReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reportId", "passed", "evaluationCount", "regressionCount", "metrics", "rollbackPlan"],
+      "properties": {
+        "reportId": { "type": "string", "minLength": 1 },
+        "passed": { "const": true },
+        "evaluationCount": { "type": "integer", "minimum": 1 },
+        "regressionCount": { "const": 0 },
+        "metrics": { "type": "object" },
+        "rollbackPlan": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

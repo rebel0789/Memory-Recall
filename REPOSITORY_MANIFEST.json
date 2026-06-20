@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T12:03:44.674Z",
-  "fileCount": 615,
-  "totalBytes": 1743741,
+  "generatedAt": "2026-06-20T12:12:03.385Z",
+  "fileCount": 621,
+  "totalBytes": 1779999,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 10002,
-      "sha256": "f788ec74f7b8776334bd7d24e82a9da9916d5ca7fe560bc8c95db93a828c873a"
+      "bytes": 10591,
+      "sha256": "b06c946079fd0cde2ef01b765db5711bffcbc58c4b210f7da4e6a5f89689fdf5"
     },
     {
       "path": "CITATION.cff",
@@ -726,8 +726,8 @@
     },
     {
       "path": "docs/architecture/context-compiler.md",
-      "bytes": 6950,
-      "sha256": "9a9dad3c93cb68f7eeaea148a4e833b4f1519c70296e942581c1a38e85a73acc"
+      "bytes": 7965,
+      "sha256": "ba6678938f9580f770b6fcd64a0e0581799bb07ec83f02d1588e5ec5c1567da7"
     },
     {
       "path": "docs/architecture/domain-model.md",
@@ -840,6 +840,11 @@
       "sha256": "50dfff4f9117b529aa602401362d633ea96fa1d4cbd43faea368c2edd084b213"
     },
     {
+      "path": "docs/implementation/OAF-018-context-use-feedback-note.md",
+      "bytes": 1454,
+      "sha256": "7f494bba6a33ce30803df3f153a981b4d9e974517dcb24408fb6b575a43f6335"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -916,8 +921,8 @@
     },
     {
       "path": "docs/product/success-metrics.md",
-      "bytes": 1167,
-      "sha256": "a66c485c70b441514d8c3411ae32fcc746e325172d5167e39442460239b28917"
+      "bytes": 1373,
+      "sha256": "216c7fb4ac23f79be35f3a8cb47514da02181105e30046d93aed4149fc4dcee9"
     },
     {
       "path": "docs/product/user-stories.md",
@@ -991,8 +996,8 @@
     },
     {
       "path": "docs/testing/evaluation-strategy.md",
-      "bytes": 3104,
-      "sha256": "e02deeb946710f24ef22341548a9720eb80e5ed10e37cc0956c32eab56852ad3"
+      "bytes": 3369,
+      "sha256": "7c394e5b8fdbec5cd33a3bd55bc783c99e9a722cebd62e0503f0733284ddcdd8"
     },
     {
       "path": "docs/testing/golden-path.md",
@@ -1336,8 +1341,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 22483,
-      "sha256": "bde6b6243152023605d426e3fe9a11ba174473507430a033723e4cf9a5eecfde"
+      "bytes": 22972,
+      "sha256": "9d8d0748c31a2af055727ce82c859aaf9eeeff1c04dadd52749eb549ec098879"
     },
     {
       "path": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
@@ -1460,6 +1465,11 @@
       "sha256": "156df82749ae8a432629aa9f3a6359430db87a5449a6b6d7a923a6f45141790c"
     },
     {
+      "path": "examples/protocol/context-selector-experiment.json",
+      "bytes": 1072,
+      "sha256": "24d2cdb0c56fb85589c23453d418605c00d3afdf80f0628bc070ee08425e5ef8"
+    },
+    {
       "path": "examples/protocol/context-source-fusion-config.json",
       "bytes": 45,
       "sha256": "3791d2846d23f540d1853d5d0dfe547c4777c2399c3ef44167e2386081e7ee36"
@@ -1468,6 +1478,11 @@
       "path": "examples/protocol/context-sufficiency-result.json",
       "bytes": 369,
       "sha256": "a453bf5e320b1cf04e4b18e83cbf7a5aa1e3b2d9f9ebdcf8838a4a8d60249f37"
+    },
+    {
+      "path": "examples/protocol/context-use-feedback.json",
+      "bytes": 1593,
+      "sha256": "c9bce494369b72bfeca5c9d3731c2c588b1445cc2f48436e9b9532711d70c805"
     },
     {
       "path": "examples/protocol/deletion-receipt.json",
@@ -1597,7 +1612,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "d3e2f03cd575013332510305b040fd70b3e633f0ef6eea723e5b35d9fa653f69"
+      "sha256": "2ff501814071f8b65f001745c5698aa6eba7a2b27a1fc62edf44a8f69de483f2"
     },
     {
       "path": "LICENSE",
@@ -1686,8 +1701,8 @@
     },
     {
       "path": "packages/context-compiler/src/index.mjs",
-      "bytes": 89161,
-      "sha256": "f47e099327e833aedb73adfe88cbf21afe68b9e2cb88f93a94809ea06121c365"
+      "bytes": 100435,
+      "sha256": "27e507ed9c8856c1acb7b8cea2cdece51e72e49f151c93ae8fb6ec94ffaef62a"
     },
     {
       "path": "packages/evidence/package.json",
@@ -2010,6 +2025,11 @@
       "sha256": "c54cd5ac46459e4e141d55024e295a73effeab4594599e92197804533f0cdf3c"
     },
     {
+      "path": "packages/protocol/schemas/context-selector-experiment.schema.json",
+      "bytes": 2071,
+      "sha256": "5ae2189743dc09afd22f2590ccfd73916d3920f298f628936566eabde6de5da4"
+    },
+    {
       "path": "packages/protocol/schemas/context-source-fusion-config.schema.json",
       "bytes": 412,
       "sha256": "84921e27587e1d5b526594f4caf1465acbc72fa6479e36361d551a3e9aefb0aa"
@@ -2018,6 +2038,11 @@
       "path": "packages/protocol/schemas/context-sufficiency-result.schema.json",
       "bytes": 1517,
       "sha256": "b6a9e7472095c50880ddf8d7672e06f514e3d70fbcee55b4af29f503c3dffe82"
+    },
+    {
+      "path": "packages/protocol/schemas/context-use-feedback.schema.json",
+      "bytes": 3646,
+      "sha256": "31cc97fb98c5bc46dc661daf26c68142458e49cf2f7be82f6879d61c19a73a15"
     },
     {
       "path": "packages/protocol/schemas/deletion-receipt.schema.json",
@@ -2336,8 +2361,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26904,
-      "sha256": "94dba872d214f002e0098e1b268f8bffa34a27ae6523426d0923f87c04d543a0"
+      "bytes": 26906,
+      "sha256": "9c7b7b3319edc259a1fe85708dd919bf9416ec18b2b1a3b809a5abaac8e66cf2"
     },
     {
       "path": "planning/README.md",
@@ -2351,8 +2376,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 20188,
-      "sha256": "8a646a354b54bd11e6a05fbb8753f24c59933a9b255fe92f6733a15afbd1c13c"
+      "bytes": 21175,
+      "sha256": "ad38d34490d3137a7c3cd1be306c51135d8f1f724c362b14be70a13e8f73167c"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2551,8 +2576,8 @@
     },
     {
       "path": "REPOSITORY_MAP.md",
-      "bytes": 3152,
-      "sha256": "aed2bd3a1d06c6ae81438adcf4461b1ef5c6e7f2a7a32722ff85b3183b07b25f"
+      "bytes": 3184,
+      "sha256": "89176ae818b9b2af4d1bd96b3cb50d0868e45b4e7ff501882cc9bca140e64ae4"
     },
     {
       "path": "rfcs/0001-protocol-contracts.md",
@@ -2611,8 +2636,8 @@
     },
     {
       "path": "scripts/run-evals.mjs",
-      "bytes": 25982,
-      "sha256": "d1b41d81050a2b30ec2c4d8eae69ccf7aaf7d9e4a1f52a69f7e6787731ae5ee7"
+      "bytes": 29559,
+      "sha256": "1b639615879eef5a2777c7e8c1c05ae6189985c7399e31d10868a70e1ee35a74"
     },
     {
       "path": "scripts/status.mjs",
@@ -2843,6 +2868,11 @@
       "path": "tests/context-compiler.test.mjs",
       "bytes": 2287,
       "sha256": "63fd2eb95c6b00e3f66dc24ffb249a2e91038ef4bc6b8bbff8c2b96d29988057"
+    },
+    {
+      "path": "tests/context-feedback.test.mjs",
+      "bytes": 7986,
+      "sha256": "fdece53547fbfe8720cc805c5ec9da90d392647de5bdb718ed3692d890081d52"
     },
     {
       "path": "tests/context-manifest-store.test.mjs",

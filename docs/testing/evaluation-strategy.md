@@ -38,6 +38,11 @@ manifest fingerprint verification, comparison output, required-governance
 overflow, persistence, zero excluded-text leakage, workspace isolation, and
 retry idempotency.
 
+OAF-018 adds deterministic context-feedback checks for selected-record use
+against a manifest, unselected-record rejection, non-causal feedback summaries,
+reversible selector experiments, default-promotion evaluation requirements, and
+review-only promotion plans.
+
 OAF-014 adds deterministic durable-workflow checks for process recovery, retry
 recovery, timer recovery, approval-wait recovery, cancellation persistence,
 no completed-step repetition, idempotent effect count of one, monotonic event

@@ -94,6 +94,25 @@ fingerprint field itself. `assemblyFingerprint` is the SHA-256 over the assembly
 policy, section order, record IDs, selected content hashes, and token estimates.
 Persistence failures stop before model invocation.
 
+## Context-Use Feedback
+
+OAF-018 records post-run feedback as references, not interpretations. A
+context-use feedback record points at a persisted context manifest by ID and
+fingerprint, lists each selected record in manifest order, marks whether the
+record was observed as used, and links to sanitized outcome references. It does
+not store raw prompts, raw outputs, context bodies, local paths, credentials, or
+hidden reasoning.
+
+Feedback summaries report use counts and outcome directions with
+`causalClaim: none`. They measure association for diagnosis and regression
+tests; they do not claim that a selected record caused an outcome.
+
+Selector experiments compare a baseline policy fingerprint with a variant
+policy fingerprint and are reversible to the baseline. A selector default
+promotion returns a review-required plan only after a passing deterministic
+evaluation report with zero regressions, context-use feedback evidence, and a
+rollback plan. Assignment to an experiment arm does not mutate defaults.
+
 ## Required reason codes
 
 Examples include `required`, `explicit_requirement`, `forced_governance`, `entity_coverage`, `source_fusion`, `task_relevance`, `entity_relation`, `high_authority`, `token_budget`, `redundant`, `secret_context_denied`, `superseded_by_newer_record`, `outside_valid_time`, and `insufficient_marginal_utility`.

@@ -446,7 +446,7 @@
       "id": "OAF-018",
       "title": "Add context-use and outcome feedback",
       "milestone": "Milestone 5",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:evaluator",
       "dependsOn": [
         "OAF-012",

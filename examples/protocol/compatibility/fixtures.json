@@ -344,6 +344,18 @@
       "expectedValid": true
     },
     {
+      "id": "context-use-feedback-current-valid",
+      "schema": "packages/protocol/schemas/context-use-feedback.schema.json",
+      "instance": "examples/protocol/context-use-feedback.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selector-experiment-current-valid",
+      "schema": "packages/protocol/schemas/context-selector-experiment.schema.json",
+      "instance": "examples/protocol/context-selector-experiment.json",
+      "expectedValid": true
+    },
+    {
       "id": "model-generation-request-current-valid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/model-generation-request.json",

@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-018",
+  "nextTask": "OAF-019",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -127,6 +127,26 @@
         "Native local provider and PostgreSQL repository layer only",
         "No hosted manifest service, external adapter, vector database, graph database, embedding store, browser automation, or publishing integration",
         "Production deployment orchestration remains pending"
+      ]
+    },
+    {
+      "id": "context.feedback",
+      "name": "Context-use feedback and selector experiments",
+      "status": "reference",
+      "evidence": [
+        "packages/context-compiler/src/index.mjs",
+        "packages/protocol/schemas/context-use-feedback.schema.json",
+        "packages/protocol/schemas/context-selector-experiment.schema.json",
+        "examples/protocol/context-use-feedback.json",
+        "examples/protocol/context-selector-experiment.json",
+        "tests/context-feedback.test.mjs",
+        "scripts/run-evals.mjs",
+        "docs/implementation/OAF-018-context-use-feedback-note.md"
+      ],
+      "limitations": [
+        "Records selected-record use and outcome references only; it does not infer causality",
+        "Selector experiments are reversible and review-only; defaults are not mutated by assignment",
+        "No online experimentation service, hosted analytics, telemetry upload, external adapters, or model/provider default change"
       ]
     },
     {

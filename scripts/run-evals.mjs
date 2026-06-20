@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  CONTEXT_SELECTION_POLICY,
   compileContext,
   compileAndPersistContext,
   compareContextManifests,
@@ -11,6 +12,11 @@ import {
   createFixtureRecordReader,
   createNativeExactCandidateSource,
   createNativeLexicalCandidateSource,
+  createSelectorExperiment,
+  promoteSelectorDefault,
+  recordContextUseFeedback,
+  resolveSelectorExperimentPolicy,
+  summarizeContextUseFeedback,
   verifyContextManifest
 } from '../packages/context-compiler/src/index.mjs';
 import { createPolicyService } from '../packages/policy/src/index.mjs';
@@ -75,6 +81,22 @@ check('persisted-manifest: zero leakage',!JSON.stringify(manifestResult.manifest
 check('persisted-manifest: workspace isolation',await manifestRepo.get({workspaceId:'ws_other',id:manifestResult.manifest.id})===null);
 const retry=await compileAndPersistContext(manifestRequest,manifestRecords,{manifestRepository:manifestRepo,runId:'run_eval_manifest',clock:()=>'2026-06-20T00:00:00.000Z'});
 check('persisted-manifest: retry idempotency',retry.manifest.manifestFingerprint===manifestResult.manifest.manifestFingerprint&&manifestRepo.rows.size===1);
+const feedbackOne=recordContextUseFeedback({id:'ctxuse_eval_a',manifest:manifestResult.manifest,runId:'run_eval_manifest',taskId:'task_oaf_018',actorId:'usr_eval',usedRecords:[{recordId:'policy_eval_manifest',evidenceRefs:['claim_eval_manifest'],outcomeRefs:['out_eval_accept']}],outcomeReferences:[{outcomeId:'out_eval_accept',kind:'accepted',observedAt:'2026-06-20T00:01:00.000Z',metric:'task_acceptance',direction:'positive'}],createdAt:'2026-06-20T00:01:00.000Z'});
+const feedbackTwo=recordContextUseFeedback({id:'ctxuse_eval_b',manifest:manifestResult.manifest,runId:'run_eval_manifest_retry',taskId:'task_oaf_018',actorId:'usr_eval',usedRecords:[{recordId:'obs_eval_manifest'}],outcomeReferences:[{outcomeId:'out_eval_revision',kind:'needs_revision',observedAt:'2026-06-20T00:02:00.000Z',metric:'task_acceptance',direction:'negative'}],createdAt:'2026-06-20T00:02:00.000Z'});
+const feedbackSummary=summarizeContextUseFeedback([feedbackOne,feedbackTwo]);
+check('context-feedback: records selected use against manifest',feedbackOne.contextManifest.manifestFingerprint===manifestResult.manifest.manifestFingerprint&&feedbackOne.selectedRecordUse.some(item=>item.recordId==='policy_eval_manifest'&&item.useState==='used'));
+check('context-feedback: summary avoids causal overclaim',feedbackSummary.causalClaim==='none'&&feedbackSummary.outcomes.positive===1&&feedbackSummary.outcomes.negative===1);
+let rejectedUnselected=false;try{recordContextUseFeedback({manifest:manifestResult.manifest,runId:'run_eval_manifest',usedRecords:[{recordId:'not_selected'}],outcomeReferences:[],createdAt:'2026-06-20T00:00:00.000Z'})}catch(error){rejectedUnselected=error.code==='context_use_unselected_record'}
+check('context-feedback: unselected record rejected',rejectedUnselected);
+const selectorVariant=structuredClone(CONTEXT_SELECTION_POLICY);
+selectorVariant.policyVersion='1.0.1';
+selectorVariant.thresholds={...selectorVariant.thresholds,marginalUtility:0.25};
+const selectorExperiment=createSelectorExperiment({id:'ctxexp_eval_feedback',workspaceId:'ws_eval',variantPolicy:selectorVariant,evaluationReport:{reportId:'eval_selector_feedback',passed:true,evaluationCount:5,regressionCount:0,metrics:{requiredRecall:1,contextUseFeedbackCount:2},rollbackPlan:'Restore baseline selector fingerprint.'},createdAt:'2026-06-20T00:00:00.000Z'});
+check('context-feedback: selector experiment is reversible',selectorExperiment.reversible===true&&resolveSelectorExperimentPolicy(selectorExperiment,{arm:'rollback'}).policyFingerprint===selectorExperiment.baseline.policyFingerprint);
+let blockedDefault=false;try{promoteSelectorDefault({candidatePolicy:selectorVariant,evaluationReport:{reportId:'eval_selector_bad',passed:false}})}catch(error){blockedDefault=error.message==='selector_default_requires_passing_evaluation'}
+check('context-feedback: selector default requires evaluation',blockedDefault);
+const defaultPlan=promoteSelectorDefault({candidatePolicy:selectorVariant,evaluationReport:{reportId:'eval_selector_default',passed:true,evaluationCount:5,regressionCount:0,metrics:{requiredRecall:1,contextUseFeedbackCount:2},rollbackPlan:'Restore baseline selector fingerprint.'},createdAt:'2026-06-20T00:00:00.000Z'});
+check('context-feedback: selector default promotion remains review-only',defaultPlan.status==='review_required'&&defaultPlan.defaultChanged===false&&defaultPlan.requiresHumanApproval===true);
 const durableDir=await mkdtemp(path.join(os.tmpdir(),'oaf-eval-durable-'));
 try{
   let evalNow=Date.parse('2026-06-20T00:00:00.000Z');

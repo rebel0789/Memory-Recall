@@ -22,6 +22,8 @@
 - supersession and conflict accuracy;
 - cross-workspace leakage rate, target zero;
 - context tokens per successful task;
+- selected-record use rate against the persisted context manifest;
+- outcome references per selected record, reported without causal attribution;
 - downstream performance against a fixed full-context baseline.
 
 ## Content metrics
@@ -35,4 +37,4 @@
 
 ## Guardrails
 
-Do not optimize solely for tokens, speed, engagement, or model agreement. A cheaper wrong action and a popular copied post are failures.
+Do not optimize solely for tokens, speed, engagement, model agreement, or apparent correlation between selected context and outcomes. A cheaper wrong action and a popular copied post are failures.
