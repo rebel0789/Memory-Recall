@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/evidence-graph-1.0.json",
+  "title": "Evidence Graph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "workspaceId",
+    "generatedAt",
+    "snapshots",
+    "observations",
+    "deduplicationGroups",
+    "claims",
+    "citationEdges",
+    "staleness",
+    "conflicts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^eg_[A-Za-z0-9._-]{6,128}$", "maxLength": 132 },
+    "workspaceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "snapshots": { "type": "array", "items": { "$ref": "#/$defs/sourceSnapshot" } },
+    "observations": { "type": "array", "items": { "$ref": "#/$defs/observation" } },
+    "deduplicationGroups": { "type": "array", "items": { "$ref": "#/$defs/deduplicationGroup" } },
+    "claims": { "type": "array", "items": { "$ref": "#/$defs/claim" } },
+    "citationEdges": { "type": "array", "items": { "$ref": "#/$defs/citationEdge" } },
+    "staleness": { "type": "array", "items": { "$ref": "#/$defs/staleness" } },
+    "conflicts": { "type": "array", "items": { "$ref": "#/$defs/conflict" } }
+  },
+  "$defs": {
+    "sourceSnapshot": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "id", "workspaceId", "kind", "hashAlgorithm", "contentHash", "hash", "byteSize", "size", "trust", "capturedAt", "createdAt", "collector", "retrievalMethod", "sourceLocator", "metadata"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "id": { "type": "string", "pattern": "^src_[A-Za-z0-9._-]{16,128}$" },
+        "workspaceId": { "type": "string", "minLength": 1 },
+        "kind": { "const": "source_snapshot" },
+        "hashAlgorithm": { "const": "sha256" },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "byteSize": { "type": "integer", "minimum": 0 },
+        "size": { "type": "integer", "minimum": 0 },
+        "trust": { "const": "untrusted-external" },
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "collector": { "type": "string", "minLength": 1 },
+        "retrievalMethod": { "type": "string", "minLength": 1 },
+        "sourceLocator": { "type": "string", "minLength": 1 },
+        "metadata": { "type": "object" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["schemaVersion", "id", "workspaceId", "source", "text", "collectedAt", "metricAt", "contentHash", "observed", "inferred", "trust"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "id": { "type": "string", "pattern": "^obs_[A-Za-z0-9._-]+$" },
+        "workspaceId": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "sourceSnapshotId": { "type": ["string", "null"] },
+        "sourceContentHash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "text": { "type": "string" },
+        "collectedAt": { "type": "string", "format": "date-time" },
+        "metricAt": { "type": "string", "format": "date-time" },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "observed": { "type": "object" },
+        "inferred": { "type": "object" },
+        "trust": { "type": "string" }
+      }
+    },
+    "deduplicationGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "contentHash", "canonicalObservationId", "observationIds", "sourceSnapshotIds", "reasonCodes"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^dedupe_[a-f0-9]{32}$" },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "canonicalObservationId": { "type": "string" },
+        "observationIds": { "type": "array", "minItems": 2, "items": { "type": "string" }, "uniqueItems": true },
+        "sourceSnapshotIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "reasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "id", "kind", "text", "relation", "evidenceIds", "createdAt", "inferred", "uncertainty"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "const": "claim" },
+        "text": { "type": "string" },
+        "relation": { "enum": ["supports", "contradicts", "mentions", "requires_verification"] },
+        "evidenceIds": { "type": "array", "minItems": 1, "items": { "type": "string" }, "uniqueItems": true },
+        "createdAt": { "type": ["string", "null"], "format": "date-time" },
+        "inferred": { "type": "object" },
+        "uncertainty": { "type": ["string", "null"] }
+      }
+    },
+    "citationEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "claimId", "observationId", "sourceSnapshotId", "relation", "reasonCodes"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^edge_[a-f0-9]{32}$" },
+        "claimId": { "type": "string", "minLength": 1 },
+        "observationId": { "type": "string", "minLength": 1 },
+        "sourceSnapshotId": { "type": ["string", "null"] },
+        "relation": { "enum": ["supports", "contradicts", "mentions", "requires_verification"] },
+        "reasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "staleness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observationId", "state", "asOf", "metricAt", "ageDays", "staleAfterDays", "reasonCodes"],
+      "properties": {
+        "observationId": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["fresh", "stale", "unknown"] },
+        "asOf": { "type": "string", "format": "date-time" },
+        "metricAt": { "type": ["string", "null"], "format": "date-time" },
+        "ageDays": { "type": ["integer", "null"], "minimum": 0 },
+        "staleAfterDays": { "type": "integer", "minimum": 0 },
+        "reasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "subject", "predicate", "observationIds", "values", "severity", "reasonCodes"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^conf_[a-f0-9]{32}$" },
+        "subject": { "type": "string", "minLength": 1 },
+        "predicate": { "type": "string", "minLength": 1 },
+        "observationIds": { "type": "array", "minItems": 2, "items": { "type": "string" }, "uniqueItems": true },
+        "values": { "type": "array", "minItems": 2, "items": { "type": "object" } },
+        "severity": { "enum": ["requires_review"] },
+        "reasonCodes": { "type": "array", "minItems": 1, "items": { "type": "string" }, "uniqueItems": true }
+      }
+    }
+  }
+}

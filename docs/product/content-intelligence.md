@@ -12,18 +12,21 @@ The product is not a “viral post generator.” It is a research operator that 
 2. **Snapshot:** preserve source ID, URL, body hash, collection method, publication and metric time.
 3. **Normalize:** map into `ContentObservation` without mixing inference.
 4. **Deduplicate:** detect reposts, cross-posts, quote derivatives, and transcript copies.
-5. **Estimate relative performance:** compare against creator, format, age, and topic baselines when data supports it.
-6. **Extract patterns:** hook mechanism, claim, evidence, narrative, format, emotion, reader, takeaway, copying risk.
-7. **Cluster and age:** emerging, accelerating, established, overused, declining.
-8. **Match creator context:** credible topics, products, audience, voice examples, banned phrases, prior outcomes.
-9. **Generate candidates:** angle, hook, reader, why now, evidence, difference, proof needed, uncertainty.
-10. **Verify:** citations, unsupported claims, similarity, policy, and source freshness.
-11. **Approve and draft:** user edits and approves; publication remains a separate consequential capability.
-12. **Measure and learn:** record creator-selected outcomes, edit distance, user judgment, and qualitative response.
+5. **Graph evidence:** preserve citation edges, stale observations, and conflicts without overwriting source facts.
+6. **Estimate relative performance:** compare against creator, format, age, and topic baselines when data supports it.
+7. **Extract patterns:** hook mechanism, claim, evidence, narrative, format, emotion, reader, takeaway, copying risk.
+8. **Cluster and age:** emerging, accelerating, established, overused, declining.
+9. **Match creator context:** credible topics, products, audience, voice examples, banned phrases, prior outcomes.
+10. **Generate candidates:** angle, hook, reader, why now, evidence, difference, proof needed, uncertainty.
+11. **Verify:** citations, unsupported claims, similarity, policy, and source freshness.
+12. **Approve and draft:** user edits and approves; publication remains a separate consequential capability.
+13. **Measure and learn:** record creator-selected outcomes, edit distance, user judgment, and qualitative response.
 
 ## Data contract
 
 Observed values and model inference are separate objects. A recommendation cites selected observation IDs. Raw views are not treated as comparable performance without context.
+
+The native evidence service builds deterministic citation graph records from snapshots, observations, and claims. Deduplication, staleness, and conflict findings are graph outputs, not edits to the observed source facts.
 
 ## Default dashboard
 

@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "eg_fixture",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-20T00:00:00.000Z",
+  "snapshots": [
+    {
+      "schemaVersion": "1.0.0",
+      "id": "src_0123456789abcdef",
+      "provider": "provider:native:evidence:memory",
+      "workspaceId": "ws_local",
+      "kind": "source_snapshot",
+      "hashAlgorithm": "sha256",
+      "contentHash": "41cf6794ba4200b839c53531555f0f3998df4cbb01a4d5cb0b94e3ca5e23947d",
+      "hash": "41cf6794ba4200b839c53531555f0f3998df4cbb01a4d5cb0b94e3ca5e23947d",
+      "byteSize": 6,
+      "size": 6,
+      "mediaType": "text/plain",
+      "filename": null,
+      "dataClass": "workspace-private",
+      "retention": {
+        "mode": "retain"
+      },
+      "trust": "untrusted-external",
+      "capturedAt": "2026-06-19T00:00:00.000Z",
+      "createdAt": "2026-06-19T00:00:00.000Z",
+      "collector": "fixture",
+      "retrievalMethod": "manual",
+      "sourceLocator": "manual://fixture",
+      "metadata": {}
+    }
+  ],
+  "observations": [
+    {
+      "schemaVersion": "1.0.0",
+      "id": "obs_left",
+      "workspaceId": "ws_local",
+      "source": "fixture",
+      "sourceSnapshotId": "src_0123456789abcdef",
+      "sourceContentHash": "41cf6794ba4200b839c53531555f0f3998df4cbb01a4d5cb0b94e3ca5e23947d",
+      "platform": "unknown",
+      "creator": "unknown",
+      "text": "Plan is free",
+      "publishedAt": null,
+      "collectedAt": "2026-06-19T00:00:00.000Z",
+      "metricAt": "2026-06-19T00:00:00.000Z",
+      "contentHash": "37c714d78b4cb4e7e29e0beeadd6a0743c39129c8d4ea63359413be4ae1e375a",
+      "observed": {
+        "assertions": [
+          {
+            "subject": "plan",
+            "predicate": "price",
+            "value": "free"
+          }
+        ]
+      },
+      "inferred": {},
+      "trust": "untrusted-external"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "id": "obs_right",
+      "workspaceId": "ws_local",
+      "source": "fixture",
+      "sourceSnapshotId": null,
+      "sourceContentHash": null,
+      "platform": "unknown",
+      "creator": "unknown",
+      "text": "Plan is paid",
+      "publishedAt": null,
+      "collectedAt": "2026-06-01T00:00:00.000Z",
+      "metricAt": "2026-06-01T00:00:00.000Z",
+      "contentHash": "c4b8f2313174e48baf9f8d35374f4d5163712909af000980a8297793ec2b1f13",
+      "observed": {
+        "assertions": [
+          {
+            "subject": "plan",
+            "predicate": "price",
+            "value": "paid"
+          }
+        ]
+      },
+      "inferred": {},
+      "trust": "untrusted-external"
+    }
+  ],
+  "deduplicationGroups": [],
+  "claims": [
+    {
+      "schemaVersion": "1.0.0",
+      "id": "claim_price",
+      "kind": "claim",
+      "text": "The plan has conflicting price evidence.",
+      "relation": "supports",
+      "evidenceIds": [
+        "obs_left",
+        "obs_right"
+      ],
+      "createdAt": null,
+      "inferred": {},
+      "uncertainty": "conflicting observations require review"
+    }
+  ],
+  "citationEdges": [
+    {
+      "id": "edge_53d93686d6239e0540620dde33238269",
+      "claimId": "claim_price",
+      "observationId": "obs_left",
+      "sourceSnapshotId": "src_0123456789abcdef",
+      "relation": "supports",
+      "reasonCodes": [
+        "claim_supports"
+      ]
+    },
+    {
+      "id": "edge_c260a7f790c050efed399c2a9e48e82d",
+      "claimId": "claim_price",
+      "observationId": "obs_right",
+      "sourceSnapshotId": null,
+      "relation": "supports",
+      "reasonCodes": [
+        "claim_supports"
+      ]
+    }
+  ],
+  "staleness": [
+    {
+      "observationId": "obs_left",
+      "state": "fresh",
+      "asOf": "2026-06-20T00:00:00.000Z",
+      "metricAt": "2026-06-19T00:00:00.000Z",
+      "ageDays": 1,
+      "staleAfterDays": 30,
+      "reasonCodes": [
+        "within_metric_window"
+      ]
+    },
+    {
+      "observationId": "obs_right",
+      "state": "fresh",
+      "asOf": "2026-06-20T00:00:00.000Z",
+      "metricAt": "2026-06-01T00:00:00.000Z",
+      "ageDays": 19,
+      "staleAfterDays": 30,
+      "reasonCodes": [
+        "within_metric_window"
+      ]
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "conf_8d5a5c1eb36a2481e9c79fdb3ee1b887",
+      "subject": "plan",
+      "predicate": "price",
+      "observationIds": [
+        "obs_left",
+        "obs_right"
+      ],
+      "values": [
+        {
+          "value": "free",
+          "observationIds": [
+            "obs_left"
+          ]
+        },
+        {
+          "value": "paid",
+          "observationIds": [
+            "obs_right"
+          ]
+        }
+      ],
+      "severity": "requires_review",
+      "reasonCodes": [
+        "conflicting_observed_assertions"
+      ]
+    }
+  ]
+}

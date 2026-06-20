@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T10:54:31.884Z",
-  "fileCount": 610,
-  "totalBytes": 1687057,
+  "generatedAt": "2026-06-20T11:56:02.221Z",
+  "fileCount": 614,
+  "totalBytes": 1723184,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 8836,
-      "sha256": "3d33b7f8299b312986618cc4c24152b98bf67d7c2143695c18666772a1d9c4d1"
+      "bytes": 9383,
+      "sha256": "5a05838f7f70fe2ee77a8bc7594bf918f2e32912fce58b7c2d0123d741c24fb7"
     },
     {
       "path": "CITATION.cff",
@@ -731,8 +731,8 @@
     },
     {
       "path": "docs/architecture/domain-model.md",
-      "bytes": 7552,
-      "sha256": "48246fd871b5b3f38ba1dd17ca06aa8d281c75a7958474ece5e6538b725ad634"
+      "bytes": 7908,
+      "sha256": "59d0ee9bc5ab514b4d475e4e7cb071a73f7b49e00933ca89ba10c33734ef27a2"
     },
     {
       "path": "docs/architecture/event-model.md",
@@ -830,6 +830,11 @@
       "sha256": "6014c1759f65a95b5b9ab6443b8f7d448258bb5c056fd5ef67a7898e2a2dc773"
     },
     {
+      "path": "docs/implementation/OAF-016-evidence-citation-graph-note.md",
+      "bytes": 1365,
+      "sha256": "e1b88b22bef3f4dc671944ad6800b806ea9dd8a8d65f209a625ded56cf41d28d"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -896,8 +901,8 @@
     },
     {
       "path": "docs/product/content-intelligence.md",
-      "bytes": 2079,
-      "sha256": "c7b3f02720f71f437148a49140b5d0a84b7e96491f856e4865b7b5718eeead04"
+      "bytes": 2418,
+      "sha256": "840fc7b7d4dd4268bfb19256af3375338db10b633dd8967565e21b59c4bc5031"
     },
     {
       "path": "docs/product/prd.md",
@@ -1326,8 +1331,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 22036,
-      "sha256": "f4ede6a3cb61f1a9a3fc1adf079c95f5912dff9e19e334a6d73c56bda9fc67fc"
+      "bytes": 22483,
+      "sha256": "bde6b6243152023605d426e3fe9a11ba174473507430a033723e4cf9a5eecfde"
     },
     {
       "path": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
@@ -1383,6 +1388,11 @@
       "path": "examples/protocol/compatibility/valid/event-v1-minimal.json",
       "bytes": 357,
       "sha256": "1491726addef8365559482398b341fbb0e07353132dab2320fab325fa666d51d"
+    },
+    {
+      "path": "examples/protocol/content-observation.json",
+      "bytes": 638,
+      "sha256": "c4249f606d8185544d35573450f5e6ad962e7f8495492f36fe04636b2af0f439"
     },
     {
       "path": "examples/protocol/context-candidate.json",
@@ -1463,6 +1473,11 @@
       "path": "examples/protocol/event.json",
       "bytes": 358,
       "sha256": "02f2deaacd41c45337f23bd3960dc822460f887288e9f2e60a323971dde94092"
+    },
+    {
+      "path": "examples/protocol/evidence-graph.json",
+      "bytes": 4667,
+      "sha256": "8608dc729286edfb72f11c69f429b72785af0759f97dd0cae174aa0d3546b374"
     },
     {
       "path": "examples/protocol/integrity-verification-result.json",
@@ -1577,7 +1592,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "0aa52d266b42c5bb9ed6c255f6ab3d2559860edc6cbd0cb588120f82c5569908"
+      "sha256": "11f4a18f86e01d9386789e7506aa6488228bb0ba3e3c7f47b25322a8db1f183d"
     },
     {
       "path": "LICENSE",
@@ -1676,8 +1691,8 @@
     },
     {
       "path": "packages/evidence/src/index.mjs",
-      "bytes": 1303,
-      "sha256": "962af8a38896be20c6110859d499f9acea6af2a8f5c767dbcb25e69f12cfcc04"
+      "bytes": 15644,
+      "sha256": "e1c5dc4843edcf054b6f4903bcd8eaef83c5e4f0f4d231280ec2700f712ce6db"
     },
     {
       "path": "packages/memory-core/package.json",
@@ -1926,8 +1941,8 @@
     },
     {
       "path": "packages/protocol/schemas/content-observation.schema.json",
-      "bytes": 1292,
-      "sha256": "81515fa733cddaa3cdb2eb881db97f6111a97da0106b4d3f51efe72c0c6085b7"
+      "bytes": 1508,
+      "sha256": "0f3dfaecab6f11f0d18781cc6cfbe10ef0b7893cc723c17a36b4ee1c5d862904"
     },
     {
       "path": "packages/protocol/schemas/context-candidate.schema.json",
@@ -2033,6 +2048,11 @@
       "path": "packages/protocol/schemas/event.schema.json",
       "bytes": 1414,
       "sha256": "598815892780e08d9edcc3b59a5c8f68c7527c9281a6f14aa86f560422932817"
+    },
+    {
+      "path": "packages/protocol/schemas/evidence-graph.schema.json",
+      "bytes": 7398,
+      "sha256": "5a9c33e91e46820e6072e41454a7e752a440219e9dc35d006477b3a3a538717e"
     },
     {
       "path": "packages/protocol/schemas/integrity-verification-result.schema.json",
@@ -2311,8 +2331,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26900,
-      "sha256": "04c59755979a816938c50c3205e436f6be8b9d41e43807c98ecdf6cb687b714e"
+      "bytes": 26902,
+      "sha256": "6dd8e1895fa5d168bf0c9b214ff28036b3637a2243227ca07e2abe3c52c28e7c"
     },
     {
       "path": "planning/README.md",
@@ -2321,13 +2341,13 @@
     },
     {
       "path": "PRODUCT.md",
-      "bytes": 5121,
-      "sha256": "e27304e164793125bf85961d1f0a347b7841b5d4a531e2472dd5138cdb7076f9"
+      "bytes": 5233,
+      "sha256": "c7d2c29d18999b8acc9b94c07a0ca6fca24a42461e6c239400d061050a917927"
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 19576,
-      "sha256": "f0c3c0ddd73b25070ca629fd5f2d7cf1efaa9f760f59a46ade1d8ba70344065e"
+      "bytes": 19796,
+      "sha256": "f1e2f761b8892754682a6b74ab9b12e7c4e68455669ff5410266be2902f6fcb8"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2526,8 +2546,8 @@
     },
     {
       "path": "REPOSITORY_MAP.md",
-      "bytes": 3054,
-      "sha256": "25f936526ffd3c5b75f9afa1b817a950a9d3e67ac3353130d5da9dde1860cdfc"
+      "bytes": 3123,
+      "sha256": "5b722aaefd04fc6344882e7581686c260b22737108542468c59399b842de81d0"
     },
     {
       "path": "rfcs/0001-protocol-contracts.md",
@@ -2846,8 +2866,8 @@
     },
     {
       "path": "tests/evidence.test.mjs",
-      "bytes": 782,
-      "sha256": "7d23a943d7cb00a96241f98ddd0e1f4f42b2a0682b3fa2b13eda3fa8e53a7856"
+      "bytes": 6192,
+      "sha256": "6ebe24227ea07452cd00a61d4a304a69eb445c2ae5db8ed2e294ce99e20f6995"
     },
     {
       "path": "tests/fixtures/durable-worker-child.mjs",

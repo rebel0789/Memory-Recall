@@ -22,7 +22,7 @@
 - `packages/protocol/` — schemas, dependency-free validation, IDs, event types.
 - `packages/context-compiler/` — selection and context-manifest logic.
 - `packages/memory-core/` — memory proposal gate.
-- `packages/evidence/` — normalization and citation validation.
+- `packages/evidence/` — source snapshot and observation normalization, citation validation, and native evidence graph construction.
 - `packages/policy/` — deterministic authorization.
 - `packages/tool-registry/` — manifest-backed capability invocation.
 - `packages/model-gateway/` — deterministic local bootstrap boundary.

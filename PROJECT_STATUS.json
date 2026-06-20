@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-016",
+  "nextTask": "OAF-017",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -189,14 +189,17 @@
     },
     {
       "id": "evidence.citations",
-      "name": "Observation normalization and citation validation",
+      "name": "Evidence service and citation graph",
       "status": "reference",
       "evidence": [
         "packages/evidence/src/index.mjs",
+        "packages/protocol/schemas/evidence-graph.schema.json",
+        "examples/protocol/evidence-graph.json",
         "tests/evidence.test.mjs"
       ],
       "limitations": [
-        "No immutable artifact store or citation graph database"
+        "Reference implementation is pure in-memory normalization and graph construction",
+        "No external graph database, adapter ingestion, publishing, or automatic memory write"
       ]
     },
     {
@@ -507,8 +510,8 @@
         "npm run native:smoke",
         "npm run verify:handoff"
       ],
-    "testsExpected": 150,
-    "protocolFixturesExpected": 89,
+    "testsExpected": 154,
+    "protocolFixturesExpected": 91,
     "evaluationsExpected": 88,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

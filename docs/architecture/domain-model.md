@@ -63,6 +63,8 @@ A source snapshot is an immutable body and metadata record. An observation is no
 
 Source snapshot records use the `src_` prefix, carry collection provenance (`collector`, `retrievalMethod`, `sourceLocator`, `capturedAt`), and default to `trust: untrusted-external`. They are not allowed to contain summaries, classifications, hooks, memory decisions, or model conclusions. Those fields are created later as observations, inferences, claims, or memory proposals.
 
+The native evidence service constructs an immutable citation graph from source snapshots, observations, and claims. The graph records deterministic deduplication groups, claim-to-observation citation edges, staleness classifications, and conflict findings. These outputs do not overwrite source snapshots or observations and do not create memory records.
+
 Artifact records use the `art_` prefix. Both artifact records and source snapshots reference immutable stored objects by `hashAlgorithm: sha256`, `contentHash`, and `byteSize`; the stored object itself has no provenance or authority. Deleting a logical record creates an audit tombstone and does not imply that shared object bytes are removable.
 
 ### Memory

@@ -69,6 +69,7 @@ collect → normalize → deduplicate → detect patterns → select evidence
 
 - Store immutable source metadata and content hashes.
 - Keep observations separate from model inference.
+- Build deterministic citation graphs with deduplication groups, claim edges, staleness, and conflict findings.
 - Require evidence IDs for material generated claims.
 - Surface stale, missing, or conflicting evidence.
 

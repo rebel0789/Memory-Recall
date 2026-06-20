@@ -44,6 +44,18 @@
       "expectedValid": true
     },
     {
+      "id": "content-observation-current-valid",
+      "schema": "packages/protocol/schemas/content-observation.schema.json",
+      "instance": "examples/protocol/content-observation.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evidence-graph-current-valid",
+      "schema": "packages/protocol/schemas/evidence-graph.schema.json",
+      "instance": "examples/protocol/evidence-graph.json",
+      "expectedValid": true
+    },
+    {
       "id": "stored-object-current-valid",
       "schema": "packages/protocol/schemas/stored-object-descriptor.schema.json",
       "instance": "examples/protocol/stored-object-descriptor.json",

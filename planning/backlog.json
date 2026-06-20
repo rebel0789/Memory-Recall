@@ -394,7 +394,7 @@
       "id": "OAF-016",
       "title": "Implement evidence service and citation graph",
       "milestone": "Milestone 5",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:researcher",
       "dependsOn": [
         "OAF-006",

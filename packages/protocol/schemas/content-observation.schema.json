@@ -31,6 +31,19 @@
     "source": {
       "type": "string"
     },
+    "sourceSnapshotId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sourceContentHash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{64}$"
+    },
     "platform": {
       "type": "string"
     },
