@@ -60,13 +60,14 @@ h3{font-size:15px;line-height:1.3}
 .section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-12);margin-bottom:var(--space-16)}
 .section-heading h2{margin:0}
 .section-heading span{color:var(--slate)}
-.run-list,.manifest-list,.evidence-list,.angle-list,.step-grid,.assembly-list,.conflict-list{display:grid;gap:var(--space-10,10px)}
-.run-row,.manifest-row,.evidence-row,.angle-row,.step-card,.assembly-section{border:1px solid var(--border);background:var(--surface-2);border-radius:var(--radius-card);padding:var(--space-14,14px)}
+.run-list,.manifest-list,.evidence-list,.angle-list,.step-grid,.assembly-list,.conflict-list,.memory-list,.approval-list,.claim-list{display:grid;gap:var(--space-10,10px)}
+.run-row,.manifest-row,.evidence-row,.angle-row,.step-card,.assembly-section,.memory-diff,.approval-card{border:1px solid var(--border);background:var(--surface-2);border-radius:var(--radius-card);padding:var(--space-14,14px)}
 .run-row header,.manifest-row header,.evidence-row header{display:flex;align-items:center;justify-content:space-between;gap:var(--space-12)}
-.step-card header,.assembly-section header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-12)}
+.step-card header,.assembly-section header,.memory-diff header,.approval-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-12)}
+.memory-diff header h3,.approval-card header h3{margin:var(--space-4) 0 0}
 .run-row a{font-weight:750;text-decoration:none}
 .run-row a:hover,.step-card a:hover,.decision-card a:hover{text-decoration:underline}
-.run-row p,.manifest-row p,.evidence-row p,.angle-row p,.step-card p{margin:var(--space-8) 0}
+.run-row p,.manifest-row p,.evidence-row p,.angle-row p,.step-card p,.memory-diff p,.approval-card p{margin:var(--space-8) 0}
 .meta-row{display:flex;flex-wrap:wrap;gap:var(--space-8) 14px;color:var(--slate);font-size:13px}
 .reason-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--space-8)}
 .reason{font-size:11px;padding:3px 7px;border-radius:999px;background:color-mix(in srgb,var(--proof) 16%,var(--surface-3));color:var(--paper)}
@@ -97,6 +98,13 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .summary-list div{border:1px solid var(--border);border-radius:var(--radius-control);padding:var(--space-8)}
 .summary-list dt{color:var(--slate);font-size:12px}
 .summary-list dd{margin:2px 0 0;font-weight:720}
+.diff-grid,.evidence-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-10);margin:var(--space-12) 0}
+.diff-grid section,.evidence-columns section,.preview-box{border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-3);padding:var(--space-12);min-width:0}
+.diff-grid h4,.preview-box h4,.evidence-columns h3{margin:0 0 var(--space-8);font-size:12px;color:var(--slate);text-transform:uppercase;letter-spacing:.08em}
+.lifecycle-list li{display:grid;gap:2px;border-top:1px solid var(--border);padding-top:var(--space-8)}
+.lifecycle-list span{color:var(--slate)}
+.review-actions{margin-top:var(--space-12)}
+.review-actions .button{cursor:not-allowed}
 .outline,.compact-list{padding-left:0;list-style:none;display:grid;gap:var(--space-8)}
 .outline li{display:grid;grid-template-columns:34px minmax(120px,180px) 1fr;gap:var(--space-12);align-items:start;border-top:1px solid var(--border);padding-top:var(--space-12)}
 .outline span{width:28px;height:28px;border-radius:999px;background:var(--surface-3);display:grid;place-items:center;color:var(--slate)}
@@ -163,6 +171,7 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .facts div{grid-template-columns:1fr}
   .context-hero{display:grid}
   .summary-list{grid-template-columns:1fr}
+  .diff-grid,.evidence-columns{grid-template-columns:1fr}
   .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;max-width:100vw;overflow-x:auto;overflow-y:hidden;border-top:1px solid var(--border);background:var(--surface);padding:var(--space-8);contain:layout}
   .bottom-nav a{flex:0 0 74px;display:grid;justify-items:center;gap:2px;padding:6px;min-height:56px;font-size:12px}
   .bottom-nav .nav-code{width:24px;height:24px}

@@ -28,13 +28,19 @@ Implemented decision route: `/context?record=<recordId>&state=<selected|excluded
 
 Filter by kind, status, source, scope, time, confidence. Detail includes lifecycle, version diff, supersession, review, retention, provenance, and runs that used it.
 
+Implemented detail route: `/memory` shows diff cards with previous/proposed values, lifecycle, source, confidence, conflict, retention, supersession, reviewer, and linked evidence IDs. Controls are inspection-only until a checked-in task adds mutation endpoints.
+
 ## Evidence Explorer
 
 Show immutable observation separately from inferred pattern. Include source snapshot, collection method, metric time, hash, trust, claims, and conflict/staleness.
 
+Implemented detail route: `/evidence` shows observation and inference as separate sections with source snapshot IDs, collection method, publication/collection/metric times, hashes, trust class, generated claim links, conflicts, and staleness.
+
 ## Approval Inbox
 
 Show actor, exact action, destination, diff or payload, risk, policy reasons, idempotency, expiry, and consequences. Dangerous approval is never default-focused.
+
+Implemented detail route: `/approvals` shows operation hash, actor, destination, exact content or diff, risk, policy version, expiry, idempotency, reason codes, consequence, and disabled review controls. It does not execute approval decisions or external writes.
 
 ## Workflow Builder
 

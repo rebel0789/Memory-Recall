@@ -187,7 +187,10 @@ export function createControlApiServer({
           },
           latestRun,
           latestManifest,
-          runs: runs.slice(-8).reverse()
+          runs: runs.slice(-8).reverse(),
+          memories: state.memories.filter((memory) => (memory.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse(),
+          approvals: state.approvals.filter((approval) => (approval.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse(),
+          artifacts: state.artifacts.filter((artifact) => (artifact.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse()
         };
       }
       case 'listRuns': {

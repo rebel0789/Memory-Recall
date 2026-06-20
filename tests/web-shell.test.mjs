@@ -4,7 +4,10 @@ import { readFile } from 'node:fs/promises';
 import {
   ROUTES,
   SHELL_STATES,
+  buildApprovalReviewModel,
   buildContextInspectorModel,
+  buildEvidenceExplorerModel,
+  buildMemoryReviewModel,
   classifyDashboardState,
   contextDecisionView,
   contextRecordLink,
@@ -104,4 +107,98 @@ test('context inspector model covers decision cards, assembly, conflicts, compar
   assert.equal(model.sections[0].recordIds[0],'obs_one');
   assert.equal(model.comparison.selectedMissingFromAssembly.length,0);
   assert.equal(model.comparison.conflictCount,1);
+});
+
+test('memory review model exposes lifecycle diffs without leaking raw secrets',()=>{
+  const memories=[
+    {
+      id:'mem_old',
+      kind:'preference',
+      text:'Use short local-only runs',
+      status:'active',
+      source:'user-confirmed',
+      confidence:.9,
+      retention:{mode:'workspace-default'},
+      lifecycle:[{type:'memory.activated',at:'2026-06-20T00:00:00.000Z',actorId:'usr_reviewer'}],
+      evidenceIds:['obs_pref']
+    },
+    {
+      id:'mem_new',
+      kind:'preference',
+      text:`Use ${['sk','abcdefghijklmnopqrstuvwxyz'].join('-')} as the model key`,
+      status:'proposed',
+      source:'agent-proposed',
+      confidence:.6,
+      retention:'expire-at',
+      supersedes:'mem_old',
+      conflicts:[{reason:'same_subject_predicate_different_text'}],
+      lifecycle:[{type:'memory.proposed',at:'2026-06-20T00:01:00.000Z',actorId:'agent:evaluator',evidenceIds:['obs_pref']}],
+      evidenceIds:['obs_pref'],
+      metadata:{reviewer:'usr_reviewer'}
+    }
+  ];
+  const model=buildMemoryReviewModel({memories});
+  const replacement=model.find((memory)=>memory.id==='mem_new');
+  assert.equal(replacement.previousValue,'Use short local-only runs');
+  assert.equal(replacement.proposedValue,'[redacted-sensitive-value]');
+  assert.equal(replacement.conflict,'same_subject_predicate_different_text');
+  assert.deepEqual(replacement.actions.map((action)=>action.label),['Approve','Edit','Reject','Set expiry']);
+  assert.equal(replacement.lifecycle[0].evidenceIds[0],'obs_pref');
+});
+
+test('evidence explorer model separates observed fields, inferred claims, source snapshots, and conflicts',()=>{
+  const model=buildEvidenceExplorerModel({
+    latestManifest:{
+      selected:[{
+        id:'obs_alpha',
+        kind:'observation',
+        text:'A run recovered after restart with evidence IDs.',
+        sourceSnapshotId:'src_alpha',
+        source:'fixture',
+        collectionMethod:'file-read',
+        observedAt:'2026-06-20T00:00:00.000Z',
+        sourceContentHash:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        trustClass:'observed'
+      }],
+      conflicts:[{id:'conf_alpha',reason:'stale_metric',recordId:'obs_alpha'}]
+    },
+    latestRun:{
+      output:{
+        provider:'deterministic',
+        model:'content-fixture',
+        output:[{rank:1,angle:'Show recovery',hook:'Use restart proof.',evidenceIds:['obs_alpha'],confidence:.82}]
+      }
+    }
+  });
+  assert.equal(model.length,1);
+  assert.equal(model[0].sourceSnapshotId,'src_alpha');
+  assert.equal(model[0].observed.text,'A run recovered after restart with evidence IDs.');
+  assert.equal(model[0].claims[0].id,'candidate:1');
+  assert.equal(model[0].claims[0].model,'deterministic');
+  assert.equal(model[0].conflicts[0],'stale_metric');
+});
+
+test('approval review model requires exact operation previews and marks edits invalidating',()=>{
+  const model=buildApprovalReviewModel({
+    approvals:[{
+      id:'appr_1',
+      status:'pending',
+      actorId:'usr_reviewer',
+      operationFingerprint:'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      destination:'local draft ledger',
+      preview:{diff:'- old\n+ new'},
+      riskClass:'consequential-write',
+      policyVersion:'policy:local@1.0.0',
+      expiresAt:'2026-06-20T00:15:00.000Z',
+      idempotencyKey:'idem_1',
+      consequence:'records local draft outcome',
+      reasonCodes:['approval_required','idempotency_required'],
+      externalWrites:false
+    }]
+  });
+  assert.equal(model[0].operationHash,'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+  assert.equal(model[0].exactContent,'- old + new');
+  assert.equal(model[0].editInvalidates,true);
+  assert.equal(model[0].externalWrites,false);
+  assert.deepEqual(model[0].actions.map((action)=>action.label),['Approve exact operation','Edit invalidates approval','Reject']);
 });

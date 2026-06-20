@@ -53,11 +53,11 @@ npm run task -- <OAF-ID>
 
 - [x] OAF-022 Build the production web shell while preserving bootstrap contracts.
 - [x] OAF-023 Build Run and Context Inspector views.
-- [ ] **OAF-024 Build Memory, Evidence, and Approval views — next.**
+- [x] OAF-024 Build Memory, Evidence, and Approval views.
 
 ## Quality and ecosystem
 
-- [ ] OAF-025 Add OpenTelemetry-compatible instrumentation.
+- [ ] **OAF-025 Add OpenTelemetry-compatible instrumentation — next.**
 - [ ] OAF-026 Build the evaluation laboratory.
 - [ ] OAF-027 Promote one low-risk read-only adapter.
 - [ ] OAF-028 Add protocol bridges through accepted RFCs.

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T14:49:43.242Z",
-  "fileCount": 634,
-  "totalBytes": 1939677,
+  "generatedAt": "2026-06-20T14:59:12.886Z",
+  "fileCount": 635,
+  "totalBytes": 1962256,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -481,8 +481,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 41517,
-      "sha256": "810772e0e180340a00066c4a356e82f746ccf0433b28740180a9fe51632015f5"
+      "bytes": 54759,
+      "sha256": "aba80695b65d10a9b0f4696190df10793eb10c26bb5eeb91536b1978a8570461"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -496,8 +496,8 @@
     },
     {
       "path": "apps/web/styles.css",
-      "bytes": 13201,
-      "sha256": "e905622af06ed823837262b47e39626208d71b944e463b027ca59b72bea47211"
+      "bytes": 14190,
+      "sha256": "fb9789ea9d1100770c10226dc1ee254028dacfe08965fe6fa808a67d725a72eb"
     },
     {
       "path": "apps/web/tokens.css",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 13680,
-      "sha256": "7b5078a77eae4f88c267c2ab6bb1a7ff8c24db345355170c7aad7b05795a4db2"
+      "bytes": 14259,
+      "sha256": "267f890840cdbf1e69a02dabccec8083681464da3354293d5c31c87c3f4b360f"
     },
     {
       "path": "CITATION.cff",
@@ -870,6 +870,11 @@
       "sha256": "cb510d0d3238196189895bf9846d9d2622cf8299dcfa5a8f16603fb6b7fe84f2"
     },
     {
+      "path": "docs/implementation/OAF-024-memory-evidence-approval-views-note.md",
+      "bytes": 1781,
+      "sha256": "0ffabc448c68e83e1b9320a81af6263c72a0c29078d999954386eba8f7a214a4"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -1046,8 +1051,8 @@
     },
     {
       "path": "docs/ux/component-contracts.md",
-      "bytes": 1803,
-      "sha256": "f61cdf93318f5ed1c469434a0cb32c8dbc7214b7fc5b4e94ff47c89ad1d4de51"
+      "bytes": 2504,
+      "sha256": "4dd02b9cbbe0d9b93e7066240529c9d396bfd7ccc12f499de4729338e1d05b15"
     },
     {
       "path": "docs/ux/content-style.md",
@@ -1071,8 +1076,8 @@
     },
     {
       "path": "docs/ux/screen-specs.md",
-      "bytes": 2886,
-      "sha256": "61f589d316ff353cefdcf324b4ae824fe0f8ef6e5b3130b568395e86851d6108"
+      "bytes": 3658,
+      "sha256": "e64e5366766fe63e31d884618b846757033b0770e461a9fffe5903e4b11c3b60"
     },
     {
       "path": "docs/ux/wireframes.md",
@@ -1652,7 +1657,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "ecb40c51a155a2533cd45e39b175d9cf4de5e5f774c0e8d49aeec5e3682ba6cb"
+      "sha256": "a6ddb421d9f90f5c0af8c68fd79f14aacfbe9b88530906e15fa39ebaa68dc867"
     },
     {
       "path": "LICENSE",
@@ -2416,8 +2421,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26916,
-      "sha256": "041fb5fe854c107d43f25fd4a60799e6b94329547e49284c8e2a92cf248b262b"
+      "bytes": 26918,
+      "sha256": "ac8ab88958f59f309a64178c54562a628b8468e2e18c5f40d5da9863e3a9da06"
     },
     {
       "path": "planning/README.md",
@@ -2431,8 +2436,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 25348,
-      "sha256": "0ed3301e9f869fd628e10d132e36d7b74bc7a0d4f054f93911351ddda89c3899"
+      "bytes": 25432,
+      "sha256": "7eb4f5a7a382109181d5bec502c03ac421469d52ae1956695375e31b4a3ab932"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2756,8 +2761,8 @@
     },
     {
       "path": "services/control-api/src/server.mjs",
-      "bytes": 40199,
-      "sha256": "3b858a341fc6e34971d030e911b349aab32ea549d9596de89d51b7e92a73536f"
+      "bytes": 40646,
+      "sha256": "fa385ba16c86755bf2f79007fa64668b4e75a42b27a270e92ed7eacafcf185a0"
     },
     {
       "path": "services/README.md",
@@ -2882,7 +2887,7 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "dea193c32eff32fd356b33e64e5319fdbc1969b68ade62bafca58e765edb3719"
+      "sha256": "768adc618e50f3d9b463f47bce25d5f32a7a68abf375d46ec5731a91977e1fec"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -3076,8 +3081,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 6419,
-      "sha256": "b8861927c25df80e713bc0c95e71fb84da401315be9594cae5348867c32bc503"
+      "bytes": 10401,
+      "sha256": "8f3c3896add7a6c153dead7bb447b78cdc6971fe5c6e9ade83b627650dcca18f"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

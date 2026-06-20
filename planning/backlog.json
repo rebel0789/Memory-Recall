@@ -600,7 +600,7 @@
       "id": "OAF-024",
       "title": "Build Memory, Evidence, and Approval views",
       "milestone": "Milestone 7",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:frontend-builder",
       "dependsOn": [
         "OAF-016",

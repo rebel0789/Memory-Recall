@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-024",
+  "nextTask": "OAF-025",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -45,12 +45,13 @@
         "apps/web/tokens.css",
         "tests/web-shell.test.mjs",
         "docs/implementation/OAF-022-production-web-shell-note.md",
-        "docs/implementation/OAF-023-run-context-inspector-note.md"
+        "docs/implementation/OAF-023-run-context-inspector-note.md",
+        "docs/implementation/OAF-024-memory-evidence-approval-views-note.md"
       ],
       "limitations": [
         "Dependency-free routed shell; no production frontend framework",
         "Uses the loopback Control API only and does not read storage directly",
-        "Memory, Evidence, and Approval detail views remain OAF-024 scope"
+        "OAF-024 views are read-only and do not add approval mutation endpoints"
       ]
     },
     {
@@ -612,7 +613,7 @@
         "npm run native:smoke",
         "npm run verify:handoff"
       ],
-    "testsExpected": 182,
+    "testsExpected": 185,
     "protocolFixturesExpected": 96,
     "evaluationsExpected": 101,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

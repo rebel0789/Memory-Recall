@@ -212,6 +212,123 @@ export function buildContextInspectorModel(manifest = null) {
   };
 }
 
+export function buildMemoryReviewModel({ memories = [] } = {}) {
+  const records = Array.isArray(memories) ? memories : [];
+  const byId = new Map(records.map((record)=>[String(record.id ?? ''), record]));
+  return records.map((record)=> {
+    const previous = record.supersedes ? byId.get(String(record.supersedes)) : null;
+    const previousText = record.previous?.text ?? record.metadata?.previousText ?? previous?.text ?? null;
+    const proposedText = record.proposed?.text ?? record.text ?? '';
+    const status = safeText(record.status ?? 'proposed');
+    return {
+      id:safeText(record.id ?? 'mem_unknown'),
+      kind:safeText(record.kind ?? 'fact'),
+      status,
+      lifecycle:Array.isArray(record.lifecycle) ? record.lifecycle.map((event)=>({
+        type:safeText(event.type ?? 'memory.event'),
+        at:event.at ?? null,
+        actorId:safeText(event.actorId ?? 'system'),
+        reason:event.reason ? safeText(event.reason) : null,
+        evidenceIds:Array.isArray(event.evidenceIds) ? event.evidenceIds.map(safeText) : []
+      })) : [],
+      previousValue:memoryDisplayText(previousText ?? 'No previous durable memory record.'),
+      proposedValue:memoryDisplayText(proposedText),
+      source:safeText(record.source ?? 'unknown'),
+      confidence:boundedPercent(record.confidence),
+      conflict:Array.isArray(record.conflicts) && record.conflicts.length ? record.conflicts.map((conflict)=>safeText(conflict.reason ?? conflict.existingId ?? 'conflict')).join(', ') : 'none',
+      retention:safeText(record.retention?.mode ?? record.retention ?? 'workspace-default'),
+      supersession:record.supersedes ? safeText(record.supersedes) : 'none',
+      reviewer:safeText(record.verifiedBy ?? record.activatedBy ?? record.metadata?.reviewer ?? 'not assigned'),
+      evidenceIds:Array.isArray(record.evidenceIds) ? record.evidenceIds.map(safeText) : [],
+      actions:memoryActionsForStatus(status)
+    };
+  });
+}
+
+export function buildEvidenceExplorerModel({ latestManifest = null, latestRun = null, evidenceGraph = null } = {}) {
+  const manifestEvidence = (latestManifest?.selected ?? []).filter((item)=>['observation','evidence'].includes(item.kind));
+  const graphObservations = Array.isArray(evidenceGraph?.observations) ? evidenceGraph.observations : [];
+  const observations = graphObservations.length ? graphObservations : manifestEvidence;
+  const claims = [
+    ...(Array.isArray(evidenceGraph?.claims) ? evidenceGraph.claims : []),
+    ...(Array.isArray(latestRun?.output?.output) ? latestRun.output.output.map((candidate)=>({
+      id:`candidate:${candidate.rank ?? candidate.angle ?? 'local'}`,
+      text:[candidate.angle,candidate.hook].filter(Boolean).join(' '),
+      relation:'supports',
+      evidenceIds:Array.isArray(candidate.evidenceIds) ? candidate.evidenceIds : [],
+      inferred:{ model:latestRun.output.provider ?? 'deterministic', version:latestRun.output.model ?? latestRun.output.outputSchemaVersion ?? 'local' },
+      uncertainty:candidate.confidence === undefined ? 'unknown' : `${Math.round(Number(candidate.confidence) * 100)}% confidence`
+    })) : [])
+  ];
+  const claimsByEvidence = new Map();
+  for (const claim of claims) {
+    for (const id of claim.evidenceIds ?? []) {
+      if (!claimsByEvidence.has(id)) claimsByEvidence.set(id, []);
+      claimsByEvidence.get(id).push(claim);
+    }
+  }
+  const conflicts = Array.isArray(latestManifest?.conflicts) ? latestManifest.conflicts : [];
+  return observations.map((item)=> {
+    const id = safeText(item.id ?? item.observationId ?? 'obs_unknown');
+    const linkedClaims = claimsByEvidence.get(id) ?? [];
+    return {
+      id,
+      observed:{
+        text:previewText(item.text ?? item.observed?.text ?? item.summary ?? ''),
+        fields:safeKeyValueList(item.observed ?? {
+          kind:item.kind ?? 'observation',
+          tokens:item.tokens ?? 0,
+          source:item.source ?? item.sourceLocator ?? item.metadata?.sourceSnapshotId ?? 'unknown'
+        })
+      },
+      source:safeText(item.source ?? item.sourceLocator ?? item.metadata?.sourceSnapshotId ?? item.sourceSnapshotId ?? 'unknown'),
+      sourceSnapshotId:safeText(item.sourceSnapshotId ?? item.metadata?.sourceSnapshotId ?? 'snapshot_unavailable'),
+      collectionMethod:safeText(item.collectionMethod ?? item.retrievalMethod ?? item.metadata?.collectionMethod ?? 'context-manifest'),
+      publishedAt:item.publishedAt ?? item.metricTime ?? item.observedAt ?? null,
+      collectedAt:item.collectedAt ?? item.observedAt ?? item.updatedAt ?? null,
+      metricTime:item.metricTime ?? item.observedAt ?? null,
+      hash:safeText(item.contentHash ?? item.sourceContentHash ?? item.hash ?? item.fingerprint ?? 'hash_unavailable'),
+      trustClass:safeText(item.trustClass ?? item.sourceTrust ?? item.trust ?? 'observed'),
+      inferred:safeKeyValueList(item.inferred ?? item.pattern ?? {}),
+      claims:linkedClaims.map((claim)=>({
+        id:safeText(claim.id),
+        relation:safeText(claim.relation ?? 'supports'),
+        text:previewText(claim.text ?? ''),
+        uncertainty:claim.uncertainty ? safeText(claim.uncertainty) : 'not stated',
+        model:safeText(claim.inferred?.model ?? claim.inferred?.version ?? 'not recorded')
+      })),
+      stale:Boolean(item.stale ?? false),
+      conflicts:conflicts.filter((conflict)=>JSON.stringify(conflict).includes(id)).map((conflict)=>safeText(conflict.reason ?? conflict.type ?? 'conflict'))
+    };
+  });
+}
+
+export function buildApprovalReviewModel({ approvals = [] } = {}) {
+  const items = Array.isArray(approvals) ? approvals : [];
+  return items.map((approval)=> {
+    const status = safeText(approval.status ?? 'pending');
+    const operationHash = safeText(approval.operationHash ?? approval.operationFingerprint ?? approval.binding?.operationFingerprint ?? 'hash_unavailable');
+    const exactContent = approval.preview?.diff ?? approval.preview?.editableText ?? approval.diff ?? approval.content ?? approval.candidate?.hook ?? 'No content preview recorded.';
+    return {
+      id:safeText(approval.id ?? 'approval_unknown'),
+      status,
+      operationHash,
+      actor:safeText(approval.actorId ?? approval.actor ?? 'unknown'),
+      destination:safeText(approval.destination ?? approval.publisher?.destination ?? approval.publisher?.reason ?? 'local workspace only'),
+      exactContent:memoryDisplayText(exactContent),
+      risk:safeText(approval.risk ?? approval.riskClass ?? approval.sideEffectClass ?? 'consequential-write'),
+      policyVersion:safeText(approval.policyVersion ?? approval.policy?.version ?? 'policy:local'),
+      expiresAt:approval.expiresAt ?? null,
+      idempotency:safeText(approval.idempotencyKey ?? approval.idempotency?.key ?? approval.operationFingerprint ?? 'required-before-execution'),
+      consequence:safeText(approval.consequence ?? approval.sideEffectClass ?? 'local-only review'),
+      reasonCodes:Array.isArray(approval.reasonCodes) ? approval.reasonCodes.map(safeText) : [],
+      externalWrites:approval.externalWrites === true,
+      editInvalidates:true,
+      actions:approvalActionsForStatus(status)
+    };
+  });
+}
+
 function workspaceId() {
   return new URL(globalThis.location?.href ?? 'http://127.0.0.1/').searchParams.get('workspaceId') ?? 'ws_local';
 }
@@ -350,19 +467,20 @@ function renderContext() {
 }
 
 function renderMemory() {
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Memory lifecycle</h2><span>Proposal-first</span></div>${statePanel('empty','No active memory review in this workspace','Memory changes require proposal, verification, activation, supersession, retraction, or expiry.')}</div><aside class="inspector"><h2>Lifecycle states</h2><ol class="compact-list"><li>Observed</li><li>Proposed</li><li>Verified</li><li>Active</li><li>Superseded / retracted / expired</li></ol></aside></section>`;
+  const memories=buildMemoryReviewModel({memories:dashboard?.memories});
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Memory diffs</h2><span>${memories.length} reviewable records</span></div>${memoryDiffList(memories)}</div><aside class="inspector"><h2>Lifecycle states</h2><ol class="compact-list"><li>Observed</li><li>Proposed</li><li>Verified</li><li>Active</li><li>Superseded / retracted / expired</li></ol><hr><p class="muted">Memory remains proposal-first. Raw source bodies, credentials, local paths, and hidden reasoning are not rendered.</p></aside></section>`;
 }
 
 function renderEvidence() {
-  const manifest=dashboard?.latestManifest;
-  const items=(manifest?.selected??[]).filter(item=>item.kind==='observation');
+  const items=buildEvidenceExplorerModel({latestManifest:dashboard?.latestManifest,latestRun:dashboard?.latestRun,evidenceGraph:dashboard?.evidenceGraph});
   if(!items.length)return statePanel('empty','No selected evidence yet','Run the local workflow to inspect source-backed observations.',true);
-  return `<section class="surface"><div class="section-heading"><h2>Selected evidence</h2><span>Observation separate from inference</span></div><div class="evidence-list">${items.map(item=>`<article class="evidence-row"><header><code>${esc(item.id)}</code><span class="trust-label">untrusted source data</span></header><p>${esc(item.text)}</p><div class="meta-row"><span>Source: ${esc(item.source)}</span><span>${item.tokens} tokens</span></div>${reasons(item.reasonCodes)}</article>`).join('')}</div></section>`;
+  return `<section class="surface"><div class="section-heading"><h2>Evidence explorer</h2><span>Observation separate from inference</span></div><div class="evidence-list">${items.map(evidenceCard).join('')}</div></section>`;
 }
 
 function renderApprovals() {
-  const pending=dashboard?.metrics?.pendingApprovals ?? 0;
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Approval inbox</h2><span>${pending} pending</span></div>${statePanel('empty','No pending approvals','Consequential actions require exact preview, risk, expiry, and idempotency before approval.')}</div><aside class="inspector"><h2>Publisher boundary</h2><p>Publishing remains disabled. Postiz is planned, unpinned, and unsupported.</p>${statusChip('disabled','External writes disabled','Global kill switch')}</aside></section>`;
+  const approvals=buildApprovalReviewModel({approvals:dashboard?.approvals});
+  const pending=approvals.filter((approval)=>approval.status==='pending').length;
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Approval inbox</h2><span>${pending} pending</span></div>${approvalCardList(approvals)}</div><aside class="inspector"><h2>Publisher boundary</h2><p>Publishing remains disabled. Approval cards are exact previews only; no external write action is available in this shell.</p>${statusChip('disabled','External writes disabled','Global kill switch')}</aside></section>`;
 }
 
 function renderContentLab() {
@@ -441,6 +559,29 @@ function contextConflicts(conflicts){
   return `<div class="conflict-list">${conflicts.map((conflict,index)=>`<article class="state-inline"><strong>${esc(conflict.id??`conflict_${index+1}`)}</strong><p>${esc(conflict.reason??conflict.type??'Conflict recorded')}</p></article>`).join('')}</div>`;
 }
 
+function memoryDiffList(memories){
+  if(!memories.length)return statePanel('empty','No active memory review in this workspace','Memory changes require proposal, verification, activation, supersession, retraction, or expiry.');
+  return `<div class="memory-list">${memories.map((memory)=>`<article class="memory-diff state-${esc(memory.status)}"><header><div><code>${esc(memory.id)}</code><h3>${esc(memory.kind)} memory</h3></div>${statusChip(memory.status,memory.status,'Memory lifecycle')}</header><div class="diff-grid"><section><h4>Previous</h4><p>${esc(memory.previousValue)}</p></section><section><h4>Proposed</h4><p>${esc(memory.proposedValue)}</p></section></div><dl class="facts compact-facts"><div><dt>Source</dt><dd>${esc(memory.source)}</dd></div><div><dt>Confidence</dt><dd>${memory.confidence}%</dd></div><div><dt>Conflict</dt><dd>${esc(memory.conflict)}</dd></div><div><dt>Retention</dt><dd>${esc(memory.retention)}</dd></div><div><dt>Supersedes</dt><dd>${esc(memory.supersession)}</dd></div><div><dt>Reviewer</dt><dd>${esc(memory.reviewer)}</dd></div></dl>${memory.evidenceIds.length?`<div class="reason-list">${memory.evidenceIds.map((id)=>`<a class="reason" href="/evidence">${esc(id)}</a>`).join('')}</div>`:''}${lifecycleTrace(memory.lifecycle)}<div class="action-row review-actions">${memory.actions.map((action)=>`<button class="button secondary" type="button" disabled>${esc(action.label)}</button>`).join('')}</div></article>`).join('')}</div>`;
+}
+
+function lifecycleTrace(lifecycle){
+  if(!lifecycle.length)return '<p class="muted">No lifecycle events recorded.</p>';
+  return `<ol class="compact-list lifecycle-list">${lifecycle.map((event)=>`<li><strong>${esc(event.type)}</strong><span>${date(event.at)} · ${esc(event.actorId)}${event.reason?` · ${esc(event.reason)}`:''}</span></li>`).join('')}</ol>`;
+}
+
+function evidenceCard(item){
+  return `<article class="evidence-row"><header><code>${esc(item.id)}</code><span class="trust-label">${esc(item.trustClass)}</span></header><p>${esc(item.observed.text || 'No observation preview available.')}</p><div class="evidence-columns"><section><h3>Observed</h3>${keyValueFacts(item.observed.fields)}</section><section><h3>Inferred</h3>${item.inferred.length?keyValueFacts(item.inferred):'<p class="muted">No inference recorded on this evidence card.</p>'}</section></div><dl class="facts facts-wide"><div><dt>Snapshot</dt><dd>${esc(item.sourceSnapshotId)}</dd></div><div><dt>Source</dt><dd>${esc(item.source)}</dd></div><div><dt>Method</dt><dd>${esc(item.collectionMethod)}</dd></div><div><dt>Hash</dt><dd><code>${esc(item.hash)}</code></dd></div><div><dt>Published</dt><dd>${date(item.publishedAt)}</dd></div><div><dt>Collected</dt><dd>${date(item.collectedAt)}</dd></div></dl>${item.claims.length?`<div class="claim-list">${item.claims.map((claim)=>`<article class="state-inline"><strong>${esc(claim.id)}</strong><p>${esc(claim.text)}</p><div class="meta-row"><span>${esc(claim.relation)}</span><span>${esc(claim.uncertainty)}</span><span>Inference: ${esc(claim.model)}</span></div></article>`).join('')}</div>`:'<p class="muted">No generated claim links reference this evidence.</p>'}${item.stale?statusChip('stale','stale','Evidence staleness'):''}${item.conflicts.length?`<div class="reason-list">${item.conflicts.map((conflict)=>`<span class="reason">${esc(conflict)}</span>`).join('')}</div>`:''}</article>`;
+}
+
+function approvalCardList(approvals){
+  if(!approvals.length)return statePanel('empty','No pending approvals','Consequential actions require exact preview, risk, expiry, and idempotency before approval.');
+  return `<div class="approval-list">${approvals.map((approval)=>`<article class="approval-card state-${esc(approval.status)}"><header><div><code>${esc(approval.id)}</code><h3>${esc(approval.consequence)}</h3></div>${statusChip(approval.status,approval.status,'Approval status')}</header><dl class="facts compact-facts"><div><dt>Operation</dt><dd><code>${esc(approval.operationHash)}</code></dd></div><div><dt>Actor</dt><dd>${esc(approval.actor)}</dd></div><div><dt>Destination</dt><dd>${esc(approval.destination)}</dd></div><div><dt>Risk</dt><dd>${esc(approval.risk)}</dd></div><div><dt>Policy</dt><dd>${esc(approval.policyVersion)}</dd></div><div><dt>Expires</dt><dd>${date(approval.expiresAt)}</dd></div><div><dt>Idempotency</dt><dd>${esc(approval.idempotency)}</dd></div></dl><section class="preview-box"><h4>Exact content or diff</h4><p>${esc(approval.exactContent)}</p></section><p class="muted">Any edit invalidates this approval. External writes: ${approval.externalWrites?'enabled':'disabled'}.</p>${reasons(approval.reasonCodes)}<div class="action-row review-actions">${approval.actions.map((action)=>`<button class="button secondary" type="button" disabled>${esc(action.label)}</button>`).join('')}</div></article>`).join('')}</div>`;
+}
+
+function keyValueFacts(items){
+  return `<dl class="summary-list">${items.map((item)=>`<div><dt>${esc(item.key)}</dt><dd>${esc(item.value)}</dd></div>`).join('')}</dl>`;
+}
+
 function navigate(event) {
   event.preventDefault();
   activeRunDetail=null;
@@ -515,6 +656,11 @@ function safeText(value){return String(value??'').replace(/[\r\n\t]+/g,' ').slic
 function previewText(value){return safeText(value).slice(0,220)}
 function sanitizeSummary(value){if(!value||typeof value!=='object'||Array.isArray(value))return null;const output={};for(const [key,raw] of Object.entries(value)){if(/prompt|body|text|credential|token|secret|path|url|reasoning|sql/i.test(key))continue;if(typeof raw==='string'||typeof raw==='number'||typeof raw==='boolean')output[key]=safeText(raw);else if(Array.isArray(raw))output[key]=raw.slice(0,6).map((item)=>typeof item==='string'||typeof item==='number'||typeof item==='boolean'?safeText(item):'[object]');}return output}
 function summaryInline(summary){if(!summary)return '-';const entries=Object.entries(summary);if(!entries.length)return '-';return entries.map(([key,value])=>`${labelize(key)}: ${Array.isArray(value)?value.join(', '):value}`).join('; ')}
+function boundedPercent(value){const number=Number(value??0);return Math.max(0,Math.min(100,Math.round((Number.isFinite(number)?number:0)*100)))}
+function memoryActionsForStatus(status){if(status==='proposed'||status==='verified')return [{label:'Approve'},{label:'Edit'},{label:'Reject'},{label:'Set expiry'}];if(status==='active')return [{label:'Supersede'},{label:'Retract'},{label:'Set expiry'}];return [{label:'Review history'}]}
+function approvalActionsForStatus(status){if(status==='pending')return [{label:'Approve exact operation'},{label:'Edit invalidates approval'},{label:'Reject'}];return [{label:'Review outcome'}]}
+function memoryDisplayText(value){const text=String(value??'');return /sk-[A-Za-z0-9_-]{12,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gho_[A-Za-z0-9_]{12,}/.test(text) ? '[redacted-sensitive-value]' : previewText(text)}
+function safeKeyValueList(value){if(!value||typeof value!=='object'||Array.isArray(value))return [];return Object.entries(value).filter(([key])=>!/prompt|body|credential|token|secret|path|url|reasoning|sql/i.test(key)).slice(0,8).map(([key,raw])=>({key:labelize(key),value:Array.isArray(raw)?raw.slice(0,4).map(safeText).join(', '):safeText(raw)}))}
 
 function boot(){
   document.querySelector('#run-button').addEventListener('click',runDemo);
