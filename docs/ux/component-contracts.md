@@ -4,9 +4,13 @@
 
 Required: workflow and version, status text and icon, residency, start/duration, current step, owner, warning count, stable link. Never call a run “thinking.”
 
+OAF-023 implementation: run detail links use `/runs?run=<runId>` and step focus links use `/runs?run=<runId>&step=<stepId>`. Step cards expose actor, attempt, duration, bounded summary fields, and sanitized error code only.
+
 ## Context decision card
 
 Required: record ID, kind, text preview, tokens, score, reason codes, source, scope, version, and selected/excluded state. Exclusion never appears as a generic “not relevant” when a precise reason exists.
+
+OAF-023 implementation: decision detail links use `/context?record=<recordId>&state=<selected|excluded>`. Cards omit raw context bodies and show only the sanitized preview plus safe manifest metadata.
 
 ## Evidence card
 

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T14:38:30.390Z",
-  "fileCount": 633,
-  "totalBytes": 1912342,
+  "generatedAt": "2026-06-20T14:49:43.242Z",
+  "fileCount": 634,
+  "totalBytes": 1939677,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -481,8 +481,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 23729,
-      "sha256": "f86cc713643c4a31ee7e7b672220d9245a07bde252a6c033b2be4953bcc4ecbd"
+      "bytes": 41517,
+      "sha256": "810772e0e180340a00066c4a356e82f746ccf0433b28740180a9fe51632015f5"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -496,8 +496,8 @@
     },
     {
       "path": "apps/web/styles.css",
-      "bytes": 10541,
-      "sha256": "2e2bcec15f8d3281e95e9a34bf86207b61abfeaddca8ea788c52e46518c31b55"
+      "bytes": 13201,
+      "sha256": "e905622af06ed823837262b47e39626208d71b944e463b027ca59b72bea47211"
     },
     {
       "path": "apps/web/tokens.css",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 13180,
-      "sha256": "f24a7785c9414a32c6541dd4e1f112d624b1989592d91cbc744b33703563b884"
+      "bytes": 13680,
+      "sha256": "7b5078a77eae4f88c267c2ab6bb1a7ff8c24db345355170c7aad7b05795a4db2"
     },
     {
       "path": "CITATION.cff",
@@ -865,6 +865,11 @@
       "sha256": "c577b731468b8540218ea6435c347134f678447df6bdc74708284592c4586678"
     },
     {
+      "path": "docs/implementation/OAF-023-run-context-inspector-note.md",
+      "bytes": 1861,
+      "sha256": "cb510d0d3238196189895bf9846d9d2622cf8299dcfa5a8f16603fb6b7fe84f2"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -1041,8 +1046,8 @@
     },
     {
       "path": "docs/ux/component-contracts.md",
-      "bytes": 1376,
-      "sha256": "8b515a4d59094b52480078ed4a9d74f43fac47cbd556f19bd4616267f625bd5f"
+      "bytes": 1803,
+      "sha256": "f61cdf93318f5ed1c469434a0cb32c8dbc7214b7fc5b4e94ff47c89ad1d4de51"
     },
     {
       "path": "docs/ux/content-style.md",
@@ -1066,8 +1071,8 @@
     },
     {
       "path": "docs/ux/screen-specs.md",
-      "bytes": 2461,
-      "sha256": "5610ea971e06b52068f96fcefeb1cfc1787edb2fbeb1b7f24b67600ff7e12f25"
+      "bytes": 2886,
+      "sha256": "61f589d316ff353cefdcf324b4ae824fe0f8ef6e5b3130b568395e86851d6108"
     },
     {
       "path": "docs/ux/wireframes.md",
@@ -1647,7 +1652,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "93222b75a322a98696208158f852998dc1df20f6273083688ceb7aeef1a666ce"
+      "sha256": "ecb40c51a155a2533cd45e39b175d9cf4de5e5f774c0e8d49aeec5e3682ba6cb"
     },
     {
       "path": "LICENSE",
@@ -2411,8 +2416,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26914,
-      "sha256": "e32316265cd456b3ac04aa082ff773d15f9a836df4b1fda993fdd795af2196e0"
+      "bytes": 26916,
+      "sha256": "041fb5fe854c107d43f25fd4a60799e6b94329547e49284c8e2a92cf248b262b"
     },
     {
       "path": "planning/README.md",
@@ -2426,8 +2431,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 25203,
-      "sha256": "62d3727f84f313304f500eb5be82ce63cfb0cddc5cf3f63c3bb96a77e379e99a"
+      "bytes": 25348,
+      "sha256": "0ed3301e9f869fd628e10d132e36d7b74bc7a0d4f054f93911351ddda89c3899"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2877,7 +2882,7 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "98b34de4ef6a78c9ad36d4ebc22b11856c87b9e4c1ef5729c7422f9e6ebd81c4"
+      "sha256": "dea193c32eff32fd356b33e64e5319fdbc1969b68ade62bafca58e765edb3719"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -3071,8 +3076,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 2892,
-      "sha256": "36b7f76a06fdf76cf8c6baa4cbcd25850f6f3c1d054dee81960696be94591349"
+      "bytes": 6419,
+      "sha256": "b8861927c25df80e713bc0c95e71fb84da401315be9594cae5348867c32bc503"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

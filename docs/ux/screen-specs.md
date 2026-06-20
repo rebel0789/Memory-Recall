@@ -16,9 +16,13 @@ Answer: “Is the system healthy, what is happening, and what needs me?” Show 
 
 List: status, workflow, owner, start, duration, current step, warnings. Detail: outcome, artifacts, timeline, manifests, tool calls, approvals, evaluations, sanitized errors.
 
+Implemented detail route: `/runs?run=<runId>` with optional `/runs?run=<runId>&step=<stepId>` focus. The timeline uses sanitized event summaries and step cards rather than raw logs or raw event payload bodies.
+
 ## Context Inspector
 
 Header: objective, step, actor, budget, compiler version, conflict state. Sections: selected, excluded, conflicts, assembly, compare. Record: text preview, kind, tokens, score, reasons, source, time, scope, confidence, version chain.
+
+Implemented decision route: `/context?record=<recordId>&state=<selected|excluded>`. Selected/excluded cards must keep exact reason codes visible and preserve assembly and comparison panels beside conflict status.
 
 ## Memory Explorer
 

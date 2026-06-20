@@ -575,7 +575,7 @@
       "id": "OAF-023",
       "title": "Build Run and Context Inspector views",
       "milestone": "Milestone 7",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:frontend-builder",
       "dependsOn": [
         "OAF-012",
