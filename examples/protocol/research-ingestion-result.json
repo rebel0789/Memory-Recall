@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_local",
+  "collectedAt": "2026-06-20T00:00:00.000Z",
+  "sourceCount": 2,
+  "snapshots": [
+    {
+      "schemaVersion": "1.0.0",
+      "id": "src_0123456789abcdef",
+      "provider": "provider:native:evidence:ingestion",
+      "workspaceId": "ws_local",
+      "kind": "source_snapshot",
+      "hashAlgorithm": "sha256",
+      "contentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "byteSize": 42,
+      "size": 42,
+      "mediaType": "text/plain",
+      "filename": "notes.txt",
+      "dataClass": "workspace-private",
+      "retention": { "mode": "workspace-default" },
+      "trust": "untrusted-external",
+      "capturedAt": "2026-06-20T00:00:00.000Z",
+      "createdAt": "2026-06-20T00:00:00.000Z",
+      "collector": "provider:native:evidence:ingestion",
+      "retrievalMethod": "file-read",
+      "sourceLocator": "file://workspace/notes.txt",
+      "metadata": { "format": "text", "title": null, "itemLimit": 100 }
+    }
+  ],
+  "observations": [
+    {
+      "schemaVersion": "1.0.0",
+      "id": "obs_0123456789abcdef",
+      "workspaceId": "ws_local",
+      "source": "file://workspace/notes.txt",
+      "sourceSnapshotId": "src_0123456789abcdef",
+      "sourceContentHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "platform": "text-file",
+      "creator": "unknown",
+      "text": "A bounded local source observation.",
+      "publishedAt": null,
+      "collectedAt": "2026-06-20T00:00:00.000Z",
+      "metricAt": "2026-06-20T00:00:00.000Z",
+      "contentHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "observed": { "ingestion": { "format": "text", "itemType": "document" } },
+      "inferred": {},
+      "trust": "untrusted-external"
+    }
+  ],
+  "duplicates": [],
+  "failures": [
+    {
+      "index": 1,
+      "sourceLocator": "file://workspace/bad.json",
+      "sourceSnapshotId": null,
+      "code": "malformed_source",
+      "message": "JSON source has no ingestible records"
+    }
+  ],
+  "summary": {
+    "acceptedSources": 1,
+    "observationCount": 1,
+    "duplicateCount": 0,
+    "failureCount": 1,
+    "maxSourceBytes": 262144,
+    "maxItemsPerSource": 100
+  },
+  "externalAccess": {
+    "network": false,
+    "browserAutomation": false,
+    "cookies": false,
+    "paidApis": false,
+    "externalWrites": false
+  }
+}

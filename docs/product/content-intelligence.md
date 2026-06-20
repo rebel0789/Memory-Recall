@@ -8,7 +8,7 @@ The product is not a “viral post generator.” It is a research operator that 
 
 ## Pipeline
 
-1. **Collect:** files, RSS/Atom, public APIs, transcripts, GitHub, or reviewed read adapters.
+1. **Collect:** bounded caller-supplied files and RSS/Atom bodies now; public APIs, transcripts, GitHub, and reviewed read adapters remain future adapter work.
 2. **Snapshot:** preserve source ID, URL, body hash, collection method, publication and metric time.
 3. **Normalize:** map into `ContentObservation` without mixing inference.
 4. **Deduplicate:** detect reposts, cross-posts, quote derivatives, and transcript copies.
@@ -27,6 +27,8 @@ The product is not a “viral post generator.” It is a research operator that 
 Observed values and model inference are separate objects. A recommendation cites selected observation IDs. Raw views are not treated as comparable performance without context.
 
 The native evidence service builds deterministic citation graph records from snapshots, observations, and claims. Deduplication, staleness, and conflict findings are graph outputs, not edits to the observed source facts.
+
+OAF-019 adds a read-only native ingestion path for text, Markdown, JSON, RSS, and Atom. It snapshots each bounded source body, normalizes usable entries into `ContentObservation` records with empty inference, collapses repeated observations by content hash, and reports malformed or oversized sources without fetching network content or using cookies, paid APIs, browser automation, external adapters, external writes, or publishing.
 
 ## Default dashboard
 

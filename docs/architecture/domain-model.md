@@ -65,6 +65,8 @@ Source snapshot records use the `src_` prefix, carry collection provenance (`col
 
 The native evidence service constructs an immutable citation graph from source snapshots, observations, and claims. The graph records deterministic deduplication groups, claim-to-observation citation edges, staleness classifications, and conflict findings. These outputs do not overwrite source snapshots or observations and do not create memory records.
 
+The native research ingestion path accepts bounded caller-supplied text, Markdown, JSON, RSS, and Atom bodies. It does not fetch URLs or authenticate to sources. Each accepted source creates an immutable source snapshot; each usable document, JSON record, RSS item, or Atom entry becomes an observation linked to that snapshot with `inferred: {}`. Malformed, oversized, or credential-bearing sources are reported as ingestion failures rather than executed, retried through the network, or silently skipped.
+
 Artifact records use the `art_` prefix. Both artifact records and source snapshots reference immutable stored objects by `hashAlgorithm: sha256`, `contentHash`, and `byteSize`; the stored object itself has no provenance or authority. Deleting a logical record creates an audit tombstone and does not imply that shared object bytes are removable.
 
 ### Memory

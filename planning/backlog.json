@@ -472,7 +472,7 @@
       "id": "OAF-019",
       "title": "Implement file and RSS ingestion",
       "milestone": "Milestone 6",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:researcher",
       "dependsOn": [
         "OAF-006",

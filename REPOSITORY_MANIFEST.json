@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T12:12:03.385Z",
-  "fileCount": 621,
-  "totalBytes": 1779999,
+  "generatedAt": "2026-06-20T12:20:25.443Z",
+  "fileCount": 625,
+  "totalBytes": 1811054,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 10591,
-      "sha256": "b06c946079fd0cde2ef01b765db5711bffcbc58c4b210f7da4e6a5f89689fdf5"
+      "bytes": 11253,
+      "sha256": "56c66d6e03d228803cb4356fb0c43609510bf484080bf5e09869f9c116a060e1"
     },
     {
       "path": "CITATION.cff",
@@ -731,8 +731,8 @@
     },
     {
       "path": "docs/architecture/domain-model.md",
-      "bytes": 8173,
-      "sha256": "eb20accf2d760f38dd75a5474948125d1c463503e12638bb18ce7e238b24a09b"
+      "bytes": 8681,
+      "sha256": "e239d757747816e5b4fe02cf9f72364cd434424ae6aa6e7d7af3199cde517da5"
     },
     {
       "path": "docs/architecture/event-model.md",
@@ -845,6 +845,11 @@
       "sha256": "7f494bba6a33ce30803df3f153a981b4d9e974517dcb24408fb6b575a43f6335"
     },
     {
+      "path": "docs/implementation/OAF-019-file-rss-ingestion-note.md",
+      "bytes": 1474,
+      "sha256": "f2e4201bf535d6d88f3cf72db01287766aedb3f7bdb4cffdfdb0b9cd9eafde6f"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -911,8 +916,8 @@
     },
     {
       "path": "docs/product/content-intelligence.md",
-      "bytes": 2418,
-      "sha256": "840fc7b7d4dd4268bfb19256af3375338db10b633dd8967565e21b59c4bc5031"
+      "bytes": 2919,
+      "sha256": "db599df951a4a30078a0ac58327656026e7ea5f325b124e1792ec2f05219ada1"
     },
     {
       "path": "docs/product/prd.md",
@@ -1341,8 +1346,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 22972,
-      "sha256": "9d8d0748c31a2af055727ce82c859aaf9eeeff1c04dadd52749eb549ec098879"
+      "bytes": 23221,
+      "sha256": "c40b6249a9722898ffc99587cc9b1dddbd1396aedacaf5644314f164b4991955"
     },
     {
       "path": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
@@ -1575,6 +1580,11 @@
       "sha256": "219a78b253c0f5ee2b114893dcaaaae186dc1b629816802ee8e0bd575d8e4bfc"
     },
     {
+      "path": "examples/protocol/research-ingestion-result.json",
+      "bytes": 2472,
+      "sha256": "65c2766494d93d98b4e793f97f2e983556aa7a311d1477c6c7a1d0fb13ce8c0f"
+    },
+    {
       "path": "examples/protocol/retention-policy.json",
       "bytes": 69,
       "sha256": "a57eb5d1761f65e158752b850c2f68baaa373dcd10f11b926401562eeabf4609"
@@ -1612,7 +1622,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "2ff501814071f8b65f001745c5698aa6eba7a2b27a1fc62edf44a8f69de483f2"
+      "sha256": "af73286f2f58f2ab914fc59ce7f0a28fea4cd1a5deab7ecb2a864c0a45efe54f"
     },
     {
       "path": "LICENSE",
@@ -1711,8 +1721,8 @@
     },
     {
       "path": "packages/evidence/src/index.mjs",
-      "bytes": 15644,
-      "sha256": "e1c5dc4843edcf054b6f4903bcd8eaef83c5e4f0f4d231280ec2700f712ce6db"
+      "bytes": 29865,
+      "sha256": "244b458b024918f609b063493ed9fe2cb593526cfc8d8f5772bf358ed8654d28"
     },
     {
       "path": "packages/memory-core/package.json",
@@ -2180,6 +2190,11 @@
       "sha256": "90c04c41f30a85b86f35f1d920042b3200a96c7ea5a0f1578a1825026e2d99e5"
     },
     {
+      "path": "packages/protocol/schemas/research-ingestion-result.schema.json",
+      "bytes": 3155,
+      "sha256": "5037019856cdc5035494db76b989d7e01b5ea064995dc9c705e68e6a75744f48"
+    },
+    {
       "path": "packages/protocol/schemas/retention-policy.schema.json",
       "bytes": 451,
       "sha256": "7f69070014dda1fe3476217889469ce0107f908c0a554b57f2ff13557309d27e"
@@ -2361,8 +2376,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26906,
-      "sha256": "9c7b7b3319edc259a1fe85708dd919bf9416ec18b2b1a3b809a5abaac8e66cf2"
+      "bytes": 26908,
+      "sha256": "7216cb7a834b200749ebafd896300ab6f4b01c50c929b1cd05ea93a3dca2eca9"
     },
     {
       "path": "planning/README.md",
@@ -2376,8 +2391,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 21175,
-      "sha256": "ad38d34490d3137a7c3cd1be306c51135d8f1f724c362b14be70a13e8f73167c"
+      "bytes": 22375,
+      "sha256": "51e0e5521af6dc20630e7b1b047ff9e8d93dde8eaa0afd254314899911751e8e"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2827,7 +2842,7 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "dfa35d9d28bf5d01dc3f7f7a5e14324da09bdc65a7f1e7c3b266be56bf2fc163"
+      "sha256": "dfaecb2c70789d8600164ff9b8f7caf4773bfa7188a8ffc672d7fa3299049716"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -2985,6 +3000,11 @@
       "sha256": "e0b3395ab1480ace5d7c3743a7475b2e9cbd578c00160930f471c19079256b8d"
     },
     {
+      "path": "tests/research-ingestion.test.mjs",
+      "bytes": 6057,
+      "sha256": "a7637cf7941fbd7973a91ecccbc708ebcb3457b2abd049674ec347e6bc491369"
+    },
+    {
       "path": "tests/tool-durable-integration.test.mjs",
       "bytes": 4902,
       "sha256": "13b184d1d7d282f694910fb80e094c27535dbc5869a367cb0e40e2c420734c9f"
@@ -3111,8 +3131,8 @@
     },
     {
       "path": "workflows/content-intelligence/runner.mjs",
-      "bytes": 7812,
-      "sha256": "73bb8994e8328be5fff4a0e545576988f143a550d2dd930b8ee2d6d0413a536a"
+      "bytes": 8366,
+      "sha256": "5824308296db763058d3e30e7ffc59bcbc28f091ab06ffcff515202cfdbc56d2"
     },
     {
       "path": "workflows/content-intelligence/workflow.json",

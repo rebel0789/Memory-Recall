@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-019",
+  "nextTask": "OAF-020",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -155,12 +155,31 @@
       "status": "reference",
       "evidence": [
         "workflows/content-intelligence/runner.mjs",
-        "tests/workflow.test.mjs"
+        "tests/workflow.test.mjs",
+        "tests/research-ingestion.test.mjs"
       ],
       "limitations": [
-        "Synthetic fixtures",
+        "Synthetic fixtures by default; optional read-only source ingestion remains caller supplied",
         "Deterministic generator",
         "No publishing"
+      ]
+    },
+    {
+      "id": "content.ingestion",
+      "name": "Read-only file and feed ingestion",
+      "status": "reference",
+      "evidence": [
+        "packages/evidence/src/index.mjs",
+        "workflows/content-intelligence/runner.mjs",
+        "packages/protocol/schemas/research-ingestion-result.schema.json",
+        "examples/protocol/research-ingestion-result.json",
+        "tests/research-ingestion.test.mjs",
+        "docs/implementation/OAF-019-file-rss-ingestion-note.md"
+      ],
+      "limitations": [
+        "Accepts caller-supplied bounded text, Markdown, JSON, RSS, and Atom bodies only",
+        "No network fetching, cookies, paid APIs, authenticated social connectors, browser automation, external adapters, external writes, or publishing",
+        "RSS and Atom parsing is dependency-free bootstrap coverage, not a full XML feed crawler"
       ]
     },
     {
@@ -218,12 +237,15 @@
       "evidence": [
         "packages/evidence/src/index.mjs",
         "packages/protocol/schemas/evidence-graph.schema.json",
+        "packages/protocol/schemas/research-ingestion-result.schema.json",
         "examples/protocol/evidence-graph.json",
-        "tests/evidence.test.mjs"
+        "examples/protocol/research-ingestion-result.json",
+        "tests/evidence.test.mjs",
+        "tests/research-ingestion.test.mjs"
       ],
       "limitations": [
         "Reference implementation is pure in-memory normalization and graph construction",
-        "No external graph database, adapter ingestion, publishing, or automatic memory write"
+        "No external graph database, adapter ingestion, publishing, authenticated social connector, or automatic memory write"
       ]
     },
     {

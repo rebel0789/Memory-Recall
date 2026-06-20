@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/research-ingestion-result-1.0.json",
+  "title": "Research Ingestion Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workspaceId",
+    "collectedAt",
+    "sourceCount",
+    "snapshots",
+    "observations",
+    "duplicates",
+    "failures",
+    "summary",
+    "externalAccess"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "workspaceId": { "type": "string", "minLength": 1 },
+    "collectedAt": { "type": "string", "format": "date-time" },
+    "sourceCount": { "type": "integer", "minimum": 0 },
+    "snapshots": { "type": "array", "items": { "type": "object" } },
+    "observations": { "type": "array", "items": { "type": "object" } },
+    "duplicates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["contentHash", "canonicalObservationId", "duplicateObservationId", "sourceSnapshotId", "reasonCodes"],
+        "properties": {
+          "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "canonicalObservationId": { "type": "string", "pattern": "^obs_" },
+          "duplicateObservationId": { "type": "string", "pattern": "^obs_" },
+          "sourceSnapshotId": { "type": "string", "pattern": "^src_" },
+          "reasonCodes": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "sourceLocator", "sourceSnapshotId", "code", "message"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "sourceLocator": { "type": ["string", "null"] },
+          "sourceSnapshotId": { "type": ["string", "null"] },
+          "code": { "enum": ["invalid_source", "source_too_large", "malformed_source", "no_ingestible_items"] },
+          "message": { "type": "string" }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acceptedSources", "observationCount", "duplicateCount", "failureCount", "maxSourceBytes", "maxItemsPerSource"],
+      "properties": {
+        "acceptedSources": { "type": "integer", "minimum": 0 },
+        "observationCount": { "type": "integer", "minimum": 0 },
+        "duplicateCount": { "type": "integer", "minimum": 0 },
+        "failureCount": { "type": "integer", "minimum": 0 },
+        "maxSourceBytes": { "type": "integer", "minimum": 1 },
+        "maxItemsPerSource": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "externalAccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network", "browserAutomation", "cookies", "paidApis", "externalWrites"],
+      "properties": {
+        "network": { "const": false },
+        "browserAutomation": { "const": false },
+        "cookies": { "const": false },
+        "paidApis": { "const": false },
+        "externalWrites": { "const": false }
+      }
+    }
+  }
+}

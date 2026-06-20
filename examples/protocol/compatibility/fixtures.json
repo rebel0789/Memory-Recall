@@ -56,6 +56,12 @@
       "expectedValid": true
     },
     {
+      "id": "research-ingestion-result-current-valid",
+      "schema": "packages/protocol/schemas/research-ingestion-result.schema.json",
+      "instance": "examples/protocol/research-ingestion-result.json",
+      "expectedValid": true
+    },
+    {
       "id": "stored-object-current-valid",
       "schema": "packages/protocol/schemas/stored-object-descriptor.schema.json",
       "instance": "examples/protocol/stored-object-descriptor.json",
