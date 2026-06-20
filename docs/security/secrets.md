@@ -13,7 +13,8 @@ Use references such as `secret://workspace/provider/token`, never raw values in 
 - logs redact common credential forms and authorization headers;
 - error messages never echo environment variables;
 - rotation and revocation are documented;
-- source snapshots, memory, and exports reject secret material.
+- source snapshots, memory, and exports reject secret material;
+- OAF-017 memory proposals that resemble secrets are quarantined as `secret`, stored only with redacted text, denied activation, and excluded from exports.
 
 The repository check scans common patterns but is not a substitute for dedicated secret scanning in the hosted repository.
 

@@ -419,7 +419,7 @@
       "id": "OAF-017",
       "title": "Implement native versioned memory and write gate",
       "milestone": "Milestone 5",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:context-curator",
       "dependsOn": [
         "OAF-004",

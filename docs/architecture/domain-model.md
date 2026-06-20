@@ -69,7 +69,7 @@ Artifact records use the `art_` prefix. Both artifact records and source snapsho
 
 ### Memory
 
-A memory record has kind, scope, lifecycle, confidence, provenance, valid time, transaction time, retention, and optional `supersedes`. Models emit proposals; deterministic policy and review activate records.
+A memory record has kind, scope, lifecycle, confidence, provenance, valid time, transaction time, retention, and optional `supersedes`. Models, tools, retrieved content, and external content emit proposals only. The native memory write gate can verify with deterministic evidence, activate reviewed or user-confirmed records, reject, supersede, retract, expire, quarantine likely secrets, and export active non-secret records without silently overwriting durable knowledge.
 
 ### Capability and grant
 

@@ -55,6 +55,24 @@
     "source": {
       "type": "string"
     },
+    "sourceTrust": {
+      "type": "string"
+    },
+    "decision": {
+      "enum": [
+        "propose",
+        "review",
+        "allow",
+        "reject"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
     "confidence": {
       "type": "number",
       "minimum": 0,
@@ -98,8 +116,83 @@
       "enum": [
         "public",
         "workspace-private",
-        "sensitive"
+        "sensitive",
+        "secret"
       ]
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "evidenceIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "verifiedBy": {
+      "type": "string"
+    },
+    "activatedBy": {
+      "type": "string"
+    },
+    "lifecycle": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/lifecycleEvent"
+      }
+    }
+  },
+  "$defs": {
+    "lifecycleEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "at",
+        "actorId",
+        "reason",
+        "evidenceIds"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "memory.proposed",
+            "memory.verified",
+            "memory.activated",
+            "memory.rejected",
+            "memory.superseded",
+            "memory.retracted",
+            "memory.expired"
+          ]
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "actorId": {
+          "type": "string"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "evidenceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
     }
   }
 }

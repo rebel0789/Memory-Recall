@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T11:56:02.221Z",
-  "fileCount": 614,
-  "totalBytes": 1723184,
+  "generatedAt": "2026-06-20T12:03:44.674Z",
+  "fileCount": 615,
+  "totalBytes": 1743741,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 9383,
-      "sha256": "5a05838f7f70fe2ee77a8bc7594bf918f2e32912fce58b7c2d0123d741c24fb7"
+      "bytes": 10002,
+      "sha256": "f788ec74f7b8776334bd7d24e82a9da9916d5ca7fe560bc8c95db93a828c873a"
     },
     {
       "path": "CITATION.cff",
@@ -731,8 +731,8 @@
     },
     {
       "path": "docs/architecture/domain-model.md",
-      "bytes": 7908,
-      "sha256": "59d0ee9bc5ab514b4d475e4e7cb071a73f7b49e00933ca89ba10c33734ef27a2"
+      "bytes": 8173,
+      "sha256": "eb20accf2d760f38dd75a5474948125d1c463503e12638bb18ce7e238b24a09b"
     },
     {
       "path": "docs/architecture/event-model.md",
@@ -833,6 +833,11 @@
       "path": "docs/implementation/OAF-016-evidence-citation-graph-note.md",
       "bytes": 1365,
       "sha256": "e1b88b22bef3f4dc671944ad6800b806ea9dd8a8d65f209a625ded56cf41d28d"
+    },
+    {
+      "path": "docs/implementation/OAF-017-native-versioned-memory-note.md",
+      "bytes": 1246,
+      "sha256": "50dfff4f9117b529aa602401362d633ea96fa1d4cbd43faea368c2edd084b213"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -946,8 +951,8 @@
     },
     {
       "path": "docs/security/prompt-injection.md",
-      "bytes": 1279,
-      "sha256": "7a5645ec138d86df7cad1cf885e0190693bf8145121ed9f746cbd0e817724fd2"
+      "bytes": 1433,
+      "sha256": "3ceb8236e6ecf6e48e1d9a23045abdca457426bf903a14b579366d439b7c43a3"
     },
     {
       "path": "docs/security/risk-register.md",
@@ -956,8 +961,8 @@
     },
     {
       "path": "docs/security/secrets.md",
-      "bytes": 1108,
-      "sha256": "e4bd6cb7cc1149f18448281b89547359d56e8ed5382d62c995811b59c5381133"
+      "bytes": 1264,
+      "sha256": "5b07de5797c7482f35813f6b899ecb292211c66aa3bb641fd911b4b43c0afb99"
     },
     {
       "path": "docs/security/supply-chain.md",
@@ -1486,8 +1491,8 @@
     },
     {
       "path": "examples/protocol/memory-proposal.json",
-      "bytes": 436,
-      "sha256": "82ebcabb18c902f23a5a0273b7f08a95e14d76b213cebb8963f6bbebca67c19d"
+      "bytes": 746,
+      "sha256": "1b7caa05d9ff47f8d8390e3b8fdfdff7921f9f37ed8c094dead1fcd36ae84a22"
     },
     {
       "path": "examples/protocol/model-generation-request.json",
@@ -1592,7 +1597,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "11f4a18f86e01d9386789e7506aa6488228bb0ba3e3c7f47b25322a8db1f183d"
+      "sha256": "d3e2f03cd575013332510305b040fd70b3e633f0ef6eea723e5b35d9fa653f69"
     },
     {
       "path": "LICENSE",
@@ -1701,8 +1706,8 @@
     },
     {
       "path": "packages/memory-core/src/index.mjs",
-      "bytes": 1178,
-      "sha256": "b1d8fe2fc436ea2473ee8e4da21bd5f8de3f71ad9bf459b20c3f07481e40b6eb"
+      "bytes": 10965,
+      "sha256": "9d55e38156138cc6927173157fde724ecdb96d1c111035585d5a96d1b23faf4e"
     },
     {
       "path": "packages/model-gateway/package.json",
@@ -2066,8 +2071,8 @@
     },
     {
       "path": "packages/protocol/schemas/memory-record.schema.json",
-      "bytes": 1804,
-      "sha256": "e5e9b8e995772e489fe1827e8ee4f3fed78f06d8419dde38ac0dc4a345817f44"
+      "bytes": 3550,
+      "sha256": "f92692c4398b959d3062f77856d298cfe5ac050f11fe54373c53b226c49e6049"
     },
     {
       "path": "packages/protocol/schemas/model-generation-request.schema.json",
@@ -2331,8 +2336,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26902,
-      "sha256": "6dd8e1895fa5d168bf0c9b214ff28036b3637a2243227ca07e2abe3c52c28e7c"
+      "bytes": 26904,
+      "sha256": "94dba872d214f002e0098e1b268f8bffa34a27ae6523426d0923f87c04d543a0"
     },
     {
       "path": "planning/README.md",
@@ -2346,8 +2351,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 19796,
-      "sha256": "f1e2f761b8892754682a6b74ab9b12e7c4e68455669ff5410266be2902f6fcb8"
+      "bytes": 20188,
+      "sha256": "8a646a354b54bd11e6a05fbb8753f24c59933a9b255fe92f6733a15afbd1c13c"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2546,8 +2551,8 @@
     },
     {
       "path": "REPOSITORY_MAP.md",
-      "bytes": 3123,
-      "sha256": "5b722aaefd04fc6344882e7581686c260b22737108542468c59399b842de81d0"
+      "bytes": 3152,
+      "sha256": "aed2bd3a1d06c6ae81438adcf4461b1ef5c6e7f2a7a32722ff85b3183b07b25f"
     },
     {
       "path": "rfcs/0001-protocol-contracts.md",
@@ -2876,8 +2881,8 @@
     },
     {
       "path": "tests/memory-core.test.mjs",
-      "bytes": 855,
-      "sha256": "224af9ebaecc4f442e8edf74005d16680c7c90fc88c8bfd30c1e96e9842149fb"
+      "bytes": 6706,
+      "sha256": "9d2a02f54f1e8d22d2d40403364504335d284e56afe1cb3ddd326c1d9a2dfb60"
     },
     {
       "path": "tests/model-gateway-local-integration.test.mjs",

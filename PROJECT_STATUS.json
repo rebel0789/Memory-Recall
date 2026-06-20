@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-017",
+  "nextTask": "OAF-018",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -177,14 +177,18 @@
     },
     {
       "id": "memory.write-gate",
-      "name": "Memory proposal gate",
+      "name": "Native versioned memory write gate",
       "status": "reference",
       "evidence": [
         "packages/memory-core/src/index.mjs",
+        "packages/protocol/schemas/memory-record.schema.json",
+        "examples/protocol/memory-proposal.json",
         "tests/memory-core.test.mjs"
       ],
       "limitations": [
-        "No persistent versioned memory service"
+        "Pure domain lifecycle gate; persistence/search remains delegated to native SQLite memory provider",
+        "No automatic activation from model, tool, external, or retrieved content",
+        "No hosted memory provider, embeddings, vector database, graph database, connector ingestion, or external write"
       ]
     },
     {

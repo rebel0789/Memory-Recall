@@ -6,6 +6,9 @@
   "text": "Prefer concise builder-oriented explanations.",
   "status": "proposed",
   "source": "user-confirmed",
+  "sourceTrust": "verified",
+  "decision": "propose",
+  "reasons": [],
   "confidence": 0.95,
   "validFrom": null,
   "validTo": null,
@@ -13,5 +16,17 @@
   "updatedAt": null,
   "supersedes": null,
   "retention": "workspace-default",
-  "dataClass": "workspace-private"
+  "dataClass": "workspace-private",
+  "metadata": {},
+  "evidenceIds": [],
+  "conflicts": [],
+  "lifecycle": [
+    {
+      "type": "memory.proposed",
+      "at": "2026-06-19T10:00:00Z",
+      "actorId": "usr_example",
+      "reason": null,
+      "evidenceIds": []
+    }
+  ]
 }
