@@ -220,7 +220,8 @@ export class FilesystemArtifactStore {
       'artifact.retention.plan',
       'artifact.retention.apply',
       'artifact.integrity.verify',
-      'artifact.export'
+      'artifact.export',
+      'artifact.import'
     ];
   }
 
@@ -477,6 +478,70 @@ export class FilesystemArtifactStore {
     return { ok: verification.ok, provider: PROVIDER_ID, workspaceId, destination: exportRoot, manifest, verification };
   }
 
+  async importWorkspaceExport({ source, workspaceId = null, includeTombstones = true } = {}) {
+    if (typeof source !== 'string' || source.length === 0) throw new Error('import source is required');
+    const exportRoot = path.resolve(source);
+    const realExportRoot = await realpath(exportRoot);
+    await this.#ensureRoot();
+    const realStoreRoot = await realpath(this.root);
+    const relativeToStore = path.relative(realStoreRoot, realExportRoot);
+    if (relativeToStore === '' || (!relativeToStore.startsWith('..') && !path.isAbsolute(relativeToStore))) {
+      throw new Error('import source must not be inside the artifact storage root');
+    }
+
+    const manifest = await this.#readExportJson(exportRoot, 'manifest.json');
+    if (manifest.provider !== PROVIDER_ID) throw new Error('artifact export provider mismatch');
+    const restoredWorkspace = safeWorkspace(workspaceId ?? manifest.workspaceId);
+    if (manifest.workspaceId !== restoredWorkspace) throw new Error('artifact export workspace mismatch');
+    await this.#ensureWorkspaceDirs(restoredWorkspace);
+
+    const importedObjects = new Set();
+    for (const object of manifest.objects ?? []) {
+      safeHash(object.contentHash);
+      const sourcePath = await this.#safeExportPath(exportRoot, object.relativePath);
+      const body = await readFile(sourcePath);
+      if (sha256(body) !== object.contentHash || body.byteLength !== object.byteSize) throw new Error(`artifact export object integrity failure: ${object.contentHash}`);
+      await this.#writeObject(restoredWorkspace, object.contentHash, body);
+      importedObjects.add(object.contentHash);
+    }
+
+    let importedRecords = 0;
+    for (const recordRef of manifest.records ?? []) {
+      const record = await this.#readExportJson(exportRoot, recordRef.relativePath);
+      this.#validateRecordShape(record, restoredWorkspace);
+      if (!importedObjects.has(record.contentHash)) throw new Error(`artifact export missing object for record ${record.id}`);
+      await this.#writeImportedJson(this.#recordPath(restoredWorkspace, record.id), record);
+      importedRecords += 1;
+    }
+
+    let importedTombstones = 0;
+    if (includeTombstones) {
+      for (const tombstoneRef of manifest.tombstones ?? []) {
+        const tombstone = await this.#readExportJson(exportRoot, tombstoneRef.relativePath);
+        if (!TOMBSTONE_ID_PATTERN.test(tombstone.id) || tombstone.workspaceId !== restoredWorkspace || tombstone.recordId !== tombstoneRef.recordId) {
+          throw new Error(`artifact export tombstone integrity failure: ${tombstoneRef.recordId}`);
+        }
+        await this.#writeImportedJson(this.#tombstonePath(restoredWorkspace, tombstone.recordId), tombstone);
+        importedTombstones += 1;
+      }
+    }
+
+    const integrity = await this.verifyIntegrity({ workspaceId: restoredWorkspace, includeDeleted: true });
+    return {
+      ok: integrity.ok,
+      provider: PROVIDER_ID,
+      workspaceId: restoredWorkspace,
+      source: exportRoot,
+      imported: {
+        records: importedRecords,
+        objects: importedObjects.size,
+        tombstones: importedTombstones
+      },
+      manifest,
+      integrity
+    };
+  }
+
   async #putRecord(input) {
     requirePlainObject(input, 'artifact input');
     const workspaceId = safeWorkspace(input.workspaceId);
@@ -567,6 +632,17 @@ export class FilesystemArtifactStore {
     await rename(temporary, objectPath);
     const stored = await readFile(objectPath);
     if (sha256(stored) !== contentHash || stored.byteLength !== bytes.byteLength) throw new Error('artifact object write verification failed');
+  }
+
+  async #writeImportedJson(filename, value) {
+    try {
+      const existing = JSON.parse(await readFile(filename, 'utf8'));
+      if (canonicalStringify(existing) !== canonicalStringify(value)) throw new Error('import target already contains different record');
+      return;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    await this.#writeJsonAtomic(filename, value);
   }
 
   async #writeOrReadRecord(workspaceId, record) {
@@ -718,6 +794,28 @@ export class FilesystemArtifactStore {
       }
     }
     return { schemaVersion: '1.0.0', ok: findings.length === 0, checkedAt: this.clock(), findings };
+  }
+
+  async #readExportJson(exportRoot, relativePath) {
+    const filename = await this.#safeExportPath(exportRoot, relativePath);
+    return JSON.parse(await readFile(filename, 'utf8'));
+  }
+
+  async #safeExportPath(exportRoot, relativePath) {
+    if (typeof relativePath !== 'string' || !relativePath.length || path.isAbsolute(relativePath)) throw new Error('artifact export path must be relative');
+    const normalized = path.normalize(relativePath);
+    if (normalized === '..' || normalized.startsWith(`..${path.sep}`)) throw new Error('artifact export path escapes export root');
+    const realExportRoot = await realpath(exportRoot);
+    const filename = path.resolve(realExportRoot, normalized);
+    const relative = path.relative(realExportRoot, filename);
+    if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('artifact export path escapes export root');
+    let current = realExportRoot;
+    for (const segment of normalized.split(path.sep)) {
+      current = path.join(current, segment);
+      const info = await lstat(current);
+      if (info.isSymbolicLink()) throw new Error('artifact export must not contain symlinks');
+    }
+    return filename;
   }
 
   async #writeJsonAtomic(filename, value) {

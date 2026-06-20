@@ -41,3 +41,11 @@ Redaction is enforced before export. Attribute keys for prompts, bodies, source
 content, text, credentials, cookies, authorization, secrets, tokens, local
 paths, URLs, SQL, and hidden reasoning are dropped. Secret-shaped and local-path
 values are redacted.
+
+## OAF-029 diagnostics
+
+`packages/operations` provides a local diagnostics report helper for backup,
+restore, upgrade, rollback, and incident workflows. It records bounded health,
+incident, and log summaries only after redaction. It does not include raw
+prompts, outputs, source bodies, credentials, provider URLs, local paths, SQL,
+cookies, tokens, authorization headers, or hidden reasoning.

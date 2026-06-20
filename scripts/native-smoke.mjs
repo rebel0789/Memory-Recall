@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { FileStateStore } from '../packages/storage/src/file-store.mjs';
 import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 import { FilesystemArtifactStore } from '../providers/native/artifact-filesystem/src/index.mjs';
 import { DeterministicModelProvider } from '../providers/native/model-deterministic/src/index.mjs';
@@ -14,6 +15,7 @@ import { createNativeLexicalCandidateSource } from '../providers/native/context-
 import { compileAndPersistContext, createCandidateSourceRegistry, createFixtureRecordReader, generateContextCandidates } from '../packages/context-compiler/src/index.mjs';
 import { createMemoryEffectBoundary } from '../packages/tool-registry/src/index.mjs';
 import { fingerprintAgentPack, validateAgentPack } from '../packages/agentpack/src/index.mjs';
+import { createOperationsBackup, restoreOperationsBackup, verifyOperationsBackup } from '../packages/operations/src/index.mjs';
 
 const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-smoke-'));
 try {
@@ -207,6 +209,42 @@ try {
   }
   recoveredDurable.close();
 
+  const operationsState = await new FileStateStore(path.join(directory, 'ops-state')).init();
+  await operationsState.update((state) => {
+    state.runs.push({ id: 'run_native_ops_smoke', workspaceId: 'ws_smoke', status: 'completed' });
+    state.events.push({ id: 'evt_native_ops_1', runId: 'run_native_ops_smoke', sequence: 1, type: 'run.started' });
+    state.events.push({ id: 'evt_native_ops_2', runId: 'run_native_ops_smoke', sequence: 2, type: 'run.completed' });
+    return state;
+  });
+  const operationsBackup = await createOperationsBackup({
+    workspaceId: 'ws_smoke',
+    destination: path.join(directory, 'ops-backup'),
+    stateStore: operationsState,
+    artifactStore: artifacts,
+    migrationStatus: {
+      ok: true,
+      ledgerTable: 'oaf_schema_migrations',
+      plan: [{ version: 1, name: 'init', filename: '001_init.sql', checksum: '1'.repeat(64), state: 'applied' }],
+      appliedMigrations: [{ version: 1, name: 'init', checksum: '1'.repeat(64), appliedAt: '2026-06-20T00:00:00.000Z' }]
+    },
+    appVersion: '0.2.0-dev',
+    deploymentProfile: 'bootstrap',
+    createdAt: '2026-06-20T00:00:00.000Z'
+  });
+  if (!operationsBackup.ok || !(await verifyOperationsBackup({ source: operationsBackup.backupRoot, appVersion: '0.2.0-dev' })).ok) {
+    throw new Error('native operations backup verification failed');
+  }
+  const restoredOperationsArtifacts = new FilesystemArtifactStore({ root: path.join(directory, 'ops-restored-artifacts') });
+  const operationsRestore = await restoreOperationsBackup({
+    source: operationsBackup.backupRoot,
+    stateDirectory: path.join(directory, 'ops-restored-state'),
+    artifactStore: restoredOperationsArtifacts,
+    appVersion: '0.2.0-dev'
+  });
+  if (!operationsRestore.ok || (await restoredOperationsArtifacts.get({ workspaceId: 'ws_smoke', id: stored.id })).body.toString('utf8') !== 'smoke artifact') {
+    throw new Error('native operations restore failed');
+  }
+
   const toolWorkspaceRoot = path.join(directory, 'tool workspace with spaces');
   await mkdir(path.join(toolWorkspaceRoot, 'docs'), { recursive: true });
   await writeFile(path.join(toolWorkspaceRoot, 'docs', 'input.txt'), 'native bounded tool');
@@ -260,6 +298,7 @@ try {
   console.log('PASS native exact and lexical context candidate sources');
   console.log('PASS native local context manifest repository');
   console.log('PASS native durable SQLite workflow recovery');
+  console.log('PASS native operations backup and restore');
   console.log('PASS native brokered bounded tool execution');
   console.log(`PASS Agent Pack ${pack.metadata.name}@${pack.metadata.version} ${fingerprint}`);
   console.log('PASS deterministic local model provider and gateway profile');

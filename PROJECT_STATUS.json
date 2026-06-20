@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-029",
+  "nextTask": "OAF-030",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -490,6 +490,24 @@
       ]
     },
     {
+      "id": "operations.recovery",
+      "name": "Local operations backup, restore, upgrade, and rollback rehearsal",
+      "status": "reference",
+      "evidence": [
+        "packages/operations/src/index.mjs",
+        "tests/operations.test.mjs",
+        "scripts/operations-smoke.mjs",
+        "docs/operations/backup-restore.md",
+        "docs/operations/upgrade-rollback.md",
+        "docs/implementation/OAF-029-operations-backup-rollback-note.md"
+      ],
+      "limitations": [
+        "Local reference backup/restore only; PostgreSQL physical dump/restore remains deployment tooling",
+        "No production SSO, hosted secret management, encrypted backup storage, digest-pinned container release, cloud backup service, or managed retention worker",
+        "External writes, publishing, browser automation, public internet connectors, and external adapter execution remain disabled"
+      ]
+    },
+    {
       "id": "adapters.external",
       "name": "External project adapters",
       "status": "disabled",
@@ -619,7 +637,7 @@
         "packages/protocol/schemas/integrity-verification-result.schema.json"
       ],
       "limitations": [
-        "No restore/import service yet",
+        "OAF-029 adds verified import of provider-owned workspace exports for local restore rehearsal",
         "No background retention worker",
         "No encrypted-at-rest artifact store"
       ]
@@ -692,11 +710,12 @@
       "npm run ci",
       "npm run tool:bounded:smoke",
       "npm run workflow:durable:smoke",
+      "npm run ops:smoke",
       "npm run demo",
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 201,
+    "testsExpected": 204,
     "protocolFixturesExpected": 103,
     "evaluationsExpected": 105,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

@@ -730,7 +730,7 @@
       "id": "OAF-029",
       "title": "Complete operations, backup, upgrade, and rollback",
       "milestone": "Milestone 10",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:release-manager",
       "dependsOn": [
         "OAF-025",

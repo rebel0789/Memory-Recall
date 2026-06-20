@@ -17,3 +17,15 @@ High: memory poisoning affecting decisions, repeated consequential action, broke
 7. Communicate scope, dates, impact, remediation, and follow-up.
 
 Do not ask a model to make incident authorization decisions.
+
+## OAF-029 Recovery Evidence
+
+Use `npm run ops:smoke` to prove the local backup/restore path still verifies
+clean restore and corruption failure. Incident diagnostics created through
+`packages/operations` redact credential-shaped keys, PostgreSQL passwords, raw
+bodies, raw outputs, prompts, SQL, provider URLs, tokens, and local filesystem
+paths before a report is shared.
+
+For backup-related incidents, preserve the original backup directory read-only,
+copy only sanitized manifest fingerprints into incident notes, and restore into
+an isolated workspace before returning service.

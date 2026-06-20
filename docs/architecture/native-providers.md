@@ -44,7 +44,7 @@ The native artifact provider implements `ArtifactStorePort` version `1.1.0`. It 
 - integrity verification without auto-repair;
 - deterministic portable directory export.
 
-The provider stores data under `.local/artifacts/workspaces/<workspace-id>/...`, never deduplicates across workspaces, rejects symlink escapes and traversal, and keeps external adapters disabled. It does not store large bodies in PostgreSQL and does not provide restore, cloud sync, publishing, authentication, or background retention workers.
+The provider stores data under `.local/artifacts/workspaces/<workspace-id>/...`, never deduplicates across workspaces, rejects symlink escapes and traversal, and keeps external adapters disabled. It does not store large bodies in PostgreSQL. OAF-029 adds verified import of provider-owned workspace exports for local restore rehearsal; cloud sync, publishing, authentication, and background retention workers remain unsupported.
 
 ## Local identity provider
 

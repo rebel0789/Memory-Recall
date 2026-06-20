@@ -30,6 +30,7 @@
     "task": "node scripts/task.mjs",
     "oaf": "node apps/cli/oaf.mjs",
     "native:smoke": "node scripts/native-smoke.mjs",
+    "ops:smoke": "node scripts/operations-smoke.mjs",
     "tool:bounded:smoke": "node scripts/tool-bounded-smoke.mjs",
     "workflow:durable:smoke": "node scripts/workflow-durable-smoke.mjs",
     "workflow:worker": "node scripts/workflow-worker.mjs",

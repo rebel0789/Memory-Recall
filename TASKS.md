@@ -61,7 +61,7 @@ npm run task -- <OAF-ID>
 - [x] OAF-026 Build the evaluation laboratory.
 - [x] OAF-027 Promote one low-risk read-only adapter.
 - [x] OAF-028 Add protocol bridges through accepted RFCs.
-- [ ] **OAF-029 Complete operations, backup, restore, upgrade, and rollback — next.**
-- [ ] OAF-030 Complete 1.0 open-source release readiness.
+- [x] OAF-029 Complete operations, backup, restore, upgrade, and rollback.
+- [ ] **OAF-030 Complete 1.0 open-source release readiness — next.**
 
 Never enable external writes before authorization, exact approval, idempotency, reconciliation, and adversarial tests pass.

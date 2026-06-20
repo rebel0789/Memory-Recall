@@ -7,7 +7,8 @@
 - [ ] SBOM and build provenance generated.
 - [ ] License and notice review complete.
 - [ ] Secret and vulnerability scans pass.
-- [ ] Migrations rehearsed; backup and restore pass.
+- [ ] Migrations rehearsed; `npm run ops:smoke` passes; database dump/restore
+      is rehearsed for any PostgreSQL deployment profile.
 - [ ] Security, accessibility, privacy, and operations reviews complete.
 - [ ] External-write defaults remain off.
 - [ ] Tag and artifacts signed.

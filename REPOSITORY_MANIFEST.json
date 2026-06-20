@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T16:29:15.924Z",
-  "fileCount": 669,
-  "totalBytes": 2095210,
+  "generatedAt": "2026-06-20T17:06:18.530Z",
+  "fileCount": 675,
+  "totalBytes": 2142711,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -546,8 +546,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 16964,
-      "sha256": "bde63b5312c6cf15ca20d7bb21cd0fd78652433dda880b8b8520c97515c2c9f8"
+      "bytes": 17662,
+      "sha256": "faa5dce776aa1051d0007ab5a340fb1470bf1b9109183862b98af41186a5368b"
     },
     {
       "path": "CITATION.cff",
@@ -606,8 +606,8 @@
     },
     {
       "path": "deploy/README.md",
-      "bytes": 486,
-      "sha256": "aca5f000c5a8e146f92e22e47e2aa2d6c179958a5a44c629d1e45b2824e1bcbb"
+      "bytes": 1032,
+      "sha256": "46cf5a15d35f8fce43cd21a48dc2f70ebda1087dd253eda04f432fa42d7d3ae8"
     },
     {
       "path": "DESIGN.md",
@@ -766,8 +766,8 @@
     },
     {
       "path": "docs/architecture/native-providers.md",
-      "bytes": 9507,
-      "sha256": "5fff60bb93a1744e811f4cd025d3ee885ff0f4193ee53e71c495c37cad09c053"
+      "bytes": 9592,
+      "sha256": "2d2c4313136209c667ac71d257caf03a54fbc39e595c2713ed304504de680ff1"
     },
     {
       "path": "docs/architecture/overview.md",
@@ -786,8 +786,8 @@
     },
     {
       "path": "docs/architecture/storage.md",
-      "bytes": 10894,
-      "sha256": "944997fb01ac8e9eaea4db6e3de4bafea77e6f1f5a92dd391553693ac22ba8ca"
+      "bytes": 11632,
+      "sha256": "502695cd900465245b340448a694d58d50a41e4e76e9607a7203aba42e32de8a"
     },
     {
       "path": "docs/architecture/trust-boundaries.md",
@@ -910,6 +910,11 @@
       "sha256": "5c8ed373237712dde742dc8f7aaa586c7a3243b969a3e90b76619d4313b9dd56"
     },
     {
+      "path": "docs/implementation/OAF-029-operations-backup-rollback-note.md",
+      "bytes": 1748,
+      "sha256": "9525a41af644ff15236c42dcd8cbeb79b30b1fb388125696940042fb04b9eca3"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -946,28 +951,33 @@
     },
     {
       "path": "docs/operations/backup-restore.md",
-      "bytes": 781,
-      "sha256": "01ce4cc07bd69360c0b1984fdba3acae5fa29ecb9b9bc915470d8059f8efe774"
+      "bytes": 3170,
+      "sha256": "7975b0f5d0af6ba9f94c9de374fe157d55e8fa1268b0a3c7bd92893a0b7274ef"
     },
     {
       "path": "docs/operations/incident-response.md",
-      "bytes": 799,
-      "sha256": "92cbc716cb27e4068cd6bc1d179615796c611ba42c23d2fd506cc6fb56a09338"
+      "bytes": 1383,
+      "sha256": "807ec77fa88650bb7fd8c09b8df46333f849897f8a470df6dede3ccbe559f139"
     },
     {
       "path": "docs/operations/local-deployment.md",
-      "bytes": 748,
-      "sha256": "eb4c79d4d3a944db0295fca3a90c0818a79b2856b8329b98a38bb8ad0539a77a"
+      "bytes": 1107,
+      "sha256": "9984ba87f783bb33a0c58741df0f6ee589b07c6f1dd629dff87d7d1df1c1c49c"
     },
     {
       "path": "docs/operations/observability.md",
-      "bytes": 1950,
-      "sha256": "6b5cbf12e7569310437051197c33e5064c4dbb04bb2f4a626e159182d40d917d"
+      "bytes": 2345,
+      "sha256": "076eee2c3d4918b25d5a8f90918cf940ca1a2e9993e8026c28ec40cd66e82508"
     },
     {
       "path": "docs/operations/release-checklist.md",
-      "bytes": 708,
-      "sha256": "485e1998047de499b186b9b9abc875d99b0b691302f0a3d3e9162b3208b0309a"
+      "bytes": 791,
+      "sha256": "9560f1bab393fb7612b53d65d80ebc5eecbea02da392a9dfa2d4fd2f58b7b47b"
+    },
+    {
+      "path": "docs/operations/upgrade-rollback.md",
+      "bytes": 1504,
+      "sha256": "7b50ffc04abae3a082afa0b6ed164b6c40739d6e5d0fa68bafc809cc0fc58cdd"
     },
     {
       "path": "docs/product/builder-workspace.md",
@@ -1752,7 +1762,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "d05532d2a5152cc984b20faca5212735cdb4fdb177e14b2c7de57e59eae2ab6a"
+      "sha256": "f235714aa50f124dee1e59b324d6429e891780f85826bb0d1cb31c8c2511bfc4"
     },
     {
       "path": "LICENSE",
@@ -1786,8 +1796,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 1692,
-      "sha256": "287609ba47cfa28cfd1e82cf5ae63137b3b89054404dc5c3f2638362d6153374"
+      "bytes": 1746,
+      "sha256": "f077454ac9e077d4b763828318cfb19d5dbbc3548ab72efe2ef5f8bb38f85de5"
     },
     {
       "path": "packages/adapter-contracts/package.json",
@@ -1893,6 +1903,16 @@
       "path": "packages/observability/src/index.mjs",
       "bytes": 11462,
       "sha256": "4effab1eb87578918c36ab1d5f28b8ea4eb2d4d35034f51eb61cd0e97012212c"
+    },
+    {
+      "path": "packages/operations/package.json",
+      "bytes": 120,
+      "sha256": "7a4c2f591758907a98c595a08bad46f7f940525eeafbfcd995ba13a5768b71ef"
+    },
+    {
+      "path": "packages/operations/src/index.mjs",
+      "bytes": 17900,
+      "sha256": "abc0307cb9973cf6baf6ceef8072cb9a43f6f21cce0cb10973cd76f70ad1703b"
     },
     {
       "path": "packages/policy/package.json",
@@ -2571,8 +2591,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26926,
-      "sha256": "b805154ced1fba4eb286edc816b6cec11696bfd8b73f9a0646795e255ef4fabf"
+      "bytes": 26928,
+      "sha256": "71e2337c55ba086769d64e7cb6cf0b1b45d424421cf9df556b93f777ee175fa7"
     },
     {
       "path": "planning/README.md",
@@ -2586,8 +2606,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 29494,
-      "sha256": "c051126bde93e9d8bd5fa2524cec9888076d261939dffcb08aeb680383b8e86b"
+      "bytes": 30498,
+      "sha256": "4f281cdea5a42eb1715a8537ee0c7636088f08125bc7d3297157e425e08235d7"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2606,8 +2626,8 @@
     },
     {
       "path": "providers/native/artifact-filesystem/src/index.mjs",
-      "bytes": 35097,
-      "sha256": "8482507c6294c1856077c3e9c54fcf46f469bda7e9086641bb4d574f697ba495"
+      "bytes": 39918,
+      "sha256": "921e275c330d9534e9afd1b518e146a1a55f1e1883b70369112d3fc5f8f41692"
     },
     {
       "path": "providers/native/catalog.json",
@@ -2836,8 +2856,13 @@
     },
     {
       "path": "scripts/native-smoke.mjs",
-      "bytes": 13318,
-      "sha256": "08cb712a101cf074ff2471ffb38057bde60006b3bbb0dc31baa221a2f4a62ab5"
+      "bytes": 15517,
+      "sha256": "f78cd2680826a1977c473b049a300aec591f88dec7ca4d5c8f5df508cf936064"
+    },
+    {
+      "path": "scripts/operations-smoke.mjs",
+      "bytes": 4473,
+      "sha256": "501743d134f1d4783130f19b7a2aa824b8e7c0140cf767941dba4d565e571f3e"
     },
     {
       "path": "scripts/postgres-recovery-test.mjs",
@@ -3037,7 +3062,7 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "daea3ce7757d491484860daf7817d2df476666a237b26459869b26d34e2b503f"
+      "sha256": "089e0c717b21d52d4a24820bec6cc5a79ad1a16c86b4977251025d90d48a3a0f"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -3173,6 +3198,11 @@
       "path": "tests/observability.test.mjs",
       "bytes": 6165,
       "sha256": "6cf1ffd3100db2571281ffacc311be7fc11629815705b25b55052cfa144a5fa0"
+    },
+    {
+      "path": "tests/operations.test.mjs",
+      "bytes": 7799,
+      "sha256": "29fe68be5738c0c517d7e83757c8f011990a36421b19e36ebdaa702d6a31ce95"
     },
     {
       "path": "tests/planning.test.mjs",

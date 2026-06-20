@@ -113,6 +113,8 @@ PostgreSQL migration `002_identity.sql` adds `identity_users`, `identity_workspa
 
 Backups must record the application version and every row in `oaf_schema_migrations` with checksums. Restore rehearsals should verify migration checksums before application startup, validate workspace counts and event sequence integrity, verify artifact hashes, and run read-only representative queries with external writes disabled.
 
+OAF-029 implements the local reference path in `packages/operations`: it writes a backup manifest with component SHA-256 hashes, migration status, artifact export fingerprint, application version, and an external-writes-disabled assertion. `restoreOperationsBackup` verifies the manifest before writing state, imports provider-owned artifact exports into a fresh artifact root, and leaves PostgreSQL physical dump/restore to deployment tooling.
+
 ## Derived indexes
 
 - full-text indexes support lexical candidate generation;
@@ -148,6 +150,8 @@ Retention is explicit. The supported modes are `workspace-default`, `retain`, `e
 Deletion is explicit, workspace-scoped, idempotent, and auditable through tombstones. Object bytes are physically removed only when no active logical record in the workspace references the content hash.
 
 Integrity verification checks record shape, workspace scope, hash algorithm, record/object hash agreement, raw body SHA-256, byte size, unexpected bodies, missing bodies, malformed metadata, and tombstone consistency. It reports findings and does not auto-repair.
+
+Artifact import accepts only exports created by the filesystem artifact provider. It rejects symlinked export paths, escaping relative paths, provider/workspace mismatches, missing objects, hash mismatches, and conflicting destination records, then runs integrity verification after import.
 
 ### Artifact protocol schemas
 
