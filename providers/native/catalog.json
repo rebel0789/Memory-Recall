@@ -20,6 +20,12 @@
       "purpose": "Bounded local execution with event checkpoints"
     },
     {
+      "id": "provider:native:workflow:durable-sqlite",
+      "path": "providers/native/workflow-durable-sqlite",
+      "enabledByDefault": false,
+      "purpose": "Dependency-free local SQLite durable workflow recovery baseline"
+    },
+    {
       "id": "provider:native:model:deterministic",
       "path": "providers/native/model-deterministic",
       "enabledByDefault": true,

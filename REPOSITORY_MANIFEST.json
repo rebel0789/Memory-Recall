@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T08:33:03.689Z",
-  "fileCount": 550,
-  "totalBytes": 1429844,
+  "generatedAt": "2026-06-20T09:25:27.106Z",
+  "fileCount": 574,
+  "totalBytes": 1539304,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 7375,
-      "sha256": "c883457c17fc56ac3733d52bc0687c91392adb086d3da006ea65ace0cd2942aa"
+      "bytes": 8094,
+      "sha256": "fbd28e7988aa03f84b7191f8c4ba1777a24d3cc29dad00249a996ba989d71113"
     },
     {
       "path": "CITATION.cff",
@@ -690,6 +690,11 @@
       "sha256": "9abd37f352732703f09f21c9d95a381e092b12cef5cb756469fc5865b6666847"
     },
     {
+      "path": "docs/adr/0017-native-sqlite-durable-workflows.md",
+      "bytes": 1899,
+      "sha256": "1457678c22dde81519f0703cf52225fa2eb763ba24113dc316b0810027ca74d3"
+    },
+    {
       "path": "docs/AGENTS.md",
       "bytes": 380,
       "sha256": "0d1b4cd74386d1452893a8979997887cba70bcb1f15a36bcb41aebf16dc2fab7"
@@ -721,13 +726,13 @@
     },
     {
       "path": "docs/architecture/domain-model.md",
-      "bytes": 6683,
-      "sha256": "a5c0f56015926f48da443980cd930bc541c5e263813c614c6d810b0a4ad8e67f"
+      "bytes": 7129,
+      "sha256": "9719c188e418c766ac99095f9a7c3e15adf2bb28900790d1b51a6673fab44688"
     },
     {
       "path": "docs/architecture/event-model.md",
-      "bytes": 1051,
-      "sha256": "35f10002e071f94bac4192384a786c7abde5b508a2bc631c3b77f3202037833b"
+      "bytes": 1642,
+      "sha256": "07f0a20813eb18dd8aa13f55f6ffd5600698492757d41aab9631829eb397bd56"
     },
     {
       "path": "docs/architecture/flight-recorder.md",
@@ -736,8 +741,8 @@
     },
     {
       "path": "docs/architecture/local-first.md",
-      "bytes": 1182,
-      "sha256": "23780110570442daabd31a3a956da0d33b7ad184fa1e19a3c064d93d8c8c407e"
+      "bytes": 1590,
+      "sha256": "3d07609c768c5610a19da1d80f1c37926df88f2565cc6ff24f4ad4f8b60fae40"
     },
     {
       "path": "docs/architecture/model-gateway.md",
@@ -746,8 +751,8 @@
     },
     {
       "path": "docs/architecture/native-providers.md",
-      "bytes": 7536,
-      "sha256": "c643280dc9d4461f7f0f60a51f89222ea86cd8203cb3274d90cc29fd24580180"
+      "bytes": 8633,
+      "sha256": "1542cda218f4cb2b14561c9251d6f002a1b46e4098b0185ec985931141271b8f"
     },
     {
       "path": "docs/architecture/overview.md",
@@ -756,13 +761,13 @@
     },
     {
       "path": "docs/architecture/sequence-flows.md",
-      "bytes": 1990,
-      "sha256": "33026a755f2573196ce3b599db77e9bd7f920871ccf20fe05dae4e1f515eed4a"
+      "bytes": 2777,
+      "sha256": "48af2c83b4e9dce56b369750022bf4b9fccf13f3156840f3ceda5f279247fe8f"
     },
     {
       "path": "docs/architecture/storage.md",
-      "bytes": 10458,
-      "sha256": "896fa5904560f24d5a0de7e7adfa47e21c93f7ddc0f449f4a3f6b00adccc3c27"
+      "bytes": 10894,
+      "sha256": "944997fb01ac8e9eaea4db6e3de4bafea77e6f1f5a92dd391553693ac22ba8ca"
     },
     {
       "path": "docs/architecture/trust-boundaries.md",
@@ -771,8 +776,8 @@
     },
     {
       "path": "docs/architecture/workflow-runtime.md",
-      "bytes": 1099,
-      "sha256": "811b8b89d0d226e147ca35ac55b567f0bed77e62a60d3e616245313b767ac674"
+      "bytes": 2596,
+      "sha256": "ca24f707fecf2f142ce31ac625901992706002fd5ca70e1fc1d174da5996e7d8"
     },
     {
       "path": "docs/assets/open-agent-fabric-architecture.png",
@@ -808,6 +813,11 @@
       "path": "docs/implementation/OAF-013-local-model-gateway-note.md",
       "bytes": 2127,
       "sha256": "bf1e6046fd2422f6c976b4032f08aab328058c43d643b7383ef6e7507362ae02"
+    },
+    {
+      "path": "docs/implementation/OAF-014-durable-workflows-note.md",
+      "bytes": 3278,
+      "sha256": "83299e65476df1e59c959b02a11a84da2717c2a38f3611d083f446cb0f917573"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -961,8 +971,8 @@
     },
     {
       "path": "docs/testing/evaluation-strategy.md",
-      "bytes": 2779,
-      "sha256": "b765e636fb5e0d50df288e9e633dae9086f3d7d06f115ddabdf6a7d17408a646"
+      "bytes": 3104,
+      "sha256": "e02deeb946710f24ef22341548a9720eb80e5ed10e37cc0956c32eab56852ad3"
     },
     {
       "path": "docs/testing/golden-path.md",
@@ -976,8 +986,8 @@
     },
     {
       "path": "docs/testing/test-matrix.md",
-      "bytes": 1232,
-      "sha256": "5a1153edf68ff3aaf86d367dcde2f3e800b6d234862e6286021e608b81e7f8ed"
+      "bytes": 1303,
+      "sha256": "dce39fae6e95a8d696fa29988ad16479cf616f7992d6f2667647e2de054b63ca"
     },
     {
       "path": "docs/ux/accessibility.md",
@@ -1220,9 +1230,44 @@
       "sha256": "dc8eb1892b400c12d3d688583d58e0bee08b5d2e69370379aef418e988ad7ba6"
     },
     {
+      "path": "examples/protocol/compatibility/durable-workflow/approval-resolution-invalid-extra.json",
+      "bytes": 296,
+      "sha256": "d492ae39a2dd1daa0ad3257aa68391ce3d96eddbb806cc3efc455a1d585590f2"
+    },
+    {
+      "path": "examples/protocol/compatibility/durable-workflow/approval-resolution-valid.json",
+      "bytes": 269,
+      "sha256": "cfe63b4e9e6d101800dfe4a87c1976719dd39ef38ef252b961bff5edfb463ad5"
+    },
+    {
+      "path": "examples/protocol/compatibility/durable-workflow/definition-invalid-function-source.json",
+      "bytes": 870,
+      "sha256": "e087b5fbd10e0ef9528cd03528f7d00c0a651d0b2f403ff77c286e07415b9c65"
+    },
+    {
+      "path": "examples/protocol/compatibility/durable-workflow/definition-valid.json",
+      "bytes": 901,
+      "sha256": "a1cb911752de0141fbc28fe18fea60be9db2cb581fab9986f050c6d7ded50cdc"
+    },
+    {
+      "path": "examples/protocol/compatibility/durable-workflow/error-code-valid.json",
+      "bytes": 16,
+      "sha256": "bbcf4e4d414c0792ebfd13a845c3b07ed51f63c42efc91df53de930beecb9721"
+    },
+    {
+      "path": "examples/protocol/compatibility/durable-workflow/history-valid.json",
+      "bytes": 349,
+      "sha256": "3301810fc490292c35ee9fc2fb21215b11caa08f8284a3ed3b88dba1fd0df4a6"
+    },
+    {
+      "path": "examples/protocol/compatibility/durable-workflow/run-valid.json",
+      "bytes": 924,
+      "sha256": "4c6c2ce1312c41c5305a37478f096bb3fe63447787d45ac524d4a6ab87240770"
+    },
+    {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 16999,
-      "sha256": "44f016d994fda9789352601f267fbdc221f2f213899da134d1721266f01a2bb1"
+      "bytes": 18950,
+      "sha256": "1c3e9605368b50b47cc5e768d6b97794e7af08c664d661aba1d66657ec35edb6"
     },
     {
       "path": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
@@ -1471,8 +1516,8 @@
     },
     {
       "path": "HANDOFF_VERIFICATION.json",
-      "bytes": 973,
-      "sha256": "98f534ee41637f167438115dc11be9dd4a98457ac8aeb2f24241f5b62bd7fda5"
+      "bytes": 974,
+      "sha256": "c2f0d10d90139aa3a8431ee579d7b2c31d75ae0122598081cb650f4ee5fe0508"
     },
     {
       "path": "LICENSE",
@@ -1481,8 +1526,8 @@
     },
     {
       "path": "LOCAL_DEVELOPMENT.md",
-      "bytes": 1382,
-      "sha256": "d5198ee0292d504fe72b5fa8e5abf73b90661fad7d3fd08d97d368ee4f338215"
+      "bytes": 1878,
+      "sha256": "63c94b446acf653267abf681ece3d381f34f2b34772d24355661f9376e7c36be"
     },
     {
       "path": "MAINTAINERS.md",
@@ -1501,13 +1546,13 @@
     },
     {
       "path": "package-lock.json",
-      "bytes": 7576,
-      "sha256": "004dcb74fe6bf29fd96efc865c4fd615acde658862140e7630a6b4fa01336278"
+      "bytes": 7889,
+      "sha256": "b23844c4e81aa6f0653b2d5976bcec5185aaf6142fa3d2478a770277e17d9704"
     },
     {
       "path": "package.json",
-      "bytes": 1434,
-      "sha256": "1308301ad0c1310af408e231666f396e9088133cd356c0044f75dc617a364f0d"
+      "bytes": 1627,
+      "sha256": "b5aad2f94076d9ef1bfc832dad442c2f99e016b45a821f0e60469a9c8a2229a8"
     },
     {
       "path": "packages/adapter-contracts/package.json",
@@ -1516,8 +1561,8 @@
     },
     {
       "path": "packages/adapter-contracts/src/index.mjs",
-      "bytes": 17270,
-      "sha256": "7de18cde8a5d824f20f720e6d8423a70a0fa6b66a2f605d59038a84b0a3a2f37"
+      "bytes": 18210,
+      "sha256": "cb86f6883a6ecfe96c7c5df1c686b0c2c0cfaa247559d79d656e0a2402dc4369"
     },
     {
       "path": "packages/agentpack/AGENTS.md",
@@ -1621,8 +1666,8 @@
     },
     {
       "path": "packages/protocol/README.md",
-      "bytes": 2402,
-      "sha256": "2d10fa328dd925d3e77386fb3012db96c4681e45361bdd5cbe61977504aaeff1"
+      "bytes": 2914,
+      "sha256": "2db83531808fe5767cb7b2dd9fa5f1f38ffa433f5527265ce4aa6428dca82bc1"
     },
     {
       "path": "packages/protocol/schemas/adapter-conformance-fixture.schema.json",
@@ -1900,6 +1945,31 @@
       "sha256": "f1341c8f0260bd11e876c8d2c1e8c6b6941bf74c62f15242ffa4b5c49538b51c"
     },
     {
+      "path": "packages/protocol/schemas/durable-approval-resolution.schema.json",
+      "bytes": 819,
+      "sha256": "32a6b1bc470a3de8f2850a1418b73fa58b5a974fe2409f520005e788d8b24969"
+    },
+    {
+      "path": "packages/protocol/schemas/durable-run-record.schema.json",
+      "bytes": 2328,
+      "sha256": "32416f90aad4b86434ca7ca7cf53bd6be353eb17c0b80004f77798b22a674de0"
+    },
+    {
+      "path": "packages/protocol/schemas/durable-runtime-error-code.schema.json",
+      "bytes": 646,
+      "sha256": "7f4bee9e1cb3b7ffbd96168d0b9c116993aa12d438009ac864f06baf8a7f69d6"
+    },
+    {
+      "path": "packages/protocol/schemas/durable-workflow-definition.schema.json",
+      "bytes": 3395,
+      "sha256": "6501c37abdecd740cb87682d7ec6223204804f6a8ead148410fc18491795c259"
+    },
+    {
+      "path": "packages/protocol/schemas/durable-workflow-history.schema.json",
+      "bytes": 1229,
+      "sha256": "a229211cbc3c243e952883f2fe1af8f4b9480ca83fc285ac751034809b5aba51"
+    },
+    {
       "path": "packages/protocol/schemas/event.schema.json",
       "bytes": 1414,
       "sha256": "598815892780e08d9edcc3b59a5c8f68c7527c9281a6f14aa86f560422932817"
@@ -2036,8 +2106,8 @@
     },
     {
       "path": "packages/protocol/src/index.mjs",
-      "bytes": 2265,
-      "sha256": "77973c77061155265c49d43dceceb5d7a6a3a1bf7d855ad48ffa6903032201bd"
+      "bytes": 2356,
+      "sha256": "9768088aa1da8f5868bc267b3a115705acfc59c56c7786d352f1944808075d0e"
     },
     {
       "path": "packages/protocol/src/schema-validator.mjs",
@@ -2110,6 +2180,11 @@
       "sha256": "ecb8402f32594cb8ad1d3b1b3fbba7a74f9cfe263fc510d79156f280a0676864"
     },
     {
+      "path": "packages/workflow-runtime/AGENTS.md",
+      "bytes": 611,
+      "sha256": "7c20de4c7c3ef4a5f902e05fab29c27edea318c1ee596873feb7267954298c15"
+    },
+    {
       "path": "packages/workflow-runtime/package.json",
       "bytes": 144,
       "sha256": "53787b078684473bebf52e34dc8c6f446e864bd6823576ab6c9c3248297d012e"
@@ -2121,8 +2196,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26896,
-      "sha256": "8e311eb7682c405f5515908a05016512b0d7b46a6bd9359f01173cc96aeaa4d2"
+      "bytes": 26898,
+      "sha256": "77d42f0ebf0cd64827701f47c2c48ac7e79159cd74256561a9cc5502b328f121"
     },
     {
       "path": "planning/README.md",
@@ -2136,8 +2211,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 17275,
-      "sha256": "f19add319905502cbdf87464d87f7f1236e4204674ca38b86bb195b424807dce"
+      "bytes": 18382,
+      "sha256": "d8b5c0f633bf7440a2166e0c588d695036c25585b25e355dead7ccb1f61cce5c"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2161,8 +2236,8 @@
     },
     {
       "path": "providers/native/catalog.json",
-      "bytes": 2381,
-      "sha256": "51a9db75e6d07a7c7c5340711746393e8dc6ddece129ce4130be93c1784ebb89"
+      "bytes": 2623,
+      "sha256": "3c6cbd3104f1e2e9daa51693a5bd6344de3f5bf26e434f68155e6a5a9f090f2a"
     },
     {
       "path": "providers/native/context-candidate-exact/package.json",
@@ -2285,6 +2360,21 @@
       "sha256": "8041cc61c555708918e1ab1d1f8f39a786616292ab5b44bdb6c549ff15586672"
     },
     {
+      "path": "providers/native/workflow-durable-sqlite/package.json",
+      "bytes": 158,
+      "sha256": "00c7e49d5527483abf07bc145e5cbd47682c4076d3f7594adf747225754ec83b"
+    },
+    {
+      "path": "providers/native/workflow-durable-sqlite/provider.json",
+      "bytes": 1237,
+      "sha256": "0c0bc865fefafe4bdc27665f85adf3577f4284e8ef2ddf7ac4b798daed57383a"
+    },
+    {
+      "path": "providers/native/workflow-durable-sqlite/src/index.mjs",
+      "bytes": 48723,
+      "sha256": "dca0f5595849cdf591efed7d97c244bf6f3852e7770ca9965d8efd6492d2edf4"
+    },
+    {
       "path": "providers/native/workflow-embedded/package.json",
       "bytes": 184,
       "sha256": "68e8e47ea3b0b2932196a0912570fe82a250b0e5ecd0acacd3fb3e26294694c2"
@@ -2296,8 +2386,8 @@
     },
     {
       "path": "providers/native/workflow-embedded/src/index.mjs",
-      "bytes": 3591,
-      "sha256": "0aee1008186a1bd744e9ef21f355c56954153be46d8148ec96a0c04569bc2eb7"
+      "bytes": 5063,
+      "sha256": "554c367458abd1ecb1ccaf589ae5b345eda1d19751e211932cc685c25062b8fd"
     },
     {
       "path": "README.md",
@@ -2346,8 +2436,8 @@
     },
     {
       "path": "scripts/doctor.mjs",
-      "bytes": 2019,
-      "sha256": "d66422de6b3944c2c757761084dad4435afd277bf930b80c3d2c347f50a346a0"
+      "bytes": 2242,
+      "sha256": "94892e70d5b78620f07f5ea39962433689fde2f487d7b2af69882dbbba653e8a"
     },
     {
       "path": "scripts/generate-manifest.mjs",
@@ -2356,8 +2446,8 @@
     },
     {
       "path": "scripts/native-smoke.mjs",
-      "bytes": 8441,
-      "sha256": "c8f8d57a1b8189e7f45b1492ae165e669c6cc34ca3badd355c188c601542db7c"
+      "bytes": 10936,
+      "sha256": "34645e9250bfed8e2a752c4a3e5c9ac7079e5df5e8c071a0891c96fdc8d298df"
     },
     {
       "path": "scripts/postgres-recovery-test.mjs",
@@ -2366,8 +2456,8 @@
     },
     {
       "path": "scripts/run-evals.mjs",
-      "bytes": 9167,
-      "sha256": "5c3d4a5e0a016752ed908917d8e46cc3a879c374bc6f0a67a5a2c86dfd4c0972"
+      "bytes": 13397,
+      "sha256": "f6581dced25d742b6a1d03c3807a5c4e3f5c245e6e33ed81124a752fd500e9d0"
     },
     {
       "path": "scripts/status.mjs",
@@ -2388,6 +2478,21 @@
       "path": "scripts/verify-handoff.mjs",
       "bytes": 1818,
       "sha256": "e4958c93ccb1715cc14e1e7f5e6f2924a4defe918789b1d921e1e2c768834fbe"
+    },
+    {
+      "path": "scripts/workflow-durable-smoke.mjs",
+      "bytes": 3272,
+      "sha256": "35741126dd40e60bbb02824f6b5e9d0447746df6ed48737bc0b5e709c0710c7b"
+    },
+    {
+      "path": "scripts/workflow-inspect.mjs",
+      "bytes": 1345,
+      "sha256": "a87cdbe8ea0df9b403c46a436699d3a3c39ca0d5285f49994c36c6fcb2125584"
+    },
+    {
+      "path": "scripts/workflow-worker.mjs",
+      "bytes": 923,
+      "sha256": "ca8e608e2c9c4212440def620ff83c2a2815b7ba00974bef5b4f36e9f9668090"
     },
     {
       "path": "SECURITY.md",
@@ -2536,8 +2641,8 @@
     },
     {
       "path": "TASKS.md",
-      "bytes": 2452,
-      "sha256": "73893e796a43aa9261484d33e22ed19b3c1baf656de69db96ed0c75b889deac2"
+      "bytes": 2453,
+      "sha256": "e6d1e1cc571bc88a74fd4564af030acd5d698a4e1fa1336fefad4a58ccb3fbf1"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -2608,6 +2713,11 @@
       "path": "tests/evidence.test.mjs",
       "bytes": 782,
       "sha256": "7d23a943d7cb00a96241f98ddd0e1f4f42b2a0682b3fa2b13eda3fa8e53a7856"
+    },
+    {
+      "path": "tests/fixtures/durable-worker-child.mjs",
+      "bytes": 1049,
+      "sha256": "0a7eda1cc533be1f984f18f8edcdd820637d181de2cf3a37e8680bda67753759"
     },
     {
       "path": "tests/memory-core.test.mjs",
@@ -2688,6 +2798,16 @@
       "path": "tests/tool-registry.test.mjs",
       "bytes": 871,
       "sha256": "35535b3bfa46e40a7a03d46bebe2da7575abfce4f7d8bb6a88cda0880ecd4398"
+    },
+    {
+      "path": "tests/workflow-durable-crash.test.mjs",
+      "bytes": 3006,
+      "sha256": "4c4a80bf99413b0acd9fedb9bac8483220b86e12cc4b49e12c9cb2951c9df343"
+    },
+    {
+      "path": "tests/workflow-durable-sqlite.test.mjs",
+      "bytes": 11271,
+      "sha256": "75e107e76f5c135f4e10956ffa8b415ebf537584433b1f835dcdcb956a462add"
     },
     {
       "path": "tests/workflow-runtime.test.mjs",

@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto';
 
 export const EVENT_TYPES = Object.freeze([
   'run.created','run.started','run.completed','run.failed','run.cancelled',
-  'step.started','step.completed','step.failed','step.cancelled',
+  'run.suspended','run.resumed',
+  'step.started','step.completed','step.failed','step.cancelled','step.retry_scheduled',
+  'timer.scheduled','timer.fired',
   'context.compiled','context.manifest.persisted','context.failed',
   'memory.proposed','memory.verified','memory.activated','memory.rejected','memory.superseded','memory.retracted','memory.expired',
   'tool.requested','tool.authorized','tool.denied','tool.completed','tool.failed',

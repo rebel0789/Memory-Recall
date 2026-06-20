@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/durable-runtime-error-code-1.0.json",
+  "title": "Durable Runtime Error Code",
+  "type": "string",
+  "enum": [
+    "workflow_definition_invalid",
+    "workflow_definition_not_found",
+    "workflow_definition_not_serializable",
+    "workflow_version_fingerprint_conflict",
+    "handler_not_found",
+    "start_idempotency_conflict",
+    "approval_fingerprint_mismatch",
+    "approval_expired",
+    "approval_rejected",
+    "idempotency_key_required",
+    "idempotency_fingerprint_conflict",
+    "step_timeout",
+    "run_cancelled"
+  ]
+}

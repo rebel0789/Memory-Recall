@@ -344,6 +344,36 @@
       "expectedValid": true
     },
     {
+      "id": "durable-workflow-definition-current-valid",
+      "schema": "packages/protocol/schemas/durable-workflow-definition.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/definition-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-run-record-current-valid",
+      "schema": "packages/protocol/schemas/durable-run-record.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/run-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-approval-resolution-current-valid",
+      "schema": "packages/protocol/schemas/durable-approval-resolution.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/approval-resolution-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-workflow-history-current-valid",
+      "schema": "packages/protocol/schemas/durable-workflow-history.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/history-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-runtime-error-code-current-valid",
+      "schema": "packages/protocol/schemas/durable-runtime-error-code.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/error-code-valid.json",
+      "expectedValid": true
+    },
+    {
       "id": "agent-pack-valid",
       "schema": "packages/protocol/schemas/agent-pack.schema.json",
       "instance": "examples/agentpacks/content-intelligence.agentpack.json",
@@ -419,6 +449,18 @@
       "id": "model-generation-request-raw-prompt-invalid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/compatibility/invalid/model-generation-request-raw-prompt.json",
+      "expectedValid": false
+    },
+    {
+      "id": "durable-workflow-definition-function-source-invalid",
+      "schema": "packages/protocol/schemas/durable-workflow-definition.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/definition-invalid-function-source.json",
+      "expectedValid": false
+    },
+    {
+      "id": "durable-approval-resolution-extra-field-invalid",
+      "schema": "packages/protocol/schemas/durable-approval-resolution.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/approval-resolution-invalid-extra.json",
       "expectedValid": false
     }
   ]

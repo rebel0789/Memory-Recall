@@ -65,3 +65,25 @@ sequenceDiagram
 ## Context failure behavior
 
 If any candidate source fails, the manifest records the source failure. The compiler must not silently widen allowed scope, drop governance records, or substitute an unapproved source. Required governance that cannot fit the budget is a hard, explainable failure.
+
+## Durable workflow recovery
+
+```mermaid
+sequenceDiagram
+  participant W1 as Worker process A
+  participant DB as SQLite workflow store
+  participant T as Idempotent target
+  participant W2 as Worker process B
+  W1->>DB: claim run lease and append step.started
+  W1->>T: execute with stable idempotency key
+  T-->>DB: commit effect reference
+  W1--xW1: process killed before step.completed
+  W2->>DB: open store, integrity check, reclaim expired lease
+  W2->>DB: append run.resumed
+  W2->>DB: reuse committed effect, append step.completed
+  W2->>DB: continue timers, approvals, retries, or completion
+```
+
+The recovery path does not restore JavaScript closures. It resumes from the
+persisted definition, step state, attempts, timers, approvals, leases, events,
+and idempotency records.

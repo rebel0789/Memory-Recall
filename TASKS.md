@@ -4,7 +4,7 @@ The authoritative acceptance criteria live in `docs/implementation/BUILD_ORDER.m
 
 ```bash
 npm run status
-npm run task -- OAF-004
+npm run task -- <OAF-ID>
 ```
 
 ## Foundation
@@ -15,27 +15,27 @@ npm run task -- OAF-004
 
 ## Canonical data
 
-- [ ] **OAF-004 Implement PostgreSQL repositories — next.**
-- [ ] OAF-005 Implement migration runner and recovery tests.
-- [ ] OAF-006 Complete content-addressed artifact and source snapshots.
+- [x] OAF-004 Implement PostgreSQL repositories.
+- [x] OAF-005 Implement migration runner and recovery tests.
+- [x] OAF-006 Complete content-addressed artifact and source snapshots.
 
 ## API and authority
 
-- [ ] OAF-007 Add strict API boundary validation.
-- [ ] OAF-008 Implement local identity and workspace authorization.
-- [ ] OAF-009 Implement authorization and contextual policy ports.
+- [x] OAF-007 Add strict API boundary validation.
+- [x] OAF-008 Implement local identity and workspace authorization.
+- [x] OAF-009 Implement authorization and contextual policy ports.
 
 ## Context Compiler
 
-- [ ] OAF-010 Add candidate-source ports.
-- [ ] OAF-011 Add hybrid fusion, reranking, diversity, and reserved budgets.
-- [ ] OAF-012 Persist assembly and context manifests.
+- [x] OAF-010 Add candidate-source ports.
+- [x] OAF-011 Add hybrid fusion, reranking, diversity, and reserved budgets.
+- [x] OAF-012 Persist assembly and context manifests.
 
 ## Runtime
 
-- [ ] OAF-013 Complete the model-gateway contract and local integration tests.
-- [ ] OAF-014 Add a durable workflow adapter and crash recovery.
-- [ ] OAF-015 Implement tool registry, bounded grants, and sandbox execution.
+- [x] OAF-013 Complete the model-gateway contract and local integration tests.
+- [x] OAF-014 Add a durable workflow adapter and crash recovery.
+- [ ] **OAF-015 Implement tool registry, bounded grants, and sandbox execution — next.**
 
 ## Evidence and memory
 

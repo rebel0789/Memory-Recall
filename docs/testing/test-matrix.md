@@ -14,7 +14,7 @@ Explicit requirement, policy force, budget overflow, distractors, duplicate cand
 
 ## Workflow
 
-Success, validation failure, timeout, retry, cancellation, process kill, approval wait, compensation, non-idempotent activity, and replay.
+Success, validation failure, timeout, retry, cancellation, process kill, approval wait, compensation, non-idempotent activity, worker leases, stale commits, durable timers, idempotent effect reuse, and replay.
 
 ## Tool and policy
 

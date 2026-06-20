@@ -14,6 +14,13 @@ The repositories accept an injected PostgreSQL-compatible client with `query(tex
 
 The file-backed state store and native SQLite/artifact providers remain the local conformance baselines. OAF-008 adds native local identity as a separate provider and adds PostgreSQL identity tables for deployments that use the migration runner.
 
+OAF-014 adds a separate native SQLite durable workflow provider. Its internal
+schema is provider-owned and lives under `.local/workflows.sqlite` by default.
+It is not a PostgreSQL migration and does not modify `001_init.sql` or
+`002_identity.sql`. The provider stores workflow definitions, runs, step state,
+attempts, timers, approval waits, worker leases, idempotency records, and
+canonical history needed for local process recovery.
+
 OAF-012 adds immutable context manifest persistence without changing
 migrations. `PostgresContextManifestRepository.append(...)` uses the existing
 `context_manifests` table and requires workspace ID on append, get, and

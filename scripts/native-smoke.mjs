@@ -7,6 +7,7 @@ import { DeterministicModelProvider } from '../providers/native/model-determinis
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
 import { DeterministicPolicyProvider } from '../providers/native/policy-deterministic/src/index.mjs';
 import { FilesystemContextManifestRepository } from '../providers/native/context-manifest-local/src/index.mjs';
+import { DurableSQLiteWorkflowRuntime, createDurableSmokeWorkflowDefinition, createDurableSmokeWorkflowRegistry } from '../providers/native/workflow-durable-sqlite/src/index.mjs';
 import { createNativeExactCandidateSource } from '../providers/native/context-candidate-exact/src/index.mjs';
 import { createNativeLexicalCandidateSource } from '../providers/native/context-candidate-lexical/src/index.mjs';
 import { compileAndPersistContext, createCandidateSourceRegistry, createFixtureRecordReader, generateContextCandidates } from '../packages/context-compiler/src/index.mjs';
@@ -156,12 +157,61 @@ try {
   });
   if (!persisted.verification.valid) throw new Error('native context manifest smoke failed');
 
+  let durableNow = Date.parse('2026-06-20T00:00:00.000Z');
+  const durableClock = () => new Date(durableNow).toISOString();
+  const durableDefinition = createDurableSmokeWorkflowDefinition();
+  const durable = new DurableSQLiteWorkflowRuntime({
+    dataRoot: path.join(directory, 'workflows durable'),
+    registry: createDurableSmokeWorkflowRegistry(),
+    clock: durableClock,
+    leaseMs: 10
+  });
+  await durable.registerWorkflow(durableDefinition);
+  await durable.start({
+    workspaceId: 'ws_smoke',
+    workflowId: durableDefinition.id,
+    workflowVersion: durableDefinition.version,
+    runId: 'run_native_durable_smoke',
+    input: { objective: 'native durable smoke' }
+  });
+  await durable.tick({ workerId: 'worker_native_a' });
+  await durable.tick({ workerId: 'worker_native_a' });
+  durable.close();
+  const recoveredDurable = new DurableSQLiteWorkflowRuntime({
+    dataRoot: path.join(directory, 'workflows durable'),
+    registry: createDurableSmokeWorkflowRegistry(),
+    clock: durableClock,
+    leaseMs: 10
+  });
+  durableNow += 100;
+  await recoveredDurable.tick({ workerId: 'worker_native_b' });
+  await recoveredDurable.tick({ workerId: 'worker_native_b' });
+  durableNow += 1000;
+  await recoveredDurable.tick({ workerId: 'worker_native_b' });
+  const durableWaiting = await recoveredDurable.get({ workspaceId: 'ws_smoke', runId: 'run_native_durable_smoke' });
+  await recoveredDurable.resolveApproval({
+    workspaceId: 'ws_smoke',
+    runId: 'run_native_durable_smoke',
+    approvalId: durableWaiting.steps.approval.approvalId,
+    actorId: bootstrap.user.id,
+    decision: 'approved',
+    operationFingerprint: 'sha256:approval-smoke'
+  });
+  await recoveredDurable.runWorker({ workerId: 'worker_native_b', maxTicks: 10, idleMs: 1 });
+  const durableRun = await recoveredDurable.get({ workspaceId: 'ws_smoke', runId: 'run_native_durable_smoke' });
+  const durableHistory = await recoveredDurable.history({ workspaceId: 'ws_smoke', runId: 'run_native_durable_smoke' });
+  if (durableRun.status !== 'completed' || durableRun.output.effect.effectCount !== 1 || !durableHistory.events.some((event) => event.type === 'run.resumed')) {
+    throw new Error('native durable workflow smoke failed');
+  }
+  recoveredDurable.close();
+
   console.log('PASS native SQLite memory');
   console.log('PASS content-addressed artifact store');
   console.log('PASS native local identity');
   console.log('PASS deterministic contextual policy provider');
   console.log('PASS native exact and lexical context candidate sources');
   console.log('PASS native local context manifest repository');
+  console.log('PASS native durable SQLite workflow recovery');
   console.log(`PASS Agent Pack ${pack.metadata.name}@${pack.metadata.version} ${fingerprint}`);
   console.log('PASS deterministic local model provider and gateway profile');
   console.log('Native provider smoke completed without network access.');

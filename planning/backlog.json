@@ -343,7 +343,7 @@
       "id": "OAF-014",
       "title": "Add durable workflow adapter and crash recovery",
       "milestone": "Milestone 4",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:backend-builder",
       "dependsOn": [
         "OAF-003",

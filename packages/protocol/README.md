@@ -46,3 +46,13 @@ selection summaries, candidate-generation summaries, token accounting, and
 verification metadata. The durable assembly preserves selected text exactly for
 model input while omitted excluded text prevents storing inaccessible or unsafe
 candidate bodies.
+
+## Durable workflow schemas
+
+OAF-014 adds strict internal schemas for durable workflow definitions, durable
+run records, approval resolution signals, workflow history responses, and
+durable runtime error codes. These schemas allow serializable handler
+references, bounded state, UTC timestamps, fingerprints, and canonical events.
+They do not allow function source, module paths, SQL, credentials, cookies,
+authorization headers, provider-specific SQLite objects, raw prompts, local
+paths, or hidden reasoning.

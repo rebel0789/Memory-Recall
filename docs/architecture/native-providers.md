@@ -9,6 +9,7 @@ Native providers make the local product useful without optional integrations. Th
 | `native.memory.sqlite` | on | Versioned local memory with FTS5 candidate search |
 | `native.artifacts.filesystem` | on | Workspace-scoped content-addressed artifacts and source snapshots |
 | `native.workflow.embedded` | on | Bounded local execution and checkpoints |
+| `native.workflow.durable-sqlite` | off | Local SQLite crash recovery baseline |
 | `native.model.deterministic` | on | Reproducible tests and offline demo |
 | `native.identity.local` | on | Local users, sessions, API tokens, memberships, and security audit |
 | `native.policy.deterministic` | on | Contextual policy decisions for resources, tools, data classes, approvals, and budgets |
@@ -112,6 +113,25 @@ manifest ID and fingerprint is idempotent; appending the same ID with a
 different fingerprint fails closed. Verification detects tampering and does not
 repair or overwrite files. The provider has no network access, no external
 writes, and no remote fallback.
+
+## Durable workflow provider
+
+The native durable workflow provider implements `WorkflowRuntimePort` version
+`1.1.0` as `provider:native:workflow:durable-sqlite`. It is disabled by default
+and explicitly selectable for local recovery tests and smoke commands.
+
+It stores its internal runtime database under `.local/workflows.sqlite` by
+default, enables SQLite WAL for file-backed databases, checks integrity in
+health, and keeps provider-specific SQLite objects behind the port. The provider
+supports serializable definitions, stable handler references, run listing,
+approval resolution, bounded worker ticks, worker loops with `AbortSignal`,
+history retrieval, clean close, timers, retries, cancellation, worker leases,
+and idempotent effect records.
+
+The runtime guarantees durable orchestration and at-least-once activity
+invocation. It reuses committed idempotent effect records after retry or
+restart, but it does not claim exactly-once delivery to arbitrary external
+systems. External writes remain disabled.
 
 ## Local model providers
 

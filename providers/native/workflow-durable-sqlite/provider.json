@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:workflow:durable-sqlite",
+  "name": "Native Durable SQLite Workflow Runtime",
+  "version": "0.2.0-dev",
+  "category": "workflow",
+  "enabledByDefault": false,
+  "locality": "in-process",
+  "contract": "WorkflowRuntimePort",
+  "capabilities": [
+    "workflow.start",
+    "workflow.inspect",
+    "workflow.list",
+    "workflow.cancel",
+    "workflow.signal",
+    "workflow.history",
+    "workflow.process-recovery",
+    "workflow.durable-timer",
+    "workflow.durable-retry",
+    "workflow.approval-wait",
+    "workflow.idempotency",
+    "workflow.worker-lease"
+  ],
+  "limits": {
+    "durability": "sqlite-wal",
+    "processRecovery": true,
+    "activityExecution": "at-least-once",
+    "externalWrites": false,
+    "network": false,
+    "nodeSqlite": "experimental",
+    "maxSteps": 64,
+    "maxAttempts": 5,
+    "maxOutputBytes": 65536
+  },
+  "dataPaths": [
+    ".local/workflows.sqlite"
+  ],
+  "experimental": false,
+  "notes": [
+    "Dependency-free local crash recovery baseline using Node 22 node:sqlite.",
+    "Does not claim exactly-once delivery to arbitrary external systems.",
+    "Requires serializable workflow definitions and local trusted handler registration."
+  ]
+}

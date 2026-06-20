@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-014",
+  "nextTask": "OAF-015",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -294,13 +294,22 @@
     {
       "id": "runtime.durable",
       "name": "Durable workflow runtime",
-      "status": "specified",
+      "status": "reference",
       "evidence": [
-        "docs/architecture/workflow-runtime.md",
-        "planning/backlog.json"
+        "providers/native/workflow-durable-sqlite/src/index.mjs",
+        "providers/native/workflow-durable-sqlite/provider.json",
+        "packages/adapter-contracts/src/index.mjs",
+        "packages/protocol/schemas/durable-workflow-definition.schema.json",
+        "tests/workflow-durable-sqlite.test.mjs",
+        "tests/workflow-durable-crash.test.mjs",
+        "scripts/workflow-durable-smoke.mjs",
+        "docs/adr/0017-native-sqlite-durable-workflows.md",
+        "docs/implementation/OAF-014-durable-workflows-note.md"
       ],
       "limitations": [
-        "In-process bootstrap does not survive process failure"
+        "Native SQLite reference runtime only; not a hosted or team-scale workflow service",
+        "Activity invocation is at least once; non-repetition depends on target-level idempotency",
+        "Temporal, hosted orchestration, external writes, tool execution, and production approval UI remain pending"
       ]
     },
     {
@@ -468,16 +477,21 @@
   "qualitySnapshot": {
     "asOf": "2026-06-20",
     "commands": [
-      "npm run check",
+      "npm ci --ignore-scripts --no-audit --no-fund",
+      "npm run bootstrap",
+      "npm run doctor",
+      "node --test tests/workflow-durable-sqlite.test.mjs tests/workflow-durable-crash.test.mjs tests/workflow-runtime.test.mjs tests/native-workflow-embedded.test.mjs tests/model-gateway.test.mjs tests/workflow.test.mjs tests/policy-contextual.test.mjs",
       "npm run protocol:validate",
-      "npm test",
       "npm run eval",
+      "npm run ci",
+      "npm run workflow:durable:smoke",
+      "npm run demo",
       "npm run native:smoke",
-      "npm run demo"
+      "npm run verify:handoff"
     ],
-    "testsExpected": 123,
-    "protocolFixturesExpected": 67,
-    "evaluationsExpected": 61,
+    "testsExpected": 138,
+    "protocolFixturesExpected": 77,
+    "evaluationsExpected": 72,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
 }

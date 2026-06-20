@@ -28,6 +28,20 @@ printf '%s\n' 'correct horse battery staple' | \
 
 Do not pass passwords on the command line. The HTTP API exposes only `GET /api/auth/bootstrap-status`; first-owner creation is CLI-only. The local identity store is `.local/identity/identity.json`.
 
+## Durable workflow smoke
+
+The explicit native durable workflow baseline uses local SQLite only:
+
+```bash
+npm run workflow:durable:smoke
+OAF_WORKFLOW_DATA_DIR=.local npm run workflow:worker
+npm run workflow:inspect -- --workspace ws_local --run run_durable_smoke
+```
+
+The durable provider stores `.local/workflows.sqlite` when configured to use
+the approved local default. It does not require Docker, Temporal, PostgreSQL,
+network access, model downloads, external adapters, or external writes.
+
 ## Environment
 
 Copying `.env.example` to `.env` is handled by `npm run bootstrap`. Local files are ignored by Git. Never commit real secrets.

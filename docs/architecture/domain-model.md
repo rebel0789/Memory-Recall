@@ -18,6 +18,13 @@ A browser session is an opaque server-side credential. Public session responses 
 
 A workflow is an immutable versioned definition. A run references one workflow version and owns step attempts, events, manifests, artifacts, approvals, and outcomes.
 
+Durable workflow definitions are serializable and fingerprinted. Executable
+steps reference local trusted handlers by stable ID and version. Durable runs
+store the exact workflow fingerprint, input fingerprint, state, step attempts,
+timers, approvals, leases, idempotency records, and canonical events needed to
+resume after process death. Handler source, closures, modules, local paths,
+credentials, and raw model prompts are not domain state.
+
 ### Context request and manifest
 
 A request states objective, step, actor, required entities and records, token budget, allowed data classes, and time. A manifest records candidates considered, selections, exclusions, conflicts, assembly order, token accounting, and compiler version.

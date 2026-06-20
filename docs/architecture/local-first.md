@@ -24,3 +24,11 @@ capability-aware local gateway contract. Structured calls require a persisted
 context manifest reference and emit safe fingerprints instead of raw prompts or
 outputs. The Ollama provider remains explicit, disabled by default,
 loopback-only, and never falls back to hosted inference.
+
+## Local durable workflows
+
+OAF-014 adds an explicit local durable workflow mode backed by Node 22
+`node:sqlite`. The default product path remains offline and deterministic; the
+durable provider adds `.local/workflows.sqlite` only when selected by tests,
+smoke commands, or composition. It does not probe the network, start a hosted
+orchestration service, download workflow code, or enable external writes.

@@ -103,11 +103,21 @@ export class ModelGatewayPort {
 
 export class WorkflowRuntimePort {
   static contract = 'WorkflowRuntimePort';
-  static requiredMethods = ['health', 'start', 'get', 'cancel'];
+  static version = '1.1.0';
+  static requiredMethods = ['health', 'capabilities', 'registerWorkflow', 'start', 'get', 'list', 'cancel', 'signal', 'resolveApproval', 'tick', 'runWorker', 'history', 'close'];
   async health() { return notImplemented(WorkflowRuntimePort.contract, 'health'); }
+  async capabilities() { return notImplemented(WorkflowRuntimePort.contract, 'capabilities'); }
+  async registerWorkflow() { return notImplemented(WorkflowRuntimePort.contract, 'registerWorkflow'); }
   async start() { return notImplemented(WorkflowRuntimePort.contract, 'start'); }
   async get() { return notImplemented(WorkflowRuntimePort.contract, 'get'); }
+  async list() { return notImplemented(WorkflowRuntimePort.contract, 'list'); }
   async cancel() { return notImplemented(WorkflowRuntimePort.contract, 'cancel'); }
+  async signal() { return notImplemented(WorkflowRuntimePort.contract, 'signal'); }
+  async resolveApproval() { return notImplemented(WorkflowRuntimePort.contract, 'resolveApproval'); }
+  async tick() { return notImplemented(WorkflowRuntimePort.contract, 'tick'); }
+  async runWorker() { return notImplemented(WorkflowRuntimePort.contract, 'runWorker'); }
+  async history() { return notImplemented(WorkflowRuntimePort.contract, 'history'); }
+  close() { return notImplemented(WorkflowRuntimePort.contract, 'close'); }
 }
 
 export class PolicyEvaluatorPort {

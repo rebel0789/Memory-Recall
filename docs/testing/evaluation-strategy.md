@@ -38,6 +38,12 @@ manifest fingerprint verification, comparison output, required-governance
 overflow, persistence, zero excluded-text leakage, workspace isolation, and
 retry idempotency.
 
+OAF-014 adds deterministic durable-workflow checks for process recovery, retry
+recovery, timer recovery, approval-wait recovery, cancellation persistence,
+no completed-step repetition, idempotent effect count of one, monotonic event
+history, workspace isolation, version-fingerprint conflicts, and zero
+secret/path leakage.
+
 ## Model-backed changes
 
 Separate nondeterministic quality tests from merge-blocking contract tests. A model default may change only after a versioned evaluation report and rollback plan.

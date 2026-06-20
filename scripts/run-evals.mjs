@@ -1,4 +1,7 @@
 import { readFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import {
   compileContext,
   compileAndPersistContext,
@@ -13,6 +16,11 @@ import {
 import { createPolicyService } from '../packages/policy/src/index.mjs';
 import { evaluatePolicy } from '../packages/policy/src/index.mjs';
 import { proposeMemory } from '../packages/memory-core/src/index.mjs';
+import {
+  DurableSQLiteWorkflowRuntime,
+  createDurableSmokeWorkflowDefinition,
+  createDurableSmokeWorkflowRegistry
+} from '../providers/native/workflow-durable-sqlite/src/index.mjs';
 let passed=0,failed=0;const check=(label,condition)=>{if(condition){console.log(`PASS ${label}`);passed++}else{console.error(`FAIL ${label}`);failed++}};
 const contextCases=JSON.parse(await readFile('evals/context-selection/cases.json','utf8'));
 for(const test of contextCases){
@@ -60,6 +68,51 @@ check('persisted-manifest: zero leakage',!JSON.stringify(manifestResult.manifest
 check('persisted-manifest: workspace isolation',await manifestRepo.get({workspaceId:'ws_other',id:manifestResult.manifest.id})===null);
 const retry=await compileAndPersistContext(manifestRequest,manifestRecords,{manifestRepository:manifestRepo,runId:'run_eval_manifest',clock:()=>'2026-06-20T00:00:00.000Z'});
 check('persisted-manifest: retry idempotency',retry.manifest.manifestFingerprint===manifestResult.manifest.manifestFingerprint&&manifestRepo.rows.size===1);
+const durableDir=await mkdtemp(path.join(os.tmpdir(),'oaf-eval-durable-'));
+try{
+  let evalNow=Date.parse('2026-06-20T00:00:00.000Z');
+  const durableClock=()=>new Date(evalNow).toISOString();
+  const durable=new DurableSQLiteWorkflowRuntime({dataRoot:durableDir,registry:createDurableSmokeWorkflowRegistry(),clock:durableClock,leaseMs:10});
+  const durableDefinition=createDurableSmokeWorkflowDefinition();
+  await durable.registerWorkflow(durableDefinition);
+  await durable.start({workspaceId:'ws_eval',workflowId:durableDefinition.id,workflowVersion:durableDefinition.version,runId:'run_eval_durable',input:{objective:'evaluate durable recovery'},idempotencyKey:'eval-durable-start'});
+  await durable.tick({workerId:'worker_eval_a'});
+  await durable.tick({workerId:'worker_eval_a'});
+  let durableRun=await durable.get({workspaceId:'ws_eval',runId:'run_eval_durable'});
+  check('durable-workflow: retry recovery',durableRun.status==='waiting_retry'&&durableRun.steps.retry.attempt===1);
+  durable.close();
+  const recovered=new DurableSQLiteWorkflowRuntime({dataRoot:durableDir,registry:createDurableSmokeWorkflowRegistry(),clock:durableClock,leaseMs:10});
+  evalNow+=100;
+  await recovered.tick({workerId:'worker_eval_b'});
+  await recovered.tick({workerId:'worker_eval_b'});
+  durableRun=await recovered.get({workspaceId:'ws_eval',runId:'run_eval_durable'});
+  check('durable-workflow: process recovery',durableRun.status==='waiting_timer');
+  evalNow+=1000;
+  await recovered.tick({workerId:'worker_eval_b'});
+  durableRun=await recovered.get({workspaceId:'ws_eval',runId:'run_eval_durable'});
+  check('durable-workflow: timer recovery',durableRun.status==='waiting_approval');
+  const approvalId=durableRun.steps.approval.approvalId;
+  await recovered.resolveApproval({workspaceId:'ws_eval',runId:'run_eval_durable',approvalId,actorId:'usr_eval',decision:'approved',operationFingerprint:'sha256:approval-smoke'});
+  await recovered.tick({workerId:'worker_eval_b'});
+  await recovered.tick({workerId:'worker_eval_b'});
+  await recovered.tick({workerId:'worker_eval_b'});
+  durableRun=await recovered.get({workspaceId:'ws_eval',runId:'run_eval_durable'});
+  const durableHistory=await recovered.history({workspaceId:'ws_eval',runId:'run_eval_durable'});
+  check('durable-workflow: approval-wait recovery',durableHistory.events.some(event=>event.type==='approval.resolved')&&durableRun.status==='completed');
+  check('durable-workflow: no completed-step repetition',durableHistory.events.filter(event=>event.type==='step.completed'&&event.payload.stepId==='effect').length===1);
+  check('durable-workflow: idempotent effect count',durableRun.output.effect.effectCount===1);
+  check('durable-workflow: monotonic event history',JSON.stringify(durableHistory.events.map(event=>event.sequence))===JSON.stringify([...durableHistory.events.keys()]));
+  check('durable-workflow: workspace isolation',await recovered.get({workspaceId:'ws_other',runId:'run_eval_durable'})===null);
+  let conflictClosed=false;try{await recovered.registerWorkflow({...durableDefinition,description:'changed after run'})}catch(error){conflictClosed=error.code==='workflow_version_fingerprint_conflict'}
+  check('durable-workflow: version-fingerprint conflict',conflictClosed);
+  check('durable-workflow: zero secret/path leakage',!JSON.stringify(durableHistory.events).includes('/Users/')&&!JSON.stringify(durableHistory.events).includes('SELECT '));
+  await recovered.start({workspaceId:'ws_eval',workflowId:durableDefinition.id,workflowVersion:durableDefinition.version,runId:'run_eval_cancel',input:{objective:'cancel eval'}});
+  await recovered.cancel({workspaceId:'ws_eval',runId:'run_eval_cancel',reason:'operator stop'});
+  check('durable-workflow: cancellation persistence',(await recovered.get({workspaceId:'ws_eval',runId:'run_eval_cancel'})).status==='cancelled');
+  recovered.close();
+}finally{
+  await rm(durableDir,{recursive:true,force:true});
+}
 const policyCases=JSON.parse(await readFile('evals/policy/cases.json','utf8'));for(const test of policyCases){const result=evaluatePolicy(test.input);check(`${test.id}: decision`,result.decision===test.expect.decision);check(`${test.id}: reasons`,test.expect.reasons.every(reason=>result.reasons.includes(reason)))}
 const memoryCases=JSON.parse(await readFile('evals/memory/cases.json','utf8'));for(const test of memoryCases){const result=proposeMemory(test.input);check(`${test.id}: decision`,result.decision===test.expect.decision);check(`${test.id}: reasons`,test.expect.reasons.every(reason=>result.reasons.includes(reason)))}
 console.log(`\nEvaluation result: ${passed} passed, ${failed} failed.`);if(failed)process.exitCode=1;

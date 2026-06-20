@@ -20,8 +20,10 @@ try {
   database.exec('CREATE VIRTUAL TABLE smoke_fts USING fts5(text);');
   database.close();
   checks.push({ name: 'Native SQLite with FTS5', passed: true, value: 'available' });
+  checks.push({ name: 'Native durable workflow SQLite', passed: true, value: 'available locally; disabled unless selected' });
 } catch (error) {
   checks.push({ name: 'Native SQLite with FTS5', passed: false, value: error.message });
+  checks.push({ name: 'Native durable workflow SQLite', passed: false, value: error.message });
 }
 console.log(`Environment: ${os.platform()} ${os.release()} ${os.arch()}`);
 for (const check of checks) console.log(`${check.passed ? 'PASS' : 'FAIL'} ${check.name}${check.value ? ` — ${check.value}` : ''}`);
