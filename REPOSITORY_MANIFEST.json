@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T16:19:07.973Z",
-  "fileCount": 661,
-  "totalBytes": 2069951,
+  "generatedAt": "2026-06-20T16:29:15.924Z",
+  "fileCount": 669,
+  "totalBytes": 2095210,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -546,8 +546,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 16251,
-      "sha256": "10171bf373c119afe25790e1818282793c3f6e28e955709314759481c730423f"
+      "bytes": 16964,
+      "sha256": "bde63b5312c6cf15ca20d7bb21cd0fd78652433dda880b8b8520c97515c2c9f8"
     },
     {
       "path": "CITATION.cff",
@@ -726,8 +726,8 @@
     },
     {
       "path": "docs/architecture/adapter-contracts.md",
-      "bytes": 3733,
-      "sha256": "d99e81b3a2f7c717faf487c6049e1f51454dcb98d523a6025b19d8e967210be0"
+      "bytes": 4098,
+      "sha256": "0e05fdd56f64b7cfc41f2abd7c179a9119ee3f3ffa9a138b3a7cd9dca33097c0"
     },
     {
       "path": "docs/architecture/agent-packs.md",
@@ -773,6 +773,11 @@
       "path": "docs/architecture/overview.md",
       "bytes": 5379,
       "sha256": "cdea25eb5b07501ca6472820fa8a9ce742120dd7ff607a097e5168cc6b543e52"
+    },
+    {
+      "path": "docs/architecture/protocol-bridges.md",
+      "bytes": 1457,
+      "sha256": "cc04edb38e3248cd9bc40a483328a6fadae77d6c6863c95f726595cc30b4f0d9"
     },
     {
       "path": "docs/architecture/sequence-flows.md",
@@ -898,6 +903,11 @@
       "path": "docs/implementation/OAF-027-read-only-adapter-note.md",
       "bytes": 1674,
       "sha256": "fd4908efe0107683b0c63f7fcf8f63aac28f839feacb6f605225161bb78c87c3"
+    },
+    {
+      "path": "docs/implementation/OAF-028-protocol-bridges-note.md",
+      "bytes": 1378,
+      "sha256": "5c8ed373237712dde742dc8f7aaa586c7a3243b969a3e90b76619d4313b9dd56"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1421,8 +1431,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 24955,
-      "sha256": "1845b317c36eb997f8daf14b4d48dcdbd31cffcee266b23f97c90d58b5926f19"
+      "bytes": 25452,
+      "sha256": "488ed97d03375cedade2ed46722a9d1fe5b55ea3e4f00eee749a27f0db3a4474"
     },
     {
       "path": "examples/protocol/compatibility/invalid/agent-pack-with-secret-field.json",
@@ -1468,6 +1478,11 @@
       "path": "examples/protocol/compatibility/invalid/event-missing-run.json",
       "bytes": 299,
       "sha256": "13ca3559da1e581efc2bd5f09aa73d6d49321486b0a8a606304b4ab497f338b4"
+    },
+    {
+      "path": "examples/protocol/compatibility/invalid/mcp-bridge-request-grant-token.json",
+      "bytes": 207,
+      "sha256": "10c19a913d39731e27f2821238cd74d00971baeeef9a9b0a4c2e33c8406d0750"
     },
     {
       "path": "examples/protocol/compatibility/invalid/model-generation-request-raw-prompt.json",
@@ -1620,6 +1635,11 @@
       "sha256": "a6e16d3e6bdef234fb4337f399bcee8a6aecd890c80fdc351fc53b93edcfee7d"
     },
     {
+      "path": "examples/protocol/mcp-bridge-request.json",
+      "bytes": 202,
+      "sha256": "98ba1d8f6ed34ebd25cd4370fdb662a9b799a3e5ba78059ebf4801d363f81955"
+    },
+    {
       "path": "examples/protocol/memory-proposal.json",
       "bytes": 746,
       "sha256": "1b7caa05d9ff47f8d8390e3b8fdfdff7921f9f37ed8c094dead1fcd36ae84a22"
@@ -1732,7 +1752,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "289e243d7112b7b2ece8d7096a604a1840d13298fda4af9a5c574417552dc502"
+      "sha256": "d05532d2a5152cc984b20faca5212735cdb4fdb177e14b2c7de57e59eae2ab6a"
     },
     {
       "path": "LICENSE",
@@ -1890,6 +1910,16 @@
       "sha256": "699df7a56015a0049139f0d6537c64e392e35aec063b7daf0c1b70771215a84a"
     },
     {
+      "path": "packages/protocol-bridges/package.json",
+      "bytes": 113,
+      "sha256": "53f15aa1d35230d43f6484e4b4a023af4d2372140d9c9ab8538f57ead59b740b"
+    },
+    {
+      "path": "packages/protocol-bridges/src/index.mjs",
+      "bytes": 11062,
+      "sha256": "afa9257aa712b488b262bf310ce560cb6726b13e87bf1fea522935dcc60feed9"
+    },
+    {
       "path": "packages/protocol/AGENTS.md",
       "bytes": 238,
       "sha256": "b552fcfcece01b4522fb3ffdefeb84ea21e344c37b67835f3a201dc7bc1549af"
@@ -1901,8 +1931,8 @@
     },
     {
       "path": "packages/protocol/README.md",
-      "bytes": 3517,
-      "sha256": "b5b807edc2b7071c36001e8b90e1793fedb2fdf23532239b96d9411f44866a0c"
+      "bytes": 3871,
+      "sha256": "c9a7bdf747397b67429bc2a5265e669d637afebd0d94cb4244763d0c4a2d30bc"
     },
     {
       "path": "packages/protocol/schemas/adapter-conformance-fixture.schema.json",
@@ -2265,6 +2295,11 @@
       "sha256": "d22999075a587d48edb527ee91394228a00771f582bedaff7b6c5d0f6d11750e"
     },
     {
+      "path": "packages/protocol/schemas/mcp-bridge-request.schema.json",
+      "bytes": 594,
+      "sha256": "1a8835d89e8f5d74395da22eec6a418ee6ee42bd9572db1a24f77380da68d1f1"
+    },
+    {
       "path": "packages/protocol/schemas/memory-record.schema.json",
       "bytes": 3550,
       "sha256": "f92692c4398b959d3062f77856d298cfe5ac050f11fe54373c53b226c49e6049"
@@ -2536,8 +2571,8 @@
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26924,
-      "sha256": "d5b840c06473ae1367514767d03cc13a917310587e16a3432066ec7a705dd94e"
+      "bytes": 26926,
+      "sha256": "b805154ced1fba4eb286edc816b6cec11696bfd8b73f9a0646795e255ef4fabf"
     },
     {
       "path": "planning/README.md",
@@ -2551,8 +2586,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 28702,
-      "sha256": "79f38c7293d2314f9de3baf85bbb704f0a264cda82c0dfa8ac509642be8042ca"
+      "bytes": 29494,
+      "sha256": "c051126bde93e9d8bd5fa2524cec9888076d261939dffcb08aeb680383b8e86b"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2756,8 +2791,8 @@
     },
     {
       "path": "rfcs/0001-protocol-contracts.md",
-      "bytes": 1616,
-      "sha256": "c95518445a3227d41e542188e038dfe1006584cc3bb5c9c2f49f8851fa3362b2"
+      "bytes": 2099,
+      "sha256": "a9cc75bcb93c4a992e85127ab751b0666ef090bb722cdd2d753cce9adebf4abd"
     },
     {
       "path": "ROADMAP.md",
@@ -3002,7 +3037,7 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "060293cd31043fb1f206aae4717b6910a0140e4891079113c61e1882e5a5f7f2"
+      "sha256": "daea3ce7757d491484860daf7817d2df476666a237b26459869b26d34e2b503f"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -3163,6 +3198,11 @@
       "path": "tests/postgres-repositories.test.mjs",
       "bytes": 8350,
       "sha256": "79cf385a9f0c718753100e33f56fbebb8a659cc548a1e218a042f50460e6194b"
+    },
+    {
+      "path": "tests/protocol-bridges.test.mjs",
+      "bytes": 7040,
+      "sha256": "8b7b313b5ce424082bfca6d0e58b713d3cf5a0cb3b98f32a7bc3ad46b8d37395"
     },
     {
       "path": "tests/protocol-schema-validator.test.mjs",

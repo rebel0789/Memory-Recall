@@ -606,6 +606,18 @@
       "schema": "packages/protocol/schemas/durable-approval-resolution.schema.json",
       "instance": "examples/protocol/compatibility/durable-workflow/approval-resolution-invalid-extra.json",
       "expectedValid": false
+    },
+    {
+      "id": "mcp-bridge-request-current-valid",
+      "schema": "packages/protocol/schemas/mcp-bridge-request.schema.json",
+      "instance": "examples/protocol/mcp-bridge-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-bridge-request-grant-token-invalid",
+      "schema": "packages/protocol/schemas/mcp-bridge-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/mcp-bridge-request-grant-token.json",
+      "expectedValid": false
     }
   ]
 }

@@ -705,7 +705,7 @@
       "id": "OAF-028",
       "title": "Add protocol bridges through accepted RFCs",
       "milestone": "Milestone 9",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:backend-builder",
       "dependsOn": [
         "OAF-015",

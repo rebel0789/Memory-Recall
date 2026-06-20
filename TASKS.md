@@ -60,8 +60,8 @@ npm run task -- <OAF-ID>
 - [x] OAF-025 Add OpenTelemetry-compatible instrumentation.
 - [x] OAF-026 Build the evaluation laboratory.
 - [x] OAF-027 Promote one low-risk read-only adapter.
-- [ ] **OAF-028 Add protocol bridges through accepted RFCs — next.**
-- [ ] OAF-029 Complete operations, backup, restore, upgrade, and rollback.
+- [x] OAF-028 Add protocol bridges through accepted RFCs.
+- [ ] **OAF-029 Complete operations, backup, restore, upgrade, and rollback — next.**
 - [ ] OAF-030 Complete 1.0 open-source release readiness.
 
 Never enable external writes before authorization, exact approval, idempotency, reconciliation, and adversarial tests pass.

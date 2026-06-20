@@ -72,3 +72,9 @@ External adapters remain disabled by default. OAF-009 adds the policy boundary
 and conformance tests; OAF-027 adds one disabled experimental ECC adapter. This
 does not enable Agent-Reach, last30days, Postiz, browser automation,
 publishing, network connectors, external writes, or any bulk adapter catalog.
+
+OAF-028 adds a local MCP bridge package rather than promoting another adapter.
+It exposes OAF-owned tools and resources through MCP-shaped JSON-RPC messages,
+but identity, membership, grants, replay mode, and disconnect state are resolved
+by OAF runtime code, not by protocol callers. CCCC remains a planned unpinned
+adapter until an accepted use-case RFC exists.

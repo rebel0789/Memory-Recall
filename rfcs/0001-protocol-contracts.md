@@ -11,6 +11,12 @@ reviewed tool manifests, handler descriptors, sandbox profile names, invocation
 requests, safe grant records, invocation results, reconciliation metadata, safe
 tool event payloads, and stable tool error codes.
 
+OAF-028 extends the v1 protocol additively with a local MCP bridge request
+schema and compatibility fixtures. The bridge uses JSON-RPC-shaped MCP methods
+for initialization, tool/resource discovery, tool invocation, and resource
+reads, but OAF trusted context and server-side exact grants remain outside
+caller-supplied protocol payloads.
+
 ## Requirements
 
 - canonical IDs are independent of providers;
@@ -23,6 +29,8 @@ tool event payloads, and stable tool error codes.
 - raw secrets and large source bodies are references, not payload fields.
 - raw grant tokens, raw prompts, tool outputs, secret values, provider URLs,
   local paths, and caller-supplied authority fields are not protocol payloads.
+- MCP bridge callers cannot supply OAF principal, membership, role, approval,
+  grant token, filesystem, network, or external-write authority.
 
 ## Open questions for OAF-002
 

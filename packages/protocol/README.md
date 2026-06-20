@@ -68,3 +68,11 @@ These schemas describe trusted service-to-service tool execution. Clients
 cannot supply roles, policy outcomes, secret values, raw grant tokens, handler
 code, provider URLs, local filesystem paths, downloaded tools, shell commands,
 browser automation, or external-write authority.
+
+## MCP bridge schema
+
+OAF-028 adds `mcp-bridge-request.schema.json` for the local MCP bridge request
+surface. It validates JSON-RPC-shaped method names and rejects top-level
+authority injection. Runtime bridge code still performs trusted-context, grant,
+replay, disconnect, and private-payload checks because remote protocol payloads
+are not authority.
