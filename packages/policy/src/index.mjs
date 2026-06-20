@@ -124,7 +124,7 @@ const CAPABILITY_KEYS = new Set(['toolId', 'operation', 'sideEffectClass', 'file
 const FILESYSTEM_KEYS = new Set(['read', 'write']);
 const NETWORK_KEYS = new Set(['protocol', 'host', 'port', 'methods', 'consequence', 'locality']);
 const LIMIT_KEYS = new Set(['runtimeMs', 'memoryBytes', 'outputBytes', 'inputBytes', 'invocationCount', 'costUnits', 'retryCount']);
-const APPROVAL_KEYS = new Set(['approvalId', 'operationFingerprint', 'workspaceId', 'actorId', 'approverId', 'approvedAt', 'expiresAt', 'status', 'policyVersion']);
+const APPROVAL_KEYS = new Set(['approvalId', 'operationFingerprint', 'workspaceId', 'actorId', 'approverId', 'approvedAt', 'expiresAt', 'status', 'policyVersion', 'serverVerified']);
 const TOOL_KEYS = new Set(['id', 'allowedRoles', 'riskClass', 'operations', 'permissions', 'timeoutMs', 'outputLimitBytes', 'approval']);
 const OPERATION_KEYS = new Set(['sideEffectClass', 'filesystem', 'network', 'secretReferences', 'dataClasses', 'sandbox', 'limits']);
 
@@ -492,11 +492,11 @@ function normalizeOperations(manifest) {
 
 function validateApproval({ request, approval, evaluatedAt, reasons }) {
   if (!approval) return;
-  if (!approval.approvalId || approval.status !== 'active') reasons.add('approval_invalid');
-  if (approval.workspaceId && approval.workspaceId !== request.workspaceId) reasons.add('approval_scope_mismatch');
-  if (approval.actorId && approval.actorId !== request.principal?.userId) reasons.add('approval_scope_mismatch');
-  if (approval.policyVersion && approval.policyVersion !== POLICY_VERSION) reasons.add('approval_scope_mismatch');
-  if (approval.expiresAt && Date.parse(approval.expiresAt) <= Date.parse(evaluatedAt)) reasons.add('approval_expired');
+  if (!approval.approvalId || approval.status !== 'active' || approval.serverVerified !== true) reasons.add('approval_invalid');
+  if (!approval.workspaceId || approval.workspaceId !== request.workspaceId) reasons.add('approval_scope_mismatch');
+  if (!approval.actorId || approval.actorId !== request.principal?.userId) reasons.add('approval_scope_mismatch');
+  if (!approval.policyVersion || approval.policyVersion !== POLICY_VERSION) reasons.add('approval_scope_mismatch');
+  if (!approval.expiresAt || Date.parse(approval.expiresAt) <= Date.parse(evaluatedAt)) reasons.add('approval_expired');
   if (approval.operationFingerprint !== canonicalOperationFingerprint(request)) reasons.add('approval_scope_mismatch');
 }
 

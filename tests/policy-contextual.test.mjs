@@ -99,6 +99,29 @@ function toolRequest(overrides = {}) {
   });
 }
 
+function serverApprovalFor(request, overrides = {}) {
+  return {
+    approvalId: 'appr_1',
+    operationFingerprint: canonicalOperationFingerprint(request),
+    workspaceId: request.workspaceId,
+    actorId: request.principal.userId,
+    approverId: 'usr_owner',
+    approvedAt: fixedNow,
+    expiresAt: '2026-06-19T11:00:00.000Z',
+    status: 'active',
+    policyVersion: POLICY_REGISTRY.version,
+    serverVerified: true,
+    ...overrides
+  };
+}
+
+function withServerApproval(request, overrides = {}) {
+  return {
+    ...request,
+    approvalContext: serverApprovalFor(request, overrides)
+  };
+}
+
 test('deterministic policy registry exposes a stable version, fingerprint, and bounded reasons', () => {
   const first = policyFingerprint(POLICY_REGISTRY);
   const second = policyFingerprint(POLICY_REGISTRY);
@@ -191,22 +214,45 @@ test('permitted read-only tool operation returns bounded effective capability', 
 });
 
 test('data-class, risk, approval, idempotency, and budget rules fail closed', () => {
-  const fingerprint = canonicalOperationFingerprint(baseRequest({
-    action: 'tool.invoke',
-    resource: { type: 'tool', id: 'tool:publish', workspaceId: 'ws_local', dataClass: 'workspace-private' }
+  const consequentialManifest = {
+    ...readToolManifest,
+    riskClass: 'consequential-write',
+    operations: {
+      read: {
+        ...readToolManifest.operations.read,
+        sideEffectClass: 'consequential-write'
+      }
+    }
+  };
+  const consequentialRequest = (overrides = {}) => toolRequest({
+    trustedToolManifest: consequentialManifest,
+    capabilityRequest: { ...toolRequest().capabilityRequest, sideEffectClass: 'consequential-write' },
+    ...overrides
+  });
+  const validApprovalNoIdempotency = withServerApproval(consequentialRequest());
+  const validApprovalWithIdempotency = withServerApproval(consequentialRequest({ idempotencyKey: 'idem_1' }));
+  const externalWriteRequest = withServerApproval(consequentialRequest({
+    capabilityRequest: {
+      ...toolRequest().capabilityRequest,
+      sideEffectClass: 'consequential-write',
+      network: [{ protocol: 'https', host: 'example.com', port: 443, methods: ['POST'], consequence: 'write', locality: 'external' }]
+    },
+    idempotencyKey: 'idem_1'
   }));
   const cases = [
     ['secret model context', baseRequest({ action: 'context.compile', resource: { type: 'context', id: 'ctx_secret', workspaceId: 'ws_local', dataClass: 'secret' } }), 'data_class_denied'],
     ['secret network tool', toolRequest({ resource: { type: 'tool', id: readToolManifest.id, workspaceId: 'ws_local', dataClass: 'secret' } }), 'data_class_denied'],
     ['confidential cross workspace', baseRequest({ resource: { type: 'artifact', id: 'art_other', workspaceId: 'ws_other', dataClass: 'confidential' } }), 'workspace_mismatch'],
-    ['consequential approval missing', toolRequest({ capabilityRequest: { ...toolRequest().capabilityRequest, sideEffectClass: 'consequential-write' } }), 'approval_required'],
-    ['consequential idempotency missing', toolRequest({ capabilityRequest: { ...toolRequest().capabilityRequest, sideEffectClass: 'consequential-write' }, approvalContext: { approvalId: 'appr_1', operationFingerprint: fingerprint, approvedAt: fixedNow, expiresAt: '2026-06-19T11:00:00.000Z', status: 'active', approverId: 'usr_owner' } }), 'idempotency_required'],
-    ['approval mismatch', toolRequest({ capabilityRequest: { ...toolRequest().capabilityRequest, sideEffectClass: 'consequential-write' }, idempotencyKey: 'idem_1', approvalContext: { approvalId: 'appr_1', operationFingerprint: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', approvedAt: fixedNow, expiresAt: '2026-06-19T11:00:00.000Z', status: 'active', approverId: 'usr_owner' } }), 'approval_scope_mismatch'],
-    ['expired approval', toolRequest({ capabilityRequest: { ...toolRequest().capabilityRequest, sideEffectClass: 'consequential-write' }, idempotencyKey: 'idem_1', approvalContext: { approvalId: 'appr_1', operationFingerprint: fingerprint, approvedAt: fixedNow, expiresAt: '2026-06-19T09:00:00.000Z', status: 'active', approverId: 'usr_owner' } }), 'approval_expired'],
-    ['external write disabled', toolRequest({ capabilityRequest: { ...toolRequest().capabilityRequest, sideEffectClass: 'consequential-write', network: [{ protocol: 'https', host: 'example.com', port: 443, methods: ['POST'], consequence: 'write', locality: 'external' }] }, idempotencyKey: 'idem_1', approvalContext: { approvalId: 'appr_1', operationFingerprint: canonicalOperationFingerprint(toolRequest()), approvedAt: fixedNow, expiresAt: '2026-06-19T11:00:00.000Z', status: 'active', approverId: 'usr_owner' } }), 'external_writes_disabled'],
+    ['consequential approval missing', consequentialRequest(), 'approval_required'],
+    ['caller-minted approval missing server verification', consequentialRequest({ idempotencyKey: 'idem_1', approvalContext: { approvalId: 'appr_1', operationFingerprint: canonicalOperationFingerprint(consequentialRequest({ idempotencyKey: 'idem_1' })), workspaceId: 'ws_local', actorId: 'usr_owner', approvedAt: fixedNow, expiresAt: '2026-06-19T11:00:00.000Z', status: 'active', approverId: 'usr_owner', policyVersion: POLICY_REGISTRY.version } }), 'approval_invalid'],
+    ['consequential idempotency missing', validApprovalNoIdempotency, 'idempotency_required'],
+    ['approval mismatch', withServerApproval(consequentialRequest({ idempotencyKey: 'idem_1' }), { operationFingerprint: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' }), 'approval_scope_mismatch'],
+    ['expired approval', withServerApproval(consequentialRequest({ idempotencyKey: 'idem_1' }), { expiresAt: '2026-06-19T09:00:00.000Z' }), 'approval_expired'],
+    ['external write disabled', externalWriteRequest, 'external_writes_disabled'],
     ['runtime over limit', toolRequest({ capabilityRequest: { ...toolRequest().capabilityRequest, limits: { runtimeMs: 2000, outputBytes: 1024, costUnits: 0 } } }), 'budget_exceeded'],
     ['negative limit', toolRequest({ capabilityRequest: { ...toolRequest().capabilityRequest, limits: { runtimeMs: -1, outputBytes: 1024, costUnits: 0 } } }), 'budget_exceeded']
   ];
+  assert.equal(evaluateContextualPolicy(validApprovalWithIdempotency, { decisionIdFactory: () => 'poldet_server_verified_approval', clock: () => fixedNow }).outcome, 'allow');
   for (const [name, request, reason] of cases) {
     const decision = evaluateContextualPolicy(request, { decisionIdFactory: () => `poldet_${name.replace(/\W+/g, '_')}`, clock: () => fixedNow });
     assert.equal(decision.outcome, 'deny', name);

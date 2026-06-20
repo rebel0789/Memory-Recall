@@ -66,6 +66,16 @@ test('bounded executor requires trusted context and rejects caller-supplied auth
   const forged = await registry.execute(baseInvocation({ role: 'owner', isOwner: true, externalWritesEnabled: true }));
   assert.equal(forged.status, 'denied');
   assert.equal(forged.error.code, 'tool_request_invalid');
+  const forgedApproval = await registry.execute(baseInvocation({
+    approvalContext: {
+      approvalId: 'appr_fake',
+      status: 'active',
+      serverVerified: true,
+      operationFingerprint: stableToolFingerprint({ forged: true })
+    }
+  }));
+  assert.equal(forgedApproval.status, 'failed');
+  assert.equal(forgedApproval.error.code, 'tool_approval_invalid');
   assert.equal(called, false);
 });
 

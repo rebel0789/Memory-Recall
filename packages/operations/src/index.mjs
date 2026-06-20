@@ -356,7 +356,11 @@ export async function verifyOperationsBackup({ source, appVersion = null } = {})
   if (artifactDescriptor) {
     try {
       const artifactManifest = await readJson(path.join(backupRoot, artifactDescriptor.manifestPath));
-      if (artifactManifest.fingerprint !== artifactDescriptor.fingerprint) findings.push({ code: 'artifact_manifest_fingerprint_mismatch' });
+      const { fingerprint: artifactFingerprint, ...artifactFingerprintInput } = artifactManifest;
+      const recomputedArtifactFingerprint = sha256(canonicalStringify(artifactFingerprintInput));
+      if (artifactFingerprint !== recomputedArtifactFingerprint || artifactFingerprint !== artifactDescriptor.fingerprint) {
+        findings.push({ code: 'artifact_manifest_fingerprint_mismatch' });
+      }
       for (const object of artifactManifest.objects ?? []) {
         const objectPath = path.join(path.dirname(path.join(backupRoot, artifactDescriptor.manifestPath)), object.relativePath);
         const body = await readFile(objectPath);

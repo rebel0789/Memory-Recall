@@ -1,5 +1,5 @@
 import { createHash, randomBytes as cryptoRandomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { mkdir, open, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, open, readFile, realpath, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createEvent } from '../../protocol/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../protocol/src/schema-validator.mjs';
@@ -474,6 +474,12 @@ function approvalFingerprint(approval) {
   return approval ? stableToolFingerprint(approval) : null;
 }
 
+function assertNoCallerApprovalAuthority(approval) {
+  for (const key of ['serverVerified', 'verifiedBy', 'approvalRecordFingerprint']) {
+    if (Object.hasOwn(approval ?? {}, key)) throw toolError('tool_approval_invalid', `caller-supplied approval authority is not accepted: ${key}`);
+  }
+}
+
 function exactBinding({ request, tool, operationName, capability, policy, operationFingerprint }) {
   return {
     actorId: request.actorId,
@@ -564,6 +570,25 @@ class WorkspaceFilesystemBroker {
     if (!resolved.startsWith(`${resolvedRoot}${path.sep}`)) throw toolError('tool_filesystem_denied', 'symlink escapes workspace');
     return { relative, absolute: resolved };
   }
+  async #assertWriteParentInside(parent) {
+    const resolvedRoot = await realpath(this.root);
+    let cursor = parent;
+    while (true) {
+      try {
+        await lstat(cursor);
+        const resolved = await realpath(cursor);
+        if (resolved !== resolvedRoot && !resolved.startsWith(`${resolvedRoot}${path.sep}`)) {
+          throw toolError('tool_filesystem_denied', 'symlink escapes workspace');
+        }
+        break;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        const next = path.dirname(cursor);
+        if (next === cursor) throw toolError('tool_filesystem_denied', 'path escapes workspace');
+        cursor = next;
+      }
+    }
+  }
   async readText(inputPath) {
     this.#checkActive();
     const { relative, absolute } = await this.#resolve(inputPath, true);
@@ -577,7 +602,10 @@ class WorkspaceFilesystemBroker {
     this.#checkActive();
     if (typeof content !== 'string' || Buffer.byteLength(content, 'utf8') > this.writeBytes) throw toolError('tool_filesystem_denied', 'write content denied');
     const { relative, absolute } = await this.#resolve(inputPath, false);
+    await mkdir(this.root, { recursive: true });
+    await this.#assertWriteParentInside(path.dirname(absolute));
     await mkdir(path.dirname(absolute), { recursive: true });
+    await this.#assertWriteParentInside(path.dirname(absolute));
     const temp = `${absolute}.tmp-${randomUUID()}`;
     await writeFile(temp, content, { mode: 0o600 });
     this.#checkActive();
@@ -953,6 +981,7 @@ export class ToolRegistry {
       if (!operation) throw toolError('tool_operation_not_declared', 'operation is not declared');
       span = this.#telemetry.startSpan('oaf.tool.invoke', toolSpanAttributes({ toolId: tool.manifest.id, toolVersion: tool.manifest.version, operation: operationName, sideEffectClass: operation.sideEffectClass, sandbox: operation.sandbox, correlationId: request.correlationId, workspaceId: request.workspaceId, runId: request.runId, stepId: request.stepId }), request.traceContext ?? { correlationId: request.correlationId, workspaceId: request.workspaceId, runId: request.runId });
       if (!SANDBOX_PROFILES.has(operation.sandbox)) throw toolError('tool_sandbox_unavailable', 'unsupported sandbox profile');
+      assertNoCallerApprovalAuthority(request.approvalContext);
       boundedJsonBytes(request.input ?? {}, operation.limits.inputBytes ?? DEFAULT_LIMITS.inputBytes, 'tool_request_invalid');
       try { assertJsonSchema(operation.inputSchema, request.input ?? {}, 'tool input'); } catch { throw toolError('tool_input_schema_failed', 'input schema failed'); }
       await this.#emit('tool.requested', request, { toolId: tool.manifest.id, toolVersion: tool.manifest.version, manifestFingerprint: tool.manifestFingerprint, operation: operationName, inputFingerprint: inputFingerprint(request.input), sideEffectClass: operation.sideEffectClass, sandbox: operation.sandbox });

@@ -107,7 +107,8 @@
         "approvedAt": { "type": "string", "format": "date-time" },
         "expiresAt": { "type": "string", "format": "date-time" },
         "status": { "enum": ["active", "revoked", "consumed"] },
-        "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+        "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "serverVerified": { "type": "boolean" }
       }
     },
     "idempotencyKey": { "type": ["string", "null"], "maxLength": 128 },

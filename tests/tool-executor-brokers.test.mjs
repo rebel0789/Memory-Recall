@@ -65,6 +65,20 @@ test('filesystem broker enforces workspace-relative read/write scopes and redact
   const symlinkDenied = await registry.execute(invocation({ toolId: 'tool:filesystem-read', operation: 'readFile', input: { path: 'docs/escape.txt' } }));
   assert.equal(symlinkDenied.error.code, 'tool_filesystem_denied');
 
+  const outsideDirectory = path.join(workspaceRoot, '..', `outside-dir-${Date.now()}`);
+  await mkdir(outsideDirectory, { recursive: true });
+  t.after(() => rm(outsideDirectory, { recursive: true, force: true }));
+  await symlink(outsideDirectory, path.join(workspaceRoot, 'docs', 'linkdir'));
+  const escapedWrite = await registry.execute(invocation({
+    toolId: 'tool:workspace-write',
+    operation: 'writeFile',
+    input: { path: 'docs/linkdir/escaped.txt', content: 'escaped write' },
+    idempotencyKey: 'idem_fs_symlink_write',
+    effectBoundary: createMemoryEffectBoundary()
+  }));
+  assert.equal(escapedWrite.error.code, 'tool_filesystem_denied');
+  await assert.rejects(() => readFile(path.join(outsideDirectory, 'escaped.txt'), 'utf8'), { code: 'ENOENT' });
+
   const effectBoundary = createMemoryEffectBoundary();
   const write = await registry.execute(invocation({
     toolId: 'tool:workspace-write',

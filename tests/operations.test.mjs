@@ -90,6 +90,17 @@ test('operations backup restores state and content-addressed artifacts with chec
   assert.equal((await restoredArtifacts.get({ workspaceId: 'ws_ops', id: artifact.id })).body.toString('utf8'), 'ops artifact');
   assert.equal((await restoredArtifacts.listTombstones({ workspaceId: 'ws_ops' })).length, 1);
   assert.equal((await restoredArtifacts.verifyIntegrity({ workspaceId: 'ws_ops', includeDeleted: true })).ok, true);
+
+  const artifactManifestPath = path.join(backupRoot, 'artifacts', 'ws_ops', 'manifest.json');
+  const artifactManifest = JSON.parse(await readFile(artifactManifestPath, 'utf8'));
+  await writeFile(artifactManifestPath, `${JSON.stringify({ ...artifactManifest, records: [], objects: [] }, null, 2)}\n`);
+  const corruptedArtifacts = await verifyOperationsBackup({ source: backupRoot, appVersion: '0.2.0-dev' });
+  assert.equal(corruptedArtifacts.ok, false);
+  assert.ok(corruptedArtifacts.findings.some((finding) => finding.code === 'artifact_manifest_fingerprint_mismatch'));
+  await assert.rejects(
+    () => restoreOperationsBackup({ source: backupRoot, stateDirectory: path.join(root, 'corrupt-restore'), artifactStore: new FilesystemArtifactStore({ root: path.join(root, 'corrupt-artifacts') }), appVersion: '0.2.0-dev' }),
+    (error) => error.code === 'backup_verification_failed'
+  );
 });
 
 test('operations backup fails closed for corruption, incompatible versions, and unsafe external writes', async (t) => {
