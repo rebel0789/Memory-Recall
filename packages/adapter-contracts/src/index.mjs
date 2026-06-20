@@ -126,6 +126,16 @@ export class PolicyEvaluatorPort {
   async evaluate() { return notImplemented(PolicyEvaluatorPort.contract, 'evaluate'); }
 }
 
+export class ToolExecutionPort {
+  static contract = 'ToolExecutionPort';
+  static version = '1.0.0';
+  static requiredMethods = ['health', 'capabilities', 'execute', 'close'];
+  async health() { return notImplemented(ToolExecutionPort.contract, 'health'); }
+  async capabilities() { return notImplemented(ToolExecutionPort.contract, 'capabilities'); }
+  async execute() { return notImplemented(ToolExecutionPort.contract, 'execute'); }
+  close() { return notImplemented(ToolExecutionPort.contract, 'close'); }
+}
+
 export class IdentityStorePort {
   static contract = 'IdentityStorePort';
   static version = '1.0.0';
@@ -273,6 +283,7 @@ export const PORTS = Object.freeze({
   ModelGatewayPort,
   WorkflowRuntimePort,
   PolicyEvaluatorPort,
+  ToolExecutionPort,
   IdentityStorePort,
   AuthenticationServicePort,
   AuthorizationServicePort,

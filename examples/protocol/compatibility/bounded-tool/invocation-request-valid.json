@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "toolreq_protocol_valid",
+  "correlationId": "req_protocol-tool-000000",
+  "workspaceId": "ws_protocol",
+  "runId": "run_protocol_tool",
+  "stepId": "step_tool",
+  "actorId": "usr_protocol",
+  "trustedContext": {
+    "principal": { "userId": "usr_protocol", "principalType": "agent", "authenticationMethod": "session", "status": "active", "agentRole": "agent:security-auditor" },
+    "membership": { "workspaceId": "ws_protocol", "role": "builder", "status": "active" },
+    "environment": { "deploymentProfile": "local-dev", "locality": "local-only", "interactive": true, "externalWritesEnabled": false }
+  },
+  "toolId": "tool:filesystem-read",
+  "toolVersion": "1.0.0",
+  "manifestFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "operation": "readFile",
+  "input": { "path": "docs/readme.txt" },
+  "dataClass": "workspace-private",
+  "approvalContext": null,
+  "idempotencyKey": null,
+  "trustedTimestamp": "2026-06-20T00:00:00.000Z"
+}

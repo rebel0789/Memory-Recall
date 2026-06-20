@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "toolreq_protocol_invalid",
+  "correlationId": "req_protocol-tool-000001",
+  "workspaceId": "ws_protocol",
+  "runId": "run_protocol_tool",
+  "stepId": "step_tool",
+  "actorId": "usr_protocol",
+  "trustedContext": {},
+  "toolId": "tool:filesystem-read",
+  "toolVersion": "1.0.0",
+  "operation": "readFile",
+  "input": { "path": "docs/readme.txt" },
+  "dataClass": "workspace-private",
+  "trustedTimestamp": "2026-06-20T00:00:00.000Z",
+  "role": "owner"
+}

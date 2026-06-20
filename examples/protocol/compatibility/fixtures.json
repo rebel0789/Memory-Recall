@@ -374,6 +374,66 @@
       "expectedValid": true
     },
     {
+      "id": "tool-catalog-current-valid",
+      "schema": "packages/protocol/schemas/tool-catalog.schema.json",
+      "instance": "tools/catalog.json",
+      "expectedValid": true
+    },
+    {
+      "id": "reviewed-tool-manifest-current-valid",
+      "schema": "packages/protocol/schemas/reviewed-tool-manifest.schema.json",
+      "instance": "tools/manifests/brokered-filesystem-read.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-handler-descriptor-current-valid",
+      "schema": "packages/protocol/schemas/tool-handler-descriptor.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/handler-descriptor-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-sandbox-profile-current-valid",
+      "schema": "packages/protocol/schemas/tool-sandbox-profile.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/sandbox-profile-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-invocation-request-current-valid",
+      "schema": "packages/protocol/schemas/tool-invocation-request.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/invocation-request-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-grant-record-current-valid",
+      "schema": "packages/protocol/schemas/tool-grant-record.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/grant-record-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-invocation-result-current-valid",
+      "schema": "packages/protocol/schemas/tool-invocation-result.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/invocation-result-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-reconciliation-result-current-valid",
+      "schema": "packages/protocol/schemas/tool-reconciliation-result.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/reconciliation-result-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-event-payload-current-valid",
+      "schema": "packages/protocol/schemas/tool-event-payload.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/tool-event-payload-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-error-code-current-valid",
+      "schema": "packages/protocol/schemas/tool-error-code.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/error-code-valid.json",
+      "expectedValid": true
+    },
+    {
       "id": "agent-pack-valid",
       "schema": "packages/protocol/schemas/agent-pack.schema.json",
       "instance": "examples/agentpacks/content-intelligence.agentpack.json",
@@ -449,6 +509,18 @@
       "id": "model-generation-request-raw-prompt-invalid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/compatibility/invalid/model-generation-request-raw-prompt.json",
+      "expectedValid": false
+    },
+    {
+      "id": "tool-invocation-request-role-invalid",
+      "schema": "packages/protocol/schemas/tool-invocation-request.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/invocation-request-invalid-role.json",
+      "expectedValid": false
+    },
+    {
+      "id": "tool-grant-record-token-invalid",
+      "schema": "packages/protocol/schemas/tool-grant-record.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/grant-record-invalid-token.json",
       "expectedValid": false
     },
     {

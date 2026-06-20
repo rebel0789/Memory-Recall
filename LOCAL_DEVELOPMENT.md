@@ -42,6 +42,19 @@ The durable provider stores `.local/workflows.sqlite` when configured to use
 the approved local default. It does not require Docker, Temporal, PostgreSQL,
 network access, model downloads, external adapters, or external writes.
 
+## Bounded tool smoke
+
+The native brokered tool baseline uses reviewed checksum-pinned local manifests:
+
+```bash
+npm run tool:bounded:smoke
+```
+
+It exercises workspace-relative read/write brokers and idempotent local write
+reconciliation. It does not run shell commands, download tools, browse, publish,
+reach public internet hosts, enable external adapters, or enable external
+writes.
+
 ## Environment
 
 Copying `.env.example` to `.env` is handled by `npm run bootstrap`. Local files are ignored by Git. Never commit real secrets.

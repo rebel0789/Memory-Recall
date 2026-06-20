@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-015",
+  "nextTask": "OAF-016",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -16,6 +16,7 @@
     "workflowProvider": "provider:native:workflow:embedded",
     "policyProvider": "provider:native:policy:deterministic",
     "agentPackAuthority": "policy-required",
+    "toolProvider": "provider:native:tool:brokered-local",
     "replaySideEffects": "disabled"
   },
   "capabilities": [
@@ -200,14 +201,30 @@
     },
     {
       "id": "tool.registry",
-      "name": "Manifest-backed tool registry reference",
+      "name": "Bounded local tool execution and grants",
       "status": "reference",
       "evidence": [
         "packages/tool-registry/src/index.mjs",
-        "tests/tool-registry.test.mjs"
+        "providers/native/tool-brokered-local/src/index.mjs",
+        "providers/native/tool-brokered-local/provider.json",
+        "tools/catalog.json",
+        "tools/manifests/brokered-filesystem-read.json",
+        "tools/manifests/brokered-workspace-write.json",
+        "packages/protocol/schemas/tool-invocation-request.schema.json",
+        "packages/protocol/schemas/tool-grant-record.schema.json",
+        "tests/tool-registry.test.mjs",
+        "tests/tool-manifest-loader.test.mjs",
+        "tests/tool-grants.test.mjs",
+        "tests/tool-executor.test.mjs",
+        "tests/tool-executor-brokers.test.mjs",
+        "tests/tool-durable-integration.test.mjs",
+        "scripts/tool-bounded-smoke.mjs",
+        "docs/adr/0018-native-bounded-tool-execution.md"
       ],
       "limitations": [
-        "No hardened sandbox or short-lived cryptographic grant"
+        "Reviewed in-process local handlers only; no arbitrary-code sandboxing claim",
+        "External adapters, external writes, publishing, arbitrary shell execution, downloaded tools, browser automation, and public internet access remain disabled",
+        "Raw grant tokens are process-local and are not persisted or logged"
       ]
     },
     {
@@ -476,22 +493,23 @@
   ],
   "qualitySnapshot": {
     "asOf": "2026-06-20",
-    "commands": [
-      "npm ci --ignore-scripts --no-audit --no-fund",
-      "npm run bootstrap",
-      "npm run doctor",
-      "node --test tests/workflow-durable-sqlite.test.mjs tests/workflow-durable-crash.test.mjs tests/workflow-runtime.test.mjs tests/native-workflow-embedded.test.mjs tests/model-gateway.test.mjs tests/workflow.test.mjs tests/policy-contextual.test.mjs",
-      "npm run protocol:validate",
-      "npm run eval",
-      "npm run ci",
-      "npm run workflow:durable:smoke",
-      "npm run demo",
-      "npm run native:smoke",
-      "npm run verify:handoff"
-    ],
-    "testsExpected": 138,
-    "protocolFixturesExpected": 77,
-    "evaluationsExpected": 72,
+      "commands": [
+        "npm ci --ignore-scripts --no-audit --no-fund",
+        "npm run bootstrap",
+        "npm run doctor",
+        "node --test tests/tool-manifest-loader.test.mjs tests/tool-grants.test.mjs tests/tool-executor.test.mjs tests/tool-executor-brokers.test.mjs tests/tool-durable-integration.test.mjs tests/tool-registry.test.mjs tests/policy-contextual.test.mjs tests/workflow-durable-sqlite.test.mjs tests/workflow-durable-crash.test.mjs",
+        "npm run protocol:validate",
+        "npm run eval",
+        "npm run ci",
+        "npm run tool:bounded:smoke",
+        "npm run workflow:durable:smoke",
+        "npm run demo",
+        "npm run native:smoke",
+        "npm run verify:handoff"
+      ],
+    "testsExpected": 150,
+    "protocolFixturesExpected": 89,
+    "evaluationsExpected": 88,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
 }

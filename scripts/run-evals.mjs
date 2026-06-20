@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -14,8 +14,15 @@ import {
   verifyContextManifest
 } from '../packages/context-compiler/src/index.mjs';
 import { createPolicyService } from '../packages/policy/src/index.mjs';
-import { evaluatePolicy } from '../packages/policy/src/index.mjs';
+import { canonicalOperationFingerprint, evaluateContextualPolicy, evaluatePolicy } from '../packages/policy/src/index.mjs';
 import { proposeMemory } from '../packages/memory-core/src/index.mjs';
+import {
+  ToolGrantService,
+  ToolRegistry,
+  createMemoryEffectBoundary,
+  loadReviewedToolCatalog,
+  stableToolFingerprint
+} from '../packages/tool-registry/src/index.mjs';
 import {
   DurableSQLiteWorkflowRuntime,
   createDurableSmokeWorkflowDefinition,
@@ -112,6 +119,79 @@ try{
   recovered.close();
 }finally{
   await rm(durableDir,{recursive:true,force:true});
+}
+const toolCatalog=await loadReviewedToolCatalog({catalogPath:'tools/catalog.json',manifestRoot:process.cwd()});
+check('bounded-tools: reviewed checksum-pinned manifests load',toolCatalog.tools.length===3&&toolCatalog.tools.every(tool=>tool.entry.reviewStatus==='reviewed'&&/^sha256:[a-f0-9]{64}$/.test(tool.manifestFingerprint)));
+const toolTrustedContext={principal:{userId:'usr_tool_eval',principalType:'agent',authenticationMethod:'session',status:'active',agentRole:'agent:security-auditor'},membership:{workspaceId:'ws_tool_eval',role:'builder',status:'active'},environment:{deploymentProfile:'local-dev',locality:'local-only',interactive:true,externalWritesEnabled:false}};
+const toolRequestBase={schemaVersion:'1.0.0',correlationId:'req_tool-eval-000000',workspaceId:'ws_tool_eval',runId:'run_tool_eval',stepId:'step_tool_eval',actorId:'usr_tool_eval',trustedContext:toolTrustedContext,toolVersion:'1.0.0',dataClass:'workspace-private',trustedTimestamp:'2026-06-20T00:00:00.000Z'};
+let forgedHandlerCalled=false;
+const forgedRegistry=ToolRegistry.createForTests({tools:['tool:fixture-pure'],handlers:{'handler:pure:echo@1.0.0':async()=>{forgedHandlerCalled=true;return{echoed:'forged'}}},clock:()=>'2026-06-20T00:00:00.000Z'});
+const forged=await forgedRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_forged_role',toolId:'tool:fixture-pure',operation:'echo',input:{value:'forged-role'},role:'owner'});
+check('bounded-tools: caller role cannot grant authority',forged.status==='denied'&&forged.error.code==='tool_request_invalid'&&!forgedHandlerCalled);
+let deniedHandlerCalled=false;
+const deniedRegistry=ToolRegistry.createForTests({tools:['tool:fixture-pure'],handlers:{'handler:pure:echo@1.0.0':async()=>{deniedHandlerCalled=true;return{echoed:'denied'}}},clock:()=>'2026-06-20T00:00:00.000Z'});
+const denied=await deniedRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_denied',trustedContext:{...toolTrustedContext,principal:{...toolTrustedContext.principal,authenticationMethod:'bearer',tokenScopes:['run.read'],tokenWorkspaceIds:['ws_tool_eval']}},toolId:'tool:fixture-pure',operation:'echo',input:{value:'denied-input'}});
+check('bounded-tools: denied invocation never executes',denied.status==='denied'&&denied.error.code==='tool_policy_denied'&&!deniedHandlerCalled&&denied.grantId===null);
+let grantNow=Date.parse('2026-06-20T00:00:00.000Z');
+const grantBinding={actorId:'usr_tool_eval',workspaceId:'ws_tool_eval',runId:'run_tool_eval',stepId:'step_tool_eval',toolId:'tool:fixture-pure',toolVersion:'1.0.0',manifestFingerprint:`sha256:${'a'.repeat(64)}`,operation:'echo',inputFingerprint:`sha256:${'b'.repeat(64)}`,effectiveCapabilityFingerprint:`sha256:${'c'.repeat(64)}`,policyDecisionId:'poldet_eval_grant',policyVersion:'1.0.0',policyFingerprint:`sha256:${'d'.repeat(64)}`,operationFingerprint:`sha256:${'e'.repeat(64)}`,approvalFingerprint:null,idempotencyFingerprint:null};
+const grantService=new ToolGrantService({clock:()=>new Date(grantNow).toISOString(),randomBytes:(size)=>Buffer.alloc(size,0x17),grantIdFactory:()=>`grant_eval_${grantNow}`});
+const oneUseToken=grantService.issue({binding:grantBinding,ttlMs:1000}).token;
+check('bounded-tools: one-use grant enforcement',grantService.consume(oneUseToken,grantBinding).status==='consumed'&&grantService.consume(oneUseToken,grantBinding).code==='tool_grant_consumed');
+const expiringToken=grantService.issue({binding:grantBinding,ttlMs:1000}).token;
+grantNow+=1001;
+check('bounded-tools: grant expiry',grantService.consume(expiringToken,grantBinding).code==='tool_grant_expired');
+grantNow+=1;
+const bindingToken=grantService.issue({binding:grantBinding,ttlMs:1000}).token;
+check('bounded-tools: grant binding to exact operation',grantService.consume(bindingToken,{...grantBinding,inputFingerprint:stableToolFingerprint({changed:true})}).code==='tool_grant_binding_mismatch');
+const toolWorkspace=await mkdtemp(path.join(os.tmpdir(),'oaf-eval-tool-workspace-'));
+try{
+  await mkdir(path.join(toolWorkspace,'docs'),{recursive:true});
+  await writeFile(path.join(toolWorkspace,'docs','input.txt'),'tool eval input');
+  const fsRegistry=ToolRegistry.createForTests({tools:['tool:filesystem-read','tool:workspace-write'],workspaceRoot:toolWorkspace,clock:()=>'2026-06-20T00:00:00.000Z'});
+  const fsDenied=await fsRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_fs_denied',toolId:'tool:filesystem-read',operation:'readFile',input:{path:'../secret.txt'}});
+  check('bounded-tools: filesystem workspace isolation',fsDenied.status==='failed'&&fsDenied.error.code==='tool_filesystem_denied');
+  const effects=createMemoryEffectBoundary();
+  const fsWrite=await fsRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_write',toolId:'tool:workspace-write',operation:'writeFile',input:{path:'docs/output.txt',content:'tool eval write'},idempotencyKey:'idem_eval_tool_write',effectBoundary:effects});
+  const fsWriteRetry=await fsRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_write_retry',toolId:'tool:workspace-write',operation:'writeFile',input:{path:'docs/output.txt',content:'tool eval write'},idempotencyKey:'idem_eval_tool_write',effectBoundary:effects});
+  check('bounded-tools: idempotent write effect count of one',fsWrite.status==='completed'&&fsWriteRetry.output?.idempotent===true&&effects.count()===1);
+}finally{
+  await rm(toolWorkspace,{recursive:true,force:true});
+}
+const egressRegistry=ToolRegistry.createForTests({tools:['tool:loopback-read'],loopbackPort:4310,clock:()=>'2026-06-20T00:00:00.000Z'});
+const externalEgress=await egressRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_egress',toolId:'tool:loopback-read',operation:'fetchText',input:{url:'https://example.com/',method:'GET'}});
+check('bounded-tools: external egress denial',externalEgress.status==='failed'&&externalEgress.error.code==='tool_network_denied');
+const secretEvents=[];
+const secretRegistry=ToolRegistry.createForTests({tools:['tool:secret-fixture'],eventSink:async(event)=>secretEvents.push(event),secretResolver:{resolve:async(reference)=>reference==='secret:fixture.read'?'eval-secret-value':null},clock:()=>'2026-06-20T00:00:00.000Z'});
+const secretResult=await secretRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_secret',toolId:'tool:secret-fixture',operation:'hashSecret',input:{secretReferences:['secret:fixture.read']}});
+check('bounded-tools: secret non-leakage',secretResult.status==='completed'&&!JSON.stringify(secretResult).includes('eval-secret-value')&&!JSON.stringify(secretEvents).includes('eval-secret-value'));
+const slowRegistry=ToolRegistry.createForTests({tools:['tool:fixture-pure'],handlers:{'handler:pure:echo@1.0.0':async()=>new Promise(resolve=>setTimeout(()=>resolve({echoed:'late'}),50))},clock:()=>'2026-06-20T00:00:00.000Z'});
+const timeoutResult=await slowRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_timeout',toolId:'tool:fixture-pure',operation:'echo',input:{value:'slow'},timeoutMs:5});
+const cancelController=new AbortController();
+cancelController.abort();
+const cancelResult=await slowRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_cancel',toolId:'tool:fixture-pure',operation:'echo',input:{value:'cancelled'},signal:cancelController.signal});
+check('bounded-tools: timeout and cancellation',timeoutResult.error.code==='tool_timeout'&&cancelResult.error.code==='tool_cancelled');
+const largeOutputRegistry=ToolRegistry.createForTests({tools:['tool:fixture-pure'],handlers:{'handler:pure:echo@1.0.0':async()=>({echoed:'x'.repeat(80)})},clock:()=>'2026-06-20T00:00:00.000Z'});
+const largeOutput=await largeOutputRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_output_limit',toolId:'tool:fixture-pure',operation:'echo',input:{value:'limit'},outputLimitBytes:20});
+check('bounded-tools: output bound enforcement',largeOutput.status==='failed'&&largeOutput.error.code==='tool_output_too_large');
+const approvalPolicyBase={schemaVersion:'1.0.0',requestId:'polreq_eval_tool_approval',correlationId:'req_tool-eval-approval-000000',operationId:'tool:tool:eval-consequential:publish',principal:toolTrustedContext.principal,workspaceId:'ws_tool_eval',membership:toolTrustedContext.membership,action:'tool.invoke',resource:{type:'tool',id:'tool:eval-consequential',workspaceId:'ws_tool_eval',dataClass:'workspace-private'},environment:toolTrustedContext.environment,capabilityRequest:{toolId:'tool:eval-consequential',operation:'publish',sideEffectClass:'consequential-write',filesystem:{read:[],write:[]},network:[],secretReferences:[],dataClasses:['workspace-private'],sandbox:'pure-local',limits:{runtimeMs:1000,inputBytes:1000,outputBytes:1000,costUnits:0}},trustedToolManifest:{id:'tool:eval-consequential',riskClass:'consequential-write',operations:{publish:{sideEffectClass:'consequential-write',filesystem:{read:[],write:[]},network:[],secretReferences:[],dataClasses:['workspace-private'],sandbox:'pure-local',limits:{runtimeMs:1000,inputBytes:1000,outputBytes:1000,costUnits:0}}}},idempotencyKey:'idem_eval_approval',trustedTimestamp:'2026-06-20T00:00:00.000Z',payloadFingerprint:stableToolFingerprint({payload:'approval'})};
+const approvalFingerprint=canonicalOperationFingerprint(approvalPolicyBase);
+const approvedPolicy=evaluateContextualPolicy({...approvalPolicyBase,approvalContext:{approvalId:'apr_eval_tool',operationFingerprint:approvalFingerprint,workspaceId:'ws_tool_eval',actorId:'usr_tool_eval',status:'active',policyVersion:'1.0.0',expiresAt:'2026-06-20T00:01:00.000Z'}});
+const badApprovalPolicy=evaluateContextualPolicy({...approvalPolicyBase,approvalContext:{approvalId:'apr_eval_tool_bad',operationFingerprint:`sha256:${'0'.repeat(64)}`,workspaceId:'ws_tool_eval',actorId:'usr_tool_eval',status:'active',policyVersion:'1.0.0',expiresAt:'2026-06-20T00:01:00.000Z'}});
+check('bounded-tools: exact approval binding',approvedPolicy.outcome==='allow'&&badApprovalPolicy.reasonCodes.includes('approval_scope_mismatch'));
+const externalWritePolicy=evaluateContextualPolicy({...approvalPolicyBase,requestId:'polreq_eval_external_write',capabilityRequest:{...approvalPolicyBase.capabilityRequest,sideEffectClass:'reversible-write',operation:'webhook',network:[{protocol:'https',host:'example.com',port:443,methods:['POST'],consequence:'write',locality:'external'}]},trustedToolManifest:{id:'tool:eval-external',riskClass:'reversible-write',operations:{webhook:{sideEffectClass:'reversible-write',filesystem:{read:[],write:[]},network:[{protocol:'https',host:'example.com',port:443,methods:['POST'],consequence:'write',locality:'external'}],secretReferences:[],dataClasses:['workspace-private'],sandbox:'pure-local',limits:{runtimeMs:1000,inputBytes:1000,outputBytes:1000,costUnits:0}}}},approvalContext:null});
+check('bounded-tools: external-write kill switch',externalWritePolicy.outcome==='deny'&&externalWritePolicy.reasonCodes.includes('external_writes_disabled'));
+const retryEvents=[];
+const retryWorkspace=await mkdtemp(path.join(os.tmpdir(),'oaf-eval-tool-retry-'));
+const retryRegistry=ToolRegistry.createForTests({tools:['tool:workspace-write'],eventSink:async(event)=>retryEvents.push(event),workspaceRoot:retryWorkspace,clock:()=>'2026-06-20T00:00:00.000Z'});
+try{
+  const retryEffects=createMemoryEffectBoundary();
+  const retryOne=await retryRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_retry_one',toolId:'tool:workspace-write',operation:'writeFile',input:{path:'out/result.txt',content:'retry output'},idempotencyKey:'idem_eval_retry',effectBoundary:retryEffects});
+  const retryTwo=await retryRegistry.execute({...toolRequestBase,requestId:'toolreq_eval_retry_two',toolId:'tool:workspace-write',operation:'writeFile',input:{path:'out/result.txt',content:'retry output'},idempotencyKey:'idem_eval_retry',effectBoundary:retryEffects});
+  check('bounded-tools: fresh grant after durable retry/restart',retryOne.status==='completed'&&retryTwo.status==='completed'&&retryOne.grantId!==retryTwo.grantId&&retryEffects.count()===1);
+  const safeEventText=JSON.stringify(retryEvents);
+  check('bounded-tools: zero raw grant/input/output/path leakage in events',!safeEventText.includes('retry output')&&!safeEventText.includes('out/result.txt')&&!/grant_[A-Za-z0-9._:-]+\.[a-f0-9]{64}/.test(safeEventText));
+}finally{
+  await rm(retryWorkspace,{recursive:true,force:true});
 }
 const policyCases=JSON.parse(await readFile('evals/policy/cases.json','utf8'));for(const test of policyCases){const result=evaluatePolicy(test.input);check(`${test.id}: decision`,result.decision===test.expect.decision);check(`${test.id}: reasons`,test.expect.reasons.every(reason=>result.reasons.includes(reason)))}
 const memoryCases=JSON.parse(await readFile('evals/memory/cases.json','utf8'));for(const test of memoryCases){const result=proposeMemory(test.input);check(`${test.id}: decision`,result.decision===test.expect.decision);check(`${test.id}: reasons`,test.expect.reasons.every(reason=>result.reasons.includes(reason)))}

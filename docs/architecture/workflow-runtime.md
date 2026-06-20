@@ -53,6 +53,11 @@ reused after restart, but the runtime does not claim exactly-once behavior for
 arbitrary external systems. Reconciliation remains required for future
 non-idempotent external targets.
 
+OAF-015 reuses this effect boundary for brokered local tool writes. A tool
+retry or recovered workflow must request a fresh one-use grant, but the local
+write effect is keyed by the same idempotency key and operation fingerprint so
+the committed effect is reused instead of repeated.
+
 ## Durable target
 
 An adapter must prove process-kill recovery, durable timers, approval waits, bounded retries, cancellation, non-repetition of consequential effects, and mapping to canonical OAF events.

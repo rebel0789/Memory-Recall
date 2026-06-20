@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
@@ -8,9 +8,11 @@ import { LocalIdentityStore } from '../providers/native/identity-local/src/index
 import { DeterministicPolicyProvider } from '../providers/native/policy-deterministic/src/index.mjs';
 import { FilesystemContextManifestRepository } from '../providers/native/context-manifest-local/src/index.mjs';
 import { DurableSQLiteWorkflowRuntime, createDurableSmokeWorkflowDefinition, createDurableSmokeWorkflowRegistry } from '../providers/native/workflow-durable-sqlite/src/index.mjs';
+import { BrokeredLocalToolProvider } from '../providers/native/tool-brokered-local/src/index.mjs';
 import { createNativeExactCandidateSource } from '../providers/native/context-candidate-exact/src/index.mjs';
 import { createNativeLexicalCandidateSource } from '../providers/native/context-candidate-lexical/src/index.mjs';
 import { compileAndPersistContext, createCandidateSourceRegistry, createFixtureRecordReader, generateContextCandidates } from '../packages/context-compiler/src/index.mjs';
+import { createMemoryEffectBoundary } from '../packages/tool-registry/src/index.mjs';
 import { fingerprintAgentPack, validateAgentPack } from '../packages/agentpack/src/index.mjs';
 
 const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-smoke-'));
@@ -205,6 +207,52 @@ try {
   }
   recoveredDurable.close();
 
+  const toolWorkspaceRoot = path.join(directory, 'tool workspace with spaces');
+  await mkdir(path.join(toolWorkspaceRoot, 'docs'), { recursive: true });
+  await writeFile(path.join(toolWorkspaceRoot, 'docs', 'input.txt'), 'native bounded tool');
+  const toolProvider = await BrokeredLocalToolProvider.fromCatalog({
+    catalogPath: 'tools/catalog.json',
+    manifestRoot: process.cwd(),
+    workspaceRoot: toolWorkspaceRoot,
+    clock: () => '2026-06-19T10:00:00.000Z'
+  });
+  const trustedToolContext = {
+    principal: { userId: bootstrap.user.id, principalType: 'agent', authenticationMethod: 'session', status: 'active', agentRole: 'agent:security-auditor' },
+    membership: { workspaceId: 'ws_smoke', role: 'builder', status: 'active' },
+    environment: { deploymentProfile: 'local-dev', locality: 'local-only', interactive: true, externalWritesEnabled: false }
+  };
+  const toolBase = {
+    schemaVersion: '1.0.0',
+    correlationId: 'req_native-tool-smoke-000000',
+    workspaceId: 'ws_smoke',
+    runId: 'run_native_tool_smoke',
+    stepId: 'step_native_tool_smoke',
+    actorId: bootstrap.user.id,
+    trustedContext: trustedToolContext,
+    toolVersion: '1.0.0',
+    dataClass: 'workspace-private',
+    trustedTimestamp: '2026-06-19T10:00:00.000Z'
+  };
+  const toolRead = await toolProvider.execute({
+    ...toolBase,
+    requestId: 'toolreq_native_read',
+    toolId: 'tool:filesystem-read',
+    operation: 'readFile',
+    input: { path: 'docs/input.txt' }
+  });
+  if (toolRead.status !== 'completed' || toolRead.output.byteSize !== 19) throw new Error('native brokered tool read smoke failed');
+  const toolEffects = createMemoryEffectBoundary();
+  const toolWrite = await toolProvider.execute({
+    ...toolBase,
+    requestId: 'toolreq_native_write',
+    toolId: 'tool:workspace-write',
+    operation: 'writeFile',
+    input: { path: 'docs/output.txt', content: 'native bounded write' },
+    idempotencyKey: 'idem_native_tool_write',
+    effectBoundary: toolEffects
+  });
+  if (toolWrite.status !== 'completed' || toolEffects.count() !== 1) throw new Error('native brokered tool write smoke failed');
+
   console.log('PASS native SQLite memory');
   console.log('PASS content-addressed artifact store');
   console.log('PASS native local identity');
@@ -212,6 +260,7 @@ try {
   console.log('PASS native exact and lexical context candidate sources');
   console.log('PASS native local context manifest repository');
   console.log('PASS native durable SQLite workflow recovery');
+  console.log('PASS native brokered bounded tool execution');
   console.log(`PASS Agent Pack ${pack.metadata.name}@${pack.metadata.version} ${fingerprint}`);
   console.log('PASS deterministic local model provider and gateway profile');
   console.log('Native provider smoke completed without network access.');

@@ -12,6 +12,7 @@ checks.push({ name: 'Deterministic model default', passed: (process.env.OAF_MODE
 for (const file of ['AGENTS.md', 'PROJECT_STATUS.json', 'PRODUCT.md', 'DESIGN.md', 'docs/implementation/BUILD_ORDER.md', 'planning/backlog.json', 'providers/native/catalog.json']) {
   checks.push({ name: `Required ${file}`, passed: await access(file).then(() => true).catch(() => false) });
 }
+checks.push({ name: 'Reviewed tool catalog', passed: await access('tools/catalog.json').then(() => true).catch(() => false) });
 const state = await readFile('.local/state.json', 'utf8').then(JSON.parse).catch(() => null);
 checks.push({ name: 'Bootstrap state readable', passed: Boolean(state), value: state ? `${state.runs?.length ?? 0} runs` : 'run npm run bootstrap' });
 try {

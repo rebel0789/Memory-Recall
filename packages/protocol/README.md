@@ -56,3 +56,15 @@ references, bounded state, UTC timestamps, fingerprints, and canonical events.
 They do not allow function source, module paths, SQL, credentials, cookies,
 authorization headers, provider-specific SQLite objects, raw prompts, local
 paths, or hidden reasoning.
+
+## Bounded tool schemas
+
+OAF-015 adds internal contracts for reviewed checksum-pinned tool catalogs,
+reviewed tool manifests, handler descriptors, sandbox profile names,
+invocation requests, process-local grant records, invocation results,
+reconciliation metadata, safe tool event payloads, and stable tool error codes.
+
+These schemas describe trusted service-to-service tool execution. Clients
+cannot supply roles, policy outcomes, secret values, raw grant tokens, handler
+code, provider URLs, local filesystem paths, downloaded tools, shell commands,
+browser automation, or external-write authority.

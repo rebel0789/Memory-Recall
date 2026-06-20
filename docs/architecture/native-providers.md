@@ -17,6 +17,7 @@ Native providers make the local product useful without optional integrations. Th
 | `native.context-candidate.lexical` | on | Deterministic lexical candidate lookup over safe record fields |
 | `native.context-manifest.local` | on | Workspace-scoped immutable local context manifest persistence |
 | `native.model.ollama` | off | Explicit loopback local-model generation |
+| `native.tool.brokered-local` | on | Reviewed checksum-pinned local tool execution behind brokers |
 
 ## Rules
 
@@ -151,3 +152,18 @@ providers.
 Both providers are invoked through `packages/model-gateway`, which validates
 structured output, allows at most one repair call to the same provider/model,
 and records only safe model metadata.
+
+## Brokered local tool provider
+
+The native brokered tool provider implements `ToolExecutionPort` version
+`1.0.0` as `provider:native:tool:brokered-local`. It loads only reviewed
+checksum-pinned manifests from `tools/catalog.json` and dispatches to reviewed
+in-process handler bindings.
+
+Execution is local and brokered, not arbitrary-code sandboxing. The provider
+does not run shell commands, download tools, browse, publish, call public
+internet hosts, enable external adapters, or persist raw grant tokens. It
+independently brokers workspace-relative filesystem access, exact loopback
+egress, and declared secret references. Reversible writes use the durable
+idempotent effect boundary so retries or restarts can reconcile without blindly
+repeating an ambiguous write.

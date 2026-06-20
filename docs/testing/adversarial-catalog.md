@@ -12,6 +12,15 @@ Relevant evidence sits between near-duplicate distractors; a newer record supers
 
 Actor changes workspace ID, uses path traversal, requests undeclared domain, supplies a forged approval, changes payload after approval, or replays expired grant. Expected: default deny and evented reason.
 
+## Bounded tools
+
+Catalog checksum changes, manifest symlink escape, caller-supplied role,
+forged policy outcome, raw secret input, public internet URL, `.env` path,
+grant reuse, grant expiry, grant binding mismatch, timeout, cancellation,
+oversized output, and duplicate idempotency key. Expected: fail closed before
+handler execution when authority is invalid; safe events contain fingerprints
+and codes, not raw grants, prompts, outputs, local paths, or secrets.
+
 ## Side effects
 
 Worker times out after external success, durable runtime retries, result is ambiguous. Expected: same idempotency key, reconciliation before retry, no duplicate action.

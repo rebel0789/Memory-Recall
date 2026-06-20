@@ -24,6 +24,18 @@ External text tries to redefine the objective, request secrets, enable tools, or
 
 A model requests undeclared files, domains, secrets, or operations. Mitigation: manifest, short-lived grant, sandbox, default deny, timeout, output limit, and independent policy.
 
+OAF-015 narrows this path to reviewed checksum-pinned manifests and brokered
+local handlers. The caller cannot supply role, owner status, policy outcome,
+external-write state, filesystem roots, domains, secret values, sandbox
+profiles, or approval validity. Policy denial stops before grant minting and
+handler invocation. Grants are one-use, short-lived, exact-operation, and
+process-local; raw grant tokens are never persisted or logged.
+
+The broker does not claim arbitrary-code sandboxing. It independently mediates
+workspace-relative filesystem access, loopback-only egress, and secret
+references, and write operations must use the OAF-014 durable idempotent effect
+boundary before local state changes are considered reconciled.
+
 ### Malformed API input reaches domain execution
 
 External HTTP requests may be oversized, malformed, ambiguous, compressed, cross-origin, or shaped to trigger parser edge cases before local services execute. Mitigation: the control API validates route contracts at the boundary before stores, workflow runners, Context Compiler, model providers, artifact stores, tool providers, or migration code are called. It enforces body, URL, header, query, path, JSON depth, node, object-key, and array limits; rejects unsupported media types and content encodings; validates responses before sending JSON; and returns stable sanitized error envelopes with correlation IDs.
@@ -115,6 +127,12 @@ Retries or agent loops publish, delete, or change permissions more than once. Mi
 ### Secret exfiltration
 
 Credentials enter prompts, logs, events, errors, tool output, or source snapshots. Mitigation: secret references, redaction, egress controls, no raw secrets in model context, and test fixtures that contain no real credentials.
+
+Tool execution receives secret references, not raw values. The secret broker
+resolves only declared references after policy allow and grant consumption,
+clears resolved values after use, and fails closed if a handler returns a raw
+secret value. Tool events and results use fingerprints, counts, and stable codes
+instead of secret bodies.
 
 API error mapping must never include raw request bodies, authorization headers, cookies, tokens, SQL, filesystem paths, environment variables, stack traces, or submitted values. Structured API logs are limited to safe codes, operation IDs, statuses, durations, and correlation IDs.
 

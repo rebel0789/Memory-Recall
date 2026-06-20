@@ -35,11 +35,11 @@ npm run task -- <OAF-ID>
 
 - [x] OAF-013 Complete the model-gateway contract and local integration tests.
 - [x] OAF-014 Add a durable workflow adapter and crash recovery.
-- [ ] **OAF-015 Implement tool registry, bounded grants, and sandbox execution — next.**
+- [x] OAF-015 Implement tool registry, bounded grants, and sandbox execution.
 
 ## Evidence and memory
 
-- [ ] OAF-016 Implement the evidence service and citation graph.
+- [ ] **OAF-016 Implement the evidence service and citation graph — next.**
 - [ ] OAF-017 Complete native versioned memory and the write gate.
 - [ ] OAF-018 Add context-use and outcome feedback without causal overclaiming.
 

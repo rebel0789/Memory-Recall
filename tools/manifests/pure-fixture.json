@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.1.0",
+  "contractVersion": "1.0.0",
+  "id": "tool:fixture-pure",
+  "name": "Pure deterministic fixture",
+  "version": "1.0.0",
+  "handlerBindingId": "handler:pure:echo@1.0.0",
+  "operations": {
+    "echo": {
+      "sideEffectClass": "read-only",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value"],
+        "properties": {
+          "value": { "type": "string", "minLength": 1, "maxLength": 120 }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["echoed"],
+        "properties": {
+          "echoed": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "grantId": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      },
+      "filesystem": { "read": [], "write": [] },
+      "network": [],
+      "secretReferences": [],
+      "dataClasses": ["workspace-private"],
+      "sandbox": "pure-local",
+      "limits": { "runtimeMs": 1000, "inputBytes": 1024, "outputBytes": 2048, "costUnits": 0 },
+      "approval": { "required": false },
+      "idempotency": { "required": false }
+    }
+  }
+}

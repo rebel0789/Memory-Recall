@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "entries": [
+    {
+      "toolId": "tool:fixture-pure",
+      "manifestPath": "tools/manifests/pure-fixture.json",
+      "sha256": "73ce9cc91019f266e27966389d77c6d49cb230291afce5d1f97e033d629af0cc",
+      "enabled": true,
+      "handlerBindingId": "handler:pure:echo@1.0.0",
+      "reviewStatus": "reviewed",
+      "reviewVersion": "OAF-015"
+    },
+    {
+      "toolId": "tool:filesystem-read",
+      "manifestPath": "tools/manifests/brokered-filesystem-read.json",
+      "sha256": "d6601e31086c87854a641719528ef62e715663208c0d1f9c2dd3cd476a057dab",
+      "enabled": true,
+      "handlerBindingId": "handler:brokered:workspace-file-read@1.0.0",
+      "reviewStatus": "reviewed",
+      "reviewVersion": "OAF-015"
+    },
+    {
+      "toolId": "tool:workspace-write",
+      "manifestPath": "tools/manifests/brokered-workspace-write.json",
+      "sha256": "b3b0958e47d3c362be0b969a2d834081cc11a2923686a49cf84a9841a576cbd1",
+      "enabled": true,
+      "handlerBindingId": "handler:brokered:workspace-file-write@1.0.0",
+      "reviewStatus": "reviewed",
+      "reviewVersion": "OAF-015"
+    }
+  ]
+}

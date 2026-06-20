@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.1.0",
+  "contractVersion": "1.0.0",
+  "id": "tool:workspace-write",
+  "name": "Write bounded workspace files",
+  "version": "1.0.0",
+  "handlerBindingId": "handler:brokered:workspace-file-write@1.0.0",
+  "operations": {
+    "writeFile": {
+      "sideEffectClass": "reversible-write",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "content"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "content": { "type": "string", "maxLength": 4096 }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "byteSize"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "byteSize": { "type": "integer", "minimum": 0 },
+          "idempotent": { "type": "boolean" }
+        }
+      },
+      "filesystem": { "read": [], "write": ["workspace:root"] },
+      "network": [],
+      "secretReferences": [],
+      "dataClasses": ["workspace-private"],
+      "sandbox": "brokered-filesystem-write",
+      "limits": { "runtimeMs": 1000, "inputBytes": 8192, "outputBytes": 4096, "costUnits": 0 },
+      "approval": { "required": false },
+      "idempotency": { "required": true }
+    }
+  }
+}

@@ -80,6 +80,13 @@ or run grant, environment policy, data class, sandbox profile, budgets, approval
 context, idempotency, and global kill switches. Requests wider than the manifest
 deny the whole operation rather than silently dropping unsafe scope.
 
+OAF-015 separates reviewed manifests, policy decisions, and grants. A reviewed
+manifest is loaded only from a checksum-pinned catalog. The grant record stores
+safe binding metadata only; the raw token is returned to the broker in memory,
+consumed once, and not persisted or logged. Filesystem, loopback egress, and
+secret-reference access are represented as independent broker capabilities, not
+ambient process authority.
+
 ### Approval
 
 An approval references an exact operation preview, destination, risk, actor, expiry, idempotency key, and policy version. Editing the action invalidates the approval.

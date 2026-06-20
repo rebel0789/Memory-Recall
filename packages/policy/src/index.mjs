@@ -94,7 +94,7 @@ const DEFAULT_REGISTRY = Object.freeze({
   defaultLimits: DEFAULT_LIMITS,
   externalWritesEnabled: false,
   approvalBinding: 'exact-operation-fingerprint',
-  idempotencyRequiredFor: Object.freeze(['consequential-write'])
+  idempotencyRequiredFor: Object.freeze(['reversible-write', 'consequential-write'])
 });
 
 const REQUEST_KEYS = new Set([
@@ -257,9 +257,9 @@ export function evaluateContextualPolicy(request, {
   const sideEffectClass = capability?.sideEffectClass ?? 'read-only';
   if (sideEffectClass === 'consequential-write') {
     if (!validated.approvalContext) reasons.add('approval_required');
-    if (!validated.idempotencyKey) reasons.add('idempotency_required');
     validateApproval({ request: validated, approval: validated.approvalContext, evaluatedAt, reasons });
   }
+  if (registry.idempotencyRequiredFor.includes(sideEffectClass) && !validated.idempotencyKey) reasons.add('idempotency_required');
 
   const reasonCodes = orderedReasons(reasons);
   return sanitizeDecision({

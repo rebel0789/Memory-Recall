@@ -44,6 +44,12 @@
       "purpose": "Deterministic contextual policy decisions for resources, tools, data classes, risk, approvals, and budgets"
     },
     {
+      "id": "provider:native:tool:brokered-local",
+      "path": "providers/native/tool-brokered-local",
+      "enabledByDefault": true,
+      "purpose": "Dependency-free reviewed local tool execution with one-use grants and independent brokers"
+    },
+    {
       "id": "provider:native:context-candidate:exact",
       "path": "providers/native/context-candidate-exact",
       "enabledByDefault": true,

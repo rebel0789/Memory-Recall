@@ -95,8 +95,12 @@ for (const [file, value] of jsonValues) {
   }
 
   if (relative.startsWith('tools/manifests/')) {
-    for (const key of ['name', 'version', 'riskClass', 'permissions', 'allowedRoles', 'inputSchema', 'outputSchema']) if (value[key] === undefined) errors.push(`${relative}: missing ${key}`);
-    if (!['read-only', 'reversible-write', 'consequential-write'].includes(value.riskClass)) errors.push(`${relative}: invalid riskClass`);
+    if (value.schemaVersion === '1.1.0') {
+      for (const key of ['name', 'version', 'contractVersion', 'handlerBindingId', 'operations']) if (value[key] === undefined) errors.push(`${relative}: missing ${key}`);
+    } else {
+      for (const key of ['name', 'version', 'riskClass', 'permissions', 'allowedRoles', 'inputSchema', 'outputSchema']) if (value[key] === undefined) errors.push(`${relative}: missing ${key}`);
+      if (!['read-only', 'reversible-write', 'consequential-write'].includes(value.riskClass)) errors.push(`${relative}: invalid riskClass`);
+    }
   }
 
   if (relative.startsWith('adapters/') && relative.endsWith('/adapter.json')) {

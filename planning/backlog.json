@@ -369,7 +369,7 @@
       "id": "OAF-015",
       "title": "Implement bounded tool execution and grants",
       "milestone": "Milestone 4",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:security-auditor",
       "dependsOn": [
         "OAF-009",

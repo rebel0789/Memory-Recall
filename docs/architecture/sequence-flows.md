@@ -37,11 +37,16 @@ sequenceDiagram
   R-->>U: exact preview and expiry
   U-->>R: approve once
   R->>P: validate approval and operation hash
-  P-->>R: bounded grant
-  R->>T: execute with idempotency key
+  P-->>R: allow with effective capability
+  R->>R: mint one-use exact-operation grant
+  R->>T: execute via filesystem/egress/secret brokers
   T-->>R: reconciled result
   R->>E: tool.completed
 ```
+
+The broker never receives caller-supplied authority fields. For local writes,
+the tool handler uses the OAF-014 durable idempotent effect boundary before the
+result is treated as reconciled.
 
 ## Memory proposal
 

@@ -252,6 +252,7 @@ test('policy service emits safe events and fail-closes writes when audit persist
   };
   const writeDecision = await closed.evaluate(toolRequest({
     trustedToolManifest: writeManifest,
+    idempotencyKey: 'idem_audit_write',
     capabilityRequest: {
       toolId: readToolManifest.id,
       operation: 'write',
@@ -281,19 +282,46 @@ test('native deterministic provider implements the contextual policy port', asyn
 
 test('tool registry uses the contextual evaluator and denied requests never call providers', async () => {
   let called = false;
-  const registry = new ToolRegistry({ policy: { decisionIdFactory: () => 'poldet_tool_registry', clock: () => fixedNow } });
-  registry.register(readToolManifest, async () => {
-    called = true;
-    return { ok: true };
+  const registry = ToolRegistry.createForTests({
+    tools: ['tool:filesystem-read'],
+    handlers: {
+      'handler:brokered:workspace-file-read@1.0.0': async () => {
+        called = true;
+        return { path: 'docs/readme.txt', sha256: `sha256:${'a'.repeat(64)}`, byteSize: 1 };
+      }
+    },
+    clock: () => fixedNow
   });
-  const denied = await registry.invoke({
-    toolId: readToolManifest.id,
-    actorId: 'usr_owner',
-    role: 'agent:security-auditor',
+  const denied = await registry.execute({
+    schemaVersion: '1.0.0',
+    requestId: 'toolreq_policy_denied',
+    correlationId: 'req_contextual-policy-tool-000000',
     workspaceId: 'ws_local',
-    operation: 'read',
-    capabilityRequest: { ...toolRequest().capabilityRequest, filesystem: { read: ['workspace:project-evil'], write: [] } },
-    input: {}
+    runId: 'run_policy_tool',
+    stepId: 'step_policy_tool',
+    actorId: 'usr_owner',
+    trustedContext: {
+      principal: { userId: 'usr_owner', principalType: 'agent', authenticationMethod: 'session', status: 'active', agentRole: 'agent:security-auditor' },
+      membership: { workspaceId: 'ws_local', role: 'builder', status: 'active' },
+      environment: { deploymentProfile: 'local-dev', locality: 'local-only', interactive: true, externalWritesEnabled: false }
+    },
+    toolId: 'tool:filesystem-read',
+    toolVersion: '1.0.0',
+    operation: 'readFile',
+    requestedCapability: {
+      toolId: 'tool:filesystem-read',
+      operation: 'readFile',
+      sideEffectClass: 'read-only',
+      filesystem: { read: ['workspace:evil'], write: [] },
+      network: [],
+      secretReferences: [],
+      dataClasses: ['workspace-private'],
+      sandbox: 'brokered-filesystem-read',
+      limits: { runtimeMs: 1000, inputBytes: 1024, outputBytes: 4096, costUnits: 0 }
+    },
+    input: { path: 'docs/readme.txt' },
+    dataClass: 'workspace-private',
+    trustedTimestamp: fixedNow
   });
   assert.equal(denied.status, 'denied');
   assert.equal(called, false);

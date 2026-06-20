@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "strategy": "durable-effect-boundary",
+  "idempotencyKeyFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "operationFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "effectCount": 1,
+  "idempotent": true
+}

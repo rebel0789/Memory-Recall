@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "handlerBindingId": "handler:brokered:workspace-file-read@1.0.0",
+  "providerId": "provider:native:tool:brokered-local",
+  "locality": "local-only",
+  "arbitraryShell": false,
+  "downloadedCode": false,
+  "brokeredSurfaces": ["filesystem"]
+}
