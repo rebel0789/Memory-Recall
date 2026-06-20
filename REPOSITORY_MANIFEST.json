@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T14:59:12.886Z",
-  "fileCount": 635,
-  "totalBytes": 1962256,
+  "generatedAt": "2026-06-20T15:53:16.066Z",
+  "fileCount": 639,
+  "totalBytes": 1990854,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -536,8 +536,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 14259,
-      "sha256": "267f890840cdbf1e69a02dabccec8083681464da3354293d5c31c87c3f4b360f"
+      "bytes": 14852,
+      "sha256": "e52dcff3f838779ae9e91c71b7eb548990a9e9054d94160fcef61eacaf5a3b1e"
     },
     {
       "path": "CITATION.cff",
@@ -581,8 +581,8 @@
     },
     {
       "path": "deploy/otel/collector.yaml",
-      "bytes": 370,
-      "sha256": "c6614a66aba2ffa3d076e9ce26ca70882ac8c5c748d130480907450726225cc2"
+      "bytes": 374,
+      "sha256": "4d809cd22bba5348bc3922c8206a4f46aecbedeb8fc66cc92aa7be363752861d"
     },
     {
       "path": "deploy/postgres/migrations/001_init.sql",
@@ -875,6 +875,11 @@
       "sha256": "0ffabc448c68e83e1b9320a81af6263c72a0c29078d999954386eba8f7a214a4"
     },
     {
+      "path": "docs/implementation/OAF-025-otel-compatible-instrumentation-note.md",
+      "bytes": 1688,
+      "sha256": "5d45e3a0873929c8c0b40356dcf9fa41c388a9f17da4f6bc3691c0a5d7cf6baa"
+    },
+    {
       "path": "docs/implementation/PARALLELIZATION.md",
       "bytes": 918,
       "sha256": "12ae3d612ac5b06cf74c7677c4e08b523a68b2f5f5a612e68f733a6b4a87e570"
@@ -926,8 +931,8 @@
     },
     {
       "path": "docs/operations/observability.md",
-      "bytes": 801,
-      "sha256": "5cc239c93a1bae77ddda4e5741cc189a2afad27ba0d728c674017102882897bc"
+      "bytes": 1950,
+      "sha256": "6b5cbf12e7569310437051197c33e5064c4dbb04bb2f4a626e159182d40d917d"
     },
     {
       "path": "docs/operations/release-checklist.md",
@@ -1657,7 +1662,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "a6ddb421d9f90f5c0af8c68fd79f14aacfbe9b88530906e15fa39ebaa68dc867"
+      "sha256": "e1caf7250dc36b2f5e8199ff38b280d3c5418f0e441288c7a79f3de1ed21d3b9"
     },
     {
       "path": "LICENSE",
@@ -1776,8 +1781,18 @@
     },
     {
       "path": "packages/model-gateway/src/index.mjs",
-      "bytes": 23016,
-      "sha256": "203a8bd1810e6d30b958f8279ebc8716f2f0b928d1d7cfde8d79b52d08274f4a"
+      "bytes": 24366,
+      "sha256": "959cd1c2e62eec8caeb2cfddaebc1e7eea4296b339c28650ad79416e460f44a7"
+    },
+    {
+      "path": "packages/observability/package.json",
+      "bytes": 141,
+      "sha256": "12e1909c70855ef38916925ba151f3a77f3bbb9aff0f4a5bd1fd15335621e69d"
+    },
+    {
+      "path": "packages/observability/src/index.mjs",
+      "bytes": 11462,
+      "sha256": "4effab1eb87578918c36ab1d5f28b8ea4eb2d4d35034f51eb61cd0e97012212c"
     },
     {
       "path": "packages/policy/package.json",
@@ -2391,8 +2406,8 @@
     },
     {
       "path": "packages/tool-registry/src/index.mjs",
-      "bytes": 53865,
-      "sha256": "e772f80e859b840060733678950b4abc26826223ee101d21bc3148b68f893357"
+      "bytes": 55832,
+      "sha256": "7016a1a7db4fba710da24a7f6e6b298330ce54405329449597fe86779b001b58"
     },
     {
       "path": "packages/ui/package.json",
@@ -2416,13 +2431,13 @@
     },
     {
       "path": "packages/workflow-runtime/src/index.mjs",
-      "bytes": 4182,
-      "sha256": "a5a6bf50bb3b8b4ea520643c2c9b6215284f29671c1ce235f85c6c094809c35a"
+      "bytes": 6047,
+      "sha256": "1cc5b1993538470bbc7bc444b15b813a28ef975d1597f7707294b2566ca53142"
     },
     {
       "path": "planning/backlog.json",
-      "bytes": 26918,
-      "sha256": "ac8ab88958f59f309a64178c54562a628b8468e2e18c5f40d5da9863e3a9da06"
+      "bytes": 26920,
+      "sha256": "2f417a8da61cf3ae11b4a87743b8496dbaa35cc39ed9e539dc6bf8347a714295"
     },
     {
       "path": "planning/README.md",
@@ -2436,8 +2451,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 25432,
-      "sha256": "7eb4f5a7a382109181d5bec502c03ac421469d52ae1956695375e31b4a3ab932"
+      "bytes": 26236,
+      "sha256": "c2ff13936e5eba97489e9fb73a8a1068a2d24ffbcf0d478f06468fbe5bb12444"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2761,8 +2776,8 @@
     },
     {
       "path": "services/control-api/src/server.mjs",
-      "bytes": 40646,
-      "sha256": "fa385ba16c86755bf2f79007fa64668b4e75a42b27a270e92ed7eacafcf185a0"
+      "bytes": 41788,
+      "sha256": "bc46684c525c48360b32701e3321d8d7c19f72266087e7bdb9634de10676ae62"
     },
     {
       "path": "services/README.md",
@@ -2887,7 +2902,7 @@
     {
       "path": "TASKS.md",
       "bytes": 2453,
-      "sha256": "768adc618e50f3d9b463f47bce25d5f32a7a68abf375d46ec5731a91977e1fec"
+      "sha256": "28d70536593a183b8f260571d1a4fc80039cfa491601209d1f88f9c1a263939f"
     },
     {
       "path": "tests/adapter-contract-fixtures.test.mjs",
@@ -3008,6 +3023,11 @@
       "path": "tests/native-workflow-embedded.test.mjs",
       "bytes": 2428,
       "sha256": "869be41ff5510307d823bb30cc1d0654d979088b21d1bd1b7030f54cfc1da7c7"
+    },
+    {
+      "path": "tests/observability.test.mjs",
+      "bytes": 6165,
+      "sha256": "6cf1ffd3100db2571281ffacc311be7fc11629815705b25b55052cfa144a5fa0"
     },
     {
       "path": "tests/planning.test.mjs",
@@ -3181,8 +3201,8 @@
     },
     {
       "path": "workflows/content-intelligence/runner.mjs",
-      "bytes": 11815,
-      "sha256": "40f5f03d403827756bf3670ada41839563d95c04b60efa3e8c6215c6d81cd9bc"
+      "bytes": 12081,
+      "sha256": "63c25912c3adb3e7d38db029c4ac3cf7e731bc1a91af06c7f7e33137bb5dcb62"
     },
     {
       "path": "workflows/content-intelligence/workflow.json",

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createEvent } from '../../protocol/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../protocol/src/schema-validator.mjs';
 import { canonicalOperationFingerprint, createPolicyService } from '../../policy/src/index.mjs';
+import { createTelemetry, toolSpanAttributes } from '../../observability/src/index.mjs';
 
 export const BROKERED_LOCAL_TOOL_PROVIDER_ID = 'provider:native:tool:brokered-local';
 
@@ -845,14 +846,16 @@ export class ToolRegistry {
   #workspaceRoot;
   #clock;
   #secretResolver;
+  #telemetry;
 
-  constructor({ policy = {}, catalog = null, handlers = new Map(), grantService = null, eventSink = null, workspaceRoot = process.cwd(), clock = () => new Date().toISOString(), secretResolver = null } = {}) {
+  constructor({ policy = {}, catalog = null, handlers = new Map(), grantService = null, eventSink = null, workspaceRoot = process.cwd(), clock = () => new Date().toISOString(), secretResolver = null, telemetry = createTelemetry() } = {}) {
     this.#policy = createPolicyService(policy);
     this.#grants = grantService ?? new ToolGrantService({ clock });
     this.#eventSink = eventSink;
     this.#workspaceRoot = path.resolve(workspaceRoot);
     this.#clock = clock;
     this.#secretResolver = secretResolver;
+    this.#telemetry = telemetry ?? createTelemetry();
     for (const [id, handler] of defaultHandlers()) this.#handlers.set(id, handler);
     for (const [id, handler] of handlers instanceof Map ? handlers : Object.entries(handlers)) this.#handlers.set(id, handler);
     if (catalog) {
@@ -935,6 +938,7 @@ export class ToolRegistry {
     let operation = null;
     let grantId = null;
     let active = true;
+    let span = null;
     try {
       assertNoForgedAuthority(request);
       validateInvocation(request);
@@ -947,6 +951,7 @@ export class ToolRegistry {
       operationName = request.operation;
       operation = tool.manifest.operations[operationName];
       if (!operation) throw toolError('tool_operation_not_declared', 'operation is not declared');
+      span = this.#telemetry.startSpan('oaf.tool.invoke', toolSpanAttributes({ toolId: tool.manifest.id, toolVersion: tool.manifest.version, operation: operationName, sideEffectClass: operation.sideEffectClass, sandbox: operation.sandbox, correlationId: request.correlationId, workspaceId: request.workspaceId, runId: request.runId, stepId: request.stepId }), request.traceContext ?? { correlationId: request.correlationId, workspaceId: request.workspaceId, runId: request.runId });
       if (!SANDBOX_PROFILES.has(operation.sandbox)) throw toolError('tool_sandbox_unavailable', 'unsupported sandbox profile');
       boundedJsonBytes(request.input ?? {}, operation.limits.inputBytes ?? DEFAULT_LIMITS.inputBytes, 'tool_request_invalid');
       try { assertJsonSchema(operation.inputSchema, request.input ?? {}, 'tool input'); } catch { throw toolError('tool_input_schema_failed', 'input schema failed'); }
@@ -973,6 +978,7 @@ export class ToolRegistry {
       const policy = await this.#policy.evaluate(policyRequest);
       if (policy.outcome !== 'allow') {
         await this.#emit('tool.denied', request, { toolId: tool.manifest.id, toolVersion: tool.manifest.version, manifestFingerprint: tool.manifestFingerprint, operation: operationName, inputFingerprint: inputFingerprint(request.input), policyDecisionId: policy.decisionId, policyVersion: policy.policyVersion, policyFingerprint: policy.policyFingerprint, reasonCodes: policy.reasonCodes });
+        span.end('ok', toolSpanAttributes({ toolId: tool.manifest.id, toolVersion: tool.manifest.version, operation: operationName, sideEffectClass: operation.sideEffectClass, sandbox: operation.sandbox, policyDecisionId: policy.decisionId, policyVersion: policy.policyVersion, status: 'denied', correlationId: request.correlationId, workspaceId: request.workspaceId, runId: request.runId, stepId: request.stepId }));
         return this.#safeDenied(request, 'tool_policy_denied', policy);
       }
       if (operation.approval.required && !request.approvalContext) throw toolError('tool_approval_required', 'approval required');
@@ -1045,6 +1051,7 @@ export class ToolRegistry {
         output
       };
       await this.#emit('tool.completed', request, { toolId: tool.manifest.id, toolVersion: tool.manifest.version, manifestFingerprint: tool.manifestFingerprint, operation: operationName, grantId, policyDecisionId: policy.decisionId, policyVersion: policy.policyVersion, policyFingerprint: policy.policyFingerprint, inputFingerprint: result.inputFingerprint, outputFingerprint: result.outputFingerprint, sideEffectClass: operation.sideEffectClass, sandbox: operation.sandbox, reconciliation: result.reconciliation, durationMs: result.durationMs });
+      span.end('ok', toolSpanAttributes({ toolId: tool.manifest.id, toolVersion: tool.manifest.version, operation: operationName, sideEffectClass: operation.sideEffectClass, sandbox: operation.sandbox, policyDecisionId: policy.decisionId, policyVersion: policy.policyVersion, status: 'completed', correlationId: request.correlationId, workspaceId: request.workspaceId, runId: request.runId, stepId: request.stepId }));
       return result;
     } catch (error) {
       active = false;
@@ -1053,6 +1060,7 @@ export class ToolRegistry {
       if (request?.workspaceId && request?.runId && tool && operationName) {
         await this.#emit(status === 'denied' ? 'tool.denied' : 'tool.failed', request, { toolId: tool.manifest.id, toolVersion: tool.manifest.version, manifestFingerprint: tool.manifestFingerprint, operation: operationName, grantId, errorCode: safe.code, inputFingerprint: inputFingerprint(request.input ?? {}) }).catch(() => {});
       }
+      span?.end(status === 'denied' ? 'ok' : 'error', toolSpanAttributes({ toolId: tool?.manifest.id ?? request?.toolId, toolVersion: tool?.manifest.version ?? request?.toolVersion, operation: operationName ?? request?.operation, sideEffectClass: operation?.sideEffectClass, sandbox: operation?.sandbox, status, correlationId: request?.correlationId, workspaceId: request?.workspaceId, runId: request?.runId, stepId: request?.stepId }));
       return {
         schemaVersion: '1.0.0',
         requestId: request?.requestId ?? null,

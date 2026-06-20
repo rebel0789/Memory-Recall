@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-025",
+  "nextTask": "OAF-026",
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -415,6 +415,23 @@
       ]
     },
     {
+      "id": "observability.otel",
+      "name": "OpenTelemetry-compatible local instrumentation",
+      "status": "reference",
+      "evidence": [
+        "packages/observability/src/index.mjs",
+        "tests/observability.test.mjs",
+        "docs/operations/observability.md",
+        "deploy/otel/collector.yaml",
+        "docs/implementation/OAF-025-otel-compatible-instrumentation-note.md"
+      ],
+      "limitations": [
+        "Default exporter is no-op for offline deterministic bootstrap",
+        "OTLP HTTP export is optional and limited to explicit loopback collector endpoints",
+        "No hosted telemetry service, external collector, raw body capture, prompt capture, output capture, credential capture, local path capture, SQL capture, or hidden-reasoning capture"
+      ]
+    },
+    {
       "id": "runtime.durable",
       "name": "Durable workflow runtime",
       "status": "reference",
@@ -613,7 +630,7 @@
         "npm run native:smoke",
         "npm run verify:handoff"
       ],
-    "testsExpected": 185,
+    "testsExpected": 189,
     "protocolFixturesExpected": 96,
     "evaluationsExpected": 101,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

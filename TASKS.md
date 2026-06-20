@@ -57,8 +57,8 @@ npm run task -- <OAF-ID>
 
 ## Quality and ecosystem
 
-- [ ] **OAF-025 Add OpenTelemetry-compatible instrumentation — next.**
-- [ ] OAF-026 Build the evaluation laboratory.
+- [x] OAF-025 Add OpenTelemetry-compatible instrumentation.
+- [ ] **OAF-026 Build the evaluation laboratory — next.**
 - [ ] OAF-027 Promote one low-risk read-only adapter.
 - [ ] OAF-028 Add protocol bridges through accepted RFCs.
 - [ ] OAF-029 Complete operations, backup, restore, upgrade, and rollback.

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { assertJsonSchema } from '../../protocol/src/schema-validator.mjs';
+import { createTelemetry, modelSpanAttributes } from '../../observability/src/index.mjs';
 
 export const MODEL_GATEWAY_VERSION = '1.0.0';
 export const PROMPT_ASSEMBLY_VERSION = '1.0.0';
@@ -368,7 +369,7 @@ export class LocalModelGateway {
     return this.generateStructured(request, options);
   }
 
-  async generateStructured(request = {}, { emitEvent = async () => {}, signal = null } = {}) {
+  async generateStructured(request = {}, { emitEvent = async () => {}, signal = null, telemetry = createTelemetry(), traceContext = null } = {}) {
     assertNonEmptyString(request.requestId, 'requestId', 160);
     assertNonEmptyString(request.correlationId, 'correlationId', 160);
     assertNonEmptyString(request.workspaceId, 'workspaceId', 160);
@@ -395,6 +396,14 @@ export class LocalModelGateway {
     const outputSchemaFingerprint = fingerprintModelValue(request.outputSchema);
     const outputSchemaName = request.outputSchemaName ?? 'anonymous';
     const outputSchemaVersion = request.outputSchemaVersion ?? MODEL_OUTPUT_SCHEMA_VERSION;
+    const span = telemetry.startSpan('oaf.model.generate', modelSpanAttributes({
+      provider: profile.providerId,
+      model: profile.model,
+      contextManifest,
+      outputSchema: { name: outputSchemaName, version: outputSchemaVersion },
+      workspaceId: request.workspaceId,
+      correlationId: request.correlationId
+    }), traceContext ?? { correlationId: request.correlationId, workspaceId: request.workspaceId });
     const requestedPayload = safeRequestPayload({
       request,
       profile,
@@ -514,9 +523,30 @@ export class LocalModelGateway {
       const completedPayload = safeCompletedPayload({ request, result, validation, repairAttempts, outputFingerprint });
       completedPayload.occurredAt = result.completedAt;
       await emitEvent('model.completed', completedPayload);
+      span.end('ok', modelSpanAttributes({
+        provider: result.provider,
+        model: result.model,
+        contextManifest: result.contextManifest,
+        outputSchema: result.outputSchema,
+        validation,
+        repair: result.repair,
+        usage: result.usage,
+        workspaceId: request.workspaceId,
+        correlationId: request.correlationId
+      }));
       return result;
     } catch (error) {
       await emitEvent('model.failed', safeFailedPayload({ request, profile, contextManifest, error, repairAttempts }));
+      span.end('error', modelSpanAttributes({
+        provider: profile.providerId,
+        model: profile.model,
+        contextManifest,
+        outputSchema: { name: outputSchemaName, version: outputSchemaVersion },
+        validation: { valid: false },
+        repair: { attempts: repairAttempts },
+        workspaceId: request.workspaceId,
+        correlationId: request.correlationId
+      }));
       if (error.code) throw error;
       throw gatewayError('model_generation_failed', 'model generation failed', { cause: error, retryable: error.retryable === true });
     }

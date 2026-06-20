@@ -626,7 +626,7 @@
       "id": "OAF-025",
       "title": "Add OpenTelemetry-compatible instrumentation",
       "milestone": "Milestone 8",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:evaluator",
       "dependsOn": [
         "OAF-007",

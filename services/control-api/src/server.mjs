@@ -10,6 +10,7 @@ import { runContentIntelligence } from '../../../workflows/content-intelligence/
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
+import { createTelemetryFromEnv, createTraceContext, routeSpanAttributes } from '../../../packages/observability/src/index.mjs';
 import { API_ERROR_SCHEMA, createApiRouteContracts } from './route-contracts.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -82,7 +83,8 @@ export function createControlApiServer({
   correlationIdFactory = () => `req_${randomUUID()}`,
   limits = {},
   logger = console,
-  allowedHosts = [...LOOPBACK_HOSTS]
+  allowedHosts = [...LOOPBACK_HOSTS],
+  telemetry = createTelemetryFromEnv(process.env)
 } = {}) {
   if (!store) throw new Error('createControlApiServer requires store');
   const effectiveLimits = { ...DEFAULT_LIMITS, ...limits };
@@ -128,9 +130,18 @@ export function createControlApiServer({
       return sendStream({ request, response, correlationId, started, workspaceId: auth.workspaceId });
     }
 
-    const payload = await executeOperation(contract, { params, query, body, correlationId, principal: auth.principal, workspaceId: auth.workspaceId, response, request });
-    sendValidatedJson(response, contract, 200 in contract.responses ? 200 : 201, payload, correlationId);
-    safeLog(logger, 'info', { code: 'request_completed', operationId: contract.operationId, status: 200 in contract.responses ? 200 : 201, correlationId, durationMs: Date.now() - started });
+    const statusCode = 200 in contract.responses ? 200 : 201;
+    const traceContext = createTraceContext({ correlationId, workspaceId: auth.workspaceId });
+    const span = telemetry.startSpan('oaf.control-api.route', routeSpanAttributes({ operationId: contract.operationId, method: request.method, route: contract.path, statusCode, workspaceId: auth.workspaceId, correlationId }), traceContext);
+    try {
+      const payload = await executeOperation(contract, { params, query, body, correlationId, principal: auth.principal, workspaceId: auth.workspaceId, response, request, traceContext, telemetry });
+      sendValidatedJson(response, contract, statusCode, payload, correlationId);
+      span.end('ok', routeSpanAttributes({ operationId: contract.operationId, method: request.method, route: contract.path, statusCode, workspaceId: auth.workspaceId, correlationId }));
+      safeLog(logger, 'info', { code: 'request_completed', operationId: contract.operationId, status: statusCode, correlationId, durationMs: Date.now() - started });
+    } catch (error) {
+      span.end('error', routeSpanAttributes({ operationId: contract.operationId, method: request.method, route: contract.path, statusCode: error.status ?? 500, workspaceId: auth.workspaceId, correlationId }));
+      throw error;
+    }
   }
 
   async function executeOperation(contract, context) {
@@ -219,7 +230,10 @@ export function createControlApiServer({
             const correlated = { ...event, workspaceId: context.workspaceId, actorId: context.principal.user.id, correlationId: context.correlationId };
             events.push(correlated);
             broadcast(correlated);
-          }
+          },
+          telemetry: context.telemetry,
+          traceContext: context.traceContext,
+          correlationId: context.correlationId
         });
         const run = {
           id: result.runId,
