@@ -43,6 +43,18 @@ test('normalizes source snapshots as immutable provenance records', () => {
   );
 });
 
+test('rejects secret-bearing query parameters in source locators', () => {
+  assert.throws(
+    () => normalizeSourceSnapshot({
+      body: 'Observed source text',
+      mediaType: 'text/plain',
+      sourceLocator: 'https://example.test/source?token=abc123',
+      capturedAt: collectedAt
+    }),
+    /sourceLocator must not contain credentials/
+  );
+});
+
 test('normalizes observations while linking snapshots and separating inference', () => {
   const snapshot = normalizeSourceSnapshot({
     id: 'src_0123456789abcde0',

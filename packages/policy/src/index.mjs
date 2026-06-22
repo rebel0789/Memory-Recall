@@ -532,6 +532,7 @@ function scopesAllowed(requested, allowed) {
 
 function scopeContains(root, scope) {
   if (!validPolicyScope(root) || !validPolicyScope(scope)) return false;
+  if (root === 'workspace:root' && scope.startsWith('workspace:')) return true;
   return scope === root || scope.startsWith(`${root}/`);
 }
 

@@ -58,7 +58,8 @@ test('handles malformed and oversized input without throwing', () => {
       { format: 'json', sourceLocator: 'file://workspace/bad.json', body: '{"items": [' },
       { format: 'rss', sourceLocator: 'https://example.test/empty.xml', body: '<rss><channel></channel></rss>' },
       { format: 'text', sourceLocator: 'file://workspace/large.txt', body: 'x'.repeat(41) },
-      { format: 'text', sourceLocator: 'https://user:password@example.test/private', body: 'credential locator' }
+      { format: 'text', sourceLocator: 'https://user:password@example.test/private', body: 'credential locator' },
+      { format: 'text', sourceLocator: 'https://example.test/private?token=abc123', body: 'query credential locator' }
     ]
   });
 
@@ -66,11 +67,14 @@ test('handles malformed and oversized input without throwing', () => {
     'malformed_source',
     'malformed_source',
     'source_too_large',
+    'invalid_source',
     'invalid_source'
   ]);
-  assert.equal(result.summary.failureCount, 4);
+  assert.equal(result.summary.failureCount, 5);
   assert.equal(result.summary.observationCount, 0);
   assert(result.failures.every((failure) => !JSON.stringify(failure).includes('password')));
+  assert(result.failures.every((failure) => !JSON.stringify(failure).includes('abc123')));
+  assert(result.failures.every((failure) => !JSON.stringify(failure).includes('token=')));
 });
 
 test('ingested observations remain compatible with evidence graph citation validation', () => {

@@ -213,6 +213,29 @@ test('permitted read-only tool operation returns bounded effective capability', 
   assert.deepEqual(decision.effectiveCapability.limits, { runtimeMs: 500, outputBytes: 1024, costUnits: 0 });
 });
 
+test('workspace root manifest scope permits narrower child filesystem scopes', () => {
+  const rootManifest = {
+    ...readToolManifest,
+    operations: {
+      read: {
+        ...readToolManifest.operations.read,
+        filesystem: { read: ['workspace:root'], write: ['workspace:root'] }
+      }
+    }
+  };
+  const decision = evaluateContextualPolicy(toolRequest({
+    trustedToolManifest: rootManifest,
+    capabilityRequest: {
+      ...toolRequest().capabilityRequest,
+      filesystem: { read: ['workspace:docs'], write: ['workspace:docs'] }
+    }
+  }), { decisionIdFactory: () => 'poldet_workspace_root_scope', clock: () => fixedNow });
+
+  assert.equal(decision.outcome, 'allow');
+  assert.deepEqual(decision.effectiveCapability.filesystem.read, ['workspace:docs']);
+  assert.deepEqual(decision.effectiveCapability.filesystem.write, ['workspace:docs']);
+});
+
 test('data-class, risk, approval, idempotency, and budget rules fail closed', () => {
   const consequentialManifest = {
     ...readToolManifest,
@@ -358,10 +381,10 @@ test('tool registry uses the contextual evaluator and denied requests never call
       toolId: 'tool:filesystem-read',
       operation: 'readFile',
       sideEffectClass: 'read-only',
-      filesystem: { read: ['workspace:evil'], write: [] },
+      filesystem: { read: ['workspace:docs'], write: [] },
       network: [],
       secretReferences: [],
-      dataClasses: ['workspace-private'],
+      dataClasses: ['secret'],
       sandbox: 'brokered-filesystem-read',
       limits: { runtimeMs: 1000, inputBytes: 1024, outputBytes: 4096, costUnits: 0 }
     },
@@ -371,5 +394,5 @@ test('tool registry uses the contextual evaluator and denied requests never call
   });
   assert.equal(denied.status, 'denied');
   assert.equal(called, false);
-  assert(denied.policy.reasonCodes.includes('filesystem_read_denied'));
+  assert(denied.policy.reasonCodes.includes('data_class_denied'));
 });

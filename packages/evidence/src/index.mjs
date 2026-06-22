@@ -23,6 +23,7 @@ const CLAIM_RELATIONS = new Set(['supports', 'contradicts', 'mentions', 'require
 const INGESTION_FORMATS = new Set(['text', 'markdown', 'json', 'rss', 'atom']);
 const DEFAULT_MAX_SOURCE_BYTES = 256 * 1024;
 const DEFAULT_MAX_ITEMS_PER_SOURCE = 100;
+const SECRET_QUERY_PARAMETER_PATTERN = /(^|[-_.])(accesskeyid|api[-_]?key|apikey|auth|authorization|client[-_]?secret|credential|credentials|jwt|key|password|passwd|pwd|secret|session|sig|signature|token)([-_.]|$)/i;
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -213,11 +214,27 @@ function assertSafeSourceLocator(value) {
   const locator = requireString(value, 'sourceLocator');
   try {
     const parsed = new URL(locator);
-    if (parsed.username || parsed.password) throw new Error('sourceLocator must not contain credentials');
+    if (parsed.username || parsed.password || hasSecretQueryParameter(parsed.searchParams)) throw new Error('sourceLocator must not contain credentials');
   } catch (error) {
     if (error.message === 'sourceLocator must not contain credentials') throw error;
+    if (hasSecretQueryString(locator)) throw new Error('sourceLocator must not contain credentials');
   }
   return locator;
+}
+
+function hasSecretQueryString(locator) {
+  const queryStart = locator.indexOf('?');
+  if (queryStart === -1) return false;
+  const fragmentStart = locator.indexOf('#', queryStart);
+  const query = locator.slice(queryStart + 1, fragmentStart === -1 ? undefined : fragmentStart);
+  return hasSecretQueryParameter(new URLSearchParams(query));
+}
+
+function hasSecretQueryParameter(params) {
+  for (const key of params.keys()) {
+    if (SECRET_QUERY_PARAMETER_PATTERN.test(key)) return true;
+  }
+  return false;
 }
 
 function normalizeIngestionOptions(input) {
@@ -523,7 +540,7 @@ export function normalizeSourceSnapshot(input) {
     createdAt: requireIso(input.createdAt ?? input.capturedAt, 'createdAt'),
     collector: input.collector ?? 'fixture',
     retrievalMethod: input.retrievalMethod ?? 'manual',
-    sourceLocator: requireString(input.sourceLocator, 'sourceLocator'),
+    sourceLocator: assertSafeSourceLocator(input.sourceLocator),
     metadata: clonePlain(input.metadata ?? {}, 'metadata')
   };
   return deepFreeze(snapshot);

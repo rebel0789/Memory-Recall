@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-22T09:26:18.846Z",
+  "generatedAt": "2026-06-22T09:51:24.836Z",
   "fileCount": 689,
-  "totalBytes": 2239819,
+  "totalBytes": 2242298,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -1022,12 +1022,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "e18195e1d2402f4a9f5e515dda3a0b5516e9c3e82b717aba9f69507783538712"
+      "sha256": "4b2bf1c3acc2a86ee50f20457dd3a5e3d256390e320998e08874b1bb59aaa37f"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 1328,
-      "sha256": "16efad5b255fe17453e81add31694413acc368219050e51407239242fdbc168f"
+      "sha256": "b4ebd2155d4625c322f727d37ac1ad0cd003c83ccc1acb70f998f0288b919978"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1037,7 +1037,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1015,
-      "sha256": "963ad83d5d93595c2253b7314fa3dbad030bcff52f39aa542b771a8fb8969b9a"
+      "sha256": "1b3f52b6f8f9412560ad018c56f303c13bec61d4d5444cdef9e39e682899f4e8"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1812,7 +1812,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "ce92942cb6a4ff402c81d22886e0ae27e6b308cfa7ea70ebc06ed6471c7964c4"
+      "sha256": "9fbaed7675b247b6cb413b381b4b9ed94772f92f6bb135d9193b1b902264c3f2"
     },
     {
       "path": "LICENSE",
@@ -1921,8 +1921,8 @@
     },
     {
       "path": "packages/evidence/src/index.mjs",
-      "bytes": 29865,
-      "sha256": "244b458b024918f609b063493ed9fe2cb593526cfc8d8f5772bf358ed8654d28"
+      "bytes": 30734,
+      "sha256": "36397a864c5da4497c89e91c190402533661e99eaf42887ae7dddacd3d49d5e0"
     },
     {
       "path": "packages/memory-core/package.json",
@@ -1976,8 +1976,8 @@
     },
     {
       "path": "packages/policy/src/index.mjs",
-      "bytes": 31793,
-      "sha256": "4bb67a1d689867ee2a94af8968d1955bf4b4f72e8c7fd6a25330f7e5b69327c8"
+      "bytes": 31873,
+      "sha256": "59951d6e12737baa25bb15ab18eb743228d3b80f7e4dd3a050e8f7aef8c01135"
     },
     {
       "path": "packages/protocol-bridges/package.json",
@@ -2667,7 +2667,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 31687,
-      "sha256": "9f2014a830803d733de78271ce4e0e75427e8c770b59556e472e2df57341f825"
+      "sha256": "8dacd5d54b4797a9907b17c18146f02b562956460b5fd1d6e1b6da1620d8b547"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3211,8 +3211,8 @@
     },
     {
       "path": "tests/evidence.test.mjs",
-      "bytes": 6192,
-      "sha256": "6ebe24227ea07452cd00a61d4a304a69eb445c2ae5db8ed2e294ce99e20f6995"
+      "bytes": 6549,
+      "sha256": "c1e66f2fc5f042ab176afdf910471bf6c9ab5b29f1eaaa43c79c3f0d78b19e17"
     },
     {
       "path": "tests/fixtures/durable-worker-child.mjs",
@@ -3276,8 +3276,8 @@
     },
     {
       "path": "tests/policy-contextual.test.mjs",
-      "bytes": 19096,
-      "sha256": "a763abafe28dd23b92c1705f88fd656cd695bb3dfd9d3bf451012040d73dedb8"
+      "bytes": 19945,
+      "sha256": "a41a921ef70115368d51acb370428462f465c30d6d6d10df6769964175792a13"
     },
     {
       "path": "tests/policy.test.mjs",
@@ -3316,8 +3316,8 @@
     },
     {
       "path": "tests/research-ingestion.test.mjs",
-      "bytes": 6057,
-      "sha256": "a7637cf7941fbd7973a91ecccbc708ebcb3457b2abd049674ec347e6bc491369"
+      "bytes": 6381,
+      "sha256": "a0f9ed69c8a740f2bd4e24c3979db9794e24bc3f98adeb422c767be0bb243bd6"
     },
     {
       "path": "tests/tool-durable-integration.test.mjs",
