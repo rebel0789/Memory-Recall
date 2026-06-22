@@ -103,6 +103,25 @@
           "source": {
             "type": "string"
           },
+          "order": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "category": {
+            "enum": [
+              "governance",
+              "workingState",
+              "decisions",
+              "preferences",
+              "evidence",
+              "procedures",
+              "episodes",
+              "artifacts",
+              "negative",
+              "examples",
+              "other"
+            ]
+          },
           "text": {
             "type": "string"
           }
@@ -144,6 +163,21 @@
           },
           "source": {
             "type": "string"
+          },
+          "category": {
+            "enum": [
+              "governance",
+              "workingState",
+              "decisions",
+              "preferences",
+              "evidence",
+              "procedures",
+              "episodes",
+              "artifacts",
+              "negative",
+              "examples",
+              "other"
+            ]
           },
           "text": {
             "type": "string"

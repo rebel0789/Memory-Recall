@@ -177,6 +177,81 @@ test('input, output, timeout, cancellation, approval, and idempotency checks fai
   assert.equal(effectBoundary.count(), 1);
 });
 
+test('write handlers cannot commit effects after timeout or cancellation', async () => {
+  const handlerBindingId = 'handler:late-effect@1.0.0';
+  const manifest = {
+    schemaVersion: '1.1.0',
+    contractVersion: '1.0.0',
+    id: 'tool:late-effect',
+    name: 'Late effect',
+    version: '1.0.0',
+    handlerBindingId,
+    operations: {
+      invoke: {
+        sideEffectClass: 'reversible-write',
+        inputSchema: { type: 'object', additionalProperties: true },
+        outputSchema: { type: 'object', additionalProperties: true },
+        filesystem: { read: [], write: [] },
+        network: [],
+        secretReferences: [],
+        dataClasses: ['workspace-private'],
+        sandbox: 'brokered-filesystem-write',
+        limits: { runtimeMs: 1000, inputBytes: 4096, outputBytes: 4096, costUnits: 0 },
+        approval: { required: false },
+        idempotency: { required: true }
+      }
+    }
+  };
+  const effectLog = [];
+  let lateEffectAttempt;
+  const registry = new ToolRegistry({
+    catalog: {
+      tools: [{
+        entry: { toolId: manifest.id, enabled: true, handlerBindingId, reviewStatus: 'reviewed', reviewVersion: 'test' },
+        manifest,
+        enabled: true,
+        manifestFingerprint: stableToolFingerprint(manifest)
+      }]
+    },
+    handlers: {
+      [handlerBindingId]: async ({ effectBoundary, operationFingerprint, idempotencyKey }) => {
+        lateEffectAttempt = new Promise((resolve) => {
+          setTimeout(() => {
+            effectBoundary.effect({
+              idempotencyKey,
+              operationFingerprint,
+              execute: async () => {
+                effectLog.push('committed');
+                return { ok: true };
+              }
+            }).then(resolve, resolve);
+          }, 25);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return { ok: true };
+      }
+    },
+    clock: () => fixedNow
+  });
+  const effectBoundary = createMemoryEffectBoundary();
+  const result = await registry.execute(baseInvocation({
+    toolId: manifest.id,
+    toolVersion: manifest.version,
+    operation: 'invoke',
+    input: { value: 'late' },
+    idempotencyKey: 'idem_late_effect',
+    effectBoundary,
+    timeoutMs: 5
+  }));
+
+  assert.equal(result.status, 'failed');
+  assert.equal(result.error.code, 'tool_timeout');
+  const lateResult = await lateEffectAttempt;
+  assert.equal(lateResult.code, 'tool_timeout');
+  assert.deepEqual(effectLog, []);
+  assert.equal(effectBoundary.count(), 0);
+});
+
 test('approval-required reversible writes fail closed without server-verified approval', async () => {
   let called = false;
   const handlerBindingId = 'handler:approval-write@1.0.0';

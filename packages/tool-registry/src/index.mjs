@@ -492,6 +492,30 @@ function assertApprovalContextAllowed(approval, operation) {
   }
 }
 
+function assertActiveEffectBoundary({ signal, isActive }) {
+  if (signal?.aborted) throw signal.reason ?? toolError('tool_cancelled', 'tool invocation is no longer active');
+  if (isActive?.() === false) throw toolError('tool_cancelled', 'tool invocation is no longer active');
+}
+
+function guardedEffectBoundary(boundary, { signal, isActive }) {
+  if (!boundary?.effect) return boundary;
+  return {
+    async effect({ idempotencyKey, operationFingerprint, execute }) {
+      assertActiveEffectBoundary({ signal, isActive });
+      return boundary.effect({
+        idempotencyKey,
+        operationFingerprint,
+        execute: async () => {
+          assertActiveEffectBoundary({ signal, isActive });
+          const output = await execute();
+          assertActiveEffectBoundary({ signal, isActive });
+          return output;
+        }
+      });
+    }
+  };
+}
+
 function exactBinding({ request, tool, operationName, capability, policy, operationFingerprint }) {
   return {
     actorId: request.actorId,
@@ -1066,7 +1090,7 @@ export class ToolRegistry {
             grant: consumed.record,
             brokers,
             signal,
-            effectBoundary: request.effectBoundary,
+            effectBoundary: guardedEffectBoundary(request.effectBoundary, { signal, isActive: () => active }),
             operationFingerprint,
             idempotencyKey: request.idempotencyKey ?? null
           });

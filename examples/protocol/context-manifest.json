@@ -19,10 +19,24 @@
         "explicit_requirement"
       ],
       "source": "workspace-policy",
+      "order": 1,
+      "category": "governance",
       "text": "Every recommendation must cite selected observations."
     }
   ],
-  "excluded": [],
+  "excluded": [
+    {
+      "id": "obs_noise",
+      "kind": "observation",
+      "tokens": 18,
+      "score": 0.1,
+      "reasonCodes": [
+        "insufficient_relevance"
+      ],
+      "source": "workspace-memory",
+      "category": "other"
+    }
+  ],
   "conflicts": [],
   "warnings": []
 }
