@@ -8,6 +8,7 @@ import {
   createMemoryEffectBoundary,
   stableToolFingerprint
 } from '../packages/tool-registry/src/index.mjs';
+import { POLICY_REGISTRY, canonicalOperationFingerprint } from '../packages/policy/src/index.mjs';
 
 const fixedNow = '2026-06-20T00:00:00.000Z';
 
@@ -178,38 +179,128 @@ test('input, output, timeout, cancellation, approval, and idempotency checks fai
 
 test('approval-required reversible writes fail closed without server-verified approval', async () => {
   let called = false;
-  const registry = ToolRegistry.createForTests({
-    tools: [],
-    handlers: {},
+  const handlerBindingId = 'handler:approval-write@1.0.0';
+  const manifest = {
+    schemaVersion: '1.1.0',
+    contractVersion: '1.0.0',
+    id: 'tool:approval-write',
+    name: 'Approval write',
+    version: '1.0.0',
+    handlerBindingId,
+    operations: {
+      invoke: {
+        sideEffectClass: 'reversible-write',
+        inputSchema: { type: 'object', additionalProperties: true },
+        outputSchema: { type: 'object', additionalProperties: true },
+        filesystem: { read: [], write: ['workspace:project'] },
+        network: [],
+        secretReferences: [],
+        dataClasses: ['workspace-private'],
+        sandbox: 'brokered-filesystem-write',
+        limits: { runtimeMs: 1000, inputBytes: 4096, outputBytes: 4096, costUnits: 0 },
+        approval: { required: true },
+        idempotency: { required: true }
+      }
+    }
+  };
+  const registry = new ToolRegistry({
+    catalog: {
+      tools: [{
+        entry: { toolId: manifest.id, enabled: true, handlerBindingId, reviewStatus: 'reviewed', reviewVersion: 'test' },
+        manifest,
+        enabled: true,
+        manifestFingerprint: stableToolFingerprint(manifest)
+      }]
+    },
+    handlers: {
+      [handlerBindingId]: async () => {
+        called = true;
+        return { ok: true };
+      }
+    },
     clock: () => fixedNow
   });
-  registry.register({
-    id: 'tool:approval-write',
-    version: '1.0.0',
-    riskClass: 'reversible-write',
-    permissions: { filesystem: { read: [], write: ['workspace:project'] } },
-    approval: { required: true },
-    inputSchema: { type: 'object', additionalProperties: true },
-    outputSchema: { type: 'object', additionalProperties: true }
-  }, async () => {
-    called = true;
-    return { ok: true };
-  });
-
-  const result = await registry.execute(baseInvocation({
+  const baseRequest = baseInvocation({
     toolId: 'tool:approval-write',
     toolVersion: '1.0.0',
     operation: 'invoke',
     input: { value: 'write' },
     idempotencyKey: 'idem_approval_write',
-    effectBoundary: createMemoryEffectBoundary(),
+    effectBoundary: createMemoryEffectBoundary()
+  });
+
+  const result = await registry.execute({
+    ...baseRequest,
     approvalContext: { approvalId: 'appr_fake', status: 'active' }
-  }));
+  });
 
   assert.equal(result.status, 'denied');
   assert.equal(result.error.code, 'tool_policy_denied');
   assert(result.policy.reasonCodes.includes('approval_invalid'));
   assert.equal(called, false);
+
+  const policyRequest = {
+    schemaVersion: '1.0.0',
+    requestId: `polreq_${baseRequest.requestId}`,
+    correlationId: baseRequest.correlationId,
+    operationId: `tool:${manifest.id}:invoke`,
+    principal: baseRequest.trustedContext.principal,
+    workspaceId: baseRequest.workspaceId,
+    membership: baseRequest.trustedContext.membership,
+    action: 'tool.invoke',
+    resource: { type: 'tool', id: manifest.id, workspaceId: baseRequest.workspaceId, dataClass: baseRequest.dataClass },
+    environment: { ...baseRequest.trustedContext.environment, externalWritesEnabled: false },
+    capabilityRequest: {
+      toolId: manifest.id,
+      operation: 'invoke',
+      sideEffectClass: 'reversible-write',
+      filesystem: manifest.operations.invoke.filesystem,
+      network: [],
+      secretReferences: [],
+      dataClasses: ['workspace-private'],
+      sandbox: 'brokered-filesystem-write',
+      limits: manifest.operations.invoke.limits
+    },
+    trustedToolManifest: {
+      id: manifest.id,
+      riskClass: 'reversible-write',
+      operations: {
+        invoke: {
+          sideEffectClass: 'reversible-write',
+          filesystem: manifest.operations.invoke.filesystem,
+          network: [],
+          secretReferences: [],
+          dataClasses: ['workspace-private'],
+          sandbox: 'brokered-filesystem-write',
+          limits: manifest.operations.invoke.limits,
+          approval: { required: true }
+        }
+      }
+    },
+    approvalContext: null,
+    idempotencyKey: baseRequest.idempotencyKey,
+    trustedTimestamp: fixedNow,
+    payloadFingerprint: stableToolFingerprint(baseRequest.input)
+  };
+  const approved = await registry.execute({
+    ...baseRequest,
+    approvalContext: {
+      approvalId: 'appr_1',
+      operationFingerprint: canonicalOperationFingerprint(policyRequest),
+      workspaceId: baseRequest.workspaceId,
+      actorId: baseRequest.trustedContext.principal.userId,
+      approverId: 'usr_owner',
+      approvedAt: fixedNow,
+      expiresAt: '2026-06-20T00:01:00.000Z',
+      status: 'active',
+      policyVersion: POLICY_REGISTRY.version,
+      serverVerified: true
+    }
+  });
+
+  assert.equal(approved.status, 'completed');
+  assert.equal(approved.output.ok, true);
+  assert.equal(called, true);
 });
 
 test('workspace filesystem broker enforces reviewed manifest scopes', async (t) => {

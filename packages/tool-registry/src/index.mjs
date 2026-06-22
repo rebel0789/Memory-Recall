@@ -482,9 +482,13 @@ function approvalFingerprint(approval) {
   return approval ? stableToolFingerprint(approval) : null;
 }
 
-function assertNoCallerApprovalAuthority(approval) {
+function assertApprovalContextAllowed(approval, operation) {
+  if (!approval) return;
+  if (operation.approval?.required !== true && operation.sideEffectClass !== 'consequential-write') {
+    throw toolError('tool_approval_invalid', 'approval context is not accepted for this operation');
+  }
   for (const key of ['serverVerified', 'verifiedBy', 'approvalRecordFingerprint']) {
-    if (Object.hasOwn(approval ?? {}, key)) throw toolError('tool_approval_invalid', `caller-supplied approval authority is not accepted: ${key}`);
+    if (key !== 'serverVerified' && Object.hasOwn(approval, key)) throw toolError('tool_approval_invalid', `caller-supplied approval authority is not accepted: ${key}`);
   }
 }
 
@@ -1005,7 +1009,7 @@ export class ToolRegistry {
       if (!operation) throw toolError('tool_operation_not_declared', 'operation is not declared');
       span = this.#telemetry.startSpan('oaf.tool.invoke', toolSpanAttributes({ toolId: tool.manifest.id, toolVersion: tool.manifest.version, operation: operationName, sideEffectClass: operation.sideEffectClass, sandbox: operation.sandbox, correlationId: request.correlationId, workspaceId: request.workspaceId, runId: request.runId, stepId: request.stepId }), request.traceContext ?? { correlationId: request.correlationId, workspaceId: request.workspaceId, runId: request.runId });
       if (!SANDBOX_PROFILES.has(operation.sandbox)) throw toolError('tool_sandbox_unavailable', 'unsupported sandbox profile');
-      assertNoCallerApprovalAuthority(request.approvalContext);
+      assertApprovalContextAllowed(request.approvalContext, operation);
       boundedJsonBytes(request.input ?? {}, operation.limits.inputBytes ?? DEFAULT_LIMITS.inputBytes, 'tool_request_invalid');
       try { assertJsonSchema(operation.inputSchema, request.input ?? {}, 'tool input'); } catch { throw toolError('tool_input_schema_failed', 'input schema failed'); }
       await this.#emit('tool.requested', request, { toolId: tool.manifest.id, toolVersion: tool.manifest.version, manifestFingerprint: tool.manifestFingerprint, operation: operationName, inputFingerprint: inputFingerprint(request.input), sideEffectClass: operation.sideEffectClass, sandbox: operation.sandbox });

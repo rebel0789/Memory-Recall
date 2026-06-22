@@ -184,6 +184,17 @@ test('sufficiency requires the configured minimum evidence count', () => {
   assert.equal(result.selection.sufficiency.state, 'insufficient');
 });
 
+test('negative-context records use the negative category budget and assembly section', () => {
+  const result = selectContextCandidates(request({ requiredIds: ['neg_antipattern'], requiredEntities: [], tokenBudget: 80 }), [
+    candidate({ id: 'neg_antipattern', kind: 'negative-context', text: 'Absolute claims about unlimited memory are an anti-pattern.', tags: ['topic:auth'], relations: ['topic:auth'], tokens: 12 }),
+    candidate({ id: 'obs_auth', kind: 'observation', text: 'Authentication context manifest evidence after session expiry.', tags: ['topic:auth'], relations: ['topic:auth'], tokens: 12 })
+  ]);
+
+  const selected = result.manifest.selected.find((item) => item.id === 'neg_antipattern');
+  assert.equal(selected.category, 'negative');
+  assert.equal(result.selection.categoryBudgets.negative.selectedCount, 1);
+});
+
 test('eligibility remains fail closed before scoring optional candidates', () => {
   const result = selectContextCandidates(request({ tokenBudget: 80 }), [
     candidate({ id: 'obs_valid', text: 'Authentication context manifest evidence.', tags: ['topic:auth'] }),

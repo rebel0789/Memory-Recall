@@ -1100,7 +1100,7 @@ function selectionCategory(record) {
   if (['procedure', 'runbook'].includes(record.kind)) return 'procedures';
   if (['episode', 'memory'].includes(record.kind)) return 'episodes';
   if (record.kind === 'artifact') return 'artifacts';
-  if (['negative', 'retraction'].includes(record.kind) || ['retracted', 'quarantined'].includes(record.status)) return 'negative';
+  if (['negative', 'negative-context', 'retraction'].includes(record.kind) || ['retracted', 'quarantined'].includes(record.status)) return 'negative';
   if (record.kind === 'example') return 'examples';
   return 'other';
 }
