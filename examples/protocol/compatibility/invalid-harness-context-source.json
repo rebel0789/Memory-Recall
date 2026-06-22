@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "hctx_0123456789abcdee",
+  "workspaceId": "ws_local",
+  "harness": "codex",
+  "sourceKind": "instruction",
+  "scope": "repository",
+  "trust": "user-authored",
+  "dataClass": "workspace-private",
+  "provenance": {
+    "locator": "workspace://AGENTS.md",
+    "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "byteSize": 128
+  },
+  "reviewStatus": "scan-only",
+  "retention": "workspace",
+  "bodyHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "summary": "Repository instruction file discovered for Codex.",
+  "rawBody": "This field must be rejected.",
+  "redactions": {
+    "secretCount": 0,
+    "localPathCount": 0,
+    "reasonCodes": []
+  },
+  "createdAt": "2026-06-22T00:00:00.000Z",
+  "metadata": {
+    "scannerVersion": "0.1.0"
+  }
+}
