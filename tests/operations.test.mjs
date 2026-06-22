@@ -42,6 +42,11 @@ async function seededStateStore(directory) {
     state.events.push({ id: 'evt_ops_1', runId: 'run_ops', sequence: 1, type: 'run.started' });
     state.events.push({ id: 'evt_ops_2', runId: 'run_ops', sequence: 2, type: 'run.completed' });
     state.memories.push({ id: 'mem_ops', workspaceId: 'ws_ops', status: 'active' });
+    state.runs.push({ id: 'run_other', workspaceId: 'ws_other', status: 'completed' });
+    state.events.push({ id: 'evt_other_1', workspaceId: 'ws_other', runId: 'run_other', sequence: 1, type: 'run.started' });
+    state.memories.push({ id: 'mem_other', workspaceId: 'ws_other', status: 'active' });
+    state.approvals.push({ id: 'app_other', workspaceId: 'ws_other', runId: 'run_other', status: 'pending' });
+    state.artifacts.push({ id: 'art_other', workspaceId: 'ws_other', kind: 'artifact' });
     return state;
   });
   return store;
@@ -69,11 +74,19 @@ test('operations backup restores state and content-addressed artifacts with chec
 
   assert.equal(backup.ok, true);
   assert.equal(backup.manifest.externalWritesEnabled, false);
+  assert.equal(backup.manifest.components.state.runs, 1);
   assert.equal(backup.manifest.components.state.events, 2);
+  assert.equal(backup.manifest.components.state.memories, 1);
+  assert.equal(backup.manifest.components.state.approvals, 0);
+  assert.equal(backup.manifest.components.state.artifacts, 0);
   assert.equal(backup.manifest.components.artifacts.records, 1);
   assert.equal(backup.manifest.components.artifacts.tombstones, 1);
   assert.match(backup.stateChecksum, /^sha256:[a-f0-9]{64}$/);
   assert.equal((await verifyOperationsBackup({ source: backupRoot, appVersion: '0.2.0-dev' })).ok, true);
+  const backupState = JSON.parse(await readFile(path.join(backupRoot, 'state', 'state.json'), 'utf8'));
+  assert.deepEqual(backupState.runs.map((run) => run.id), ['run_ops']);
+  assert.deepEqual(backupState.events.map((event) => event.id), ['evt_ops_1', 'evt_ops_2']);
+  assert.equal(JSON.stringify(backupState).includes('ws_other'), false);
 
   const restoredArtifacts = new FilesystemArtifactStore({ root: path.join(root, 'restored-artifacts') });
   const restored = await restoreOperationsBackup({

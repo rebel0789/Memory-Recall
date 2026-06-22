@@ -180,6 +180,14 @@ test('local drafting verifies citations and rechecks edited similarity without p
     decidedAt:'2026-06-20T00:00:00.000Z',
     expiresAt:'2026-06-20T00:10:00.000Z'
   });
+  assert.throws(
+    ()=>createLocalDraft({
+      approval,
+      editedText:'This draft is too late.',
+      createdAt:'2026-06-20T00:10:00.000Z'
+    }),
+    (error)=>error.code==='approval_expired'
+  );
   const draft=createLocalDraft({
     approval,
     editedText:'Turn recovery into a reusable checklist.\n\nShow the retry boundary, the denied action, and the evidence IDs before asking anyone to trust the agent.',

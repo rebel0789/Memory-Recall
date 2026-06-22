@@ -104,6 +104,31 @@ function validateStateShape(state) {
   return state;
 }
 
+function scopeStateToWorkspace(state, workspaceId) {
+  const runs = state.runs.filter((run) => run.workspaceId === workspaceId);
+  const runIds = new Set(runs.map((run) => run.id).filter(Boolean));
+  const runIdCounts = new Map();
+  for (const run of state.runs) {
+    if (!run.id) continue;
+    runIdCounts.set(run.id, (runIdCounts.get(run.id) ?? 0) + 1);
+  }
+  const belongsByWorkspace = (record) => record?.workspaceId === workspaceId;
+  const belongsByUniqueRun = (record) => (
+    !record?.workspaceId &&
+    record?.runId &&
+    runIds.has(record.runId) &&
+    runIdCounts.get(record.runId) === 1
+  );
+  return {
+    ...state,
+    runs,
+    events: state.events.filter((event) => belongsByWorkspace(event) || belongsByUniqueRun(event)),
+    memories: state.memories.filter(belongsByWorkspace),
+    approvals: state.approvals.filter((approval) => belongsByWorkspace(approval) || belongsByUniqueRun(approval)),
+    artifacts: state.artifacts.filter(belongsByWorkspace)
+  };
+}
+
 function normalizeMigrationStatus(status) {
   assertPlainObject(status, 'migrationStatus');
   const plan = Array.isArray(status.plan) ? status.plan.map((item) => ({
@@ -235,7 +260,7 @@ export async function createOperationsBackup({
   await ensureEmptyDirectory(backupRoot);
   const timestamp = requireIso(createdAt, 'createdAt');
 
-  const state = validateStateShape(await stateStore.read());
+  const state = validateStateShape(scopeStateToWorkspace(validateStateShape(await stateStore.read()), normalizedWorkspace));
   const statePath = path.join(backupRoot, 'state', 'state.json');
   await writeJsonAtomic(statePath, state);
   const stateBytes = await readFile(statePath);

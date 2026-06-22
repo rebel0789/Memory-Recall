@@ -219,6 +219,49 @@ test('durable runtime persists timer, retry, approval, cancellation, idempotency
   reopened.close();
 });
 
+test('durable approval waits expire on worker tick without external resolution', async (t) => {
+  const directory = await tempDir(t);
+  let now = Date.parse('2026-06-20T00:00:00.000Z');
+  const clock = () => new Date(now).toISOString();
+  const runtime = new DurableSQLiteWorkflowRuntime({ dataRoot: directory, registry: createRegistry(), clock });
+  const definition = {
+    schemaVersion: '1.0.0',
+    id: 'workflow:approval-expiry',
+    version: '1.0.0',
+    name: 'Approval expiry workflow',
+    description: 'Proves abandoned approvals expire without external resolution',
+    steps: [{
+      id: 'approval',
+      kind: 'approval',
+      timeoutMs: 1000,
+      retry: { maxAttempts: 1 },
+      approval: { required: true, operationFingerprint: 'sha256:approval-expire', expiresInMs: 10 },
+      riskClass: 'consequential-write',
+      inputSchema: {},
+      outputSchema: {}
+    }]
+  };
+  await runtime.registerWorkflow(definition);
+  await runtime.start({ workspaceId: 'ws_local', workflowId: definition.id, workflowVersion: definition.version, runId: 'run_approval_expiry', input: {} });
+  await runtime.tick({ workerId: 'worker_expiry' });
+  let run = await runtime.get({ workspaceId: 'ws_local', runId: 'run_approval_expiry' });
+  assert.equal(run.status, 'waiting_approval');
+
+  now += 11;
+  const tick = await runtime.tick({ workerId: 'worker_expiry' });
+  assert.equal(tick.claimed, false);
+  assert.equal(tick.reason, 'expired_approvals');
+  assert.equal(tick.expiredApprovals, 1);
+  run = await runtime.get({ workspaceId: 'ws_local', runId: 'run_approval_expiry' });
+  assert.equal(run.status, 'failed');
+  assert.equal(run.error.code, 'approval_expired');
+  assert.equal(run.steps.approval.status, 'failed');
+  const history = await runtime.history({ workspaceId: 'ws_local', runId: 'run_approval_expiry' });
+  assert.ok(history.events.some((event) => event.type === 'approval.expired'));
+  assert.ok(history.events.some((event) => event.type === 'run.failed' && event.payload.code === 'approval_expired'));
+  runtime.close();
+});
+
 test('durable leases prevent concurrent execution and stale commits', async (t) => {
   const directory = await tempDir(t);
   let release;

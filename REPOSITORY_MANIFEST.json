@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-20T18:15:23.673Z",
+  "generatedAt": "2026-06-22T08:44:43.155Z",
   "fileCount": 689,
-  "totalBytes": 2224554,
+  "totalBytes": 2230981,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -1022,12 +1022,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "2fb0f8c454b7e1c32517677d7eca2bf2fe3692e990484e80f7461bb118b513a4"
+      "sha256": "992df4abfb4b6a23e2f61a67ffb3e61c5ab1db174298ec39ed1b4b2ea16904e1"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 1328,
-      "sha256": "00d24bed7353a06962e8f6414ef8b94a361f09d1280f649aa8993678f09a6775"
+      "sha256": "30ce804da431b4342872940bc1118b067e7535850208e661223a7b3bcd6da6f5"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1037,7 +1037,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1015,
-      "sha256": "725c183fa15c81f092eddc62e512b9ab42c68903e212174de64b792e1834bebe"
+      "sha256": "62ed2c549fccc9cb65e851126de2f192adda81fdb51eaecd5eac78cf9c973c0a"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1812,7 +1812,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 973,
-      "sha256": "7e34fc57acd1ab5ba2205320f21bfd9e33001f15118f58a4e76e8ed33eda43a8"
+      "sha256": "fb140e0ee4bb1a5d9a80f1f57252db667aff2a1211656ec57e87e79bc03af9c6"
     },
     {
       "path": "LICENSE",
@@ -1886,8 +1886,8 @@
     },
     {
       "path": "packages/content-intelligence/src/index.mjs",
-      "bytes": 26056,
-      "sha256": "4da48af21fa80d6d36a0bced12a0667148ad22a3cde4939a9b3a60529d8060bb"
+      "bytes": 26232,
+      "sha256": "06123398997eecc5e874eb73c731c2265a3783013d69d35149f438648d0d5722"
     },
     {
       "path": "packages/context-compiler/AGENTS.md",
@@ -1961,8 +1961,8 @@
     },
     {
       "path": "packages/operations/src/index.mjs",
-      "bytes": 18162,
-      "sha256": "0d10e311a9d9e1b5a561f22dec1c1eb2cbdc68dd14018ab094db5a715021ded5"
+      "bytes": 19207,
+      "sha256": "485a714486a6bddf134f3f1f90be461424e0f8f8f704eb2217aab793ab5acc57"
     },
     {
       "path": "packages/policy/package.json",
@@ -2667,7 +2667,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 31687,
-      "sha256": "cfed007d3b9bfd5c479b7f45288978172c758a9466b1e26624ebad3a2d9cd401"
+      "sha256": "bb706bd81ad75a79f5c0bf4d275ee31132a4e453b47997b460b89713c495fcd9"
     },
     {
       "path": "providers/AGENTS.md",
@@ -2841,8 +2841,8 @@
     },
     {
       "path": "providers/native/workflow-durable-sqlite/src/index.mjs",
-      "bytes": 49802,
-      "sha256": "6377ca80fddf884dc2b44855547a47e021d066e445062cc201e8fbf9a7244be4"
+      "bytes": 51664,
+      "sha256": "2cc70c85f224053cbf62f5aa5e4a4da27574e5dfe4d1db0da35440500ae25c5d"
     },
     {
       "path": "providers/native/workflow-embedded/package.json",
@@ -3151,8 +3151,8 @@
     },
     {
       "path": "tests/content-intelligence.test.mjs",
-      "bytes": 10380,
-      "sha256": "e259302d5db9aab9470a2b7428419bb247b905ee1b84d7ae84cdf6b211cb2480"
+      "bytes": 10585,
+      "sha256": "456fba1654a408f861017b293637c25d6b2520a931a02c49eeead13275f035b4"
     },
     {
       "path": "tests/context-assembly.test.mjs",
@@ -3266,8 +3266,8 @@
     },
     {
       "path": "tests/operations.test.mjs",
-      "bytes": 8692,
-      "sha256": "c3571e0c4219f9c39e520824616d1682bde5d7b9d60e6d4621d170cfb111b460"
+      "bytes": 9783,
+      "sha256": "12abca709267e72605b37cc3543380190c68bfdacb41575337039478770e0f49"
     },
     {
       "path": "tests/planning.test.mjs",
@@ -3361,8 +3361,8 @@
     },
     {
       "path": "tests/workflow-durable-sqlite.test.mjs",
-      "bytes": 13295,
-      "sha256": "8cd996e95605a01a3acd94a2bd12655acf87c4ce6a0240d0396dcdcd0884c34f"
+      "bytes": 15343,
+      "sha256": "e0b8b375680e9c18c81381a56c1fe7019d2d472d208b9e0a96b2f245c9de6ca3"
     },
     {
       "path": "tests/workflow-runtime.test.mjs",

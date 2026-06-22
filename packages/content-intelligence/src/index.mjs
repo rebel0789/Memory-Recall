@@ -496,6 +496,9 @@ export function createLocalDraft({
 } = {}) {
   assertPlainObject(approval, 'approval');
   if (approval.status !== 'approved') throw contentError('draft_requires_approved_candidate', `cannot draft from ${approval.status} approval`);
+  if (approval.expiresAt && Date.parse(approval.expiresAt) <= Date.parse(createdAt)) {
+    throw contentError('approval_expired', 'cannot draft from an expired approval');
+  }
   const text=editedText === null ? approval.preview.editableText : assertNonEmptyString(editedText, 'editedText');
   const edit=editDistance(approval.preview.editableText,text);
   return {

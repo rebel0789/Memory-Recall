@@ -539,11 +539,7 @@ export class DurableSQLiteWorkflowRuntime {
       if (approval.operation_fingerprint !== operationFingerprint) throw workflowError('approval_fingerprint_mismatch', 'approval operation fingerprint mismatch');
       if (approval.state !== 'pending') return { resolved: false, state: approval.state };
       if (Date.parse(approval.expires_at) <= Date.parse(now)) {
-        this.database.prepare("UPDATE approvals SET state = 'expired', resolved_at = ? WHERE workspace_id = ? AND run_id = ? AND approval_id = ?").run(now, workspaceId, runId, approvalId);
-        this.database.prepare("UPDATE runs SET status = 'failed', error_json = ?, completed_at = ?, updated_at = ? WHERE workspace_id = ? AND run_id = ?")
-          .run(boundedJson({ code: 'approval_expired', approvalId }, 'error payload', this.limits.errorPayloadBytes), now, now, workspaceId, runId);
-        this.#appendEvent({ workspaceId, runId, type: 'approval.expired', actorId, payload: { approvalId, stepId: approval.step_id } });
-        this.#appendEvent({ workspaceId, runId, type: 'run.failed', payload: { code: 'approval_expired' } });
+        this.#expireApprovalLocked({ approval, now, actorId });
         return { resolved: false, state: 'expired' };
       }
       this.database.prepare('UPDATE approvals SET state = ?, resolved_at = ?, actor_id = ?, decision = ? WHERE workspace_id = ? AND run_id = ? AND approval_id = ?')
@@ -561,6 +557,47 @@ export class DurableSQLiteWorkflowRuntime {
       this.#appendEvent({ workspaceId, runId, type: 'approval.resolved', actorId, payload: { approvalId, stepId: approval.step_id, decision } });
       return { resolved: true, decision };
     });
+  }
+
+  #expireApprovalLocked({ approval, now, actorId = 'system' }) {
+    const workspaceId = approval.workspace_id;
+    const runId = approval.run_id;
+    const approvalId = approval.approval_id;
+    const errorJson = boundedJson({ code: 'approval_expired', approvalId }, 'error payload', this.limits.errorPayloadBytes);
+    this.database.prepare("UPDATE approvals SET state = 'expired', resolved_at = ? WHERE workspace_id = ? AND run_id = ? AND approval_id = ?")
+      .run(now, workspaceId, runId, approvalId);
+    this.database.prepare("UPDATE steps SET status = 'failed', error_json = ?, updated_at = ? WHERE workspace_id = ? AND run_id = ? AND step_id = ?")
+      .run(errorJson, now, workspaceId, runId, approval.step_id);
+    this.database.prepare("UPDATE runs SET status = 'failed', error_json = ?, completed_at = ?, lease_owner = NULL, lease_expires_at = NULL, updated_at = ? WHERE workspace_id = ? AND run_id = ?")
+      .run(errorJson, now, now, workspaceId, runId);
+    this.#appendEvent({ workspaceId, runId, type: 'approval.expired', actorId, payload: { approvalId, stepId: approval.step_id } });
+    this.#appendEvent({ workspaceId, runId, type: 'run.failed', payload: { code: 'approval_expired' } });
+  }
+
+  #expirePendingApprovals(actorId = 'system') {
+    const now = this.clock();
+    const rows = this.database.prepare(`
+      SELECT approvals.*
+      FROM approvals
+      JOIN runs
+        ON runs.workspace_id = approvals.workspace_id
+       AND runs.run_id = approvals.run_id
+      WHERE approvals.state = 'pending'
+        AND approvals.expires_at <= ?
+        AND runs.status = 'waiting_approval'
+      ORDER BY approvals.expires_at ASC, approvals.approval_id ASC
+    `).all(now);
+    let expired = 0;
+    for (const row of rows) {
+      expired += this.#transaction(() => {
+        const approval = this.database.prepare('SELECT * FROM approvals WHERE workspace_id = ? AND run_id = ? AND approval_id = ?').get(row.workspace_id, row.run_id, row.approval_id);
+        const run = this.#run(row.workspace_id, row.run_id);
+        if (!approval || approval.state !== 'pending' || !run || run.status !== 'waiting_approval' || Date.parse(approval.expires_at) > Date.parse(now)) return 0;
+        this.#expireApprovalLocked({ approval, now, actorId });
+        return 1;
+      });
+    }
+    return expired;
   }
 
   #claim(workerId) {
@@ -599,11 +636,14 @@ export class DurableSQLiteWorkflowRuntime {
 
   async tick({ workerId = `worker_${randomUUID().slice(0, 8)}` } = {}) {
     assertString(workerId, 'workerId');
+    const expiredApprovals = this.#expirePendingApprovals();
     const run = this.#claim(workerId);
-    if (!run) return { claimed: false, reason: 'no_runnable_runs' };
+    if (!run) return expiredApprovals
+      ? { claimed: false, reason: 'expired_approvals', expiredApprovals }
+      : { claimed: false, reason: 'no_runnable_runs' };
     try {
       await this.#workClaim(run, workerId);
-      return { claimed: true, runId: run.run_id, workspaceId: run.workspace_id };
+      return { claimed: true, runId: run.run_id, workspaceId: run.workspace_id, ...(expiredApprovals ? { expiredApprovals } : {}) };
     } catch (error) {
       if (error.code === 'run_cancelled') return { claimed: true, runId: run.run_id, workspaceId: run.workspace_id, cancelled: true };
       throw error;
