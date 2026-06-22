@@ -1,0 +1,85 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, symlink } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { scanHarnessContext } from '../packages/harness-context/src/index.mjs';
+import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
+import harnessContextSourceSchema from '../packages/protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
+
+const fixedClock = () => '2026-06-22T00:00:00.000Z';
+
+async function workspace() {
+  return mkdtemp(path.join(os.tmpdir(), 'oaf-harness-context-'));
+}
+
+test('scans Codex AGENTS.md without exposing raw content', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), 'Use npm run ci. API_KEY=secret-value. Path /Users/rebel/private.txt');
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.equal(report.summary.totalAccepted, 1);
+  assert.equal(report.summary.totalSkipped, 0);
+  assert.equal(report.sources[0].harness, 'codex');
+  assert.equal(report.sources[0].sourceKind, 'instruction');
+  assert.equal(report.sources[0].redactions.secretCount, 1);
+  assert.equal(report.sources[0].redactions.localPathCount, 1);
+  assertJsonSchema(harnessContextSourceSchema, report.sources[0], 'harness context source');
+  const serialized = JSON.stringify(report);
+  assert(!serialized.includes('secret-value'));
+  assert(!serialized.includes('/Users/rebel/private.txt'));
+});
+
+test('scans Claude Code and Cursor documented project files', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, '.cursor', 'rules'), { recursive: true });
+  await writeFile(path.join(root, 'CLAUDE.md'), 'Prefer deterministic tests.');
+  await writeFile(path.join(root, '.cursor', 'rules', 'project.mdc'), 'Always run npm run check.');
+  await writeFile(path.join(root, '.cursor', 'mcp.json'), '{"mcpServers":{}}');
+
+  const report = await scanHarnessContext({ root, harnesses: ['claude-code', 'cursor'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.deepEqual(report.sources.map((source) => `${source.harness}:${source.sourceKind}`).sort(), [
+    'claude-code:instruction',
+    'cursor:mcp-config',
+    'cursor:rule'
+  ]);
+  for (const source of report.sources) assertJsonSchema(harnessContextSourceSchema, source, 'harness context source');
+});
+
+test('skips oversized AGENTS.md with a sanitized workspace locator', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), 'x'.repeat(70_000));
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', maxBytes: 1024, clock: fixedClock });
+
+  assert.equal(report.summary.totalAccepted, 0);
+  assert.equal(report.summary.totalSkipped, 1);
+  assert.deepEqual(report.skipped, [{ harness: 'codex', locator: 'workspace://AGENTS.md', reason: 'oversized' }]);
+});
+
+test('skips symlink AGENTS.md that escapes the workspace without exposing outside body', async () => {
+  const root = await workspace();
+  const outside = await workspace();
+  await writeFile(path.join(outside, 'outside.md'), 'outside file body');
+  await symlink(path.join(outside, 'outside.md'), path.join(root, 'AGENTS.md'));
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.equal(report.summary.totalAccepted, 0);
+  assert.equal(report.summary.totalSkipped, 1);
+  assert.equal(report.skipped[0].reason, 'symlink_escape');
+  assert.equal(report.skipped[0].locator, 'workspace://AGENTS.md');
+  assert(!JSON.stringify(report).includes('outside file body'));
+});
+
+test('scanner output is deterministic for the same input and fixed clock', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), 'Use npm run ci.');
+
+  const first = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+  const second = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.deepEqual(first, second);
+});
