@@ -9,8 +9,9 @@ export const HARNESS_CONTEXT_SCANNER_VERSION = '0.1.0';
 const DEFAULT_MAX_BYTES = 65_536;
 const SUPPORTED_HARNESSES = new Set(['codex', 'claude-code', 'cursor']);
 const CONTROL_BYTES = new Set([...Array.from({ length: 9 }, (_, index) => index), 11, 12, ...Array.from({ length: 18 }, (_, index) => index + 14)]);
-const SECRET_LIKE = /\b(?:api[_-]?key|token|secret|password|authorization)\s*[:=]\s*["']?[^"'\s]+/giu;
-const LOCAL_PATH = /\/Users\/[A-Za-z0-9._-]+\/[^\s"'`),;]*/gu;
+const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/giu;
+const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)*\/[A-Za-z0-9._ -]+\.[A-Za-z0-9]{1,16}/gu;
+const LOCAL_USER_ROOT = /\/Users\/[A-Za-z0-9._-]+(?=$|[\s"'`,;).])/gu;
 
 const STATIC_PROJECT_SOURCES = Object.freeze({
   codex: [
@@ -53,21 +54,30 @@ function countMatches(text, pattern) {
   return [...text.matchAll(pattern)].length;
 }
 
+function replaceWithCount(text, pattern, replacement) {
+  let count = 0;
+  const redacted = text.replace(pattern, () => {
+    count += 1;
+    return replacement;
+  });
+  return { redacted, count };
+}
+
 function redact(text) {
   const secretCount = countMatches(text, SECRET_LIKE);
   const withoutSecrets = text.replace(SECRET_LIKE, '[redacted-secret]');
-  const localPathCount = countMatches(withoutSecrets, LOCAL_PATH);
-  const redacted = withoutSecrets.replace(LOCAL_PATH, '[redacted-local-path]');
+  const filePaths = replaceWithCount(withoutSecrets, LOCAL_FILE_PATH, '[redacted-local-path]');
+  const rootPaths = replaceWithCount(filePaths.redacted, LOCAL_USER_ROOT, '[redacted-local-path]');
+  const localPathCount = filePaths.count + rootPaths.count;
   const reasonCodes = [];
   if (secretCount > 0) reasonCodes.push('secret_like_value');
   if (localPathCount > 0) reasonCodes.push('local_path');
-  return { redacted, secretCount, localPathCount, reasonCodes };
+  return { redacted: rootPaths.redacted, secretCount, localPathCount, reasonCodes };
 }
 
-function summaryFor({ harness, sourceKind, relativePath, redactedBody }) {
-  const compactSnippet = redactedBody.replace(/\s+/gu, ' ').trim().slice(0, 140);
-  const prefix = `${harness} ${sourceKind} ${toPosix(relativePath)}`;
-  return `${prefix}${compactSnippet ? `: ${compactSnippet}` : ''}`.slice(0, 240);
+function summaryFor({ harness, sourceKind, relativePath, redactions }) {
+  const counts = `redactions secrets=${redactions.secretCount} local_paths=${redactions.localPathCount}`;
+  return `${harness} ${sourceKind} ${workspaceLocator(relativePath)} ${counts}`.slice(0, 240);
 }
 
 async function cursorRuleDefinitions(root) {
@@ -149,7 +159,7 @@ async function scanSource({ root, rootReal, harness, definition, workspaceId, ma
     reviewStatus: 'scan-only',
     retention: 'workspace',
     bodyHash,
-    summary: summaryFor({ harness, sourceKind: definition.sourceKind, relativePath, redactedBody: redactions.redacted }),
+    summary: summaryFor({ harness, sourceKind: definition.sourceKind, relativePath, redactions }),
     redactions: {
       secretCount: redactions.secretCount,
       localPathCount: redactions.localPathCount,

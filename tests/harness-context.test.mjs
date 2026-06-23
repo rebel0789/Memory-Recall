@@ -31,6 +31,42 @@ test('scans Codex AGENTS.md without exposing raw content', async () => {
   assert(!serialized.includes('/Users/rebel/private.txt'));
 });
 
+test('redacts authorization tokens and local paths with spaces from reports', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), [
+    'API_KEY=secret-value',
+    'token=secret-value',
+    'secret: secret-value',
+    'password=secret-value',
+    'authorization=secret-value',
+    'Authorization: Bearer sk-live-token',
+    'Project path /Users/rebel/My Project/file.txt',
+    'Home path /Users/rebel'
+  ].join('\n'));
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.equal(report.sources[0].redactions.secretCount, 6);
+  assert.equal(report.sources[0].redactions.localPathCount, 2);
+  const serialized = JSON.stringify(report);
+  assert(!serialized.includes('sk-live-token'));
+  assert(!serialized.includes('/Users/rebel'));
+  assert(!serialized.includes('My Project'));
+  assert(!serialized.includes('file.txt'));
+});
+
+test('summary omits ordinary non-secret body text', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), 'unique plain project convention');
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.equal(report.sources[0].summary.includes('codex'), true);
+  assert.equal(report.sources[0].summary.includes('instruction'), true);
+  assert.equal(report.sources[0].summary.includes('AGENTS.md'), true);
+  assert(!JSON.stringify(report).includes('unique plain project convention'));
+});
+
 test('scans Claude Code and Cursor documented project files', async () => {
   const root = await workspace();
   await mkdir(path.join(root, '.cursor', 'rules'), { recursive: true });
