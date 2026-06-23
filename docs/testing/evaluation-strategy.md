@@ -38,6 +38,13 @@ manifest fingerprint verification, comparison output, required-governance
 overflow, persistence, zero excluded-text leakage, workspace isolation, and
 retry idempotency.
 
+OAF-031 context-intake preview adds deterministic harness-context benchmark
+checks for required locator recall, distractor exclusion, selected-token ratio,
+raw-body leakage, synthetic secret and local-path leakage, deterministic preview
+fingerprints, and zero active memory, source snapshots, model calls, network
+calls, external writes, or adapter activation. It is a preview gate only; it
+does not import memory or persist source bodies.
+
 OAF-018 adds deterministic context-feedback checks for selected-record use
 against a manifest, unselected-record rejection, non-causal feedback summaries,
 reversible selector experiments, default-promotion evaluation requirements, and

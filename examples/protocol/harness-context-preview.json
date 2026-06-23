@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "1.0.0",
+  "previewVersion": "0.1.0",
+  "id": "hctxprev_0123456789abcdef",
+  "workspaceId": "ws_local",
+  "createdAt": "2026-06-23T00:00:00.000Z",
+  "dryRun": true,
+  "scannerVersion": "0.1.0",
+  "scan": {
+    "rootFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "summary": {
+      "totalAccepted": 1,
+      "totalSkipped": 0,
+      "externalAdaptersEnabled": 0,
+      "externalWritesEnabled": false
+    },
+    "sources": [
+      {
+        "id": "hctx_0123456789abcdef",
+        "harness": "codex",
+        "sourceKind": "instruction",
+        "scope": "repository",
+        "trust": "user-authored",
+        "dataClass": "workspace-private",
+        "locator": "workspace://AGENTS.md",
+        "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "bodyHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "byteSize": 128,
+        "reviewStatus": "scan-only",
+        "retention": "workspace",
+        "redactions": {
+          "secretCount": 0,
+          "localPathCount": 0,
+          "reasonCodes": []
+        },
+        "summary": "codex instruction workspace://AGENTS.md redactions secrets=0 local_paths=0"
+      }
+    ],
+    "skipped": []
+  },
+  "candidates": {
+    "totalCount": 1,
+    "tokenTotal": 12,
+    "records": [
+      {
+        "id": "hctxrec_0123456789abcdef",
+        "sourceId": "hctx_0123456789abcdef",
+        "locator": "workspace://AGENTS.md",
+        "harness": "codex",
+        "sourceKind": "instruction",
+        "kind": "observation",
+        "category": "governance",
+        "tokens": 12,
+        "dataClass": "workspace-private",
+        "trustClass": "observed",
+        "scope": "workspace-private",
+        "status": "active",
+        "source": "harness-context:workspace://AGENTS.md",
+        "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ]
+  },
+  "manifest": {
+    "compilerVersion": "0.2.0",
+    "requestId": "ctxreq_hctxprev_0123456789abcdef",
+    "selectionPolicyFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "resultFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "budget": {
+      "available": 128,
+      "used": 12
+    },
+    "selected": [
+      {
+        "id": "hctxrec_0123456789abcdef",
+        "sourceId": "hctx_0123456789abcdef",
+        "locator": "workspace://AGENTS.md",
+        "harness": "codex",
+        "sourceKind": "instruction",
+        "kind": "observation",
+        "category": "governance",
+        "tokens": 12,
+        "score": 1.25,
+        "order": 1,
+        "reasonCodes": ["task_relevance", "token_efficient"],
+        "source": "harness-context:workspace://AGENTS.md",
+        "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "excluded": [],
+    "conflicts": [],
+    "warnings": [],
+    "coverage": {
+      "requested": [],
+      "selected": [],
+      "unresolved": []
+    }
+  },
+  "memoryPlan": {
+    "activeMemoryCreated": 0,
+    "proposedCount": 1,
+    "quarantinedCount": 0,
+    "items": [
+      {
+        "sourceId": "hctx_0123456789abcdef",
+        "locator": "workspace://AGENTS.md",
+        "harness": "codex",
+        "sourceKind": "instruction",
+        "action": "would_propose",
+        "reasonCodes": ["proposal_only", "review_required"]
+      }
+    ]
+  },
+  "metrics": {
+    "candidateTokenCount": 12,
+    "selectedTokenCount": 12,
+    "selectedTokenRatio": 1
+  },
+  "safeguards": {
+    "persisted": false,
+    "modelCalls": 0,
+    "networkCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false
+  },
+  "previewFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

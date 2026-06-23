@@ -1,8 +1,10 @@
 # OAF Context Intake Harness Bridge Design
 
 Date: 2026-06-22
-Status: proposed
-Scope: OAF-031 candidate design; not implemented in the current release candidate
+Status: partially implemented
+Scope: OAF-031 candidate design; scanner and preview benchmark slices are
+implemented on the OAF-031 branch, while import, handoff export, MCP exposure,
+and adapter work remain planned.
 
 ## Goal
 
@@ -44,6 +46,7 @@ Reference repositories:
 | `safishamsi/graphify` | Knowledge graph over code, SQL schemas, scripts, docs, papers, images, and videos for multiple harnesses | Treat as a future disabled candidate-source or graph adapter target only after commit pin, license review, checksum review, and conformance tests |
 | `oraios/serena` | MCP toolkit for semantic code retrieval, editing, refactoring, and project memories | Useful MCP read-tool reference; editing and refactoring tools require exact OAF grants and stay disabled by default |
 | `petabridge/memorizer`, `ipiton/agent-memory-mcp`, `jordanaftermidnight/localmem`, and similar MCP memory repos | Local MCP memory server patterns | Useful comparison set; most do not provide OAF's policy, approval, manifest, replay, and evidence guarantees |
+| `zzet/gortex` | Real code-intelligence engine with source-backed token-efficiency, retrieval-recall, wire-format, and latency benchmark fixtures | Copy benchmark discipline and narrow/lazy context surfaces, not the graph engine, daemon, embeddings, mutating MCP tools, or claims about code-retrieval superiority |
 
 ## User Experience
 
@@ -53,6 +56,7 @@ The first public-beta experience should be read-only and preview-first:
 npm run oaf -- context scan --from codex --dry-run
 npm run oaf -- context scan --from claude --dry-run
 npm run oaf -- context scan --from cursor --dry-run
+npm run oaf -- context preview --from all --root . --objective "Prepare handoff" --step "select harness context" --dry-run
 npm run oaf -- context import --from codex --proposal-only
 npm run oaf -- handoff export --for codex
 ```
@@ -210,27 +214,37 @@ default without the adapter review process.
 - Add tests for missing files, symlink escape, secret redaction, oversized files,
   unknown formats, and deterministic fingerprints.
 
-### Slice 2: Proposal-only import
+### Slice 2: Preview manifest and benchmark
+
+- Convert scanner output into temporary OAF context candidates.
+- Run the existing Context Compiler to produce selected/excluded decisions.
+- Publish only a sanitized preview report with locators, hashes, reason codes,
+  token counts, fingerprints, and proposal-only memory plan.
+- Add deterministic benchmark cases for required-locator recall, distractor
+  exclusion, token ratio, leakage, no persistence, no model calls, no network
+  calls, no external writes, and no adapter activation.
+
+### Slice 3: Proposal-only import
 
 - Convert scanner output into OAF context candidates.
 - Create memory proposals, not active memories.
 - Persist source snapshots only on explicit import.
 - Add events with fingerprints and counts only.
 
-### Slice 3: Handoff generation
+### Slice 4: Handoff generation
 
 - Export `.oaf/handoffs/<id>/HANDOFF.md`, `STATUS.json`,
   `CONTEXT_MANIFEST.json`, `EVENTS.jsonl`, and `CHECKS.sha256`.
 - Generate harness snippets for Codex, Claude Code, and Cursor that point back
   to the OAF handoff instead of duplicating large context bodies.
 
-### Slice 4: Read-only MCP wrapper
+### Slice 5: Read-only MCP wrapper
 
 - Wrap `packages/protocol-bridges` with a stdio composition.
 - Expose read-only resources first.
 - Require exact grants before any future write tool.
 
-### Slice 5: Evaluation and Supermemory comparison
+### Slice 6: Evaluation and Supermemory comparison
 
 - Add memory/context evaluation cases inspired by MemoryBench's separated
   quality, latency, and token reporting.

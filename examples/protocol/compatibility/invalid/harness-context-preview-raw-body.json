@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1.0.0",
+  "previewVersion": "0.1.0",
+  "id": "hctxprev_0123456789abcdef",
+  "workspaceId": "ws_local",
+  "createdAt": "2026-06-23T00:00:00.000Z",
+  "dryRun": true,
+  "scannerVersion": "0.1.0",
+  "rawBody": "This field must never be accepted in preview reports.",
+  "scan": {
+    "rootFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "summary": {
+      "totalAccepted": 0,
+      "totalSkipped": 0,
+      "externalAdaptersEnabled": 0,
+      "externalWritesEnabled": false
+    },
+    "sources": [],
+    "skipped": []
+  },
+  "candidates": {
+    "totalCount": 0,
+    "tokenTotal": 0,
+    "records": []
+  },
+  "manifest": {
+    "compilerVersion": "0.2.0",
+    "requestId": "ctxreq_hctxprev_0123456789abcdef",
+    "selectionPolicyFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "resultFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "budget": {
+      "available": 128,
+      "used": 0
+    },
+    "selected": [],
+    "excluded": [],
+    "conflicts": [],
+    "warnings": [],
+    "coverage": {
+      "requested": [],
+      "selected": [],
+      "unresolved": []
+    }
+  },
+  "memoryPlan": {
+    "activeMemoryCreated": 0,
+    "proposedCount": 0,
+    "quarantinedCount": 0,
+    "items": []
+  },
+  "metrics": {
+    "candidateTokenCount": 0,
+    "selectedTokenCount": 0,
+    "selectedTokenRatio": 0
+  },
+  "safeguards": {
+    "persisted": false,
+    "modelCalls": 0,
+    "networkCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false
+  },
+  "previewFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

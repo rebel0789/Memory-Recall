@@ -26,6 +26,9 @@ This repository is an **agent-ready development kit**, not a claim that the full
 - side-effect-free replay plans, run comparison, and reviewable learning proposals;
 - dry-run harness context scanner for documented Codex, Claude Code, and Cursor
   project files, with sanitized reports and no import/write path;
+- preview-only harness context compiler path with selected/excluded safe
+  locators, proposal-only memory plan, token-ratio metrics, and deterministic
+  benchmark gates;
 - versioned contract fixtures for 12 disabled external adapter targets;
 - tests, evaluations, repository checks, and agent task tooling;
 - no API key, paid service, database server, or external network required.
@@ -125,6 +128,7 @@ npm run protocol:validate      # v1 valid, invalid, and compatibility fixtures
 npm run native:smoke           # native memory, artifacts, Agent Pack, model
 npm run demo                   # complete synthetic workflow
 npm run oaf -- context scan --from codex --root . --dry-run
+npm run oaf -- context preview --from all --root . --objective "Prepare handoff" --step "select harness context" --dry-run
 npm run dev                    # local API and dashboard
 npm run ci                     # checks, protocol, tests, evaluations
 npm run verify:handoff         # full handoff gate plus manifests

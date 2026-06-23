@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "harness-context-preview-token-gate",
+  "thresholds": {
+    "requiredLocatorRecall": 1,
+    "distractorExclusionRate": 0.9,
+    "selectedTokenRatioMax": 0.65,
+    "caseDurationMsMax": 1000,
+    "suiteDurationMsMax": 5000
+  },
+  "cases": [
+    {
+      "id": "eval-codex-context-manifest-preview",
+      "harnesses": ["codex", "claude-code", "cursor"],
+      "objective": "context manifest compiler token efficiency",
+      "step": "select deterministic preview guidance",
+      "tokenBudget": 90,
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "body": "Context manifest compiler guidance: use deterministic preview, selected/excluded locators, and token efficiency gates."
+        },
+        {
+          "path": "CLAUDE.md",
+          "body": "Unrelated onboarding palette discussion. Unrelated onboarding palette discussion. Unrelated onboarding palette discussion. Unrelated onboarding palette discussion. Unrelated onboarding palette discussion. Unrelated onboarding palette discussion. Unrelated onboarding palette discussion. Unrelated onboarding palette discussion."
+        },
+        {
+          "path": ".cursor/rules/private.mdc",
+          "body": "API_KEY=fake-fixture-token\nA synthetic local instruction at /Users/example/private.txt should not appear."
+        }
+      ],
+      "expect": {
+        "selectedLocators": ["workspace://AGENTS.md"],
+        "excludedLocators": ["workspace://CLAUDE.md", "workspace://.cursor/rules/private.mdc"],
+        "forbiddenStrings": ["Context manifest compiler guidance", "fake-fixture-token", "/Users/example/private.txt"]
+      }
+    },
+    {
+      "id": "eval-cursor-handoff-preview",
+      "harnesses": ["codex", "cursor"],
+      "objective": "cursor rule safe handoff token budget",
+      "step": "select cursor handoff preview rule",
+      "tokenBudget": 90,
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "body": "Large unrelated release checklist. Large unrelated release checklist. Large unrelated release checklist. Large unrelated release checklist. Large unrelated release checklist. Large unrelated release checklist. Large unrelated release checklist. Large unrelated release checklist."
+        },
+        {
+          "path": ".cursor/rules/handoff.mdc",
+          "body": "Cursor handoff preview rule: keep harness output proposal-only and include selected locator hashes."
+        },
+        {
+          "path": ".cursorrules",
+          "body": "General formatting note without matching selector vocabulary. General formatting note without matching selector vocabulary. General formatting note without matching selector vocabulary."
+        }
+      ],
+      "expect": {
+        "selectedLocators": ["workspace://.cursor/rules/handoff.mdc"],
+        "excludedLocators": ["workspace://AGENTS.md", "workspace://.cursorrules"],
+        "forbiddenStrings": ["Cursor handoff preview rule", "Large unrelated release checklist"]
+      }
+    }
+  ]
+}

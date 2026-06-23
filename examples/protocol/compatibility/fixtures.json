@@ -380,6 +380,12 @@
       "expectedValid": true
     },
     {
+      "id": "harness-context-preview-valid",
+      "schema": "packages/protocol/schemas/harness-context-preview.schema.json",
+      "instance": "examples/protocol/harness-context-preview.json",
+      "expectedValid": true
+    },
+    {
       "id": "model-generation-request-current-valid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/model-generation-request.json",
@@ -587,6 +593,12 @@
       "id": "harness-context-source-invalid-raw-body",
       "schema": "packages/protocol/schemas/harness-context-source.schema.json",
       "instance": "examples/protocol/compatibility/invalid-harness-context-source.json",
+      "expectedValid": false
+    },
+    {
+      "id": "harness-context-preview-invalid-raw-body",
+      "schema": "packages/protocol/schemas/harness-context-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/harness-context-preview-raw-body.json",
       "expectedValid": false
     },
     {

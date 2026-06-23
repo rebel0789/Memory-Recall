@@ -22,6 +22,7 @@ import {
 import { createPolicyService } from '../packages/policy/src/index.mjs';
 import { canonicalOperationFingerprint, evaluateContextualPolicy, evaluatePolicy } from '../packages/policy/src/index.mjs';
 import { proposeMemory } from '../packages/memory-core/src/index.mjs';
+import { runHarnessContextBenchmarks } from '../packages/harness-context/src/index.mjs';
 import {
   ToolGrantService,
   ToolRegistry,
@@ -62,6 +63,20 @@ for(const test of contextCases){
   if(test.expect.candidateWarnings)check(`${test.id}: candidate warnings`,JSON.stringify(result.candidateGeneration?.warnings??[])===JSON.stringify(test.expect.candidateWarnings));
   if(test.expect.coverageSelected)check(`${test.id}: coverage selected`,test.expect.coverageSelected.every(entity=>selection?.coverage?.selected?.includes(entity)));
 }
+const harnessContextCases=JSON.parse(await readFile('evals/harness-context/cases.json','utf8'));
+const harnessContextResult=await runHarnessContextBenchmarks(harnessContextCases,{clock:()=>'2026-06-23T00:00:00.000Z'});
+check('harness-context-preview: benchmark gate passes',harnessContextResult.passed===true);
+check('harness-context-preview: required locator recall',harnessContextResult.metrics.requiredLocatorRecall===1);
+check('harness-context-preview: distractor exclusion',harnessContextResult.metrics.distractorExclusionRate>=0.9);
+check('harness-context-preview: selected token ratio',harnessContextResult.metrics.selectedTokenRatio<=0.65);
+check('harness-context-preview: no secret leakage',harnessContextResult.metrics.secretLeakageCount===0);
+check('harness-context-preview: no local path leakage',harnessContextResult.metrics.localPathLeakageCount===0);
+check('harness-context-preview: no raw body leakage',harnessContextResult.metrics.rawBodyLeakageCount===0);
+check('harness-context-preview: no active memory or snapshots',harnessContextResult.metrics.activeMemoryCreated===0&&harnessContextResult.metrics.sourceSnapshotsWritten===0);
+check('harness-context-preview: no model or network calls',harnessContextResult.metrics.modelCalls===0&&harnessContextResult.metrics.networkCalls===0);
+check('harness-context-preview: adapters and writes disabled',harnessContextResult.metrics.externalAdaptersEnabled===0&&harnessContextResult.metrics.externalWritesEnabled===false);
+check('harness-context-preview: deterministic fingerprints',harnessContextResult.metrics.deterministicMismatchCount===0);
+check('harness-context-preview: all cases passed',harnessContextResult.cases.every(item=>item.passed));
 class EvalManifestRepository{
   constructor(){this.rows=new Map()}
   async append({workspaceId,manifest}){const key=`${workspaceId}:${manifest.id}`;const existing=this.rows.get(key);if(existing){if(existing.manifestFingerprint!==manifest.manifestFingerprint){const error=new Error('manifest_identity_conflict');error.code='manifest_identity_conflict';throw error}return existing}this.rows.set(key,structuredClone(manifest));return manifest}
