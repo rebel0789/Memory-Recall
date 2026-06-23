@@ -46,18 +46,20 @@ test('redacts authorization tokens and local paths with spaces from reports', as
     'authorization=secret-value',
     'Authorization: Bearer sk-live-token',
     'Project path /Users/rebel/My Project/file.txt',
+    'Workspace directory /Users/rebel/Downloads/open-agent-fabric 2',
     'Home path /Users/rebel'
   ].join('\n'));
 
   const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
 
   assert.equal(report.sources[0].redactions.secretCount, 6);
-  assert.equal(report.sources[0].redactions.localPathCount, 2);
+  assert.equal(report.sources[0].redactions.localPathCount, 3);
   const serialized = JSON.stringify(report);
   assert(!serialized.includes('sk-live-token'));
   assert(!serialized.includes('/Users/rebel'));
   assert(!serialized.includes('My Project'));
   assert(!serialized.includes('file.txt'));
+  assert(!serialized.includes('open-agent-fabric 2'));
 });
 
 test('summary omits ordinary non-secret body text', async () => {
