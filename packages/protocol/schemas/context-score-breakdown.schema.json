@@ -22,7 +22,7 @@
             "required": ["sourceId", "sourceKind", "localRank", "contribution"],
             "properties": {
               "sourceId": { "type": "string", "minLength": 1 },
-              "sourceKind": { "enum": ["direct", "exact", "lexical", "vector", "graph", "temporal", "preference", "episode"] },
+              "sourceKind": { "enum": ["direct", "exact", "lexical", "ast-code", "vector", "graph", "temporal", "preference", "episode"] },
               "localRank": { "type": "integer", "minimum": 1 },
               "contribution": { "type": "number", "minimum": 0 }
             }

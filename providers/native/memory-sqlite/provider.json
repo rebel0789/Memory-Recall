@@ -13,12 +13,16 @@
     "memory.search.lexical",
     "memory.supersede",
     "memory.forget",
-    "memory.export"
+    "memory.export",
+    "memory.filesystemReports",
+    "memory.proposalQueue"
   ],
   "limits": {
     "queryLimit": 100,
     "textBytes": 1000000,
-    "search": "SQLite FTS5; no vector similarity"
+    "search": "SQLite FTS5; no vector similarity",
+    "proposalQueue": "SQLite table with idempotent fingerprints, leases, retries, and poison records",
+    "filesystemReports": "Generated workspace-local reports only; files are not canonical memory authority"
   },
   "dataPaths": [".local/memory.sqlite"],
   "experimental": true,

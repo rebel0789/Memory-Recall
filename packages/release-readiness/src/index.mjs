@@ -271,7 +271,7 @@ ${table(['Area', 'Evidence'], [
   ['Release', evidence.release],
   ['Phase', evidence.phase],
   ['Completed backlog tasks', `${evidence.completedTasks}/${evidence.taskCount}`],
-  ['Next task after OAF-030', evidence.nextTask],
+  ['Backlog status task', `${evidence.nextTask} (canonical 30-task release backlog; OAF-031 preview work is branch-local)`],
   ['Network default', evidence.defaults.network],
   ['External writes', String(evidence.defaults.externalWrites)],
   ['Model mode', evidence.defaults.modelMode],

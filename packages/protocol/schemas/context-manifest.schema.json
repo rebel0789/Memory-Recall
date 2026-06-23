@@ -4,6 +4,41 @@
   "title": "Context Manifest",
   "type": "object",
   "additionalProperties": false,
+  "$defs": {
+    "representationTier": {
+      "enum": [
+        "full",
+        "snippet",
+        "outline",
+        "locator-only",
+        "excluded"
+      ]
+    },
+    "representationHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tier",
+        "reasonCodes"
+      ],
+      "properties": {
+        "tier": {
+          "$ref": "#/$defs/representationTier"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_:-]*$"
+          }
+        }
+      }
+    },
+    "sha256Ref": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  },
   "required": [
     "schemaVersion",
     "id",
@@ -46,8 +81,84 @@
       "format": "date-time"
     },
     "manifestFingerprint": {
-      "type": "string",
-      "pattern": "^sha256:[a-f0-9]{64}$"
+      "$ref": "#/$defs/sha256Ref"
+    },
+    "etag": {
+      "$ref": "#/$defs/sha256Ref"
+    },
+    "deltaFrom": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "manifestId",
+        "etag",
+        "manifestFingerprint",
+        "assemblyFingerprint",
+        "unchangedRecordIds",
+        "addedRecordIds",
+        "removedRecordIds",
+        "changedRecordIds",
+        "assemblyChanged"
+      ],
+      "properties": {
+        "manifestId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "etag": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "manifestFingerprint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "assemblyFingerprint": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "unchangedRecordIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "addedRecordIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "removedRecordIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "changedRecordIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "assemblyChanged": {
+          "type": "boolean"
+        }
+      }
     },
     "budget": {
       "type": "object",
@@ -124,6 +235,9 @@
           },
           "text": {
             "type": "string"
+          },
+          "representationHint": {
+            "$ref": "#/$defs/representationHint"
           }
         }
       }
@@ -181,6 +295,9 @@
           },
           "text": {
             "type": "string"
+          },
+          "representationHint": {
+            "$ref": "#/$defs/representationHint"
           }
         }
       }
@@ -227,6 +344,12 @@
             "type": "string"
           }
         },
+        "representationTiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/representationTier"
+          }
+        },
         "selectedRecordIds": {
           "type": "array",
           "items": {
@@ -234,6 +357,10 @@
           }
         },
         "totalTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "originalTokens": {
           "type": "integer",
           "minimum": 0
         },
@@ -296,15 +423,24 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "originalTokens": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "source": {
                       "type": "string"
                     },
                     "text": {
                       "type": "string"
                     },
+                    "representation": {
+                      "$ref": "#/$defs/representationHint"
+                    },
                     "contentHash": {
-                      "type": "string",
-                      "pattern": "^sha256:[a-f0-9]{64}$"
+                      "$ref": "#/$defs/sha256Ref"
+                    },
+                    "representationHash": {
+                      "$ref": "#/$defs/sha256Ref"
                     }
                   }
                 }
@@ -313,8 +449,7 @@
           }
         },
         "assemblyFingerprint": {
-          "type": "string",
-          "pattern": "^sha256:[a-f0-9]{64}$"
+          "$ref": "#/$defs/sha256Ref"
         }
       }
     },

@@ -50,7 +50,7 @@ function detectConflicts(records) {
   return [...groups.entries()].filter(([,values])=>new Set(values.map(value=>JSON.stringify(value.value))).size>1).map(([key,values])=>({key,records:values,status:'unresolved'}));
 }
 
-export const CANDIDATE_SOURCE_KINDS = Object.freeze(['exact', 'lexical', 'vector', 'graph', 'temporal', 'preference', 'episode']);
+export const CANDIDATE_SOURCE_KINDS = Object.freeze(['exact', 'lexical', 'ast-code', 'vector', 'graph', 'temporal', 'preference', 'episode']);
 export const CANDIDATE_SOURCE_STATUSES = Object.freeze(['succeeded', 'failed', 'timed_out', 'cancelled', 'unavailable', 'denied', 'invalid_output', 'skipped']);
 export const CANDIDATE_FAILURE_CODES = Object.freeze([
   'source_unavailable',
@@ -759,6 +759,7 @@ export const CONTEXT_SELECTION_POLICY = deepFreeze({
     direct: 2,
     exact: 8,
     lexical: 4,
+    'ast-code': 4,
     vector: 3,
     graph: 3,
     temporal: 2,
@@ -872,7 +873,18 @@ const FEATURE_WEIGHT_KEYS = new Set([
 ]);
 const CATEGORY_NAMES = Object.freeze(['governance', 'workingState', 'decisions', 'preferences', 'evidence', 'procedures', 'episodes', 'artifacts', 'negative', 'examples', 'other']);
 export const ASSEMBLY_SECTION_ORDER = Object.freeze(['governance', 'negative', 'decisions', 'preferences', 'procedures', 'evidence', 'episodes', 'artifacts', 'examples', 'other', 'workingState']);
+export const CONTEXT_REPRESENTATION_TIERS = Object.freeze(['full', 'snippet', 'outline', 'locator-only', 'excluded']);
 export const CONTEXT_ASSEMBLY_POLICY = deepFreeze({
+  schemaVersion: '1.0.0',
+  policyVersion: '1.0.0',
+  sectionOrder: ASSEMBLY_SECTION_ORDER,
+  representationTiers: CONTEXT_REPRESENTATION_TIERS,
+  tokenAccounting: 'sum_selected_estimated_tokens',
+  selectedText: 'preserve_exact_selected_text',
+  excludedText: 'omit_from_durable_manifest',
+  fingerprintAlgorithm: 'sha256_canonical_json'
+});
+const LEGACY_CONTEXT_ASSEMBLY_POLICY = deepFreeze({
   schemaVersion: '1.0.0',
   policyVersion: '1.0.0',
   sectionOrder: ASSEMBLY_SECTION_ORDER,
@@ -1266,11 +1278,13 @@ function decisionFromScored(item, score, reasonCodes, order = null) {
     tokens: item.record.tokens,
     score: round(score),
     reasonCodes: [...new Set(reasonCodes)].sort(),
-    source: item.record.source,
+    source: safeManifestSource(item.record.source),
     text: item.record.text
   };
   if (order !== null) result.order = order;
   if (item.category) result.category = item.category;
+  const representationHint = normalizeRepresentationHint(item.record.metadata?.contextAssembly);
+  if (representationHint) result.representationHint = representationHint;
   return result;
 }
 
@@ -1440,6 +1454,7 @@ export function selectContextCandidates(request, inputCandidates, {
     selectionPolicyFingerprint: policyFingerprint,
     candidateGenerationFingerprint: hashRef(stableStringify(candidateGenerationSafeFingerprint(candidateGeneration, normalized))),
     totalCandidateCount: normalized.length,
+    totalCandidateTokenCount: totalCandidateTokens,
     eligibleCandidateCount: eligible.length,
     selectedCandidateCount: selected.length,
     selectedTokenCount: used,
@@ -1581,6 +1596,32 @@ function stripText(decision) {
   return safe;
 }
 
+const UNSAFE_MANIFEST_MATERIAL = /(?:^|[\s"'=:(])(?:\/Users\/|\/private\/|\/tmp\/|\/var\/folders\/|\/var\/tmp\/|\/Volumes\/|[A-Za-z]:\\)|workspace:\/\/\/(?:Users|private|tmp|var|Volumes)\//u;
+const SECRET_MANIFEST_MATERIAL = /(?:sk-[A-Za-z0-9_-]{20,}|(?:token|secret|password|authorization)=|SELECT\s+\*)/iu;
+
+function hasUnsafeManifestMaterial(value) {
+  const text = String(value ?? '');
+  return UNSAFE_MANIFEST_MATERIAL.test(text) || /^file:\/\//iu.test(text) || SECRET_MANIFEST_MATERIAL.test(text);
+}
+
+function safeManifestSource(value) {
+  const source = String(value ?? 'unknown').trim() || 'unknown';
+  return hasUnsafeManifestMaterial(source) ? 'redacted-source' : source;
+}
+
+function normalizeRepresentationHint(value) {
+  if (!value || typeof value !== 'object') return null;
+  const tier = CONTEXT_REPRESENTATION_TIERS.includes(value.tier) ? value.tier : null;
+  if (!tier) return null;
+  const reasonCodes = Array.isArray(value.reasonCodes)
+    ? [...new Set(value.reasonCodes.filter((item) => typeof item === 'string' && /^[a-z][a-z0-9_:-]*$/u.test(item)))].sort().slice(0, 8)
+    : ['explicit_representation_hint'];
+  return {
+    tier,
+    reasonCodes: reasonCodes.length ? reasonCodes : ['explicit_representation_hint']
+  };
+}
+
 function durableManifestId({ request, runId, selectedIds }) {
   return `ctx_${sha256(stableStringify({
     workspaceId: request.workspaceId ?? 'ws_local',
@@ -1607,7 +1648,112 @@ function assemblyCategory(item) {
   return ASSEMBLY_SECTION_ORDER.includes(item.category) ? item.category : 'other';
 }
 
+function representationForItem(item) {
+  const requestedTier = normalizeRepresentationHint(item.representationHint)?.tier ?? 'full';
+  const originalText = String(item.text ?? '');
+  const source = safeManifestSource(item.source);
+  const tier = CONTEXT_REPRESENTATION_TIERS.includes(requestedTier) ? requestedTier : 'full';
+  let text = originalText;
+  let reasonCodes = normalizeRepresentationHint(item.representationHint)?.reasonCodes ?? ['full_context_required'];
+  if (tier === 'snippet') {
+    const limit = 240;
+    text = originalText.length > limit ? `${originalText.slice(0, limit)}...` : originalText;
+    reasonCodes = [...new Set([...reasonCodes, 'snippet_compression'])].sort();
+  } else if (tier === 'outline') {
+    text = `${item.kind} ${item.id} from ${source}.`;
+    reasonCodes = [...new Set([...reasonCodes, 'outline_compression'])].sort();
+  } else if (tier === 'locator-only') {
+    text = `${item.kind} ${item.id} locator ${source}.`;
+    reasonCodes = [...new Set([...reasonCodes, 'locator_only_compression'])].sort();
+  } else if (tier === 'excluded') {
+    text = `${item.kind} ${item.id} excluded from assembly body.`;
+    reasonCodes = [...new Set([...reasonCodes, 'excluded_from_assembly_body'])].sort();
+  }
+  const representedTokens = tier === 'full' ? item.tokens : estimateTokens(text);
+  return {
+    tier,
+    text,
+    originalTokens: item.tokens,
+    representedTokens,
+    reasonCodes
+  };
+}
+
 function buildAssembly(selected, { policy = CONTEXT_ASSEMBLY_POLICY } = {}) {
+  const bySection = new Map(ASSEMBLY_SECTION_ORDER.map((id) => [id, []]));
+  for (const item of selected) bySection.get(assemblyCategory(item))?.push(item);
+  const sections = [];
+  let order = 1;
+  for (const sectionId of policy.sectionOrder) {
+    const items = [...(bySection.get(sectionId) ?? [])].sort((a, b) => {
+      const rank = (item) => item.kind === 'policy' ? 0 : item.kind === 'constraint' ? 1 : 2;
+      return rank(a) - rank(b) || (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id);
+    });
+    if (!items.length) continue;
+    const sectionItems = items.map((item) => {
+      const representation = representationForItem(item);
+      return {
+        id: item.id,
+        kind: item.kind,
+        tokens: representation.representedTokens,
+        originalTokens: representation.originalTokens,
+        source: safeManifestSource(item.source),
+        text: representation.text,
+        representation: {
+          tier: representation.tier,
+          reasonCodes: representation.reasonCodes
+        },
+        contentHash: manifestContentHash(item),
+        representationHash: hashRef(stableStringify({
+          id: item.id,
+          tier: representation.tier,
+          text: representation.text,
+          representedTokens: representation.representedTokens,
+          originalTokens: representation.originalTokens
+        }))
+      };
+    });
+    sections.push({
+      id: sectionId,
+      order: order++,
+      recordCount: sectionItems.length,
+      tokenCount: sectionItems.reduce((sum, item) => sum + item.tokens, 0),
+      recordIds: sectionItems.map((item) => item.id),
+      items: sectionItems
+    });
+  }
+  const selectedRecordIds = sections.flatMap((section) => section.recordIds);
+  const totalTokens = sections.reduce((sum, section) => sum + section.tokenCount, 0);
+  const originalTokens = sections.reduce((sum, section) => sum + section.items.reduce((itemSum, item) => itemSum + item.originalTokens, 0), 0);
+  const assemblyFingerprint = hashRef(stableStringify({
+    policyVersion: policy.policyVersion,
+    policyFingerprint: contextAssemblyPolicyFingerprint(policy),
+    sectionOrder: policy.sectionOrder,
+    sections: sections.map((section) => ({
+      id: section.id,
+      recordIds: section.recordIds,
+      tokenCount: section.tokenCount,
+      contentHashes: section.items.map((item) => item.contentHash),
+      representationHashes: section.items.map((item) => item.representationHash)
+    })),
+    totalTokens,
+    originalTokens
+  }));
+  return {
+    schemaVersion: '1.0.0',
+    assemblyPolicyVersion: policy.policyVersion,
+    assemblyPolicyFingerprint: contextAssemblyPolicyFingerprint(policy),
+    sectionOrder: policy.sectionOrder,
+    representationTiers: policy.representationTiers,
+    selectedRecordIds,
+    totalTokens,
+    originalTokens,
+    sections,
+    assemblyFingerprint
+  };
+}
+
+function buildLegacyAssembly(selected, { policy = LEGACY_CONTEXT_ASSEMBLY_POLICY } = {}) {
   const bySection = new Map(ASSEMBLY_SECTION_ORDER.map((id) => [id, []]));
   for (const item of selected) bySection.get(assemblyCategory(item))?.push(item);
   const sections = [];
@@ -1661,6 +1807,107 @@ function buildAssembly(selected, { policy = CONTEXT_ASSEMBLY_POLICY } = {}) {
   };
 }
 
+function manifestEtag({ durable, assembly }) {
+  return hashRef(stableStringify({
+    workspaceId: durable.workspaceId,
+    runId: durable.runId ?? null,
+    requestId: durable.requestId ?? null,
+    compilerVersion: durable.compilerVersion,
+    assemblyFingerprint: assembly.assemblyFingerprint,
+    selectedRecordIds: assembly.selectedRecordIds
+  }));
+}
+
+function manifestDeltaFrom(previousManifest, durable, assembly) {
+  if (!previousManifest) return null;
+  const previousSelected = new Map((previousManifest.selected ?? []).map((item) => [item.id, item]));
+  const nextSelected = new Map((durable.selected ?? []).map((item) => [item.id, item]));
+  const previousAssemblyItems = new Map((previousManifest.assembly?.sections ?? []).flatMap((section) => (section.items ?? []).map((item) => [item.id, item])));
+  const nextAssemblyItems = new Map((assembly.sections ?? []).flatMap((section) => (section.items ?? []).map((item) => [item.id, item])));
+  const unchangedRecordIds = [];
+  const changedRecordIds = [];
+  for (const [id, item] of nextSelected) {
+    const previous = previousSelected.get(id);
+    if (!previous) continue;
+    const previousAssemblyItem = previousAssemblyItems.get(id);
+    const nextAssemblyItem = nextAssemblyItems.get(id);
+    const previousContentHash = previousAssemblyItem?.contentHash ?? manifestContentHash(previous);
+    const nextContentHash = nextAssemblyItem?.contentHash ?? manifestContentHash(item);
+    const previousRepresentationHash = previousAssemblyItem?.representationHash ?? null;
+    const nextRepresentationHash = nextAssemblyItem?.representationHash ?? null;
+    if (
+      previousContentHash === nextContentHash &&
+      (!previousRepresentationHash || !nextRepresentationHash || previousRepresentationHash === nextRepresentationHash)
+    ) unchangedRecordIds.push(id);
+    else changedRecordIds.push(id);
+  }
+  return {
+    manifestId: previousManifest.id ?? null,
+    etag: previousManifest.etag ?? null,
+    manifestFingerprint: previousManifest.manifestFingerprint ?? null,
+    assemblyFingerprint: previousManifest.assembly?.assemblyFingerprint ?? null,
+    unchangedRecordIds: unchangedRecordIds.sort(),
+    addedRecordIds: [...nextSelected.keys()].filter((id) => !previousSelected.has(id)).sort(),
+    removedRecordIds: [...previousSelected.keys()].filter((id) => !nextSelected.has(id)).sort(),
+    changedRecordIds: changedRecordIds.sort(),
+    assemblyChanged: previousManifest.assembly?.assemblyFingerprint !== assembly.assemblyFingerprint
+  };
+}
+
+function tokenBudgetReport({ manifest, assembly, selection, request, deltaFrom }) {
+  const selectedOriginalTokens = (manifest.selected ?? []).reduce((sum, item) => sum + Number(item.tokens ?? 0), 0);
+  const assembledTokens = assembly.totalTokens;
+  const candidateTokens = Number(selection?.totalCandidateTokenCount ?? selectedOriginalTokens);
+  const requiredIds = new Set(request.requiredIds ?? []);
+  const requiredSelected = (manifest.selected ?? []).filter((item) => requiredIds.has(item.id)).length;
+  const requestedEntities = new Set(request.requiredEntities ?? []);
+  const selectedEntities = new Set(selection?.coverage?.selected ?? []);
+  const requiredEntityCoverage = requestedEntities.size
+    ? Number((selectedEntities.size / requestedEntities.size).toFixed(6))
+    : 1;
+  const compressionLossNotes = [];
+  for (const section of assembly.sections ?? []) {
+    for (const item of section.items ?? []) {
+      if (item.representation?.tier && item.representation.tier !== 'full') {
+        compressionLossNotes.push({
+          recordId: item.id,
+          tier: item.representation.tier,
+          reasonCodes: item.representation.reasonCodes ?? []
+        });
+      }
+    }
+  }
+  return {
+    selectedOriginalTokens,
+    assembledTokens,
+    totalCandidateTokens: candidateTokens,
+    budgetAvailable: manifest.budget?.available ?? request.tokenBudget ?? null,
+    budgetUsed: assembledTokens,
+    selectedTokenRatio: candidateTokens ? Number((selectedOriginalTokens / candidateTokens).toFixed(6)) : 0,
+    assembledTokenRatio: selectedOriginalTokens ? Number((assembledTokens / selectedOriginalTokens).toFixed(6)) : 0,
+    wastedTokenEstimate: Math.max(0, selectedOriginalTokens - assembledTokens),
+    requiredEvidenceCoverage: {
+      requiredIds: {
+        requested: requiredIds.size,
+        selected: requiredSelected,
+        ratio: requiredIds.size ? Number((requiredSelected / requiredIds.size).toFixed(6)) : 1
+      },
+      requiredEntities: {
+        requested: requestedEntities.size,
+        selected: selectedEntities.size,
+        ratio: requiredEntityCoverage
+      }
+    },
+    compressionLossNotes: compressionLossNotes.sort((a, b) => a.recordId.localeCompare(b.recordId)),
+    delta: deltaFrom ? {
+      unchangedRecordCount: deltaFrom.unchangedRecordIds.length,
+      addedRecordCount: deltaFrom.addedRecordIds.length,
+      removedRecordCount: deltaFrom.removedRecordIds.length,
+      changedRecordCount: deltaFrom.changedRecordIds.length
+    } : null
+  };
+}
+
 function candidateGenerationSummary(candidateGeneration = null) {
   return {
     status: candidateGeneration?.status ?? null,
@@ -1689,7 +1936,7 @@ function fingerprintManifest(manifest) {
   return hashRef(stableStringify(copy));
 }
 
-export function createDurableContextManifest({ manifest, selection, request, runId = null, candidateGeneration = null, createdAt = null } = {}) {
+export function createDurableContextManifest({ manifest, selection, request, runId = null, candidateGeneration = null, createdAt = null, previousManifest = null } = {}) {
   assertPlainObject(manifest, 'context manifest');
   assertPlainObject(request, 'context request');
   const assembly = buildAssembly(manifest.selected ?? []);
@@ -1717,13 +1964,12 @@ export function createDurableContextManifest({ manifest, selection, request, run
       candidateGenerationFingerprint: selection.candidateGenerationFingerprint
     } : null,
     candidateGeneration: candidateGenerationSummary(candidateGeneration),
-    tokenAccounting: {
-      selectedTokens: assembly.totalTokens,
-      budgetUsed: manifest.budget?.used ?? 0,
-      budgetAvailable: manifest.budget?.available ?? null
-    },
+    tokenAccounting: {},
     fingerprintAlgorithm: 'sha256'
   };
+  durable.etag = manifestEtag({ durable, assembly });
+  durable.deltaFrom = manifestDeltaFrom(previousManifest, durable, assembly);
+  durable.tokenAccounting = tokenBudgetReport({ manifest, assembly, selection, request, deltaFrom: durable.deltaFrom });
   durable.budget = { ...(durable.budget ?? {}), used: assembly.totalTokens };
   durable.manifestFingerprint = fingerprintManifest(durable);
   return durable;
@@ -1742,12 +1988,14 @@ export function verifyContextManifest(manifest) {
     if (stableStringify(selectedIds) !== stableStringify(manifest.assembly.selectedRecordIds ?? [])) throw new Error('assembly_order_mismatch');
     const sectionTokens = (manifest.assembly.sections ?? []).reduce((sum, section) => sum + Number(section.tokenCount ?? 0), 0);
     if (sectionTokens !== manifest.assembly.totalTokens || sectionTokens !== manifest.budget?.used) throw new Error('token_accounting_mismatch');
+    if (manifest.etag) requireString(manifest.etag, 'context manifest etag', { maxBytes: 80, pattern: /^sha256:[a-f0-9]{64}$/ });
     if ((manifest.excluded ?? []).some((item) => Object.prototype.hasOwnProperty.call(item, 'text'))) throw new Error('excluded_text_present');
-    const rebuiltAssembly = buildAssembly(manifest.selected ?? []);
+    const legacyAssembly = !Object.prototype.hasOwnProperty.call(manifest.assembly, 'representationTiers') && !Object.prototype.hasOwnProperty.call(manifest.assembly, 'originalTokens');
+    const rebuiltAssembly = legacyAssembly ? buildLegacyAssembly(manifest.selected ?? []) : buildAssembly(manifest.selected ?? []);
     if (rebuiltAssembly.assemblyFingerprint !== manifest.assembly.assemblyFingerprint) throw new Error('assembly_fingerprint_mismatch');
     if (fingerprintManifest(manifest) !== manifest.manifestFingerprint) throw new Error('manifest_fingerprint_mismatch');
     const serialized = JSON.stringify(manifest);
-    if (/\/Users\/[^"\\\s]+/.test(serialized) || /SELECT\s+\*/i.test(serialized) || /sk-[A-Za-z0-9_-]{20,}/.test(serialized)) throw new Error('unsafe_manifest_material');
+    if (hasUnsafeManifestMaterial(serialized)) throw new Error('unsafe_manifest_material');
     return { valid: true, manifestId: manifest.id, manifestFingerprint: manifest.manifestFingerprint, assemblyFingerprint: manifest.assembly.assemblyFingerprint };
   } catch (error) {
     return { valid: false, code: error.message, manifestId: manifest?.id ?? null };
@@ -1796,6 +2044,7 @@ export function compareContextManifests(left, right) {
 export async function compileAndPersistContext(request, input, {
   manifestRepository,
   runId = null,
+  previousManifest = null,
   clock = nowIso,
   emitEvent = async () => {},
   afterPersist = null
@@ -1816,7 +2065,8 @@ export async function compileAndPersistContext(request, input, {
     request,
     runId,
     candidateGeneration: compiled.candidateGeneration ?? null,
-    createdAt
+    createdAt,
+    previousManifest
   });
   const verification = verifyContextManifest(durable);
   if (!verification.valid) {

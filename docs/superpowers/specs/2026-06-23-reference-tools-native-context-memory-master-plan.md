@@ -121,6 +121,12 @@ Deliverables:
 
 Do not use hosted judges or LLM-judged retrieval for merge gates.
 
+Status on this branch: the narrow benchmark truth-floor slice is implemented
+for native exact, full-context, lexical, and current-harness baselines with
+schema-validated datasets, phase artifacts, comparison reports, and a local CLI
+gate. AST/graph candidate sources, memory import, MCP exposure, adapters,
+embeddings, and optimizer work remain later phases.
+
 ### Phase 2: Native AST Code Candidate Source
 
 Start with JavaScript and TypeScript only.
@@ -138,6 +144,15 @@ Deliverables:
 Do not add tree-sitter runtime dependencies without an ADR. If parser
 dependencies are accepted later, pin them, document notices, and keep the
 dependency-free bootstrap path intact.
+
+Status on this branch: the first native AST code candidate-source slice is
+implemented as a dependency-free JS/TS static parser with safe workspace
+locators, line/byte ranges, symbol/import metadata, parse diagnostics, exact
+local slice reconstruction for tests, Context Compiler eval coverage, and a
+dependency-free JS/TS source index for definitions, references, imports,
+exports, callers, callees, file outlines, repository outlines, and content-hash
+journals. Tree-sitter, embeddings, graph indexing, daemon behavior, and
+mutating MCP tools remain out of scope.
 
 ### Phase 3: Native Derived Context Graph
 
@@ -159,6 +174,11 @@ transcription, or external LLM extraction to core.
 
 Add compression tiers and delta-aware manifests.
 
+Status: implemented on the OAF-031 context-intake branch with
+`CONTEXT_REPRESENTATION_TIERS`, manifest `etag`, `deltaFrom`, token budget
+reports, local-source redaction, legacy manifest schema compatibility,
+protocol schema coverage, unit tests, and deterministic eval checks.
+
 Deliverables:
 
 - context assembly tiers: full, snippet, outline, locator-only, excluded;
@@ -173,6 +193,13 @@ tool until OAF benchmarks run against the same fixtures.
 ### Phase 5: Memory Lifecycle And Filesystem UX
 
 Expose memory as local files and reports without making files authoritative.
+
+Status: reference subset implemented on the OAF-031 branch. The implemented
+slice includes generated memory profile and proposal reports, explicit
+`memoryPaths` proposal-source config, `oaf memory sgrep`, full memory lifecycle
+field persistence in the native SQLite provider, and a local SQLite proposal
+queue with leases, retries, and poison records. It does not enable external
+memory adapters or make generated files authoritative.
 
 Deliverables:
 
@@ -319,4 +346,3 @@ The safest first implementation after approval is Phase 1:
 
 That gives a hard measurement floor. Then AST and graph work can prove it is
 better instead of adding complexity on faith.
-

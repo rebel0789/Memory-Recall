@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "1.0.0",
+  "id": "memprops_bbbbbbbbbbbbbbbb",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "dryRun": true,
+  "summary": {
+    "proposalCount": 1,
+    "quarantinedCount": 1,
+    "skippedCount": 0
+  },
+  "items": [
+    {
+      "id": "mem_report_proposed",
+      "kind": "episode",
+      "status": "proposed",
+      "decision": "review",
+      "reasons": ["source_verification_required"],
+      "source": "workspace://notes/context.md",
+      "lifecycle": {
+        "status": "proposed",
+        "latestEvent": "memory.proposed",
+        "latestAt": "2026-06-23T00:00:00.000Z"
+      },
+      "evidenceIds": [],
+      "target": {
+        "locator": "workspace://memory/proposals/mem_report_proposed.md",
+        "format": "markdown"
+      },
+      "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "markdown": "# Memory Proposal mem_report_proposed\n\nGenerated from OAF proposal state for review. Editing this report is not a canonical memory write.\n\nGenerated: 2026-06-23T00:00:00.000Z\nStatus: proposed\nDecision: review\nKind: episode\nSource: workspace://notes/context.md\nReasons: source_verification_required\nEvidence: none\n\n## Proposed Text\n\nReview context profile with [redacted-local-path]."
+    },
+    {
+      "id": "mem_report_quarantined",
+      "kind": "episode",
+      "status": "quarantined",
+      "decision": "reject",
+      "reasons": ["possible_secret"],
+      "source": "tool-output",
+      "lifecycle": {
+        "status": "quarantined",
+        "latestEvent": "memory.proposed",
+        "latestAt": "2026-06-23T00:00:00.000Z"
+      },
+      "evidenceIds": [],
+      "target": {
+        "locator": "workspace://memory/proposals/mem_report_quarantined.md",
+        "format": "markdown"
+      },
+      "contentHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "markdown": "# Memory Proposal mem_report_quarantined\n\nGenerated from OAF proposal state for review. Editing this report is not a canonical memory write.\n\nGenerated: 2026-06-23T00:00:00.000Z\nStatus: quarantined\nDecision: reject\nKind: episode\nSource: tool-output\nReasons: possible_secret\nEvidence: none\n\n## Proposed Text\n\n[redacted-secret]"
+    }
+  ],
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false,
+    "localFilesWritten": 0
+  }
+}

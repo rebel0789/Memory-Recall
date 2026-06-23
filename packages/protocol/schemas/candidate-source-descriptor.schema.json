@@ -23,7 +23,7 @@
   },
   "$defs": {
     "kind": {
-      "enum": ["exact", "lexical", "vector", "graph", "temporal", "preference", "episode"]
+      "enum": ["exact", "lexical", "ast-code", "vector", "graph", "temporal", "preference", "episode"]
     }
   }
 }

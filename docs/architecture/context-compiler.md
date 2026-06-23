@@ -22,11 +22,11 @@ references, provenance, trust labels, and partial failure reports; then the
 OAF-011 selector performs eligibility, scoring, conflict detection, token
 budgeting, diversity, and final selection.
 
-The committed source kinds are `exact`, `lexical`, `vector`, `graph`,
-`temporal`, `preference`, and `episode`. Only native `exact` and `lexical`
-sources are implemented and enabled in the bootstrap. Future source kinds report
-`source_unavailable` when planned without a provider. They are not successful
-empty providers.
+The committed source kinds are `exact`, `lexical`, `ast-code`, `vector`,
+`graph`, `temporal`, `preference`, and `episode`. Native `exact`, `lexical`,
+and dependency-free JS/TS `ast-code` sources are implemented and enabled in the
+bootstrap. Future source kinds report `source_unavailable` when planned without
+a provider. They are not successful empty providers.
 
 Candidate sources must not perform hybrid fusion, global reranking, diversity
 selection, reserved token budgeting, context assembly, model query expansion,
@@ -69,7 +69,7 @@ selector stops at the smallest sufficient set instead of filling the window.
 
 1. **Authorize and normalize.** Remove inaccessible, malformed, quarantined, expired, retracted, and superseded candidates before ranking.
 2. **Force governance.** Include applicable policies, hard constraints, output schema, current plan, unresolved obligations, and explicitly referenced records.
-3. **Generate candidates.** Use source ports for exact references and lexical search now; semantic, graph, temporal, preference, and episode sources are declared but unavailable until later tasks.
+3. **Generate candidates.** Use source ports for exact references, lexical search, and dependency-free static JS/TS code evidence now; semantic, graph, temporal, preference, and episode sources are declared but unavailable until later tasks.
 4. **Resolve versions and conflicts.** Prefer active versions, preserve unresolved conflicts, and never silently merge contradictory values.
 5. **Fuse and rerank.** Apply weighted reciprocal rank fusion, deterministic feature weights, and stable tie-breaks.
 6. **Diversify and budget.** Select complementary records under token budget and category caps, with soft reserves recorded in policy.
@@ -85,14 +85,17 @@ assembly and repository persistence.
 
 The durable manifest records assembly policy version and fingerprint, ordered
 sections, selected IDs in final model-input order, selected text exactly as
-assembled, excluded decisions without raw text, token accounting, compiler
-version, selection fingerprints, source warnings and failures, conflicts, and a
-manifest fingerprint.
+assembled, explicit representation tiers, selected-original and assembled token
+counts, selected-token ratio, assembled-token ratio, excluded decisions without
+raw text, token accounting, compiler version, selection fingerprints, source
+warnings and failures, conflicts, a manifest `etag`, optional `deltaFrom`
+summaries, and a manifest fingerprint. Unsafe local source paths are redacted
+from durable source references before persistence.
 
 `manifestFingerprint` is the SHA-256 over canonical manifest JSON excluding the
 fingerprint field itself. `assemblyFingerprint` is the SHA-256 over the assembly
-policy, section order, record IDs, selected content hashes, and token estimates.
-Persistence failures stop before model invocation.
+policy, section order, record IDs, selected content hashes, representation
+hashes, and token estimates. Persistence failures stop before model invocation.
 
 ## Context-Use Feedback
 

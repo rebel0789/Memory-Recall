@@ -10,6 +10,7 @@ import {
   compileContextFromSources,
   createCandidateSourceRegistry,
   createFixtureRecordReader,
+  generateContextCandidates,
   createNativeExactCandidateSource,
   createNativeLexicalCandidateSource,
   createSelectorExperiment,
@@ -36,11 +37,14 @@ import {
   createDurableSmokeWorkflowDefinition,
   createDurableSmokeWorkflowRegistry
 } from '../providers/native/workflow-durable-sqlite/src/index.mjs';
+import { buildJsTsSourceIndex, createNativeAstCodeCandidateSource, querySourceIndex } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 import {
+  createBenchmarkDataset,
   createEvaluationDataset,
   createEvaluationExperiment,
   promoteTraceToEvaluationCase,
-  recordEvaluationReport
+  recordEvaluationReport,
+  runBenchmarkTruthFloor
 } from '../packages/evaluation-lab/src/index.mjs';
 let passed=0,failed=0;const check=(label,condition)=>{if(condition){console.log(`PASS ${label}`);passed++}else{console.error(`FAIL ${label}`);failed++}};
 const contextCases=JSON.parse(await readFile('evals/context-selection/cases.json','utf8'));
@@ -77,6 +81,64 @@ check('harness-context-preview: no model or network calls',harnessContextResult.
 check('harness-context-preview: adapters and writes disabled',harnessContextResult.metrics.externalAdaptersEnabled===0&&harnessContextResult.metrics.externalWritesEnabled===false);
 check('harness-context-preview: deterministic fingerprints',harnessContextResult.metrics.deterministicMismatchCount===0);
 check('harness-context-preview: all cases passed',harnessContextResult.cases.every(item=>item.passed));
+const truthFloorDataset=createBenchmarkDataset(JSON.parse(await readFile('evals/benchmark-truth-floor/cases.v1.json','utf8')));
+const truthFloorReport=await runBenchmarkTruthFloor(truthFloorDataset,{clock:()=>'2026-06-23T00:00:00.000Z',commitSha:'7a7630903d27137a425536b1eee6a40d8b41fd1c',runner:{name:'scripts/run-evals.mjs',version:'1.0.0'},subject:{kind:'context-benchmark',id:'native-context-baselines',version:'1.0.0',fingerprint:`sha256:${'c'.repeat(64)}`}});
+const truthFloorText=JSON.stringify(truthFloorReport);
+check('benchmark-truth-floor: gate passes',truthFloorReport.gateDecision==='pass');
+check('benchmark-truth-floor: native baselines covered',JSON.stringify(truthFloorReport.baselines.map(item=>item.name).sort())===JSON.stringify(['current-harness','exact','full','lexical']));
+check('benchmark-truth-floor: required evidence recall',truthFloorReport.metrics.requiredEvidenceRecall===1);
+check('benchmark-truth-floor: distractor exclusion',truthFloorReport.metrics.distractorExclusionRate>=0.9);
+check('benchmark-truth-floor: token efficiency',truthFloorReport.metrics.selectedTokenRatio<=truthFloorReport.thresholds.selectedTokenRatioMax);
+check('benchmark-truth-floor: no secret or path leakage',truthFloorReport.metrics.secretLeakageCount===0&&truthFloorReport.metrics.localPathLeakageCount===0);
+check('benchmark-truth-floor: no raw prompt context output leakage',truthFloorReport.metrics.rawPromptLeakageCount===0&&truthFloorReport.metrics.rawContextLeakageCount===0&&truthFloorReport.metrics.rawOutputLeakageCount===0);
+check('benchmark-truth-floor: no model or network calls',truthFloorReport.safeguards.modelCalls===0&&truthFloorReport.safeguards.networkCalls===0);
+check('benchmark-truth-floor: adapters and writes disabled',truthFloorReport.safeguards.externalAdaptersEnabled===0&&truthFloorReport.safeguards.externalWritesEnabled===false);
+check('benchmark-truth-floor: deterministic phase artifacts',truthFloorReport.metrics.deterministicMismatchCount===0&&truthFloorReport.phaseArtifacts.every(item=>/^sha256:[a-f0-9]{64}$/.test(item.artifactFingerprint)));
+check('benchmark-truth-floor: sanitized report body',!truthFloorText.includes('Auth incident policy requires')&&!truthFloorText.includes('Auth incident local-first evidence')&&!truthFloorText.includes('/Users/rebel')&&!truthFloorText.includes('credential-sentinel-value'));
+check('benchmark-truth-floor: report fingerprint',/^sha256:[a-f0-9]{64}$/.test(truthFloorReport.reportFingerprint));
+const astEvalDir=await mkdtemp(path.join(os.tmpdir(),'oaf-eval-ast-code-'));
+try{
+  await mkdir(path.join(astEvalDir,'src'),{recursive:true});
+  await writeFile(path.join(astEvalDir,'src','auth.ts'),[
+    "import { z } from 'zod';",
+    "import { compileContext } from '../context/compiler';",
+    'export class TokenResetService {',
+    '  async approveTokenReset(request) {',
+    '    const parsed = z.object({}).safeParse(request);',
+    "    return compileContext(parsed.success ? request : request, 'eval-private-body');",
+    '  }',
+    '}'
+  ].join('\n'));
+  const astSource=createNativeAstCodeCandidateSource({root:astEvalDir,workspaceId:'ws_ast_eval',clock:()=>'2026-06-23T00:00:00.000Z'});
+  const astRequest={schemaVersion:'1.0.0',requestId:'ccreq_eval_ast_code',correlationId:'req_eval_ast_code_000000',workspaceId:'ws_ast_eval',actorId:'usr_eval',taskId:'task_eval_ast_code',step:'select auth implementation evidence',objective:'approve token reset auth incident compile context',requiredIds:[],requiredEntities:['symbol:approveTokenReset','import:zod'],allowedDataClasses:['workspace-private'],allowedTrustClasses:['observed','verified'],allowedScopes:['workspace-private'],sourcePlan:[{kind:'ast-code',required:false,limit:5,timeoutMs:1000}],perSourceLimit:5,totalCandidateLimit:5,trustedTimestamp:'2026-06-23T00:00:00.000Z',tokenBudget:120};
+  const astGeneration=await generateContextCandidates(astRequest,{registry:createCandidateSourceRegistry([astSource]),recordReader:createFixtureRecordReader([])});
+  const astCompiled=await compileContextFromSources(astRequest,{registry:createCandidateSourceRegistry([astSource]),recordReader:createFixtureRecordReader([])});
+  const astText=JSON.stringify(astGeneration);
+  check('ast-code-source: source succeeds',astGeneration.status==='succeeded'&&astGeneration.reports.some(report=>report.sourceKind==='ast-code'&&report.status==='succeeded'));
+  check('ast-code-source: candidate selected',astCompiled.manifest.selected.some(item=>item.source?.startsWith('workspace://src/auth.ts#L')));
+  check('ast-code-source: symbol and import metadata',astGeneration.candidates.some(item=>item.record.tags.includes('symbol:approveTokenReset')&&item.record.tags.includes('import:zod')));
+  check('ast-code-source: no raw source body or local path leakage',!astText.includes('eval-private-body')&&!astText.includes(astEvalDir)&&!astText.includes('/Users/'));
+  check('ast-code-source: no model or network dependency',astSource.descriptor().methods.includes('js_ts_static_chunk')&&astSource.descriptor().kind==='ast-code');
+  await writeFile(path.join(astEvalDir,'src','workflow.ts'),[
+    "import { TokenResetService } from './auth';",
+    'export function runAuthWorkflow(request) {',
+    '  const service = new TokenResetService();',
+    '  return service.approveTokenReset(request);',
+    '}'
+  ].join('\n'));
+  const sourceIndex=await buildJsTsSourceIndex({root:astEvalDir,workspaceId:'ws_ast_eval',clock:()=>'2026-06-23T00:00:00.000Z'});
+  const sourceIndexText=JSON.stringify(sourceIndex);
+  check('source-index-js-ts: definition query',querySourceIndex(sourceIndex,{operation:'definition',name:'approveTokenReset'}).some(item=>item.kind==='method'));
+  check('source-index-js-ts: reference query',querySourceIndex(sourceIndex,{operation:'references',name:'approveTokenReset'}).some(item=>item.sourceLocator.startsWith('workspace://src/workflow.ts#L')));
+  check('source-index-js-ts: import and export queries',querySourceIndex(sourceIndex,{operation:'imports',module:'zod'}).length===1&&querySourceIndex(sourceIndex,{operation:'exports',name:'TokenResetService'}).some(item=>item.kind==='class'));
+  check('source-index-js-ts: caller and callee queries',querySourceIndex(sourceIndex,{operation:'callers',name:'approveTokenReset'}).some(item=>item.callerName==='runAuthWorkflow')&&querySourceIndex(sourceIndex,{operation:'callees',name:'runAuthWorkflow'}).some(item=>item.calleeName==='approveTokenReset'));
+  check('source-index-js-ts: repository and file outlines',sourceIndex.repositoryOutline.fileCount===2&&querySourceIndex(sourceIndex,{operation:'file-outline',locator:'workspace://src/auth.ts'}).length===1);
+  check('source-index-js-ts: content hash journal',sourceIndex.contentJournal.length===2&&sourceIndex.contentJournal.every(item=>/^sha256:[a-f0-9]{64}$/.test(item.contentHash)));
+  check('source-index-js-ts: no raw source or local path leakage',!sourceIndexText.includes('eval-private-body')&&!sourceIndexText.includes(astEvalDir)&&!sourceIndexText.includes('/Users/'));
+  check('source-index-js-ts: deterministic index fingerprint',/^sha256:[a-f0-9]{64}$/.test(sourceIndex.sourceIndexFingerprint)&&/^sha256:[a-f0-9]{64}$/.test(sourceIndex.symbolIndex.symbolIndexFingerprint));
+}finally{
+  await rm(astEvalDir,{recursive:true,force:true});
+}
 class EvalManifestRepository{
   constructor(){this.rows=new Map()}
   async append({workspaceId,manifest}){const key=`${workspaceId}:${manifest.id}`;const existing=this.rows.get(key);if(existing){if(existing.manifestFingerprint!==manifest.manifestFingerprint){const error=new Error('manifest_identity_conflict');error.code='manifest_identity_conflict';throw error}return existing}this.rows.set(key,structuredClone(manifest));return manifest}
@@ -103,6 +165,9 @@ check('persisted-manifest: zero leakage',!JSON.stringify(manifestResult.manifest
 check('persisted-manifest: workspace isolation',await manifestRepo.get({workspaceId:'ws_other',id:manifestResult.manifest.id})===null);
 const retry=await compileAndPersistContext(manifestRequest,manifestRecords,{manifestRepository:manifestRepo,runId:'run_eval_manifest',clock:()=>'2026-06-20T00:00:00.000Z'});
 check('persisted-manifest: retry idempotency',retry.manifest.manifestFingerprint===manifestResult.manifest.manifestFingerprint&&manifestRepo.rows.size===1);
+check('persisted-manifest: etag and token accounting report',/^sha256:[a-f0-9]{64}$/.test(manifestResult.manifest.etag)&&manifestResult.manifest.deltaFrom===null&&manifestResult.manifest.tokenAccounting.assembledTokens===manifestResult.manifest.assembly.totalTokens&&manifestResult.manifest.tokenAccounting.selectedTokenRatio<1&&manifestResult.manifest.tokenAccounting.assembledTokenRatio===1);
+const deltaManifest=await compileAndPersistContext({...manifestRequest,id:'ctxreq_eval_manifest_delta',requestId:'ctxreq_eval_manifest_delta'},manifestRecords,{manifestRepository:manifestRepo,runId:'run_eval_manifest_delta',previousManifest:manifestResult.manifest,clock:()=>'2026-06-20T00:00:00.000Z'});
+check('persisted-manifest: delta from previous manifest',deltaManifest.manifest.deltaFrom?.manifestId===manifestResult.manifest.id&&deltaManifest.manifest.deltaFrom.unchangedRecordIds.includes('policy_eval_manifest')&&deltaManifest.manifest.tokenAccounting.delta?.unchangedRecordCount>0);
 const feedbackOne=recordContextUseFeedback({id:'ctxuse_eval_a',manifest:manifestResult.manifest,runId:'run_eval_manifest',taskId:'task_oaf_018',actorId:'usr_eval',usedRecords:[{recordId:'policy_eval_manifest',evidenceRefs:['claim_eval_manifest'],outcomeRefs:['out_eval_accept']}],outcomeReferences:[{outcomeId:'out_eval_accept',kind:'accepted',observedAt:'2026-06-20T00:01:00.000Z',metric:'task_acceptance',direction:'positive'}],createdAt:'2026-06-20T00:01:00.000Z'});
 const feedbackTwo=recordContextUseFeedback({id:'ctxuse_eval_b',manifest:manifestResult.manifest,runId:'run_eval_manifest_retry',taskId:'task_oaf_018',actorId:'usr_eval',usedRecords:[{recordId:'obs_eval_manifest'}],outcomeReferences:[{outcomeId:'out_eval_revision',kind:'needs_revision',observedAt:'2026-06-20T00:02:00.000Z',metric:'task_acceptance',direction:'negative'}],createdAt:'2026-06-20T00:02:00.000Z'});
 const feedbackSummary=summarizeContextUseFeedback([feedbackOne,feedbackTwo]);

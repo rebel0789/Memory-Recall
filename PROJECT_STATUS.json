@@ -77,7 +77,10 @@
         "tests/context-selection.test.mjs",
         "tests/context-compiler.test.mjs",
         "tests/context-candidate-sources.test.mjs",
+        "tests/ast-code-candidate-source.test.mjs",
         "packages/protocol/schemas/candidate-source-request.schema.json",
+        "packages/protocol/schemas/ast-code-chunk.schema.json",
+        "packages/protocol/schemas/source-symbol-index.schema.json",
         "packages/protocol/schemas/context-candidate.schema.json",
         "packages/protocol/schemas/context-selection-policy.schema.json",
         "packages/protocol/schemas/context-selection-result.schema.json",
@@ -88,7 +91,7 @@
         "docs/implementation/OAF-012-context-manifests-note.md"
       ],
       "limitations": [
-        "Exact and lexical candidate sources only",
+        "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index queries",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Token estimate is approximate",
         "Manifest persistence is local native or repository-layer only; no production orchestration is implied"
@@ -102,15 +105,20 @@
         "packages/context-compiler/src/index.mjs",
         "providers/native/context-candidate-exact/provider.json",
         "providers/native/context-candidate-lexical/provider.json",
+        "providers/native/context-candidate-ast-code/provider.json",
         "providers/native/catalog.json",
         "tests/context-candidate-sources.test.mjs",
+        "tests/ast-code-candidate-source.test.mjs",
         "packages/adapter-contracts/src/index.mjs",
         "packages/protocol/schemas/candidate-source-descriptor.schema.json",
         "packages/protocol/schemas/candidate-source-hit.schema.json",
+        "packages/protocol/schemas/ast-code-chunk.schema.json",
+        "packages/protocol/schemas/source-symbol-index.schema.json",
         "docs/architecture/context-compiler.md"
       ],
       "limitations": [
-        "Only native exact and lexical sources are implemented and enabled",
+        "Only native exact, lexical, and AST-code sources are implemented and enabled",
+        "AST-code source is a dependency-free static JS/TS chunker and symbol index; it is not a full semantic parser, language server, graph index, or executor",
         "Vector, graph, temporal, preference, and episode sources are declared but unavailable",
         "Sources generate candidates only; final selection remains in the Context Compiler selector",
         "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
@@ -277,12 +285,24 @@
       "status": "reference",
       "evidence": [
         "packages/memory-core/src/index.mjs",
+        "packages/memory-core/src/filesystem-ux.mjs",
         "packages/protocol/schemas/memory-record.schema.json",
+        "packages/protocol/schemas/memory-profile-report.schema.json",
+        "packages/protocol/schemas/memory-proposals-report.schema.json",
+        "packages/protocol/schemas/memory-sgrep-report.schema.json",
+        "packages/protocol/schemas/memory-workspace-config.schema.json",
         "examples/protocol/memory-proposal.json",
-        "tests/memory-core.test.mjs"
+        "examples/protocol/memory-profile-report.json",
+        "examples/protocol/memory-proposals-report.json",
+        "examples/protocol/memory-sgrep-report.json",
+        "tests/memory-core.test.mjs",
+        "tests/memory-filesystem-ux.test.mjs",
+        "tests/cli.test.mjs"
       ],
       "limitations": [
         "Pure domain lifecycle gate; persistence/search remains delegated to native SQLite memory provider",
+        "Generated memory/profile.md and memory/proposals/*.md are reports only; file edits are not canonical memory writes",
+        "memoryPaths config is an explicit proposal source only and cannot activate memory",
         "No automatic activation from model, tool, external, or retrieved content",
         "No hosted memory provider, embeddings, vector database, graph database, connector ingestion, or external write"
       ]
@@ -639,11 +659,18 @@
       "status": "reference",
       "evidence": [
         "providers/native/memory-sqlite/src/index.mjs",
-        "tests/native-memory-sqlite.test.mjs"
+        "providers/native/memory-sqlite/provider.json",
+        "packages/protocol/schemas/memory-proposal-queue-record.schema.json",
+        "examples/protocol/memory-proposal-queue-record.json",
+        "tests/native-memory-sqlite.test.mjs",
+        "tests/memory-filesystem-ux.test.mjs",
+        "tests/cli.test.mjs"
       ],
       "limitations": [
         "Node 22 node:sqlite is experimental",
-        "No vector retrieval or evented review service yet"
+        "Search is lexical FTS5 plus report projection; no vector retrieval or graph search",
+        "Filesystem memory files are generated reports only and are not authoritative",
+        "No hosted memory provider, external sync, FUSE/NFS mount, API-key storage, or evented review service yet"
       ]
     },
     {
@@ -724,7 +751,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-06-22",
+    "asOf": "2026-06-23",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run bootstrap",
@@ -741,9 +768,9 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 218,
-    "protocolFixturesExpected": 103,
-    "evaluationsExpected": 105,
+    "testsExpected": 254,
+    "protocolFixturesExpected": 117,
+    "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
 }

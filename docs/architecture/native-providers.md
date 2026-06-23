@@ -6,7 +6,7 @@ Native providers make the local product useful without optional integrations. Th
 
 | Provider | Default | Purpose |
 | --- | --- | --- |
-| `native.memory.sqlite` | on | Versioned local memory with FTS5 candidate search |
+| `native.memory.sqlite` | on | Versioned local memory with FTS5 candidate search, generated filesystem reports, and proposal queue |
 | `native.artifacts.filesystem` | on | Workspace-scoped content-addressed artifacts and source snapshots |
 | `native.workflow.embedded` | on | Bounded local execution and checkpoints |
 | `native.workflow.durable-sqlite` | off | Local SQLite crash recovery baseline |
@@ -46,6 +46,32 @@ The native artifact provider implements `ArtifactStorePort` version `1.1.0`. It 
 
 The provider stores data under `.local/artifacts/workspaces/<workspace-id>/...`, never deduplicates across workspaces, rejects symlink escapes and traversal, and keeps external adapters disabled. It does not store large bodies in PostgreSQL. OAF-029 adds verified import of provider-owned workspace exports for local restore rehearsal; cloud sync, publishing, authentication, and background retention workers remain unsupported.
 
+## SQLite memory provider
+
+The native SQLite memory provider implements `MemoryBackendPort` for local
+workspace-scoped memory. It stores full memory-core lifecycle and review
+metadata, including decisions, reasons, evidence IDs, conflicts, verified and
+activated actors, and lifecycle events. Search uses SQLite FTS5 over local
+records; it is not vector retrieval, graph search, hosted memory, or external
+sync.
+
+OAF-031 adds a filesystem UX layer over canonical memory. `oaf memory profile`
+generates `memory/profile.md` from accepted active OAF memory only.
+`oaf memory proposals` generates `memory/proposals/*.md` reports for pending
+and quarantined records. These files are generated reports: editing them does
+not create or update canonical memory. `memoryPaths` config entries are
+explicit workspace-relative proposal sources only, bounded to local files and
+redacted before report output.
+
+`oaf memory sgrep` is a local source-grounded memory search command, not a
+replacement for shell `grep`. It returns lifecycle state, evidence IDs, and
+context-manifest reason codes when an explicit manifest is supplied. The
+provider also includes a SQLite proposal queue with idempotent fingerprints,
+leases, retry-to-pending, and poison/error records for local reconciliation.
+No network calls, model calls, external writes, Supermemory sync, FUSE/NFS
+mounts, API-key storage, or active-memory creation from ordinary file edits are
+enabled.
+
 ## Local identity provider
 
 The native identity provider implements `IdentityStorePort` version `1.0.0` for local-first authentication and workspace authorization:
@@ -75,9 +101,10 @@ external writes disabled.
 
 ## Context candidate-source providers
 
-The native exact and lexical providers implement `CandidateSourcePort` version
-`1.0.0`. They are conformance baselines for OAF-010 candidate generation, not
-storage engines and not final selectors.
+The native exact, lexical, and AST-code providers implement
+`CandidateSourcePort` version `1.0.0`. Exact and lexical remain the
+conformance baselines for OAF-010 candidate generation. None of these sources
+is a storage engine or final selector.
 
 The exact source performs workspace-scoped batch lookup through an injected
 provider-neutral record reader. It deduplicates requested IDs, preserves request
@@ -97,11 +124,21 @@ Both sources require contextual policy allow decisions before invocation and
 candidate-level policy allow decisions before output. Secret data is denied for
 model-context candidate generation by default.
 
-OAF-011 preserves these providers as conformance baselines. Hybrid fusion,
-global reranking, diversity, category caps, and token budgeting live in
-`packages/context-compiler/src/index.mjs`, not in the exact or lexical source
-providers. Vector, graph, temporal, preference, and episode source kinds remain
-declared but unavailable until later tasks add explicit providers.
+The AST-code source is a dependency-free static JS/TS chunker and symbol index
+for workspace files. It records parser version, workspace locator, byte and
+line ranges, scope chain, symbol/import/export metadata, sibling locators,
+signature hashes, exact reconstruction hashes, parse-error state, file
+outlines, repository outlines, and content-hash journals without returning raw
+source bodies or absolute local paths. It supports read-only definition,
+reference, import, export, caller, callee, file-outline, and repository-outline
+queries over the derived index. It is not a full semantic parser, language
+server, graph index, executor, or Tree-sitter runtime.
+
+OAF-011 preserves exact and lexical providers as conformance baselines. Hybrid
+fusion, global reranking, diversity, category caps, and token budgeting live in
+`packages/context-compiler/src/index.mjs`, not in candidate-source providers.
+Vector, graph, temporal, preference, and episode source kinds remain declared
+but unavailable until later tasks add explicit providers.
 
 ## Context manifest provider
 

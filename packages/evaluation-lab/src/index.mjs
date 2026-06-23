@@ -1,10 +1,22 @@
 import { createHash } from 'node:crypto';
+import {
+  compileContext,
+  compileContextFromSources,
+  createCandidateSourceRegistry,
+  createFixtureRecordReader,
+  createNativeExactCandidateSource,
+  createNativeLexicalCandidateSource,
+  generateContextCandidates
+} from '../../context-compiler/src/index.mjs';
+import { runHarnessContextBenchmarks } from '../../harness-context/src/index.mjs';
 
 export const EVALUATION_LAB_VERSION = '1.0.0';
 
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const COMMIT = /^[a-f0-9]{40}$/;
+const BENCHMARK_SUITES = new Set(['benchmark-truth-floor']);
+const BENCHMARK_BASELINES = Object.freeze(['exact', 'full', 'lexical', 'current-harness']);
 const DATASET_SUITES = new Set(['deterministic-regression', 'model-quality-shadow']);
 const EXPERIMENT_MODES = new Set(['deterministic', 'model-quality']);
 const RESULT_STATUSES = new Set(['passed', 'failed', 'skipped']);
@@ -134,6 +146,711 @@ export function createEvaluationDataset({
   return Object.freeze({ ...dataset, datasetFingerprint: fingerprint(dataset) });
 }
 
+export function createBenchmarkDataset({
+  id,
+  suite,
+  version,
+  owner,
+  sourceRefs,
+  cases,
+  createdAt,
+  thresholds = {},
+  description = ''
+} = {}) {
+  assertString(id, 'id', /^evalds_[A-Za-z0-9._:-]+$/);
+  if (!BENCHMARK_SUITES.has(suite)) throw new Error('suite must be benchmark-truth-floor');
+  assertString(version, 'version', SEMVER);
+  assertString(owner, 'owner');
+  assertDate(createdAt, 'createdAt');
+  const normalizedCases = (Array.isArray(cases) ? cases : []).map(normalizeBenchmarkCase);
+  if (!normalizedCases.length) throw new Error('benchmark cases are required');
+  const dataset = {
+    schemaVersion: '1.0.0',
+    id,
+    suite,
+    version,
+    owner,
+    description: String(description ?? '').slice(0, 240),
+    mergeGate: true,
+    sourceRefs: sortedUnique(sourceRefs, 'sourceRefs'),
+    thresholds: normalizeBenchmarkThresholds(thresholds),
+    cases: normalizedCases,
+    createdAt,
+    labVersion: EVALUATION_LAB_VERSION
+  };
+  return Object.freeze({ ...dataset, datasetFingerprint: fingerprint(dataset) });
+}
+
+function normalizeBenchmarkThresholds(thresholds) {
+  const value = assertObject(thresholds, 'thresholds');
+  return Object.freeze({
+    requiredEvidenceRecall: boundedNumber(value.requiredEvidenceRecall ?? 1, 'thresholds.requiredEvidenceRecall', 0, 1),
+    distractorExclusionRate: boundedNumber(value.distractorExclusionRate ?? 0.9, 'thresholds.distractorExclusionRate', 0, 1),
+    selectedTokenRatioMax: boundedNumber(value.selectedTokenRatioMax ?? 0.7, 'thresholds.selectedTokenRatioMax', 0, 1),
+    deterministicMismatchCount: boundedInteger(value.deterministicMismatchCount ?? 0, 'thresholds.deterministicMismatchCount', 0, 10_000)
+  });
+}
+
+function normalizeBenchmarkCase(input) {
+  const item = assertObject(input, 'benchmark case');
+  const requiredEvidenceIds = sortedUnique(item.requiredEvidenceIds, 'case.requiredEvidenceIds');
+  const distractorIds = sortedUnique(item.distractorIds ?? [], 'case.distractorIds');
+  const forbiddenIds = sortedUnique(item.forbiddenIds ?? [], 'case.forbiddenIds');
+  assertNoOverlap(requiredEvidenceIds, distractorIds, 'requiredEvidenceIds', 'distractorIds');
+  assertNoOverlap(requiredEvidenceIds, forbiddenIds, 'requiredEvidenceIds', 'forbiddenIds');
+  assertNoOverlap(distractorIds, forbiddenIds, 'distractorIds', 'forbiddenIds');
+  const normalized = {
+    id: assertString(item.id, 'case.id', /^evalcase_[A-Za-z0-9._:-]+$/),
+    workspaceId: assertString(item.workspaceId, 'case.workspaceId'),
+    question: safeString(item.question, 240),
+    objective: assertString(item.objective, 'case.objective'),
+    step: assertString(item.step, 'case.step'),
+    expectedAnswer: safeString(item.expectedAnswer ?? '', 240),
+    abstainWhenMissing: item.abstainWhenMissing === true,
+    tokenBudget: boundedInteger(item.tokenBudget, 'case.tokenBudget', 1, 1_000_000),
+    requiredEntities: sortedUnique(item.requiredEntities ?? [], 'case.requiredEntities'),
+    requiredEvidenceIds,
+    distractorIds,
+    forbiddenIds,
+    records: (Array.isArray(item.records) ? item.records : []).map(normalizeBenchmarkRecord).sort((a, b) => a.id.localeCompare(b.id))
+  };
+  if (!normalized.records.length) throw new Error('case.records are required');
+  if (item.harnessContext) normalized.harnessContext = normalizeHarnessBenchmarkCase(item.harnessContext, normalized);
+  return Object.freeze(normalized);
+}
+
+function normalizeBenchmarkRecord(input) {
+  const record = assertObject(input, 'case.record');
+  return Object.freeze({
+    id: assertString(record.id, 'record.id', /^[a-z][a-z0-9_.:-]*$/),
+    version: assertString(record.version ?? '1.0.0', 'record.version'),
+    kind: assertString(record.kind, 'record.kind'),
+    workspaceId: assertString(record.workspaceId, 'record.workspaceId'),
+    text: assertString(record.text, 'record.text'),
+    tags: sortedUnique(record.tags ?? [], 'record.tags'),
+    relations: sortedUnique(record.relations ?? [], 'record.relations'),
+    scope: assertString(record.scope ?? 'workspace-private', 'record.scope'),
+    dataClass: assertString(record.dataClass ?? 'workspace-private', 'record.dataClass'),
+    trustClass: assertString(record.trustClass ?? 'observed', 'record.trustClass'),
+    status: assertString(record.status ?? 'active', 'record.status'),
+    source: assertString(record.source ?? 'fixture', 'record.source'),
+    tokens: boundedInteger(record.tokens ?? 1, 'record.tokens', 1, 1_000_000),
+    confidence: boundedNumber(record.confidence ?? 0.5, 'record.confidence', 0, 1),
+    authority: boundedNumber(record.authority ?? 0.5, 'record.authority', 0, 1),
+    updatedAt: assertDate(record.updatedAt, 'record.updatedAt'),
+    contentHash: assertString(record.contentHash, 'record.contentHash', SHA256)
+  });
+}
+
+function normalizeHarnessBenchmarkCase(input, benchmarkCase) {
+  const value = assertObject(input, 'case.harnessContext');
+  const expect = assertObject(value.expect ?? {}, 'case.harnessContext.expect');
+  return Object.freeze({
+    harnesses: sortedUnique(value.harnesses ?? ['all'], 'case.harnessContext.harnesses'),
+    objective: String(value.objective ?? benchmarkCase.objective),
+    step: String(value.step ?? benchmarkCase.step),
+    tokenBudget: Number.isInteger(value.tokenBudget) ? value.tokenBudget : benchmarkCase.tokenBudget,
+    files: (Array.isArray(value.files) ? value.files : []).map((file) => {
+      const item = assertObject(file, 'case.harnessContext.file');
+      return Object.freeze({
+        path: assertString(item.path, 'case.harnessContext.file.path'),
+        body: assertString(item.body, 'case.harnessContext.file.body')
+      });
+    }),
+    expect: Object.freeze({
+      selectedLocators: sortedUnique(expect.selectedLocators ?? [], 'case.harnessContext.expect.selectedLocators'),
+      excludedLocators: sortedUnique(expect.excludedLocators ?? [], 'case.harnessContext.expect.excludedLocators'),
+      forbiddenStrings: sortedUnique(expect.forbiddenStrings ?? [], 'case.harnessContext.expect.forbiddenStrings')
+    })
+  });
+}
+
+export async function runBenchmarkTruthFloor(datasetInput, {
+  clock = () => new Date().toISOString(),
+  commitSha = '0000000000000000000000000000000000000000',
+  runner = { name: 'benchmark-truth-floor', version: EVALUATION_LAB_VERSION },
+  subject = {
+    kind: 'context-benchmark',
+    id: 'native-context-baselines',
+    version: EVALUATION_LAB_VERSION,
+    fingerprint: fingerprint({ kind: 'context-benchmark', id: 'native-context-baselines', version: EVALUATION_LAB_VERSION })
+  },
+  resumeFromPhaseArtifacts = []
+} = {}) {
+  const dataset = datasetInput?.datasetFingerprint ? datasetInput : createBenchmarkDataset(datasetInput);
+  if (dataset.suite !== 'benchmark-truth-floor') throw new Error('unsupported suite: benchmark-truth-floor expected');
+  assertString(commitSha, 'commitSha', COMMIT);
+  const generatedAt = clock();
+  assertDate(generatedAt, 'generatedAt');
+  const normalizedRunner = normalizeRunner(runner);
+  const normalizedSubject = normalizeSubject(subject);
+  if (!Array.isArray(resumeFromPhaseArtifacts)) throw new Error('resumeFromPhaseArtifacts must be an array');
+  const caseResults = [];
+
+  for (const testCase of dataset.cases) {
+    const baselines = [];
+    baselines.push(await runEvidenceBaseline('exact', testCase, { clock, thresholds: dataset.thresholds }));
+    baselines.push(await runEvidenceBaseline('full', testCase, { clock, thresholds: dataset.thresholds }));
+    baselines.push(await runEvidenceBaseline('lexical', testCase, { clock, thresholds: dataset.thresholds }));
+    baselines.push(await runHarnessBaseline(testCase, { clock, thresholds: dataset.thresholds }));
+    const caseMetrics = aggregateBaselineMetrics(baselines);
+    const passed = baselinePasses(caseMetrics, dataset.thresholds) && baselines.every((item) => item.status === 'passed');
+    const summary = {
+      caseId: testCase.id,
+      status: passed ? 'passed' : 'failed',
+      requiredEvidenceCount: testCase.requiredEvidenceIds.length,
+      distractorCount: testCase.distractorIds.length,
+      forbiddenCount: testCase.forbiddenIds.length,
+      baselines,
+      metrics: caseMetrics
+    };
+    caseResults.push(Object.freeze({ ...summary, caseFingerprint: fingerprint(summary) }));
+  }
+
+  const baselineSummaries = BENCHMARK_BASELINES.map((name) => {
+    const baselineCases = caseResults.map((item) => item.baselines.find((baseline) => baseline.name === name)).filter(Boolean);
+    const metrics = aggregateBaselineMetrics(baselineCases);
+    const passed = baselinePasses(metrics, dataset.thresholds) && baselineCases.every((item) => item.status === 'passed');
+    const summary = {
+      name,
+      status: passed ? 'passed' : 'failed',
+      caseCount: baselineCases.length,
+      metrics,
+      resultFingerprint: fingerprint(baselineCases.map((item) => ({
+        caseId: item.caseId,
+        status: item.status,
+        metrics: item.metrics,
+        selectedEvidenceIds: item.selectedEvidenceIds,
+        selectedLocatorIds: item.selectedLocatorIds,
+        errorCode: item.errorCode
+      })))
+    };
+    return Object.freeze(summary);
+  });
+  const baselineMetrics = aggregateBaselineMetrics(baselineSummaries);
+  const counts = {
+    passed: caseResults.filter((item) => item.status === 'passed').length,
+    failed: caseResults.filter((item) => item.status === 'failed').length,
+    caseCount: caseResults.length,
+    baselineCount: baselineSummaries.length
+  };
+  const initialGateDecision = counts.failed === 0 && baselineSummaries.every((item) => item.status === 'passed') && baselinePasses(baselineMetrics, dataset.thresholds) ? 'pass' : 'fail';
+  const initialPhaseArtifacts = buildPhaseArtifacts({ dataset, metrics: baselineMetrics, caseResults, baselineSummaries, generatedAt });
+  const reportBase = {
+    schemaVersion: '1.0.0',
+    id: `evalrep_${dataset.id.replace(/^evalds_/, '')}`,
+    suite: dataset.suite,
+    dataset: {
+      id: dataset.id,
+      version: dataset.version,
+      datasetFingerprint: dataset.datasetFingerprint,
+      caseCount: dataset.cases.length
+    },
+    subject: normalizedSubject,
+    commitSha,
+    runner: normalizedRunner,
+    generatedAt,
+    thresholds: dataset.thresholds,
+    metrics: baselineMetrics,
+    baselines: baselineSummaries,
+    cases: caseResults,
+    counts,
+    gateDecision: initialGateDecision,
+    safeguards: benchmarkSafeguards(baselineMetrics),
+    phaseArtifacts: initialPhaseArtifacts,
+    labVersion: EVALUATION_LAB_VERSION
+  };
+  const reportExposureLeakage = leakageMetricsForReport(reportBase, dataset);
+  const metrics = mergeLeakageMetrics(baselineMetrics, reportExposureLeakage);
+  const safeguards = benchmarkSafeguards(metrics);
+  const gateDecision = counts.failed === 0 && baselineSummaries.every((item) => item.status === 'passed') && baselinePasses(metrics, dataset.thresholds) ? 'pass' : 'fail';
+  const phaseArtifacts = reportExposureLeakage.hasLeakage
+    ? buildPhaseArtifacts({ dataset, metrics, caseResults, baselineSummaries, generatedAt })
+    : initialPhaseArtifacts;
+  const report = { ...reportBase, metrics, gateDecision, safeguards, phaseArtifacts };
+  return Object.freeze({ ...report, reportFingerprint: fingerprint(reportFingerprintPayload(report)) });
+}
+
+async function runEvidenceBaseline(name, testCase, { clock, thresholds }) {
+  const request = benchmarkRequestFor(testCase, name, clock());
+  try {
+    let manifest;
+    let selection;
+    let candidateGeneration = null;
+    let rankedIds = [];
+    let candidateTokenCount = visibleRecordTokenCount(testCase);
+    if (name === 'exact') {
+      const result = await compileContextFromSources(request, {
+        registry: createCandidateSourceRegistry([createNativeExactCandidateSource()]),
+        recordReader: createFixtureRecordReader(testCase.records),
+        clock
+      });
+      ({ manifest, selection, candidateGeneration } = result);
+      rankedIds = rankIdsFromCandidateGeneration(candidateGeneration, 'exact');
+      candidateTokenCount = Math.max(visibleRecordTokenCount(testCase), tokenCountFromCandidateGeneration(candidateGeneration));
+    } else if (name === 'lexical') {
+      const lexicalRequest = {
+        ...request,
+        requiredIds: [],
+        sourcePlan: [{ kind: 'lexical', required: false, limit: 10, timeoutMs: 1000 }]
+      };
+      candidateGeneration = await generateContextCandidates(lexicalRequest, {
+        registry: createCandidateSourceRegistry([createNativeLexicalCandidateSource()]),
+        recordReader: createFixtureRecordReader(testCase.records),
+        clock
+      });
+      const selected = compileContext(lexicalRequest, candidateGeneration.candidates);
+      manifest = selected;
+      selection = selected.selection;
+      rankedIds = rankIdsFromCandidateGeneration(candidateGeneration, 'lexical');
+      candidateTokenCount = Math.max(visibleRecordTokenCount(testCase), tokenCountFromCandidateGeneration(candidateGeneration));
+    } else {
+      manifest = compileContext(request, testCase.records);
+      selection = manifest.selection;
+      rankedIds = testCase.records
+        .filter((record) => record.workspaceId === testCase.workspaceId && record.dataClass !== 'secret')
+        .map((record) => record.id);
+    }
+    const selectedEvidenceIds = selectedSafeIds(manifest.selected ?? []);
+    const excludedEvidenceIds = selectedSafeIds(manifest.excluded ?? []);
+    const selectedTokenCount = (manifest.selected ?? []).reduce((sum, item) => sum + Number(item.tokens ?? 0), 0);
+    const metrics = scoreEvidenceBaseline({
+      testCase,
+      selectedEvidenceIds,
+      excludedEvidenceIds,
+      rankedIds,
+      selectedTokenCount,
+      candidateTokenCount,
+      deterministicMismatchCount: 0
+    });
+    const status = baselinePasses(metrics, thresholds) ? 'passed' : 'failed';
+    const summary = {
+      name,
+      caseId: testCase.id,
+      status,
+      selectedEvidenceIds,
+      excludedEvidenceIds,
+      selectedLocatorIds: [],
+      metrics,
+      resultFingerprint: selection?.resultFingerprint ?? fingerprint({ name, selectedEvidenceIds, excludedEvidenceIds, metrics })
+    };
+    return Object.freeze(summary);
+  } catch (error) {
+    return failedBaseline(name, testCase, error);
+  }
+}
+
+async function runHarnessBaseline(testCase, { clock, thresholds }) {
+  if (!testCase.harnessContext) return failedBaseline('current-harness', testCase, new Error('harness_context_missing'));
+  try {
+    const harnessDataset = {
+      schemaVersion: '1.0.0',
+      name: 'benchmark-truth-floor-current-harness',
+      thresholds: {
+        requiredLocatorRecall: 1,
+        distractorExclusionRate: 0.9,
+        selectedTokenRatioMax: 0.7,
+        caseDurationMsMax: 60_000,
+        suiteDurationMsMax: 60_000
+      },
+      cases: [{
+        id: testCase.id,
+        workspaceId: testCase.workspaceId,
+        harnesses: testCase.harnessContext.harnesses,
+        objective: testCase.harnessContext.objective,
+        step: testCase.harnessContext.step,
+        tokenBudget: testCase.harnessContext.tokenBudget,
+        files: testCase.harnessContext.files,
+        expect: testCase.harnessContext.expect
+      }]
+    };
+    const result = await runHarnessContextBenchmarks(harnessDataset, { clock });
+    const firstCase = result.cases[0] ?? {};
+    const metrics = normalizeBenchmarkMetrics({
+      requiredEvidenceRecall: result.metrics.requiredLocatorRecall,
+      distractorExclusionRate: result.metrics.distractorExclusionRate,
+      selectedTokenRatio: result.metrics.selectedTokenRatio,
+      secretLeakageCount: result.metrics.secretLeakageCount,
+      localPathLeakageCount: result.metrics.localPathLeakageCount,
+      rawContextLeakageCount: result.metrics.rawBodyLeakageCount,
+      deterministicMismatchCount: result.metrics.deterministicMismatchCount,
+      recallAt10: result.metrics.requiredLocatorRecall,
+      mrrAt10: result.metrics.requiredLocatorRecall,
+      ndcgAt10: result.metrics.requiredLocatorRecall
+    });
+    const status = result.passed && baselinePasses(metrics, thresholds) ? 'passed' : 'failed';
+    return Object.freeze({
+      name: 'current-harness',
+      caseId: testCase.id,
+      status,
+      selectedEvidenceIds: [],
+      excludedEvidenceIds: [],
+      selectedLocatorIds: sortedUnique(firstCase.selectedLocators ?? [], 'selectedLocatorIds'),
+      metrics,
+      resultFingerprint: firstCase.previewFingerprint ?? fingerprint({ name: 'current-harness', metrics })
+    });
+  } catch (error) {
+    return failedBaseline('current-harness', testCase, error);
+  }
+}
+
+function failedBaseline(name, testCase, error) {
+  return Object.freeze({
+    name,
+    caseId: testCase.id,
+    status: 'failed',
+    selectedEvidenceIds: [],
+    excludedEvidenceIds: [],
+    selectedLocatorIds: [],
+    errorCode: safeErrorCode(error),
+    metrics: normalizeBenchmarkMetrics({
+      requiredEvidenceRecall: 0,
+      distractorExclusionRate: 0,
+      selectedTokenRatio: 0,
+      deterministicMismatchCount: 0
+    }),
+    resultFingerprint: fingerprint({ name, caseId: testCase.id, errorCode: safeErrorCode(error) })
+  });
+}
+
+function benchmarkRequestFor(testCase, name, now) {
+  return {
+    schemaVersion: '1.0.0',
+    id: `ctxreq_${testCase.id}_${name}`.replaceAll('-', '_'),
+    requestId: `ctxreq_${testCase.id}_${name}`.replaceAll('-', '_'),
+    correlationId: `corr_${testCase.id}_${name}`.replaceAll('-', '_'),
+    workspaceId: testCase.workspaceId,
+    actorId: 'usr_benchmark',
+    taskId: 'task_benchmark_truth_floor',
+    objective: testCase.objective,
+    step: testCase.step,
+    requiredIds: name === 'lexical' ? [] : testCase.requiredEvidenceIds,
+    requiredEntities: testCase.requiredEntities,
+    allowedDataClasses: ['public', 'workspace-private'],
+    allowedTrustClasses: ['verified', 'trusted', 'observed'],
+    allowedScopes: ['public', 'workspace-private'],
+    sourcePlan: name === 'exact'
+      ? [{ kind: 'exact', required: true, limit: 10, timeoutMs: 1000 }]
+      : [{ kind: 'lexical', required: false, limit: 10, timeoutMs: 1000 }],
+    perSourceLimit: 10,
+    totalCandidateLimit: 20,
+    trustedTimestamp: now,
+    now,
+    tokenBudget: testCase.tokenBudget
+  };
+}
+
+function scoreEvidenceBaseline({
+  testCase,
+  selectedEvidenceIds,
+  rankedIds,
+  selectedTokenCount,
+  candidateTokenCount,
+  deterministicMismatchCount
+}) {
+  const selected = new Set(selectedEvidenceIds);
+  const required = testCase.requiredEvidenceIds;
+  const distractors = testCase.distractorIds;
+  const forbidden = testCase.forbiddenIds;
+  const requiredHits = required.filter((id) => selected.has(id)).length;
+  const distractorExcluded = distractors.filter((id) => !selected.has(id)).length;
+  const forbiddenIncluded = forbidden.filter((id) => selected.has(id)).length;
+  return normalizeBenchmarkMetrics({
+    requiredEvidenceRecall: required.length ? requiredHits / required.length : 1,
+    distractorExclusionRate: distractors.length ? distractorExcluded / distractors.length : 1,
+    selectedTokenRatio: candidateTokenCount ? selectedTokenCount / candidateTokenCount : 0,
+    secretLeakageCount: 0,
+    localPathLeakageCount: 0,
+    rawPromptLeakageCount: 0,
+    rawContextLeakageCount: 0,
+    rawOutputLeakageCount: 0,
+    deterministicMismatchCount,
+    recallAt10: recallAtK(rankedIds, required, 10),
+    mrrAt10: mrrAtK(rankedIds, required, 10),
+    ndcgAt10: ndcgAtK(rankedIds, required, 10),
+    forbiddenInclusionCount: forbiddenIncluded,
+    workspaceLeakageCount: forbiddenIncluded
+  });
+}
+
+function aggregateBaselineMetrics(items) {
+  const list = items.filter(Boolean);
+  if (!list.length) return normalizeBenchmarkMetrics({});
+  const metrics = {
+    requiredEvidenceRecall: average(list, 'requiredEvidenceRecall'),
+    distractorExclusionRate: average(list, 'distractorExclusionRate'),
+    selectedTokenRatio: average(list, 'selectedTokenRatio'),
+    secretLeakageCount: sum(list, 'secretLeakageCount'),
+    localPathLeakageCount: sum(list, 'localPathLeakageCount'),
+    rawPromptLeakageCount: sum(list, 'rawPromptLeakageCount'),
+    rawContextLeakageCount: sum(list, 'rawContextLeakageCount'),
+    rawOutputLeakageCount: sum(list, 'rawOutputLeakageCount'),
+    forbiddenInclusionCount: sum(list, 'forbiddenInclusionCount'),
+    workspaceLeakageCount: sum(list, 'workspaceLeakageCount'),
+    deterministicMismatchCount: sum(list, 'deterministicMismatchCount'),
+    durationMs: 0,
+    recallAt10: average(list, 'recallAt10'),
+    mrrAt10: average(list, 'mrrAt10'),
+    ndcgAt10: average(list, 'ndcgAt10')
+  };
+  return normalizeBenchmarkMetrics(metrics);
+}
+
+function normalizeBenchmarkMetrics(metrics) {
+  return Object.freeze({
+    requiredEvidenceRecall: roundMetric(metrics.requiredEvidenceRecall ?? 0),
+    distractorExclusionRate: roundMetric(metrics.distractorExclusionRate ?? 0),
+    selectedTokenRatio: roundMetric(metrics.selectedTokenRatio ?? 0),
+    secretLeakageCount: boundedInteger(metrics.secretLeakageCount ?? 0, 'metrics.secretLeakageCount', 0, 1_000_000),
+    localPathLeakageCount: boundedInteger(metrics.localPathLeakageCount ?? 0, 'metrics.localPathLeakageCount', 0, 1_000_000),
+    rawPromptLeakageCount: boundedInteger(metrics.rawPromptLeakageCount ?? 0, 'metrics.rawPromptLeakageCount', 0, 1_000_000),
+    rawContextLeakageCount: boundedInteger(metrics.rawContextLeakageCount ?? 0, 'metrics.rawContextLeakageCount', 0, 1_000_000),
+    rawOutputLeakageCount: boundedInteger(metrics.rawOutputLeakageCount ?? 0, 'metrics.rawOutputLeakageCount', 0, 1_000_000),
+    forbiddenInclusionCount: boundedInteger(metrics.forbiddenInclusionCount ?? 0, 'metrics.forbiddenInclusionCount', 0, 1_000_000),
+    workspaceLeakageCount: boundedInteger(metrics.workspaceLeakageCount ?? 0, 'metrics.workspaceLeakageCount', 0, 1_000_000),
+    deterministicMismatchCount: boundedInteger(metrics.deterministicMismatchCount ?? 0, 'metrics.deterministicMismatchCount', 0, 1_000_000),
+    durationMs: 0,
+    recallAt10: roundMetric(metrics.recallAt10 ?? metrics.requiredEvidenceRecall ?? 0),
+    mrrAt10: roundMetric(metrics.mrrAt10 ?? 0),
+    ndcgAt10: roundMetric(metrics.ndcgAt10 ?? 0)
+  });
+}
+
+function benchmarkSafeguards(metrics) {
+  return Object.freeze({
+    rawPromptsIncluded: false,
+    rawContextIncluded: false,
+    rawOutputsIncluded: false,
+    rawPathsIncluded: false,
+    secretsIncluded: false,
+    modelCalls: 0,
+    networkCalls: 0,
+    activeMemoryCreated: 0,
+    sourceSnapshotsWritten: 0,
+    externalAdaptersEnabled: 0,
+    externalWritesEnabled: false,
+    leakageCounts: {
+      secret: metrics.secretLeakageCount,
+      localPath: metrics.localPathLeakageCount,
+      rawPrompt: metrics.rawPromptLeakageCount,
+      rawContext: metrics.rawContextLeakageCount,
+      rawOutput: metrics.rawOutputLeakageCount,
+      forbiddenInclusion: metrics.forbiddenInclusionCount,
+      workspace: metrics.workspaceLeakageCount
+    }
+  });
+}
+
+function baselinePasses(metrics, thresholds) {
+  const limits = thresholds ?? defaultBenchmarkThresholds();
+  return metrics.requiredEvidenceRecall >= limits.requiredEvidenceRecall &&
+    metrics.distractorExclusionRate >= limits.distractorExclusionRate &&
+    metrics.selectedTokenRatio <= limits.selectedTokenRatioMax &&
+    metrics.secretLeakageCount === 0 &&
+    metrics.localPathLeakageCount === 0 &&
+    metrics.rawPromptLeakageCount === 0 &&
+    metrics.rawContextLeakageCount === 0 &&
+    metrics.rawOutputLeakageCount === 0 &&
+    metrics.forbiddenInclusionCount === 0 &&
+    metrics.workspaceLeakageCount === 0 &&
+    metrics.deterministicMismatchCount <= limits.deterministicMismatchCount;
+}
+
+function defaultBenchmarkThresholds() {
+  return {
+    requiredEvidenceRecall: 1,
+    distractorExclusionRate: 0.9,
+    selectedTokenRatioMax: 0.7,
+    deterministicMismatchCount: 0
+  };
+}
+
+function buildPhaseArtifacts({ dataset, metrics, caseResults, baselineSummaries, generatedAt }) {
+  return ['retrieval', 'assembly', 'comparison'].map((phase) => {
+    const artifact = {
+      schemaVersion: '1.0.0',
+      id: `evalphase_${dataset.id.replace(/^evalds_/, '')}_${phase}`,
+      suite: dataset.suite,
+      phase,
+      dataset: {
+        id: dataset.id,
+        version: dataset.version,
+        datasetFingerprint: dataset.datasetFingerprint,
+        caseCount: dataset.cases.length
+      },
+      generatedAt,
+      baselineNames: baselineSummaries.map((item) => item.name).sort(),
+      caseCount: caseResults.length,
+      metrics
+    };
+    return Object.freeze({ ...artifact, artifactFingerprint: fingerprint(artifact) });
+  });
+}
+
+function reportFingerprintPayload(report) {
+  return {
+    schemaVersion: report.schemaVersion,
+    id: report.id,
+    suite: report.suite,
+    dataset: report.dataset,
+    subject: report.subject,
+    commitSha: report.commitSha,
+    runner: report.runner,
+    generatedAt: report.generatedAt,
+    thresholds: report.thresholds,
+    metrics: report.metrics,
+    baselines: report.baselines,
+    cases: report.cases,
+    counts: report.counts,
+    gateDecision: report.gateDecision,
+    safeguards: report.safeguards,
+    phaseArtifacts: report.phaseArtifacts.map((item) => ({
+      id: item.id,
+      phase: item.phase,
+      artifactFingerprint: item.artifactFingerprint
+    })),
+    labVersion: report.labVersion
+  };
+}
+
+function leakageMetricsForReport(report, dataset) {
+  const serialized = stableStringify(report);
+  const rawContextNeedles = [];
+  const rawPromptNeedles = [];
+  const rawOutputNeedles = [];
+  const secretNeedles = [];
+  for (const testCase of dataset.cases ?? []) {
+    rawPromptNeedles.push(testCase.question, testCase.objective, testCase.step);
+    rawOutputNeedles.push(testCase.expectedAnswer);
+    for (const record of testCase.records ?? []) {
+      rawContextNeedles.push(record.text);
+      if (record.dataClass === 'secret') secretNeedles.push(record.text);
+    }
+    for (const file of testCase.harnessContext?.files ?? []) {
+      rawContextNeedles.push(file.body);
+    }
+  }
+  const metrics = {
+    secretLeakageCount: countPattern(serialized, SECRET_VALUE) + countNeedles(serialized, secretNeedles),
+    localPathLeakageCount: countPattern(serialized, LOCAL_PATH),
+    rawPromptLeakageCount: countNeedles(serialized, rawPromptNeedles),
+    rawContextLeakageCount: countNeedles(serialized, rawContextNeedles),
+    rawOutputLeakageCount: countNeedles(serialized, rawOutputNeedles)
+  };
+  return Object.freeze({ ...metrics, hasLeakage: Object.values(metrics).some((count) => count > 0) });
+}
+
+function mergeLeakageMetrics(metrics, leakage) {
+  return normalizeBenchmarkMetrics({
+    ...metrics,
+    secretLeakageCount: metrics.secretLeakageCount + leakage.secretLeakageCount,
+    localPathLeakageCount: metrics.localPathLeakageCount + leakage.localPathLeakageCount,
+    rawPromptLeakageCount: metrics.rawPromptLeakageCount + leakage.rawPromptLeakageCount,
+    rawContextLeakageCount: metrics.rawContextLeakageCount + leakage.rawContextLeakageCount,
+    rawOutputLeakageCount: metrics.rawOutputLeakageCount + leakage.rawOutputLeakageCount,
+    forbiddenInclusionCount: metrics.forbiddenInclusionCount,
+    workspaceLeakageCount: metrics.workspaceLeakageCount
+  });
+}
+
+function countNeedles(serialized, values) {
+  let count = 0;
+  for (const value of values) {
+    const needle = String(value ?? '').trim();
+    if (needle.length >= 16 && serialized.includes(needle)) count += 1;
+  }
+  return count;
+}
+
+function countPattern(serialized, pattern) {
+  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+  return [...serialized.matchAll(new RegExp(pattern.source, flags))].length;
+}
+
+function rankIdsFromCandidateGeneration(candidateGeneration, kind) {
+  return (candidateGeneration?.candidates ?? [])
+    .map((candidate) => {
+      const hit = (candidate.hits ?? []).find((item) => item.sourceKind === kind) ?? candidate.hits?.[0] ?? null;
+      return { id: candidate.record.id, rank: hit?.localRank ?? Number.MAX_SAFE_INTEGER };
+    })
+    .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id))
+    .map((item) => item.id);
+}
+
+function tokenCountFromCandidateGeneration(candidateGeneration) {
+  return (candidateGeneration?.candidates ?? []).reduce((sum, candidate) => sum + Number(candidate.record?.tokens ?? 0), 0);
+}
+
+function visibleRecordTokenCount(testCase) {
+  return testCase.records
+    .filter((record) => record.workspaceId === testCase.workspaceId && record.dataClass !== 'secret' && ['public', 'workspace-private'].includes(record.scope))
+    .reduce((sum, record) => sum + Number(record.tokens ?? 0), 0);
+}
+
+function selectedSafeIds(items) {
+  return sortedUnique(items.map((item) => item.id).filter(Boolean), 'selected ids');
+}
+
+function recallAtK(rankedIds, requiredIds, k) {
+  if (!requiredIds.length) return 1;
+  const top = new Set(rankedIds.slice(0, k));
+  return roundMetric(requiredIds.filter((id) => top.has(id)).length / requiredIds.length);
+}
+
+function mrrAtK(rankedIds, requiredIds, k) {
+  const required = new Set(requiredIds);
+  for (let index = 0; index < Math.min(k, rankedIds.length); index += 1) {
+    if (required.has(rankedIds[index])) return roundMetric(1 / (index + 1));
+  }
+  return 0;
+}
+
+function ndcgAtK(rankedIds, requiredIds, k) {
+  if (!requiredIds.length) return 1;
+  const required = new Set(requiredIds);
+  let dcg = 0;
+  for (let index = 0; index < Math.min(k, rankedIds.length); index += 1) {
+    if (required.has(rankedIds[index])) dcg += 1 / Math.log2(index + 2);
+  }
+  let ideal = 0;
+  for (let index = 0; index < Math.min(k, requiredIds.length); index += 1) ideal += 1 / Math.log2(index + 2);
+  return roundMetric(ideal ? dcg / ideal : 0);
+}
+
+function sum(items, field) {
+  return items.reduce((total, item) => total + Number(item.metrics?.[field] ?? 0), 0);
+}
+
+function average(items, field) {
+  if (!items.length) return 0;
+  return items.reduce((total, item) => total + Number(item.metrics?.[field] ?? 0), 0) / items.length;
+}
+
+function roundMetric(value) {
+  return Number((Number.isFinite(Number(value)) ? Number(value) : 0).toFixed(6));
+}
+
+function boundedNumber(value, field, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number < min || number > max) throw new Error(`${field} must be between ${min} and ${max}`);
+  return number;
+}
+
+function boundedInteger(value, field, min, max) {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < min || number > max) throw new Error(`${field} must be an integer between ${min} and ${max}`);
+  return number;
+}
+
+function assertNoOverlap(left, right, leftName, rightName) {
+  const overlap = left.filter((item) => right.includes(item));
+  if (overlap.length) throw new Error(`${leftName}/${rightName} overlap: ${overlap.join(',')}`);
+}
+
+function safeErrorCode(error) {
+  return safeString(error?.code ?? error?.message ?? 'benchmark_failed', 120).replace(/[^a-zA-Z0-9_:-]+/g, '_');
+}
+
 export function createEvaluationExperiment({
   id,
   dataset,
@@ -231,8 +948,8 @@ function normalizeExperimentRef(experiment) {
 function normalizeRunner(runner) {
   const value = assertObject(runner, 'runner');
   return Object.freeze({
-    name: assertString(value.name, 'runner.name'),
-    version: assertString(value.version, 'runner.version')
+    name: sanitizeString(assertString(value.name, 'runner.name')),
+    version: sanitizeString(assertString(value.version, 'runner.version'))
   });
 }
 

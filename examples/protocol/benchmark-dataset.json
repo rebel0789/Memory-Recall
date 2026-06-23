@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalds_benchmark_truth_floor",
+  "suite": "benchmark-truth-floor",
+  "version": "1.0.0",
+  "owner": "agent:evaluator",
+  "description": "Synthetic gold-evidence benchmark for native context baselines.",
+  "mergeGate": true,
+  "sourceRefs": ["evals/benchmark-truth-floor/cases.v1.json"],
+  "thresholds": {
+    "requiredEvidenceRecall": 1,
+    "distractorExclusionRate": 0.9,
+    "selectedTokenRatioMax": 0.7,
+    "deterministicMismatchCount": 0
+  },
+  "cases": [
+    {
+      "id": "evalcase_benchmark_auth_incident",
+      "workspaceId": "ws_benchmark",
+      "question": "Which local-first auth incident evidence should be selected?",
+      "objective": "auth incident token reset local-first evidence",
+      "step": "select gold auth incident evidence and exclude noisy or secret records",
+      "expectedAnswer": "Use the policy and runbook evidence, exclude noise and secret material.",
+      "abstainWhenMissing": true,
+      "tokenBudget": 160,
+      "requiredEntities": ["topic:auth", "topic:incident"],
+      "requiredEvidenceIds": ["ev_auth_policy", "ev_auth_runbook"],
+      "distractorIds": ["ev_marketing_noise"],
+      "forbiddenIds": ["ev_secret_credentials", "ev_other_workspace"],
+      "records": [
+        {
+          "id": "ev_auth_policy",
+          "version": "1.0.0",
+          "kind": "policy",
+          "workspaceId": "ws_benchmark",
+          "text": "Auth incident policy requires local-first evidence before a token reset.",
+          "tags": ["topic:auth", "topic:incident"],
+          "relations": ["topic:auth"],
+          "scope": "workspace-private",
+          "dataClass": "workspace-private",
+          "trustClass": "verified",
+          "status": "active",
+          "source": "fixture",
+          "tokens": 16,
+          "confidence": 1,
+          "authority": 1,
+          "updatedAt": "2026-06-23T00:00:00.000Z",
+          "contentHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "id": "ev_auth_runbook",
+          "version": "1.0.0",
+          "kind": "procedure",
+          "workspaceId": "ws_benchmark",
+          "text": "Auth incident runbook links token reset approval to verified audit evidence.",
+          "tags": ["topic:auth", "topic:incident"],
+          "relations": ["topic:incident"],
+          "scope": "workspace-private",
+          "dataClass": "workspace-private",
+          "trustClass": "verified",
+          "status": "active",
+          "source": "fixture",
+          "tokens": 18,
+          "confidence": 0.94,
+          "authority": 0.9,
+          "updatedAt": "2026-06-23T00:00:00.000Z",
+          "contentHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ],
+      "harnessContext": {
+        "harnesses": ["codex"],
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "body": "Auth incident local-first evidence selects policy and runbook locators."
+          }
+        ],
+        "expect": {
+          "selectedLocators": ["workspace://AGENTS.md"],
+          "excludedLocators": [],
+          "forbiddenStrings": ["Auth incident local-first evidence"]
+        }
+      }
+    }
+  ],
+  "createdAt": "2026-06-23T00:00:00.000Z",
+  "labVersion": "1.0.0",
+  "datasetFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

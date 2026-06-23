@@ -9,7 +9,7 @@
     "schemaVersion": { "const": "1.0.0" },
     "requestId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
     "sourceId": { "type": "string", "minLength": 1 },
-    "sourceKind": { "enum": ["exact", "lexical", "vector", "graph", "temporal", "preference", "episode"] },
+    "sourceKind": { "enum": ["exact", "lexical", "ast-code", "vector", "graph", "temporal", "preference", "episode"] },
     "sourceVersion": { "type": ["string", "null"] },
     "required": { "type": "boolean" },
     "status": { "enum": ["succeeded", "failed", "timed_out", "cancelled", "unavailable", "denied", "invalid_output", "skipped"] },

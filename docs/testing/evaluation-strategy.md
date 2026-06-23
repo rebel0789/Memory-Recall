@@ -14,7 +14,13 @@ Every evaluation records dataset version, code commit, compiler/prompt/model ver
 
 ## Context Compiler baseline
 
-Compare against fixed recent-history, vector top-k, full-available-context, and exact-reference baselines. Hold task, model, and output scoring constant. Measure precision, required recall, distractor rate, conflict/supersession correctness, scope leakage, tokens, and downstream success.
+The long-term benchmark strategy should compare against fixed recent-history,
+vector top-k, full-available-context, and exact-reference baselines while
+holding task, model, and output scoring constant. The current deterministic
+truth floor does not enable vector search; it compares exact, lexical,
+full-context, and current-harness baselines only. Measure precision, required
+recall, distractor rate, conflict/supersession correctness, scope leakage,
+tokens, and downstream success.
 
 OAF-010 adds deterministic candidate-generation checks before selection:
 exact-ID recall, lexical candidate discovery, source provenance, query
@@ -35,8 +41,9 @@ coverage summaries.
 
 OAF-012 adds deterministic persisted-manifest checks for assembly order,
 manifest fingerprint verification, comparison output, required-governance
-overflow, persistence, zero excluded-text leakage, workspace isolation, and
-retry idempotency.
+overflow, persistence, zero excluded-text leakage, workspace isolation, retry
+idempotency, manifest `etag`s, token accounting reports, and previous-manifest
+deltas.
 
 OAF-031 context-intake preview adds deterministic harness-context benchmark
 checks for required locator recall, distractor exclusion, selected-token ratio,
@@ -44,6 +51,20 @@ raw-body leakage, synthetic secret and local-path leakage, deterministic preview
 fingerprints, and zero active memory, source snapshots, model calls, network
 calls, external writes, or adapter activation. It is a preview gate only; it
 does not import memory or persist source bodies.
+
+The benchmark truth floor adds a merge-gated, schema-validated comparison across
+native exact, full-context, lexical, and current-harness baselines. It uses gold
+evidence IDs, distractor IDs, forbidden IDs, and fixed fixtures, then reports
+only metrics, IDs, safe locators, and fingerprints. The CLI entry point is
+`npm run oaf -- benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json`.
+
+The native AST code candidate-source eval uses a temporary TypeScript fixture to
+compare static code chunks against the Context Compiler path. It verifies
+workspace-relative locators, symbol/import metadata, no raw source body leakage,
+no local path leakage, and no model, network, embedding, graph database, or code
+execution dependency. The JS/TS source-index eval also checks read-only
+definition, reference, import, export, caller, callee, file-outline,
+repository-outline, content-hash journal, and deterministic fingerprint queries.
 
 OAF-018 adds deterministic context-feedback checks for selected-record use
 against a manifest, unselected-record rejection, non-causal feedback summaries,

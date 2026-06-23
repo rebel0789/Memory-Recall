@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/memory-workspace-config-1.0.json",
+  "title": "Memory Workspace Config",
+  "description": "Explicit workspace-local files that may be read as memory proposal sources only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "memoryPaths"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "memoryPaths": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/memoryPath" }
+    }
+  },
+  "$defs": {
+    "memoryPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "kind", "sourceTrust", "dataClass"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^(?!/)(?!.*\\.\\.)(?!.*\\\\)(?![A-Za-z][A-Za-z0-9+.-]*:)[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$"
+        },
+        "kind": { "enum": ["fact", "preference", "decision", "episode", "procedure", "constraint"] },
+        "sourceTrust": { "enum": ["unverified", "verified"] },
+        "dataClass": { "enum": ["public", "workspace-private", "sensitive"] }
+      }
+    }
+  }
+}

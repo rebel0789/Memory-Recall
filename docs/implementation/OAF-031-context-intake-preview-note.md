@@ -17,6 +17,31 @@ slice.
 - The deterministic benchmark gate in `evals/harness-context/cases.json`
   measures required-locator recall, distractor exclusion, selected-token ratio,
   leakage, deterministic fingerprints, and disabled side-effect surfaces.
+- `npm run oaf -- benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json`
+  exposes the schema-validated gold-evidence truth floor for native exact,
+  full-context, lexical, and current-harness baselines.
+- `providers/native/context-candidate-ast-code/` exposes a dependency-free
+  JS/TS static source index with definitions, references, imports, exports,
+  callers, callees, file outlines, repository outlines, exact slice hashes, and
+  content-hash journals.
+- Durable context manifests now record explicit assembly representation tiers,
+  token budget reports, manifest `etag`s, and `deltaFrom` summaries for
+  repeated local runs. The token report separates selected-token ratio
+  (selected original tokens over total candidate tokens) from assembled-token
+  ratio (assembled tokens over selected original tokens).
+- `npm run oaf -- memory profile --records memory-export.json --root . --dry-run --format json`
+  renders a generated `memory/profile.md` report from accepted active OAF
+  memory only. `--write` is explicit and writes only the generated local report.
+- `npm run oaf -- memory proposals --records memory-export.json --root . --dry-run --format json`
+  renders generated `memory/proposals/*.md` reports for pending and quarantined
+  memory records. `--from memoryPaths --config oaf.memory.json` reads explicit
+  workspace-relative files as proposal sources only.
+- `npm run oaf -- memory sgrep "..." --records memory-export.json --workspace ws_local --dry-run --format json`
+  returns local source-grounded memory search results with lifecycle state,
+  evidence IDs, and optional context-manifest reason codes.
+- The native SQLite memory provider now preserves memory-core lifecycle and
+  review fields and includes a local proposal queue with idempotent
+  fingerprints, leases, retries, and poison/error records.
 
 ## Safety Boundary
 
@@ -25,8 +50,18 @@ slice.
 - No model calls are made.
 - No network calls are made.
 - No external writes or external adapters are enabled.
+- Generated memory files are reports only; ordinary file edits do not create or
+  activate canonical memory.
+- `memoryPaths` config is explicit, workspace-relative, size-bounded, and used
+  only to create proposal reports.
 - Raw source bodies, prompts, outputs, credentials, provider URLs, local paths,
   and hidden reasoning are not present in public scan or preview reports.
+- Source-index outputs are hashes, safe workspace locators, symbol names, and
+  relationship metadata only; they are not authoritative source snapshots and
+  they do not execute code or acquire parser/language-server dependencies.
+- The AST provider's exact-slice reader is a root-bounded internal verification
+  helper. It is not exposed through provider query results, protocol fixtures,
+  benchmark reports, or persisted context manifests.
 
 ## Prior Art Boundary
 
@@ -37,7 +72,8 @@ engine, daemon, embeddings, mutating MCP tools, or performance claims.
 
 ## Still Planned
 
-- Proposal-only import into OAF-native memory proposals.
+- Native graph work after the source, compiler, token, and memory baselines are
+  established.
 - Handoff export for Codex, Claude Code, Cursor, and similar harnesses.
 - Read-only MCP exposure of sanitized OAF resources.
 - Optional disabled adapters for external memory or code-intelligence systems

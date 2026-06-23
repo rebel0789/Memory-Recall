@@ -37,6 +37,7 @@
         "direct": { "type": "number", "minimum": 0, "maximum": 100 },
         "exact": { "type": "number", "minimum": 0, "maximum": 100 },
         "lexical": { "type": "number", "minimum": 0, "maximum": 100 },
+        "ast-code": { "type": "number", "minimum": 0, "maximum": 100 },
         "vector": { "type": "number", "minimum": 0, "maximum": 100 },
         "graph": { "type": "number", "minimum": 0, "maximum": 100 },
         "temporal": { "type": "number", "minimum": 0, "maximum": 100 },

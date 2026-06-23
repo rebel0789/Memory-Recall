@@ -5,6 +5,7 @@
   "enum": [
     "exact",
     "lexical",
+    "ast-code",
     "vector",
     "graph",
     "temporal",

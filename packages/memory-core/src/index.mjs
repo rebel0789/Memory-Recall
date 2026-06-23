@@ -282,3 +282,12 @@ export function exportMemoryRecords(records, { exportedAt, includeInactive = fal
     records: safeRecords
   });
 }
+
+export {
+  buildMemoryProfileReport,
+  buildMemoryProposalsReport,
+  buildMemorySgrepReport,
+  normalizeMemoryPathsConfig,
+  redactMemoryText,
+  sanitizeMemorySource
+} from './filesystem-ux.mjs';

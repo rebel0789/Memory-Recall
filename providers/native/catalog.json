@@ -62,6 +62,12 @@
       "purpose": "Deterministic lexical context candidate lookup over safe record fields"
     },
     {
+      "id": "provider:native:context-candidate:ast-code",
+      "path": "providers/native/context-candidate-ast-code",
+      "enabledByDefault": true,
+      "purpose": "Dependency-free JS/TS static code chunk candidate source"
+    },
+    {
       "id": "provider:native:context-manifest:local",
       "path": "providers/native/context-manifest-local",
       "enabledByDefault": true,

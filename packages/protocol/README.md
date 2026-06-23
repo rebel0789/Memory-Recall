@@ -47,6 +47,29 @@ verification metadata. The durable assembly preserves selected text exactly for
 model input while omitted excluded text prevents storing inaccessible or unsafe
 candidate bodies.
 
+OAF-031 extends the durable manifest contract with explicit assembly
+representation tiers, `etag`, `deltaFrom`, representation hashes, original-token
+counts, selected-token ratios, assembled-token ratios, and token budget reports.
+These fields are additive so older OAF-012 durable assemblies remain schema
+valid. New manifests redact unsafe local source paths before persistence. The
+fields remain local compiler metadata; they do not add model calls, memory
+imports, external adapters, or external writes.
+
+## Memory filesystem UX schemas
+
+OAF-031 adds `memory-profile-report.schema.json`,
+`memory-proposals-report.schema.json`, `memory-sgrep-report.schema.json`,
+`memory-workspace-config.schema.json`, and
+`memory-proposal-queue-record.schema.json`. These contracts describe generated
+workspace-local memory reports, explicit proposal-source configuration, local
+source-grounded search output, and SQLite proposal queue reconciliation.
+
+The reports are not canonical memory authority. They require zero network
+calls, zero model calls, zero external writes, zero active-memory creation, and
+disabled external adapters. `memoryPaths` entries are workspace-relative
+proposal sources only. Queue records use safe workspace locators, idempotent
+fingerprints, leases, retries, and poison/error states.
+
 ## Durable workflow schemas
 
 OAF-014 adds strict internal schemas for durable workflow definitions, durable
@@ -76,3 +99,26 @@ surface. It validates JSON-RPC-shaped method names and rejects top-level
 authority injection. Runtime bridge code still performs trusted-context, grant,
 replay, disconnect, and private-payload checks because remote protocol payloads
 are not authority.
+
+## Benchmark truth-floor schemas
+
+The benchmark truth-floor schemas add additive v1 contracts for deterministic
+gold-evidence datasets, phase artifacts, and comparison reports. Reports are
+strict metric and fingerprint records: they may include evidence IDs and safe
+workspace locators, but not raw prompts, context bodies, model outputs,
+credentials, provider URLs, local paths, hidden reasoning, active-memory writes,
+source snapshots, external writes, or enabled external adapters.
+
+## AST code chunk schema
+
+`ast-code-chunk.schema.json` describes dependency-free static JavaScript and
+TypeScript chunks for the native AST code candidate source. It records parser
+version, workspace locator, line and byte ranges, scope chain, symbol,
+import/export metadata, sibling locators, signature hashes, parse error state,
+and source hashes. `source-symbol-index.schema.json` describes the derived
+read-only JS/TS symbol index for definitions, references, imports, exports,
+callers, callees, and file locators. Both intentionally exclude raw source
+bodies, absolute paths, executable parser output, embeddings, graph records, and
+provider configuration. The native provider's root-bounded exact-slice helper is
+for internal reconstruction tests only; it is not a protocol output or a
+candidate-source query result.

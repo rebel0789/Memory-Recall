@@ -13,6 +13,7 @@
     "selectionPolicyFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "candidateGenerationFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "totalCandidateCount": { "type": "integer", "minimum": 0 },
+    "totalCandidateTokenCount": { "type": "integer", "minimum": 0 },
     "eligibleCandidateCount": { "type": "integer", "minimum": 0 },
     "selectedCandidateCount": { "type": "integer", "minimum": 0 },
     "selectedTokenCount": { "type": "integer", "minimum": 0 },
@@ -136,7 +137,7 @@
                 "required": ["sourceId", "sourceKind", "localRank", "contribution"],
                 "properties": {
                   "sourceId": { "type": "string", "minLength": 1 },
-                  "sourceKind": { "enum": ["direct", "exact", "lexical", "vector", "graph", "temporal", "preference", "episode"] },
+                  "sourceKind": { "enum": ["direct", "exact", "lexical", "ast-code", "vector", "graph", "temporal", "preference", "episode"] },
                   "localRank": { "type": "integer", "minimum": 1 },
                   "contribution": { "type": "number", "minimum": 0 }
                 }

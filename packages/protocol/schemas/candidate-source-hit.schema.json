@@ -7,7 +7,7 @@
   "required": ["sourceId", "sourceKind", "sourceVersion", "retrievalMethod", "localRank", "localScore", "reasonCodes", "queryFingerprint", "accessDecisionRef", "retrievedAt"],
   "properties": {
     "sourceId": { "type": "string", "pattern": "^provider:native:context-candidate:[a-z0-9-]+$" },
-    "sourceKind": { "enum": ["exact", "lexical", "vector", "graph", "temporal", "preference", "episode"] },
+    "sourceKind": { "enum": ["exact", "lexical", "ast-code", "vector", "graph", "temporal", "preference", "episode"] },
     "sourceVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
     "retrievalMethod": { "type": "string", "minLength": 1, "maxLength": 64 },
     "localRank": { "type": "integer", "minimum": 1 },

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/memory-proposal-queue-record-1.0.json",
+  "title": "Memory Proposal Queue Record",
+  "description": "SQLite-backed local queue record for proposal writes and reconciliation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "workspaceId", "fingerprint", "sourceLocator", "sourceHash", "status", "attempts", "maxAttempts", "leaseOwner", "leaseUntil", "payload", "result", "error", "enqueuedAt", "updatedAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^mpq_[A-Za-z0-9._-]{1,128}$" },
+    "workspaceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "sourceLocator": { "type": "string", "pattern": "^workspace://(?!/)(?!.*\\.\\.)(?!.*(?:/Users/|file:///))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$" },
+    "sourceHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "status": { "enum": ["pending", "claimed", "applied", "poison"] },
+    "attempts": { "type": "integer", "minimum": 0, "maximum": 10 },
+    "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "leaseOwner": { "type": ["string", "null"], "maxLength": 128 },
+    "leaseUntil": { "type": ["string", "null"], "format": "date-time" },
+    "payload": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/safeScalar" },
+      "maxProperties": 64
+    },
+    "result": {
+      "type": ["object", "null"],
+      "additionalProperties": { "$ref": "#/$defs/safeScalar" },
+      "maxProperties": 64
+    },
+    "error": {
+      "type": ["object", "null"],
+      "additionalProperties": { "$ref": "#/$defs/safeScalar" },
+      "maxProperties": 64
+    },
+    "enqueuedAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "safeScalar": {
+      "type": ["string", "number", "integer", "boolean", "null"],
+      "maxLength": 512,
+      "pattern": "^(?![\\s\\S]*(?:/Users/|file:///|workspace:///|BEGIN RSA PRIVATE KEY|BEGIN OPENSSH PRIVATE KEY|sk-[A-Za-z0-9_-]{20,}|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[\\s\\S]*$"
+    }
+  }
+}

@@ -32,6 +32,36 @@
       "expectedValid": true
     },
     {
+      "id": "memory-profile-report-current-valid",
+      "schema": "packages/protocol/schemas/memory-profile-report.schema.json",
+      "instance": "examples/protocol/memory-profile-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-proposals-report-current-valid",
+      "schema": "packages/protocol/schemas/memory-proposals-report.schema.json",
+      "instance": "examples/protocol/memory-proposals-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-sgrep-report-current-valid",
+      "schema": "packages/protocol/schemas/memory-sgrep-report.schema.json",
+      "instance": "examples/protocol/memory-sgrep-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-workspace-config-current-valid",
+      "schema": "packages/protocol/schemas/memory-workspace-config.schema.json",
+      "instance": "examples/protocol/memory-workspace-config.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-proposal-queue-record-current-valid",
+      "schema": "packages/protocol/schemas/memory-proposal-queue-record.schema.json",
+      "instance": "examples/protocol/memory-proposal-queue-record.json",
+      "expectedValid": true
+    },
+    {
       "id": "artifact-record-current-valid",
       "schema": "packages/protocol/schemas/artifact-record.schema.json",
       "instance": "examples/protocol/artifact-record.json",
@@ -584,9 +614,45 @@
       "expectedValid": false
     },
     {
+      "id": "context-selection-policy-v1-without-ast-code-valid",
+      "schema": "packages/protocol/schemas/context-selection-policy.schema.json",
+      "instance": "examples/protocol/compatibility/valid/context-selection-policy-v1-without-ast-code.json",
+      "expectedValid": true
+    },
+    {
       "id": "context-selection-result-raw-text-invalid",
       "schema": "packages/protocol/schemas/context-selection-result.schema.json",
       "instance": "examples/protocol/compatibility/invalid/context-selection-result-raw-text.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-profile-report-external-writes-invalid",
+      "schema": "packages/protocol/schemas/memory-profile-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-profile-report-external-writes.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-proposals-report-active-memory-invalid",
+      "schema": "packages/protocol/schemas/memory-proposals-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-proposals-report-active-memory.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-sgrep-report-local-path-invalid",
+      "schema": "packages/protocol/schemas/memory-sgrep-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-sgrep-report-local-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-workspace-config-path-escape-invalid",
+      "schema": "packages/protocol/schemas/memory-workspace-config.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-workspace-config-path-escape.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-proposal-queue-record-local-path-invalid",
+      "schema": "packages/protocol/schemas/memory-proposal-queue-record.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-proposal-queue-record-local-path.json",
       "expectedValid": false
     },
     {
@@ -636,6 +702,60 @@
       "schema": "packages/protocol/schemas/mcp-bridge-request.schema.json",
       "instance": "examples/protocol/mcp-bridge-request.json",
       "expectedValid": true
+    },
+    {
+      "id": "benchmark-dataset-current-valid",
+      "schema": "packages/protocol/schemas/benchmark-dataset.schema.json",
+      "instance": "examples/protocol/benchmark-dataset.json",
+      "expectedValid": true
+    },
+    {
+      "id": "benchmark-phase-artifact-current-valid",
+      "schema": "packages/protocol/schemas/benchmark-phase-artifact.schema.json",
+      "instance": "examples/protocol/benchmark-phase-artifact.json",
+      "expectedValid": true
+    },
+    {
+      "id": "benchmark-comparison-report-current-valid",
+      "schema": "packages/protocol/schemas/benchmark-comparison-report.schema.json",
+      "instance": "examples/protocol/benchmark-comparison-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "benchmark-comparison-report-raw-body-invalid",
+      "schema": "packages/protocol/schemas/benchmark-comparison-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/benchmark-comparison-report-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "ast-code-chunk-current-valid",
+      "schema": "packages/protocol/schemas/ast-code-chunk.schema.json",
+      "instance": "examples/protocol/ast-code-chunk.json",
+      "expectedValid": true
+    },
+    {
+      "id": "ast-code-chunk-raw-body-invalid",
+      "schema": "packages/protocol/schemas/ast-code-chunk.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/ast-code-chunk-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "ast-code-chunk-local-workspace-path-invalid",
+      "schema": "packages/protocol/schemas/ast-code-chunk.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/ast-code-chunk-local-workspace-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-symbol-index-current-valid",
+      "schema": "packages/protocol/schemas/source-symbol-index.schema.json",
+      "instance": "examples/protocol/source-symbol-index.json",
+      "expectedValid": true
+    },
+    {
+      "id": "source-symbol-index-raw-body-invalid",
+      "schema": "packages/protocol/schemas/source-symbol-index.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-symbol-index-raw-body.json",
+      "expectedValid": false
     },
     {
       "id": "mcp-bridge-request-grant-token-invalid",

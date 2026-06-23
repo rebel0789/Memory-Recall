@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/memory-proposals-report-1.0.json",
+  "title": "Memory Proposals Report",
+  "description": "Generated review reports for pending memory proposals and quarantined records. Reports are not canonical memory writes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reportVersion", "id", "workspaceId", "generatedAt", "dryRun", "summary", "items", "safeguards"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "reportVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^memprops_[a-f0-9]{16}$" },
+    "workspaceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "dryRun": { "type": "boolean" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["proposalCount", "quarantinedCount", "skippedCount"],
+      "properties": {
+        "proposalCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "quarantinedCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "skippedCount": { "type": "integer", "minimum": 0, "maximum": 10000 }
+      }
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/item" }
+    },
+    "safeguards": { "$ref": "#/$defs/safeguards" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "safeGeneratedText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 65536,
+      "pattern": "^(?![\\s\\S]*(?:/Users/|file:///|workspace:///|BEGIN RSA PRIVATE KEY|BEGIN OPENSSH PRIVATE KEY|sk-[A-Za-z0-9_-]{20,}|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[\\s\\S]*$"
+    },
+    "stringList": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[A-Za-z0-9._:@-]+$" }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "format"],
+      "properties": {
+        "locator": { "type": "string", "pattern": "^workspace://memory/proposals/mem_[A-Za-z0-9._-]+\\.md$" },
+        "format": { "const": "markdown" }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "latestEvent", "latestAt"],
+      "properties": {
+        "status": { "enum": ["proposed", "quarantined"] },
+        "latestEvent": { "type": ["string", "null"] },
+        "latestAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "status", "decision", "reasons", "source", "lifecycle", "evidenceIds", "target", "contentHash", "markdown"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mem_" },
+        "kind": { "enum": ["fact", "preference", "decision", "episode", "procedure", "constraint"] },
+        "status": { "enum": ["proposed", "quarantined"] },
+        "decision": { "enum": ["propose", "review", "reject"] },
+        "reasons": { "$ref": "#/$defs/stringList" },
+        "source": { "type": "string", "minLength": 1, "maxLength": 180, "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=)).*$" },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "evidenceIds": { "$ref": "#/$defs/stringList" },
+        "target": { "$ref": "#/$defs/target" },
+        "contentHash": { "$ref": "#/$defs/hash" },
+        "markdown": { "$ref": "#/$defs/safeGeneratedText" }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkCalls", "modelCalls", "sourceSnapshotsWritten", "activeMemoryCreated", "canonicalStateMutated", "externalWritesEnabled", "externalAdaptersEnabled", "rawBodyIncluded", "localFilesWritten"],
+      "properties": {
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "sourceSnapshotsWritten": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "canonicalStateMutated": { "const": false },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "rawBodyIncluded": { "const": false },
+        "localFilesWritten": { "type": "integer", "minimum": 0, "maximum": 1000 }
+      }
+    }
+  }
+}

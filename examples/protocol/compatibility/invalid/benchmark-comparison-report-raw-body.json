@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalrep_benchmark_truth_floor_invalid",
+  "suite": "benchmark-truth-floor",
+  "dataset": {
+    "id": "evalds_benchmark_truth_floor",
+    "version": "1.0.0",
+    "datasetFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "caseCount": 1
+  },
+  "subject": {
+    "kind": "context-benchmark",
+    "id": "native-context-baselines",
+    "version": "1.0.0",
+    "fingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "commitSha": "7a7630903d27137a425536b1eee6a40d8b41fd1c",
+  "runner": {
+    "name": "scripts/run-evals.mjs",
+    "version": "1.0.0"
+  },
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "thresholds": {
+    "requiredEvidenceRecall": 1,
+    "distractorExclusionRate": 0.9,
+    "selectedTokenRatioMax": 0.7,
+    "deterministicMismatchCount": 0
+  },
+  "metrics": {
+    "requiredEvidenceRecall": 1,
+    "distractorExclusionRate": 1,
+    "selectedTokenRatio": 0.25,
+    "secretLeakageCount": 0,
+    "localPathLeakageCount": 0,
+    "rawPromptLeakageCount": 0,
+    "rawContextLeakageCount": 0,
+    "rawOutputLeakageCount": 0,
+    "forbiddenInclusionCount": 0,
+    "workspaceLeakageCount": 0,
+    "deterministicMismatchCount": 0,
+    "durationMs": 0,
+    "recallAt10": 1,
+    "mrrAt10": 1,
+    "ndcgAt10": 1
+  },
+  "baselines": [],
+  "cases": [],
+  "counts": {
+    "passed": 1,
+    "failed": 0,
+    "caseCount": 1,
+    "baselineCount": 4
+  },
+  "gateDecision": "pass",
+  "safeguards": {
+    "rawPromptsIncluded": false,
+    "rawContextIncluded": false,
+    "rawOutputsIncluded": false,
+    "rawPathsIncluded": false,
+    "secretsIncluded": false,
+    "modelCalls": 0,
+    "networkCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "externalAdaptersEnabled": 0,
+    "externalWritesEnabled": false,
+    "leakageCounts": {
+      "secret": 0,
+      "localPath": 0,
+      "rawPrompt": 0,
+      "rawContext": 0,
+      "rawOutput": 0,
+      "forbiddenInclusion": 0,
+      "workspace": 0
+    }
+  },
+  "phaseArtifacts": [],
+  "rawContextBody": "private source body",
+  "labVersion": "1.0.0",
+  "reportFingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "1.0.0",
+  "id": "memprops_badbadbadbadbad2",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "dryRun": true,
+  "summary": {
+    "proposalCount": 0,
+    "quarantinedCount": 0,
+    "skippedCount": 0
+  },
+  "items": [],
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 1,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false,
+    "localFilesWritten": 0
+  }
+}

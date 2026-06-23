@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "astchunk_11111111111111111111111111111111",
+  "workspaceId": "ws_ast",
+  "language": "typescript",
+  "locator": "workspace://src/auth.ts#L4-L8",
+  "parserVersion": "oaf-js-ts-static-1.0.0",
+  "parseErrorState": "none",
+  "byteRange": {
+    "start": 80,
+    "end": 220
+  },
+  "lineRange": {
+    "start": 4,
+    "end": 8
+  },
+  "scopeChain": [],
+  "entities": [
+    {
+      "kind": "class",
+      "name": "TokenResetService"
+    },
+    {
+      "kind": "method",
+      "name": "approveTokenReset"
+    }
+  ],
+  "imports": [
+    {
+      "module": "zod",
+      "importHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ],
+  "exports": [
+    {
+      "name": "TokenResetService",
+      "kind": "class",
+      "exportHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    }
+  ],
+  "signatureHash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+  "siblingLocators": [
+    "workspace://src/auth.ts#L10-L12"
+  ],
+  "sourceSnapshotId": "srcsnap_7777777777777777",
+  "exactSourceReconstructionHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "calls": [
+    {
+      "name": "compileContext",
+      "callHash": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+    }
+  ],
+  "references": [
+    {
+      "name": "compileContext",
+      "referenceHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+    }
+  ],
+  "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "collectedAt": "2026-06-23T00:00:00.000Z",
+  "chunkFingerprint": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+}

@@ -12,6 +12,7 @@ import { DurableSQLiteWorkflowRuntime, createDurableSmokeWorkflowDefinition, cre
 import { BrokeredLocalToolProvider } from '../providers/native/tool-brokered-local/src/index.mjs';
 import { createNativeExactCandidateSource } from '../providers/native/context-candidate-exact/src/index.mjs';
 import { createNativeLexicalCandidateSource } from '../providers/native/context-candidate-lexical/src/index.mjs';
+import { buildJsTsSourceIndex, createNativeAstCodeCandidateSource, querySourceIndex } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 import { compileAndPersistContext, createCandidateSourceRegistry, createFixtureRecordReader, generateContextCandidates } from '../packages/context-compiler/src/index.mjs';
 import { createMemoryEffectBoundary } from '../packages/tool-registry/src/index.mjs';
 import { fingerprintAgentPack, validateAgentPack } from '../packages/agentpack/src/index.mjs';
@@ -120,6 +121,65 @@ try {
     clock: () => '2026-06-19T10:00:00.000Z'
   });
   if (!candidateGeneration.candidates.some((candidate) => candidate.record.id === 'mem_smoke_context')) throw new Error('native context candidate smoke failed');
+
+  const astRoot = path.join(directory, 'ast-workspace');
+  await mkdir(path.join(astRoot, 'src'), { recursive: true });
+  await writeFile(path.join(astRoot, 'src', 'context-smoke.ts'), [
+    "import { compileContext } from '@open-agent-fabric/context-compiler';",
+    'export function compileSmokeContext(request) {',
+    '  return compileContext(request, []);',
+    '}'
+  ].join('\n'));
+  const astCandidates = await generateContextCandidates({
+    schemaVersion: '1.0.0',
+    requestId: 'ccreq_smoke_ast',
+    correlationId: 'req_native-smoke-ast001',
+    workspaceId: 'ws_smoke',
+    actorId: bootstrap.user.id,
+    taskId: 'task_smoke',
+    objective: 'compile smoke context with local AST source',
+    step: 'find compileSmokeContext implementation evidence',
+    requiredIds: [],
+    requiredEntities: ['symbol:compileSmokeContext'],
+    allowedDataClasses: ['workspace-private'],
+    allowedTrustClasses: ['observed'],
+    allowedScopes: ['workspace-private'],
+    sourcePlan: [{ kind: 'ast-code', required: false, limit: 5, timeoutMs: 1000 }],
+    perSourceLimit: 5,
+    totalCandidateLimit: 5,
+    trustedTimestamp: '2026-06-19T10:00:00.000Z',
+    tokenBudget: 64
+  }, {
+    registry: createCandidateSourceRegistry([
+      createNativeAstCodeCandidateSource({ root: astRoot, workspaceId: 'ws_smoke', clock: () => '2026-06-19T10:00:00.000Z' })
+    ]),
+    recordReader: createFixtureRecordReader([]),
+    clock: () => '2026-06-19T10:00:00.000Z'
+  });
+  if (!astCandidates.candidates.some((candidate) => candidate.record.tags.includes('symbol:compileSmokeContext'))) {
+    throw new Error('native AST code candidate smoke failed');
+  }
+  await writeFile(path.join(astRoot, 'src', 'workflow-smoke.ts'), [
+    "import { compileSmokeContext } from './context-smoke';",
+    'export function runSmokeWorkflow(request) {',
+    '  return compileSmokeContext(request);',
+    '}'
+  ].join('\n'));
+  const sourceIndex = await buildJsTsSourceIndex({
+    root: astRoot,
+    workspaceId: 'ws_smoke',
+    clock: () => '2026-06-19T10:00:00.000Z'
+  });
+  if (!querySourceIndex(sourceIndex, { operation: 'definition', name: 'compileSmokeContext' }).length) {
+    throw new Error('native JS/TS source index definition query failed');
+  }
+  if (!querySourceIndex(sourceIndex, { operation: 'callers', name: 'compileSmokeContext' }).some((item) => item.callerName === 'runSmokeWorkflow')) {
+    throw new Error('native JS/TS source index caller query failed');
+  }
+  const sourceIndexText = JSON.stringify(sourceIndex);
+  if (sourceIndexText.includes(astRoot) || sourceIndexText.includes('/Users/')) {
+    throw new Error('native JS/TS source index leaked local path');
+  }
 
   const manifestStore = new FilesystemContextManifestRepository({ root: path.join(directory, 'context-manifests'), clock: () => '2026-06-19T10:00:00.000Z' });
   const persisted = await compileAndPersistContext({
@@ -295,7 +355,7 @@ try {
   console.log('PASS content-addressed artifact store');
   console.log('PASS native local identity');
   console.log('PASS deterministic contextual policy provider');
-  console.log('PASS native exact and lexical context candidate sources');
+  console.log('PASS native exact, lexical, AST-code, and JS/TS source-index context sources');
   console.log('PASS native local context manifest repository');
   console.log('PASS native durable SQLite workflow recovery');
   console.log('PASS native operations backup and restore');

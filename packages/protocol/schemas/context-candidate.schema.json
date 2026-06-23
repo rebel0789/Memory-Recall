@@ -36,7 +36,7 @@
         "required": ["sourceId", "sourceKind", "sourceVersion", "retrievalMethod", "localRank", "localScore", "reasonCodes", "queryFingerprint", "accessDecisionRef", "retrievedAt"],
         "properties": {
           "sourceId": { "type": "string" },
-          "sourceKind": { "enum": ["exact", "lexical", "vector", "graph", "temporal", "preference", "episode"] },
+          "sourceKind": { "enum": ["exact", "lexical", "ast-code", "vector", "graph", "temporal", "preference", "episode"] },
           "sourceVersion": { "type": "string" },
           "retrievalMethod": { "type": "string" },
           "localRank": { "type": "integer", "minimum": 1 },

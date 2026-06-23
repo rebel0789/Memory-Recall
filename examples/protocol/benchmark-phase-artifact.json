@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalphase_benchmark_truth_floor_retrieval",
+  "suite": "benchmark-truth-floor",
+  "phase": "retrieval",
+  "dataset": {
+    "id": "evalds_benchmark_truth_floor",
+    "version": "1.0.0",
+    "datasetFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "caseCount": 1
+  },
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "baselineNames": ["current-harness", "exact", "full", "lexical"],
+  "caseCount": 1,
+  "metrics": {
+    "requiredEvidenceRecall": 1,
+    "distractorExclusionRate": 1,
+    "selectedTokenRatio": 0.25,
+    "secretLeakageCount": 0,
+    "localPathLeakageCount": 0,
+    "rawPromptLeakageCount": 0,
+    "rawContextLeakageCount": 0,
+    "rawOutputLeakageCount": 0,
+    "forbiddenInclusionCount": 0,
+    "workspaceLeakageCount": 0,
+    "deterministicMismatchCount": 0,
+    "durationMs": 0,
+    "recallAt10": 1,
+    "mrrAt10": 1,
+    "ndcgAt10": 1
+  },
+  "artifactFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

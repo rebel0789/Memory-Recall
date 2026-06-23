@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "mpq_bad",
+  "workspaceId": "ws_local",
+  "fingerprint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "sourceLocator": "workspace:///Users/rebel/private.md",
+  "sourceHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "status": "pending",
+  "attempts": 0,
+  "maxAttempts": 3,
+  "leaseOwner": null,
+  "leaseUntil": null,
+  "payload": {
+    "kind": "episode"
+  },
+  "result": null,
+  "error": null,
+  "enqueuedAt": "2026-06-23T00:00:00.000Z",
+  "updatedAt": "2026-06-23T00:00:00.000Z"
+}

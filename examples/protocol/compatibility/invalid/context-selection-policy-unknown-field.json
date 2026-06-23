@@ -9,6 +9,7 @@
     "direct": 2,
     "exact": 8,
     "lexical": 4,
+    "ast-code": 4,
     "vector": 3,
     "graph": 3,
     "temporal": 2,

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/source-symbol-index.schema.json",
+  "title": "Source Symbol Index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workspaceId", "parserVersion", "indexedAt", "symbols", "references", "imports", "exports", "callEdges", "fileLocators", "symbolIndexFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "parserVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "indexedAt": { "type": "string", "format": "date-time" },
+    "symbols": { "type": "array", "maxItems": 5000, "items": { "$ref": "#/$defs/symbol" } },
+    "references": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/reference" } },
+    "imports": { "type": "array", "maxItems": 5000, "items": { "$ref": "#/$defs/import" } },
+    "exports": { "type": "array", "maxItems": 5000, "items": { "$ref": "#/$defs/export" } },
+    "callEdges": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/callEdge" } },
+    "fileLocators": { "type": "array", "maxItems": 5000, "items": { "$ref": "#/$defs/locator" } },
+    "symbolIndexFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "locator": { "type": "string", "pattern": "^workspace://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+(?:#L[0-9]+-L[0-9]+)?$" },
+    "id32": { "type": "string", "pattern": "^(symbol|ref|import|export|call)_[a-f0-9]{32}$" },
+    "symbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "name", "kind", "locator", "chunkId", "scopeChain", "signatureHash", "contentHash", "sourceSnapshotId"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id32" },
+        "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "kind": { "enum": ["class", "function", "method", "interface", "type"] },
+        "locator": { "$ref": "#/$defs/locator" },
+        "chunkId": { "type": "string", "pattern": "^astchunk_[a-f0-9]{32}$" },
+        "scopeChain": { "type": "array", "maxItems": 16, "items": { "type": "string", "minLength": 1, "maxLength": 128 } },
+        "signatureHash": { "$ref": "#/$defs/fingerprint" },
+        "contentHash": { "$ref": "#/$defs/fingerprint" },
+        "sourceSnapshotId": { "type": "string", "pattern": "^srcsnap_[a-f0-9]{16}$" }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "targetSymbolId", "targetName", "sourceLocator", "sourceChunkId", "referenceHash"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id32" },
+        "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "targetSymbolId": { "type": "string", "pattern": "^symbol_[a-f0-9]{32}$" },
+        "targetName": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sourceLocator": { "$ref": "#/$defs/locator" },
+        "sourceChunkId": { "type": "string", "pattern": "^astchunk_[a-f0-9]{32}$" },
+        "referenceHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "import": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "module", "moduleHash", "locator", "chunkId"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id32" },
+        "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "module": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])Users[\\\\/])(?!.*(?:^|[\\\\/])private[\\\\/])(?!.*(?:^|[\\\\/])var[\\\\/]folders[\\\\/]).+$" },
+        "moduleHash": { "$ref": "#/$defs/fingerprint" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "chunkId": { "type": "string", "pattern": "^astchunk_[a-f0-9]{32}$" }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "name", "kind", "locator", "chunkId", "exportHash"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id32" },
+        "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "kind": { "enum": ["class", "function", "method", "interface", "type", "export"] },
+        "locator": { "$ref": "#/$defs/locator" },
+        "chunkId": { "type": "string", "pattern": "^astchunk_[a-f0-9]{32}$" },
+        "exportHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "callEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "callerSymbolId", "callerName", "calleeSymbolId", "calleeName", "sourceLocator", "callHash"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id32" },
+        "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "callerSymbolId": { "type": "string", "pattern": "^symbol_[a-f0-9]{32}$" },
+        "callerName": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "calleeSymbolId": { "type": "string", "pattern": "^symbol_[a-f0-9]{32}$" },
+        "calleeName": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sourceLocator": { "$ref": "#/$defs/locator" },
+        "callHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    }
+  }
+}

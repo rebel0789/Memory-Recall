@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/memory-sgrep-report-1.0.json",
+  "title": "Memory Source-Grounded Search Report",
+  "description": "Dry-run local memory search report with lifecycle state, evidence IDs, and optional context-manifest reason codes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reportVersion", "id", "workspaceId", "generatedAt", "dryRun", "query", "summary", "results", "safeguards"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "reportVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^memsgrep_[a-f0-9]{16}$" },
+    "workspaceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "dryRun": { "const": true },
+    "query": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["searchedCount", "resultCount", "manifestState"],
+      "properties": {
+        "searchedCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "resultCount": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "manifestState": { "enum": ["provided", "not_provided"] }
+      }
+    },
+    "results": {
+      "type": "array",
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/result" }
+    },
+    "safeguards": { "$ref": "#/$defs/safeguards" }
+  },
+  "$defs": {
+    "safeText": {
+      "type": "string",
+      "maxLength": 512,
+      "pattern": "^(?![\\s\\S]*(?:/Users/|file:///|workspace:///|BEGIN RSA PRIVATE KEY|BEGIN OPENSSH PRIVATE KEY|sk-[A-Za-z0-9_-]{20,}|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[\\s\\S]*$"
+    },
+    "stringList": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[A-Za-z0-9._:@-]+$" }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "latestEvent", "latestAt"],
+      "properties": {
+        "status": { "enum": ["active", "verified"] },
+        "latestEvent": { "type": ["string", "null"] },
+        "latestAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "redactions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secretCount", "localPathCount", "reasonCodes"],
+      "properties": {
+        "secretCount": { "type": "integer", "minimum": 0, "maximum": 1024 },
+        "localPathCount": { "type": "integer", "minimum": 0, "maximum": 1024 },
+        "reasonCodes": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "contextManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "selected", "reasonCodes"],
+      "properties": {
+        "state": { "enum": ["not_provided", "not_matched", "matched"] },
+        "selected": { "type": ["boolean", "null"] },
+        "reasonCodes": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "lifecycle", "source", "confidence", "supersedes", "evidenceIds", "snippet", "redactions", "contextManifest"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mem_" },
+        "kind": { "enum": ["fact", "preference", "decision", "episode", "procedure", "constraint"] },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "source": { "type": "string", "minLength": 1, "maxLength": 180, "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=)).*$" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "supersedes": { "type": ["string", "null"], "maxLength": 128, "pattern": "^mem_[A-Za-z0-9._-]+$" },
+        "evidenceIds": { "$ref": "#/$defs/stringList" },
+        "snippet": { "$ref": "#/$defs/safeText" },
+        "redactions": { "$ref": "#/$defs/redactions" },
+        "contextManifest": { "$ref": "#/$defs/contextManifest" }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkCalls", "modelCalls", "sourceSnapshotsWritten", "activeMemoryCreated", "canonicalStateMutated", "externalWritesEnabled", "externalAdaptersEnabled", "rawBodyIncluded", "localFilesWritten"],
+      "properties": {
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "sourceSnapshotsWritten": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "canonicalStateMutated": { "const": false },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "rawBodyIncluded": { "const": false },
+        "localFilesWritten": { "const": 0 }
+      }
+    }
+  }
+}
