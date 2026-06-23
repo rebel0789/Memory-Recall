@@ -26,7 +26,10 @@ printf '%s\n' 'correct horse battery staple' | \
   npm run auth:bootstrap -- --username owner --display-name "Local Owner" --password-stdin
 ```
 
-Do not pass passwords on the command line. The HTTP API exposes only `GET /api/auth/bootstrap-status`; first-owner creation is CLI-only. The local identity store is `.local/identity/identity.json`.
+Do not pass passwords on the command line. The browser shell can also create
+the first owner through `POST /api/auth/bootstrap` when
+`GET /api/auth/bootstrap-status` reports `bootstrapRequired: true`. The local
+identity store is `.local/identity/identity.json`.
 
 ## Durable workflow smoke
 

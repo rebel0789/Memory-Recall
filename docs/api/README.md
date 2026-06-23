@@ -10,6 +10,7 @@ Implemented routes:
 
 - `GET /api/health`
 - `GET /api/auth/bootstrap-status`
+- `POST /api/auth/bootstrap`
 - `POST /api/auth/login`
 - `GET /api/auth/session`
 - `POST /api/auth/logout`

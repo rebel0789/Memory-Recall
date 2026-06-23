@@ -30,9 +30,10 @@ test('web shell exposes stable path routes with legacy query compatibility',()=>
   assert.equal(ROUTES.some(route=>route.id==='content'),true);
 });
 
-test('web shell classifies loading, empty, partial, stale, success, denied, and error states',()=>{
-  assert.deepEqual([...SHELL_STATES].sort(),['denied','empty','error','loading','partial','stale','success']);
+test('web shell classifies loading, setup, empty, partial, stale, success, denied, and error states',()=>{
+  assert.deepEqual([...SHELL_STATES].sort(),['denied','empty','error','loading','partial','setup','stale','success']);
   assert.equal(classifyDashboardState(null).kind,'loading');
+  assert.equal(classifyDashboardState({error:{status:503,code:'bootstrap_required'}}).kind,'setup');
   assert.equal(classifyDashboardState({error:{status:401}}).kind,'denied');
   assert.equal(classifyDashboardState({error:{message:'offline'}}).kind,'error');
   assert.equal(classifyDashboardState({metrics:{runs:0},runs:[],approvals:[],latestManifest:null}).kind,'empty');

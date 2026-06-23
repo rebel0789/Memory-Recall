@@ -83,8 +83,16 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .state-loading{border-left-color:var(--proof)}
 .state-error,.state-denied{border-left-color:var(--danger)}
 .state-stale,.state-partial{border-left-color:var(--caution)}
+.state-setup{border-left-color:var(--proof)}
 .state-success{border-left-color:var(--success)}
 .state-inline{border:1px dashed var(--border);border-radius:var(--radius-control);padding:var(--space-12);color:var(--slate)}
+.auth-panel{max-width:760px}
+.auth-panel form{display:grid;gap:var(--space-16);margin-top:var(--space-16)}
+.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-12)}
+.field{display:grid;gap:6px;min-width:0}
+.field span{font-size:12px;font-weight:720;color:var(--slate);text-transform:uppercase;letter-spacing:.08em}
+.field input{width:100%;min-height:44px;border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-2);color:var(--paper);padding:10px 12px}
+.field input:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
 .facts{display:grid;gap:var(--space-8);margin:var(--space-16) 0 0}
 .facts div{display:grid;grid-template-columns:110px 1fr;gap:var(--space-12);border-top:1px solid var(--border);padding-top:var(--space-8)}
 .facts,.facts div,.facts dd,.facts dt{min-width:0}
@@ -169,6 +177,7 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .outline li{grid-template-columns:32px 1fr}
   .outline em{grid-column:2}
   .facts div{grid-template-columns:1fr}
+  .field-grid{grid-template-columns:1fr}
   .context-hero{display:grid}
   .summary-list{grid-template-columns:1fr}
   .diff-grid,.evidence-columns{grid-template-columns:1fr}

@@ -146,6 +146,7 @@ function recordSchema(limits) {
 
 export function createApiRouteContracts(limits = {}) {
   const routeBodyBytes = {
+    bootstrapOwner: Math.min(limits.bodyBytes ?? 1_000_000, 8 * 1024),
     login: Math.min(limits.bodyBytes ?? 1_000_000, 4 * 1024),
     createApiToken: Math.min(limits.bodyBytes ?? 1_000_000, 8 * 1024),
     startRun: Math.min(limits.bodyBytes ?? 1_000_000, 32 * 1024),
@@ -173,6 +174,18 @@ export function createApiRouteContracts(limits = {}) {
     additionalProperties: false,
     required: ['username', 'password'],
     properties: { username, password }
+  };
+  const bootstrapOwnerRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['username', 'displayName', 'password'],
+    properties: {
+      username,
+      displayName: boundedString(120),
+      password,
+      workspaceId,
+      workspaceName: boundedString(160)
+    }
   };
   const userSummary = {
     type: 'object',
@@ -350,6 +363,22 @@ export function createApiRouteContracts(limits = {}) {
           }
         }
       }
+    },
+    {
+      method: 'POST',
+      path: '/api/auth/bootstrap',
+      operationId: 'bootstrapOwner',
+      security: { public: true, origin: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: bootstrapOwnerRequest,
+      maxBodyBytes: routeBodyBytes.bootstrapOwner,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 201: sessionResponse }
     },
     {
       method: 'POST',

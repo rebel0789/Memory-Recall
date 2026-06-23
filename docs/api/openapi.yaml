@@ -42,6 +42,22 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BootstrapStatusResponse' }
+  /api/auth/bootstrap:
+    post:
+      operationId: bootstrapOwner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BootstrapOwnerRequest' }
+      responses:
+        '201':
+          description: Creates the first local owner and returns an authenticated browser session summary. Sets httpOnly session and readable CSRF cookies.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '409': { $ref: '#/components/responses/BoundaryError' }
   /api/auth/login:
     post:
       operationId: login
@@ -344,6 +360,16 @@ components:
       properties:
         schemaVersion: { const: '1.0.0' }
         bootstrapRequired: { type: boolean }
+    BootstrapOwnerRequest:
+      type: object
+      additionalProperties: false
+      required: [username, displayName, password]
+      properties:
+        username: { type: string, pattern: '^[a-zA-Z0-9._:-]{1,80}$', maxLength: 80 }
+        displayName: { type: string, minLength: 1, maxLength: 120 }
+        password: { type: string, minLength: 1, maxLength: 256 }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        workspaceName: { type: string, minLength: 1, maxLength: 160 }
     LoginRequest:
       type: object
       additionalProperties: false

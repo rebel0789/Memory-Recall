@@ -1,4 +1,4 @@
-export const SHELL_STATES = new Set(['loading','empty','error','denied','stale','partial','success']);
+export const SHELL_STATES = new Set(['loading','setup','empty','error','denied','stale','partial','success']);
 
 export const ROUTES = [
   { id:'home', path:'/', label:'Home', title:'Home', eyebrow:'Workspace / local', description:'Health, active work, approvals, residency, and the next local action.' },
@@ -36,6 +36,7 @@ export function resolveRoute(input) {
 
 export function classifyDashboardState(value) {
   if (!value) return { kind:'loading', message:'Loading local workspace state.' };
+  if (value.error?.status === 503 && value.error?.code === 'bootstrap_required') return { kind:'setup', message:'Create the first local owner to unlock this workspace.' };
   if (value.error?.status === 401 || value.error?.status === 403) return { kind:'denied', message:'Sign in locally to view this workspace.' };
   if (value.error) return { kind:'error', message:value.error.message ?? 'Could not load local state.' };
   const runs = Array.isArray(value.runs) ? value.runs : [];
@@ -347,12 +348,22 @@ async function api(path, options = {}) {
   const token = csrfToken();
   if (token && options.method && !['GET','HEAD'].includes(options.method)) headers.set('x-csrf-token', token);
   const response = await fetch(path, { ...options, headers });
+  const payload = await response.clone().json().catch(()=>null);
   if (!response.ok) {
-    const error = new Error(response.status === 401 ? 'Local authentication required.' : `Request failed with ${response.status}`);
+    const code = payload?.error?.code ?? null;
+    const message = code === 'bootstrap_required'
+      ? 'Local owner setup is required.'
+      : code === 'invalid_credentials'
+        ? 'Username or password is incorrect.'
+        : response.status === 401
+          ? 'Local authentication required.'
+          : payload?.error?.message ?? `Request failed with ${response.status}`;
+    const error = new Error(message);
     error.status = response.status;
+    error.code = code;
     throw error;
   }
-  return response.json();
+  return payload ?? response.json();
 }
 
 async function load() {
@@ -364,7 +375,7 @@ async function load() {
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
-    dashboard = { error:{ status:error.status, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
+    dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
     shellState = classifyDashboardState(dashboard);
   } finally {
     render();
@@ -389,6 +400,7 @@ function render() {
   root.querySelectorAll('[data-action=reset]').forEach(button=>button.addEventListener('click',resetDemo));
   root.querySelectorAll('[data-run-id]').forEach(link=>link.addEventListener('click',showRun));
   root.querySelectorAll('[data-step-id],[data-record-id]').forEach(link=>link.addEventListener('click',navigateLocal));
+  root.querySelector('#auth-form')?.addEventListener('submit',submitAuthForm);
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
 }
 
@@ -412,6 +424,7 @@ function renderStatusBar() {
 }
 
 function renderRoute(route) {
+  if (shellState.kind === 'setup') return authPanel('bootstrap', shellState.message);
   if (shellState.kind === 'denied') return deniedState();
   if (shellState.kind === 'error') return statePanel('error','Could not load local state', shellState.message, true);
   if (route.id === 'home') return renderHome();
@@ -500,7 +513,12 @@ function metric(value,label,copy){return `<div class="metric"><strong>${Number(v
 function statusChip(kind,label,description){return `<span class="status-chip status-${esc(kind)}"><strong>${esc(label)}</strong><small>${esc(description)}</small></span>`}
 function localBoundary(){return `<dl class="facts"><div><dt>Residency</dt><dd>Local-only</dd></div><div><dt>Network</dt><dd>Denied by default</dd></div><div><dt>Writes</dt><dd>External writes disabled</dd></div><div><dt>Model</dt><dd>Deterministic offline default</dd></div></dl>`}
 function statePanel(kind,heading,copy,button=false){return `<section class="state-panel state-${esc(kind)}" aria-live="${kind==='loading'?'polite':'off'}"><h2>${esc(heading)}</h2><p>${esc(copy)}</p>${button?'<div class="action-row"><button class="button primary" data-action="run" type="button">Run local demo</button><button class="button secondary" data-action="reset" type="button">Reset demo</button></div>':''}</section>`}
-function deniedState(){return `<section class="state-panel state-denied"><h2>Local authentication required</h2><p>The loopback API denied this workspace request. Bootstrap or sign in locally, then reload this route.</p><p class="muted">No fallback data, external network, or direct storage access was used.</p></section>`}
+function deniedState(){return authPanel('login','Sign in with the local owner account for this workspace.')}
+function authPanel(mode,copy){
+  const isBootstrap=mode==='bootstrap';
+  const title=isBootstrap?'Set up local owner':'Sign in locally';
+  return `<section class="state-panel state-${isBootstrap?'setup':'denied'} auth-panel"><h2>${title}</h2><p>${esc(copy)}</p><form id="auth-form" data-mode="${mode}" autocomplete="on"><div class="field-grid"><label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap?'rebel':''}" required maxlength="80" pattern="[A-Za-z0-9._:-]{1,80}"></label>${isBootstrap?'<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>':''}<label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap?'new-password':'current-password'}" required minlength="12" maxlength="256"></label></div><div class="action-row"><button class="button primary" type="submit">${isBootstrap?'Create owner':'Sign in'}</button>${isBootstrap?'<span class="muted">Local-only. Stored in .local/identity with hashed credentials.</span>':'<span class="muted">No external network or fallback identity provider is used.</span>'}</div></form></section>`;
+}
 function runList(items){if(!items?.length)return statePanel('empty','No runs yet','Execute the synthetic local workflow to populate the event ledger.',true);return `<div class="run-list">${items.map(run=>`<article class="run-row"><header><a href="${runDetailLink(run.id)}" data-run-id="${esc(run.id)}">${esc(run.workflowId)}</a>${statusChip(run.status,run.status,'Run status')}</header><p>${esc(run.objective??'')}</p><div class="meta-row"><span>Version: ${esc(run.workflowVersion??'unknown')}</span><span>Residency: ${esc(run.residency??'local-only')}</span><span>Current step: ${esc(currentStepLabel(run))}</span><span>Owner: local workspace</span><span>Warnings: ${Number(run.warningCount??0)}</span></div><div class="meta-row"><code>${esc(run.id)}</code><span>Started ${date(run.createdAt)}</span><span>${duration(run.createdAt,run.completedAt)}</span></div></article>`).join('')}</div>`}
 function contextSummary(manifest){if(!manifest)return '<div class="state-inline">No context has been compiled.</div>';const percent=Math.min(100,Math.round(manifest.budget.used/manifest.budget.available*100));return `<div class="section-heading"><h2>Context budget</h2><span>${percent}% used</span></div><strong>${manifest.budget.used} / ${manifest.budget.available} estimated tokens</strong><div class="progress" aria-label="${percent}% of context budget used"><span style="width:${percent}%"></span></div><p class="muted">${manifest.selected.length} selected · ${manifest.excluded.length} excluded · ${manifest.conflicts.length} conflicts</p>`}
 function angles(items){if(!Array.isArray(items)||!items.length)return statePanel('empty','No candidates yet','Run the demo to generate evidence-backed candidates.');return `<div class="angle-list">${items.map(item=>`<article class="angle-row"><h3>${esc(item.angle)}</h3><p>${esc(item.hook)}</p><div class="meta-row"><span>Evidence: ${item.evidenceIds.map(esc).join(', ')||'none'}</span><span>Confidence: ${Math.round(Number(item.confidence??0)*100)}%</span></div></article>`).join('')}</div>`}
@@ -613,6 +631,38 @@ async function runDemo(){
   }finally{
     button.disabled=false;
     button.textContent='Run local demo';
+  }
+}
+
+async function submitAuthForm(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector('button[type=submit]');
+  const mode=form.dataset.mode;
+  const data=new FormData(form);
+  const username=String(data.get('username') ?? '').trim();
+  const password=String(data.get('password') ?? '');
+  const displayName=String(data.get('displayName') ?? '').trim();
+  button.disabled=true;
+  button.textContent=mode==='bootstrap'?'Creating...':'Signing in...';
+  document.querySelector('#live-status').textContent=mode==='bootstrap'?'Creating local owner.':'Signing in locally.';
+  try{
+    if(mode==='bootstrap'){
+      await api('/api/auth/bootstrap',{method:'POST',body:JSON.stringify({username,displayName,password,workspaceId:'ws_local',workspaceName:'Local Workspace'})});
+    }else{
+      await api('/api/auth/login',{method:'POST',body:JSON.stringify({username,password})});
+    }
+    form.reset();
+    document.querySelector('#live-status').textContent=mode==='bootstrap'?'Local owner created.':'Signed in locally.';
+    await load();
+  }catch(error){
+    document.querySelector('#live-status').textContent=error.message;
+    const message=error.code==='already_bootstrapped'?'This workspace already has an owner. Sign in instead.':error.message;
+    shellState={kind:mode==='bootstrap'&&error.code!=='already_bootstrapped'?'setup':'denied',message};
+    render();
+  }finally{
+    button.disabled=false;
+    button.textContent=mode==='bootstrap'?'Create owner':'Sign in';
   }
 }
 

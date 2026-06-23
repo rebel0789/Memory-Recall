@@ -158,6 +158,8 @@ export function createControlApiServer({
         };
       case 'getBootstrapStatus':
         return { schemaVersion: '1.0.0', bootstrapRequired: !await identityStore.isBootstrapped() };
+      case 'bootstrapOwner':
+        return bootstrapOwner(context);
       case 'login':
         return login(context);
       case 'getSession':
@@ -295,6 +297,33 @@ export function createControlApiServer({
       memberships: await identityStore.listMemberships({ userId: verified.user.id }),
       session: session.session
     });
+  }
+
+  async function bootstrapOwner({ body, request, response }) {
+    try {
+      const created = await identityStore.bootstrapOwner({
+        username: body.username,
+        displayName: body.displayName,
+        password: body.password,
+        workspaceId: body.workspaceId ?? 'ws_local',
+        workspaceName: body.workspaceName ?? 'Local Workspace'
+      });
+      const session = await identityStore.createSession({
+        userId: created.user.id,
+        remoteAddress: request.socket?.remoteAddress ?? 'unknown',
+        userAgent: request.headers['user-agent'] ?? null
+      });
+      setLoginCookies(response, request, session);
+      return sessionPayload({
+        credentialType: 'session',
+        user: created.user,
+        memberships: [created.membership],
+        session: session.session
+      });
+    } catch (error) {
+      if (error?.code === 'already_bootstrapped') throw new ApiError(409, 'already_bootstrapped');
+      throw error;
+    }
   }
 
   async function authenticateAndAuthorize({ request, contract, parsed, query, body, correlationId }) {
