@@ -80,15 +80,33 @@ function summaryFor({ harness, sourceKind, relativePath, redactions }) {
   return `${harness} ${sourceKind} ${workspaceLocator(relativePath)} ${counts}`.slice(0, 240);
 }
 
-async function cursorRuleDefinitions(root) {
+async function cursorRuleDefinitions(root, rootReal) {
+  const rulesRelative = path.join('.cursor', 'rules');
   const rulesRoot = path.join(root, '.cursor', 'rules');
+  try {
+    await lstat(rulesRoot);
+  } catch {
+    return { definitions: [], skipped: [] };
+  }
+
+  let rulesReal;
+  try {
+    rulesReal = await realpath(rulesRoot);
+  } catch {
+    return { definitions: [], skipped: [] };
+  }
+
+  if (isEscapedRelative(path.relative(rootReal, rulesReal))) {
+    return { definitions: [], skipped: [skippedSource('cursor', toPosix(rulesRelative), 'symlink_escape')] };
+  }
+
   let entries;
   try {
     entries = await readdir(rulesRoot, { withFileTypes: true });
   } catch {
-    return [];
+    return { definitions: [], skipped: [] };
   }
-  return entries
+  const definitions = entries
     .filter((entry) => entry.name.endsWith('.mdc') && (entry.isFile() || entry.isSymbolicLink()))
     .sort((left, right) => left.name.localeCompare(right.name))
     .map((entry) => ({
@@ -97,12 +115,18 @@ async function cursorRuleDefinitions(root) {
       scope: 'repository',
       trust: 'user-authored'
     }));
+  return { definitions, skipped: [] };
 }
 
-async function sourceDefinitions(root, harness) {
+async function sourceDefinitions(root, rootReal, harness) {
   const definitions = [...(STATIC_PROJECT_SOURCES[harness] ?? [])];
-  if (harness === 'cursor') definitions.push(...await cursorRuleDefinitions(root));
-  return definitions;
+  const skipped = [];
+  if (harness === 'cursor') {
+    const cursorRules = await cursorRuleDefinitions(root, rootReal);
+    definitions.push(...cursorRules.definitions);
+    skipped.push(...cursorRules.skipped);
+  }
+  return { definitions, skipped };
 }
 
 function skippedSource(harness, relativePath, reason) {
@@ -140,8 +164,8 @@ async function scanSource({ root, rootReal, harness, definition, workspaceId, ma
 
   const body = bodyBuffer.toString('utf8');
   const redactions = redact(body);
-  const contentHash = hash(bodyBuffer);
-  const bodyHash = hash(bodyBuffer);
+  const contentHash = hash(redactions.redacted);
+  const bodyHash = contentHash;
   const source = {
     schemaVersion: '1.0.0',
     id: `hctx_${idDigest(`${workspaceId}:${harness}:${relativePath}:${contentHash}`)}`,
@@ -201,7 +225,9 @@ export async function scanHarnessContext({
   const skipped = [];
 
   for (const harness of selectedHarnesses(harnesses)) {
-    for (const definition of await sourceDefinitions(resolvedRoot, harness)) {
+    const harnessSources = await sourceDefinitions(resolvedRoot, rootReal, harness);
+    skipped.push(...harnessSources.skipped);
+    for (const definition of harnessSources.definitions) {
       const result = await scanSource({ root: resolvedRoot, rootReal, harness, definition, workspaceId, maxBytes, createdAt });
       if (result?.source) sources.push(result.source);
       if (result?.skipped) skipped.push(result.skipped);
@@ -215,7 +241,7 @@ export async function scanHarnessContext({
     schemaVersion: '1.0.0',
     scannerVersion: HARNESS_CONTEXT_SCANNER_VERSION,
     workspaceId,
-    rootFingerprint: hash(rootReal),
+    rootFingerprint: hash(`workspace:${workspaceId}:harness-context-root`),
     summary: {
       totalAccepted: sources.length,
       totalSkipped: skipped.length,

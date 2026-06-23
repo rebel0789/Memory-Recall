@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, symlink } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, mkdir, realpath, writeFile, symlink } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { scanHarnessContext } from '../packages/harness-context/src/index.mjs';
@@ -11,6 +12,10 @@ const fixedClock = () => '2026-06-22T00:00:00.000Z';
 
 async function workspace() {
   return mkdtemp(path.join(os.tmpdir(), 'oaf-harness-context-'));
+}
+
+function sha256Ref(value) {
+  return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
 test('scans Codex AGENTS.md without exposing raw content', async () => {
@@ -108,6 +113,68 @@ test('skips symlink AGENTS.md that escapes the workspace without exposing outsid
   assert.equal(report.skipped[0].reason, 'symlink_escape');
   assert.equal(report.skipped[0].locator, 'workspace://AGENTS.md');
   assert(!JSON.stringify(report).includes('outside file body'));
+});
+
+test('skips cursor rules directory symlink escape without leaking child names', async () => {
+  const root = await workspace();
+  const outside = await workspace();
+  await mkdir(path.join(root, '.cursor'), { recursive: true });
+  await writeFile(path.join(outside, 'PRIVATE_API_KEY_RULE.mdc'), 'token=external-secret');
+  await symlink(outside, path.join(root, '.cursor', 'rules'));
+
+  const report = await scanHarnessContext({ root, harnesses: ['cursor'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.equal(report.summary.totalAccepted, 0);
+  assert.equal(report.summary.totalSkipped, 1);
+  assert.deepEqual(report.skipped, [{ harness: 'cursor', locator: 'workspace://.cursor/rules', reason: 'symlink_escape' }]);
+  const serialized = JSON.stringify(report);
+  assert(!serialized.includes('PRIVATE_API_KEY_RULE'));
+  assert(!serialized.includes('external-secret'));
+});
+
+test('report-visible hashes are not raw secret body hashes', async () => {
+  const root = await workspace();
+  const rawBody = 'Use npm run ci. API_KEY=raw-secret-value.';
+  await writeFile(path.join(root, 'AGENTS.md'), rawBody);
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+  const rawHash = sha256Ref(rawBody);
+
+  assert.notEqual(report.sources[0].provenance.contentHash, rawHash);
+  assert.notEqual(report.sources[0].bodyHash, rawHash);
+  assert(!JSON.stringify(report).includes('raw-secret-value'));
+});
+
+test('root fingerprint does not hash the absolute workspace realpath', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), 'Use npm run ci.');
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+  const rootPathHash = sha256Ref(await realpath(root));
+
+  assert.notEqual(report.rootFingerprint, rootPathHash);
+});
+
+test('rejects unsupported harness names', async () => {
+  const root = await workspace();
+
+  await assert.rejects(
+    scanHarnessContext({ root, harnesses: ['opencode'], workspaceId: 'ws_local', clock: fixedClock }),
+    (error) => error.code === 'unsupported_harness' && error.message.includes('opencode')
+  );
+});
+
+test('skips control-character files as binary without exposing body', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), Buffer.from([0x55, 0x73, 0x65, 0x00, 0x20, 0x73, 0x65, 0x63, 0x72, 0x65, 0x74]));
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.equal(report.summary.totalAccepted, 0);
+  assert.equal(report.summary.totalSkipped, 1);
+  assert.deepEqual(report.skipped, [{ harness: 'codex', locator: 'workspace://AGENTS.md', reason: 'binary' }]);
+  assert(!JSON.stringify(report).includes('Use'));
+  assert(!JSON.stringify(report).includes('secret'));
 });
 
 test('scanner output is deterministic for the same input and fixed clock', async () => {
