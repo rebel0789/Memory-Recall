@@ -40,6 +40,9 @@ Reference repositories:
 | `supermemoryai/code-chunk` | AST-aware code chunking | Consider later as an optional candidate-source provider after license and checksum review |
 | `supermemoryai/llm-bridge` | Cross-provider message conversion and observability | Useful reference for format adapters; OAF keeps canonical domain schemas |
 | `supermemoryai/smfs` | Agent-oriented file and retrieval substrate | Research-only for now; no filesystem layer replacement in OAF core |
+| `mex-memory/mex` | Structured project-memory scaffold with `AGENTS.md`, `CLAUDE.md`, routing docs, `context/`, `patterns/`, and drift checks | Useful scaffold and drift-detection reference; OAF can scan MEX-compatible files later, but MEX output cannot become policy or active memory without OAF review |
+| `safishamsi/graphify` | Knowledge graph over code, SQL schemas, scripts, docs, papers, images, and videos for multiple harnesses | Treat as a future disabled candidate-source or graph adapter target only after commit pin, license review, checksum review, and conformance tests |
+| `oraios/serena` | MCP toolkit for semantic code retrieval, editing, refactoring, and project memories | Useful MCP read-tool reference; editing and refactoring tools require exact OAF grants and stay disabled by default |
 | `petabridge/memorizer`, `ipiton/agent-memory-mcp`, `jordanaftermidnight/localmem`, and similar MCP memory repos | Local MCP memory server patterns | Useful comparison set; most do not provide OAF's policy, approval, manifest, replay, and evidence guarantees |
 
 ## User Experience
@@ -86,6 +89,7 @@ Initial source map:
 | OpenCode | `opencode.jsonc`, project commands, plugin metadata, user-selected memory config | governance candidates, project conventions, memory proposals |
 | Windsurf or Devin Desktop | documented rules and MCP config files only | governance candidates and capability declarations |
 | Generic MCP client | user-provided MCP config file | capability declarations only |
+| MEX-compatible scaffold | user-selected `ROUTER.md`, `context/**/*.md`, `patterns/**/*.md`, and `.mex/events/decisions.jsonl` | future source candidates and drift evidence, not active memory or policy |
 
 ## Domain Model
 
@@ -176,6 +180,26 @@ Before any Supermemory adapter can be enabled, OAF needs:
 - disabled-by-default catalog state;
 - tests proving standard CI stays offline.
 
+## MEX, Graphify, and Serena Strategy
+
+The additional OSS references should shape future intake work without changing
+OAF's default authority model.
+
+- MEX is most relevant to onboarding and project-memory layout. OAF can add a
+  read-only MEX-compatible scanner after Slice 1, limited to documented
+  markdown and JSONL scaffold files selected from the workspace.
+- Graphify is most relevant to rich candidate discovery across code, database
+  schemas, infrastructure, documents, and media. It should remain an optional
+  disabled adapter target; OAF should not require a graph database, embeddings,
+  or public internet access for the default kit.
+- Serena is most relevant to semantic code retrieval through MCP. OAF may use
+  its read-only tool shape as adapter prior art, but editing/refactoring tools
+  are consequential operations and require OAF policy, exact grants, previews,
+  and idempotent reconciliation before use.
+
+None of these projects should be vendored into the Apache core or enabled by
+default without the adapter review process.
+
 ## Implementation Slices
 
 ### Slice 1: Read-only scanner and schema
@@ -213,6 +237,20 @@ Before any Supermemory adapter can be enabled, OAF needs:
 - Compare native OAF SQLite/FTS5 memory against optional adapters only outside
   default CI.
 
+### Future Slice: MEX-compatible scaffold scanner
+
+- Scan user-visible `ROUTER.md`, `context/**/*.md`, `patterns/**/*.md`, and
+  `.mex/events/decisions.jsonl`.
+- Emit `HarnessContextSource` records with `reviewStatus: scan-only`.
+- Treat drift checks as evidence, not authority.
+
+### Future Slice: Semantic retrieval adapter comparison
+
+- Compare OAF native candidate generation with disabled Graphify and Serena
+  adapter prototypes in a non-default evaluation profile.
+- Keep graph databases, embeddings, MCP editing tools, and public network access
+  outside standard CI.
+
 ## Acceptance Criteria
 
 - `npm run ci` passes with network disabled.
@@ -229,6 +267,8 @@ Before any Supermemory adapter can be enabled, OAF needs:
 - The feature works without Supermemory, hosted models, cloud API keys,
   embeddings, vector databases, graph databases, browser automation, or
   publishing.
+- MEX, Graphify, and Serena references remain prior art or disabled future
+  adapter targets.
 
 ## Non-Goals
 
@@ -241,6 +281,7 @@ Before any Supermemory adapter can be enabled, OAF needs:
 - No adapter activation.
 - No production authentication changes.
 - No claim that external harness memories are trusted OAF policy.
+- No vendored MEX, Graphify, Serena, or Supermemory source in OAF core.
 
 ## Open Decisions
 

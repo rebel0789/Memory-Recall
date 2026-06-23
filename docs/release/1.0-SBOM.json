@@ -70,6 +70,15 @@
       "devDependencyCount": 0
     },
     {
+      "path": "packages/harness-context/package.json",
+      "name": "@open-agent-fabric/harness-context",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
       "path": "packages/memory-core/package.json",
       "name": "@open-agent-fabric/memory-core",
       "version": "0.2.0-dev",

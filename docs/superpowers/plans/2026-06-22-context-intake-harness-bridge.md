@@ -33,6 +33,9 @@ Not implemented in this plan:
 - handoff export;
 - MCP stdio wrapper;
 - Supermemory adapter;
+- MEX-compatible scaffold scanner;
+- Graphify or Serena adapter;
+- graph database or embedding integration;
 - external network access;
 - adapter activation;
 - `PROJECT_STATUS.json` capability changes.
@@ -59,6 +62,15 @@ Not implemented in this plan:
   - Unit tests for scanning, redaction, symlink denial, oversize handling, and determinism.
 - Modify `README.md`
   - Add a short proposed-feature note pointing at the design spec and dry-run command only after tests pass.
+
+Prior-art references captured in the design spec:
+
+- `mex-memory/mex`: structured project-memory scaffold and drift checks;
+- `safishamsi/graphify`: queryable knowledge graph over code, schemas, docs,
+  scripts, and media;
+- `oraios/serena`: MCP semantic retrieval and editing toolkit.
+
+They are not runtime dependencies for this plan and are not enabled adapters.
 
 ## Task 1: Protocol Schema And Fixtures
 

@@ -24,13 +24,15 @@ This repository is an **agent-ready development kit**, not a claim that the full
 - deterministic model provider and optional loopback-only Ollama provider;
 - portable Agent Pack validation, resolution, and deterministic fingerprinting;
 - side-effect-free replay plans, run comparison, and reviewable learning proposals;
+- dry-run harness context scanner for documented Codex, Claude Code, and Cursor
+  project files, with sanitized reports and no import/write path;
 - versioned contract fixtures for 12 disabled external adapter targets;
 - tests, evaluations, repository checks, and agent task tooling;
 - no API key, paid service, database server, or external network required.
 
 ## What is deliberately not claimed
 
-Production PostgreSQL repositories, crash-resumable workflow orchestration, production authentication, real social connectors, hardened sandboxes, external publishing, signed Agent Pack distribution, and a production frontend framework are **specified and planned**, but not completed. `PROJECT_STATUS.json` is the machine-readable source for current capability status and limitations.
+Production PostgreSQL repositories, crash-resumable workflow orchestration, production authentication, proposal-based harness context import, handoff generation, MCP bridge exposure, real social connectors, hardened sandboxes, external publishing, signed Agent Pack distribution, and a production frontend framework are **specified and planned**, but not completed. `PROJECT_STATUS.json` is the machine-readable source for current capability status and limitations.
 
 ## Start in five minutes
 
@@ -122,6 +124,7 @@ npm run doctor                 # environment and local safety checks
 npm run protocol:validate      # v1 valid, invalid, and compatibility fixtures
 npm run native:smoke           # native memory, artifacts, Agent Pack, model
 npm run demo                   # complete synthetic workflow
+npm run oaf -- context scan --from codex --root . --dry-run
 npm run dev                    # local API and dashboard
 npm run ci                     # checks, protocol, tests, evaluations
 npm run verify:handoff         # full handoff gate plus manifests
