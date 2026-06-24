@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T21:31:36.764Z",
+  "generatedAt": "2026-06-24T21:39:22.069Z",
   "fileCount": 807,
-  "totalBytes": 3949492,
+  "totalBytes": 3952032,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -582,8 +582,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 148044,
-      "sha256": "1ef5c83560d1dda02511c4c1550aa4cfb82edbd0a3f4c5e1f3554d944f3e1de3"
+      "bytes": 149239,
+      "sha256": "367ed927eec80d39170dd16ba946afeec3dbfd16bd058836e4707e806c2fbfc7"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -2208,7 +2208,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "2331a7031f718b6652eabcd46dd3202960caae4e9fa439cad4b109c439a66d25"
+      "sha256": "e9b435145104eaaf90764d809f125b8b70bceb036836ceb4b667f25475de8f83"
     },
     {
       "path": "LICENSE",
@@ -2332,8 +2332,8 @@
     },
     {
       "path": "packages/harness-context/src/index.mjs",
-      "bytes": 117462,
-      "sha256": "355efebe38dc1b78e093ba886a486f2daff60a0be15f78a9926ff9f591be8106"
+      "bytes": 117561,
+      "sha256": "3cbdb15d33aacf5d67e487de6137d3018d43f977dcedd9fdf72763bc5d6ac5d9"
     },
     {
       "path": "packages/memory-core/package.json",
@@ -3787,8 +3787,8 @@
     },
     {
       "path": "tests/harness-context-pack.test.mjs",
-      "bytes": 32291,
-      "sha256": "614299904c94ff7a39d31b84fe830178f0f4aa0e13bed6f5b78db5f4ddc6ed4a"
+      "bytes": 32609,
+      "sha256": "b7db520b3733d50788f949f0b73c950bbe6e66b5e401994ad4d3d2eb21fbb036"
     },
     {
       "path": "tests/harness-context-preview.test.mjs",
@@ -3942,8 +3942,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 40651,
-      "sha256": "e7225c2284ed10eb268dfca6b106083f21419d672b0500516d18f8c4804ddfa5"
+      "bytes": 41579,
+      "sha256": "b29102af6c8439395873a8ec75e09cedb44a8b94c162dae7ecb899878464aa6d"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

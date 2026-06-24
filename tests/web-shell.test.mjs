@@ -99,8 +99,10 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Changed files, reads, and proof commands are ready/);
   assert.match(app,/Review changed files, reads, and proof commands before handoff/);
   assert.match(app,/Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief/);
-  assert.match(app,/Proof commands intentionally include the visible objective and step arguments/);
-  assert.match(app,/\['Test local handoff','Read current context pack','Copy impact command'\]/);
+  assert.match(app,/This page does not write files; the copied Pin locally command writes explicit local context-packs artifacts, and Receive pinned pack only reads the pinned local artifacts/);
+  assert.match(app,/Pin and receive/);
+  assert.match(app,/\['Test local handoff','Pin locally','Receive pinned pack','Copy impact command'\]/);
+  assert.match(app,/context receive --read-only --root \. --target/);
   assert.match(app,/Utility read plan/);
   assert.match(app,/Hash verified/);
   assert.match(app,/Observed build time/);
@@ -259,7 +261,16 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(model.commands[1].command,/Ship user'"'"'s change safely/);
   assert.match(model.commands[2].command,/--write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);
   assert.equal(model.commands[2].label,'Pin locally');
-  assert.match(model.commands[3].command,/context registry status --read-only --format json/);
+  const pinIndex=model.commands.findIndex((item)=>item.label==='Pin locally');
+  const verifyIndex=model.commands.findIndex((item)=>item.label==='Verify pin');
+  const receiveIndex=model.commands.findIndex((item)=>item.label==='Receive pinned pack');
+  assert(pinIndex >= 0);
+  assert.equal(verifyIndex,pinIndex+1);
+  assert.equal(receiveIndex,verifyIndex+1);
+  assert.match(model.commands[verifyIndex].command,/context registry status --read-only --format json/);
+  const receiveCommand=model.commands[receiveIndex].command;
+  assert.equal(receiveCommand,'npm run oaf -- context receive --read-only --root . --target codex --format json');
+  assert.doesNotMatch(receiveCommand,/--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
   assert.equal(model.commands.some((item)=>item.command==='npm --silent run oaf -- mcp resources --read-only --stdio'),true);
   const preflightCommand=model.commands.find((item)=>item.label==='Test local handoff')?.command ?? '';
   assert.match(preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
@@ -383,7 +394,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(ready.ready,true);
   assert.equal(ready.title,'Ready for local handoff');
   assert.equal(ready.gates.find((gate)=>gate.id==='setup-preview').status,'pending');
-  assert.equal(ready.nextAction,'Use Copy markdown now, or run Test local handoff for CLI and MCP proof. Preview setup only if you want MCP resource discovery.');
+  assert.equal(ready.nextAction,'Use Copy markdown now, or run Test local handoff for CLI and MCP proof. For durable CLI reuse, run the CLI Pin locally command, then Receive pinned pack.');
   const handoffStatus=buildCurrentHandoffStatusModel({
     contextPackResult:{
       pack:{...safePack,objective:'Prepare safe Codex handoff',step:'select useful context'},
@@ -414,7 +425,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   });
   assert.equal(setupReady.ready,true);
   assert.equal(setupReady.gates.find((gate)=>gate.id==='setup-preview').status,'pass');
-  assert.equal(setupReady.nextAction,'Use Copy markdown, Test local handoff, or the previewed read-only MCP command.');
+  assert.equal(setupReady.nextAction,'Use Copy markdown, Test local handoff, or the CLI Pin locally then Receive pinned pack commands for durable CLI reuse.');
   const setupUnsafe=buildFirstUseReadinessModel({
     pack:safePack,
     markdown:'# Context Pack\n',

@@ -1048,7 +1048,7 @@ export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null
       ? 'Copy the markdown into your next local agent, or run the local handoff preflight for CLI and MCP proof.'
       : 'Do not hand this to another agent until the failed gate is fixed.',
     nextAction:ready
-      ? (setupPreviewed ? 'Use Copy markdown, Test local handoff, or the previewed read-only MCP command.' : 'Use Copy markdown now, or run Test local handoff for CLI and MCP proof. Preview setup only if you want MCP resource discovery.')
+      ? (setupPreviewed ? 'Use Copy markdown, Test local handoff, or the CLI Pin locally then Receive pinned pack commands for durable CLI reuse.' : 'Use Copy markdown now, or run Test local handoff for CLI and MCP proof. For durable CLI reuse, run the CLI Pin locally command, then Receive pinned pack.')
       : `Fix: ${blocking.label}.`,
     gates
   };
@@ -1139,6 +1139,7 @@ function contextPackHarnessCommands(pack,usePlan=null) {
   const packCommands=Array.isArray(pack?.handoff?.commands) ? pack.handoff.commands.filter((command)=>typeof command==='string'&&command.trim()) : [];
   if(packCommands.length){
     const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
+    insertContextPackReceiveCommand(commands,pack);
     const generated=[
       {label:'Test local handoff',command:contextPackPreflightCommand(pack)},
       {label:'Copy impact command',command:contextPackImpactCommand(pack)},
@@ -1167,6 +1168,7 @@ function contextPackHarnessCommands(pack,usePlan=null) {
     { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
+    { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
     { label:'Start MCP bridge', command:'npm --silent run oaf -- mcp resources --read-only --stdio' },
     { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
     { label:'Read use plan', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
@@ -1175,6 +1177,17 @@ function contextPackHarnessCommands(pack,usePlan=null) {
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
+}
+
+function insertContextPackReceiveCommand(commands,pack) {
+  const command=contextPackReceiveCommand(pack);
+  if(commands.some((item)=>item.command===command || item.label==='Receive pinned pack'))return;
+  const afterVerify=commands.findIndex((item)=>item.label==='Verify pin');
+  const afterPin=commands.findIndex((item)=>item.label==='Pin locally');
+  const index=afterVerify >= 0 ? afterVerify : afterPin;
+  const item={label:'Receive pinned pack',command};
+  if(index >= 0)commands.splice(index+1,0,item);
+  else commands.push(item);
 }
 
 function contextPackImpactCommand(pack) {
@@ -1205,6 +1218,11 @@ function contextPackPreflightCommand(pack) {
   return `npm --silent run oaf -- context handoff --read-only --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --format json`;
 }
 
+function contextPackReceiveCommand(pack) {
+  const target=String(pack?.targetHarness ?? 'generic');
+  return `npm run oaf -- context receive --read-only --root . --target ${target} --format json`;
+}
+
 function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
@@ -1219,6 +1237,7 @@ function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
   return [
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
+    { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
     { label:'Start MCP bridge', command:'npm --silent run oaf -- mcp resources --read-only --stdio' },
     { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
     { label:'Read use plan', command:`npm run oaf -- mcp resources --read-only --uri ${uri} --format json` }
@@ -1230,6 +1249,7 @@ function contextPackCommandLabel(command) {
   if(command === 'npm run ci')return 'Run CI';
   if(command.includes('measure context-pack'))return 'Copy impact command';
   if(command.includes('context handoff'))return 'Test local handoff';
+  if(command.includes('context receive'))return 'Receive pinned pack';
   if(command.includes('context registry status'))return 'Verify pin';
   if(command.includes('--stdio'))return 'Start MCP bridge';
   if(command.includes('context-pack/registry/current'))return 'Read registry';
@@ -1295,14 +1315,14 @@ function contextPackOperatorBrief(model,readiness={ready:false}) {
   const reads=brief.topReads.length
     ? `<ol class="locator-list compact-list">${brief.topReads.slice(0,3).map((item)=>`<li><code>${esc(item.locator)}</code><small>${esc(item.role)} · ${item.contentHash?'hash verified':'hash unavailable'}</small></li>`).join('')}</ol>`
     : '<p class="muted">No required local reads were selected yet.</p>';
-  const commands=['Test local handoff','Read current context pack','Copy impact command']
+  const commands=['Test local handoff','Pin locally','Receive pinned pack','Copy impact command']
     .map((label)=>model.commands.find((item)=>item.label===label))
     .filter(Boolean);
   const commandList=commands.length ? contextPackCommandList(commands) : '<p class="muted">Build a context pack to get read-only proof commands.</p>';
   const symbols=brief.affectedSymbols.length
     ? brief.affectedSymbols.slice(0,3).map((item)=>esc(item.name)).join(', ')
     : 'no affected symbols reported';
-  return `<section class="handoff-brief" aria-label="Handoff operator brief"><div class="handoff-brief-head"><div><p class="eyebrow">Use this pack</p><h2>${esc(title)}</h2></div><span>${esc(stateLabel)} · ${esc(model.targetHarness)} · ${esc(model.fingerprintShort)}</span></div><div class="handoff-brief-grid"><article><h3>Changed</h3><dl class="facts compact-facts"><div><dt>Coverage</dt><dd>${esc(brief.changedCoverageLabel)} (${esc(brief.changedCoveragePercent)})</dd></div><div><dt>Symbols</dt><dd>${Number(brief.affectedSymbolCount)} affected</dd></div><div><dt>Top impact</dt><dd>${symbols}</dd></div><div><dt>Hash proof</dt><dd>${Number(brief.changedHashVerifiedCount)} changed files</dd></div></dl></article><article><h3>Read first</h3>${reads}<p class="muted">Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief. Proof commands intentionally include the visible objective and step arguments.</p></article><article><h3>Run proof</h3>${commandList}</article></div></section>`;
+  return `<section class="handoff-brief" aria-label="Handoff operator brief"><div class="handoff-brief-head"><div><p class="eyebrow">Use this pack</p><h2>${esc(title)}</h2></div><span>${esc(stateLabel)} · ${esc(model.targetHarness)} · ${esc(model.fingerprintShort)}</span></div><div class="handoff-brief-grid"><article><h3>Changed</h3><dl class="facts compact-facts"><div><dt>Coverage</dt><dd>${esc(brief.changedCoverageLabel)} (${esc(brief.changedCoveragePercent)})</dd></div><div><dt>Symbols</dt><dd>${Number(brief.affectedSymbolCount)} affected</dd></div><div><dt>Top impact</dt><dd>${symbols}</dd></div><div><dt>Hash proof</dt><dd>${Number(brief.changedHashVerifiedCount)} changed files</dd></div></dl></article><article><h3>Read first</h3>${reads}<p class="muted">Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief. This page does not write files; the copied Pin locally command writes explicit local context-packs artifacts, and Receive pinned pack only reads the pinned local artifacts.</p></article><article><h3>Pin and receive</h3>${commandList}</article></div></section>`;
 }
 
 function contextPackProofLedger(proof) {

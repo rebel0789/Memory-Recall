@@ -100,6 +100,9 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert(pack.handoff.instructions.some((item) => item.includes('Codex')));
   assert(pack.handoff.commands.some((item) => item.includes("--objective 'Prepare the next coding agent")));
   assert(pack.handoff.commands.some((item) => item.includes("--changed 'src/authWorkflow.ts'")));
+  const receiveCommand = pack.handoff.commands.find((item) => item.includes('context receive'));
+  assert.equal(receiveCommand, 'npm run oaf -- context receive --read-only --root . --target codex --format json');
+  assert.doesNotMatch(receiveCommand, /--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
   assert(pack.handoff.launchPrompt.includes('Changed-file coverage: 1/1'));
   assert(pack.files.some((item) => item.path === 'CONTEXT_PACK.md' && item.role === 'agent-handoff'));
 
