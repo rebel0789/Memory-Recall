@@ -22,6 +22,17 @@ async function workspace() {
   return mkdtemp(path.join(os.tmpdir(), 'oaf-context-pack-'));
 }
 
+function repeatedWords(prefix, count) {
+  return Array.from({ length: count }, (_, index) => `${prefix}-${index}`).join(' ');
+}
+
+function assertRequiredRead(usePlan, locator, role) {
+  const read = usePlan.requiredLocalReads.find((item) => item.locator === locator && item.role === role);
+  assert(read, `missing required read ${role}:${locator}`);
+  assert.equal(read.required, true);
+  return read;
+}
+
 test('context pack renders a harness-specific handoff without raw source bodies or writes', async () => {
   const root = await workspace();
   await mkdir(path.join(root, '.cursor', 'rules'), { recursive: true });
@@ -109,6 +120,11 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /approveTokenResetWorkflow/);
   assert.match(markdown, /workspace:\/\/src\/authWorkflow\.ts#L1-L3/);
   assert.match(markdown, /External writes: disabled/);
+  assert.match(markdown, /Complete command set: \d+ commands in structured pack data/);
+  assert.match(markdown, /npm run doctor/);
+  assert.match(markdown, /npm run oaf -- context registry status --read-only --format json/);
+  assert.match(markdown, /npm run ci/);
+  assert.doesNotMatch(markdown, /npm run oaf -- context pack --from/);
   assert.doesNotMatch(markdown, /<objective>|<step>/);
   assert(!markdown.includes('PACK RAW BODY'));
   assert(!JSON.stringify(pack.omissions).includes('Claude-only note'));
@@ -421,6 +437,97 @@ test('context pack delivery budget separates locator handoff cost from source se
   assert.match(markdown, /Delivered handoff tokens:/);
   assert(!markdown.includes('LONG RAW POLICY BODY'));
   assert(!JSON.stringify(pack).includes('LONG RAW POLICY BODY'));
+});
+
+test('context pack delivery stays compact on a realistic local pack without weakening read plan safety', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, '.cursor', 'rules'), { recursive: true });
+  await mkdir(path.join(root, 'docs', 'implementation'), { recursive: true });
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(
+    path.join(root, 'AGENTS.md'),
+    `REALISTIC SELECTED RAW BODY ${repeatedWords('read-first-local-policy', 1000)}`
+  );
+  await writeFile(
+    path.join(root, 'CLAUDE.md'),
+    `REALISTIC CLAUDE RAW BODY ${repeatedWords('claude-distractor-policy', 850)}`
+  );
+  await writeFile(
+    path.join(root, '.cursorrules'),
+    `REALISTIC CURSOR RAW BODY ${repeatedWords('cursor-rule-distractor', 650)}`
+  );
+  await writeFile(
+    path.join(root, '.cursor', 'mcp.json'),
+    `{"note":"REALISTIC MCP RAW BODY token=secret-value /Users/rebel/private ${repeatedWords('mcp-config-distractor', 350)}"}`
+  );
+  await writeFile(
+    path.join(root, '.cursor', 'rules', 'delivery.mdc'),
+    `REALISTIC CURSOR RULE RAW BODY ${repeatedWords('delivery-rule-distractor', 400)}`
+  );
+  await writeFile(
+    path.join(root, 'docs', 'implementation', 'OAF-031-context-intake-preview-note.md'),
+    `REALISTIC SELECTED DOC RAW BODY ${repeatedWords('explicit-user-selected-doc', 350)}`
+  );
+  await writeFile(
+    path.join(root, 'src', 'contextPackMeasure.ts'),
+    [
+      'export function contextPackMeasureDelivery() {',
+      "  return 'REALISTIC SOURCE RAW BODY';",
+      '}'
+    ].join('\n')
+  );
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['all'],
+    userSelectedFiles: ['docs/implementation/OAF-031-context-intake-preview-note.md'],
+    changedLocators: ['src/contextPackMeasure.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prove context pack delivery efficiency on realistic local OAF pack',
+    step: 'preserve read-first omission refs and use-plan required reads while measuring delivered locator handoff',
+    tokenBudget: 16384,
+    clock: fixedClock
+  });
+  const usePlan = buildContextPackUsePlan(pack);
+  const markdown = renderContextPackMarkdown(pack);
+
+  assertJsonSchema(contextPackSchema, pack, 'realistic context pack delivery');
+  assertJsonSchema(contextPackUsePlanSchema, usePlan, 'realistic context pack use plan');
+  assert(pack.delivery.sourceCandidateTokenCount >= 12000);
+  assert(pack.delivery.sourceSelectedTokenCount >= 3500);
+  assert(pack.omissions.excludedTokenCount >= 7000);
+  assert(pack.omissions.excludedCount >= 3);
+  assert(pack.delivery.deliveredTokenRatio <= 0.12);
+  assert(pack.delivery.observedTokenReductionRatio >= 0.88);
+  assert(pack.delivery.deliveredTokenCount <= Math.floor(pack.delivery.sourceSelectedTokenCount * 0.45));
+  assert.equal(pack.readFirst.some((item) => item.locator === 'workspace://AGENTS.md'), true);
+  assert.equal(pack.omissions.refs.length, pack.excluded.length);
+  assert(pack.omissions.refs.every((item) => item.id.startsWith('omit_')));
+  assertRequiredRead(usePlan, 'workspace://AGENTS.md', 'selected_context');
+  assertRequiredRead(usePlan, 'user-selected://docs/implementation/OAF-031-context-intake-preview-note.md', 'selected_context');
+  assertRequiredRead(usePlan, 'workspace://src/contextPackMeasure.ts', 'changed_locator');
+  assert.equal(usePlan.safeguards.readOnly, true);
+  assert.equal(usePlan.safeguards.localFilesWritten, 0);
+  assert.equal(usePlan.safeguards.markdownContentIncluded, false);
+  assert.equal(usePlan.safeguards.sourceContentIncluded, false);
+  assert.equal(usePlan.safeguards.objectiveTextIncluded, false);
+  assert.equal(usePlan.safeguards.stepTextIncluded, false);
+  for (const forbidden of [
+    'REALISTIC SELECTED RAW BODY',
+    'REALISTIC CLAUDE RAW BODY',
+    'REALISTIC CURSOR RAW BODY',
+    'REALISTIC MCP RAW BODY',
+    'REALISTIC CURSOR RULE RAW BODY',
+    'REALISTIC SELECTED DOC RAW BODY',
+    'REALISTIC SOURCE RAW BODY',
+    'secret-value',
+    '/Users/rebel/private'
+  ]) {
+    assert.equal(markdown.includes(forbidden), false, forbidden);
+    assert.equal(JSON.stringify(pack).includes(forbidden), false, forbidden);
+    assert.equal(JSON.stringify(usePlan).includes(forbidden), false, forbidden);
+  }
 });
 
 test('context pack fingerprints are deterministic for fixed input', async () => {

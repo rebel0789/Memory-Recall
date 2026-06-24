@@ -45,6 +45,11 @@ slice.
   oversized, binary, escaping, or non-graph changed-file locators keep the read
   plan in review with explicit reason codes instead of pretending the local file
   was source-graph verified.
+- Context-pack Markdown is a compact locator handoff. It caps bulky selected,
+  omitted, source-graph, affected-symbol, and verification-command rows while
+  preserving the complete required-read, omission-ref, requested-input, and
+  command lists in the schema-backed pack, use-plan, registry, and read-only MCP
+  resources.
 - Context packs also preserve explicit requested inputs separately from
   selected context. A user-selected file that is excluded by the selector under
   token budget remains visible as a `requestedInputs` locator, a required

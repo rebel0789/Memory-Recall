@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T19:47:57.919Z",
+  "generatedAt": "2026-06-24T20:01:24.429Z",
   "fileCount": 801,
-  "totalBytes": 3784263,
+  "totalBytes": 3793625,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -1042,8 +1042,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 16208,
-      "sha256": "46760966612e674648c8f62beca0e1fc3f8e15364c98cb157f82a4fc743415d4"
+      "bytes": 16534,
+      "sha256": "4f72f25cd11a5eb3cf23a9524c86246ddfd2c96ee2113df7c0b7f11f4f8d15d0"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1153,7 +1153,7 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "c41c58804544857747f79c6695f100fedf97dc5050467344d27494e3c94f94a3"
+      "sha256": "0d51fae71245d56052f92c744a8f921298058df570df0106cd7d21c47aca2748"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -2188,7 +2188,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "8fdccab13532a29571d40471694f06b8b317b8285a4d199e094f1dfe12e21e7d"
+      "sha256": "3e8ca1981966de00e6c7b46c93311b1ab112b3e701af7e6702a58a95155f2e9f"
     },
     {
       "path": "LICENSE",
@@ -2312,8 +2312,8 @@
     },
     {
       "path": "packages/harness-context/src/index.mjs",
-      "bytes": 106484,
-      "sha256": "1d066ac0590ce973466cc460d4470d3a5956e61533cf7247ffc982bf738cd894"
+      "bytes": 109957,
+      "sha256": "f6a5c27ad4f9d8d42f26db7b43488730b02265dcc2827e19b43ece302004ef27"
     },
     {
       "path": "packages/memory-core/package.json",
@@ -3172,8 +3172,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 42282,
-      "sha256": "74f59ce9572dc6d79e1a90e48771c7e60a0bc2b8c667960b884bb571b1bfc62c"
+      "bytes": 42576,
+      "sha256": "277cca9168b6ddf48b32af9ad6129e4895aa6ad315fa2fc72e2141f70aaeda2e"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3677,8 +3677,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 67441,
-      "sha256": "69ace82f9e8f6738c41a936d38923655e55a3adf4ec7eb045a59e1e750c3c3e0"
+      "bytes": 67714,
+      "sha256": "b38ebec52ab974d562bdfaf69df1e18763c74384833c96675a63b99534744c08"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -3757,8 +3757,8 @@
     },
     {
       "path": "tests/harness-context-pack.test.mjs",
-      "bytes": 24958,
-      "sha256": "f8175dd0f21d8663c8a53fd9ce80d9953acd09620bb5f572d8312e5503f3b151"
+      "bytes": 29954,
+      "sha256": "3a8538a17b21dcaf51229681260db449ea6179ff806293bc6f22d52dc4ef2e64"
     },
     {
       "path": "tests/harness-context-preview.test.mjs",

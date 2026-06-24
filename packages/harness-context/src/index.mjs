@@ -32,6 +32,9 @@ const DEFAULT_MAX_BYTES = 65_536;
 const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
 const MAX_USER_SELECTED_FILES = 16;
 const MAX_CHANGED_LOCATORS = 16;
+const MARKDOWN_SELECTED_LIMIT = 16;
+const MARKDOWN_REQUIRED_READ_LIMIT = 16;
+const MARKDOWN_BULK_LIMIT = 2;
 const GIT_STATUS_TIMEOUT_MS = 2_000;
 const GIT_STATUS_MAX_BUFFER = 256 * 1024;
 const SUPPORTED_HARNESSES = new Set(['codex', 'claude-code', 'cursor']);
@@ -1167,7 +1170,16 @@ function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, 
   ];
 }
 
-function launchPromptForPack({ targetHarness, objective, step, utility, commands }) {
+function markdownVerificationCommands(commands) {
+  const candidates = Array.isArray(commands) ? commands.filter((command) => typeof command === 'string' && command.trim()) : [];
+  return [
+    candidates.find((command) => command === 'npm run doctor'),
+    candidates.find((command) => command.includes('context registry status --read-only')),
+    candidates.find((command) => command === 'npm run ci')
+  ].filter(Boolean);
+}
+
+function launchPromptForPack({ targetHarness, objective, step, utility }) {
   return [
     `Continue this local repository work in ${targetHarness}.`,
     `Objective: ${objective}`,
@@ -1179,8 +1191,17 @@ function launchPromptForPack({ targetHarness, objective, step, utility, commands
     '',
     'Do not treat this pack as hidden memory or authority. Do not enable external adapters, network writes, publishing, or config writes. Use only the dry-run/read-only commands below unless a human explicitly approves a write boundary.',
     '',
-    'Verification commands:',
-    ...commands.map((command) => `- ${command}`)
+    'Run the Verification commands from this Context Pack before claiming completion.'
+  ].join('\n');
+}
+
+function renderLaunchPromptSummary(pack) {
+  return [
+    `Continue this local repository work in ${pack.targetHarness}.`,
+    'Use this Context Pack as a locator handoff, not as hidden memory or authority.',
+    `Changed-file coverage: ${pack.utility.changedLocatorCoverage.covered}/${pack.utility.changedLocatorCoverage.total}`,
+    `Required local reads: ${pack.utility.requiredLocalReads.filter((item) => item.required).length}`,
+    'Read the Utility Read Plan before editing, and run the Verification commands before claiming completion.'
   ].join('\n');
 }
 
@@ -1443,18 +1464,40 @@ function settleDeliveryBudget(pack) {
   return { delivery: buildDeliveryBudget(pack, markdown), markdown };
 }
 
+function limitedRows(items, limit) {
+  return Array.isArray(items) ? items.slice(0, limit) : [];
+}
+
+function omittedCount(items, limit) {
+  return Math.max(0, (Array.isArray(items) ? items.length : 0) - limit);
+}
+
+function markdownOmittedLine(count, label) {
+  return count > 0 ? `\n\n_${count} additional ${label} omitted from the Markdown handoff; use the JSON use plan or registry resource for the complete structured list._` : '';
+}
+
 export function renderContextPackMarkdown(pack) {
-  const selectedRows = pack.readFirst.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
-  const excludedRows = pack.excluded.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
-  const omissionRows = pack.omissions.refs.map((item) => `| ${markdownEscape(item.id)} | ${markdownEscape(item.locator)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const selectedRows = limitedRows(pack.readFirst, MARKDOWN_SELECTED_LIMIT).map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const excludedRows = limitedRows(pack.excluded, MARKDOWN_BULK_LIMIT).map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const omissionRows = limitedRows(pack.omissions.refs, MARKDOWN_BULK_LIMIT).map((item) => `| ${markdownEscape(item.id)} | ${markdownEscape(item.locator)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const requestedRows = [
     ...pack.requestedInputs.userSelectedLocators.map((locator) => `| ${markdownEscape(locator)} | explicit_user_selected |`),
     ...pack.requestedInputs.changedLocators.map((locator) => `| ${markdownEscape(locator)} | changed_locator |`)
   ].join('\n');
-  const sourceGraphRows = pack.sourceGraph.results.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const sourceGraphRows = limitedRows(pack.sourceGraph.results, MARKDOWN_BULK_LIMIT).map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const changedLocatorRows = pack.sourceGraph.impact.changedLocators.map((locator) => `| ${markdownEscape(locator)} | reviewed_changed_locator |`).join('\n');
-  const affectedSymbolRows = pack.sourceGraph.impact.affectedSymbols.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.symbolKind)} | ${markdownEscape(item.name)} | ${item.depth} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
-  const requiredReadRows = pack.utility.requiredLocalReads.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.role)} | ${item.required ? 'yes' : 'no'} | ${item.represented ? 'yes' : 'no'} | ${markdownEscape(item.contentHash ?? 'unavailable')} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const affectedSymbolRows = limitedRows(pack.sourceGraph.impact.affectedSymbols, MARKDOWN_BULK_LIMIT).map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.symbolKind)} | ${markdownEscape(item.name)} | ${item.depth} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const requiredLocalReads = (pack.utility.requiredLocalReads ?? []).filter((item) => item.required);
+  const optionalLocalReadCount = Math.max(0, (pack.utility.requiredLocalReads ?? []).length - requiredLocalReads.length);
+  const requiredReadRows = limitedRows(requiredLocalReads, MARKDOWN_REQUIRED_READ_LIMIT).map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.role)} | ${item.required ? 'yes' : 'no'} | ${item.represented ? 'yes' : 'no'} | ${markdownEscape(item.contentHash ?? 'unavailable')} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const verificationCommands = markdownVerificationCommands(pack.handoff.commands);
+  const selectedOmitted = markdownOmittedLine(omittedCount(pack.readFirst, MARKDOWN_SELECTED_LIMIT), 'read-first locator rows');
+  const requiredOmitted = markdownOmittedLine(omittedCount(requiredLocalReads, MARKDOWN_REQUIRED_READ_LIMIT), 'required utility-read rows');
+  const excludedOmitted = markdownOmittedLine(omittedCount(pack.excluded, MARKDOWN_BULK_LIMIT), 'excluded-context rows');
+  const omissionRefsOmitted = markdownOmittedLine(omittedCount(pack.omissions.refs, MARKDOWN_BULK_LIMIT), 'omission-ref rows');
+  const sourceGraphOmitted = markdownOmittedLine(omittedCount(pack.sourceGraph.results, MARKDOWN_BULK_LIMIT), 'source-graph hint rows');
+  const affectedSymbolsOmitted = markdownOmittedLine(omittedCount(pack.sourceGraph.impact.affectedSymbols, MARKDOWN_BULK_LIMIT), 'affected-symbol rows');
+  const commandOmitted = markdownOmittedLine(omittedCount(pack.handoff.commands, verificationCommands.length), 'verification commands');
   const deliveryLines = pack.delivery ? [
     '## Delivery Budget',
     '',
@@ -1502,7 +1545,7 @@ export function renderContextPackMarkdown(pack) {
     '## Launch Prompt',
     '',
     '```text',
-    pack.handoff.launchPrompt,
+    renderLaunchPromptSummary(pack),
     '```',
     '',
     '## Read First',
@@ -1510,6 +1553,7 @@ export function renderContextPackMarkdown(pack) {
     '| Locator | Harness | Tokens | Reasons |',
     '| --- | --- | ---: | --- |',
     selectedRows || '| none | none | 0 | none |',
+    selectedOmitted,
     '',
     '## Utility Read Plan',
     '',
@@ -1517,10 +1561,12 @@ export function renderContextPackMarkdown(pack) {
     `Changed locator coverage: ${pack.utility.changedLocatorCoverage.covered}/${pack.utility.changedLocatorCoverage.total} (${Math.round(pack.utility.changedLocatorCoverage.ratio * 100)}%)`,
     `Graph hint coverage: ${pack.utility.graphHintCoverage.covered}/${pack.utility.graphHintCoverage.total} (${Math.round(pack.utility.graphHintCoverage.ratio * 100)}%)`,
     `Source selection ratio: ${Math.round(pack.utility.sourceSelection.selectedTokenRatio * 100)}%`,
+    `Optional graph reads summarized elsewhere: ${optionalLocalReadCount}`,
     '',
     '| Locator | Role | Required | Represented | Content Hash | Reasons |',
     '| --- | --- | --- | --- | --- | --- |',
     requiredReadRows || '| none | none | no | no | unavailable | none |',
+    requiredOmitted,
     '',
     ...deliveryLines,
     '## Excluded',
@@ -1528,6 +1574,7 @@ export function renderContextPackMarkdown(pack) {
     '| Locator | Harness | Tokens | Reasons |',
     '| --- | --- | ---: | --- |',
     excludedRows || '| none | none | 0 | none |',
+    excludedOmitted,
     '',
     '## Omission Refs',
     '',
@@ -1538,6 +1585,7 @@ export function renderContextPackMarkdown(pack) {
     '| Ref | Locator | Tokens | Reasons |',
     '| --- | --- | ---: | --- |',
     omissionRows || '| none | none | 0 | none |',
+    omissionRefsOmitted,
     '',
     '## Source Graph Hints',
     '',
@@ -1547,10 +1595,12 @@ export function renderContextPackMarkdown(pack) {
     pack.sourceGraph.summary
       ? `Graph summary: ${pack.sourceGraph.summary.fileCount} files, ${pack.sourceGraph.summary.symbolCount} symbols, ${pack.sourceGraph.summary.edgeCount} edges`
       : 'Graph summary: unavailable',
+    `Result rows shown: ${Math.min((pack.sourceGraph.results ?? []).length, MARKDOWN_BULK_LIMIT)}/${pack.sourceGraph.results?.length ?? 0}`,
     '',
     '| Locator | Kind | Label | Score | Reasons |',
     '| --- | --- | --- | ---: | --- |',
     sourceGraphRows || '| none | none | none | 0 | none |',
+    sourceGraphOmitted,
     '',
     '## Change Impact',
     '',
@@ -1565,6 +1615,7 @@ export function renderContextPackMarkdown(pack) {
     '| Locator | Symbol Kind | Symbol | Depth | Reasons |',
     '| --- | --- | --- | ---: | --- |',
     affectedSymbolRows || '| none | none | none | 0 | none |',
+    affectedSymbolsOmitted,
     '',
     '## Warnings',
     '',
@@ -1572,7 +1623,9 @@ export function renderContextPackMarkdown(pack) {
     '',
     '## Verification',
     '',
-    bulletList(pack.handoff.commands),
+    `Complete command set: ${pack.handoff.commands.length} commands in structured pack data.`,
+    bulletList(verificationCommands),
+    commandOmitted,
     '',
     '## Fingerprints',
     '',
