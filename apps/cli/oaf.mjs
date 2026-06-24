@@ -10,6 +10,7 @@ import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/e
 import {
   buildContextPack,
   buildContextPackCurrentPointer,
+  buildContextPackImpactBrief,
   buildContextPackRegistry,
   buildContextPackRegistryEntry,
   buildContextPackUsePlan,
@@ -1151,6 +1152,12 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
   });
   const buildDurationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
   const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
+  const usePlan = buildContextPackUsePlan(pack, { generatedAt });
+  const impactBrief = buildContextPackImpactBrief(pack, {
+    generatedAt,
+    changedLocatorSource: detection ? 'git-status-porcelain' : 'explicit',
+    usePlanFingerprint: usePlan.usePlanFingerprint
+  });
   const summary = pack.sourceGraph.summary ?? {};
   const selection = pack.utility.sourceSelection;
   const delivery = pack.delivery ?? {};
@@ -1205,6 +1212,7 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
       omittedAffectedSymbolCount: pack.sourceGraph.impact.omittedAffectedSymbolCount,
       warningCodes: pack.sourceGraph.warnings
     },
+    impactBrief,
     mcpReadback: {
       transport: smoke.transport,
       resourceUri: smoke.resourceUri,
@@ -1643,7 +1651,7 @@ Usage:
   oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
-  oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "measure local handoff" --target codex --changed src/auth.ts --format json
+  oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --records memory-export.json --root . --dry-run --format json

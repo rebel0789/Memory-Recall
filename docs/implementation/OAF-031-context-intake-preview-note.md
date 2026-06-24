@@ -157,9 +157,12 @@ slice.
   wraps the same local pack build and stdio MCP readback into a
   schema-validated current-checkout measurement report. It records commit SHA,
   objective and step fingerprints, source-selection reduction, locator-handoff
-  delivery reduction, source-graph coverage counts, byte sizes, and local
-  timings without raw source, raw prompt text, markdown bodies, local paths,
-  writes, network calls, model calls, or production benchmark claims.
+  delivery reduction, source-graph coverage counts, byte sizes, local timings,
+  and a nested impact brief. The brief summarizes changed-file coverage,
+  affected symbols, required local reads, changed-file hash proof, graph hints,
+  omissions, fingerprints, and no-body safeguards without raw source, raw
+  prompt text, markdown bodies, local paths, writes, network calls, model
+  calls, graph databases, adapters, or production benchmark claims.
 - `npm --silent run oaf -- context handoff --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   returns a schema-validated Codex handoff preflight report. It includes the
   launch prompt, required local reads, use-plan fingerprint, read-only MCP

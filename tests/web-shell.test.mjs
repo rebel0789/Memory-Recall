@@ -83,6 +83,10 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/from:sourceFamilies\.join\(','\)/);
   assert.match(app,/data-action="preview-pack-setup"/);
   assert.match(app,/data-action="download-use-plan"/);
+  assert.match(app,/Impact brief/);
+  assert.match(app,/Copy impact command/);
+  assert.match(app,/measure context-pack --read-only/);
+  assert.match(app,/Read-only impact brief/);
   assert.match(app,/Change Impact/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
@@ -108,7 +112,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     memoryPlan:{activeMemoryCreated:0,proposedCount:1,quarantinedCount:1,items:[{action:'would_propose'},{action:'would_quarantine'}]},
     preview:{candidateTokenCount:1000,selectedTokenCount:250},
     delivery:{representation:'locator-handoff',sourceCandidateTokenCount:1000,sourceSelectedTokenCount:250,sourceSelectedTokenRatio:0.25,deliveredTokenCount:80,deliveredByteSize:320,deliveredTokenRatio:0.08,observedTokenReductionRatio:0.92,sourceContentTokenCountIncluded:0,sourceContentsIncluded:false},
-    sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],representedChangedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,affectedSymbols:[]}},
+    sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],representedChangedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,omittedAffectedSymbolCount:1,affectedSymbols:[{name:'renderContextPackResult',locator:'workspace://apps/web/app.js#L1-L3',symbolKind:'function'}]}},
     utility:{
       status:'ready',
       requiredLocalReads:[
@@ -196,6 +200,17 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(unsafeModel.proof.networkCallsLabel,'check');
   assert.equal(model.changedLocators,1);
   assert.equal(model.affectedSymbols,3);
+  assert.equal(model.impactBrief.status,'ready');
+  assert.equal(model.impactBrief.changedCoverageLabel,'1/1');
+  assert.equal(model.impactBrief.changedCoveragePercent,'100%');
+  assert.equal(model.impactBrief.affectedSymbolCount,3);
+  assert.equal(model.impactBrief.omittedAffectedSymbolCount,1);
+  assert.equal(model.impactBrief.requiredReadCount,2);
+  assert.equal(model.impactBrief.changedHashVerifiedCount,0);
+  assert.equal(model.impactBrief.estimatedReductionRatio,'75%');
+  assert.equal(model.impactBrief.topReads.length,2);
+  assert.equal(model.impactBrief.affectedSymbols[0].name,'renderContextPackResult');
+  assert.match(model.impactBrief.safeguards,/no writes/);
   assert.equal(model.setupClient,'codex');
   assert.equal(model.launchPrompt.includes('Changed-file coverage: 1/1'),true);
   assert.deepEqual(model.utility.topReads.map((item)=>item.locator),['workspace://AGENTS.md','workspace://apps/web/app.js']);
@@ -239,6 +254,11 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(preflightCommand,/--from 'codex,cursor'/);
   assert.match(preflightCommand,/--target codex --changed 'apps\/web\/app\.js' --format json/);
   assert.doesNotMatch(preflightCommand,/--write|--pin|--out|install/);
+  const impactCommand=model.commands.find((item)=>item.label==='Copy impact command')?.command ?? '';
+  assert.match(impactCommand,/^npm --silent run oaf -- measure context-pack --read-only /);
+  assert.match(impactCommand,/--from 'codex,cursor'/);
+  assert.match(impactCommand,/--target codex --changed 'apps\/web\/app\.js' --format json/);
+  assert.doesNotMatch(impactCommand,/--write|--pin|--out|install/);
   assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'),true);
   assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'),true);
   assert.equal(model.commands.some((item)=>/harness setup plan --client codex --server oaf --dry-run --format json/.test(item.command)),true);

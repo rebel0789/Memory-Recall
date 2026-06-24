@@ -1804,6 +1804,141 @@ function usePlanCoverage(coverage = {}) {
   };
 }
 
+function safeImpactBriefWarningCode(value) {
+  const code = String(value ?? 'warning')
+    .replace(/[^a-z0-9_:-]/giu, '_')
+    .replace(/_+/gu, '_')
+    .replace(/^[_:-]+|[_:-]+$/gu, '')
+    .toLowerCase()
+    .slice(0, 96);
+  return /^[a-z]/u.test(code) ? code : `warning_${code || 'unknown'}`;
+}
+
+export function buildContextPackImpactBrief(pack, {
+  generatedAt = pack?.createdAt ?? new Date().toISOString(),
+  changedLocatorSource = 'explicit',
+  usePlanFingerprint = null,
+  maxRequiredReads = 12,
+  maxAffectedSymbols = 12,
+  maxGraphHints = 8
+} = {}) {
+  const utility = pack?.utility ?? {};
+  const sourceGraph = pack?.sourceGraph ?? {};
+  const impact = sourceGraph.impact ?? {};
+  const delivery = pack?.delivery ?? {};
+  const selection = utility.sourceSelection ?? {};
+  const changedLocators = Array.isArray(impact.changedLocators) ? impact.changedLocators.slice(0, MAX_CHANGED_LOCATORS) : [];
+  const representedChangedLocators = Array.isArray(impact.representedChangedLocators)
+    ? impact.representedChangedLocators.filter((locator) => changedLocators.includes(locator)).slice(0, MAX_CHANGED_LOCATORS)
+    : [];
+  const requiredLocalReads = (utility.requiredLocalReads ?? [])
+    .filter((item) => item?.required === true)
+    .slice(0, maxRequiredReads)
+    .map(usePlanReadItem);
+  const changedReads = requiredLocalReads.filter((item) => item.role === 'changed_locator');
+  const affectedSymbols = (impact.affectedSymbols ?? []).slice(0, maxAffectedSymbols).map((item) => ({
+    name: String(item?.name ?? '').slice(0, 160),
+    symbolKind: String(item?.symbolKind ?? 'symbol').slice(0, 64),
+    locator: String(item?.locator ?? '').slice(0, 320),
+    depth: Number.isFinite(Number(item?.depth)) ? Number(item.depth) : 0,
+    reasonCodes: [...new Set((item?.reasonCodes ?? ['changed_locator_impact']).filter(Boolean))].sort().slice(0, 16)
+  }));
+  const graphHints = (sourceGraph.results ?? []).slice(0, maxGraphHints).map((item) => ({
+    kind: String(item?.kind ?? 'node').slice(0, 64),
+    label: String(item?.label ?? '').slice(0, 160),
+    locator: String(item?.locator ?? '').slice(0, 320),
+    reasonCodes: [...new Set((item?.reasonCodes ?? []).filter(Boolean))].sort().slice(0, 16)
+  }));
+  const affectedSymbolCount = Number.isInteger(impact.affectedSymbolCount)
+    ? impact.affectedSymbolCount
+    : Number(impact.affectedSymbols?.length ?? 0);
+  const omittedAffectedSymbolCount = Math.max(
+    Number.isInteger(impact.omittedAffectedSymbolCount) ? impact.omittedAffectedSymbolCount : 0,
+    Math.max(0, affectedSymbolCount - affectedSymbols.length)
+  );
+  const changedLocatorCoverage = usePlanCoverage(utility.changedLocatorCoverage);
+  const graphHintCoverage = usePlanCoverage(utility.graphHintCoverage);
+  const status = utility.status === 'ready' && changedLocatorCoverage.status !== 'partial' ? 'ready' : 'review';
+  const warnings = [
+    ...(Array.isArray(pack?.warnings) ? pack.warnings : []),
+    changedLocatorCoverage.status === 'partial' ? 'changed_locator_coverage_partial' : null,
+    omittedAffectedSymbolCount > 0 ? 'affected_symbols_truncated' : null,
+    requiredLocalReads.length < (utility.requiredLocalReads ?? []).filter((item) => item?.required === true).length ? 'required_reads_truncated' : null
+  ].filter(Boolean);
+  const brief = {
+    schemaVersion: '1.0.0',
+    briefVersion: 'oaf-context-impact-brief-1.0.0',
+    generatedAt,
+    workspaceId: pack?.workspaceId ?? 'ws_local',
+    targetHarness: pack?.targetHarness ?? 'generic',
+    status,
+    request: {
+      changedLocatorSource: ['explicit', 'git-status-porcelain'].includes(changedLocatorSource) ? changedLocatorSource : 'explicit',
+      sourceHarnesses: Array.isArray(pack?.sourceHarnesses) ? pack.sourceHarnesses : [],
+      changedLocatorCount: changedLocators.length,
+      userSelectedLocatorCount: Number.isInteger(pack?.requestedInputs?.userSelectedCount) ? pack.requestedInputs.userSelectedCount : 0
+    },
+    impact: {
+      sourceGraphStatus: sourceGraph.status ?? 'unavailable',
+      changedLocators,
+      representedChangedLocators,
+      changedLocatorCoverage,
+      graphHintCoverage,
+      affectedSymbolCount,
+      omittedAffectedSymbolCount,
+      affectedSymbols,
+      graphHints,
+      warningCodes: [...new Set(warnings.map(safeImpactBriefWarningCode))].sort().slice(0, 32)
+    },
+    readPlan: {
+      requiredReadCount: Number((utility.requiredLocalReads ?? []).filter((item) => item?.required === true).length),
+      deliveredRequiredReadCount: requiredLocalReads.length,
+      changedReadHashVerifiedCount: changedReads.filter((item) => typeof item.contentHash === 'string' && item.contentHash.startsWith('sha256:')).length,
+      requiredLocalReads
+    },
+    selection: {
+      candidateUnitCount: Number.isInteger(selection.candidateTokenCount) ? selection.candidateTokenCount : 0,
+      selectedUnitCount: Number.isInteger(selection.selectedTokenCount) ? selection.selectedTokenCount : 0,
+      selectedUnitRatio: Number.isFinite(selection.selectedTokenRatio) ? selection.selectedTokenRatio : 0,
+      estimatedSelectionReductionRatio: Number.isFinite(selection.estimatedReductionRatio) ? selection.estimatedReductionRatio : 0,
+      deliveredUnitCount: Number.isInteger(delivery.deliveredTokenCount) ? delivery.deliveredTokenCount : 0,
+      observedDeliveryReductionRatio: Number.isFinite(delivery.observedTokenReductionRatio) ? delivery.observedTokenReductionRatio : 0
+    },
+    evidence: {
+      contextPackFingerprint: pack?.contextPackFingerprint ?? null,
+      sourceIndexFingerprint: sourceGraph.sourceIndexFingerprint ?? null,
+      graphFingerprint: sourceGraph.graphFingerprint ?? null,
+      queryFingerprint: sourceGraph.queryFingerprint ?? null,
+      usePlanFingerprint,
+      handoffArtifactHash: pack?.files?.find((item) => item?.role === 'agent-handoff')?.contentHash ?? null,
+      handoffArtifactIncluded: false
+    },
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      graphDatabaseUsed: false,
+      privateBodiesIncluded: false,
+      objectiveTextIncluded: false,
+      stepTextIncluded: false,
+      markdownBodyIncluded: false,
+      sourceContentIncluded: false,
+      diffBodiesIncluded: false,
+      absoluteFilesystemLocationsIncluded: false,
+      productionBenchmarkClaimed: false
+    },
+    briefFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  brief.briefFingerprint = hash(stableStringify({ ...brief, briefFingerprint: null }));
+  return brief;
+}
+
 export function buildContextPackUsePlan(pack, {
   generatedAt = pack?.createdAt ?? new Date().toISOString(),
   resourceUri = `oaf://workspace/${pack?.workspaceId ?? 'ws_local'}/context-pack/use-plan/current`

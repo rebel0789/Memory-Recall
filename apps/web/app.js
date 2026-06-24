@@ -841,7 +841,7 @@ function renderContextPackResult(pack,markdown) {
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
   const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult});
   const handoff=buildCurrentHandoffStatusModel({contextPackResult,setupResult});
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${renderHandoffStatusPanel(handoff,'context-pack')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${renderHandoffStatusPanel(handoff,'context-pack')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 function renderHandoffStatusPanel(status,scope='default') {
@@ -901,6 +901,7 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     affectedSymbols:Number(pack?.sourceGraph?.impact?.affectedSymbolCount ?? 0),
     setupClient:contextPackSetupClient(pack),
     intakeReview:buildContextPackIntakeReview(pack),
+    impactBrief:buildContextPackImpactBriefUiModel(pack),
     launchPrompt:String(pack?.handoff?.launchPrompt ?? ''),
     utility:buildContextPackUtilityUiModel(pack?.utility),
     proof:{
@@ -946,6 +947,42 @@ function buildContextPackUtilityUiModel(utility) {
       required:item.required===true,
       contentHash:String(item.contentHash ?? '')
     }))
+  };
+}
+
+function buildContextPackImpactBriefUiModel(pack) {
+  const impact=pack?.sourceGraph?.impact ?? {};
+  const utility=pack?.utility ?? {};
+  const changed=utility.changedLocatorCoverage ?? {total:0,covered:0,ratio:0,status:'not_applicable'};
+  const graph=utility.graphHintCoverage ?? {total:0,covered:0,ratio:0,status:'not_applicable'};
+  const requiredReads=Array.isArray(utility.requiredLocalReads) ? utility.requiredLocalReads.filter((item)=>item?.required===true) : [];
+  const changedReads=requiredReads.filter((item)=>item?.role==='changed_locator');
+  const sourceSelection=utility.sourceSelection ?? {};
+  return {
+    status:utility.status==='ready'&&changed.status!=='partial'?'ready':'review',
+    changedCoverageLabel:`${Number(changed.covered??0)}/${Number(changed.total??0)}`,
+    changedCoveragePercent:`${boundedPercent(changed.ratio)}%`,
+    representedChangedCount:Array.isArray(impact.representedChangedLocators) ? impact.representedChangedLocators.length : 0,
+    affectedSymbolCount:Number(impact.affectedSymbolCount ?? 0),
+    omittedAffectedSymbolCount:Number(impact.omittedAffectedSymbolCount ?? 0),
+    graphCoverageLabel:`${Number(graph.covered??0)}/${Number(graph.total??0)}`,
+    requiredReadCount:requiredReads.length,
+    changedHashVerifiedCount:changedReads.filter((item)=>typeof item?.contentHash==='string'&&item.contentHash.startsWith('sha256:')).length,
+    selectedUnitRatio:`${boundedPercent(sourceSelection.selectedTokenRatio)}%`,
+    estimatedReductionRatio:`${boundedPercent(sourceSelection.estimatedReductionRatio)}%`,
+    sourceGraphStatus:String(pack?.sourceGraph?.status ?? 'unavailable'),
+    topReads:requiredReads.slice(0,4).map((item)=>({
+      locator:String(item.locator ?? ''),
+      role:String(item.role ?? ''),
+      represented:item.represented!==false,
+      contentHash:String(item.contentHash ?? '')
+    })),
+    affectedSymbols:(impact.affectedSymbols ?? []).slice(0,4).map((item)=>({
+      name:String(item.name ?? ''),
+      locator:String(item.locator ?? ''),
+      symbolKind:String(item.symbolKind ?? 'symbol')
+    })),
+    safeguards:'no writes, network, model calls, source bodies, markdown bodies, graph DB, or adapters'
   };
 }
 
@@ -1102,7 +1139,11 @@ function contextPackHarnessCommands(pack,usePlan=null) {
   const packCommands=Array.isArray(pack?.handoff?.commands) ? pack.handoff.commands.filter((command)=>typeof command==='string'&&command.trim()) : [];
   if(packCommands.length){
     const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
-    const generated=[{label:'Test local handoff',command:contextPackPreflightCommand(pack)},...contextPackGeneratedUsePlanCommands(pack,usePlan)].filter((item)=>item.command);
+    const generated=[
+      {label:'Test local handoff',command:contextPackPreflightCommand(pack)},
+      {label:'Copy impact command',command:contextPackImpactCommand(pack)},
+      ...contextPackGeneratedUsePlanCommands(pack,usePlan)
+    ].filter((item)=>item.command);
     for(const command of generated){
       if(!commands.some((item)=>item.command===command.command || item.command.includes('--context-pack-use')===command.command.includes('--context-pack-use') && command.command.includes('--context-pack-use'))){
         commands.push(command);
@@ -1122,6 +1163,7 @@ function contextPackHarnessCommands(pack,usePlan=null) {
   const setupClient=contextPackSetupClient(pack);
   return [
     { label:'Test local handoff', command:contextPackPreflightCommand(pack) },
+    { label:'Copy impact command', command:contextPackImpactCommand(pack) },
     { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
@@ -1133,6 +1175,20 @@ function contextPackHarnessCommands(pack,usePlan=null) {
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
+}
+
+function contextPackImpactCommand(pack) {
+  if(!pack)return '';
+  const target=String(pack?.targetHarness ?? 'generic');
+  const objective=quoteShell(pack?.objective ?? 'Ship safely');
+  const step=quoteShell(pack?.step ?? 'select context');
+  const from=quoteShell(contextPackSourceFamilies(pack).join(','));
+  const selected=(pack?.memoryPlan?.items ?? [])
+    .filter((item)=>String(item?.locator ?? '').startsWith('user-selected://'))
+    .map((item)=>` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u,''))}`)
+    .join('');
+  const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
+  return `npm --silent run oaf -- measure context-pack --read-only --root . --from ${from} --objective ${objective} --step ${step} --target ${target}${selected}${changed} --format json`;
 }
 
 function contextPackPreflightCommand(pack) {
@@ -1172,6 +1228,7 @@ function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
 function contextPackCommandLabel(command) {
   if(command === 'npm run doctor')return 'Check local setup';
   if(command === 'npm run ci')return 'Run CI';
+  if(command.includes('measure context-pack'))return 'Copy impact command';
   if(command.includes('context handoff'))return 'Test local handoff';
   if(command.includes('context registry status'))return 'Verify pin';
   if(command.includes('--stdio'))return 'Start MCP bridge';
@@ -1218,6 +1275,12 @@ function contextPackIntakeReview(review) {
 
 function contextPackUtilityPanel(utility) {
   return `<dl class="facts compact-facts"><div><dt>Changed files</dt><dd>${esc(utility.changedCoverageLabel)} (${esc(utility.changedCoveragePercent)})</dd></div><div><dt>Hash verified</dt><dd>${esc(utility.changedHashVerifiedLabel)}</dd></div><div><dt>Required reads</dt><dd>${Number(utility.requiredReadCount)}</dd></div><div><dt>Graph hints</dt><dd>${esc(utility.graphCoverageLabel)}</dd></div><div><dt>Source kept</dt><dd>${esc(utility.sourceSelectionRatio)}</dd></div><div><dt>Source reduction</dt><dd>${esc(utility.sourceReduction)}</dd></div></dl>${utility.topReads.length?`<ol class="locator-list compact-list">${utility.topReads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.required?'required':'optional'} · ${item.contentHash?'hash':'hash unavailable'}</small></li>`).join('')}</ol>`:'<p class="muted">No required local reads recorded.</p>'}`;
+}
+
+function contextPackImpactBriefPanel(brief) {
+  const reads=brief.topReads.length?`<ol class="locator-list compact-list">${brief.topReads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.represented?'represented':'review'} · ${item.contentHash?'hash':'hash unavailable'}</small></li>`).join('')}</ol>`:'<p class="muted">Build a context pack or detect git changes to generate a diff-aware impact brief.</p>';
+  const symbols=brief.affectedSymbols.length?`<ol class="locator-list compact-list">${brief.affectedSymbols.map((item)=>`<li><strong>${esc(item.name)}</strong><span>${esc(item.symbolKind)} · ${esc(item.locator)}</span></li>`).join('')}</ol>`:'<p class="muted">No affected symbols found for the supplied changed locators.</p>';
+  return `<dl class="facts compact-facts"><div><dt>Changed coverage</dt><dd>${esc(brief.changedCoverageLabel)} (${esc(brief.changedCoveragePercent)})</dd></div><div><dt>Affected symbols</dt><dd>${Number(brief.affectedSymbolCount)}${brief.omittedAffectedSymbolCount?` · ${Number(brief.omittedAffectedSymbolCount)} omitted`:''}</dd></div><div><dt>Required reads</dt><dd>${Number(brief.requiredReadCount)}</dd></div><div><dt>Hash proof</dt><dd>${Number(brief.changedHashVerifiedCount)} changed files</dd></div><div><dt>Graph hints</dt><dd>${esc(brief.graphCoverageLabel)}</dd></div><div><dt>Source kept</dt><dd>${esc(brief.selectedUnitRatio)}</dd></div><div><dt>Reduction</dt><dd>${esc(brief.estimatedReductionRatio)}</dd></div><div><dt>Source graph</dt><dd>${esc(brief.sourceGraphStatus)}</dd></div></dl><p class="muted">Read-only impact brief: ${esc(brief.safeguards)}.</p>${reads}${symbols}`;
 }
 
 function contextPackProofLedger(proof) {

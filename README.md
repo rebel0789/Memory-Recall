@@ -35,6 +35,9 @@ This repository is an **agent-ready development kit**, not a claim that the full
   changed-file coverage, a copyable launch prompt, and a delivery-budget metric
   distinct from source-body token counts, without raw source bodies or automatic
   memory import;
+- read-only context impact brief for the current checkout, reporting changed
+  coverage, affected symbols, required local reads, omitted counts, hashes,
+  source-selection reduction, and MCP readback proof without raw code or writes;
 - opt-in read-only MCP context-pack summary resource for local harnesses,
   exposing locators, hashes, token counts, omissions, changed-file impact, and
   utility coverage counts without raw task text, source bodies, markdown
@@ -73,17 +76,24 @@ Open <http://127.0.0.1:4310>.
 First practical path: open **Context Pack**, keep the target as Codex or choose
 your local harness, click **Preview sources**, use **Detect git changes** or add
 changed files manually, build the pack, check **First-use readiness** and the
-**Utility read plan**, then use **Copy markdown** or **Test local handoff** for a
-single read-only CLI/MCP preflight before handing work to the next local
-coding-agent session. Fabric Map and Agents & Tools show the same current
-handoff status without installing anything. This is a dry-run locator handoff
-with read-only MCP proof; it does not import harness history, create active
-memory, write harness config, or enable external adapters.
+**Impact brief** and **Utility read plan**, then use **Copy markdown**, **Copy
+impact command**, or **Test local handoff** for a single read-only CLI/MCP
+preflight before handing work to the next local coding-agent session. Fabric Map
+and Agents & Tools show the same current handoff status without installing
+anything. This is a dry-run locator handoff with read-only MCP proof; it does
+not import harness history, create active memory, write harness config, or
+enable external adapters.
 
 For a single CLI preflight before handing work to Codex:
 
 ```bash
 npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+```
+
+For a compact diff-aware impact brief with the same read-only MCP proof:
+
+```bash
+npm --silent run oaf -- measure context-pack --read-only --from codex --root . --objective "Prepare handoff" --step "impact brief" --target codex --changed apps/web/app.js --format json
 ```
 
 The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.

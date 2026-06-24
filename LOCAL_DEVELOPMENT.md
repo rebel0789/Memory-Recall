@@ -70,6 +70,13 @@ config, network, model, adapter, or external-write side effects. The browser
 path does not write files on the server; use the explicit CLI write mode below
 when you want a checked workspace file.
 
+The result inspector starts with an **Impact brief**: changed-file coverage,
+affected symbols, required local reads, hash proof, graph hints, source
+selection reduction, and the exact read-only command to reproduce the report.
+It contains locators, hashes, counts, statuses, and fingerprints only; it does
+not include raw source bodies, diff hunks, prompt text, markdown bodies, local
+absolute paths, model calls, network calls, graph databases, or adapters.
+
 CLI dry run:
 
 ```bash
@@ -103,6 +110,20 @@ This report combines the launch prompt, required local reads, schema-validated
 use plan, read-only MCP context-pack readback, and dry-run setup preview. It
 does not write context-pack files, mutate harness config, expose MCP tools,
 call models, use network access, or enable adapters.
+
+Impact brief:
+
+```bash
+npm --silent run oaf -- measure context-pack \
+  --read-only \
+  --from codex \
+  --root . \
+  --objective "Prepare handoff" \
+  --step "impact brief" \
+  --target codex \
+  --changed apps/web/app.js \
+  --format json
+```
 
 Explicit local write:
 

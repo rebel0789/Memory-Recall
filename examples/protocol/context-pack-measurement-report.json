@@ -59,6 +59,129 @@
     "omittedAffectedSymbolCount": 0,
     "warningCodes": ["source_graph_diagnostics_present"]
   },
+  "impactBrief": {
+    "schemaVersion": "1.0.0",
+    "briefVersion": "oaf-context-impact-brief-1.0.0",
+    "generatedAt": "2026-06-24T00:00:00.000Z",
+    "workspaceId": "ws_local",
+    "targetHarness": "codex",
+    "status": "ready",
+    "request": {
+      "changedLocatorSource": "explicit",
+      "sourceHarnesses": ["codex", "cursor"],
+      "changedLocatorCount": 1,
+      "userSelectedLocatorCount": 1
+    },
+    "impact": {
+      "sourceGraphStatus": "available",
+      "changedLocators": ["workspace://src/auth.ts"],
+      "representedChangedLocators": ["workspace://src/auth.ts"],
+      "changedLocatorCoverage": {
+        "total": 1,
+        "covered": 1,
+        "ratio": 1,
+        "status": "covered"
+      },
+      "graphHintCoverage": {
+        "total": 4,
+        "covered": 3,
+        "ratio": 0.75,
+        "status": "partial"
+      },
+      "affectedSymbolCount": 6,
+      "omittedAffectedSymbolCount": 0,
+      "affectedSymbols": [
+        {
+          "name": "approveTokenReset",
+          "symbolKind": "function",
+          "locator": "workspace://src/auth.ts#L10-L16",
+          "depth": 0,
+          "reasonCodes": ["changed_locator_impact"]
+        }
+      ],
+      "graphHints": [
+        {
+          "kind": "symbol",
+          "label": "approveTokenReset",
+          "locator": "workspace://src/auth.ts#L10-L16",
+          "reasonCodes": ["query_match"]
+        }
+      ],
+      "warningCodes": ["source_graph_diagnostics_present"]
+    },
+    "readPlan": {
+      "requiredReadCount": 3,
+      "deliveredRequiredReadCount": 3,
+      "changedReadHashVerifiedCount": 1,
+      "requiredLocalReads": [
+        {
+          "locator": "workspace://AGENTS.md",
+          "role": "selected_context",
+          "required": true,
+          "represented": true,
+          "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "reasonCodes": ["selected_context"],
+          "readHint": "Read workspace://AGENTS.md before handing off."
+        },
+        {
+          "locator": "user-selected://notes/handoff.md",
+          "role": "explicit_user_selected",
+          "required": true,
+          "represented": true,
+          "contentHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "reasonCodes": ["explicit_user_file", "read_before_handoff"],
+          "readHint": "Read user-selected://notes/handoff.md because it was explicitly included."
+        },
+        {
+          "locator": "workspace://src/auth.ts",
+          "role": "changed_locator",
+          "required": true,
+          "represented": true,
+          "contentHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"],
+          "readHint": "Read workspace://src/auth.ts before editing or reviewing this changed file."
+        }
+      ]
+    },
+    "selection": {
+      "candidateUnitCount": 2400,
+      "selectedUnitCount": 960,
+      "selectedUnitRatio": 0.4,
+      "estimatedSelectionReductionRatio": 0.6,
+      "deliveredUnitCount": 720,
+      "observedDeliveryReductionRatio": 0.7
+    },
+    "evidence": {
+      "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "sourceIndexFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "graphFingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "queryFingerprint": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "usePlanFingerprint": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+      "handoffArtifactHash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+      "handoffArtifactIncluded": false
+    },
+    "safeguards": {
+      "readOnly": true,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "externalWritesEnabled": false,
+      "externalAdaptersEnabled": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "activeMemoryCreated": 0,
+      "sourceSnapshotsWritten": 0,
+      "graphDatabaseUsed": false,
+      "privateBodiesIncluded": false,
+      "objectiveTextIncluded": false,
+      "stepTextIncluded": false,
+      "markdownBodyIncluded": false,
+      "sourceContentIncluded": false,
+      "diffBodiesIncluded": false,
+      "absoluteFilesystemLocationsIncluded": false,
+      "productionBenchmarkClaimed": false
+    },
+    "briefFingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+  },
   "mcpReadback": {
     "transport": "stdio",
     "resourceUri": "oaf://workspace/ws_local/context-pack/current",

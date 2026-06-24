@@ -114,8 +114,11 @@ provider URLs, absolute local paths, or hidden reasoning.
 `context-pack-measurement-report.schema.json` defines the local read-only
 measurement report for context-pack builds and MCP stdio readback. It records
 only hashes, counts, graph coverage, byte sizes, single-invocation timings, and
-explicit no-write/no-network safeguards. It is not a hosted benchmark,
-provider-token billing claim, or production latency contract.
+explicit no-write/no-network safeguards. Its nested impact brief reports
+changed-file coverage, affected symbols, required local reads, omitted counts,
+source-selection reduction, fingerprints, and no-body/no-write safeguards for
+the current checkout. It is not a hosted benchmark, provider-token billing
+claim, or production latency contract.
 
 `context-pack-handoff-report.schema.json` defines the read-only launch report
 for handing a context pack to a local agent harness. It combines the launch
