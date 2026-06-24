@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T20:48:55.073Z",
+  "generatedAt": "2026-06-24T21:00:11.136Z",
   "fileCount": 804,
-  "totalBytes": 3877692,
+  "totalBytes": 3882619,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -572,8 +572,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 68165,
-      "sha256": "41a510bc5efec6839026ca2ba0fa40ee8725fc1722ebd6d3e2c24071a4b8ecb7"
+      "bytes": 68247,
+      "sha256": "20ecdb4e72799aba3ccc0123293378b9985250785c9a7f80a2b4bd5f00919426"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -1042,8 +1042,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 17918,
-      "sha256": "679c844a8e0d05c63b1d58fddcd9227099a57ab1132f7be4ea6103ca44a15821"
+      "bytes": 18121,
+      "sha256": "7ebe54de5992ee4bdcc53cd4e0d765b12df6aec19061da5ceb589942473d8869"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1153,7 +1153,7 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "4a6de54c3af4b95cecc445d590c997d3a55bc81f441b90862c3112cc2179026f"
+      "sha256": "47d6f4a39c489ebd9e27651768ef33ceb30b9227e27b06fa11d2405eee66218c"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -2198,7 +2198,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "5dc946699d17b7ade173655b7ea22e1c61f0d7156033d9b3bc5aec620d02c80b"
+      "sha256": "82921ae5991d12f53c7a1e1aef9b04a37b159189092e8be373b2e8b6bb405a0e"
     },
     {
       "path": "LICENSE",
@@ -2207,8 +2207,8 @@
     },
     {
       "path": "LOCAL_DEVELOPMENT.md",
-      "bytes": 10504,
-      "sha256": "cbb37eb15ef292bf065bf89d2a03fbb8849dbb6dad3e6dbfef61d25aaa4cec70"
+      "bytes": 10799,
+      "sha256": "79eb63f134e3033841f73d78e9681dccd7f9967a3b11e4a6b1ecbc95fd560ade"
     },
     {
       "path": "MAINTAINERS.md",
@@ -2322,8 +2322,8 @@
     },
     {
       "path": "packages/harness-context/src/index.mjs",
-      "bytes": 116713,
-      "sha256": "be530100edfe704ededef1bb83fbaf7f4bde649036c5530c28f83841e4229bd8"
+      "bytes": 117462,
+      "sha256": "355efebe38dc1b78e093ba886a486f2daff60a0be15f78a9926ff9f591be8106"
     },
     {
       "path": "packages/memory-core/package.json",
@@ -2407,8 +2407,8 @@
     },
     {
       "path": "packages/protocol/README.md",
-      "bytes": 8608,
-      "sha256": "4d7c6a344a8a62ead5184a50c4b4050e027f9777328bc8911ca0b60f1c59a516"
+      "bytes": 8652,
+      "sha256": "f703b7dbff8ed9809550f20bcf1c517bde9023e172a80b5a3b2f62fed2f32cc0"
     },
     {
       "path": "packages/protocol/schemas/adapter-conformance-fixture.schema.json",
@@ -3102,8 +3102,8 @@
     },
     {
       "path": "packages/source-graph/src/index.mjs",
-      "bytes": 10657,
-      "sha256": "1c5ae6c4b22ecee9c22d3c4f211b31c6adaf65de12bc4c7d1a17903bec3a6889"
+      "bytes": 10761,
+      "sha256": "e3b68e920b21345d744b8b63ad7de98a0060a3e7c66fb4269e1b1f2e12b473ee"
     },
     {
       "path": "packages/storage/package.json",
@@ -3187,8 +3187,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 43862,
-      "sha256": "f1a9073defb7804ba7957b08160a93b7424fc110514f362658e1fe9489736018"
+      "bytes": 44169,
+      "sha256": "ae3b840e4c439489fd7a34110ce8bfcbe7decae85fc7d3852657fddc637b013b"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3397,8 +3397,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 11512,
-      "sha256": "26f0576f8f17c7d504af5a00d554b1b832bc8f02258a4703c883fce2b44e42ad"
+      "bytes": 11559,
+      "sha256": "1b42baa5870204a8f3993c962173094575a03d582d57b1b3041ad371e061da5e"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3532,13 +3532,13 @@
     },
     {
       "path": "services/control-api/src/route-contracts.mjs",
-      "bytes": 53371,
-      "sha256": "2bf158d2640900cd2e7cb2716dee6ed3dcbf2abb55ec52ca9c14d5c7f96eb573"
+      "bytes": 51846,
+      "sha256": "91747fee5cc7efa564d81efb3da38502c4b4dae5a36bf8f7b395795a5367073f"
     },
     {
       "path": "services/control-api/src/server.mjs",
-      "bytes": 48065,
-      "sha256": "d2dff3c110d735603009f440fab4027ac9bab29df37e59b606ae1bf8358f557f"
+      "bytes": 48147,
+      "sha256": "d02a79af921e8f002fc0fce7b33b3cbe4c9367e28080022d5f7fcea25b1b1f67"
     },
     {
       "path": "services/README.md",
@@ -3772,8 +3772,8 @@
     },
     {
       "path": "tests/harness-context-pack.test.mjs",
-      "bytes": 29954,
-      "sha256": "3a8538a17b21dcaf51229681260db449ea6179ff806293bc6f22d52dc4ef2e64"
+      "bytes": 32291,
+      "sha256": "614299904c94ff7a39d31b84fe830178f0f4aa0e13bed6f5b78db5f4ddc6ed4a"
     },
     {
       "path": "tests/harness-context-preview.test.mjs",
@@ -3892,8 +3892,8 @@
     },
     {
       "path": "tests/source-graph-preview.test.mjs",
-      "bytes": 4394,
-      "sha256": "089f0a2b78fb16c73abd23ef0fc17617a49b1033c162a2d91d1e37ca5b6610b4"
+      "bytes": 6596,
+      "sha256": "88122dda1a8f00ad3fbbf26931ca3b2f467dccd0cfd68f7096e5d3f4db18b62f"
     },
     {
       "path": "tests/tool-durable-integration.test.mjs",

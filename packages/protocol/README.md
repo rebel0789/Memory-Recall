@@ -149,8 +149,9 @@ native derived source graph built from that index: files, chunks, symbols,
 modules, contains, defined-in, import, export, reference, and call edges, plus
 safe summaries. `source-graph-preview.schema.json` describes the bounded
 read-only CLI/API preview envelope for graph summary, search, optional trace,
-optional diff impact, and explicit no-write/no-model safeguards. These schemas
-intentionally exclude raw source bodies, absolute paths, executable parser
-output, embeddings, graph-database records, and provider configuration. The
+optional diff impact, default 256 KiB static JS/TS file coverage, and explicit
+no-write/no-model safeguards. These schemas intentionally exclude raw source
+bodies, absolute paths, executable parser output, embeddings, graph-database
+records, and provider configuration. The
 native provider's root-bounded exact-slice helper is for internal reconstruction
 tests only; it is not a protocol output or a candidate-source query result.

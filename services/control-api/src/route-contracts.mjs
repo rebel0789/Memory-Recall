@@ -1,5 +1,6 @@
 import harnessContextPreviewSchema from '../../../packages/protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import contextPackRegistryStatusSchema from '../../../packages/protocol/schemas/context-pack-registry-status.schema.json' with { type: 'json' };
+import sourceGraphPreviewSchema from '../../../packages/protocol/schemas/source-graph-preview.schema.json' with { type: 'json' };
 
 const id = (prefix) => `^${prefix}_[A-Za-z0-9._:-]{1,120}$`;
 const boundedString = (maxLength) => ({ type: 'string', minLength: 1, maxLength });
@@ -663,39 +664,7 @@ export function createApiRouteContracts(limits = {}) {
       readback: contextPackReadbackProof
     }
   };
-  const contextGraphPreviewResponse = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['schemaVersion', 'previewVersion', 'workspaceId', 'generatedAt', 'graph', 'search', 'trace', 'impact', 'safeguards'],
-    properties: {
-      schemaVersion: { const: '1.0.0' },
-      previewVersion: { const: 'oaf-source-graph-preview-1.0.0' },
-      workspaceId,
-      generatedAt: { type: 'string', format: 'date-time' },
-      graph: { type: 'object', additionalProperties: true, required: ['graphFingerprint', 'summary', 'sampleNodes', 'sampleEdges'], properties: {} },
-      search: { type: 'object', additionalProperties: true, required: ['queryFingerprint', 'results'], properties: {} },
-      trace: { type: ['object', 'null'], additionalProperties: true, properties: {} },
-      impact: { type: ['object', 'null'], additionalProperties: true, properties: {} },
-      safeguards: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['dryRun', 'persisted', 'canonicalStateMutated', 'localFilesWritten', 'modelCalls', 'networkCalls', 'externalAdaptersEnabled', 'externalWritesEnabled', 'graphDatabaseUsed', 'rawBodyIncluded', 'sourceSlicesRead'],
-        properties: {
-          dryRun: { const: true },
-          persisted: { const: false },
-          canonicalStateMutated: { const: false },
-          localFilesWritten: { const: 0 },
-          modelCalls: { const: 0 },
-          networkCalls: { const: 0 },
-          externalAdaptersEnabled: { const: 0 },
-          externalWritesEnabled: { const: false },
-          graphDatabaseUsed: { const: false },
-          rawBodyIncluded: { const: false },
-          sourceSlicesRead: { const: false }
-        }
-      }
-    }
-  };
+  const contextGraphPreviewResponse = sourceGraphPreviewSchema;
   const harnessSetupPlanResponse = {
     type: 'object',
     additionalProperties: false,

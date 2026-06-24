@@ -9,7 +9,10 @@ import { FilesystemContextManifestRepository } from '../../../providers/native/c
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
 import { buildContextPack, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
-import { buildSourceGraphPreview } from '../../../packages/source-graph/src/index.mjs';
+import {
+  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+  buildSourceGraphPreview
+} from '../../../packages/source-graph/src/index.mjs';
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
@@ -342,7 +345,7 @@ export function createControlApiServer({
           depth: context.body.depth ?? 2,
           sampleLimit: context.body.sampleLimit ?? 12,
           maxFiles: context.body.maxFiles ?? 200,
-          maxFileBytes: context.body.maxFileBytes ?? 128 * 1024,
+          maxFileBytes: context.body.maxFileBytes ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
           clock
         });
       case 'planHarnessSetup':

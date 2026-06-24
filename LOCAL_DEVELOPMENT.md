@@ -253,7 +253,11 @@ npm run oaf -- context graph preview \
 The preview is read-only. It returns safe locators, fingerprints, bounded search
 results, optional call traces, optional diff-impact summaries, and explicit
 safeguards. It does not read raw source slices, write files, call models, enable
-external adapters, perform network access, or require a graph database.
+external adapters, perform network access, or require a graph database. The
+default file ceiling is 256 KiB for static JS/TS files; callers may lower it for
+stricter scans or raise it only up to the 1 MiB hard validation ceiling.
+Over-limit files remain explicit changed-locator reads with hash proof when
+safely readable, but their symbol impact is not overclaimed.
 
 ## Durable workflow smoke
 

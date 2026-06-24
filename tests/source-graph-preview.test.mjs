@@ -89,6 +89,53 @@ test('source graph preview reports when file caps make results partial', async (
   assert(!JSON.stringify(preview).includes(root));
 });
 
+test('source graph preview default represents large JS files within the bounded preview ceiling', async () => {
+  const root = await fixtureWorkspace();
+  await mkdir(path.join(root, 'apps', 'web'), { recursive: true });
+  const largeBody = [
+    'export function renderLargeUiContextPack() {',
+    `  return '${'large-source-graph-body-sentinel '.repeat(5600)}';`,
+    '}'
+  ].join('\n');
+  assert(Buffer.byteLength(largeBody, 'utf8') > 128 * 1024);
+  await writeFile(path.join(root, 'apps', 'web', 'app.js'), largeBody);
+
+  const preview = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    query: 'large ui context pack',
+    changedLocators: ['apps/web/app.js'],
+    sampleLimit: 1,
+    clock: () => fixedNow
+  });
+  const schema = JSON.parse(await readFile('packages/protocol/schemas/source-graph-preview.schema.json', 'utf8'));
+  assert.equal(validateJsonSchema(schema, preview).valid, true);
+  assert.deepEqual(preview.graph.diagnostics.filter((item) => item.locator === 'workspace://apps/web/app.js'), []);
+  assert.deepEqual(preview.impact.representedChangedLocators, ['workspace://apps/web/app.js']);
+  assert(preview.impact.affectedSymbols.some((item) => item.name === 'renderLargeUiContextPack'));
+  assert(preview.search.results.some((item) => item.label === 'renderLargeUiContextPack'));
+  assert.equal(preview.safeguards.externalAdaptersEnabled, 0);
+  assert.equal(preview.safeguards.externalWritesEnabled, false);
+  assert.equal(preview.safeguards.rawBodyIncluded, false);
+  assert.equal(preview.safeguards.sourceSlicesRead, false);
+
+  const serialized = JSON.stringify(preview);
+  assert(!serialized.includes('large-source-graph-body-sentinel'));
+  assert(!serialized.includes(root));
+  assert(!serialized.includes('/Users/'));
+
+  const capped = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    query: 'large ui context pack',
+    changedLocators: ['apps/web/app.js'],
+    maxFileBytes: 128 * 1024,
+    clock: () => fixedNow
+  });
+  assert(capped.graph.diagnostics.some((item) => item.locator === 'workspace://apps/web/app.js' && item.code === 'file_too_large'));
+  assert.deepEqual(capped.impact.representedChangedLocators, []);
+});
+
 test('source graph preview rejects unsafe changed locators', async () => {
   const root = await fixtureWorkspace();
   await assert.rejects(

@@ -358,6 +358,50 @@ test('context pack hashes large changed text files without embedding source bodi
   assert(!JSON.stringify(pack).includes('large-body-sentinel'));
 });
 
+test('context pack source graph represents large JS changed files within the hash-proof ceiling', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'apps', 'web'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Review large UI changed file before handoff.');
+  await writeFile(path.join(root, 'apps', 'web', 'app.js'), [
+    'export function largeUiChangedSymbol() {',
+    `  return '${'large-ui-body-sentinel '.repeat(7000)}';`,
+    '}'
+  ].join('\n'));
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    changedLocators: ['apps/web/app.js'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare handoff with large UI changed symbol',
+    step: 'prove source graph coverage for large JavaScript files',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack with large JS changed file');
+  assert.equal(pack.sourceGraph.status, 'available');
+  assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://apps/web/app.js']);
+  assert.deepEqual(pack.sourceGraph.impact.representedChangedLocators, ['workspace://apps/web/app.js']);
+  assert(pack.sourceGraph.impact.affectedSymbols.some((item) => item.name === 'largeUiChangedSymbol'));
+  assert.equal(pack.sourceGraph.warnings.includes('source_graph_changed_locator_unmatched'), false);
+  assert.equal(pack.utility.status, 'ready');
+  assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
+  const changedRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://apps/web/app.js' && item.role === 'changed_locator');
+  assert(changedRead);
+  assert.equal(changedRead.required, true);
+  assert.equal(changedRead.represented, true);
+  assert.match(changedRead.contentHash, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(changedRead.reasonCodes.includes('source_graph_changed_locator_matched'), true);
+  assert.equal(changedRead.reasonCodes.includes('content_hash_verified'), true);
+  assert.equal(changedRead.reasonCodes.includes('oversized'), false);
+  const serialized = JSON.stringify(pack);
+  assert(!serialized.includes('large-ui-body-sentinel'));
+  assert(!serialized.includes(root));
+  assert(!serialized.includes('/Users/'));
+});
+
 test('context pack rejects unsafe changed locators before building a handoff', async () => {
   const root = await workspace();
   await writeFile(path.join(root, 'AGENTS.md'), 'Do not leak /Users/rebel/private.txt token=secret-value.');

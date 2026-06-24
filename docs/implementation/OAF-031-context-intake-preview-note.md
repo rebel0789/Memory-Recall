@@ -72,8 +72,11 @@ slice.
   from that JS/TS source index, with schema-validated file/chunk/symbol/module
   nodes, contains/defined/import/export/reference/call edges, lexical graph
   search, call tracing, and changed-file impact reports. The parser uses a
-  linear string/comment stripper and bounded reference/call fanout so large
+  linear string/comment stripper, 256 KiB default static JS/TS file coverage,
+  a 1 MiB hard validation ceiling, and bounded reference/call fanout so large
   template-heavy project files cannot spin the CLI, API, or browser preview.
+  Over-limit files remain hash/read-plan-only and keep changed-file coverage in
+  review instead of claiming symbol impact.
 - Durable context manifests now record explicit assembly representation tiers,
   token budget reports, manifest `etag`s, and `deltaFrom` summaries for
   repeated local runs. The token report separates selected-token ratio
@@ -153,7 +156,7 @@ slice.
   response size, resource size, selected/candidate source units, and
   delivered-handoff units. These measurements describe one local invocation only
   and are not production latency or external benchmark claims.
-- `npm run oaf -- measure context-pack --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
+- `npm run oaf -- measure context-pack --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/web/app.js --format json`
   wraps the same local pack build and stdio MCP readback into a
   schema-validated current-checkout measurement report. It records commit SHA,
   objective and step fingerprints, source-selection reduction, locator-handoff

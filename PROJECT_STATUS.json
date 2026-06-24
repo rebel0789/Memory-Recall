@@ -99,7 +99,7 @@
         "docs/implementation/OAF-012-context-manifests-note.md"
       ],
       "limitations": [
-        "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview",
+        "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 256 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Native source graph is read-only derived metadata; it is not canonical source state, not a graph database, not persisted as memory, and does not emit graph candidate-source records yet",
         "Token estimate is approximate",
@@ -131,7 +131,7 @@
       ],
       "limitations": [
         "Only native exact, lexical, and AST-code sources are implemented and enabled",
-        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; it is not a full semantic parser, language server, graph database, or executor",
+        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; over-limit files remain hash/read-plan-only and are not treated as symbol-impact coverage; it is not a full semantic parser, language server, graph database, or executor",
         "Vector, graph, temporal, preference, and episode sources are declared but unavailable",
         "Sources generate candidates only; final selection remains in the Context Compiler selector",
         "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
@@ -221,7 +221,7 @@
         "Context-pack Markdown intentionally caps bulky locator, omission, source-graph, affected-symbol, and verification-command rows while complete structured pack, use-plan, registry, and read-only MCP resources retain full required-read, omission-ref, requested-input, and command lists",
         "Opt-in read-only MCP context-pack summary resource exposes source-family selection, locators, fingerprints, omission counts, source-selection token counts, delivery-budget metrics, changed-file impact, and utility coverage counts without raw objective text, raw step text, markdown bodies, or source bodies",
         "Read-only context handoff preflight reports combine launch prompt, required local reads, schema-validated use plan, MCP context-pack readback proof, silent npm stdio bridge command, and dry-run setup preview without writing context-pack artifacts or mutating harness config",
-        "Read-only context-pack measurement reports include a schema-backed impact brief with changed-file coverage, affected symbols, required local reads, hash proof, graph hints, source-selection reduction, MCP readback proof, and strict no-body/no-write/no-network/no-model/no-graph-database safeguards",
+        "Read-only context-pack measurement reports include a schema-backed impact brief with changed-file coverage, affected symbols, required local reads, hash proof, graph hints, source-selection reduction, MCP readback proof, and strict no-body/no-write/no-network/no-model/no-graph-database safeguards; large static JS/TS changed files within the 256 KiB preview ceiling are represented in the source graph while over-limit files stay in review",
         "The browser shares a session-local current-handoff status across Context Pack, Fabric Map, and Agents & Tools with a copyable read-only preflight command and no harness install affordance",
         "Explicit CLI export can write both context-packs/*.md markdown and context-packs/*.use.json sanitized use plans; the use plan carries complete required local reads, content hashes, coverage, delivery metrics, artifact hashes, and pack fingerprints without changing the pack object's dry-run semantics",
         "Explicit CLI pinning writes context-packs/*.md, context-packs/*.use.json, context-packs/registry.json, and context-packs/current.json, then read-only registry status verifies artifact hashes, required source hashes, registry fingerprints, current-pointer fingerprints, stale source changes, and tampered exports without exposing markdown or source content",

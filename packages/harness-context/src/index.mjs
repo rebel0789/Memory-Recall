@@ -18,7 +18,10 @@ import contextPackSchema from '../../protocol/schemas/context-pack.schema.json' 
 import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import harnessContextSourceSchema from '../../protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
-import { buildSourceGraphPreview } from '../../source-graph/src/index.mjs';
+import {
+  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+  buildSourceGraphPreview
+} from '../../source-graph/src/index.mjs';
 
 export const CONTEXT_PACK_VERSION = '0.1.0';
 export const CONTEXT_PACK_USE_PLAN_VERSION = '0.1.0';
@@ -30,6 +33,8 @@ export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
 
 const DEFAULT_MAX_BYTES = 65_536;
 const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
+const DEFAULT_SOURCE_GRAPH_MAX_FILE_BYTES = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES;
+const MAX_SOURCE_GRAPH_FILE_BYTES = 1024 * 1024;
 const MAX_USER_SELECTED_FILES = 16;
 const MAX_CHANGED_LOCATORS = 16;
 const MARKDOWN_SELECTED_LIMIT = 16;
@@ -1014,6 +1019,11 @@ function coverageRatio(total, covered) {
   };
 }
 
+function boundedSourceGraphMaxFileBytes(value) {
+  const requested = Number.isInteger(value) ? value : DEFAULT_SOURCE_GRAPH_MAX_FILE_BYTES;
+  return Math.max(1024, Math.min(MAX_SOURCE_GRAPH_FILE_BYTES, requested));
+}
+
 function stripLineRange(locator) {
   return String(locator ?? '').replace(/#L[0-9]+-L[0-9]+$/u, '');
 }
@@ -1349,11 +1359,13 @@ async function buildContextPackSourceGraph({
   objective,
   step,
   changedLocators,
+  maxFileBytes = DEFAULT_SOURCE_GRAPH_MAX_FILE_BYTES,
   createdAt
 }) {
   const query = sourceGraphPackQuery({ objective, step });
   const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
   const queryFingerprint = hashRef(stableStringify({ query, changedLocators: normalizedChangedLocators, limit: 12, offset: 0 }));
+  const graphMaxFileBytes = boundedSourceGraphMaxFileBytes(maxFileBytes);
   try {
     const preview = await buildSourceGraphPreview({
       root,
@@ -1363,6 +1375,7 @@ async function buildContextPackSourceGraph({
       limit: 12,
       sampleLimit: 1,
       maxFiles: 200,
+      maxFileBytes: graphMaxFileBytes,
       clock: () => createdAt
     });
     const results = compactSourceGraphResults(preview.search.results);
@@ -1646,6 +1659,7 @@ export async function buildContextPack({
   step,
   tokenBudget = 4096,
   maxBytes = DEFAULT_MAX_BYTES,
+  sourceGraphMaxFileBytes = Math.max(DEFAULT_SOURCE_GRAPH_MAX_FILE_BYTES, Number.isInteger(maxBytes) ? maxBytes : DEFAULT_MAX_BYTES),
   clock = () => new Date().toISOString()
 } = {}) {
   const normalizedTarget = normalizeTargetHarness(targetHarness);
@@ -1679,6 +1693,7 @@ export async function buildContextPack({
     objective,
     step,
     changedLocators: normalizedChangedLocators,
+    maxFileBytes: sourceGraphMaxFileBytes,
     createdAt: preview.createdAt
   });
   const changedLocatorMetadata = await inspectChangedLocators({

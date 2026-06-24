@@ -49,7 +49,8 @@ This repository is an **agent-ready development kit**, not a claim that the full
   required local reads, schema-validated use plan, MCP context-pack readback
   proof, and dry-run setup preview without writing harness config;
 - read-only native JS/TS source graph preview through CLI and loopback API,
-  with bounded search, trace, and diff-impact results and no graph database;
+  with bounded search, trace, diff-impact results, 256 KiB default file
+  coverage for static JS/TS, and no graph database;
 - dry-run harness setup planner for local MCP client configs, with redacted
   status, add, replace, and uninstall previews and no home config writes;
 - versioned contract fixtures for 12 disabled external adapter targets;

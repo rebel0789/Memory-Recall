@@ -35,7 +35,10 @@ import contextPackHandoffReportSchema from '../../packages/protocol/schemas/cont
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
-import { buildSourceGraphPreview } from '../../packages/source-graph/src/index.mjs';
+import {
+  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+  buildSourceGraphPreview
+} from '../../packages/source-graph/src/index.mjs';
 
 const CLI_PATH = fileURLToPath(import.meta.url);
 
@@ -571,7 +574,7 @@ async function contextGraphPreviewCommand(values) {
       depth: strictIntegerOption(values, '--depth', 2),
       sampleLimit: strictIntegerOption(values, '--sample-limit', 12),
       maxFiles: strictIntegerOption(values, '--max-files', 200),
-      maxFileBytes: strictIntegerOption(values, '--max-file-bytes', 128 * 1024),
+      maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
       clock: fixedNow
     });
     console.log(JSON.stringify(preview, null, 2));

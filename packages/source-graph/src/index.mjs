@@ -8,6 +8,7 @@ import {
 } from '../../../providers/native/context-candidate-ast-code/src/index.mjs';
 
 const PREVIEW_VERSION = 'oaf-source-graph-preview-1.0.0';
+export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 256 * 1024;
 const WORKSPACE_ID = /^[a-z][a-z0-9_-]{0,127}$/u;
 const NODE_KINDS = new Set(['file', 'chunk', 'symbol', 'module']);
 const EDGE_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
@@ -31,7 +32,7 @@ export async function buildSourceGraphPreview({
   depth = 2,
   sampleLimit = 12,
   maxFiles = 200,
-  maxFileBytes = 128 * 1024,
+  maxFileBytes = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   clock = () => new Date().toISOString()
 } = {}) {
   if (typeof root !== 'string' || !root) throw new Error('source_graph_preview_root_required');
