@@ -234,6 +234,27 @@ paths:
         '403': { $ref: '#/components/responses/BoundaryError' }
         '413': { $ref: '#/components/responses/BoundaryError' }
         '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/source-preview:
+    post:
+      operationId: previewContextSources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextSourcePreviewRequest' }
+      responses:
+        '200':
+          description: Sanitized dry-run preview of selected harness context sources.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HarnessContextPreviewResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
   /api/context/git-changes:
     post:
       operationId: detectGitChanges
@@ -612,6 +633,52 @@ components:
         schemaVersion: { const: '1.0.0' }
         pack: { type: object }
         markdown: { type: string, minLength: 1, maxLength: 200000 }
+    ContextSourcePreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, objective, step]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        objective: { type: string, minLength: 1, maxLength: 2000 }
+        step: { type: string, minLength: 1, maxLength: 256 }
+        from: { type: string, minLength: 1, maxLength: 80 }
+        userSelectedFiles:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 240 }
+        tokenBudget: { type: integer, minimum: 1, maximum: 100000 }
+    HarnessContextPreviewResponse:
+      type: object
+      additionalProperties: true
+      required: [schemaVersion, previewVersion, id, workspaceId, createdAt, dryRun, scannerVersion, scan, candidates, manifest, memoryPlan, metrics, safeguards, previewFingerprint]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        previewVersion: { type: string, minLength: 1, maxLength: 32 }
+        id: { type: string, pattern: '^hctxprev_[a-f0-9]{16,64}$' }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        createdAt: { type: string, format: date-time }
+        dryRun: { const: true }
+        scannerVersion: { type: string, minLength: 1, maxLength: 32 }
+        scan: { type: object }
+        candidates: { type: object }
+        manifest: { type: object }
+        memoryPlan: { type: object }
+        metrics: { type: object }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [persisted, modelCalls, networkCalls, sourceSnapshotsWritten, activeMemoryCreated, externalWritesEnabled, externalAdaptersEnabled, rawBodyIncluded]
+          properties:
+            persisted: { const: false }
+            modelCalls: { const: 0 }
+            networkCalls: { const: 0 }
+            sourceSnapshotsWritten: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            rawBodyIncluded: { const: false }
+        previewFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     GitChangedLocatorsRequest:
       type: object
       additionalProperties: false

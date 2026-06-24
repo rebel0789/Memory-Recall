@@ -1,3 +1,5 @@
+import harnessContextPreviewSchema from '../../../packages/protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
+
 const id = (prefix) => `^${prefix}_[A-Za-z0-9._:-]{1,120}$`;
 const boundedString = (maxLength) => ({ type: 'string', minLength: 1, maxLength });
 const correlationId = { type: 'string', pattern: '^req_[A-Za-z0-9._:-]{8,96}$', maxLength: 100 };
@@ -164,6 +166,7 @@ export function createApiRouteContracts(limits = {}) {
     startRun: Math.min(limits.bodyBytes ?? 1_000_000, 32 * 1024),
     compileContext: Math.min(limits.bodyBytes ?? 1_000_000, 256 * 1024),
     buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    previewContextSources: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     detectGitChanges: Math.min(limits.bodyBytes ?? 1_000_000, 1024),
     previewContextGraph: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     planHarnessSetup: Math.min(limits.bodyBytes ?? 1_000_000, 4 * 1024),
@@ -295,6 +298,24 @@ export function createApiRouteContracts(limits = {}) {
       },
       userSelectedFiles: { type: 'array', maxItems: 16, uniqueItems: true, items: boundedString(240) },
       changedLocators: { type: 'array', maxItems: 16, uniqueItems: true, items: workspaceLocatorInput },
+      tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 }
+    }
+  };
+  const contextSourcePreviewRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId', 'objective', 'step'],
+    properties: {
+      workspaceId,
+      objective: boundedString(limitShape.objectiveLength),
+      step: boundedString(256),
+      from: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 80,
+        pattern: '^(all|(?:codex|claude|claude-code|cursor)(?:\\s*,\\s*(?:codex|claude|claude-code|cursor))*)$'
+      },
+      userSelectedFiles: { type: 'array', maxItems: 16, uniqueItems: true, items: boundedString(240) },
       tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 }
     }
   };
@@ -1015,6 +1036,22 @@ export function createApiRouteContracts(limits = {}) {
       bodyRequired: true,
       streams: false,
       responses: { 200: contextPackResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/context/source-preview',
+      operationId: 'previewContextSources',
+      security: { authenticated: true, action: 'context.compile', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: contextSourcePreviewRequest,
+      maxBodyBytes: routeBodyBytes.previewContextSources,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: harnessContextPreviewSchema }
     },
     {
       method: 'POST',

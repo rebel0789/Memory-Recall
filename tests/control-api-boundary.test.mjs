@@ -220,6 +220,47 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(denied.status, 401);
   assert.equal(denied.body.error.code, 'authentication_required');
 
+  const deniedPreview = await request(api.base, '/api/context/source-preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare handoff',
+      step: 'select useful context'
+    })
+  });
+  assert.equal(deniedPreview.status, 401);
+  assert.equal(deniedPreview.body.error.code, 'authentication_required');
+
+  const sourcePreview = await request(api.base, '/api/context/source-preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare handoff',
+      step: 'preview harness source intake',
+      from: 'codex,cursor',
+      userSelectedFiles: ['CONTEXT.md'],
+      tokenBudget: 96
+    })
+  });
+  assert.equal(sourcePreview.status, 200, sourcePreview.text);
+  assert.equal(sourcePreview.body.schemaVersion, '1.0.0');
+  assert.equal(sourcePreview.body.dryRun, true);
+  assert.equal(sourcePreview.body.scan.summary.externalWritesEnabled, false);
+  assert.equal(sourcePreview.body.scan.summary.externalAdaptersEnabled, 0);
+  assert.equal(sourcePreview.body.scan.sources.some((source) => source.locator === 'workspace://AGENTS.md'), true);
+  assert.equal(sourcePreview.body.scan.sources.some((source) => source.locator === 'user-selected://CONTEXT.md'), true);
+  assert.equal(sourcePreview.body.safeguards.externalWritesEnabled, false);
+  assert.equal(sourcePreview.body.safeguards.modelCalls, 0);
+  assert.equal(sourcePreview.body.safeguards.networkCalls, 0);
+  assert.equal(sourcePreview.body.safeguards.activeMemoryCreated, 0);
+  assert.equal(sourcePreview.body.memoryPlan.activeMemoryCreated, 0);
+  assert.equal(sourcePreview.text.includes('API RAW AGENTS BODY'), false);
+  assert.equal(sourcePreview.text.includes('API RAW SELECTED BODY'), false);
+  assert.equal(sourcePreview.text.includes('API RAW CURSOR BODY'), false);
+  assert.equal(sourcePreview.text.includes('/Users/'), false);
+
   const response = await request(api.base, '/api/context/pack', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
@@ -586,6 +627,13 @@ test('context pack and graph preview authorize context resources', async (t) => 
   });
   assert.equal(graph.status, 200, graph.text);
 
+  const sourcePreview = await request(api.base, '/api/context/source-preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', objective: 'context policy preview', step: 'source preview' })
+  });
+  assert.equal(sourcePreview.status, 200, sourcePreview.text);
+
   const harness = await request(api.base, '/api/harness/setup/plan', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
@@ -595,12 +643,13 @@ test('context pack and graph preview authorize context resources', async (t) => 
 
   assert.deepEqual(
     policyRequests
-      .filter((item) => ['buildContextPack', 'detectGitChanges', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
+      .filter((item) => ['buildContextPack', 'previewContextSources', 'detectGitChanges', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
       .map((item) => [item.operationId, item.action, item.resource.type]),
     [
       ['buildContextPack', 'context.compile', 'context'],
       ['detectGitChanges', 'context.compile', 'context'],
       ['previewContextGraph', 'context.compile', 'context'],
+      ['previewContextSources', 'context.compile', 'context'],
       ['planHarnessSetup', 'workspace.read', 'workspace']
     ]
   );

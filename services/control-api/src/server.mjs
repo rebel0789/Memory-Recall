@@ -8,7 +8,7 @@ import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { buildContextPack, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown } from '../../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildHarnessContextPreview, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown } from '../../../packages/harness-context/src/index.mjs';
 import { buildSourceGraphPreview } from '../../../packages/source-graph/src/index.mjs';
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
@@ -300,6 +300,17 @@ export function createControlApiServer({
         });
         return { schemaVersion: '1.0.0', pack, markdown, readback };
       }
+      case 'previewContextSources':
+        return buildHarnessContextPreview({
+          root: sourceGraphRoot,
+          harnesses: normalizeHarnesses(context.body.from ?? 'all'),
+          userSelectedFiles: context.body.userSelectedFiles ?? [],
+          workspaceId: context.workspaceId,
+          objective: context.body.objective,
+          step: context.body.step,
+          tokenBudget: context.body.tokenBudget ?? 4096,
+          clock
+        });
       case 'detectGitChanges':
         return detectGitChangedLocators({
           root: sourceGraphRoot,
@@ -905,6 +916,7 @@ function routeResourceType(contract) {
       return 'run';
     case 'compileContext':
     case 'buildContextPack':
+    case 'previewContextSources':
     case 'detectGitChanges':
     case 'previewContextGraph':
       return 'context';

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T15:36:26.684Z",
+  "generatedAt": "2026-06-24T15:43:35.838Z",
   "fileCount": 778,
-  "totalBytes": 3391377,
+  "totalBytes": 3408045,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -517,8 +517,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 116418,
-      "sha256": "b44bde057d22595da8833390274a9f6e6e2db879c1980fcf51df77a31e161afa"
+      "bytes": 123194,
+      "sha256": "bf2aded4ffc0be1d2502d04e3869b7456e487b1faab4b2c466e7decff3b4c1ad"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -777,13 +777,13 @@
     },
     {
       "path": "docs/api/openapi.yaml",
-      "bytes": 33837,
-      "sha256": "6d698f033759a5a9ad217e9ebed90a5b3477479581493ff78a8bf6f92b73c178"
+      "bytes": 36991,
+      "sha256": "2d6bc6df8093064b2023943fcb183bfe250ab5fdfd1b4d69fd5f5e32e3304326"
     },
     {
       "path": "docs/api/README.md",
-      "bytes": 5728,
-      "sha256": "924d9ebebf0381ec70bf6756f65573d311b11d8746dd0178191d2aa54449e5dc"
+      "bytes": 5912,
+      "sha256": "78b7bcad1cc0ae8360da541c1f25236a98b6801aea547f1034bad64d6c876f85"
     },
     {
       "path": "docs/architecture/adapter-contracts.md",
@@ -2088,7 +2088,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "958c9ff48a90bb652385809ae1c7f7326345eebe3c6c16da8db6376f856f7ed2"
+      "sha256": "f2db123a0559dd44b1f9dc3f4f29d379c29523f0eafd8b32d592738932b7ae37"
     },
     {
       "path": "LICENSE",
@@ -3402,13 +3402,13 @@
     },
     {
       "path": "services/control-api/src/route-contracts.mjs",
-      "bytes": 47667,
-      "sha256": "19939f6280b7e594f7eb6cd6d0b668792763ebb51bd101a4d61578144a820201"
+      "bytes": 49187,
+      "sha256": "fefab38204707f55baf3102f5bd2fa5f716a32edd967ffbf8eabfd5494d9aaa5"
     },
     {
       "path": "services/control-api/src/server.mjs",
-      "bytes": 46815,
-      "sha256": "00fd68c7666ec58b4a581dbf09c73e0b32b0e56bf3dd4f65c106f390099c85c3"
+      "bytes": 47335,
+      "sha256": "a1f6172adabf47c32413fb044ed47d5f52b7d3e669920f80304bb39a249e2204"
     },
     {
       "path": "services/README.md",
@@ -3607,8 +3607,8 @@
     },
     {
       "path": "tests/control-api-boundary.test.mjs",
-      "bytes": 40142,
-      "sha256": "d095d7a7697c71324fa875828b184d7751413c4b5422f7bfe568a07434bf543c"
+      "bytes": 42740,
+      "sha256": "d7b976aee73b5814f72aa6efb946fc72dcb8332af222841451b34dc50fe5bb5e"
     },
     {
       "path": "tests/control-api.test.mjs",
@@ -3797,8 +3797,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 27870,
-      "sha256": "000e8b81ff5b52d2a311b76b6addde2b52d468c9359265d5be5e4382fcc9b5bf"
+      "bytes": 29786,
+      "sha256": "080347c752cab8f684f4e185988973f01e5852994d3f4b4f61608feb19055257"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

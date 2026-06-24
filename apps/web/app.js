@@ -26,6 +26,8 @@ let shellState={kind:'loading',message:'Loading local workspace state.'};
 let activeRunDetail=null;
 let contextPackResult=null;
 let contextPackError=null;
+let contextSourcePreviewResult=null;
+let contextSourcePreviewError=null;
 let sourceGraphResult=null;
 let sourceGraphError=null;
 let harnessSetupResult=null;
@@ -675,6 +677,7 @@ function render() {
   root.querySelectorAll('[data-step-id],[data-record-id]').forEach(link=>link.addEventListener('click',navigateLocal));
   root.querySelector('#auth-form')?.addEventListener('submit',submitAuthForm);
   root.querySelector('#context-pack-form')?.addEventListener('submit',submitContextPack);
+  root.querySelectorAll('[data-action=preview-context-sources]').forEach(button=>button.addEventListener('click',previewContextSources));
   root.querySelectorAll('[data-action=detect-git-changes]').forEach(button=>button.addEventListener('click',detectContextPackGitChanges));
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
@@ -816,7 +819,8 @@ function renderContextPack() {
   const pack=contextPackResult?.pack ?? null;
   const markdown=contextPackResult?.markdown ?? '';
   const errorPanel=contextPackError?statePanel('error','Context pack failed',contextPackError,false):'';
-  return `<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Choose sources</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs"></textarea></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, and reviewed changed-file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy, download, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+  const sourcePreviewPanel=contextSourcePreviewError?statePanel('error','Source preview failed',contextSourcePreviewError,false):contextSourcePreviewResult?renderContextSourcePreview(contextSourcePreviewResult):'';
+  return `<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Choose sources</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs"></textarea></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, and reviewed changed-file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy, download, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
 }
 
 function renderContextPackResult(pack,markdown) {
@@ -1032,6 +1036,56 @@ function contextPackReadbackProof(proof) {
 function contextPackReadinessPanel(readiness) {
   const chip=statusChip(readiness.ready?'success':'partial',readiness.title,readiness.ready?'critical gates passed':'blocked gate');
   return `<div class="readiness-panel" aria-label="First-use readiness"><div class="section-heading"><h2>First-use readiness</h2>${chip}</div><p>${esc(readiness.copy)}</p><ol class="readiness-list">${readiness.gates.map((gate)=>`<li class="readiness-${esc(gate.status)}"><strong>${esc(gate.status)}</strong><span><b>${esc(gate.label)}</b><small>${esc(gate.detail)}</small></span></li>`).join('')}</ol><p class="readiness-next"><strong>Next:</strong> ${esc(readiness.nextAction)}</p></div>`;
+}
+
+export function buildContextSourcePreviewUiModel(preview) {
+  const scan=preview?.scan ?? {};
+  const manifest=preview?.manifest ?? {};
+  const memoryPlan=preview?.memoryPlan ?? {};
+  const metrics=preview?.metrics ?? {};
+  const safeguards=preview?.safeguards ?? {};
+  const selected=Array.isArray(manifest.selected) ? manifest.selected : [];
+  const excluded=Array.isArray(manifest.excluded) ? manifest.excluded : [];
+  const sources=Array.isArray(scan.sources) ? scan.sources : [];
+  const skipped=Array.isArray(scan.skipped) ? scan.skipped : [];
+  return {
+    id:String(preview?.id ?? ''),
+    fingerprint:shortFingerprint(preview?.previewFingerprint ?? ''),
+    acceptedCount:Number(scan.summary?.totalAccepted ?? sources.length),
+    skippedCount:Number(scan.summary?.totalSkipped ?? skipped.length),
+    selectedCount:selected.length,
+    excludedCount:excluded.length,
+    candidateTokens:Number(metrics.candidateTokenCount ?? 0),
+    selectedTokens:Number(metrics.selectedTokenCount ?? 0),
+    selectedTokenRatio:Number.isFinite(Number(metrics.selectedTokenRatio)) ? `${Math.round(Number(metrics.selectedTokenRatio) * 100)}%` : '0%',
+    proposedCount:Number(memoryPlan.proposedCount ?? 0),
+    quarantinedCount:Number(memoryPlan.quarantinedCount ?? 0),
+    activeMemoryCreated:Number(memoryPlan.activeMemoryCreated ?? 0),
+    externalWritesLabel:safeguards.externalWritesEnabled===false?'disabled':'check',
+    rawBodiesLabel:safeguards.rawBodyIncluded===false?'excluded':'check',
+    modelCallsLabel:safeguardCountLabel(safeguards.modelCalls),
+    networkCallsLabel:safeguardCountLabel(safeguards.networkCalls),
+    sourceSnapshotsLabel:safeguardCountLabel(safeguards.sourceSnapshotsWritten),
+    sources:sources.slice(0,8).map((source)=>({
+      locator:source.locator,
+      harness:source.harness,
+      sourceKind:source.sourceKind,
+      tokens:selected.find((item)=>item.sourceId===source.id)?.tokens ?? excluded.find((item)=>item.sourceId===source.id)?.tokens ?? 0,
+      status:selected.some((item)=>item.sourceId===source.id)?'selected':excluded.some((item)=>item.sourceId===source.id)?'excluded':'candidate',
+      redactions:Number(source.redactions?.secretCount ?? 0)+Number(source.redactions?.localPathCount ?? 0)
+    })),
+    skipped:skipped.slice(0,5).map((item)=>({ locator:item.locator, reason:item.reason }))
+  };
+}
+
+function renderContextSourcePreview(preview) {
+  const model=buildContextSourcePreviewUiModel(preview);
+  return `<section class="surface context-source-preview" aria-label="Harness source preview"><div class="section-heading"><h2>Source preview</h2><span title="${esc(preview.previewFingerprint)}">${esc(model.fingerprint)}</span></div><dl class="facts facts-wide"><div><dt>Accepted</dt><dd>${model.acceptedCount}</dd></div><div><dt>Skipped</dt><dd>${model.skippedCount}</dd></div><div><dt>Selected</dt><dd>${model.selectedCount} / ${model.acceptedCount}</dd></div><div><dt>Source tokens</dt><dd>${model.selectedTokens} / ${model.candidateTokens} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Would propose</dt><dd>${model.proposedCount}</dd></div><div><dt>Quarantine</dt><dd>${model.quarantinedCount}</dd></div><div><dt>Raw bodies</dt><dd>${esc(model.rawBodiesLabel)}</dd></div><div><dt>External writes</dt><dd>${esc(model.externalWritesLabel)}</dd></div></dl>${contextSourcePreviewList(model.sources)}${model.skipped.length?`<hr><div class="section-heading"><h2>Skipped</h2><span>${model.skipped.length}</span></div><ol class="compact-list locator-list">${model.skipped.map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.reason)}</span></li>`).join('')}</ol>`:''}<p class="muted">Safeguards: model calls ${esc(model.modelCallsLabel)}, network calls ${esc(model.networkCallsLabel)}, source snapshots ${esc(model.sourceSnapshotsLabel)}, active memory ${model.activeMemoryCreated}.</p></section>`;
+}
+
+function contextSourcePreviewList(sources) {
+  if(!sources.length)return '<p class="muted">No harness context sources accepted for the selected families.</p>';
+  return `<ol class="compact-list locator-list source-preview-list">${sources.map((source)=>`<li><strong>${esc(source.locator)}</strong><span>${esc(source.status)} · ${esc(source.harness)} · ${esc(source.sourceKind)} · ${Number(source.tokens??0)} tokens${source.redactions?` · ${source.redactions} redaction${source.redactions===1?'':'s'}`:''}</span></li>`).join('')}</ol>`;
 }
 
 function safeguardCountLabel(value) {
@@ -1346,6 +1400,38 @@ async function submitContextPack(event){
   }finally{
     button.disabled=false;
     button.textContent='Build context pack';
+  }
+}
+
+async function previewContextSources(event){
+  const button=event.currentTarget;
+  const form=button.closest('form');
+  if(!form)return;
+  const status=form.querySelector('[data-source-preview-status]');
+  const data=new FormData(form);
+  const objective=String(data.get('objective') ?? '').trim();
+  const step=String(data.get('step') ?? '').trim();
+  const tokenBudget=Number(data.get('tokenBudget') ?? 4096);
+  const sourceFamilies=contextPackSelectedSourceFamilies(form);
+  const userSelectedFiles=parseSelectedFiles(data.get('userSelectedFiles'));
+  button.disabled=true;
+  button.textContent='Previewing...';
+  if(status)status.textContent='Scanning selected harness sources without writes.';
+  document.querySelector('#live-status').textContent='Previewing harness context sources.';
+  try{
+    contextSourcePreviewResult=await api('/api/context/source-preview',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),from:sourceFamilies.join(','),objective,step,tokenBudget,userSelectedFiles})});
+    contextSourcePreviewError=null;
+    if(status)status.textContent=`${Number(contextSourcePreviewResult.scan?.summary?.totalAccepted??0)} source${Number(contextSourcePreviewResult.scan?.summary?.totalAccepted??0)===1?'':'s'} accepted for review.`;
+    document.querySelector('#live-status').textContent='Harness source preview ready.';
+    render();
+  }catch(error){
+    contextSourcePreviewError=error.message;
+    if(status)status.textContent=error.message;
+    document.querySelector('#live-status').textContent=error.message;
+    render();
+  }finally{
+    button.disabled=false;
+    button.textContent='Preview sources';
   }
 }
 

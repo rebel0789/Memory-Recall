@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import {
   ROUTES,
   SHELL_STATES,
+  buildContextSourcePreviewUiModel,
   buildContextPackUiModel,
   buildApprovalReviewModel,
   buildContextInspectorModel,
@@ -61,7 +62,10 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Copy markdown first/);
   assert.match(app,/data-action="download-pack"/);
   assert.match(app,/data-action="detect-git-changes"/);
+  assert.match(app,/data-action="preview-context-sources"/);
   assert.match(app,/api\('\/api\/context\/git-changes'/);
+  assert.match(app,/api\('\/api\/context\/source-preview'/);
+  assert.match(app,/Preview sources/);
   assert.match(app,/Review before building/);
   assert.match(app,/name="changedLocators"/);
   assert.match(app,/name="sourceFamilies"/);
@@ -168,6 +172,35 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(model.commands[1].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
   assert.match(model.commands[2].command,/--from 'codex,cursor'/);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
+  const sourcePreviewModel=buildContextSourcePreviewUiModel({
+    id:'hctxprev_aaaaaaaaaaaaaaaa',
+    previewFingerprint:'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    scan:{
+      summary:{totalAccepted:2,totalSkipped:1,externalAdaptersEnabled:0,externalWritesEnabled:false},
+      sources:[
+        {id:'hsrc_1',locator:'workspace://AGENTS.md',harness:'codex',sourceKind:'instruction',redactions:{secretCount:1,localPathCount:0}},
+        {id:'hsrc_2',locator:'workspace://.cursor/rules/project.mdc',harness:'cursor',sourceKind:'rule',redactions:{secretCount:0,localPathCount:1}}
+      ],
+      skipped:[{locator:'workspace://.cursor/rules/private.mdc',reason:'symlink_escape'}]
+    },
+    manifest:{
+      selected:[{sourceId:'hsrc_1',tokens:40}],
+      excluded:[{sourceId:'hsrc_2',tokens:20}]
+    },
+    memoryPlan:{proposedCount:1,quarantinedCount:1,activeMemoryCreated:0},
+    metrics:{candidateTokenCount:60,selectedTokenCount:40,selectedTokenRatio:0.666667},
+    safeguards:{externalWritesEnabled:false,rawBodyIncluded:false,modelCalls:0,networkCalls:0,sourceSnapshotsWritten:0}
+  });
+  assert.equal(sourcePreviewModel.acceptedCount,2);
+  assert.equal(sourcePreviewModel.skippedCount,1);
+  assert.equal(sourcePreviewModel.selectedCount,1);
+  assert.equal(sourcePreviewModel.selectedTokenRatio,'67%');
+  assert.equal(sourcePreviewModel.sources[0].status,'selected');
+  assert.equal(sourcePreviewModel.sources[1].status,'excluded');
+  assert.equal(sourcePreviewModel.sources[1].redactions,1);
+  assert.equal(sourcePreviewModel.rawBodiesLabel,'excluded');
+  assert.equal(sourcePreviewModel.externalWritesLabel,'disabled');
+  assert.equal(sourcePreviewModel.activeMemoryCreated,0);
 });
 
 test('context pack command copy copies the adjacent command text',async()=>{
