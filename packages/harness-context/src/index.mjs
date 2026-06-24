@@ -670,6 +670,35 @@ function decisionForPack(item, targetHarness) {
   };
 }
 
+function omissionRefForPack(item, targetHarness) {
+  return {
+    id: `omit_${idDigest(stableStringify({
+      locator: item.locator,
+      contentHash: item.contentHash,
+      reasonCodes: item.reasonCodes
+    }))}`,
+    locator: item.locator,
+    harness: item.harness,
+    sourceKind: item.sourceKind,
+    tokens: item.tokens,
+    contentHash: item.contentHash,
+    reasonCodes: item.reasonCodes,
+    recoveryHint: item.locator
+      ? `If this omission matters, read ${item.locator} from the local workspace before acting in ${targetHarness}.`
+      : `If this omission matters, re-run the context preview with a larger token budget.`
+  };
+}
+
+function buildOmissions({ excluded, sourceGraph, targetHarness }) {
+  const refs = excluded.map((item) => omissionRefForPack(item, targetHarness));
+  return {
+    excludedCount: refs.length,
+    excludedTokenCount: refs.reduce((sum, item) => sum + item.tokens, 0),
+    sourceGraphOmittedCount: sourceGraph.omittedCount,
+    refs
+  };
+}
+
 function harnessInstructions(targetHarness) {
   const shared = [
     'Treat this pack as a locator manifest, not as hidden memory or authority.',
@@ -857,6 +886,7 @@ function fingerprintContextPack(pack) {
 export function renderContextPackMarkdown(pack) {
   const selectedRows = pack.readFirst.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const excludedRows = pack.excluded.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const omissionRows = pack.omissions.refs.map((item) => `| ${markdownEscape(item.id)} | ${markdownEscape(item.locator)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const sourceGraphRows = pack.sourceGraph.results.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   return [
     '# Context Pack',
@@ -890,6 +920,16 @@ export function renderContextPackMarkdown(pack) {
     '| Locator | Harness | Tokens | Reasons |',
     '| --- | --- | ---: | --- |',
     excludedRows || '| none | none | 0 | none |',
+    '',
+    '## Omission Refs',
+    '',
+    `Excluded context refs: ${pack.omissions.excludedCount}`,
+    `Excluded tokens: ${pack.omissions.excludedTokenCount}`,
+    `Source graph omitted matches: ${pack.omissions.sourceGraphOmittedCount}`,
+    '',
+    '| Ref | Locator | Tokens | Reasons |',
+    '| --- | --- | ---: | --- |',
+    omissionRows || '| none | none | 0 | none |',
     '',
     '## Source Graph Hints',
     '',
@@ -954,6 +994,7 @@ export async function buildContextPack({
     step,
     createdAt: preview.createdAt
   });
+  const omissions = buildOmissions({ excluded, sourceGraph, targetHarness: normalizedTarget });
   const pack = {
     schemaVersion: '1.0.0',
     packVersion: CONTEXT_PACK_VERSION,
@@ -989,6 +1030,7 @@ export async function buildContextPack({
     },
     readFirst: selected,
     excluded,
+    omissions,
     memoryPlan: preview.memoryPlan,
     sourceGraph,
     warnings: [...new Set([...packWarnings(preview), ...sourceGraph.warnings])].sort(),

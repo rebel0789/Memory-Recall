@@ -442,7 +442,8 @@ async function loadMemoryPathProposalRecords(values, { workspaceId, root }) {
   const config = normalizeMemoryPathsConfig(JSON.parse(await readFile(configPath, 'utf8')));
   const records = [];
   for (const entry of config.memoryPaths) {
-    const { text, locator } = await readWorkspaceMemoryPath(root, entry.path);
+    const source = await readWorkspaceMemoryPath(root, entry.path);
+    const { text, locator } = source;
     records.push(evaluateMemoryWrite({
       id: deterministicMemoryId(locator, text),
       workspaceId,
@@ -454,6 +455,10 @@ async function loadMemoryPathProposalRecords(values, { workspaceId, root }) {
       metadata: {
         sourceLocator: locator,
         sourceHash: `sha256:${createHash('sha256').update(text).digest('hex')}`,
+        sourceRole: entry.sourceRole,
+        sourceLineCount: source.lineCount,
+        sourceByteSize: source.byteSize,
+        sourceUpdatedAt: source.updatedAt,
         proposalSource: 'memoryPaths'
       },
       now: fixedNow()
@@ -470,9 +475,13 @@ async function readWorkspaceMemoryPath(root, relativePath) {
   const info = await stat(actual);
   if (!info.isFile()) throw new Error(`memoryPath is not a file: ${relativePath}`);
   if (info.size > 64 * 1024) throw new Error(`memoryPath exceeds 64 KiB: ${relativePath}`);
+  const text = await readFile(actual, 'utf8');
   return {
-    text: await readFile(actual, 'utf8'),
-    locator: `workspace://${relativePath}`
+    text,
+    locator: `workspace://${relativePath}`,
+    lineCount: text ? text.split(/\r\n|\r|\n/u).length : 0,
+    byteSize: info.size,
+    updatedAt: info.mtime.toISOString()
   };
 }
 

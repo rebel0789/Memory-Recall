@@ -31,6 +31,18 @@ the first owner through `POST /api/auth/bootstrap` when
 `GET /api/auth/bootstrap-status` reports `bootstrapRequired: true`. The local
 identity store is `.local/identity/identity.json`.
 
+## Fabric map
+
+The Fabric Map page at <http://127.0.0.1:4310/fabric-map> renders a visual
+operating map of the local process flow. It shows source intake, normalization,
+context compilation, workflow checkpoints, model gateway status, brokered tools,
+evidence, memory review, approvals, and disabled external adapter boundaries
+from the current loopback dashboard state.
+
+The map is read-only. It does not add telemetry, call models, import harness
+chat history, enable adapters, enable external writes, or render raw context
+bodies.
+
 ## Context pack handoff
 
 The Context Pack page at <http://127.0.0.1:4310/context-pack> builds a
@@ -38,7 +50,9 @@ schema-validated handoff for the next local agent. It selects safe workspace
 locators from documented Codex, Claude Code, and Cursor project files, adds
 bounded native JS/TS source graph hints, optionally includes explicit
 user-selected relative files, then renders Markdown instructions without
-embedding raw source bodies or code slices.
+embedding raw source bodies or code slices. The pack also includes omitted
+context refs so a user can recover skipped local files by locator when the
+budget or relevance selector left them out.
 
 CLI dry run:
 

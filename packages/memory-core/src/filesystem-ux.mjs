@@ -6,8 +6,14 @@ const ACCEPTED_PROFILE_STATUSES = new Set(['active']);
 const PENDING_PROPOSAL_STATUSES = new Set(['proposed', 'quarantined']);
 const SEARCH_STATUSES = new Set(['active', 'verified']);
 const MEMORY_KINDS = new Set(['fact', 'preference', 'decision', 'episode', 'procedure', 'constraint']);
+const MEMORY_SOURCE_ROLES = new Set(['memory-index', 'memory-file', 'harness-profile', 'workspace-note']);
 const SAFE_MEMORY_ID = /^mem_[A-Za-z0-9._-]{1,128}$/;
 const SAFE_TEXT_TOKEN = /^[A-Za-z0-9._:@-]{1,256}$/;
+const SAFE_HASH = /^sha256:[a-f0-9]{64}$/;
+const CLAUDE_CODE_INDEX_LINE_CAP = 200;
+const CLAUDE_CODE_INDEX_BYTE_CAP = 25 * 1024;
+const CLAUDE_CODE_SELECTION_REVIEW_LIMIT = 5;
+const STALE_MEMORY_SOURCE_DAYS = 1;
 const SECRET_PATTERNS = [
   /sk-[A-Za-z0-9_-]{20,}/g,
   /BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY/g,
@@ -73,6 +79,39 @@ function safeTokenList(values, prefix) {
 
 function safeMemoryKind(value) {
   return MEMORY_KINDS.has(value) ? value : null;
+}
+
+function safeMemorySourceRole(value) {
+  return MEMORY_SOURCE_ROLES.has(value) ? value : 'memory-file';
+}
+
+function safeSourceHash(value) {
+  return SAFE_HASH.test(String(value ?? '')) ? String(value) : null;
+}
+
+function safeCount(value, max = 1000000) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(max, Math.trunc(number)));
+}
+
+function safeIsoTimestamp(value) {
+  const text = String(value ?? '');
+  if (!text) return null;
+  const parsed = Date.parse(text);
+  if (!Number.isFinite(parsed)) return null;
+  return new Date(parsed).toISOString();
+}
+
+function ageDays(updatedAt, generatedAt) {
+  const updated = Date.parse(updatedAt ?? '');
+  const generated = Date.parse(generatedAt ?? '');
+  if (!Number.isFinite(updated) || !Number.isFinite(generated)) return null;
+  return Math.max(0, Math.floor((generated - updated) / 86400000));
+}
+
+function sourceRoleForPath(relativePath) {
+  return String(relativePath ?? '').split('/').at(-1) === 'MEMORY.md' ? 'memory-index' : 'memory-file';
 }
 
 export function redactMemoryText(value, { maxLength = 320 } = {}) {
@@ -187,6 +226,7 @@ function proposalMarkdown(record, { generatedAt }) {
   const snippet = redactMemoryText(record.text, { maxLength: 1000 }).text;
   const evidence = evidenceIdsFor(record);
   const reasons = safeTokenList(record.reasons, 'reason_redacted');
+  const diagnostics = memorySourceDiagnosticsForRecord(record, { generatedAt });
   const id = safeMemoryId(record.id);
   const lines = [
     `# Memory Proposal ${id}`,
@@ -200,6 +240,11 @@ function proposalMarkdown(record, { generatedAt }) {
     `Source: ${sanitizeMemorySource(record.source)}`,
     `Reasons: ${reasons.join(', ') || 'none'}`,
     `Evidence: ${evidence.join(', ') || 'none'}`,
+    `Source role: ${diagnostics.sourceRole}`,
+    `Source lines: ${diagnostics.lineCount}`,
+    `Source bytes: ${diagnostics.byteSize}`,
+    `Source age days: ${diagnostics.ageDays ?? 'unknown'}`,
+    `Source warnings: ${diagnostics.warnings.join(', ') || 'none'}`,
     '',
     '## Proposed Text',
     '',
@@ -219,6 +264,51 @@ function safeguards({ localFilesWritten = 0 } = {}) {
     externalAdaptersEnabled: 0,
     rawBodyIncluded: false,
     localFilesWritten
+  };
+}
+
+function memorySourceDiagnosticsForRecord(record, { generatedAt }) {
+  const metadata = record.metadata ?? {};
+  const sourceUpdatedAt = safeIsoTimestamp(metadata.sourceUpdatedAt ?? record.updatedAt ?? record.createdAt);
+  const sourceAgeDays = sourceUpdatedAt ? ageDays(sourceUpdatedAt, generatedAt) : null;
+  const sourceRole = safeMemorySourceRole(metadata.sourceRole ?? sourceRoleForPath(metadata.sourceLocator ?? record.source));
+  const lineCount = safeCount(metadata.sourceLineCount);
+  const byteSize = safeCount(metadata.sourceByteSize);
+  const warnings = new Set(safeTokenList(metadata.sourceWarnings, 'warning_redacted'));
+  if (sourceRole === 'memory-index' && lineCount > CLAUDE_CODE_INDEX_LINE_CAP) warnings.add('memory_index_line_cap_risk');
+  if (sourceRole === 'memory-index' && byteSize > CLAUDE_CODE_INDEX_BYTE_CAP) warnings.add('memory_index_byte_cap_risk');
+  if (sourceAgeDays !== null && sourceAgeDays >= STALE_MEMORY_SOURCE_DAYS) warnings.add('stale_source');
+  return {
+    sourceLocator: sanitizeMemorySource(metadata.sourceLocator ?? record.source),
+    sourceRole,
+    sourceHash: safeSourceHash(metadata.sourceHash),
+    lineCount,
+    byteSize,
+    sourceUpdatedAt,
+    ageDays: sourceAgeDays,
+    warnings: [...warnings].sort()
+  };
+}
+
+function memoryImportDiagnostics(records, { generatedAt }) {
+  const diagnostics = records.map((record) => memorySourceDiagnosticsForRecord(record, { generatedAt }));
+  const warningCodes = [...new Set(diagnostics.flatMap((item) => item.warnings))].sort();
+  const sourceCount = new Set(diagnostics.map((item) => item.sourceLocator)).size;
+  const memoryIndexCount = diagnostics.filter((item) => item.sourceRole === 'memory-index').length;
+  const staleSourceCount = diagnostics.filter((item) => item.warnings.includes('stale_source')).length;
+  const indexCliffRiskCount = diagnostics.filter((item) => item.warnings.includes('memory_index_line_cap_risk') || item.warnings.includes('memory_index_byte_cap_risk')).length;
+  const overSelectionLimit = sourceCount > CLAUDE_CODE_SELECTION_REVIEW_LIMIT;
+  return {
+    sourceCount,
+    memoryIndexCount,
+    staleSourceCount,
+    indexCliffRiskCount,
+    selectionReviewLimit: CLAUDE_CODE_SELECTION_REVIEW_LIMIT,
+    warnings: [
+      ...warningCodes,
+      overSelectionLimit ? 'more_than_five_sources_review_required' : null
+    ].filter(Boolean).sort(),
+    items: diagnostics
   };
 }
 
@@ -261,6 +351,7 @@ export function buildMemoryProposalsReport({ records, workspaceId = 'ws_local', 
   const items = proposals.map((record) => {
     const markdown = proposalMarkdown(record, { generatedAt });
     const id = safeMemoryId(record.id);
+    const sourceDiagnostics = memorySourceDiagnosticsForRecord(record, { generatedAt });
     return {
       id,
       kind: safeMemoryKind(record.kind),
@@ -274,10 +365,12 @@ export function buildMemoryProposalsReport({ records, workspaceId = 'ws_local', 
         locator: proposalTargetLocator(targetDirectory, id),
         format: 'markdown'
       },
+      sourceDiagnostics,
       contentHash: hashText(markdown),
       markdown
     };
   });
+  const diagnostics = memoryImportDiagnostics(proposals, { generatedAt });
   const reportBase = {
     schemaVersion: '1.0.0',
     reportVersion: REPORT_VERSION,
@@ -289,6 +382,7 @@ export function buildMemoryProposalsReport({ records, workspaceId = 'ws_local', 
       quarantinedCount: items.filter((item) => item.status === 'quarantined').length,
       skippedCount: records.length - items.length
     },
+    diagnostics,
     items,
     safeguards: safeguards({ localFilesWritten })
   };
@@ -315,7 +409,8 @@ export function normalizeMemoryPathsConfig(config, { maxPaths = 32 } = {}) {
       path: relativePath,
       kind: value.kind ?? 'episode',
       sourceTrust: value.sourceTrust ?? 'unverified',
-      dataClass: value.dataClass ?? 'workspace-private'
+      dataClass: value.dataClass ?? 'workspace-private',
+      sourceRole: value.sourceRole ?? sourceRoleForPath(relativePath)
     };
   });
   return Object.freeze({

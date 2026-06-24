@@ -21,6 +21,10 @@ slice.
 - Preview output contains safe locators, hashes, reason codes, token counts,
   selected/excluded decisions, a proposal-only memory plan, safeguards, and a
   preview fingerprint.
+- Context packs now include reversible omission refs for excluded records:
+  stable `omit_` IDs, locators, content hashes, token costs, reason codes, and
+  recovery hints. They also report source-graph omitted match counts without
+  embedding source slices.
 - The deterministic benchmark gate in `evals/harness-context/cases.json`
   measures required-locator recall, distractor exclusion, selected-token ratio,
   leakage, deterministic fingerprints, and disabled side-effect surfaces.
@@ -47,12 +51,20 @@ slice.
   renders generated `memory/proposals/*.md` reports for pending and quarantined
   memory records. `--from memoryPaths --config oaf.memory.json` reads explicit
   workspace-relative files as proposal sources only.
+- Memory proposal reports include source diagnostics inspired by markdown-memory
+  failure modes: source role, source hash, line count, byte size, age, stale
+  source warnings, and memory-index line/byte cliff warnings. These are review
+  signals only and do not activate memory.
 - `npm run oaf -- memory sgrep "..." --records memory-export.json --workspace ws_local --dry-run --format json`
   returns local source-grounded memory search results with lifecycle state,
   evidence IDs, and optional context-manifest reason codes.
 - The native SQLite memory provider now preserves memory-core lifecycle and
   review fields and includes a local proposal queue with idempotent
   fingerprints, leases, retries, and poison/error records.
+- The browser shell includes a read-only Fabric Map at `/fabric-map` that
+  visualizes source intake, normalization, context compilation, workflow,
+  model, tool, evidence, memory, approval, and disabled-adapter boundaries from
+  current sanitized dashboard state.
 
 ## Safety Boundary
 
@@ -67,6 +79,8 @@ slice.
   only to create proposal reports.
 - Context packs contain locators, hashes, reason codes, warnings, and
   instructions only. They do not embed raw source bodies or grant authority.
+- Omission refs are not hidden context. They let a later user or agent recover
+  skipped context by explicitly reading the local locator.
 - Raw source bodies, prompts, outputs, credentials, provider URLs, local paths,
   and hidden reasoning are not present in public scan or preview reports.
 - Source-index outputs are hashes, safe workspace locators, symbol names, and
@@ -75,6 +89,9 @@ slice.
 - The AST provider's exact-slice reader is a root-bounded internal verification
   helper. It is not exposed through provider query results, protocol fixtures,
   benchmark reports, or persisted context manifests.
+- The Fabric Map is an observer surface only. It does not add telemetry, import
+  harness chat history, call models, activate memory, enable external adapters,
+  enable external writes, or render raw context bodies.
 
 ## Prior Art Boundary
 

@@ -5,7 +5,7 @@
   "description": "Generated review reports for pending memory proposals and quarantined records. Reports are not canonical memory writes.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "reportVersion", "id", "workspaceId", "generatedAt", "dryRun", "summary", "items", "safeguards"],
+  "required": ["schemaVersion", "reportVersion", "id", "workspaceId", "generatedAt", "dryRun", "summary", "diagnostics", "items", "safeguards"],
   "properties": {
     "schemaVersion": { "const": "1.0.0" },
     "reportVersion": { "const": "1.0.0" },
@@ -23,6 +23,7 @@
         "skippedCount": { "type": "integer", "minimum": 0, "maximum": 10000 }
       }
     },
+    "diagnostics": { "$ref": "#/$defs/importDiagnostics" },
     "items": {
       "type": "array",
       "maxItems": 1000,
@@ -66,7 +67,7 @@
     "item": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "kind", "status", "decision", "reasons", "source", "lifecycle", "evidenceIds", "target", "contentHash", "markdown"],
+      "required": ["id", "kind", "status", "decision", "reasons", "source", "lifecycle", "evidenceIds", "target", "sourceDiagnostics", "contentHash", "markdown"],
       "properties": {
         "id": { "type": "string", "pattern": "^mem_" },
         "kind": { "enum": ["fact", "preference", "decision", "episode", "procedure", "constraint"] },
@@ -77,8 +78,42 @@
         "lifecycle": { "$ref": "#/$defs/lifecycle" },
         "evidenceIds": { "$ref": "#/$defs/stringList" },
         "target": { "$ref": "#/$defs/target" },
+        "sourceDiagnostics": { "$ref": "#/$defs/sourceDiagnostics" },
         "contentHash": { "$ref": "#/$defs/hash" },
         "markdown": { "$ref": "#/$defs/safeGeneratedText" }
+      }
+    },
+    "sourceDiagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceLocator", "sourceRole", "sourceHash", "lineCount", "byteSize", "sourceUpdatedAt", "ageDays", "warnings"],
+      "properties": {
+        "sourceLocator": { "type": "string", "minLength": 1, "maxLength": 180, "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=)).*$" },
+        "sourceRole": { "enum": ["memory-index", "memory-file", "harness-profile", "workspace-note"] },
+        "sourceHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+        "lineCount": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "byteSize": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "sourceUpdatedAt": { "type": ["string", "null"], "format": "date-time" },
+        "ageDays": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000000 },
+        "warnings": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "importDiagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceCount", "memoryIndexCount", "staleSourceCount", "indexCliffRiskCount", "selectionReviewLimit", "warnings", "items"],
+      "properties": {
+        "sourceCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "memoryIndexCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "staleSourceCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "indexCliffRiskCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "selectionReviewLimit": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "warnings": { "$ref": "#/$defs/stringList" },
+        "items": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": { "$ref": "#/$defs/sourceDiagnostics" }
+        }
       }
     },
     "safeguards": {

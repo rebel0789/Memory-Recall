@@ -10,6 +10,36 @@
     "quarantinedCount": 1,
     "skippedCount": 0
   },
+  "diagnostics": {
+    "sourceCount": 2,
+    "memoryIndexCount": 1,
+    "staleSourceCount": 0,
+    "indexCliffRiskCount": 0,
+    "selectionReviewLimit": 5,
+    "warnings": [],
+    "items": [
+      {
+        "sourceLocator": "workspace://notes/context.md",
+        "sourceRole": "memory-file",
+        "sourceHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "lineCount": 1,
+        "byteSize": 96,
+        "sourceUpdatedAt": "2026-06-23T00:00:00.000Z",
+        "ageDays": 0,
+        "warnings": []
+      },
+      {
+        "sourceLocator": "tool-output",
+        "sourceRole": "memory-index",
+        "sourceHash": null,
+        "lineCount": 10,
+        "byteSize": 1000,
+        "sourceUpdatedAt": "2026-06-23T00:00:00.000Z",
+        "ageDays": 0,
+        "warnings": []
+      }
+    ]
+  },
   "items": [
     {
       "id": "mem_report_proposed",
@@ -28,8 +58,18 @@
         "locator": "workspace://memory/proposals/mem_report_proposed.md",
         "format": "markdown"
       },
+      "sourceDiagnostics": {
+        "sourceLocator": "workspace://notes/context.md",
+        "sourceRole": "memory-file",
+        "sourceHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "lineCount": 1,
+        "byteSize": 96,
+        "sourceUpdatedAt": "2026-06-23T00:00:00.000Z",
+        "ageDays": 0,
+        "warnings": []
+      },
       "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "markdown": "# Memory Proposal mem_report_proposed\n\nGenerated from OAF proposal state for review. Editing this report is not a canonical memory write.\n\nGenerated: 2026-06-23T00:00:00.000Z\nStatus: proposed\nDecision: review\nKind: episode\nSource: workspace://notes/context.md\nReasons: source_verification_required\nEvidence: none\n\n## Proposed Text\n\nReview context profile with [redacted-local-path]."
+      "markdown": "# Memory Proposal mem_report_proposed\n\nGenerated from OAF proposal state for review. Editing this report is not a canonical memory write.\n\nGenerated: 2026-06-23T00:00:00.000Z\nStatus: proposed\nDecision: review\nKind: episode\nSource: workspace://notes/context.md\nReasons: source_verification_required\nEvidence: none\nSource role: memory-file\nSource lines: 1\nSource bytes: 96\nSource age days: 0\nSource warnings: none\n\n## Proposed Text\n\nReview context profile with [redacted-local-path]."
     },
     {
       "id": "mem_report_quarantined",
@@ -48,8 +88,18 @@
         "locator": "workspace://memory/proposals/mem_report_quarantined.md",
         "format": "markdown"
       },
+      "sourceDiagnostics": {
+        "sourceLocator": "tool-output",
+        "sourceRole": "memory-index",
+        "sourceHash": null,
+        "lineCount": 10,
+        "byteSize": 1000,
+        "sourceUpdatedAt": "2026-06-23T00:00:00.000Z",
+        "ageDays": 0,
+        "warnings": []
+      },
       "contentHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-      "markdown": "# Memory Proposal mem_report_quarantined\n\nGenerated from OAF proposal state for review. Editing this report is not a canonical memory write.\n\nGenerated: 2026-06-23T00:00:00.000Z\nStatus: quarantined\nDecision: reject\nKind: episode\nSource: tool-output\nReasons: possible_secret\nEvidence: none\n\n## Proposed Text\n\n[redacted-secret]"
+      "markdown": "# Memory Proposal mem_report_quarantined\n\nGenerated from OAF proposal state for review. Editing this report is not a canonical memory write.\n\nGenerated: 2026-06-23T00:00:00.000Z\nStatus: quarantined\nDecision: reject\nKind: episode\nSource: tool-output\nReasons: possible_secret\nEvidence: none\nSource role: memory-index\nSource lines: 10\nSource bytes: 1000\nSource age days: 0\nSource warnings: none\n\n## Proposed Text\n\n[redacted-secret]"
     }
   ],
   "safeguards": {

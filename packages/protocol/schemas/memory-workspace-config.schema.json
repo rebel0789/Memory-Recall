@@ -28,7 +28,8 @@
         },
         "kind": { "enum": ["fact", "preference", "decision", "episode", "procedure", "constraint"] },
         "sourceTrust": { "enum": ["unverified", "verified"] },
-        "dataClass": { "enum": ["public", "workspace-private", "sensitive"] }
+        "dataClass": { "enum": ["public", "workspace-private", "sensitive"] },
+        "sourceRole": { "enum": ["memory-index", "memory-file", "harness-profile", "workspace-note"] }
       }
     }
   }

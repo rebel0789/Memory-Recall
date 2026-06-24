@@ -9,6 +9,8 @@ import {
   proposeMemory,
   verifyMemory
 } from '../packages/memory-core/src/index.mjs';
+import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
+import memoryProposalsReportSchema from '../packages/protocol/schemas/memory-proposals-report.schema.json' with { type: 'json' };
 
 const now = '2026-06-23T00:00:00.000Z';
 
@@ -94,6 +96,7 @@ test('memory proposal reports include pending and quarantined review items with 
   });
 
   const report = buildMemoryProposalsReport({ records: [proposed, quarantined, otherWorkspace], workspaceId: 'ws_local', generatedAt: now });
+  assertJsonSchema(memoryProposalsReportSchema, report, 'memory proposals report');
   assert.equal(report.summary.proposalCount, 1);
   assert.equal(report.summary.quarantinedCount, 1);
   assert.deepEqual(report.items.map((item) => item.id), ['mem_report_proposed', 'mem_report_quarantined']);
@@ -104,6 +107,40 @@ test('memory proposal reports include pending and quarantined review items with 
   assert.doesNotMatch(JSON.stringify(report), /another-secret/);
   assert.doesNotMatch(JSON.stringify(report), /Other workspace/);
   assert.equal(report.safeguards.activeMemoryCreated, 0);
+});
+
+test('memory proposal reports expose stale source and memory index cliff diagnostics without raw bodies', () => {
+  const indexText = Array.from({ length: 220 }, (_, index) => `Memory index line ${index + 1}`).join('\n');
+  const proposal = proposeMemory({
+    id: 'mem_report_index_cliff',
+    workspaceId: 'ws_local',
+    kind: 'episode',
+    text: indexText,
+    source: 'workspace://.claude/projects/repo/memory/MEMORY.md',
+    now: '2026-06-21T00:00:00.000Z',
+    metadata: {
+      sourceLocator: 'workspace://.claude/projects/repo/memory/MEMORY.md',
+      sourceRole: 'memory-index',
+      sourceHash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      sourceLineCount: 220,
+      sourceByteSize: 27000,
+      sourceUpdatedAt: '2026-06-21T00:00:00.000Z',
+      proposalSource: 'memoryPaths'
+    }
+  });
+
+  const report = buildMemoryProposalsReport({ records: [proposal], workspaceId: 'ws_local', generatedAt: now });
+  assertJsonSchema(memoryProposalsReportSchema, report, 'memory proposals report with diagnostics');
+  assert.equal(report.diagnostics.memoryIndexCount, 1);
+  assert.equal(report.diagnostics.staleSourceCount, 1);
+  assert.equal(report.diagnostics.indexCliffRiskCount, 1);
+  assert(report.diagnostics.warnings.includes('memory_index_line_cap_risk'));
+  assert(report.diagnostics.warnings.includes('memory_index_byte_cap_risk'));
+  assert(report.diagnostics.warnings.includes('stale_source'));
+  assert.equal(report.items[0].sourceDiagnostics.ageDays, 2);
+  assert.equal(report.items[0].sourceDiagnostics.sourceHash, 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+  assert.match(report.items[0].markdown, /Source warnings: memory_index_byte_cap_risk, memory_index_line_cap_risk, stale_source/);
+  assert.doesNotMatch(JSON.stringify(report.diagnostics), /Memory index line/);
 });
 
 test('memory reports redact hostile IDs, evidence IDs, reasons, and reject arbitrary targets', () => {
@@ -154,6 +191,7 @@ test('memoryPaths config is explicit and workspace-relative only', () => {
   });
   assert.deepEqual(config.memoryPaths.map((entry) => entry.path), ['docs/decisions.md', '.codex/context.md']);
   assert.equal(config.memoryPaths[1].kind, 'procedure');
+  assert.equal(config.memoryPaths[1].sourceRole, 'memory-file');
   assert.throws(() => normalizeMemoryPathsConfig({ memoryPaths: ['/Users/rebel/private.md'] }), /workspace-relative/);
   assert.throws(() => normalizeMemoryPathsConfig({ memoryPaths: ['../outside.md'] }), /workspace-relative/);
 });

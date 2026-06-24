@@ -20,6 +20,7 @@
     "preview",
     "readFirst",
     "excluded",
+    "omissions",
     "memoryPlan",
     "sourceGraph",
     "warnings",
@@ -80,6 +81,7 @@
       "maxItems": 128,
       "items": { "$ref": "#/$defs/decision" }
     },
+    "omissions": { "$ref": "#/$defs/omissions" },
     "memoryPlan": { "$ref": "#/$defs/memoryPlan" },
     "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
     "warnings": { "$ref": "#/$defs/stringList" },
@@ -225,6 +227,36 @@
             }
           }
         }
+      }
+    },
+    "omissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["excludedCount", "excludedTokenCount", "sourceGraphOmittedCount", "refs"],
+      "properties": {
+        "excludedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "excludedTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "sourceGraphOmittedCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "refs": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/omissionRef" }
+        }
+      }
+    },
+    "omissionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "locator", "harness", "sourceKind", "tokens", "contentHash", "reasonCodes", "recoveryHint"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^omit_[a-f0-9]{16,64}$" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "harness": { "enum": ["codex", "claude-code", "cursor", "generic-mcp"] },
+        "sourceKind": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "tokens": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "contentHash": { "$ref": "#/$defs/hash" },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "recoveryHint": { "type": "string", "minLength": 1, "maxLength": 512 }
       }
     },
     "sourceGraph": {

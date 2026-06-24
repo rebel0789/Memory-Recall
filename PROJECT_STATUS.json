@@ -46,12 +46,14 @@
         "tests/web-shell.test.mjs",
         "docs/implementation/OAF-022-production-web-shell-note.md",
         "docs/implementation/OAF-023-run-context-inspector-note.md",
-        "docs/implementation/OAF-024-memory-evidence-approval-views-note.md"
+        "docs/implementation/OAF-024-memory-evidence-approval-views-note.md",
+        "docs/implementation/OAF-031-context-intake-preview-note.md"
       ],
       "limitations": [
         "Dependency-free routed shell; no production frontend framework",
         "Uses the loopback Control API only and does not read storage directly",
-        "OAF-024 views are read-only and do not add approval mutation endpoints"
+        "OAF-024 views are read-only and do not add approval mutation endpoints",
+        "Fabric Map is a read-only visualization over existing local dashboard state; it does not add telemetry, model calls, external adapters, or external writes"
       ]
     },
     {
@@ -196,6 +198,7 @@
       ],
       "limitations": [
         "Generates schema-validated local handoff reports from documented harness project files, explicit user-selected relative files, and compact native JS/TS source-graph hints",
+        "Omission refs expose skipped context through safe locators, hashes, token costs, reason codes, and recovery hints without embedding raw bodies",
         "Raw source bodies, prompts, outputs, credentials, provider URLs, private local paths, and hidden reasoning are omitted",
         "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, MCP bridge, persisted graph database, graph candidate-source integration, publishing, or external write",
         "The only write path is explicit CLI output under context-packs/*.md"
@@ -340,7 +343,7 @@
       "limitations": [
         "Pure domain lifecycle gate; persistence/search remains delegated to native SQLite memory provider",
         "Generated memory/profile.md and memory/proposals/*.md are reports only; file edits are not canonical memory writes",
-        "memoryPaths config is an explicit proposal source only and cannot activate memory",
+        "memoryPaths config is an explicit proposal source only and cannot activate memory; diagnostics cover source role, hash, line count, byte size, age, stale-source warnings, and markdown memory-index cap warnings",
         "No automatic activation from model, tool, external, or retrieved content",
         "No hosted memory provider, embeddings, vector database, graph database, connector ingestion, or external write"
       ]

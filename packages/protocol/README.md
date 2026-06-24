@@ -67,8 +67,10 @@ source-grounded search output, and SQLite proposal queue reconciliation.
 The reports are not canonical memory authority. They require zero network
 calls, zero model calls, zero external writes, zero active-memory creation, and
 disabled external adapters. `memoryPaths` entries are workspace-relative
-proposal sources only. Queue records use safe workspace locators, idempotent
-fingerprints, leases, retries, and poison/error states.
+proposal sources only and may carry optional source-role diagnostics for
+memory-index, memory-file, harness-profile, or workspace-note inputs. Queue
+records use safe workspace locators, idempotent fingerprints, leases, retries,
+and poison/error states.
 
 ## Durable workflow schemas
 

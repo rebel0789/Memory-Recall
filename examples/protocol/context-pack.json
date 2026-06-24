@@ -52,6 +52,23 @@
       "readHint": "Read workspace://CLAUDE.md from the local workspace before acting in codex."
     }
   ],
+  "omissions": {
+    "excludedCount": 1,
+    "excludedTokenCount": 128,
+    "sourceGraphOmittedCount": 0,
+    "refs": [
+      {
+        "id": "omit_aaaaaaaaaaaaaaaaaaaaaaaa",
+        "locator": "workspace://CLAUDE.md",
+        "harness": "claude-code",
+        "sourceKind": "instruction",
+        "tokens": 128,
+        "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "reasonCodes": ["insufficient_relevance"],
+        "recoveryHint": "If this omission matters, read workspace://CLAUDE.md from the local workspace before acting in codex."
+      }
+    ]
+  },
   "memoryPlan": {
     "activeMemoryCreated": 0,
     "proposedCount": 1,

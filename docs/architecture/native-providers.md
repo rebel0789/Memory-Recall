@@ -61,7 +61,11 @@ generates `memory/profile.md` from accepted active OAF memory only.
 and quarantined records. These files are generated reports: editing them does
 not create or update canonical memory. `memoryPaths` config entries are
 explicit workspace-relative proposal sources only, bounded to local files and
-redacted before report output.
+redacted before report output. Proposal reports also include source diagnostics
+for selected memory files: role, hash, line count, byte size, age, stale-source
+warnings, and markdown memory-index cap warnings. These diagnostics are
+review-only signals; they do not create active memory or change retrieval
+policy by themselves.
 
 `oaf memory sgrep` is a local source-grounded memory search command, not a
 replacement for shell `grep`. It returns lifecycle state, evidence IDs, and

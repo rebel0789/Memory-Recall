@@ -7,6 +7,7 @@ import {
   buildApprovalReviewModel,
   buildContextInspectorModel,
   buildEvidenceExplorerModel,
+  buildFabricMapModel,
   buildMemoryReviewModel,
   classifyDashboardState,
   contextDecisionView,
@@ -21,8 +22,9 @@ import {
 } from '../apps/web/app.js';
 
 test('web shell exposes stable path routes with legacy query compatibility',()=>{
-  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/context','/context-pack','/source-graph','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
+  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/fabric-map','/context','/context-pack','/source-graph','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
   assert.equal(resolveRoute('http://127.0.0.1:4310/runs').id,'runs');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/fabric-map').id,'fabric-map');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context?manifest=ctx_1').id,'context');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context-pack').id,'context-pack');
   assert.equal(resolveRoute('http://127.0.0.1:4310/source-graph').id,'source-graph');
@@ -47,6 +49,56 @@ test('web shell classifies loading, setup, empty, partial, stale, success, denie
 test('status labels include text and do not rely on color alone',()=>{
   assert.equal(shellStatusLabel({network:'deny',externalWrites:false,modelMode:'deterministic'}),'Local-only · Network denied · External writes disabled · Deterministic model');
   assert.equal(shellStatusLabel({network:'allow',externalWrites:true,modelMode:'ollama'}),'Network allowed · External writes enabled · ollama model');
+});
+
+test('fabric map model visualizes current local state without enabling external surfaces',()=>{
+  const model=buildFabricMapModel({
+    shellState:{kind:'success'},
+    activeNodeId:'model',
+    dashboard:{
+      metrics:{runs:2,events:9,pendingApprovals:1},
+      runs:[{id:'run_1',status:'completed',output:{provider:'deterministic',model:'content-fixture',outputSchemaVersion:'schema:content@1'}}],
+      latestRun:{
+        id:'run_1',
+        status:'completed',
+        output:{
+          provider:'deterministic',
+          model:'content-fixture',
+          outputSchemaVersion:'schema:content@1',
+          output:[{rank:1,angle:'Keep it local',hook:'Use source-backed context.',evidenceIds:['obs_one'],confidence:.9}]
+        }
+      },
+      latestManifest:{
+        id:'ctx_test',
+        objective:'Explain context flow',
+        step:'generate-angles',
+        compilerVersion:'0.2.0',
+        manifestFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        budget:{used:45,available:90},
+        selected:[{id:'obs_one',kind:'observation',text:'Selected evidence preview',tokens:30,source:'fixture'}],
+        excluded:[{id:'obs_two',kind:'observation',text:'Excluded evidence preview',tokens:15,source:'fixture'}],
+        conflicts:[],
+        assembly:{
+          assemblyFingerprint:'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          selectedRecordIds:['obs_one'],
+          sections:[{id:'evidence',title:'Evidence',items:[{id:'obs_one',tokens:30}]}]
+        }
+      },
+      memories:[{id:'mem_1',status:'proposed',kind:'preference',text:'Prefer local-only context',confidence:.7}],
+      approvals:[{id:'apr_1',status:'pending',operationFingerprint:'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'}]
+    }
+  });
+  assert.equal(model.activeNode.id,'model');
+  assert.equal(model.summary.selectedRecords,1);
+  assert.equal(model.summary.excludedRecords,1);
+  assert.equal(model.summary.pendingApprovals,1);
+  assert.equal(model.summary.externalAdaptersEnabled,0);
+  assert.equal(model.safeguards.externalWritesEnabled,false);
+  assert.equal(model.safeguards.rawBodiesRendered,false);
+  assert.equal(model.contextFlow.budgetPercent,50);
+  assert.equal(model.nodes.find((node)=>node.id==='context').status,'active');
+  assert.equal(model.nodes.find((node)=>node.id==='approvals').status,'waiting');
+  assert.equal(model.links.find((link)=>link.to==='external').blocked,true);
 });
 
 test('web shell markup keeps accessibility anchors and mobile navigation landmarks',async()=>{

@@ -5,13 +5,15 @@
       "path": "memory/inbox.md",
       "kind": "episode",
       "sourceTrust": "unverified",
-      "dataClass": "workspace-private"
+      "dataClass": "workspace-private",
+      "sourceRole": "memory-file"
     },
     {
       "path": "docs/decisions.md",
       "kind": "decision",
       "sourceTrust": "verified",
-      "dataClass": "workspace-private"
+      "dataClass": "workspace-private",
+      "sourceRole": "workspace-note"
     }
   ]
 }

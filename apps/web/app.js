@@ -4,6 +4,7 @@ export const ROUTES = [
   { id:'home', path:'/', label:'Home', title:'Home', eyebrow:'Workspace / local', description:'Health, active work, approvals, residency, and the next local action.' },
   { id:'runs', path:'/runs', label:'Runs', title:'Runs', eyebrow:'Execution', description:'Run history, status, current step, artifacts, and sanitized timelines.' },
   { id:'workflows', path:'/workflows', label:'Workflows', title:'Workflows', eyebrow:'Definitions', description:'Workflow versions, graph outline, risk, retries, approvals, and tests.' },
+  { id:'fabric-map', path:'/fabric-map', label:'Fabric Map', title:'Fabric Map', eyebrow:'System graph', description:'Visualize local process flow, context assembly, node handoffs, and disabled external boundaries.' },
   { id:'context', path:'/context', label:'Context', title:'Context', eyebrow:'Manifest inspector', description:'Selected and excluded records, budgets, conflicts, assembly, and compiler versions.' },
   { id:'context-pack', path:'/context-pack', label:'Context Pack', title:'Context Pack', eyebrow:'Agent handoff', description:'Build a safe, token-aware handoff for Codex, Claude Code, Cursor, or a generic agent.' },
   { id:'source-graph', path:'/source-graph', label:'Source Graph', title:'Source Graph', eyebrow:'Code map', description:'Search symbols, trace calls, and inspect likely diff impact from local JS/TS metadata.' },
@@ -27,6 +28,7 @@ let contextPackResult=null;
 let contextPackError=null;
 let sourceGraphResult=null;
 let sourceGraphError=null;
+let activeFabricNode='context';
 
 export function legacyViewPath(view) {
   return legacyViews.get(String(view??'')) ?? '/';
@@ -72,6 +74,101 @@ export const WORKFLOW_STEPS = [
 ];
 
 const STEP_ORDER = new Map(WORKFLOW_STEPS.map((step,index)=>[step.id,index]));
+
+export const FABRIC_NODES = [
+  {
+    id:'sources',
+    lane:'intake',
+    label:'Source Intake',
+    role:'Harness project files and explicit user locators',
+    route:'/context-pack',
+    detail:'Scans documented project-visible files and selected workspace locators as untrusted input.'
+  },
+  {
+    id:'normalize',
+    lane:'intake',
+    label:'Normalize',
+    role:'Observed records, hashes, reason codes',
+    route:'/evidence',
+    detail:'Separates observed fields from interpretation and keeps source bodies out of the shell.'
+  },
+  {
+    id:'context',
+    lane:'reasoning',
+    label:'Context Compiler',
+    role:'Selected, excluded, conflicts, assembly',
+    route:'/context',
+    detail:'Persists a manifest that every model call references instead of carrying hidden context.'
+  },
+  {
+    id:'model',
+    lane:'reasoning',
+    label:'Model Gateway',
+    role:'Deterministic default, optional local provider',
+    route:'/settings',
+    detail:'Uses the selected local provider path with schema validation and no hosted fallback.'
+  },
+  {
+    id:'workflow',
+    lane:'execution',
+    label:'Workflow Runtime',
+    role:'Checkpoints, retries, cancellation',
+    route:'/workflows',
+    detail:'Runs deterministic steps through append-only events and recoverable checkpoints.'
+  },
+  {
+    id:'tools',
+    lane:'execution',
+    label:'Tool Broker',
+    role:'One-use exact-operation grants',
+    route:'/agents-tools',
+    detail:'Brokers filesystem, loopback egress, and secret references independently after policy allows.'
+  },
+  {
+    id:'evidence',
+    lane:'assurance',
+    label:'Evidence Ledger',
+    role:'Observed facts and claim links',
+    route:'/evidence',
+    detail:'Keeps observations, inferred claims, source hashes, and stale/conflict signals inspectable.'
+  },
+  {
+    id:'memory',
+    lane:'assurance',
+    label:'Memory Queue',
+    role:'Proposal-first lifecycle',
+    route:'/memory',
+    detail:'Requires review before activation and preserves supersession, retraction, expiry, and evidence.'
+  },
+  {
+    id:'approvals',
+    lane:'boundary',
+    label:'Approval Gate',
+    role:'Exact previews and idempotency',
+    route:'/approvals',
+    detail:'Consequential local effects require exact operation previews; external publishing remains unavailable.'
+  },
+  {
+    id:'external',
+    lane:'boundary',
+    label:'External Adapters',
+    role:'Disabled conformance boundary',
+    route:'/agents-tools',
+    detail:'Adapter contracts remain baselines only unless a reviewed adapter is explicitly enabled later.'
+  }
+];
+
+export const FABRIC_LINKS = [
+  { from:'sources', to:'normalize', label:'safe locators' },
+  { from:'normalize', to:'context', label:'candidates' },
+  { from:'context', to:'model', label:'manifest reference' },
+  { from:'workflow', to:'context', label:'compile checkpoint' },
+  { from:'workflow', to:'tools', label:'bounded grant request' },
+  { from:'tools', to:'approvals', label:'exact operation preview' },
+  { from:'model', to:'evidence', label:'schema output' },
+  { from:'evidence', to:'memory', label:'proposal evidence' },
+  { from:'approvals', to:'external', label:'blocked boundary' }
+];
 
 export function runDetailLink(runId, stepId = null) {
   const suffix = stepId ? `&step=${encodeURIComponent(stepId)}` : '';
@@ -336,6 +433,136 @@ export function buildApprovalReviewModel({ approvals = [] } = {}) {
   });
 }
 
+export function buildFabricMapModel({ dashboard: value = null, shellState: state = {}, activeNodeId = 'context' } = {}) {
+  const metrics = value?.metrics ?? {};
+  const runs = Array.isArray(value?.runs) ? value.runs : [];
+  const manifestModel = buildContextInspectorModel(value?.latestManifest ?? null);
+  const latestRun = value?.latestRun ?? runs[0] ?? null;
+  const evidence = buildEvidenceExplorerModel({
+    latestManifest:value?.latestManifest ?? null,
+    latestRun,
+    evidenceGraph:value?.evidenceGraph ?? null
+  });
+  const memories = buildMemoryReviewModel({ memories:value?.memories ?? [] });
+  const approvals = buildApprovalReviewModel({ approvals:value?.approvals ?? [] });
+  const pendingApprovals = approvals.filter((approval)=>approval.status === 'pending').length;
+  const candidateCount = (manifestModel?.selected.length ?? 0) + (manifestModel?.excluded.length ?? 0);
+  const budgetUsed = Number(manifestModel?.budget?.used ?? 0);
+  const budgetAvailable = Number(manifestModel?.budget?.available ?? 0);
+  const budgetPercent = budgetAvailable > 0 ? Math.min(100, Math.round(budgetUsed / budgetAvailable * 100)) : 0;
+  const output = latestRun?.output ?? {};
+  const nodeMetrics = {
+    sources:[
+      { label:'Candidates', value:String(candidateCount || metrics.contextCandidates || 0) },
+      { label:'Input mode', value:'explicit local' }
+    ],
+    normalize:[
+      { label:'Evidence cards', value:String(evidence.length) },
+      { label:'Raw bodies', value:'not rendered' }
+    ],
+    context:[
+      { label:'Selected', value:String(manifestModel?.selected.length ?? 0) },
+      { label:'Excluded', value:String(manifestModel?.excluded.length ?? 0) },
+      { label:'Budget', value:budgetAvailable ? `${budgetUsed}/${budgetAvailable}` : 'not compiled' }
+    ],
+    model:[
+      { label:'Provider', value:safeText(output.provider ?? 'deterministic') },
+      { label:'Model', value:safeText(output.model ?? 'offline default') },
+      { label:'Schema', value:safeText(output.outputSchemaVersion ?? 'validated') }
+    ],
+    workflow:[
+      { label:'Runs', value:String(Number(metrics.runs ?? runs.length ?? 0)) },
+      { label:'Current step', value:safeText(latestRun ? currentStepLabel(latestRun) : 'not started') },
+      { label:'Events', value:String(Number(metrics.events ?? 0)) }
+    ],
+    tools:[
+      { label:'Grant scope', value:'one-use' },
+      { label:'Loopback', value:'policy gated' }
+    ],
+    evidence:[
+      { label:'Observations', value:String(evidence.length) },
+      { label:'Claims', value:String(evidence.reduce((total,item)=>total + item.claims.length,0)) }
+    ],
+    memory:[
+      { label:'Review records', value:String(memories.length) },
+      { label:'Activation', value:'proposal-first' }
+    ],
+    approvals:[
+      { label:'Pending', value:String(pendingApprovals) },
+      { label:'External writes', value:'disabled' }
+    ],
+    external:[
+      { label:'Contracts', value:'12' },
+      { label:'Enabled', value:'0' }
+    ]
+  };
+  const nodeStatuses = {
+    sources: state.kind === 'success' || state.kind === 'partial' ? 'ready' : 'waiting',
+    normalize: candidateCount || evidence.length ? 'active' : 'waiting',
+    context: manifestModel ? 'active' : 'waiting',
+    model: latestRun?.output ? 'active' : 'ready',
+    workflow: runs.length ? 'active' : 'waiting',
+    tools: 'guarded',
+    evidence: evidence.length ? 'active' : 'waiting',
+    memory: memories.length ? 'review' : 'ready',
+    approvals: pendingApprovals ? 'waiting' : 'guarded',
+    external: 'disabled'
+  };
+  const nodes = FABRIC_NODES.map((node)=>({
+    ...node,
+    status:nodeStatuses[node.id] ?? 'waiting',
+    statusLabel:({
+      active:'live',
+      waiting:'waiting',
+      ready:'ready',
+      guarded:'guarded',
+      review:'review',
+      disabled:'disabled'
+    })[nodeStatuses[node.id] ?? 'waiting'],
+    facts:nodeMetrics[node.id] ?? []
+  }));
+  const nodesById = new Map(nodes.map((node)=>[node.id,node]));
+  const selectedId = nodesById.has(activeNodeId) ? activeNodeId : 'context';
+  return {
+    state:safeText(state.kind ?? 'loading'),
+    summary:{
+      runs:Number(metrics.runs ?? runs.length ?? 0),
+      selectedRecords:manifestModel?.selected.length ?? 0,
+      excludedRecords:manifestModel?.excluded.length ?? 0,
+      evidenceCards:evidence.length,
+      memoryReviews:memories.length,
+      pendingApprovals,
+      externalAdaptersEnabled:0,
+      externalWritesEnabled:false
+    },
+    contextFlow:{
+      manifestId:manifestModel?.id ?? 'not compiled',
+      compilerVersion:manifestModel?.compilerVersion ?? 'not recorded',
+      sections:manifestModel?.sections.length ?? 0,
+      budgetUsed,
+      budgetAvailable,
+      budgetPercent,
+      manifestFingerprint:manifestModel?.manifestFingerprint ?? 'unavailable',
+      assemblyFingerprint:manifestModel?.assemblyFingerprint ?? 'unavailable'
+    },
+    safeguards:{
+      network:'deny',
+      modelMode:'deterministic',
+      externalWritesEnabled:false,
+      externalAdaptersEnabled:0,
+      rawBodiesRendered:false
+    },
+    activeNodeId:selectedId,
+    activeNode:nodesById.get(selectedId),
+    nodes,
+    links:FABRIC_LINKS.map((link)=>({
+      ...link,
+      active:nodesById.get(link.from)?.status !== 'waiting' && nodesById.get(link.to)?.status !== 'waiting',
+      blocked:link.to === 'external'
+    }))
+  };
+}
+
 function workspaceId() {
   return new URL(globalThis.location?.href ?? 'http://127.0.0.1/').searchParams.get('workspaceId') ?? 'ws_local';
 }
@@ -409,6 +636,7 @@ function render() {
   root.querySelector('#auth-form')?.addEventListener('submit',submitAuthForm);
   root.querySelector('#context-pack-form')?.addEventListener('submit',submitContextPack);
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
+  root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
 }
 
@@ -438,6 +666,7 @@ function renderRoute(route) {
   if (route.id === 'home') return renderHome();
   if (route.id === 'runs') return activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns();
   if (route.id === 'workflows') return renderWorkflows();
+  if (route.id === 'fabric-map') return renderFabricMap();
   if (route.id === 'context') return renderContext();
   if (route.id === 'context-pack') return renderContextPack();
   if (route.id === 'source-graph') return renderSourceGraph();
@@ -479,6 +708,46 @@ function renderWorkflows() {
   return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Content Intelligence</h2><span>workflow:content-intelligence</span></div><ol class="outline">${steps.map((step,index)=>`<li><span>${index+1}</span><strong>${step}</strong><em>${workflowStepCopy(step)}</em></li>`).join('')}</ol></div><aside class="inspector"><h2>Equivalent outline</h2><p>Graph information is presented as an ordered list for keyboard and screen-reader access.</p><dl class="facts"><div><dt>Risk</dt><dd>Read-only/local-only outputs</dd></div><div><dt>Timeout</dt><dd>5s deterministic steps, 120s model step</dd></div><div><dt>Approval</dt><dd>Local candidate approval record only</dd></div></dl></aside></section>`;
 }
 
+function renderFabricMap() {
+  const model=buildFabricMapModel({dashboard,shellState,activeNodeId:activeFabricNode});
+  return `<section class="fabric-stage" aria-label="Open Agent Fabric system map"><div class="fabric-hero surface"><div><p class="eyebrow">Runtime map</p><h2>Local agent fabric</h2><p>Process flow, context assembly, policy gates, and disabled external boundaries rendered from the current workspace state.</p></div><dl class="fabric-scoreboard" aria-label="Current fabric counts"><div><dt>Runs</dt><dd>${model.summary.runs}</dd></div><div><dt>Context</dt><dd>${model.summary.selectedRecords}/${model.summary.excludedRecords}</dd></div><div><dt>Evidence</dt><dd>${model.summary.evidenceCards}</dd></div><div><dt>Approvals</dt><dd>${model.summary.pendingApprovals}</dd></div><div><dt>Adapters</dt><dd>${model.summary.externalAdaptersEnabled}</dd></div></dl></div><div class="fabric-layout"><div class="surface surface-primary fabric-board"><div class="section-heading"><h2>Node conversation</h2><span>${model.links.filter((link)=>link.active).length} active links</span></div>${fabricNodeGrid(model)}${fabricLinkList(model.links)}</div><aside class="inspector fabric-inspector"><div class="section-heading"><h2>${esc(model.activeNode.label)}</h2>${fabricStatus(model.activeNode.status,model.activeNode.statusLabel)}</div><p>${esc(model.activeNode.detail)}</p><dl class="facts compact-facts">${model.activeNode.facts.map((fact)=>`<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('')}<div><dt>Route</dt><dd><a href="${esc(model.activeNode.route)}" data-route="${esc(routeByPath.get(model.activeNode.route)?.id ?? 'home')}">${esc(model.activeNode.route)}</a></dd></div></dl><hr><div class="section-heading"><h2>Safeguards</h2><span>default posture</span></div>${fabricSafeguards(model.safeguards)}</aside></div>${fabricContextFlow(model.contextFlow)}</section>`;
+}
+
+function fabricNodeGrid(model) {
+  const lanes=[...new Set(model.nodes.map((node)=>node.lane))];
+  return `<div class="fabric-node-grid">${lanes.map((lane)=>`<section class="fabric-lane" aria-label="${esc(titleize(lane))} lane"><h3>${esc(titleize(lane))}</h3><div>${model.nodes.filter((node)=>node.lane===lane).map((node)=>fabricNodeButton(node,model.activeNodeId)).join('')}</div></section>`).join('')}</div>`;
+}
+
+function fabricNodeButton(node,activeNodeId) {
+  return `<button class="fabric-node fabric-node-${esc(node.status)}${node.id===activeNodeId?' is-active':''}" type="button" data-fabric-node="${esc(node.id)}" aria-pressed="${node.id===activeNodeId?'true':'false'}"><span class="fabric-node-top"><strong>${esc(node.label)}</strong>${fabricStatus(node.status,node.statusLabel)}</span><span>${esc(node.role)}</span><small>${node.facts.map((fact)=>`${esc(fact.label)}: ${esc(fact.value)}`).join(' · ')}</small></button>`;
+}
+
+function fabricLinkList(links) {
+  return `<ol class="fabric-links" aria-label="Node handoff links">${links.map((link)=>`<li class="${link.active?'is-active':'is-waiting'}${link.blocked?' is-blocked':''}"><span>${esc(nodeLabel(link.from))}</span><strong>${esc(link.label)}</strong><span>${esc(nodeLabel(link.to))}</span></li>`).join('')}</ol>`;
+}
+
+function fabricContextFlow(flow) {
+  const steps=[
+    { label:'Candidates', value:flow.budgetAvailable ? `${flow.budgetUsed}/${flow.budgetAvailable} tokens` : 'waiting for manifest', detail:`Manifest ${flow.manifestId}` },
+    { label:'Selection', value:`${flow.budgetPercent}% budget`, detail:`Compiler ${flow.compilerVersion}` },
+    { label:'Assembly', value:`${flow.sections} sections`, detail:`Assembly ${shortFingerprint(flow.assemblyFingerprint)}` },
+    { label:'Model reference', value:'manifest-bound', detail:`Manifest ${shortFingerprint(flow.manifestFingerprint)}` }
+  ];
+  return `<section class="surface fabric-context-flow" aria-label="Context assembly flow"><div class="section-heading"><h2>Context assembly flow</h2><span>No raw context bodies rendered</span></div><div class="flow-steps">${steps.map((step,index)=>`<article class="flow-step"><span>${index+1}</span><strong>${esc(step.label)}</strong><em>${esc(step.value)}</em><small>${esc(step.detail)}</small></article>`).join('')}</div></section>`;
+}
+
+function fabricSafeguards(safeguards) {
+  return `<dl class="facts compact-facts"><div><dt>Network</dt><dd>${esc(safeguards.network)}</dd></div><div><dt>Model</dt><dd>${esc(safeguards.modelMode)}</dd></div><div><dt>External writes</dt><dd>${safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div><div><dt>External adapters</dt><dd>${Number(safeguards.externalAdaptersEnabled)}</dd></div><div><dt>Raw bodies</dt><dd>${safeguards.rawBodiesRendered?'rendered':'not rendered'}</dd></div></dl>`;
+}
+
+function fabricStatus(status,label) {
+  return `<span class="fabric-status fabric-status-${esc(status)}"><span aria-hidden="true"></span>${esc(label)}</span>`;
+}
+
+function nodeLabel(id) {
+  return FABRIC_NODES.find((node)=>node.id===id)?.label ?? titleize(id);
+}
+
 function renderContext() {
   const manifest=dashboard?.latestManifest;
   if(!manifest)return statePanel('empty','No context manifest yet','Run the local workflow to inspect selected and excluded records.',true);
@@ -497,12 +766,18 @@ function renderContextPack() {
 }
 
 function renderContextPackResult(pack,markdown) {
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff preview</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(shortFingerprint(pack.contextPackFingerprint))}</span></div><textarea class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${pack.warnings.length}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Tokens</dt><dd>${Number(pack.preview.selectedTokenCount)} / ${Number(pack.preview.budget.available)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>`;
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff preview</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(shortFingerprint(pack.contextPackFingerprint))}</span></div><textarea class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${pack.warnings.length}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Tokens</dt><dd>${Number(pack.preview.selectedTokenCount)} / ${Number(pack.preview.budget.available)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>`;
 }
 
 function contextPackLocatorList(items) {
   if(!items?.length)return '<p class="muted">No selected locators.</p>';
   return `<ol class="compact-list locator-list">${items.map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.reasonCodes.join(', '))}</span></li>`).join('')}</ol>`;
+}
+
+function contextPackOmissionList(omissions) {
+  const refs=omissions?.refs??[];
+  if(!refs.length)return '<p class="muted">No omitted context refs.</p>';
+  return `<ol class="compact-list locator-list">${refs.slice(0,6).map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.id)} · ${Number(item.tokens??0)} tokens</span></li>`).join('')}</ol>`;
 }
 
 function contextPackSourceGraphList(sourceGraph) {
@@ -685,6 +960,12 @@ function navigate(event) {
 function navigateLocal(event) {
   event.preventDefault();
   history.pushState({},'',event.currentTarget.getAttribute('href'));
+  render();
+  document.querySelector('#main').focus({preventScroll:true});
+}
+
+function selectFabricNode(event) {
+  activeFabricNode=event.currentTarget.dataset.fabricNode ?? 'context';
   render();
   document.querySelector('#main').focus({preventScroll:true});
 }
