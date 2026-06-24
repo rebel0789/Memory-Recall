@@ -17,6 +17,7 @@ const JSONRPC = '2.0';
 const AUTHORITY_KEYS = /(^|\.)(trustedContext|principal|membership|role|owner|isOwner|grant|grantToken|token|authorization|cookie|externalWritesEnabled)($|\.)/i;
 const PRIVATE_KEYS = /(^|\.)(raw|prompt|body|output|secret|token|cookie|authorization|localPath|providerUrl|hiddenReasoning|sql)/i;
 const MAX_RESULT_BYTES = 8192;
+const MAX_CONTEXT_PACK_ITEMS = 8;
 
 function hash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -154,9 +155,33 @@ function sortedCounts(values) {
   return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([id, count]) => ({ id, count }));
 }
 
+function unsafeLocatorText(value) {
+  if (typeof value !== 'string' || !value || value.length > 640) return true;
+  if (/\s|\\|%/u.test(value)) return true;
+  if (/(\.\.|\/Users(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|file:\/\/)/iu.test(value)) return true;
+  return false;
+}
+
+function safeLocalLocator(value, scheme) {
+  const prefix = `${scheme}://`;
+  if (!value.startsWith(prefix) || unsafeLocatorText(value)) return null;
+  const pathWithFragment = value.slice(prefix.length);
+  if (!pathWithFragment || pathWithFragment.startsWith('/')) return null;
+  const [pathname, fragment = null] = pathWithFragment.split('#', 2);
+  if (!pathname || (fragment !== null && !/^L[0-9]+-L[0-9]+$/u.test(fragment))) return null;
+  const segments = pathname.split('/');
+  if (segments.some((segment) => !segment || ['.', '..', '.git', '.local', 'node_modules', 'Users', 'private'].includes(segment))) return null;
+  if (segments.length >= 2 && segments[0] === 'var' && segments[1] === 'folders') return null;
+  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@/-]+$/u.test(pathname)) return null;
+  return value;
+}
+
 function safeLocator(value) {
   if (typeof value !== 'string') return null;
-  if (/^(workspace|artifact|evidence|memory|run|context|user-selected|omit|oaf):\/\//.test(value)) return value;
+  if (value.startsWith('workspace://')) return safeLocalLocator(value, 'workspace');
+  if (value.startsWith('user-selected://')) return safeLocalLocator(value, 'user-selected');
+  if (unsafeLocatorText(value)) return null;
+  if (/^(artifact|evidence|memory|run|context|omit|oaf):\/\/[A-Za-z0-9._~!$&'()*+,;=:@/-]{1,512}$/u.test(value)) return value;
   if (/^(provider|adapter|workflow|tool|model|policy):[A-Za-z0-9._:/-]+$/.test(value)) return value;
   return null;
 }
@@ -307,7 +332,7 @@ function commonSafeguards() {
   };
 }
 
-function createResourcePayload({ resourceKind, workspaceId, generatedAt, data }) {
+function createResourcePayload({ resourceKind, workspaceId, generatedAt, data, provenanceSource = 'local-state' }) {
   const payload = {
     schemaVersion: OAF_READ_ONLY_MCP_RESOURCE_VERSION,
     resourceKind,
@@ -316,7 +341,7 @@ function createResourcePayload({ resourceKind, workspaceId, generatedAt, data })
     provenance: {
       producer: 'open-agent-fabric.protocol-bridges',
       producerVersion: PROTOCOL_BRIDGES_VERSION,
-      source: 'local-state',
+      source: provenanceSource,
       sourceFingerprint: fingerprintFor(data)
     },
     safeguards: commonSafeguards(),
@@ -325,6 +350,190 @@ function createResourcePayload({ resourceKind, workspaceId, generatedAt, data })
   const withFingerprint = { ...payload, resourceFingerprint: fingerprintFor(payload) };
   assertSafeResult(withFingerprint);
   return withFingerprint;
+}
+
+function safePublicString(value, maxLength = 240) {
+  if (typeof value !== 'string' || !value) return null;
+  if (unsafeLocatorText(value) && !/^[A-Za-z0-9._:@/-]+$/u.test(value)) return null;
+  return value.slice(0, maxLength);
+}
+
+function safeStringList(values, limit = 12) {
+  return items(values)
+    .map((value) => safePublicString(value, 128))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function summarizeContextPackDecision(item) {
+  return {
+    id: safeId(item?.id) ?? 'ctx_item_unknown',
+    locator: safeLocator(item?.locator),
+    harness: safePublicString(item?.harness, 64),
+    sourceKind: safePublicString(item?.sourceKind, 64),
+    unitEstimate: Number.isFinite(item?.tokens) ? item.tokens : 0,
+    contentHash: typeof item?.contentHash === 'string' ? item.contentHash : null,
+    reasonCodes: safeStringList(item?.reasonCodes)
+  };
+}
+
+function summarizeContextPackOmission(item) {
+  return {
+    id: safeId(item?.id) ?? 'omit_unknown',
+    locator: safeLocator(item?.locator),
+    harness: safePublicString(item?.harness, 64),
+    sourceKind: safePublicString(item?.sourceKind, 64),
+    unitEstimate: Number.isFinite(item?.tokens) ? item.tokens : 0,
+    contentHash: typeof item?.contentHash === 'string' ? item.contentHash : null,
+    reasonCodes: safeStringList(item?.reasonCodes)
+  };
+}
+
+function summarizeContextPackSourceGraph(sourceGraph = {}) {
+  return {
+    status: safePublicString(sourceGraph.status, 64) ?? 'unavailable',
+    sourceIndexFingerprint: typeof sourceGraph.sourceIndexFingerprint === 'string' ? sourceGraph.sourceIndexFingerprint : null,
+    graphFingerprint: typeof sourceGraph.graphFingerprint === 'string' ? sourceGraph.graphFingerprint : null,
+    queryFingerprint: typeof sourceGraph.queryFingerprint === 'string' ? sourceGraph.queryFingerprint : null,
+    summary: sourceGraph.summary ? {
+      fileCount: Number.isInteger(sourceGraph.summary.fileCount) ? sourceGraph.summary.fileCount : 0,
+      symbolCount: Number.isInteger(sourceGraph.summary.symbolCount) ? sourceGraph.summary.symbolCount : 0,
+      nodeCount: Number.isInteger(sourceGraph.summary.nodeCount) ? sourceGraph.summary.nodeCount : 0,
+      edgeCount: Number.isInteger(sourceGraph.summary.edgeCount) ? sourceGraph.summary.edgeCount : 0
+    } : null,
+    resultCount: Number.isInteger(sourceGraph.resultCount) ? sourceGraph.resultCount : 0,
+    omittedCount: Number.isInteger(sourceGraph.omittedCount) ? sourceGraph.omittedCount : 0,
+    results: items(sourceGraph.results).slice(0, MAX_CONTEXT_PACK_ITEMS).map((item) => ({
+      resultType: safePublicString(item?.resultType, 64),
+      kind: safePublicString(item?.kind, 64),
+      label: safePublicString(item?.label, 160),
+      locator: safeLocator(item?.locator),
+      score: Number.isFinite(item?.score) ? item.score : 0,
+      reasonCodes: safeStringList(item?.reasonCodes)
+    })),
+    impact: {
+      changedLocators: items(sourceGraph.impact?.changedLocators).map(safeLocator).filter(Boolean).slice(0, 16),
+      affectedSymbolCount: Number.isInteger(sourceGraph.impact?.affectedSymbolCount) ? sourceGraph.impact.affectedSymbolCount : 0,
+      omittedAffectedSymbolCount: Number.isInteger(sourceGraph.impact?.omittedAffectedSymbolCount) ? sourceGraph.impact.omittedAffectedSymbolCount : 0,
+      affectedSymbols: items(sourceGraph.impact?.affectedSymbols).slice(0, MAX_CONTEXT_PACK_ITEMS).map((item) => ({
+        name: safePublicString(item?.name, 160),
+        symbolKind: safePublicString(item?.symbolKind, 64),
+        locator: safeLocator(item?.locator),
+        depth: Number.isInteger(item?.depth) ? item.depth : 0,
+        reasonCodes: safeStringList(item?.reasonCodes)
+      }))
+    },
+    warnings: safeStringList(sourceGraph.warnings),
+    safeguards: {
+      dryRun: sourceGraph.safeguards?.dryRun === true,
+      persisted: false,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      modelCalls: 0,
+      networkCalls: 0,
+      externalAdaptersEnabled: 0,
+      externalWritesEnabled: false,
+      graphDatabaseUsed: false,
+      privateBodiesIncluded: false,
+      sourceSlicesRead: false
+    }
+  };
+}
+
+function summarizeContextPack(currentContextPack) {
+  const pack = currentContextPack?.pack ?? currentContextPack;
+  if (!isPlainObject(pack)) return null;
+  const markdown = typeof currentContextPack?.markdown === 'string' ? currentContextPack.markdown : null;
+  const readFirst = items(pack.readFirst).slice(0, MAX_CONTEXT_PACK_ITEMS).map(summarizeContextPackDecision);
+  const excluded = items(pack.excluded).slice(0, MAX_CONTEXT_PACK_ITEMS).map(summarizeContextPackDecision);
+  const omissionRefs = items(pack.omissions?.refs).slice(0, MAX_CONTEXT_PACK_ITEMS).map(summarizeContextPackOmission);
+  return {
+    id: safeId(pack.id) ?? 'ctxpack_unknown',
+    packVersion: safePublicString(pack.packVersion, 64),
+    targetHarness: safePublicString(pack.targetHarness, 64),
+    dryRun: pack.dryRun === true,
+    createdAt: typeof pack.createdAt === 'string' ? pack.createdAt : null,
+    objectiveFingerprint: typeof pack.objective === 'string' ? fingerprintFor(pack.objective) : null,
+    objectiveLength: typeof pack.objective === 'string' ? pack.objective.length : 0,
+    stepFingerprint: typeof pack.step === 'string' ? fingerprintFor(pack.step) : null,
+    stepLength: typeof pack.step === 'string' ? pack.step.length : 0,
+    scannerVersion: safePublicString(pack.scannerVersion, 80),
+    compilerVersion: safePublicString(pack.compilerVersion, 80),
+    contextPackFingerprint: typeof pack.contextPackFingerprint === 'string' ? pack.contextPackFingerprint : null,
+    preview: {
+      id: safeId(pack.preview?.id) ?? null,
+      previewFingerprint: typeof pack.preview?.previewFingerprint === 'string' ? pack.preview.previewFingerprint : null,
+      requestId: safeId(pack.preview?.requestId) ?? null,
+      selectionPolicyFingerprint: typeof pack.preview?.selectionPolicyFingerprint === 'string' ? pack.preview.selectionPolicyFingerprint : null,
+      resultFingerprint: typeof pack.preview?.resultFingerprint === 'string' ? pack.preview.resultFingerprint : null,
+      budget: {
+        available: Number.isFinite(pack.preview?.budget?.available) ? pack.preview.budget.available : null,
+        used: Number.isFinite(pack.preview?.budget?.used) ? pack.preview.budget.used : null
+      },
+      selectedCount: Number.isInteger(pack.preview?.selectedCount) ? pack.preview.selectedCount : items(pack.readFirst).length,
+      excludedCount: Number.isInteger(pack.preview?.excludedCount) ? pack.preview.excludedCount : items(pack.excluded).length,
+      candidateUnitCount: Number.isFinite(pack.preview?.candidateTokenCount) ? pack.preview.candidateTokenCount : null,
+      selectedUnitCount: Number.isFinite(pack.preview?.selectedTokenCount) ? pack.preview.selectedTokenCount : null,
+      selectedUnitRatio: Number.isFinite(pack.preview?.selectedTokenRatio) ? pack.preview.selectedTokenRatio : null
+    },
+    readFirst,
+    excluded,
+    omissions: {
+      excludedCount: Number.isInteger(pack.omissions?.excludedCount) ? pack.omissions.excludedCount : 0,
+      excludedUnitCount: Number.isInteger(pack.omissions?.excludedTokenCount) ? pack.omissions.excludedTokenCount : 0,
+      sourceGraphOmittedCount: Number.isInteger(pack.omissions?.sourceGraphOmittedCount) ? pack.omissions.sourceGraphOmittedCount : 0,
+      refs: omissionRefs
+    },
+    memoryPlan: {
+      activeMemoryCreated: Number.isInteger(pack.memoryPlan?.activeMemoryCreated) ? pack.memoryPlan.activeMemoryCreated : 0,
+      proposedCount: items(pack.memoryPlan?.items).filter((item) => item?.action === 'would_propose').length,
+      quarantinedCount: items(pack.memoryPlan?.items).filter((item) => item?.action === 'would_quarantine').length,
+      items: items(pack.memoryPlan?.items).slice(0, MAX_CONTEXT_PACK_ITEMS).map((item) => ({
+        sourceId: safeId(item?.sourceId) ?? 'source_unknown',
+        locator: safeLocator(item?.locator),
+        harness: safePublicString(item?.harness, 64),
+        sourceKind: safePublicString(item?.sourceKind, 64),
+        action: safePublicString(item?.action, 64),
+        reasonCodes: safeStringList(item?.reasonCodes)
+      }))
+    },
+    sourceGraph: summarizeContextPackSourceGraph(pack.sourceGraph),
+    warnings: safeStringList(pack.warnings, 24),
+    files: items(pack.files).slice(0, 4).map((file) => ({
+      path: safeLocator(`workspace://${file?.path ?? ''}`),
+      role: safePublicString(file?.role, 80),
+      contentType: safePublicString(file?.contentType, 80),
+      contentHash: typeof file?.contentHash === 'string' ? file.contentHash : null,
+      byteSize: Number.isInteger(file?.byteSize) ? file.byteSize : 0
+    })),
+    markdownArtifact: markdown ? {
+      included: false,
+      contentHash: fingerprintFor(markdown),
+      byteSize: Buffer.byteLength(markdown, 'utf8')
+    } : null,
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      contextPackWritten: false,
+      sourceGraphPreviewed: pack.safeguards?.sourceGraphPreviewed === true,
+      graphDatabaseUsed: false,
+      sourceSlicesRead: false,
+      privateBodiesIncluded: false
+    },
+    truncated: {
+      readFirst: items(pack.readFirst).length > MAX_CONTEXT_PACK_ITEMS,
+      excluded: items(pack.excluded).length > MAX_CONTEXT_PACK_ITEMS,
+      omissions: items(pack.omissions?.refs).length > MAX_CONTEXT_PACK_ITEMS,
+      sourceGraphResults: items(pack.sourceGraph?.results).length > MAX_CONTEXT_PACK_ITEMS,
+      affectedSymbols: items(pack.sourceGraph?.impact?.affectedSymbols).length > MAX_CONTEXT_PACK_ITEMS
+    }
+  };
 }
 
 function jsonResource(uri, name, description, readPayload) {
@@ -343,12 +552,14 @@ function jsonResource(uri, name, description, readPayload) {
 export function buildOafReadOnlyResourceCatalog({
   state = {},
   projectStatus = {},
+  currentContextPack = null,
   workspaceId = 'ws_local',
   generatedAt = new Date().toISOString()
 } = {}) {
   const safeWorkspaceId = validateWorkspaceId(workspaceId);
   const scoped = workspaceScopedState(state, safeWorkspaceId);
   const base = `oaf://workspace/${safeWorkspaceId}`;
+  const contextPackSummary = summarizeContextPack(currentContextPack);
   const buildData = () => {
     const latestRun = scoped.runs.at(-1) ?? null;
     const manifest = latestContextManifest(scoped);
@@ -372,7 +583,7 @@ export function buildOafReadOnlyResourceCatalog({
     };
   };
 
-  return [
+  const resources = [
     jsonResource(`${base}/status`, 'OAF workspace status', 'Sanitized local OAF workspace status and default safety posture.', () => {
       const data = buildData();
       return createResourcePayload({
@@ -461,6 +672,16 @@ export function buildOafReadOnlyResourceCatalog({
       });
     })
   ];
+  if (contextPackSummary) {
+    resources.push(jsonResource(`${base}/context-pack/current`, 'Current context pack summary', 'Sanitized current context-pack handoff summary for local agent review.', () => createResourcePayload({
+      resourceKind: 'context-pack-summary',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-context-pack',
+      data: contextPackSummary
+    })));
+  }
+  return resources;
 }
 
 export function createMcpBridge({

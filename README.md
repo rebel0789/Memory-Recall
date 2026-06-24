@@ -33,6 +33,9 @@ This repository is an **agent-ready development kit**, not a claim that the full
   agents, producing a schema-validated locator handoff with compact source
   graph hints and explicit user-selected file locators, without raw source
   bodies or automatic memory import;
+- opt-in read-only MCP context-pack summary resource for local harnesses,
+  exposing locators, hashes, token counts, omissions, and changed-file impact
+  without raw task text, source bodies, markdown bodies, or write tools;
 - read-only native JS/TS source graph preview through CLI and loopback API,
   with bounded search, trace, and diff-impact results and no graph database;
 - dry-run harness setup planner for local MCP client configs, with redacted
@@ -139,6 +142,7 @@ npm run oaf -- context scan --from codex --root . --dry-run
 npm run oaf -- context preview --from all --root . --objective "Prepare handoff" --step "select harness context" --dry-run
 npm run oaf -- context pack --from all --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown
 npm run oaf -- context pack --from all --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- mcp resources --read-only --context-pack --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
 npm run oaf -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
 npm run oaf -- harness setup status --client codex --dry-run --format json
 npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json

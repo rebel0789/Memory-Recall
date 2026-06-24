@@ -444,6 +444,11 @@ async function mcpResourcesCommand(values) {
     process.exitCode = 2;
     return;
   }
+  if (values.includes('--write') || values.includes('--out')) {
+    console.error('mcp resources is read-only and does not write context packs or output files');
+    process.exitCode = 2;
+    return;
+  }
   const format = option(values, '--format') ?? 'json';
   if (format !== 'json') {
     console.error('mcp resources only supports --format json');
@@ -452,6 +457,7 @@ async function mcpResourcesCommand(values) {
   }
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const currentContextPack = await buildMcpContextPackResource(values, { root, workspaceId });
   const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
     schemaVersion: '1.0.0',
     runs: [],
@@ -464,6 +470,7 @@ async function mcpResourcesCommand(values) {
   const resources = buildOafReadOnlyResourceCatalog({
     state,
     projectStatus,
+    currentContextPack,
     workspaceId,
     generatedAt: fixedNow()
   });
@@ -506,6 +513,37 @@ async function mcpResourcesCommand(values) {
       modelCalls: 0
     }
   }, null, 2));
+}
+
+async function buildMcpContextPackResource(values, { root, workspaceId }) {
+  if (!values.includes('--context-pack')) return null;
+  const objective = option(values, '--objective');
+  const step = option(values, '--step');
+  if (!objective || !step) {
+    throw new Error('mcp resources --context-pack requires --objective <text> and --step <text>');
+  }
+  const from = option(values, '--from') ?? 'all';
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
+  const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
+  const harnesses = normalizeHarnesses(from);
+  const userSelectedFiles = options(values, '--include-file');
+  const changedLocators = [...options(values, '--changed'), ...options(values, '--changed-locator')];
+  const pack = await buildContextPack({
+    root,
+    harnesses,
+    userSelectedFiles,
+    changedLocators,
+    workspaceId,
+    objective,
+    step,
+    targetHarness,
+    tokenBudget,
+    clock: fixedNow
+  });
+  return {
+    pack,
+    markdown: renderContextPackMarkdown(pack)
+  };
 }
 
 async function mcpResourcesStdio({ resources, trustedContext }) {
@@ -834,6 +872,7 @@ Usage:
   oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
   oaf mcp resources --read-only --workspace ws_local --format json
+  oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --uri oaf://workspace/ws_local/context-pack/current --format json
   oaf mcp resources --read-only --stdio
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json

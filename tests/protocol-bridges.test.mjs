@@ -170,6 +170,110 @@ function oafState() {
   };
 }
 
+function contextPackFixture() {
+  const hash = `sha256:${'a'.repeat(64)}`;
+  return {
+    pack: {
+      schemaVersion: '1.0.0',
+      packVersion: '0.1.0',
+      id: 'ctxpack_mcp',
+      workspaceId: 'ws_mcp',
+      createdAt: '2026-06-24T00:00:00.000Z',
+      dryRun: true,
+      targetHarness: 'codex',
+      objective: 'Private MCP objective text should not appear.',
+      step: 'Private MCP step text should not appear.',
+      scannerVersion: 'harness-context@1.0.0',
+      compilerVersion: 'context-compiler@1.0.0',
+      preview: {
+        id: 'ctxprev_mcp',
+        previewFingerprint: hash,
+        requestId: 'ctxreq_mcp',
+        selectionPolicyFingerprint: hash,
+        resultFingerprint: hash,
+        budget: { available: 4096, used: 80 },
+        selectedCount: 2,
+        excludedCount: 1,
+        candidateTokenCount: 200,
+        selectedTokenCount: 80,
+        selectedTokenRatio: 0.4
+      },
+      readFirst: [
+        { id: 'ctx_agents', locator: 'workspace://AGENTS.md', harness: 'codex', sourceKind: 'instruction', tokens: 40, contentHash: hash, reasonCodes: ['required_context'] },
+        { id: 'ctx_user', locator: 'user-selected://notes/handoff.md', harness: 'generic-mcp', sourceKind: 'user-selected', tokens: 40, contentHash: hash, reasonCodes: ['explicit_user_file'] }
+      ],
+      excluded: [
+        { id: 'ctx_private', locator: 'workspace://Users/rebel/private.txt', harness: 'codex', sourceKind: 'private', tokens: 10, contentHash: hash, reasonCodes: ['private_path'] }
+      ],
+      omissions: {
+        excludedCount: 1,
+        excludedTokenCount: 10,
+        sourceGraphOmittedCount: 0,
+        refs: [
+          { id: 'omit_aaaaaaaaaaaaaaaa', locator: 'workspace://.local/state.json', harness: 'codex', sourceKind: 'private', tokens: 10, contentHash: hash, reasonCodes: ['private_path'], recoveryHint: 'Do not expose private state.' }
+        ]
+      },
+      memoryPlan: {
+        activeMemoryCreated: 0,
+        items: [
+          { sourceId: 'ctx_user', locator: 'user-selected://notes/handoff.md', harness: 'generic-mcp', sourceKind: 'user-selected', action: 'would_propose', reasonCodes: ['explicit_user_file'] }
+        ]
+      },
+      sourceGraph: {
+        status: 'available',
+        sourceIndexFingerprint: hash,
+        graphFingerprint: hash,
+        queryFingerprint: hash,
+        summary: { fileCount: 2, symbolCount: 1, nodeCount: 3, edgeCount: 2 },
+        resultCount: 1,
+        omittedCount: 0,
+        results: [
+          { resultType: 'node', kind: 'symbol', label: 'approveTokenReset', locator: 'workspace://src/auth.ts#L1-L3', score: 1, reasonCodes: ['query_match'], readHint: 'Raw read hint should not appear.' }
+        ],
+        impact: {
+          changedLocators: ['workspace://src/auth.ts'],
+          affectedSymbolCount: 1,
+          omittedAffectedSymbolCount: 0,
+          affectedSymbols: [
+            { name: 'approveTokenReset', symbolKind: 'function', locator: 'workspace://src/auth.ts#L1-L3', depth: 0, reasonCodes: ['changed_locator_impact'], readHint: 'Raw impact hint should not appear.' }
+          ]
+        },
+        warnings: ['raw_context_bodies_omitted'],
+        safeguards: {
+          dryRun: true,
+          persisted: false,
+          canonicalStateMutated: false,
+          localFilesWritten: 0,
+          modelCalls: 0,
+          networkCalls: 0,
+          externalAdaptersEnabled: 0,
+          externalWritesEnabled: false,
+          graphDatabaseUsed: false,
+          rawBodyIncluded: false,
+          sourceSlicesRead: false
+        }
+      },
+      warnings: ['raw_context_bodies_omitted', 'external_writes_disabled'],
+      files: [{ path: 'CONTEXT_PACK.md', role: 'agent-handoff', contentType: 'text/markdown', contentHash: hash, byteSize: 512 }],
+      safeguards: {
+        persisted: false,
+        canonicalStateMutated: false,
+        activeMemoryCreated: 0,
+        sourceSnapshotsWritten: 0,
+        modelCalls: 0,
+        networkCalls: 0,
+        externalAdaptersEnabled: 0,
+        externalWritesEnabled: false,
+        rawBodyIncluded: false,
+        contextPackWritten: false,
+        sourceGraphPreviewed: true
+      },
+      contextPackFingerprint: hash
+    },
+    markdown: '# Context Pack\n\nPrivate MCP objective text should not appear.\n\nRAW_MARKDOWN_SENTINEL'
+  };
+}
+
 function allowGrant(overrides = {}) {
   return {
     decision: 'allow',
@@ -372,5 +476,50 @@ test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped reso
   assert.equal(handoffText.includes('private memory text'), false);
   assert.equal(handoffText.includes('/Users/rebel'), false);
   assert.equal(handoffText.includes('run_other'), false);
+  assert.equal(JSON.stringify(state), before);
+});
+
+test('OAF read-only MCP resource catalog can expose an opt-in current context-pack summary', async () => {
+  const state = oafState();
+  const before = JSON.stringify(state);
+  const resources = buildOafReadOnlyResourceCatalog({
+    state,
+    currentContextPack: contextPackFixture(),
+    workspaceId: 'ws_mcp',
+    generatedAt: '2026-06-24T00:00:00.000Z'
+  });
+  const bridge = createMcpBridge({ trustedContext, resources });
+  const listed = await bridge.handle({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
+  assert.equal(listed.result.resources.length, 6);
+  assert(listed.result.resources.some((item) => item.uri === 'oaf://workspace/ws_mcp/context-pack/current'));
+
+  const first = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context-pack/current' } });
+  const second = await bridge.handle({ jsonrpc: '2.0', id: 3, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context-pack/current' } });
+  assert.equal(first.result.contents[0].text, second.result.contents[0].text);
+  const payload = JSON.parse(first.result.contents[0].text);
+  assert.equal(payload.resourceKind, 'context-pack-summary');
+  assert.equal(payload.provenance.source, 'local-context-pack');
+  assert.equal(payload.workspaceId, 'ws_mcp');
+  assert.equal(payload.data.objectiveLength, 'Private MCP objective text should not appear.'.length);
+  assert.match(payload.data.objectiveFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(payload.data.readFirst.some((item) => item.locator === 'user-selected://notes/handoff.md'), true);
+  assert.equal(payload.data.excluded[0].locator, null);
+  assert.equal(payload.data.omissions.refs[0].locator, null);
+  assert.deepEqual(payload.data.sourceGraph.impact.changedLocators, ['workspace://src/auth.ts']);
+  assert.equal(payload.data.sourceGraph.impact.affectedSymbols[0].name, 'approveTokenReset');
+  assert.equal(payload.data.markdownArtifact.included, false);
+  assert.match(payload.data.markdownArtifact.contentHash, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(payload.safeguards.readOnly, true);
+  assert.equal(payload.safeguards.canonicalStateMutated, false);
+  assert.equal(payload.safeguards.networkCalls, 0);
+  assert.equal(payload.safeguards.modelCalls, 0);
+  const text = JSON.stringify(payload);
+  assert.equal(text.includes('Private MCP objective text'), false);
+  assert.equal(text.includes('Private MCP step text'), false);
+  assert.equal(text.includes('RAW_MARKDOWN_SENTINEL'), false);
+  assert.equal(text.includes('Raw read hint'), false);
+  assert.equal(text.includes('Raw impact hint'), false);
+  assert.equal(text.includes('/Users/rebel'), false);
+  assert.equal(text.includes('.local/state.json'), false);
   assert.equal(JSON.stringify(state), before);
 });

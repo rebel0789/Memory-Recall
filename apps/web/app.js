@@ -854,11 +854,16 @@ function contextPackHarnessCommands(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
   const step=quoteShell(pack?.step ?? 'select context');
+  const selected=(pack?.memoryPlan?.items ?? [])
+    .filter((item)=>String(item?.locator ?? '').startsWith('user-selected://'))
+    .map((item)=>` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u,''))}`)
+    .join('');
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
   const setupClient=contextPackSetupClient(pack);
   return [
-    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from all --root . --objective ${objective} --step ${step} --target ${target}${changed} --dry-run --format markdown` },
+    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from all --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
     { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
+    { label:'Read current context pack', command:`npm run oaf -- mcp resources --read-only --context-pack --from all --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];

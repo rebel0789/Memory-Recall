@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0.0",
+  "resourceKind": "context-pack-summary",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "provenance": {
+    "producer": "open-agent-fabric.protocol-bridges",
+    "producerVersion": "0.1.0",
+    "source": "local-context-pack",
+    "sourceFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "privateContentIncluded": false,
+    "instructionTextIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "remoteEndpointDetailsIncluded": false
+  },
+  "data": {
+    "id": "ctxpack_example",
+    "targetHarness": "codex",
+    "objectiveFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "objectiveLength": 42,
+    "stepFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "stepLength": 18,
+    "contextPackFingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "readFirst": [
+      {
+        "id": "ctx_agents",
+        "locator": "workspace://AGENTS.md",
+        "tokens": 30,
+        "reasonCodes": ["required_context"]
+      }
+    ],
+    "sourceGraph": {
+      "impact": {
+        "changedLocators": ["workspace://src/auth.ts"],
+        "affectedSymbolCount": 1
+      }
+    },
+    "markdownArtifact": {
+      "included": false,
+      "contentHash": "sha256:abababababababababababababababababababababababababababababababab",
+      "byteSize": 512
+    }
+  },
+  "resourceFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

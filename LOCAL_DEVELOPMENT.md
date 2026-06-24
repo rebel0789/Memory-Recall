@@ -106,10 +106,21 @@ npm run oaf -- mcp resources --read-only \
 npm run oaf -- mcp resources --read-only \
   --uri oaf://workspace/ws_local/handoff/latest \
   --format json
+npm run oaf -- mcp resources --read-only \
+  --context-pack \
+  --objective "Continue safely" \
+  --step "handoff current context" \
+  --target codex \
+  --changed apps/cli/oaf.mjs \
+  --uri oaf://workspace/ws_local/context-pack/current \
+  --format json
 ```
 
 For MCP-compatible stdio clients, pipe JSON-RPC messages into the local
-composition:
+composition. The optional context-pack resource is summary-only: it includes
+locators, fingerprints, counts, omissions, and changed-file impact, but not raw
+objective text, raw step text, source bodies, markdown bodies, credentials, or
+local absolute paths.
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"resources/list"}' | \

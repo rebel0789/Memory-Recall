@@ -66,6 +66,12 @@ slice.
 - `npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context/latest --format json`
   reads one resource as a schema-validated JSON envelope. `--stdio` accepts
   local JSON-RPC messages on stdin and writes JSON-RPC responses to stdout.
+- `npm run oaf -- mcp resources --read-only --context-pack --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --uri oaf://workspace/ws_local/context-pack/current --format json`
+  exposes an opt-in current context-pack summary resource for harnesses. The
+  resource carries safe locators, hashes, omission counts, token counts, and
+  changed-file impact; it does not include raw objective text, raw step text,
+  markdown bodies, source bodies, private local paths, active memory, model
+  calls, network calls, external adapters, or write tools.
 - The native SQLite memory provider now preserves memory-core lifecycle and
   review fields and includes a local proposal queue with idempotent
   fingerprints, leases, retries, and poison/error records.

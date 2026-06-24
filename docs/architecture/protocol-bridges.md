@@ -32,6 +32,15 @@ stdio mode reads JSON-RPC messages from stdin and writes JSON-RPC responses to
 stdout; it does not bind a socket, start a public listener, expose write tools,
 or grant client-supplied authority.
 
+When launched with `--context-pack --objective ... --step ...`, the same
+read-only composition also exposes
+`oaf://workspace/<workspaceId>/context-pack/current`. This is a compact JSON
+summary of an in-memory context pack: selected and omitted locators, token
+counts, fingerprints, changed locators, source-graph impact, and safeguards.
+It intentionally omits raw objective text, raw step text, markdown bodies,
+source bodies, credentials, provider URLs, absolute local paths, model calls,
+network calls, memory activation, external adapters, and write tools.
+
 ## Authority
 
 The bridge rejects caller-supplied authority fields such as role, owner,
