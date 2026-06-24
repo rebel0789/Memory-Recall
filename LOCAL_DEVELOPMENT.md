@@ -63,8 +63,12 @@ In the browser, use **Build context pack** as the primary local handoff flow.
 The source-family checkboxes default to Codex so cross-harness project files are
 not scanned unless you select them.
 The result can be copied to the clipboard or downloaded as Markdown from the
-client. The browser path does not write files on the server; use the explicit
-CLI write mode below when you want a checked workspace file.
+client. After a pack is built, the Context Pack, Fabric Map, and Agents & Tools
+screens share a current-handoff status card; its **Test local handoff** command
+runs the read-only Codex preflight below and still performs no server, home
+config, network, model, adapter, or external-write side effects. The browser
+path does not write files on the server; use the explicit CLI write mode below
+when you want a checked workspace file.
 
 CLI dry run:
 

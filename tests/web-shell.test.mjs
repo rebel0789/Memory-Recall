@@ -6,6 +6,7 @@ import {
   SHELL_STATES,
   buildContextSourcePreviewUiModel,
   buildContextPackUiModel,
+  buildCurrentHandoffStatusModel,
   buildApprovalReviewModel,
   buildContextInspectorModel,
   buildEvidenceExplorerModel,
@@ -61,6 +62,9 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/function copyCommand/);
   assert.match(app,/async function writeClipboardText/);
   assert.match(app,/Export plan explicitly/);
+  assert.match(app,/Current handoff status/);
+  assert.match(app,/Test local handoff/);
+  assert.match(app,/context handoff --read-only/);
   assert.match(app,/data-action="download-pack"/);
   assert.match(app,/data-action="detect-git-changes"/);
   assert.match(app,/data-action="preview-context-sources"/);
@@ -230,6 +234,11 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(model.commands[2].command,/--write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);
   assert.match(model.commands[3].command,/context registry status --read-only --format json/);
   assert.equal(model.commands.some((item)=>item.command==='npm --silent run oaf -- mcp resources --read-only --stdio'),true);
+  const preflightCommand=model.commands.find((item)=>item.label==='Test local handoff')?.command ?? '';
+  assert.match(preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(preflightCommand,/--from 'codex,cursor'/);
+  assert.match(preflightCommand,/--target codex --changed 'apps\/web\/app\.js' --format json/);
+  assert.doesNotMatch(preflightCommand,/--write|--pin|--out|install/);
   assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'),true);
   assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'),true);
   assert.equal(model.commands.some((item)=>/harness setup plan --client codex --server oaf --dry-run --format json/.test(item.command)),true);
@@ -342,7 +351,29 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(ready.ready,true);
   assert.equal(ready.title,'Ready for local handoff');
   assert.equal(ready.gates.find((gate)=>gate.id==='setup-preview').status,'pending');
-  assert.equal(ready.nextAction,'Use Copy markdown now. Preview setup only if you want MCP resource discovery.');
+  assert.equal(ready.nextAction,'Use Copy markdown now, or run Test local handoff for CLI and MCP proof. Preview setup only if you want MCP resource discovery.');
+  const handoffStatus=buildCurrentHandoffStatusModel({
+    contextPackResult:{
+      pack:{...safePack,objective:'Prepare safe Codex handoff',step:'select useful context'},
+      markdown:'# Context Pack\n',
+      readback:safeReadback,
+      usePlan:{requiredLocalReads:[{locator:'workspace://AGENTS.md'}]}
+    }
+  });
+  assert.equal(handoffStatus.state,'generated-in-browser');
+  assert.equal(handoffStatus.statusLabel,'ready');
+  assert.equal(handoffStatus.selectedLocators,1);
+  assert.equal(handoffStatus.usePlanReads,1);
+  assert.equal(handoffStatus.safeguards.serverWrites,false);
+  assert.equal(handoffStatus.safeguards.configWrites,false);
+  assert.equal(handoffStatus.safeguards.externalWritesEnabled,false);
+  assert.equal(handoffStatus.safeguards.externalAdaptersEnabled,0);
+  assert.match(handoffStatus.preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.doesNotMatch(handoffStatus.preflightCommand,/--write|--pin|--out|install/);
+  const emptyHandoffStatus=buildCurrentHandoffStatusModel();
+  assert.equal(emptyHandoffStatus.state,'none');
+  assert.equal(emptyHandoffStatus.nextAction,'Build context pack');
+  assert.equal(emptyHandoffStatus.preflightCommand,null);
   const setupReady=buildFirstUseReadinessModel({
     pack:safePack,
     markdown:'# Context Pack\n',
@@ -351,6 +382,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   });
   assert.equal(setupReady.ready,true);
   assert.equal(setupReady.gates.find((gate)=>gate.id==='setup-preview').status,'pass');
+  assert.equal(setupReady.nextAction,'Use Copy markdown, Test local handoff, or the previewed read-only MCP command.');
   const setupUnsafe=buildFirstUseReadinessModel({
     pack:safePack,
     markdown:'# Context Pack\n',
@@ -489,6 +521,7 @@ test('fabric map model visualizes current local state without enabling external 
   assert.equal(model.summary.excludedRecords,1);
   assert.equal(model.summary.pendingApprovals,1);
   assert.equal(model.summary.externalAdaptersEnabled,0);
+  assert.equal(model.summary.handoffState,'none');
   assert.equal(model.safeguards.externalWritesEnabled,false);
   assert.equal(model.safeguards.rawBodiesRendered,false);
   assert.equal(model.contextFlow.budgetPercent,50);

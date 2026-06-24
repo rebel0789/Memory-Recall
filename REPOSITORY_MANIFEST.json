@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T20:21:57.395Z",
+  "generatedAt": "2026-06-24T20:31:19.146Z",
   "fileCount": 804,
-  "totalBytes": 3835526,
+  "totalBytes": 3846059,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -582,8 +582,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 132942,
-      "sha256": "cb8aa979b93186eff4d02e080a23a52c9e66d238750cde5954d8756c00495a36"
+      "bytes": 140186,
+      "sha256": "631731f66e705b92a3c34d5882ef1c3690a3cd5b28ec4d8f4da5624631455dc8"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -1042,8 +1042,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 17086,
-      "sha256": "7d6e5a791cf039887319111125d59ce11191b6a81e060b803a0bb03044adff30"
+      "bytes": 17691,
+      "sha256": "a5134f7874c420ffa0973470b4e036b36947c9deb174cb893daf96af567f3644"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1153,7 +1153,7 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "11a43254d39e03ceffd7b3bc2d64c088ea1d109302fe0d04c826c71222341a48"
+      "sha256": "7789adf72222531c04f7b4befb23ca0f26946f2ff0f13a99cfa851e9a7d31a92"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -2198,7 +2198,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "273284c950fde39cbd8695715e5163ef766204c3d9fee5688163df93fc1b7956"
+      "sha256": "7b44241424be9e760f2d256a121f05b3a0d0c9cd4bc2d4cbd0d5eea030a026b5"
     },
     {
       "path": "LICENSE",
@@ -2207,8 +2207,8 @@
     },
     {
       "path": "LOCAL_DEVELOPMENT.md",
-      "bytes": 9505,
-      "sha256": "17842d773ab37ca44a79f99569db3edffa90e009b6bbfdbd141158375c1fae40"
+      "bytes": 9798,
+      "sha256": "be9bee211625d9dc93f16160d7503c55c10d7a56bca9f59afb1b1d4110553b61"
     },
     {
       "path": "MAINTAINERS.md",
@@ -3187,8 +3187,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 43207,
-      "sha256": "511a0ec1451596c9220edf181b372f46cb7813bf2cab7b9779cad607d432c3b0"
+      "bytes": 43406,
+      "sha256": "14a7f0af16b9fc65096f7ad80e499382c36c53bf132471ae231ea0ab678fa60a"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3397,8 +3397,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 10790,
-      "sha256": "7606fe6bdbf8d8780537c01e1f643b09b70ebb47beea2d361fc9f2351213c364"
+      "bytes": 10958,
+      "sha256": "da3f5cf1a4eb4cdd45bc67b6719d6306477bbd0d318f141ee709b51be8ce0ecf"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3927,8 +3927,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 36350,
-      "sha256": "977c09abaf7f272c2633e45540192dc973d03e40fa5940059e9546d853fd90b2"
+      "bytes": 38374,
+      "sha256": "e01b0caca04e83321e8e09ab71a7b5c826b2aa4d9b518e0aa23f1929d9f42181"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

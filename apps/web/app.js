@@ -437,7 +437,8 @@ export function buildApprovalReviewModel({ approvals = [] } = {}) {
   });
 }
 
-export function buildFabricMapModel({ dashboard: value = null, shellState: state = {}, activeNodeId = 'context' } = {}) {
+export function buildFabricMapModel({ dashboard: value = null, shellState: state = {}, activeNodeId = 'context', handoffStatus = null } = {}) {
+  const handoff = handoffStatus ?? buildCurrentHandoffStatusModel();
   const metrics = value?.metrics ?? {};
   const runs = Array.isArray(value?.runs) ? value.runs : [];
   const manifestModel = buildContextInspectorModel(value?.latestManifest ?? null);
@@ -458,7 +459,8 @@ export function buildFabricMapModel({ dashboard: value = null, shellState: state
   const nodeMetrics = {
     sources:[
       { label:'Candidates', value:String(candidateCount || metrics.contextCandidates || 0) },
-      { label:'Input mode', value:'explicit local' }
+      { label:'Input mode', value:'explicit local' },
+      { label:'Handoff', value:handoff.statusLabel }
     ],
     normalize:[
       { label:'Evidence cards', value:String(evidence.length) },
@@ -501,7 +503,7 @@ export function buildFabricMapModel({ dashboard: value = null, shellState: state
     ]
   };
   const nodeStatuses = {
-    sources: state.kind === 'success' || state.kind === 'partial' ? 'ready' : 'waiting',
+    sources: handoff.state !== 'none' ? 'active' : state.kind === 'success' || state.kind === 'partial' ? 'ready' : 'waiting',
     normalize: candidateCount || evidence.length ? 'active' : 'waiting',
     context: manifestModel ? 'active' : 'waiting',
     model: latestRun?.output ? 'active' : 'ready',
@@ -537,7 +539,8 @@ export function buildFabricMapModel({ dashboard: value = null, shellState: state
       memoryReviews:memories.length,
       pendingApprovals,
       externalAdaptersEnabled:0,
-      externalWritesEnabled:false
+      externalWritesEnabled:false,
+      handoffState:handoff.state
     },
     contextFlow:{
       manifestId:manifestModel?.id ?? 'not compiled',
@@ -556,6 +559,7 @@ export function buildFabricMapModel({ dashboard: value = null, shellState: state
       externalAdaptersEnabled:0,
       rawBodiesRendered:false
     },
+    handoff,
     activeNodeId:selectedId,
     activeNode:nodesById.get(selectedId),
     nodes,
@@ -710,6 +714,12 @@ function renderStatusBar() {
   document.querySelector('#shell-status').setAttribute('aria-label', label);
 }
 
+function currentHandoffStatus() {
+  const setupClient=contextPackResult?.pack ? contextPackSetupClient(contextPackResult.pack) : null;
+  const setupResult=setupClient && harnessSetupResult?.client === setupClient ? harnessSetupResult : null;
+  return buildCurrentHandoffStatusModel({contextPackResult,setupResult});
+}
+
 function renderRoute(route) {
   if (shellState.kind === 'setup') return authPanel('bootstrap', shellState.message);
   if (shellState.kind === 'denied') return deniedState();
@@ -768,8 +778,9 @@ function renderWorkflows() {
 }
 
 function renderFabricMap() {
-  const model=buildFabricMapModel({dashboard,shellState,activeNodeId:activeFabricNode});
-  return `<section class="fabric-stage" aria-label="Open Agent Fabric system map"><div class="fabric-hero surface"><div><p class="eyebrow">Local map</p><h2>Local agent fabric</h2><p>Process flow, context assembly, policy gates, and disabled external boundaries rendered from the current workspace state.</p></div><dl class="fabric-scoreboard" aria-label="Current fabric counts"><div><dt>Runs</dt><dd>${model.summary.runs}</dd></div><div><dt>Context</dt><dd>${model.summary.selectedRecords}/${model.summary.excludedRecords}</dd></div><div><dt>Evidence</dt><dd>${model.summary.evidenceCards}</dd></div><div><dt>Approvals</dt><dd>${model.summary.pendingApprovals}</dd></div><div><dt>Adapters</dt><dd>${model.summary.externalAdaptersEnabled}</dd></div></dl></div><div class="fabric-layout"><div class="surface surface-primary fabric-board"><div class="section-heading"><h2>Node conversation</h2><span>${model.links.filter((link)=>link.active).length} links with data</span></div>${fabricNodeGrid(model)}${fabricLinkList(model.links)}</div><aside class="inspector fabric-inspector"><div class="section-heading"><h2>${esc(model.activeNode.label)}</h2>${fabricStatus(model.activeNode.status,model.activeNode.statusLabel)}</div><p>${esc(model.activeNode.detail)}</p><dl class="facts compact-facts">${model.activeNode.facts.map((fact)=>`<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('')}<div><dt>Route</dt><dd><a href="${esc(model.activeNode.route)}" data-route="${esc(routeByPath.get(model.activeNode.route)?.id ?? 'home')}">${esc(model.activeNode.route)}</a></dd></div></dl><hr><div class="section-heading"><h2>Safeguards</h2><span>default posture</span></div>${fabricSafeguards(model.safeguards)}</aside></div>${fabricContextFlow(model.contextFlow)}</section>`;
+  const handoff=currentHandoffStatus();
+  const model=buildFabricMapModel({dashboard,shellState,activeNodeId:activeFabricNode,handoffStatus:handoff});
+  return `<section class="fabric-stage" aria-label="Open Agent Fabric system map"><div class="fabric-hero surface"><div><p class="eyebrow">Local map</p><h2>Local agent fabric</h2><p>Process flow, context assembly, policy gates, and disabled external boundaries rendered from the current workspace state.</p></div><dl class="fabric-scoreboard" aria-label="Current fabric counts"><div><dt>Runs</dt><dd>${model.summary.runs}</dd></div><div><dt>Context</dt><dd>${model.summary.selectedRecords}/${model.summary.excludedRecords}</dd></div><div><dt>Handoff</dt><dd>${esc(model.handoff.statusLabel)}</dd></div><div><dt>Approvals</dt><dd>${model.summary.pendingApprovals}</dd></div><div><dt>Adapters</dt><dd>${model.summary.externalAdaptersEnabled}</dd></div></dl></div>${renderHandoffStatusPanel(model.handoff,'fabric')}<div class="fabric-layout"><div class="surface surface-primary fabric-board"><div class="section-heading"><h2>Node conversation</h2><span>${model.links.filter((link)=>link.active).length} links with data</span></div>${fabricNodeGrid(model)}${fabricLinkList(model.links)}</div><aside class="inspector fabric-inspector"><div class="section-heading"><h2>${esc(model.activeNode.label)}</h2>${fabricStatus(model.activeNode.status,model.activeNode.statusLabel)}</div><p>${esc(model.activeNode.detail)}</p><dl class="facts compact-facts">${model.activeNode.facts.map((fact)=>`<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('')}<div><dt>Route</dt><dd><a href="${esc(model.activeNode.route)}" data-route="${esc(routeByPath.get(model.activeNode.route)?.id ?? 'home')}">${esc(model.activeNode.route)}</a></dd></div></dl><hr><div class="section-heading"><h2>Safeguards</h2><span>default posture</span></div>${fabricSafeguards(model.safeguards)}</aside></div>${fabricContextFlow(model.contextFlow)}</section>`;
 }
 
 function fabricNodeGrid(model) {
@@ -829,7 +840,14 @@ function renderContextPackResult(pack,markdown) {
   const model=buildContextPackUiModel(pack,markdown,{observedDurationMs:contextPackResult?.observedDurationMs,readback:contextPackResult?.readback,usePlan:contextPackResult?.usePlan});
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
   const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult});
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  const handoff=buildCurrentHandoffStatusModel({contextPackResult,setupResult});
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${renderHandoffStatusPanel(handoff,'context-pack')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+}
+
+function renderHandoffStatusPanel(status,scope='default') {
+  const routeId=routeByPath.get(status.actionRoute)?.id ?? 'context-pack';
+  const commands=status.preflightCommand ? contextPackCommandList([{label:'Test local handoff',command:status.preflightCommand}]) : '';
+  return `<section class="work-grid current-handoff current-handoff-${esc(scope)}" aria-label="Current handoff status"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(status.title)}</h2>${statusChip(status.state,status.statusLabel,'Handoff status')}</div><p>${esc(status.copy)}</p><dl class="facts facts-wide"><div><dt>Target</dt><dd>${esc(status.targetHarness)}</dd></div><div><dt>Fingerprint</dt><dd>${esc(status.fingerprintShort)}</dd></div><div><dt>Selected</dt><dd>${Number(status.selectedLocators)} locators</dd></div><div><dt>Omitted</dt><dd>${Number(status.omittedRefs)} refs</dd></div><div><dt>Use-plan reads</dt><dd>${Number(status.usePlanReads)}</dd></div><div><dt>Reduction</dt><dd>${esc(status.deliveryReductionPercent)}</dd></div><div><dt>MCP readback</dt><dd>${esc(status.readbackStatus)}</dd></div><div><dt>Setup</dt><dd>${esc(status.setupStatus)}</dd></div></dl><div class="action-row"><a class="button ${status.state==='none'?'primary':'secondary'}" href="${esc(status.actionRoute)}" data-route="${esc(routeId)}">${esc(status.actionLabel)}</a></div></div><aside class="inspector"><div class="section-heading"><h2>Use boundary</h2><span>${esc(status.nextAction)}</span></div><dl class="facts compact-facts"><div><dt>Server writes</dt><dd>${status.safeguards.serverWrites?'enabled':'none'}</dd></div><div><dt>Home config writes</dt><dd>${status.safeguards.configWrites?'enabled':'none'}</dd></div><div><dt>Network calls</dt><dd>${Number(status.safeguards.networkCalls)}</dd></div><div><dt>Model calls</dt><dd>${Number(status.safeguards.modelCalls)}</dd></div><div><dt>External writes</dt><dd>${status.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div><div><dt>External adapters</dt><dd>${Number(status.safeguards.externalAdaptersEnabled)}</dd></div><div><dt>Raw bodies</dt><dd>${status.safeguards.rawBodiesRendered?'rendered':'excluded'}</dd></div></dl>${commands?`<hr><div class="section-heading"><h2>Preflight</h2><span>read-only</span></div>${commands}`:''}</aside></section>`;
 }
 
 export function buildContextPackUiModel(pack,markdown='',meta={}) {
@@ -990,12 +1008,83 @@ export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null
     title:ready?'Ready for local handoff':'Review before handoff',
     status:ready?'ready':'blocked',
     copy:ready
-      ? 'Copy the markdown into your next local agent, or preview setup if you want a read-only MCP resource.'
+      ? 'Copy the markdown into your next local agent, or run the local handoff preflight for CLI and MCP proof.'
       : 'Do not hand this to another agent until the failed gate is fixed.',
     nextAction:ready
-      ? (setupPreviewed ? 'Use Copy markdown, Download .md, or the previewed read-only MCP command.' : 'Use Copy markdown now. Preview setup only if you want MCP resource discovery.')
+      ? (setupPreviewed ? 'Use Copy markdown, Test local handoff, or the previewed read-only MCP command.' : 'Use Copy markdown now, or run Test local handoff for CLI and MCP proof. Preview setup only if you want MCP resource discovery.')
       : `Fix: ${blocking.label}.`,
     gates
+  };
+}
+
+export function buildCurrentHandoffStatusModel({contextPackResult:result=null,setupResult=null} = {}) {
+  const pack=result?.pack ?? null;
+  const markdown=String(result?.markdown ?? '');
+  if(!pack?.contextPackFingerprint){
+    return {
+      state:'none',
+      statusLabel:'not built',
+      title:'No current handoff',
+      copy:'Build a context pack before handing this workspace to another local agent.',
+      nextAction:'Build context pack',
+      actionLabel:'Build context pack',
+      actionRoute:'/context-pack',
+      targetHarness:'codex',
+      fingerprintShort:'unavailable',
+      selectedLocators:0,
+      omittedRefs:0,
+      usePlanReads:0,
+      deliveryReductionPercent:'not measured',
+      readbackStatus:'not run',
+      setupStatus:'not previewed',
+      preflightCommand:null,
+      safeguards:{
+        serverWrites:false,
+        configWrites:false,
+        externalWritesEnabled:false,
+        externalAdaptersEnabled:0,
+        networkCalls:0,
+        modelCalls:0,
+        rawBodiesRendered:false
+      }
+    };
+  }
+  const meta={observedDurationMs:result?.observedDurationMs,readback:result?.readback,usePlan:result?.usePlan};
+  const ui=buildContextPackUiModel(pack,markdown,meta);
+  const readiness=buildFirstUseReadinessModel({pack,markdown,readback:result?.readback,setupResult});
+  const setupPreviewed=Boolean(setupResult);
+  const setupSafe=setupPreviewed
+    && setupResult?.dryRun === true
+    && zeroCount(setupResult?.safeguards?.localFilesWritten)
+    && setupResult?.safeguards?.externalWritesEnabled === false
+    && zeroCount(setupResult?.safeguards?.networkCalls)
+    && setupResult?.safeguards?.rawConfigBodyIncluded === false;
+  return {
+    state:readiness.ready ? 'generated-in-browser' : 'review-required',
+    statusLabel:readiness.ready ? 'ready' : 'review',
+    title:readiness.ready ? 'Current handoff ready' : 'Current handoff needs review',
+    copy:readiness.copy,
+    nextAction:readiness.nextAction,
+    actionLabel:readiness.ready ? 'Open handoff' : 'Review handoff',
+    actionRoute:'/context-pack',
+    targetHarness:ui.targetHarness,
+    fingerprintShort:ui.fingerprintShort,
+    selectedLocators:ui.selectedLocators,
+    omittedRefs:ui.omittedRefs,
+    usePlanReads:ui.usePlanReadCount,
+    deliveryReductionPercent:ui.deliveryReductionPercent,
+    readbackStatus:ui.proof.readbackFingerprintLabel,
+    setupStatus:setupPreviewed ? setupSafe ? 'safe preview' : 'review required' : 'not previewed',
+    preflightCommand:contextPackPreflightCommand(pack),
+    safeguards:{
+      serverWrites:false,
+      configWrites:false,
+      externalWritesEnabled:false,
+      externalAdaptersEnabled:0,
+      networkCalls:Number(pack?.safeguards?.networkCalls ?? 0),
+      modelCalls:Number(pack?.safeguards?.modelCalls ?? 0),
+      rawBodiesRendered:false
+    }
   };
 }
 
@@ -1013,7 +1102,7 @@ function contextPackHarnessCommands(pack,usePlan=null) {
   const packCommands=Array.isArray(pack?.handoff?.commands) ? pack.handoff.commands.filter((command)=>typeof command==='string'&&command.trim()) : [];
   if(packCommands.length){
     const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
-    const generated=contextPackGeneratedUsePlanCommands(pack,usePlan);
+    const generated=[{label:'Test local handoff',command:contextPackPreflightCommand(pack)},...contextPackGeneratedUsePlanCommands(pack,usePlan)].filter((item)=>item.command);
     for(const command of generated){
       if(!commands.some((item)=>item.command===command.command || item.command.includes('--context-pack-use')===command.command.includes('--context-pack-use') && command.command.includes('--context-pack-use'))){
         commands.push(command);
@@ -1032,6 +1121,7 @@ function contextPackHarnessCommands(pack,usePlan=null) {
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
   const setupClient=contextPackSetupClient(pack);
   return [
+    { label:'Test local handoff', command:contextPackPreflightCommand(pack) },
     { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
@@ -1043,6 +1133,20 @@ function contextPackHarnessCommands(pack,usePlan=null) {
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
+}
+
+function contextPackPreflightCommand(pack) {
+  if(!pack)return '';
+  const target=String(pack?.targetHarness ?? 'generic');
+  const objective=quoteShell(pack?.objective ?? 'Ship safely');
+  const step=quoteShell(pack?.step ?? 'select context');
+  const from=quoteShell(contextPackSourceFamilies(pack).join(','));
+  const selected=(pack?.memoryPlan?.items ?? [])
+    .filter((item)=>String(item?.locator ?? '').startsWith('user-selected://'))
+    .map((item)=>` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u,''))}`)
+    .join('');
+  const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
+  return `npm --silent run oaf -- context handoff --read-only --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --format json`;
 }
 
 function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
@@ -1068,6 +1172,7 @@ function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
 function contextPackCommandLabel(command) {
   if(command === 'npm run doctor')return 'Check local setup';
   if(command === 'npm run ci')return 'Run CI';
+  if(command.includes('context handoff'))return 'Test local handoff';
   if(command.includes('context registry status'))return 'Verify pin';
   if(command.includes('--stdio'))return 'Start MCP bridge';
   if(command.includes('context-pack/registry/current'))return 'Read registry';
@@ -1295,7 +1400,8 @@ function renderContentLab() {
 function renderAgentsTools() {
   const errorPanel=harnessSetupError?statePanel('error','Harness setup preview failed',harnessSetupError,false):'';
   const selectedClient=harnessSetupResult?.client ?? 'codex';
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Native baselines</h2><span>Conformance anchors</span></div><div class="table-wrap"><table><thead><tr><th>Surface</th><th>Status</th><th>Boundary</th></tr></thead><tbody>${[['Model gateway','reference','deterministic default'],['Workflow runtime','reference','embedded + durable SQLite'],['Tool broker','reference','one-use local grants'],['External adapters','disabled','12 contracts, 0 enabled']].map(row=>`<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join('')}</tbody></table></div></div><aside class="inspector"><h2>Tool policy</h2><p>Policy, grants, filesystem, loopback egress, and secret references remain independently brokered.</p></aside></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Harness setup preview</h2><span>Dry run only</span></div><form id="harness-setup-form" class="stacked-form"><label class="field"><span>Client</span><select name="client">${harnessSetupClientsForUi().map(([id,label])=>`<option value="${esc(id)}"${id===selectedClient?' selected':''}>${esc(label)}</option>`).join('')}</select></label><div class="action-row"><button class="button primary" type="submit">Preview setup</button><span class="muted">No home config writes. OAF server only.</span></div></form></div><aside class="inspector"><h2>Setup boundary</h2><dl class="facts"><div><dt>API body</dt><dd>workspace and client only</dd></div><div><dt>Server</dt><dd>oaf</dd></div><div><dt>Mode</dt><dd>plan-only dry run</dd></div><div><dt>Bridge</dt><dd>read-only MCP resources</dd></div></dl></aside></section>${errorPanel}${harnessSetupResult?renderHarnessSetupResult(harnessSetupResult):statePanel('empty','No setup preview yet','Choose a local harness client to see the redacted MCP setup plan.')}`;
+  const handoff=currentHandoffStatus();
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Native baselines</h2><span>Conformance anchors</span></div><div class="table-wrap"><table><thead><tr><th>Surface</th><th>Status</th><th>Boundary</th></tr></thead><tbody>${[['Model gateway','reference','deterministic default'],['Workflow runtime','reference','embedded + durable SQLite'],['Tool broker','reference','one-use local grants'],['External adapters','disabled','12 contracts, 0 enabled']].map(row=>`<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join('')}</tbody></table></div></div><aside class="inspector"><h2>Tool policy</h2><p>Policy, grants, filesystem, loopback egress, and secret references remain independently brokered.</p></aside></section>${renderHandoffStatusPanel(handoff,'agents')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Harness setup preview</h2><span>Dry run only</span></div><form id="harness-setup-form" class="stacked-form"><label class="field"><span>Client</span><select name="client">${harnessSetupClientsForUi().map(([id,label])=>`<option value="${esc(id)}"${id===selectedClient?' selected':''}>${esc(label)}</option>`).join('')}</select></label><div class="action-row"><button class="button primary" type="submit">Preview setup</button><span class="muted">No home config writes. OAF server only.</span></div></form></div><aside class="inspector"><h2>Setup boundary</h2><dl class="facts"><div><dt>API body</dt><dd>workspace and client only</dd></div><div><dt>Server</dt><dd>oaf</dd></div><div><dt>Mode</dt><dd>plan-only dry run</dd></div><div><dt>Bridge</dt><dd>read-only MCP resources</dd></div></dl></aside></section>${errorPanel}${harnessSetupResult?renderHarnessSetupResult(harnessSetupResult):statePanel('empty','No setup preview yet','Choose a local harness client to see the redacted MCP setup plan.')}`;
 }
 
 function renderHarnessSetupResult(report) {

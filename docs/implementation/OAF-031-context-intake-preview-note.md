@@ -166,6 +166,11 @@ slice.
   context-pack readback proof, `npm --silent` stdio bridge command, and dry-run
   setup preview. It rejects write, pin, output-file, and stdio-server modes and
   does not write context-pack artifacts or mutate harness config.
+- The browser now treats the latest built context pack as the current local
+  handoff for the session. Context Pack, Fabric Map, and Agents & Tools render
+  the same status, selected/omitted/readback counts, disabled-write safeguards,
+  and a **Test local handoff** command that runs `context handoff --read-only`
+  without installing harness config or enabling external adapters.
 - The browser context-pack result now surfaces the same proof boundary in plain
   UI terms: estimated local handoff reduction, estimated source kept, observed
   local request time, raw-body exclusion, model-call count, and external-write
@@ -216,6 +221,9 @@ slice.
 - The Fabric Map is an observer surface only. It does not add telemetry, import
   harness chat history, call models, activate memory, enable external adapters,
   enable external writes, or render raw context bodies.
+- The browser current-handoff status is session-local UI state over an already
+  built pack. It does not persist a new canonical resource, install MCP config,
+  read private harness history, or promote proposal-only memory.
 - Read-only MCP resources are local summaries only. They do not start a network
   listener, expose write tools, mutate canonical state, create memory, write
   source snapshots, call models, perform external egress, or include raw
