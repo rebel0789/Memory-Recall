@@ -455,6 +455,27 @@ function summarizeContextPackDelivery(delivery = {}) {
   };
 }
 
+function summarizeCoverageRatio(coverage = {}) {
+  return {
+    total: Number.isFinite(coverage.total) ? coverage.total : 0,
+    covered: Number.isFinite(coverage.covered) ? coverage.covered : 0,
+    ratio: Number.isFinite(coverage.ratio) ? coverage.ratio : 0,
+    status: ['covered', 'partial', 'not_applicable'].includes(coverage.status) ? coverage.status : 'not_applicable'
+  };
+}
+
+function summarizeContextPackUtility(utility = {}) {
+  return {
+    status: utility.status === 'ready' ? 'ready' : 'review',
+    requiredLocalReadCount: items(utility.requiredLocalReads).length,
+    changedLocatorCoverage: summarizeCoverageRatio(utility.changedLocatorCoverage),
+    sourceSelection: {
+      selectedUnitRatio: Number.isFinite(utility.sourceSelection?.selectedTokenRatio) ? utility.sourceSelection.selectedTokenRatio : 0,
+      estimatedReductionRatio: Number.isFinite(utility.sourceSelection?.estimatedReductionRatio) ? utility.sourceSelection.estimatedReductionRatio : 0
+    }
+  };
+}
+
 function summarizeContextPack(currentContextPack) {
   const pack = currentContextPack?.pack ?? currentContextPack;
   if (!isPlainObject(pack)) return null;
@@ -515,6 +536,7 @@ function summarizeContextPack(currentContextPack) {
       }))
     },
     sourceGraph: summarizeContextPackSourceGraph(pack.sourceGraph),
+    utility: summarizeContextPackUtility(pack.utility),
     warnings: safeStringList(pack.warnings, 24),
     files: items(pack.files).slice(0, 4).map((file) => ({
       path: safeLocator(`workspace://${file?.path ?? ''}`),
@@ -548,7 +570,8 @@ function summarizeContextPack(currentContextPack) {
       excluded: items(pack.excluded).length > MAX_CONTEXT_PACK_ITEMS,
       omissions: items(pack.omissions?.refs).length > MAX_CONTEXT_PACK_ITEMS,
       sourceGraphResults: items(pack.sourceGraph?.results).length > MAX_CONTEXT_PACK_ITEMS,
-      affectedSymbols: items(pack.sourceGraph?.impact?.affectedSymbols).length > MAX_CONTEXT_PACK_ITEMS
+      affectedSymbols: items(pack.sourceGraph?.impact?.affectedSymbols).length > MAX_CONTEXT_PACK_ITEMS,
+      utilityReads: items(pack.utility?.requiredLocalReads).length > MAX_CONTEXT_PACK_ITEMS
     }
   };
 }

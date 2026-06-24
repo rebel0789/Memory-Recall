@@ -266,6 +266,18 @@ function contextPackFixture() {
           sourceSlicesRead: false
         }
       },
+      utility: {
+        status: 'ready',
+        requiredLocalReads: [
+          { locator: 'workspace://AGENTS.md', role: 'selected_context', required: true, represented: true, contentHash: hash, reasonCodes: ['selected_context'], readHint: 'Read AGENTS.md' },
+          { locator: 'workspace://src/auth.ts', role: 'changed_locator', required: true, represented: true, contentHash: null, reasonCodes: ['changed_locator_supplied'], readHint: 'Read changed auth file' },
+          { locator: 'workspace://src/auth.ts#L1-L3', role: 'source_graph_hint', required: false, represented: true, contentHash: null, reasonCodes: ['source_graph_hint'], readHint: 'Read graph hint' }
+        ],
+        changedLocatorCoverage: { total: 1, covered: 1, ratio: 1, status: 'covered' },
+        graphHintCoverage: { total: 1, covered: 1, ratio: 1, status: 'covered' },
+        sourceSelection: { candidateTokenCount: 200, selectedTokenCount: 80, selectedTokenRatio: 0.4, estimatedReductionRatio: 0.6 },
+        delivery: { representation: 'locator-handoff', sourceContentsIncluded: false }
+      },
       warnings: ['raw_context_bodies_omitted', 'external_writes_disabled'],
       files: [{ path: 'CONTEXT_PACK.md', role: 'agent-handoff', contentType: 'text/markdown', contentHash: hash, byteSize: 512 }],
       safeguards: {
@@ -526,6 +538,10 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
   assert.equal(payload.data.omissions.refs[0].locator, null);
   assert.deepEqual(payload.data.sourceGraph.impact.changedLocators, ['workspace://src/auth.ts']);
   assert.equal(payload.data.sourceGraph.impact.affectedSymbols[0].name, 'approveTokenReset');
+  assert.equal(payload.data.utility.status, 'ready');
+  assert.deepEqual(payload.data.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
+  assert.equal(payload.data.utility.requiredLocalReadCount, 3);
+  assert.equal(payload.data.truncated.utilityReads, true);
   assert.equal(payload.data.markdownArtifact.included, false);
   assert.match(payload.data.markdownArtifact.contentHash, /^sha256:[a-f0-9]{64}$/);
   assert.equal(payload.safeguards.readOnly, true);
@@ -597,6 +613,14 @@ test('OAF read-only MCP context-pack resource stays bounded for larger sanitized
     depth: index % 3,
     reasonCodes: ['changed_locator_impact']
   }));
+  fixture.pack.utility.requiredLocalReads = Array.from({ length: 12 }, (_, index) => ({
+    locator: `workspace://src/module-${index}/handoff-target.ts#L1-L2`,
+    role: index % 2 ? 'source_graph_hint' : 'changed_locator',
+    required: index % 2 === 0,
+    represented: true,
+    contentHash: hash,
+    reasonCodes: ['changed_locator_impact']
+  }));
   fixture.pack.preview.selectedCount = 12;
   fixture.pack.preview.excludedCount = 12;
   fixture.pack.omissions.excludedCount = 12;
@@ -616,9 +640,11 @@ test('OAF read-only MCP context-pack resource stays bounded for larger sanitized
   assert(Buffer.byteLength(JSON.stringify(read.result), 'utf8') <= 8192);
   const payload = JSON.parse(read.result.contents[0].text);
   assert.equal(payload.data.readFirst.length, 2);
+  assert.equal(payload.data.utility.requiredLocalReadCount, 12);
   assert.equal(payload.data.sourceGraph.results.length, 2);
   assert.equal(payload.data.sourceGraph.impact.affectedSymbols.length, 2);
   assert.equal(payload.data.truncated.readFirst, true);
   assert.equal(payload.data.truncated.sourceGraphResults, true);
   assert.equal(payload.data.truncated.affectedSymbols, true);
+  assert.equal(payload.data.truncated.utilityReads, true);
 });

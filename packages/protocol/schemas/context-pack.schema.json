@@ -25,6 +25,7 @@
     "omissions",
     "memoryPlan",
     "sourceGraph",
+    "utility",
     "warnings",
     "handoff",
     "files",
@@ -94,16 +95,18 @@
     "omissions": { "$ref": "#/$defs/omissions" },
     "memoryPlan": { "$ref": "#/$defs/memoryPlan" },
     "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
+    "utility": { "$ref": "#/$defs/utilityReport" },
     "warnings": { "$ref": "#/$defs/stringList" },
     "handoff": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["title", "summary", "instructions", "commands", "limitations"],
+      "required": ["title", "summary", "instructions", "commands", "launchPrompt", "limitations"],
       "properties": {
         "title": { "type": "string", "minLength": 1, "maxLength": 160 },
         "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
         "instructions": { "$ref": "#/$defs/stringList" },
-        "commands": { "$ref": "#/$defs/stringList" },
+        "commands": { "$ref": "#/$defs/commandList" },
+        "launchPrompt": { "type": "string", "minLength": 1, "maxLength": 8000 },
         "limitations": { "$ref": "#/$defs/stringList" }
       }
     },
@@ -176,6 +179,12 @@
       "maxItems": 32,
       "uniqueItems": true,
       "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "commandList": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
     },
     "budget": {
       "type": "object",
@@ -296,6 +305,78 @@
         "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
         "recoveryHint": { "type": "string", "minLength": 1, "maxLength": 512 }
       }
+    },
+    "utilityReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "requiredLocalReads",
+        "changedLocatorCoverage",
+        "graphHintCoverage",
+        "sourceSelection",
+        "delivery"
+      ],
+      "properties": {
+        "status": { "enum": ["ready", "review"] },
+        "requiredLocalReads": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/requiredLocalRead" }
+        },
+        "changedLocatorCoverage": { "$ref": "#/$defs/coverageRatio" },
+        "graphHintCoverage": { "$ref": "#/$defs/coverageRatio" },
+        "sourceSelection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["candidateTokenCount", "selectedTokenCount", "selectedTokenRatio", "estimatedReductionRatio"],
+          "properties": {
+            "candidateTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+            "selectedTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+            "selectedTokenRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "estimatedReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "delivery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["representation", "sourceContentsIncluded"],
+          "properties": {
+            "representation": { "const": "locator-handoff" },
+            "sourceContentsIncluded": { "const": false }
+          }
+        }
+      }
+    },
+    "requiredLocalRead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "role", "required", "represented", "contentHash", "reasonCodes", "readHint"],
+      "properties": {
+        "locator": { "$ref": "#/$defs/readLocator" },
+        "role": { "enum": ["selected_context", "changed_locator", "source_graph_hint"] },
+        "required": { "type": "boolean" },
+        "represented": { "type": "boolean" },
+        "contentHash": { "$ref": "#/$defs/hashOrNull" },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "coverageRatio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "covered", "ratio", "status"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "covered": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "status": { "enum": ["covered", "partial", "not_applicable"] }
+      }
+    },
+    "readLocator": {
+      "type": "string",
+      "pattern": "^(workspace|user-selected)://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+(?:#L[0-9]+-L[0-9]+)?$",
+      "maxLength": 640
     },
     "sourceGraph": {
       "type": "object",

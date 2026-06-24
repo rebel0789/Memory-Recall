@@ -37,7 +37,7 @@ read-only composition also exposes
 `oaf://workspace/<workspaceId>/context-pack/current`. This is a compact JSON
 summary of an in-memory context pack: selected and omitted locators, token
 counts, delivery-budget metrics for the locator-only handoff, fingerprints,
-changed locators, source-graph impact, and safeguards.
+changed locators, source-graph impact, utility coverage counts, and safeguards.
 It intentionally omits raw objective text, raw step text, markdown bodies,
 source bodies, credentials, provider URLs, absolute local paths, model calls,
 network calls, memory activation, external adapters, and write tools.

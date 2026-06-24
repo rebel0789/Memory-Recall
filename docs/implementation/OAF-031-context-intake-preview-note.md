@@ -33,6 +33,10 @@ slice.
   stable `omit_` IDs, locators, content hashes, token costs, reason codes, and
   recovery hints. They also report source-graph omitted match counts without
   embedding source slices.
+- Context packs include a schema-backed utility read plan and launch prompt.
+  The read plan records required local reads, changed-locator coverage,
+  graph-hint coverage, and source-selection reduction so first-use readiness
+  does not rely only on safety gates or delivery-token reduction.
 - The deterministic benchmark gate in `evals/harness-context/cases.json`
   measures required-locator recall, distractor exclusion, selected-token ratio,
   leakage, deterministic fingerprints, and disabled side-effect surfaces.

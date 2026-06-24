@@ -31,12 +31,14 @@ This repository is an **agent-ready development kit**, not a claim that the full
   benchmark gates;
 - dry-run context pack builder for Codex, Claude Code, Cursor, and generic
   agents, producing a schema-validated locator handoff with compact source
-  graph hints, explicit user-selected file locators, and a delivery-budget
-  metric distinct from source-body token counts, without raw source bodies or
-  automatic memory import;
+  graph hints, explicit user-selected file locators, a utility read plan with
+  changed-file coverage, a copyable launch prompt, and a delivery-budget metric
+  distinct from source-body token counts, without raw source bodies or automatic
+  memory import;
 - opt-in read-only MCP context-pack summary resource for local harnesses,
-  exposing locators, hashes, token counts, omissions, and changed-file impact
-  without raw task text, source bodies, markdown bodies, or write tools;
+  exposing locators, hashes, token counts, omissions, changed-file impact, and
+  utility coverage counts without raw task text, source bodies, markdown
+  bodies, or write tools;
 - local MCP context-pack stdio smoke report with observed duration, response
   size, selected/candidate source units, and delivered-handoff unit counts for
   one explicit local invocation;
@@ -66,11 +68,12 @@ npm run dev
 Open <http://127.0.0.1:4310>.
 
 First practical path: open **Context Pack**, keep the target as Codex or choose
-your local harness, add any explicitly changed files, build the pack, check
-**First-use readiness**, then copy the markdown into the next local coding-agent
-session. This is a dry-run locator handoff with read-only MCP proof; it does not
-import harness history, create active memory, write harness config, or enable
-external adapters.
+your local harness, click **Preview sources**, use **Detect git changes** or add
+changed files manually, build the pack, check **First-use readiness** and the
+**Utility read plan**, then copy the markdown or launch prompt into the next
+local coding-agent session. This is a dry-run locator handoff with read-only MCP
+proof; it does not import harness history, create active memory, write harness
+config, or enable external adapters.
 
 The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.
 

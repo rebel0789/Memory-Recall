@@ -56,6 +56,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   const app=await readFile('apps/web/app.js','utf8');
   assert.match(app,/Build context pack/);
   assert.match(app,/data-action="copy-pack"/);
+  assert.match(app,/data-action="copy-launch-prompt"/);
   assert.match(app,/data-action="copy-command"/);
   assert.match(app,/function copyCommand/);
   assert.match(app,/async function writeClipboardText/);
@@ -80,6 +81,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Change Impact/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
+  assert.match(app,/Utility read plan/);
   assert.match(app,/Build time/);
   assert.match(app,/Raw bodies/);
   assert.match(app,/Estimated local tokens/);
@@ -100,6 +102,27 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     preview:{candidateTokenCount:1000,selectedTokenCount:250},
     delivery:{representation:'locator-handoff',sourceCandidateTokenCount:1000,sourceSelectedTokenCount:250,sourceSelectedTokenRatio:0.25,deliveredTokenCount:80,deliveredByteSize:320,deliveredTokenRatio:0.08,observedTokenReductionRatio:0.92,sourceContentTokenCountIncluded:0,sourceContentsIncluded:false},
     sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,affectedSymbols:[]}},
+    utility:{
+      status:'ready',
+      requiredLocalReads:[
+        {locator:'workspace://AGENTS.md',role:'selected_context',required:true,represented:true,contentHash:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',reasonCodes:['selected_context'],readHint:'Read workspace://AGENTS.md'},
+        {locator:'workspace://apps/web/app.js',role:'changed_locator',required:true,represented:true,contentHash:null,reasonCodes:['changed_locator_supplied'],readHint:'Read workspace://apps/web/app.js'}
+      ],
+      changedLocatorCoverage:{total:1,covered:1,ratio:1,status:'covered'},
+      graphHintCoverage:{total:2,covered:1,ratio:0.5,status:'partial'},
+      sourceSelection:{candidateTokenCount:1000,selectedTokenCount:250,selectedTokenRatio:0.25,estimatedReductionRatio:0.75},
+      delivery:{representation:'locator-handoff',sourceContentsIncluded:false}
+    },
+    handoff:{
+      launchPrompt:'Continue this local repository work in codex.\nChanged-file coverage: 1/1',
+      commands:[
+        "npm run doctor",
+        "npm run oaf -- context pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --dry-run --format markdown",
+        "npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
+        "npm run oaf -- mcp resources --read-only --context-pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --uri oaf://workspace/ws_local/context-pack/current --format json",
+        "npm run ci"
+      ]
+    },
     safeguards:{modelCalls:0,networkCalls:0,activeMemoryCreated:0,externalWritesEnabled:false,rawBodyIncluded:false},
     warnings:['dry_run_no_import'],
     contextPackFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -160,17 +183,21 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.changedLocators,1);
   assert.equal(model.affectedSymbols,3);
   assert.equal(model.setupClient,'codex');
+  assert.equal(model.launchPrompt.includes('Changed-file coverage: 1/1'),true);
+  assert.deepEqual(model.utility.topReads.map((item)=>item.locator),['workspace://AGENTS.md','workspace://apps/web/app.js']);
+  assert.equal(model.utility.changedCoverageLabel,'1/1');
+  assert.equal(model.utility.sourceReduction,'75%');
   assert.deepEqual(model.sourceFamilies,['codex','cursor']);
   assert.equal(model.sourceFamilyLabel,'codex, cursor');
   assert.deepEqual(model.intakeReview,{acceptedCount:1,excludedCount:1,omittedCount:2,proposedCount:1,quarantinedCount:1,activeMemoryCreated:0});
   assert.equal(model.estimatedReductionPercent,75);
   assert.equal(model.downloadName,'open-agent-fabric-context-pack-codex-2026-06-24.md');
-  assert.match(model.commands[0].command,/--from 'codex,cursor'/);
-  assert.match(model.commands[0].command,/--target codex --changed 'apps\/web\/app\.js' --dry-run --format markdown/);
-  assert.doesNotMatch(model.commands[0].command,/--from all/);
-  assert.match(model.commands[0].command,/Ship user'"'"'s change safely/);
-  assert.match(model.commands[1].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
-  assert.match(model.commands[2].command,/--from 'codex,cursor'/);
+  assert.match(model.commands[1].command,/--from 'codex,cursor'/);
+  assert.match(model.commands[1].command,/--target codex --changed 'apps\/web\/app\.js' --dry-run --format markdown/);
+  assert.doesNotMatch(model.commands[1].command,/--from all/);
+  assert.match(model.commands[1].command,/Ship user'"'"'s change safely/);
+  assert.match(model.commands[2].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
+  assert.match(model.commands[3].command,/--from 'codex,cursor'/);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
   const sourcePreviewModel=buildContextSourcePreviewUiModel({
     id:'hctxprev_aaaaaaaaaaaaaaaa',
@@ -266,6 +293,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
     sourceHarnesses:['codex'],
     readFirst:[{locator:'workspace://AGENTS.md'}],
     delivery:{sourceContentsIncluded:false},
+    utility:{status:'ready',changedLocatorCoverage:{total:0,covered:0,ratio:0,status:'not_applicable'},requiredLocalReads:[{locator:'workspace://AGENTS.md',role:'selected_context',required:true,represented:true}],graphHintCoverage:{total:0,covered:0,ratio:0,status:'not_applicable'},sourceSelection:{candidateTokenCount:10,selectedTokenCount:10,selectedTokenRatio:1,estimatedReductionRatio:0},delivery:{representation:'locator-handoff',sourceContentsIncluded:false}},
     safeguards:{rawBodyIncluded:false,externalWritesEnabled:false,networkCalls:0,modelCalls:0,activeMemoryCreated:0},
     contextPackFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
   };
@@ -299,6 +327,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
       ...safePack,
       readFirst:[],
       delivery:{sourceContentsIncluded:true},
+      utility:{status:'review',changedLocatorCoverage:{total:1,covered:0,ratio:0,status:'partial'},requiredLocalReads:[],graphHintCoverage:{total:0,covered:0,ratio:0,status:'not_applicable'},sourceSelection:{candidateTokenCount:10,selectedTokenCount:0,selectedTokenRatio:0,estimatedReductionRatio:1},delivery:{representation:'locator-handoff',sourceContentsIncluded:false}},
       safeguards:{rawBodyIncluded:true,externalWritesEnabled:true,networkCalls:1,modelCalls:1,activeMemoryCreated:1}
     },
     markdown:'',
@@ -306,7 +335,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   });
   assert.equal(unsafe.ready,false);
   assert.equal(unsafe.title,'Review before handoff');
-  assert.deepEqual(unsafe.gates.filter((gate)=>gate.blocking).map((gate)=>gate.id),['artifact','selection','readback','resource-tools','raw-bodies','side-effects','memory']);
+  assert.deepEqual(unsafe.gates.filter((gate)=>gate.blocking).map((gate)=>gate.id),['artifact','selection','readback','resource-tools','raw-bodies','utility','side-effects','memory']);
   assert.equal(unsafe.nextAction,'Fix: Pack artifact.');
 });
 

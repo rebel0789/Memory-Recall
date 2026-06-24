@@ -567,7 +567,7 @@ export function createApiRouteContracts(limits = {}) {
       pack: {
         type: 'object',
         additionalProperties: true,
-        required: ['schemaVersion', 'id', 'workspaceId', 'targetHarness', 'sourceHarnesses', 'readFirst', 'excluded', 'omissions', 'memoryPlan', 'sourceGraph', 'warnings', 'delivery', 'safeguards', 'contextPackFingerprint'],
+        required: ['schemaVersion', 'id', 'workspaceId', 'targetHarness', 'sourceHarnesses', 'readFirst', 'excluded', 'omissions', 'memoryPlan', 'sourceGraph', 'utility', 'warnings', 'handoff', 'delivery', 'safeguards', 'contextPackFingerprint'],
         properties: {
           schemaVersion: { const: '1.0.0' },
           id: { type: 'string', pattern: id('ctxpack'), maxLength: 128 },
@@ -579,7 +579,26 @@ export function createApiRouteContracts(limits = {}) {
           omissions: { type: 'object', additionalProperties: true },
           memoryPlan: { type: 'object', additionalProperties: true },
           sourceGraph: { type: 'object', additionalProperties: true },
+          utility: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['status', 'requiredLocalReads', 'changedLocatorCoverage'],
+            properties: {
+              status: { enum: ['ready', 'review'] },
+              requiredLocalReads: { type: 'array', maxItems: 64, items: { type: 'object', additionalProperties: true } },
+              changedLocatorCoverage: { type: 'object', additionalProperties: true }
+            }
+          },
           warnings: { type: 'array', maxItems: 128, items: boundedString(512) },
+          handoff: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['commands', 'launchPrompt'],
+            properties: {
+              commands: { type: 'array', maxItems: 32, items: boundedString(4096) },
+              launchPrompt: { type: 'string', minLength: 1, maxLength: 8000 }
+            }
+          },
           delivery: contextPackDelivery,
           safeguards: contextPackSafeguards,
           contextPackFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' }

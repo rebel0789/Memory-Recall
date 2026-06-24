@@ -685,6 +685,7 @@ function render() {
   root.querySelectorAll('[data-action=copy-command]').forEach(button=>button.addEventListener('click',copyCommand));
   root.querySelectorAll('[data-action=download-pack]').forEach(button=>button.addEventListener('click',downloadContextPack));
   root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
+  root.querySelectorAll('[data-action=copy-launch-prompt]').forEach(button=>button.addEventListener('click',copyContextPackLaunchPrompt));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
 }
@@ -827,7 +828,7 @@ function renderContextPackResult(pack,markdown) {
   const model=buildContextPackUiModel(pack,markdown,{observedDurationMs:contextPackResult?.observedDurationMs,readback:contextPackResult?.readback});
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
   const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult});
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Use now</h2><span>Copy markdown first</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Copy markdown first</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 export function buildContextPackUiModel(pack,markdown='',meta={}) {
@@ -873,6 +874,8 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     affectedSymbols:Number(pack?.sourceGraph?.impact?.affectedSymbolCount ?? 0),
     setupClient:contextPackSetupClient(pack),
     intakeReview:buildContextPackIntakeReview(pack),
+    launchPrompt:String(pack?.handoff?.launchPrompt ?? ''),
+    utility:buildContextPackUtilityUiModel(pack?.utility),
     proof:{
       tokenSaved:`${deliveryReductionPercent}%`,
       selectedTokenRatio:candidateTokens > 0 ? `${Math.round(selectedTokens / candidateTokens * 100)}%` : '0%',
@@ -891,6 +894,27 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
       activeMemoryLabel:safeguardCountLabel(pack?.safeguards?.activeMemoryCreated)
     },
     commands:contextPackHarnessCommands(pack)
+  };
+}
+
+function buildContextPackUtilityUiModel(utility) {
+  const requiredReads=Array.isArray(utility?.requiredLocalReads) ? utility.requiredLocalReads : [];
+  const changed=utility?.changedLocatorCoverage ?? {};
+  const graph=utility?.graphHintCoverage ?? {};
+  const source=utility?.sourceSelection ?? {};
+  return {
+    status:String(utility?.status ?? 'review'),
+    requiredReadCount:requiredReads.filter((item)=>item?.required===true).length,
+    changedCoverageLabel:`${Number(changed.covered??0)}/${Number(changed.total??0)}`,
+    changedCoveragePercent:`${boundedPercent(changed.ratio)}%`,
+    graphCoverageLabel:`${Number(graph.covered??0)}/${Number(graph.total??0)}`,
+    sourceSelectionRatio:`${boundedPercent(source.selectedTokenRatio)}%`,
+    sourceReduction:`${boundedPercent(source.estimatedReductionRatio)}%`,
+    topReads:requiredReads.slice(0,5).map((item)=>({
+      locator:String(item.locator ?? ''),
+      role:String(item.role ?? 'selected_context'),
+      required:item.required===true
+    }))
   };
 }
 
@@ -924,6 +948,10 @@ export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null
   const rawBodiesExcluded=pack?.delivery?.sourceContentsIncluded === false && pack?.safeguards?.rawBodyIncluded === false;
   const noSideEffects=pack?.safeguards?.externalWritesEnabled === false && zeroCount(pack?.safeguards?.networkCalls) && zeroCount(pack?.safeguards?.modelCalls);
   const noActiveMemory=zeroCount(pack?.safeguards?.activeMemoryCreated);
+  const utilityReady=pack?.utility?.status === 'ready';
+  const utilityDetail=utilityReady
+    ? `${Number(pack?.utility?.changedLocatorCoverage?.covered ?? 0)}/${Number(pack?.utility?.changedLocatorCoverage?.total ?? 0)} changed locators covered by required local reads.`
+    : 'The pack must include a schema-backed utility read plan before handoff.';
   const setupPreviewed=Boolean(setupResult);
   const setupPreviewSafe=setupPreviewed
     && setupResult?.dryRun === true
@@ -937,6 +965,7 @@ export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null
     readinessGate('readback','MCP readback',readbackMatched && noMarkdownBody,'Read-only resource matches the generated pack and omits markdown bodies.'),
     readinessGate('resource-tools','Resource tools',noToolsExposed,'The context-pack MCP resource exposes zero tools.'),
     readinessGate('raw-bodies','Raw bodies',rawBodiesExcluded,'Source bodies stay out of the pack, shell, and MCP summary.'),
+    readinessGate('utility','Read plan',utilityReady,utilityDetail),
     readinessGate('side-effects','Side effects',noSideEffects,'Model calls, network calls, and external writes remain off.'),
     readinessGate('memory','Memory import',noActiveMemory,'Harness context can propose memory, but creates no active memory.'),
     readinessGate('setup-preview','Setup preview',setupPreviewed ? setupPreviewSafe : null,setupPreviewed ? 'Dry-run harness setup preview remains redacted.' : 'Optional: preview the read-only MCP setup plan before editing any harness config.',setupPreviewed)
@@ -968,6 +997,10 @@ function zeroCount(value) {
 }
 
 function contextPackHarnessCommands(pack) {
+  const packCommands=Array.isArray(pack?.handoff?.commands) ? pack.handoff.commands.filter((command)=>typeof command==='string'&&command.trim()) : [];
+  if(packCommands.length){
+    return packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
+  }
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
   const step=quoteShell(pack?.step ?? 'select context');
@@ -985,6 +1018,16 @@ function contextPackHarnessCommands(pack) {
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
+}
+
+function contextPackCommandLabel(command) {
+  if(command === 'npm run doctor')return 'Check local setup';
+  if(command === 'npm run ci')return 'Run CI';
+  if(command.includes('context pack'))return 'Rebuild from CLI';
+  if(command.includes('harness setup plan'))return 'Preview harness setup';
+  if(command.includes('context-pack/current'))return 'Read current context pack';
+  if(command.includes('mcp resources --read-only'))return 'Read MCP resources';
+  return 'Run command';
 }
 
 function contextPackSetupClient(pack) {
@@ -1015,6 +1058,10 @@ function contextPackSelectedSourceFamilies(form) {
 
 function contextPackIntakeReview(review) {
   return `<dl class="facts compact-facts intake-review"><div><dt>Accepted</dt><dd>${Number(review.acceptedCount??0)}</dd></div><div><dt>Excluded</dt><dd>${Number(review.excludedCount??0)}</dd></div><div><dt>Omitted</dt><dd>${Number(review.omittedCount??0)}</dd></div><div><dt>Would propose</dt><dd>${Number(review.proposedCount??0)}</dd></div><div><dt>Quarantine</dt><dd>${Number(review.quarantinedCount??0)}</dd></div><div><dt>Active memory</dt><dd>${Number(review.activeMemoryCreated??0)}</dd></div></dl>`;
+}
+
+function contextPackUtilityPanel(utility) {
+  return `<dl class="facts compact-facts"><div><dt>Changed files</dt><dd>${esc(utility.changedCoverageLabel)} (${esc(utility.changedCoveragePercent)})</dd></div><div><dt>Required reads</dt><dd>${Number(utility.requiredReadCount)}</dd></div><div><dt>Graph hints</dt><dd>${esc(utility.graphCoverageLabel)}</dd></div><div><dt>Source kept</dt><dd>${esc(utility.sourceSelectionRatio)}</dd></div><div><dt>Source reduction</dt><dd>${esc(utility.sourceReduction)}</dd></div></dl>${utility.topReads.length?`<ol class="locator-list compact-list">${utility.topReads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.required?'required':'optional'}</small></li>`).join('')}</ol>`:'<p class="muted">No required local reads recorded.</p>'}`;
 }
 
 function contextPackProofLedger(proof) {
@@ -1581,6 +1628,22 @@ async function copyContextPack(event){
     button.textContent='Copied';
   }catch(error){
     document.querySelector('#live-status').textContent='Copy failed. Select the markdown manually.';
+  }finally{
+    setTimeout(()=>{ button.textContent=previous; },1200);
+  }
+}
+
+async function copyContextPackLaunchPrompt(event){
+  const prompt=contextPackResult?.pack?.handoff?.launchPrompt ?? '';
+  if(!prompt)return;
+  const button=event.currentTarget;
+  const previous=button.textContent;
+  try{
+    await writeClipboardText(prompt);
+    document.querySelector('#live-status').textContent='Launch prompt copied.';
+    button.textContent='Copied';
+  }catch(error){
+    document.querySelector('#live-status').textContent='Copy failed. Select the launch prompt from the markdown.';
   }finally{
     setTimeout(()=>{ button.textContent=previous; },1200);
   }

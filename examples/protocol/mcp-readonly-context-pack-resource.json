@@ -58,6 +58,20 @@
         "affectedSymbolCount": 1
       }
     },
+    "utility": {
+      "status": "ready",
+      "requiredLocalReadCount": 3,
+      "changedLocatorCoverage": {
+        "total": 1,
+        "covered": 1,
+        "ratio": 1,
+        "status": "covered"
+      },
+      "sourceSelection": {
+        "selectedUnitRatio": 0.4,
+        "estimatedReductionRatio": 0.6
+      }
+    },
     "markdownArtifact": {
       "included": false,
       "contentHash": "sha256:abababababababababababababababababababababababababababababababab",

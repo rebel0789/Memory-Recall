@@ -64,12 +64,21 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.equal(pack.sourceGraph.safeguards.sourceSlicesRead, false);
   assert(pack.sourceGraph.summary.fileCount >= 1);
   assert(pack.sourceGraph.results.some((item) => item.locator === 'workspace://src/authWorkflow.ts#L1-L3'));
+  assert.equal(pack.utility.status, 'ready');
+  assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
+  assert(pack.utility.requiredLocalReads.some((item) => item.locator === 'workspace://src/authWorkflow.ts' && item.role === 'changed_locator' && item.required === true));
+  assert(pack.utility.requiredLocalReads.some((item) => item.role === 'source_graph_hint' && item.required === false));
+  assert.equal(pack.utility.sourceSelection.candidateTokenCount, pack.preview.candidateTokenCount);
+  assert.equal(pack.utility.delivery.sourceContentsIncluded, false);
   assert(pack.readFirst.some((item) => item.locator === 'workspace://AGENTS.md'));
   assert.equal(pack.omissions.excludedCount, pack.excluded.length);
   assert.equal(pack.omissions.excludedTokenCount, pack.excluded.reduce((sum, item) => sum + item.tokens, 0));
   assert.equal(pack.omissions.sourceGraphOmittedCount, pack.sourceGraph.omittedCount);
   assert(pack.omissions.refs.every((item) => item.id.startsWith('omit_')));
   assert(pack.handoff.instructions.some((item) => item.includes('Codex')));
+  assert(pack.handoff.commands.some((item) => item.includes("--objective 'Prepare the next coding agent")));
+  assert(pack.handoff.commands.some((item) => item.includes("--changed 'src/authWorkflow.ts'")));
+  assert(pack.handoff.launchPrompt.includes('Changed-file coverage: 1/1'));
   assert(pack.files.some((item) => item.path === 'CONTEXT_PACK.md' && item.role === 'agent-handoff'));
 
   const markdown = renderContextPackMarkdown(pack);
@@ -78,6 +87,8 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /Source families: codex, claude-code, cursor/);
   assert.match(markdown, /workspace:\/\/AGENTS\.md/);
   assert.match(markdown, /## Delivery Budget/);
+  assert.match(markdown, /## Launch Prompt/);
+  assert.match(markdown, /## Utility Read Plan/);
   assert.match(markdown, /## Omission Refs/);
   assert.match(markdown, /## Source Graph Hints/);
   assert.match(markdown, /## Change Impact/);
@@ -85,6 +96,7 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /approveTokenResetWorkflow/);
   assert.match(markdown, /workspace:\/\/src\/authWorkflow\.ts#L1-L3/);
   assert.match(markdown, /External writes: disabled/);
+  assert.doesNotMatch(markdown, /<objective>|<step>/);
   assert(!markdown.includes('PACK RAW BODY'));
   assert(!JSON.stringify(pack.omissions).includes('Claude-only note'));
   assert(!markdown.includes('GRAPH RAW BODY SENTINEL'));

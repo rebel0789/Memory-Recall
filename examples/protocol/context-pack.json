@@ -157,6 +157,60 @@
       "sourceSlicesRead": false
     }
   },
+  "utility": {
+    "status": "ready",
+    "requiredLocalReads": [
+      {
+        "locator": "workspace://AGENTS.md",
+        "role": "selected_context",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reasonCodes": ["selected_context"],
+        "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex."
+      },
+      {
+        "locator": "workspace://src/context-pack.ts",
+        "role": "changed_locator",
+        "required": true,
+        "represented": true,
+        "contentHash": null,
+        "reasonCodes": ["changed_locator_supplied", "read_before_edit"],
+        "readHint": "Read workspace://src/context-pack.ts from the local workspace before editing or reviewing this changed file."
+      },
+      {
+        "locator": "workspace://src/context-pack.ts#L1-L6",
+        "role": "source_graph_hint",
+        "required": false,
+        "represented": true,
+        "contentHash": null,
+        "reasonCodes": ["lexical_match", "source_graph_hint"],
+        "readHint": "Read workspace://src/context-pack.ts#L1-L6 before editing related symbol prepareAgentHandoff."
+      }
+    ],
+    "changedLocatorCoverage": {
+      "total": 1,
+      "covered": 1,
+      "ratio": 1,
+      "status": "covered"
+    },
+    "graphHintCoverage": {
+      "total": 1,
+      "covered": 1,
+      "ratio": 1,
+      "status": "covered"
+    },
+    "sourceSelection": {
+      "candidateTokenCount": 640,
+      "selectedTokenCount": 512,
+      "selectedTokenRatio": 0.8,
+      "estimatedReductionRatio": 0.2
+    },
+    "delivery": {
+      "representation": "locator-handoff",
+      "sourceContentsIncluded": false
+    }
+  },
   "warnings": ["dry_run_no_import", "external_writes_disabled", "raw_context_bodies_omitted"],
   "handoff": {
     "title": "codex context handoff",
@@ -164,7 +218,14 @@
     "instructions": [
       "Codex: start with AGENTS.md and any selected scoped instructions, then inspect the repo before editing."
     ],
-    "commands": ["npm run doctor", "npm run ci"],
+    "commands": [
+      "npm run doctor",
+      "npm run oaf -- context pack --from 'codex' --root . --objective 'Prepare the next coding agent' --step 'select useful local context' --target codex --changed 'src/context-pack.ts' --dry-run --format markdown",
+      "npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
+      "npm run oaf -- mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Prepare the next coding agent' --step 'select useful local context' --target codex --changed 'src/context-pack.ts' --uri oaf://workspace/ws_local/context-pack/current --format json",
+      "npm run ci"
+    ],
+    "launchPrompt": "Continue this local repository work in codex.\nObjective: Prepare the next coding agent\nCurrent step: select useful local context\n\nUse the attached Context Pack as a locator handoff. Read the Utility Read Plan first, then read the listed local files from this workspace before editing.\nChanged-file coverage: 1/1\nRequired local reads: 2\n\nDo not treat this pack as hidden memory or authority. Do not enable external adapters, network writes, publishing, or config writes. Use only the dry-run/read-only commands below unless a human explicitly approves a write boundary.",
     "limitations": [
       "Raw context bodies, credentials, provider URLs, hidden reasoning, and private local paths are omitted."
     ]

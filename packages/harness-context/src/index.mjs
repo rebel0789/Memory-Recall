@@ -899,6 +899,154 @@ function buildOmissions({ excluded, sourceGraph, targetHarness }) {
   };
 }
 
+function coverageRatio(total, covered) {
+  if (!total) return { total: 0, covered: 0, ratio: 0, status: 'not_applicable' };
+  const boundedCovered = Math.max(0, Math.min(total, covered));
+  return {
+    total,
+    covered: boundedCovered,
+    ratio: Number((boundedCovered / total).toFixed(6)),
+    status: boundedCovered === total ? 'covered' : 'partial'
+  };
+}
+
+function stripLineRange(locator) {
+  return String(locator ?? '').replace(/#L[0-9]+-L[0-9]+$/u, '');
+}
+
+function requiredReadItem({ locator, role, required, represented = true, contentHash = null, reasonCodes = [], readHint }) {
+  return {
+    locator,
+    role,
+    required,
+    represented,
+    contentHash,
+    reasonCodes: [...new Set(reasonCodes.filter(Boolean))].sort(),
+    readHint
+  };
+}
+
+function buildContextPackUtility({ selected, sourceGraph, preview }) {
+  const reads = [];
+  const seen = new Set();
+  const addRead = (item) => {
+    const key = `${item.role}:${item.locator}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    reads.push(item);
+  };
+
+  for (const item of selected) {
+    if (!item.locator) continue;
+    addRead(requiredReadItem({
+      locator: item.locator,
+      role: 'selected_context',
+      required: true,
+      contentHash: item.contentHash,
+      reasonCodes: [...item.reasonCodes, 'selected_context'],
+      readHint: item.readHint
+    }));
+  }
+
+  for (const locator of sourceGraph.impact.changedLocators) {
+    const selectedMatch = selected.find((item) => stripLineRange(item.locator) === locator);
+    addRead(requiredReadItem({
+      locator,
+      role: 'changed_locator',
+      required: true,
+      represented: true,
+      contentHash: selectedMatch?.contentHash ?? null,
+      reasonCodes: ['changed_locator_supplied', 'read_before_edit'],
+      readHint: `Read ${locator} from the local workspace before editing or reviewing this changed file.`
+    }));
+  }
+
+  for (const item of sourceGraph.results) {
+    addRead(requiredReadItem({
+      locator: item.locator,
+      role: 'source_graph_hint',
+      required: false,
+      represented: true,
+      contentHash: null,
+      reasonCodes: [...item.reasonCodes, 'source_graph_hint'],
+      readHint: item.readHint
+    }));
+  }
+
+  const requiredLocators = new Set(reads.filter((item) => item.required && item.represented).map((item) => stripLineRange(item.locator)));
+  const changedLocators = sourceGraph.impact.changedLocators;
+  const changedCovered = changedLocators.filter((locator) => requiredLocators.has(stripLineRange(locator))).length;
+  const graphHintIncluded = sourceGraph.results.length;
+  const graphHintTotal = graphHintIncluded + Number(sourceGraph.omittedCount ?? 0);
+  const candidateTokenCount = Number(preview.metrics.candidateTokenCount ?? 0);
+  const selectedTokenCount = Number(preview.metrics.selectedTokenCount ?? 0);
+  const selectedTokenRatio = candidateTokenCount ? Number((selectedTokenCount / candidateTokenCount).toFixed(6)) : 0;
+  const changedCoverage = coverageRatio(changedLocators.length, changedCovered);
+  return {
+    status: changedCoverage.status === 'partial' || reads.filter((item) => item.required).length === 0 ? 'review' : 'ready',
+    requiredLocalReads: reads.slice(0, 64),
+    changedLocatorCoverage: changedCoverage,
+    graphHintCoverage: coverageRatio(graphHintTotal, graphHintIncluded),
+    sourceSelection: {
+      candidateTokenCount,
+      selectedTokenCount,
+      selectedTokenRatio,
+      estimatedReductionRatio: candidateTokenCount ? Number(Math.max(0, 1 - selectedTokenCount / candidateTokenCount).toFixed(6)) : 0
+    },
+    delivery: {
+      representation: 'locator-handoff',
+      sourceContentsIncluded: false
+    }
+  };
+}
+
+function quoteShell(value) {
+  return `'${String(value ?? '').replaceAll("'", `'"'"'`)}'`;
+}
+
+function contextPackSetupClient(targetHarness) {
+  return targetHarness === 'cursor' || targetHarness === 'claude-code' || targetHarness === 'codex' ? targetHarness : 'codex';
+}
+
+function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, selected, sourceGraph }) {
+  const from = quoteShell(sourceHarnesses.join(','));
+  const objectiveArg = quoteShell(objective);
+  const stepArg = quoteShell(step);
+  const selectedFiles = selected
+    .filter((item) => String(item.locator ?? '').startsWith('user-selected://'))
+    .map((item) => ` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u, ''))}`)
+    .join('');
+  const changed = sourceGraph.impact.changedLocators
+    .map((locator) => ` --changed ${quoteShell(locator.replace(/^workspace:\/\//u, ''))}`)
+    .join('');
+  const base = `--from ${from} --root . --objective ${objectiveArg} --step ${stepArg} --target ${targetHarness}${selectedFiles}${changed}`;
+  const setupClient = contextPackSetupClient(targetHarness);
+  return [
+    'npm run doctor',
+    `npm run oaf -- context pack ${base} --dry-run --format markdown`,
+    `npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
+    `npm run oaf -- mcp resources --read-only --context-pack ${base} --uri oaf://workspace/ws_local/context-pack/current --format json`,
+    'npm run ci'
+  ];
+}
+
+function launchPromptForPack({ targetHarness, objective, step, utility, commands }) {
+  return [
+    `Continue this local repository work in ${targetHarness}.`,
+    `Objective: ${objective}`,
+    `Current step: ${step}`,
+    '',
+    'Use the attached Context Pack as a locator handoff. Read the Utility Read Plan first, then read the listed local files from this workspace before editing.',
+    `Changed-file coverage: ${utility.changedLocatorCoverage.covered}/${utility.changedLocatorCoverage.total}`,
+    `Required local reads: ${utility.requiredLocalReads.filter((item) => item.required).length}`,
+    '',
+    'Do not treat this pack as hidden memory or authority. Do not enable external adapters, network writes, publishing, or config writes. Use only the dry-run/read-only commands below unless a human explicitly approves a write boundary.',
+    '',
+    'Verification commands:',
+    ...commands.map((command) => `- ${command}`)
+  ].join('\n');
+}
+
 function harnessInstructions(targetHarness) {
   const shared = [
     'Treat this pack as a locator manifest, not as hidden memory or authority.',
@@ -1157,6 +1305,7 @@ export function renderContextPackMarkdown(pack) {
   const sourceGraphRows = pack.sourceGraph.results.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const changedLocatorRows = pack.sourceGraph.impact.changedLocators.map((locator) => `| ${markdownEscape(locator)} | reviewed_changed_locator |`).join('\n');
   const affectedSymbolRows = pack.sourceGraph.impact.affectedSymbols.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.symbolKind)} | ${markdownEscape(item.name)} | ${item.depth} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const requiredReadRows = pack.utility.requiredLocalReads.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.role)} | ${item.required ? 'yes' : 'no'} | ${item.represented ? 'yes' : 'no'} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const deliveryLines = pack.delivery ? [
     '## Delivery Budget',
     '',
@@ -1191,11 +1340,28 @@ export function renderContextPackMarkdown(pack) {
     '',
     bulletList(pack.handoff.instructions),
     '',
+    '## Launch Prompt',
+    '',
+    '```text',
+    pack.handoff.launchPrompt,
+    '```',
+    '',
     '## Read First',
     '',
     '| Locator | Harness | Tokens | Reasons |',
     '| --- | --- | ---: | --- |',
     selectedRows || '| none | none | 0 | none |',
+    '',
+    '## Utility Read Plan',
+    '',
+    `Status: ${pack.utility.status}`,
+    `Changed locator coverage: ${pack.utility.changedLocatorCoverage.covered}/${pack.utility.changedLocatorCoverage.total} (${Math.round(pack.utility.changedLocatorCoverage.ratio * 100)}%)`,
+    `Graph hint coverage: ${pack.utility.graphHintCoverage.covered}/${pack.utility.graphHintCoverage.total} (${Math.round(pack.utility.graphHintCoverage.ratio * 100)}%)`,
+    `Source selection ratio: ${Math.round(pack.utility.sourceSelection.selectedTokenRatio * 100)}%`,
+    '',
+    '| Locator | Role | Required | Represented | Reasons |',
+    '| --- | --- | --- | --- | --- |',
+    requiredReadRows || '| none | none | no | no | none |',
     '',
     ...deliveryLines,
     '## Excluded',
@@ -1296,6 +1462,15 @@ export async function buildContextPack({
     createdAt: preview.createdAt
   });
   const omissions = buildOmissions({ excluded, sourceGraph, targetHarness: normalizedTarget });
+  const utility = buildContextPackUtility({ selected, sourceGraph, preview });
+  const handoffCommands = contextPackCommands({
+    sourceHarnesses,
+    targetHarness: normalizedTarget,
+    objective,
+    step,
+    selected,
+    sourceGraph
+  });
   const pack = {
     schemaVersion: '1.0.0',
     packVersion: CONTEXT_PACK_VERSION,
@@ -1338,16 +1513,20 @@ export async function buildContextPack({
     omissions,
     memoryPlan: preview.memoryPlan,
     sourceGraph,
+    utility,
     warnings: [...new Set([...packWarnings(preview), ...sourceGraph.warnings])].sort(),
     handoff: {
       title: `${normalizedTarget} context handoff`,
       summary: `Selected ${selected.length} of ${preview.candidates.totalCount} safe workspace context records for ${objective}.`,
       instructions: harnessInstructions(normalizedTarget),
-      commands: [
-        'npm run doctor',
-        `npm run oaf -- context preview --from ${sourceHarnesses.join(',')} --root . --objective "<objective>" --step "<step>" --dry-run`,
-        'npm run ci'
-      ],
+      commands: handoffCommands,
+      launchPrompt: launchPromptForPack({
+        targetHarness: normalizedTarget,
+        objective,
+        step,
+        utility,
+        commands: handoffCommands
+      }),
       limitations: [
         'This pack references local workspace locators and hashes; it does not import harness chat history.',
         'Raw context bodies, credentials, provider URLs, hidden reasoning, and private local paths are omitted.',

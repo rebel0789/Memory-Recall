@@ -284,7 +284,14 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(JSON.stringify(response.body.pack).includes('workspace://.cursor'), false);
   assert(response.body.pack.memoryPlan.items.some((item) => item.locator === 'user-selected://CONTEXT.md'));
   assert.deepEqual(response.body.pack.sourceGraph.impact.changedLocators, ['workspace://apps/web/app.js']);
+  assert.equal(response.body.pack.utility.status, 'ready');
+  assert.deepEqual(response.body.pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
+  assert(response.body.pack.utility.requiredLocalReads.some((item) => item.locator === 'workspace://apps/web/app.js' && item.role === 'changed_locator'));
+  assert(response.body.pack.handoff.launchPrompt.includes('Changed-file coverage: 1/1'));
+  assert(response.body.pack.handoff.commands.some((item) => item.includes("--changed 'apps/web/app.js'")));
   assert.equal(response.body.markdown.includes('## Change Impact'), true);
+  assert.equal(response.body.markdown.includes('## Utility Read Plan'), true);
+  assert.equal(/<objective>|<step>/u.test(response.body.markdown), false);
   assert.equal(response.text.includes('/Users/'), false);
   assert.equal(response.body.pack.safeguards.externalWritesEnabled, false);
   assert.equal(response.body.pack.safeguards.externalAdaptersEnabled, 0);
