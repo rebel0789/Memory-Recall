@@ -91,6 +91,56 @@ test('scans Claude Code and Cursor documented project files', async () => {
   for (const source of report.sources) assertJsonSchema(harnessContextSourceSchema, source, 'harness context source');
 });
 
+test('explicit user-selected context files are proposal-only and locator-safe', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'docs'), { recursive: true });
+  await writeFile(path.join(root, 'docs', 'handoff.md'), 'User selected handoff context for source graph work.');
+
+  const report = await scanHarnessContext({
+    root,
+    harnesses: ['codex'],
+    userSelectedFiles: ['docs/handoff.md'],
+    workspaceId: 'ws_local',
+    clock: fixedClock
+  });
+
+  const selected = report.sources.find((source) => source.provenance.locator === 'user-selected://docs/handoff.md');
+  assert(selected);
+  assert.equal(selected.harness, 'generic-mcp');
+  assert.equal(selected.sourceKind, 'handoff');
+  assert.equal(selected.reviewStatus, 'proposed');
+  assert.equal(selected.retention, 'session');
+  assert.equal(selected.dataClass, 'workspace-private');
+  assertJsonSchema(harnessContextSourceSchema, selected, 'user selected harness context source');
+  assert(!JSON.stringify(report).includes('User selected handoff context'));
+});
+
+test('user-selected context rejects path escapes and local state roots', async () => {
+  const root = await workspace();
+  await assert.rejects(
+    () => scanHarnessContext({ root, harnesses: ['codex'], userSelectedFiles: ['../outside.md'], workspaceId: 'ws_local', clock: fixedClock }),
+    /user_selected_context_path_invalid/
+  );
+  await assert.rejects(
+    () => scanHarnessContext({ root, harnesses: ['codex'], userSelectedFiles: ['docs/../outside.md'], workspaceId: 'ws_local', clock: fixedClock }),
+    /user_selected_context_path_invalid/
+  );
+  await assert.rejects(
+    () => scanHarnessContext({ root, harnesses: ['codex'], userSelectedFiles: ['.local/identity/identity.json'], workspaceId: 'ws_local', clock: fixedClock }),
+    /user_selected_context_path_forbidden/
+  );
+  await assert.rejects(
+    () => scanHarnessContext({
+      root,
+      harnesses: ['codex'],
+      userSelectedFiles: Array.from({ length: 17 }, (_, index) => `docs/file-${index}.md`),
+      workspaceId: 'ws_local',
+      clock: fixedClock
+    }),
+    /user_selected_context_too_many_files/
+  );
+});
+
 test('skips oversized AGENTS.md with a sanitized workspace locator', async () => {
   const root = await workspace();
   await writeFile(path.join(root, 'AGENTS.md'), 'x'.repeat(70_000));

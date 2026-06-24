@@ -544,6 +544,11 @@ components:
         step: { type: string, minLength: 1, maxLength: 256 }
         targetHarness: { enum: [codex, claude-code, claude, cursor, generic] }
         from: { type: string, minLength: 1, maxLength: 80 }
+        userSelectedFiles:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 240 }
         tokenBudget: { type: integer, minimum: 1, maximum: 100000 }
     ContextPackResponse:
       type: object

@@ -218,12 +218,14 @@ test('context pack route is protected and does not mutate run state', async (t) 
       objective: 'prepare handoff',
       step: 'select useful context',
       targetHarness: 'codex',
+      userSelectedFiles: ['CONTEXT.md'],
       tokenBudget: 96
     })
   });
   assert.equal(response.status, 200, response.text);
   assert.equal(response.body.schemaVersion, '1.0.0');
   assert.equal(response.body.pack.targetHarness, 'codex');
+  assert(response.body.pack.memoryPlan.items.some((item) => item.locator === 'user-selected://CONTEXT.md'));
   assert.equal(response.body.pack.safeguards.externalWritesEnabled, false);
   assert.equal(response.body.markdown.includes('# Context Pack'), true);
   assert.equal(api.store.updates, 0);

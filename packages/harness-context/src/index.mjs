@@ -22,8 +22,10 @@ export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
 
 const DEFAULT_MAX_BYTES = 65_536;
+const MAX_USER_SELECTED_FILES = 16;
 const SUPPORTED_HARNESSES = new Set(['codex', 'claude-code', 'cursor']);
 const SUPPORTED_TARGET_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
+const FORBIDDEN_USER_SELECTED_ROOTS = new Set(['.git', '.local', 'node_modules']);
 const CONTROL_BYTES = new Set([...Array.from({ length: 9 }, (_, index) => index), 11, 12, ...Array.from({ length: 18 }, (_, index) => index + 14)]);
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/giu;
 const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)+/gu;
@@ -56,6 +58,11 @@ function toPosix(relativePath) {
 
 function workspaceLocator(relativePath) {
   return `workspace://${toPosix(relativePath)}`;
+}
+
+function sourceLocator(definition) {
+  const scheme = definition.locatorScheme === 'user-selected' ? 'user-selected' : 'workspace';
+  return `${scheme}://${toPosix(definition.relativePath)}`;
 }
 
 function isEscapedRelative(relativePath) {
@@ -93,7 +100,7 @@ function redact(text) {
 
 function summaryFor({ harness, sourceKind, relativePath, redactions }) {
   const counts = `redactions secrets=${redactions.secretCount} local_paths=${redactions.localPathCount}`;
-  return `${harness} ${sourceKind} ${workspaceLocator(relativePath)} ${counts}`.slice(0, 240);
+  return `${harness} ${sourceKind} ${relativePath} ${counts}`.slice(0, 240);
 }
 
 async function cursorRuleDefinitions(root, rootReal) {
@@ -145,15 +152,60 @@ async function sourceDefinitions(root, rootReal, harness) {
   return { definitions, skipped };
 }
 
-function skippedSource(harness, relativePath, reason) {
-  return { harness, locator: workspaceLocator(relativePath), reason };
+function skippedSource(harness, relativePath, reason, locatorScheme = 'workspace') {
+  return {
+    harness,
+    locator: `${locatorScheme === 'user-selected' ? 'user-selected' : 'workspace'}://${toPosix(relativePath)}`,
+    reason
+  };
+}
+
+function normalizeUserSelectedFilePath(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw.length > 240 || raw.includes('\0') || raw.includes('\\')) {
+    throw new Error('user_selected_context_path_invalid');
+  }
+  const withoutScheme = raw.startsWith('user-selected://') ? raw.slice('user-selected://'.length) : raw;
+  const rawParts = withoutScheme.replace(/^\.\//u, '').split('/').filter(Boolean);
+  if (rawParts.some((part) => part === '..')) {
+    throw new Error('user_selected_context_path_invalid');
+  }
+  const normalized = path.posix.normalize(withoutScheme.replace(/^\.\//u, ''));
+  const parts = normalized.split('/').filter(Boolean);
+  if (!parts.length || normalized.startsWith('../') || normalized === '..' || path.posix.isAbsolute(normalized)) {
+    throw new Error('user_selected_context_path_invalid');
+  }
+  if (parts.some((part) => part === '..') || FORBIDDEN_USER_SELECTED_ROOTS.has(parts[0])) {
+    throw new Error('user_selected_context_path_forbidden');
+  }
+  return parts.join('/');
+}
+
+function normalizeUserSelectedFiles(values) {
+  if (values === null || values === undefined || values === '') return [];
+  const list = Array.isArray(values) ? values : String(values).split(',');
+  if (list.length > MAX_USER_SELECTED_FILES) throw new Error('user_selected_context_too_many_files');
+  return [...new Set(list.map(normalizeUserSelectedFilePath))].sort();
+}
+
+function userSelectedDefinitions(userSelectedFiles) {
+  return normalizeUserSelectedFiles(userSelectedFiles).map((relativePath) => ({
+    relativePath,
+    sourceKind: 'handoff',
+    scope: 'workspace',
+    trust: 'user-authored',
+    locatorScheme: 'user-selected',
+    retention: 'session',
+    reviewStatus: 'proposed'
+  }));
 }
 
 async function scanSource({ root, rootReal, harness, definition, workspaceId, maxBytes, createdAt, includeRedactedText = false }) {
   const relativePath = toPosix(definition.relativePath);
+  const locator = sourceLocator(definition);
   const absolutePath = path.resolve(root, definition.relativePath);
   const declaredRelative = path.relative(root, absolutePath);
-  if (isEscapedRelative(declaredRelative)) return { skipped: skippedSource(harness, relativePath, 'symlink_escape') };
+  if (isEscapedRelative(declaredRelative)) return { skipped: skippedSource(harness, relativePath, 'symlink_escape', definition.locatorScheme) };
 
   try {
     await lstat(absolutePath);
@@ -165,18 +217,18 @@ async function scanSource({ root, rootReal, harness, definition, workspaceId, ma
   try {
     realPath = await realpath(absolutePath);
   } catch {
-    return { skipped: skippedSource(harness, relativePath, 'unsupported_file') };
+    return { skipped: skippedSource(harness, relativePath, 'unsupported_file', definition.locatorScheme) };
   }
 
   const realRelative = path.relative(rootReal, realPath);
-  if (isEscapedRelative(realRelative)) return { skipped: skippedSource(harness, relativePath, 'symlink_escape') };
+  if (isEscapedRelative(realRelative)) return { skipped: skippedSource(harness, relativePath, 'symlink_escape', definition.locatorScheme) };
 
   const info = await stat(realPath);
-  if (!info.isFile()) return { skipped: skippedSource(harness, relativePath, 'unsupported_file') };
-  if (info.size > maxBytes) return { skipped: skippedSource(harness, relativePath, 'oversized') };
+  if (!info.isFile()) return { skipped: skippedSource(harness, relativePath, 'unsupported_file', definition.locatorScheme) };
+  if (info.size > maxBytes) return { skipped: skippedSource(harness, relativePath, 'oversized', definition.locatorScheme) };
 
   const bodyBuffer = await readFile(realPath);
-  if (isControlCharacterBuffer(bodyBuffer)) return { skipped: skippedSource(harness, relativePath, 'binary') };
+  if (isControlCharacterBuffer(bodyBuffer)) return { skipped: skippedSource(harness, relativePath, 'binary', definition.locatorScheme) };
 
   const body = bodyBuffer.toString('utf8');
   const redactions = redact(body);
@@ -192,12 +244,12 @@ async function scanSource({ root, rootReal, harness, definition, workspaceId, ma
     trust: definition.trust,
     dataClass: redactions.secretCount > 0 ? 'sensitive' : 'workspace-private',
     provenance: {
-      locator: workspaceLocator(relativePath),
+      locator,
       contentHash,
       byteSize: info.size
     },
-    reviewStatus: 'scan-only',
-    retention: 'workspace',
+    reviewStatus: definition.reviewStatus ?? 'scan-only',
+    retention: definition.retention ?? 'workspace',
     bodyHash,
     summary: summaryFor({ harness, sourceKind: definition.sourceKind, relativePath, redactions }),
     redactions: {
@@ -230,6 +282,7 @@ function selectedHarnesses(harnesses) {
 async function scanHarnessContextInternal({
   root = process.cwd(),
   harnesses = ['codex', 'claude-code', 'cursor'],
+  userSelectedFiles = [],
   workspaceId = 'ws_local',
   maxBytes = DEFAULT_MAX_BYTES,
   clock = () => new Date().toISOString()
@@ -248,6 +301,20 @@ async function scanHarnessContextInternal({
       if (result?.source) accepted.push({ source: result.source, redactedText: result.redactedText ?? null });
       if (result?.skipped) skipped.push(result.skipped);
     }
+  }
+  for (const definition of userSelectedDefinitions(userSelectedFiles)) {
+    const result = await scanSource({
+      root: resolvedRoot,
+      rootReal,
+      harness: 'generic-mcp',
+      definition,
+      workspaceId,
+      maxBytes,
+      createdAt,
+      includeRedactedText
+    });
+    if (result?.source) accepted.push({ source: result.source, redactedText: result.redactedText ?? null });
+    if (result?.skipped) skipped.push(result.skipped);
   }
 
   accepted.sort((left, right) => `${left.source.harness}:${left.source.provenance.locator}`.localeCompare(`${right.source.harness}:${right.source.provenance.locator}`));
@@ -451,6 +518,7 @@ function fingerprintPreview(preview) {
 export async function buildHarnessContextPreview({
   root = process.cwd(),
   harnesses = ['codex', 'claude-code', 'cursor'],
+  userSelectedFiles = [],
   workspaceId = 'ws_local',
   objective,
   step,
@@ -466,6 +534,7 @@ export async function buildHarnessContextPreview({
   const scan = await scanHarnessContextForPreview({
     root,
     harnesses,
+    userSelectedFiles,
     workspaceId,
     maxBytes,
     clock: () => createdAt
@@ -854,6 +923,7 @@ export function renderContextPackMarkdown(pack) {
 export async function buildContextPack({
   root = process.cwd(),
   harnesses = ['codex', 'claude-code', 'cursor'],
+  userSelectedFiles = [],
   workspaceId = 'ws_local',
   targetHarness = 'generic',
   objective,
@@ -866,6 +936,7 @@ export async function buildContextPack({
   const preview = await buildHarnessContextPreview({
     root,
     harnesses,
+    userSelectedFiles,
     workspaceId,
     objective,
     step,

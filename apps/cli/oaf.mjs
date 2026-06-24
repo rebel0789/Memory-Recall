@@ -253,8 +253,9 @@ async function contextPreviewCommand(values) {
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
   const harnesses = normalizeHarnesses(from);
+  const userSelectedFiles = options(values, '--include-file');
   try {
-    const preview = await buildHarnessContextPreview({ root, harnesses, workspaceId, objective, step, tokenBudget });
+    const preview = await buildHarnessContextPreview({ root, harnesses, userSelectedFiles, workspaceId, objective, step, tokenBudget });
     console.log(JSON.stringify(preview, null, 2));
   } catch (error) {
     console.error(error.message);
@@ -292,8 +293,9 @@ async function contextPackCommand(values) {
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
   const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
   const harnesses = normalizeHarnesses(from);
+  const userSelectedFiles = options(values, '--include-file');
   try {
-    const pack = await buildContextPack({ root, harnesses, workspaceId, objective, step, targetHarness, tokenBudget });
+    const pack = await buildContextPack({ root, harnesses, userSelectedFiles, workspaceId, objective, step, targetHarness, tokenBudget });
     const markdown = renderContextPackMarkdown(pack);
     if (write) {
       const out = option(values, '--out') ?? 'context-packs/CONTEXT_PACK.md';
@@ -540,6 +542,14 @@ function option(values, name) {
   return index >= 0 ? values[index + 1] : null;
 }
 
+function options(values, name) {
+  const output = [];
+  for (let index = 0; index < values.length; index += 1) {
+    if (values[index] === name && values[index + 1]) output.push(values[index + 1]);
+  }
+  return output;
+}
+
 function firstPositional(values) {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
@@ -587,5 +597,5 @@ function runNode(nodeArgs) {
 }
 
 function help() {
-  console.log(`Open Agent Fabric CLI\n\nUsage:\n  oaf doctor\n  oaf status\n  oaf task OAF-004\n  oaf demo [objective]\n  oaf serve\n  oaf check\n  oaf eval\n  oaf manifest\n  oaf context --request request.json --records records.json\n  oaf context scan --from codex --root . --dry-run\n  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --dry-run\n  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --dry-run --format markdown\n  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json\n  oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json\n  oaf memory profile --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json\n  oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json\n  oaf version\n\nThe default bootstrap is local-only and enables no external writes.`);
+  console.log(`Open Agent Fabric CLI\n\nUsage:\n  oaf doctor\n  oaf status\n  oaf task OAF-004\n  oaf demo [objective]\n  oaf serve\n  oaf check\n  oaf eval\n  oaf manifest\n  oaf context --request request.json --records records.json\n  oaf context scan --from codex --root . --dry-run\n  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run\n  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --dry-run --format markdown\n  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json\n  oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json\n  oaf memory profile --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json\n  oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json\n  oaf version\n\nThe default bootstrap is local-only and enables no external writes.`);
 }

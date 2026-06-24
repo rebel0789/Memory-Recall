@@ -277,6 +277,7 @@ export function createControlApiServer({
         const pack = await buildContextPack({
           root: path.resolve(here, '../../..'),
           harnesses: normalizeHarnesses(context.body.from ?? 'all'),
+          userSelectedFiles: context.body.userSelectedFiles ?? [],
           workspaceId: context.workspaceId,
           targetHarness: context.body.targetHarness ?? 'generic',
           objective: context.body.objective,

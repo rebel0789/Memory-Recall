@@ -91,3 +91,32 @@ test('context pack fingerprints are deterministic for fixed input', async () => 
   assert.deepEqual(first.readFirst, second.readFirst);
   assert.equal(renderContextPackMarkdown(first), renderContextPackMarkdown(second));
 });
+
+test('context pack can include explicit user-selected files without activating memory', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'notes'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Use deterministic local context pack workflows.');
+  await writeFile(path.join(root, 'notes', 'handoff.md'), 'BridgeContextSpecial selected file for local source graph handoff. USER SELECTED RAW BODY.');
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    userSelectedFiles: ['notes/handoff.md'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Continue BridgeContextSpecial source graph handoff',
+    step: 'select explicit user-selected handoff context',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack with user selected file');
+  assert(pack.readFirst.some((item) => item.locator === 'user-selected://notes/handoff.md' && item.harness === 'generic-mcp'));
+  assert(pack.memoryPlan.items.some((item) => item.locator === 'user-selected://notes/handoff.md' && item.action === 'would_propose'));
+  assert.equal(pack.memoryPlan.activeMemoryCreated, 0);
+  assert.equal(pack.safeguards.activeMemoryCreated, 0);
+  const markdown = renderContextPackMarkdown(pack);
+  assert.match(markdown, /user-selected:\/\/notes\/handoff\.md/);
+  assert(!markdown.includes('USER SELECTED RAW BODY'));
+  assert(!JSON.stringify(pack).includes('USER SELECTED RAW BODY'));
+});

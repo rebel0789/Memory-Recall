@@ -274,6 +274,7 @@ export function createApiRouteContracts(limits = {}) {
       step: boundedString(256),
       targetHarness: { enum: ['codex', 'claude-code', 'claude', 'cursor', 'generic'] },
       from: { type: 'string', minLength: 1, maxLength: 80 },
+      userSelectedFiles: { type: 'array', maxItems: 16, uniqueItems: true, items: boundedString(240) },
       tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 }
     }
   };

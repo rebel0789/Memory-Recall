@@ -36,8 +36,9 @@ identity store is `.local/identity/identity.json`.
 The Context Pack page at <http://127.0.0.1:4310/context-pack> builds a
 schema-validated handoff for the next local agent. It selects safe workspace
 locators from documented Codex, Claude Code, and Cursor project files, adds
-bounded native JS/TS source graph hints, then renders Markdown instructions
-without embedding raw source bodies or code slices.
+bounded native JS/TS source graph hints, optionally includes explicit
+user-selected relative files, then renders Markdown instructions without
+embedding raw source bodies or code slices.
 
 CLI dry run:
 
@@ -48,6 +49,7 @@ npm run oaf -- context pack \
   --objective "Prepare handoff" \
   --step "select next agent context" \
   --target codex \
+  --include-file docs/context.md \
   --dry-run \
   --format markdown
 ```
@@ -68,6 +70,8 @@ npm run oaf -- context pack \
 
 This does not import harness chat history, create active memory, call a model,
 persist a graph database, enable external adapters, or enable external writes.
+Selected files are proposal-only `user-selected://` locators and must stay under
+the workspace root.
 
 ## Source graph preview
 

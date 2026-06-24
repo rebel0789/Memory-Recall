@@ -191,7 +191,7 @@
       "properties": {
         "id": { "type": "string", "minLength": 1, "maxLength": 128 },
         "locator": { "$ref": "#/$defs/locator" },
-        "harness": { "enum": ["codex", "claude-code", "cursor"] },
+        "harness": { "enum": ["codex", "claude-code", "cursor", "generic-mcp"] },
         "sourceKind": { "type": "string", "minLength": 1, "maxLength": 64 },
         "tokens": { "type": "integer", "minimum": 0, "maximum": 200000 },
         "score": { "type": ["number", "null"] },
@@ -218,7 +218,7 @@
             "properties": {
               "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
               "locator": { "$ref": "#/$defs/locator" },
-              "harness": { "enum": ["codex", "claude-code", "cursor"] },
+              "harness": { "enum": ["codex", "claude-code", "cursor", "generic-mcp"] },
               "sourceKind": { "type": "string", "minLength": 1, "maxLength": 64 },
               "action": { "enum": ["would_propose", "would_quarantine"] },
               "reasonCodes": { "$ref": "#/$defs/reasonCodes" }

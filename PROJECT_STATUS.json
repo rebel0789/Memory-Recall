@@ -195,7 +195,7 @@
         "docs/implementation/OAF-031-context-intake-preview-note.md"
       ],
       "limitations": [
-        "Generates schema-validated local handoff reports from documented harness project files plus compact native JS/TS source-graph hints",
+        "Generates schema-validated local handoff reports from documented harness project files, explicit user-selected relative files, and compact native JS/TS source-graph hints",
         "Raw source bodies, prompts, outputs, credentials, provider URLs, private local paths, and hidden reasoning are omitted",
         "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, MCP bridge, persisted graph database, graph candidate-source integration, publishing, or external write",
         "The only write path is explicit CLI output under context-packs/*.md"

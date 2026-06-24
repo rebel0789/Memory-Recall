@@ -493,7 +493,7 @@ function renderContextPack() {
   const pack=contextPackResult?.pack ?? null;
   const markdown=contextPackResult?.markdown ?? '';
   const errorPanel=contextPackError?statePanel('error','Context pack failed',contextPackError,false):'';
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div><label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Local-only dry run</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Documented harness project files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff</dd></div><div><dt>Writes</dt><dd>none from browser</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div><label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Selected files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Local-only dry run</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Harness project files and selected relative files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff</dd></div><div><dt>Writes</dt><dd>none from browser</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
 }
 
 function renderContextPackResult(pack,markdown) {
@@ -513,6 +513,10 @@ function contextPackSourceGraphList(sourceGraph) {
     return `<p class="muted">${esc(label)}</p>`;
   }
   return `<ol class="compact-list locator-list">${results.map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.kind)} · ${esc(item.label)} · ${Number(item.score??0).toFixed(3)}</span></li>`).join('')}</ol>`;
+}
+
+function parseSelectedFiles(value) {
+  return [...new Set(String(value??'').split(/[,\n]/u).map((item)=>item.trim()).filter(Boolean))];
 }
 
 function renderSourceGraph() {
@@ -745,11 +749,12 @@ async function submitContextPack(event){
   const objective=String(data.get('objective') ?? '').trim();
   const step=String(data.get('step') ?? '').trim();
   const tokenBudget=Number(data.get('tokenBudget') ?? 4096);
+  const userSelectedFiles=parseSelectedFiles(data.get('userSelectedFiles'));
   button.disabled=true;
   button.textContent='Building...';
   document.querySelector('#live-status').textContent='Building local context pack.';
   try{
-    contextPackResult=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,objective,step,tokenBudget})});
+    contextPackResult=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,objective,step,tokenBudget,userSelectedFiles})});
     contextPackError=null;
     document.querySelector('#live-status').textContent='Context pack built.';
     render();

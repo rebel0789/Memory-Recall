@@ -285,7 +285,7 @@
         "trustClass": { "enum": ["verified", "trusted", "observed", "untrusted"] },
         "scope": { "enum": ["public", "workspace-private"] },
         "status": { "enum": ["active", "verified", "expired", "retracted", "quarantined", "superseded"] },
-        "source": { "type": "string", "pattern": "^harness-context:workspace://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$" },
+        "source": { "type": "string", "pattern": "^harness-context:(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$" },
         "contentHash": { "$ref": "#/$defs/hash" }
       }
     },
