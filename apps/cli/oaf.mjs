@@ -4,6 +4,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { lstat, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { compileContext } from '../../packages/context-compiler/src/index.mjs';
 import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/evaluation-lab/src/index.mjs';
 import { buildContextPack, buildHarnessContextPreview, buildHarnessSetupReport, renderContextPackMarkdown, scanHarnessContext } from '../../packages/harness-context/src/index.mjs';
@@ -15,7 +16,11 @@ import {
   normalizeMemoryPathsConfig
 } from '../../packages/memory-core/src/index.mjs';
 import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages/protocol-bridges/src/index.mjs';
+import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
+import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
 import { buildSourceGraphPreview } from '../../packages/source-graph/src/index.mjs';
+
+const CLI_PATH = fileURLToPath(import.meta.url);
 
 const [command = 'help', ...args] = process.argv.slice(2);
 const commands = new Map([
@@ -380,12 +385,47 @@ async function mcpCommand(values) {
   const [subcommand, ...rest] = values;
   try {
     if (subcommand === 'resources') return await mcpResourcesCommand(rest);
-    console.error('mcp requires resources');
+    if (subcommand === 'smoke') return await mcpSmokeCommand(rest);
+    console.error('mcp requires resources or smoke');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function mcpSmokeCommand(values) {
+  const [target, ...rest] = values;
+  if (target !== 'context-pack') {
+    console.error('mcp smoke requires context-pack');
+    process.exitCode = 2;
+    return;
+  }
+  if (!rest.includes('--read-only')) {
+    console.error('mcp smoke context-pack requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (rest.includes('--write') || rest.includes('--out') || rest.includes('--stdio')) {
+    console.error('mcp smoke context-pack is read-only and manages its own stdio bridge invocation');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(rest, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('mcp smoke context-pack only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const objective = option(rest, '--objective');
+  const step = option(rest, '--step');
+  if (!objective || !step) {
+    console.error('mcp smoke context-pack requires --objective <text> and --step <text>');
+    process.exitCode = 2;
+    return;
+  }
+  const report = await buildMcpContextPackSmokeReport(rest, { objective, step });
+  console.log(JSON.stringify(report, null, 2));
 }
 
 async function harnessCommand(values) {
@@ -544,6 +584,168 @@ async function buildMcpContextPackResource(values, { root, workspaceId }) {
     pack,
     markdown: renderContextPackMarkdown(pack)
   };
+}
+
+async function buildMcpContextPackSmokeReport(values, { objective, step }) {
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
+  const from = option(values, '--from') ?? 'all';
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
+  const resourceUri = `oaf://workspace/${workspaceId}/context-pack/current`;
+  const childArgs = [
+    CLI_PATH,
+    'mcp',
+    'resources',
+    '--read-only',
+    '--context-pack',
+    '--root',
+    root,
+    '--workspace',
+    workspaceId,
+    '--from',
+    from,
+    '--target',
+    targetHarness,
+    '--objective',
+    objective,
+    '--step',
+    step,
+    '--token-budget',
+    String(tokenBudget),
+    '--format',
+    'json',
+    '--stdio'
+  ];
+  for (const value of options(values, '--include-file')) childArgs.push('--include-file', value);
+  for (const value of options(values, '--changed')) childArgs.push('--changed', value);
+  for (const value of options(values, '--changed-locator')) childArgs.push('--changed-locator', value);
+
+  const messages = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize' },
+    { jsonrpc: '2.0', id: 2, method: 'resources/list' },
+    { jsonrpc: '2.0', id: 3, method: 'tools/list' },
+    { jsonrpc: '2.0', id: 4, method: 'resources/read', params: { uri: resourceUri } }
+  ];
+  const started = process.hrtime.bigint();
+  const child = await runCliStdio(childArgs, messages.map((message) => JSON.stringify(message)).join('\n'));
+  const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
+  if (child.code !== 0) {
+    throw new Error(`mcp context-pack smoke bridge failed with status ${child.code}`);
+  }
+  const responses = child.stdout.trim().split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
+  const errors = responses.filter((response) => response.error);
+  if (errors.length) {
+    const code = errors[0].error?.data?.code ?? 'jsonrpc_error';
+    throw new Error(`mcp context-pack smoke JSON-RPC failed: ${code}`);
+  }
+  const listed = responses.find((response) => response.id === 2)?.result?.resources ?? [];
+  const tools = responses.find((response) => response.id === 3)?.result?.tools ?? [];
+  const read = responses.find((response) => response.id === 4)?.result?.contents?.[0];
+  if (!read?.text) throw new Error('mcp context-pack smoke did not return a resource body');
+  const payload = JSON.parse(read.text);
+  const candidateUnitCount = Number(payload.data?.preview?.candidateUnitCount ?? 0);
+  const selectedUnitCount = Number(payload.data?.preview?.selectedUnitCount ?? 0);
+  const selectedUnitRatio = Number(payload.data?.preview?.selectedUnitRatio ?? 0);
+  const observedReductionRatio = candidateUnitCount > 0 ? Number(Math.max(0, 1 - selectedUnitCount / candidateUnitCount).toFixed(6)) : 0;
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'mcp smoke context-pack',
+    generatedAt: fixedNow(),
+    workspaceId,
+    transport: 'stdio',
+    resourceUri,
+    targetHarness,
+    measurementScope: 'single local stdio invocation',
+    request: {
+      objectiveFingerprint: fingerprintJson(objective),
+      objectiveLength: objective.length,
+      stepFingerprint: fingerprintJson(step),
+      stepLength: step.length,
+      userSelectedLocatorCount: options(values, '--include-file').length,
+      changedLocatorCount: [...options(values, '--changed'), ...options(values, '--changed-locator')].length,
+      unitBudget: tokenBudget
+    },
+    bridge: {
+      invocation: 'oaf mcp resources --read-only --context-pack --stdio',
+      jsonRpcMessageCount: messages.length,
+      responseCount: responses.length,
+      resourcesListed: listed.length,
+      toolsExposed: tools.length
+    },
+    resource: {
+      resourceKind: payload.resourceKind,
+      resourceFingerprint: payload.resourceFingerprint,
+      contextPackFingerprint: payload.data?.contextPackFingerprint ?? null,
+      markdownArtifactHash: payload.data?.markdownArtifact?.contentHash ?? null,
+      readFirstCount: Number(payload.data?.preview?.selectedCount ?? 0),
+      omittedRefCount: Number(payload.data?.omissions?.excludedCount ?? 0),
+      changedLocatorCount: Number(payload.data?.sourceGraph?.impact?.changedLocators?.length ?? 0),
+      affectedSymbolCount: Number(payload.data?.sourceGraph?.impact?.affectedSymbolCount ?? 0),
+      readFirstLocators: (payload.data?.readFirst ?? []).map((item) => item.locator).filter(Boolean).slice(0, 8),
+      changedLocators: (payload.data?.sourceGraph?.impact?.changedLocators ?? []).slice(0, 16)
+    },
+    measurements: {
+      durationMs,
+      stdoutByteSize: Buffer.byteLength(child.stdout, 'utf8'),
+      stderrByteSize: Buffer.byteLength(child.stderr, 'utf8'),
+      resourceByteSize: Buffer.byteLength(read.text, 'utf8'),
+      candidateUnitCount,
+      selectedUnitCount,
+      selectedUnitRatio,
+      observedReductionRatio
+    },
+    checks: {
+      initialized: true,
+      resourceListed: listed.some((resource) => resource.uri === resourceUri),
+      resourceRead: payload.resourceKind === 'context-pack-summary',
+      noToolsExposed: tools.length === 0,
+      noMarkdownBody: payload.data?.markdownArtifact?.included === false
+    },
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      privateBodiesIncluded: false,
+      objectiveTextIncluded: false,
+      stepTextIncluded: false,
+      markdownBodyIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    },
+    reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.reportFingerprint = fingerprintJson({ ...report, reportFingerprint: null });
+  assertJsonSchema(mcpContextPackSmokeSchema, report, 'mcp context-pack smoke report');
+  return report;
+}
+
+function runCliStdio(nodeArgs, input) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, nodeArgs, {
+      cwd: process.cwd(),
+      env: process.env,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    const stdout = [];
+    const stderr = [];
+    child.stdout.on('data', (chunk) => stdout.push(Buffer.from(chunk)));
+    child.stderr.on('data', (chunk) => stderr.push(Buffer.from(chunk)));
+    child.on('error', reject);
+    child.on('close', (code) => {
+      resolve({
+        code: code ?? 1,
+        stdout: Buffer.concat(stdout).toString('utf8'),
+        stderr: Buffer.concat(stderr).toString('utf8')
+      });
+    });
+    child.stdin.end(input);
+  });
 }
 
 async function mcpResourcesStdio({ resources, trustedContext }) {
@@ -785,6 +987,10 @@ function fixedNow() {
   return process.env.OAF_FIXED_NOW ?? new Date().toISOString();
 }
 
+function fingerprintJson(value) {
+  return `sha256:${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
+}
+
 function normalizeHarnesses(value) {
   const aliases = new Map([['claude', 'claude-code']]);
   return value.split(',').map((item) => aliases.get(item.trim()) ?? item.trim()).filter(Boolean);
@@ -873,6 +1079,7 @@ Usage:
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
   oaf mcp resources --read-only --workspace ws_local --format json
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --uri oaf://workspace/ws_local/context-pack/current --format json
+  oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp resources --read-only --stdio
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json

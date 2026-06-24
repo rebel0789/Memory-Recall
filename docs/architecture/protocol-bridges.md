@@ -41,6 +41,12 @@ It intentionally omits raw objective text, raw step text, markdown bodies,
 source bodies, credentials, provider URLs, absolute local paths, model calls,
 network calls, memory activation, external adapters, and write tools.
 
+`npm run oaf -- mcp smoke context-pack --read-only ...` proves the same path by
+launching the local stdio composition, sending JSON-RPC `resources/list`,
+`tools/list`, and `resources/read` messages, and returning a schema-validated
+local measurement report. The report records observed duration and byte counts
+for that one invocation only; it is not a hosted benchmark or performance claim.
+
 ## Authority
 
 The bridge rejects caller-supplied authority fields such as role, owner,

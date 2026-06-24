@@ -185,9 +185,12 @@
         "packages/source-graph/src/index.mjs",
         "packages/protocol/schemas/context-pack.schema.json",
         "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+        "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
         "examples/protocol/context-pack.json",
         "examples/protocol/mcp-readonly-context-pack-resource.json",
+        "examples/protocol/mcp-context-pack-smoke.json",
         "examples/protocol/compatibility/invalid/context-pack-raw-body.json",
+        "examples/protocol/compatibility/invalid/mcp-context-pack-smoke-raw-body.json",
         "apps/cli/oaf.mjs",
         "apps/web/app.js",
         "services/control-api/src/server.mjs",
@@ -202,6 +205,7 @@
         "Generates schema-validated local handoff reports from documented harness project files, explicit user-selected relative files, and compact native JS/TS source-graph hints",
         "Omission refs expose skipped context through safe locators, hashes, token costs, reason codes, and recovery hints without embedding raw bodies",
         "Opt-in read-only MCP context-pack summary resource exposes locators, fingerprints, omission counts, token counts, and changed-file impact without raw objective text, raw step text, markdown bodies, or source bodies",
+        "Local MCP context-pack smoke report proves the stdio resources/list, tools/list, and resources/read path with observed one-run duration, byte sizes, and selected/candidate unit counts",
         "Raw source bodies, prompts, outputs, credentials, provider URLs, private local paths, and hidden reasoning are omitted",
         "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, persisted graph database, graph candidate-source integration, publishing, or external write",
         "The only write path is explicit CLI output under context-packs/*.md"
@@ -663,9 +667,11 @@
         "packages/protocol-bridges/src/index.mjs",
         "packages/protocol/schemas/mcp-bridge-request.schema.json",
         "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+        "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
         "examples/protocol/mcp-bridge-request.json",
         "examples/protocol/mcp-readonly-resource.json",
         "examples/protocol/mcp-readonly-context-pack-resource.json",
+        "examples/protocol/mcp-context-pack-smoke.json",
         "apps/cli/oaf.mjs",
         "tests/protocol-bridges.test.mjs",
         "tests/cli.test.mjs",
@@ -675,6 +681,7 @@
       "limitations": [
         "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio composition; no HTTP, SSE, hosted bridge, or network listener is started",
         "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, and opt-in current context packs; they do not expose write tools, source bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
+        "MCP context-pack smoke reports are observed local single-invocation measurements only; they are not production latency benchmarks or external tool comparisons",
         "Requires OAF trusted context and server-side exact grants; remote protocol clients do not inherit local authority",
         "A2A, AG-UI, ACP, and CCCC remain pending until accepted use-case RFCs exist"
       ]

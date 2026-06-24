@@ -728,6 +728,12 @@
       "expectedValid": true
     },
     {
+      "id": "mcp-context-pack-smoke-current-valid",
+      "schema": "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
+      "instance": "examples/protocol/mcp-context-pack-smoke.json",
+      "expectedValid": true
+    },
+    {
       "id": "benchmark-dataset-current-valid",
       "schema": "packages/protocol/schemas/benchmark-dataset.schema.json",
       "instance": "examples/protocol/benchmark-dataset.json",
@@ -821,6 +827,12 @@
       "id": "mcp-bridge-request-grant-token-invalid",
       "schema": "packages/protocol/schemas/mcp-bridge-request.schema.json",
       "instance": "examples/protocol/compatibility/invalid/mcp-bridge-request-grant-token.json",
+      "expectedValid": false
+    },
+    {
+      "id": "mcp-context-pack-smoke-raw-body-invalid",
+      "schema": "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/mcp-context-pack-smoke-raw-body.json",
       "expectedValid": false
     }
   ]

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "mcp smoke context-pack",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "workspaceId": "ws_local",
+  "transport": "stdio",
+  "resourceUri": "oaf://workspace/ws_local/context-pack/current",
+  "targetHarness": "codex",
+  "measurementScope": "single local stdio invocation",
+  "request": {
+    "objectiveFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "objectiveLength": 42,
+    "stepFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "stepLength": 24,
+    "userSelectedLocatorCount": 1,
+    "changedLocatorCount": 1,
+    "unitBudget": 4096
+  },
+  "bridge": {
+    "invocation": "oaf mcp resources --read-only --context-pack --stdio",
+    "jsonRpcMessageCount": 4,
+    "responseCount": 4,
+    "resourcesListed": 6,
+    "toolsExposed": 0
+  },
+  "resource": {
+    "resourceKind": "context-pack-summary",
+    "resourceFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "markdownArtifactHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "readFirstCount": 2,
+    "omittedRefCount": 1,
+    "changedLocatorCount": 1,
+    "affectedSymbolCount": 1,
+    "readFirstLocators": ["workspace://AGENTS.md", "user-selected://notes/handoff.md"],
+    "changedLocators": ["workspace://src/auth.ts"]
+  },
+  "measurements": {
+    "durationMs": 18,
+    "stdoutByteSize": 8192,
+    "stderrByteSize": 0,
+    "resourceByteSize": 4096,
+    "candidateUnitCount": 200,
+    "selectedUnitCount": 80,
+    "selectedUnitRatio": 0.4,
+    "observedReductionRatio": 0.6
+  },
+  "checks": {
+    "initialized": true,
+    "resourceListed": true,
+    "resourceRead": true,
+    "noToolsExposed": true,
+    "noMarkdownBody": true
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "privateBodiesIncluded": false,
+    "objectiveTextIncluded": false,
+    "stepTextIncluded": false,
+    "markdownBodyIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false
+  },
+  "reportFingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+}

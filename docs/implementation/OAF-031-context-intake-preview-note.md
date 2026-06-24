@@ -72,6 +72,13 @@ slice.
   changed-file impact; it does not include raw objective text, raw step text,
   markdown bodies, source bodies, private local paths, active memory, model
   calls, network calls, external adapters, or write tools.
+- `npm run oaf -- mcp smoke context-pack --read-only --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
+  launches the same read-only stdio MCP resource bridge, reads
+  `oaf://workspace/ws_local/context-pack/current`, asserts `tools/list` returns
+  no tools, and returns an observed local measurement report with duration,
+  response size, resource size, and selected/candidate unit counts. These
+  measurements describe one local invocation only and are not production latency
+  or external benchmark claims.
 - The native SQLite memory provider now preserves memory-core lifecycle and
   review fields and includes a local proposal queue with idempotent
   fingerprints, leases, retries, and poison/error records.

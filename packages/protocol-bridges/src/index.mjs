@@ -17,7 +17,7 @@ const JSONRPC = '2.0';
 const AUTHORITY_KEYS = /(^|\.)(trustedContext|principal|membership|role|owner|isOwner|grant|grantToken|token|authorization|cookie|externalWritesEnabled)($|\.)/i;
 const PRIVATE_KEYS = /(^|\.)(raw|prompt|body|output|secret|token|cookie|authorization|localPath|providerUrl|hiddenReasoning|sql)/i;
 const MAX_RESULT_BYTES = 8192;
-const MAX_CONTEXT_PACK_ITEMS = 8;
+const MAX_CONTEXT_PACK_ITEMS = 2;
 
 function hash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -544,7 +544,7 @@ function jsonResource(uri, name, description, readPayload) {
     mimeType: 'application/json',
     read: async () => {
       const payload = readPayload();
-      return [{ uri, mimeType: 'application/json', text: JSON.stringify(payload, null, 2) }];
+      return [{ uri, mimeType: 'application/json', text: JSON.stringify(payload) }];
     }
   };
 }

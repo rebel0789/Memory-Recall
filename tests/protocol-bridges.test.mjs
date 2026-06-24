@@ -514,6 +514,7 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
   assert.equal(payload.safeguards.networkCalls, 0);
   assert.equal(payload.safeguards.modelCalls, 0);
   const text = JSON.stringify(payload);
+  assert(Buffer.byteLength(JSON.stringify(first.result), 'utf8') <= 8192);
   assert.equal(text.includes('Private MCP objective text'), false);
   assert.equal(text.includes('Private MCP step text'), false);
   assert.equal(text.includes('RAW_MARKDOWN_SENTINEL'), false);
@@ -522,4 +523,83 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
   assert.equal(text.includes('/Users/rebel'), false);
   assert.equal(text.includes('.local/state.json'), false);
   assert.equal(JSON.stringify(state), before);
+});
+
+test('OAF read-only MCP context-pack resource stays bounded for larger sanitized packs', async () => {
+  const fixture = contextPackFixture();
+  const hash = `sha256:${'b'.repeat(64)}`;
+  fixture.pack.readFirst = Array.from({ length: 12 }, (_, index) => ({
+    id: `ctx_large_${index}`,
+    locator: `workspace://src/module-${index}/handoff-target.ts#L1-L2`,
+    harness: 'codex',
+    sourceKind: 'source-graph',
+    tokens: 24 + index,
+    contentHash: hash,
+    reasonCodes: ['source_graph_match', 'token_budget_fit', 'changed_locator_impact']
+  }));
+  fixture.pack.excluded = Array.from({ length: 12 }, (_, index) => ({
+    id: `ctx_large_excluded_${index}`,
+    locator: `workspace://docs/archive-${index}/legacy-context.md`,
+    harness: 'codex',
+    sourceKind: 'document',
+    tokens: 80 + index,
+    contentHash: hash,
+    reasonCodes: ['lower_ranked', 'budget_overflow', 'stale_context']
+  }));
+  fixture.pack.omissions.refs = Array.from({ length: 12 }, (_, index) => ({
+    id: `omit_large_${index}`,
+    locator: `workspace://docs/omitted-${index}/legacy-context.md`,
+    harness: 'codex',
+    sourceKind: 'document',
+    tokens: 80 + index,
+    contentHash: hash,
+    reasonCodes: ['lower_ranked', 'budget_overflow', 'stale_context']
+  }));
+  fixture.pack.memoryPlan.items = Array.from({ length: 12 }, (_, index) => ({
+    sourceId: `ctx_large_${index}`,
+    locator: `workspace://src/module-${index}/handoff-target.ts#L1-L2`,
+    harness: 'codex',
+    sourceKind: 'source-graph',
+    action: 'would_propose',
+    reasonCodes: ['explicit_user_file', 'proposal_only']
+  }));
+  fixture.pack.sourceGraph.results = Array.from({ length: 12 }, (_, index) => ({
+    resultType: 'node',
+    kind: 'symbol',
+    label: `handoffTarget${index}`,
+    locator: `workspace://src/module-${index}/handoff-target.ts#L1-L2`,
+    score: 0.9,
+    reasonCodes: ['query_match', 'changed_locator_impact']
+  }));
+  fixture.pack.sourceGraph.impact.affectedSymbols = Array.from({ length: 12 }, (_, index) => ({
+    name: `handoffTarget${index}`,
+    symbolKind: 'function',
+    locator: `workspace://src/module-${index}/handoff-target.ts#L1-L2`,
+    depth: index % 3,
+    reasonCodes: ['changed_locator_impact']
+  }));
+  fixture.pack.preview.selectedCount = 12;
+  fixture.pack.preview.excludedCount = 12;
+  fixture.pack.omissions.excludedCount = 12;
+  fixture.pack.omissions.sourceGraphOmittedCount = 8;
+  fixture.pack.sourceGraph.resultCount = 12;
+  fixture.pack.sourceGraph.impact.affectedSymbolCount = 12;
+
+  const resources = buildOafReadOnlyResourceCatalog({
+    state: oafState(),
+    currentContextPack: fixture,
+    workspaceId: 'ws_mcp',
+    generatedAt: '2026-06-24T00:00:00.000Z'
+  });
+  const bridge = createMcpBridge({ trustedContext, resources });
+  const read = await bridge.handle({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context-pack/current' } });
+  assert.equal(read.error, undefined);
+  assert(Buffer.byteLength(JSON.stringify(read.result), 'utf8') <= 8192);
+  const payload = JSON.parse(read.result.contents[0].text);
+  assert.equal(payload.data.readFirst.length, 2);
+  assert.equal(payload.data.sourceGraph.results.length, 2);
+  assert.equal(payload.data.sourceGraph.impact.affectedSymbols.length, 2);
+  assert.equal(payload.data.truncated.readFirst, true);
+  assert.equal(payload.data.truncated.sourceGraphResults, true);
+  assert.equal(payload.data.truncated.affectedSymbols, true);
 });

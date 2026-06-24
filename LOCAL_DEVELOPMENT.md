@@ -114,13 +114,21 @@ npm run oaf -- mcp resources --read-only \
   --changed apps/cli/oaf.mjs \
   --uri oaf://workspace/ws_local/context-pack/current \
   --format json
+npm run oaf -- mcp smoke context-pack --read-only \
+  --objective "Continue safely" \
+  --step "handoff current context" \
+  --target codex \
+  --changed apps/cli/oaf.mjs \
+  --format json
 ```
 
 For MCP-compatible stdio clients, pipe JSON-RPC messages into the local
 composition. The optional context-pack resource is summary-only: it includes
 locators, fingerprints, counts, omissions, and changed-file impact, but not raw
 objective text, raw step text, source bodies, markdown bodies, credentials, or
-local absolute paths.
+local absolute paths. The smoke command invokes that same stdio path and reports
+observed local duration, response size, resource size, and selected/candidate
+unit counts for the single run; it is not a production latency benchmark.
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"resources/list"}' | \
