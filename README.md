@@ -77,13 +77,14 @@ Open <http://127.0.0.1:4310>.
 First practical path: open **Context Pack**, keep the target as Codex or choose
 your local harness, click **Preview sources**, use **Detect git changes** or add
 changed files manually, build the pack, check **First-use readiness** and the
-**Impact brief** and **Utility read plan**, then use **Copy markdown**, **Copy
-impact command**, or **Test local handoff** for a single read-only CLI/MCP
-preflight before handing work to the next local coding-agent session. Fabric Map
-and Agents & Tools show the same current handoff status without installing
-anything. This is a dry-run locator handoff with read-only MCP proof; it does
-not import harness history, create active memory, write harness config, or
-enable external adapters.
+top-level **Use this pack** brief, then use **Copy markdown**, **Copy impact
+command**, or **Test local handoff** for a single read-only CLI/MCP preflight
+before handing work to the next local coding-agent session. The brief shows
+changed-file coverage, required reads, hash proof, affected symbols, and proof
+commands without source bodies. Fabric Map and Agents & Tools show the same
+current handoff status without installing anything. This is a dry-run locator
+handoff with read-only MCP proof; it does not import harness history, create
+active memory, write harness config, or enable external adapters.
 
 For a single CLI preflight before handing work to Codex:
 

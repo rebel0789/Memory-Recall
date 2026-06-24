@@ -118,6 +118,15 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .context-value-ledger strong{display:block;font-size:24px;line-height:1}
 .context-value-ledger span{display:block;margin-top:var(--space-6,6px);font-weight:760}
 .context-value-ledger small{display:block;color:var(--slate);margin-top:2px;overflow-wrap:anywhere}
+.handoff-brief{display:grid;gap:var(--space-12);margin-bottom:var(--space-16)}
+.handoff-brief-head{display:flex;align-items:end;justify-content:space-between;gap:var(--space-16);border-bottom:1px solid var(--border);padding-bottom:var(--space-12)}
+.handoff-brief-head h2{margin:0;font-size:22px;line-height:1.15}
+.handoff-brief-head span{color:var(--slate);overflow-wrap:anywhere;text-align:right}
+.handoff-brief-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-12)}
+.handoff-brief-grid article{border:1px solid var(--border);border-radius:var(--radius-card);background:var(--surface-2);padding:var(--space-14,14px);min-width:0}
+.handoff-brief-grid h3{margin:0 0 var(--space-8);font-size:12px;color:var(--slate);text-transform:uppercase;letter-spacing:.08em}
+.handoff-brief .command-list{gap:var(--space-6,6px)}
+.handoff-brief .command-list li{padding:var(--space-8);background:var(--surface-3)}
 .artifact-actions{display:flex;flex-wrap:wrap;gap:var(--space-8);margin-bottom:var(--space-12)}
 .context-pack-metrics{margin-top:var(--space-8)}
 .pack-output{width:100%;min-height:420px;border:1px solid var(--border);border-radius:var(--radius-panel);background:var(--surface-2);color:var(--paper);padding:var(--space-16);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;resize:vertical}
@@ -263,6 +272,7 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .run-detail{grid-template-columns:1fr}
   .metric-strip{grid-template-columns:repeat(2,1fr)}
   .context-value-ledger{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .handoff-brief-grid{grid-template-columns:1fr}
   .facts-wide{grid-template-columns:1fr}
   .fabric-hero,.fabric-layout{grid-template-columns:1fr}
   .primary-flow{grid-template-columns:1fr}
@@ -283,6 +293,8 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .top-actions .button{flex:1}
   .metric-strip{grid-template-columns:1fr 1fr}
   .context-value-ledger{grid-template-columns:1fr}
+  .handoff-brief-head{display:grid}
+  .handoff-brief-head span{text-align:left}
   .token-grid{grid-template-columns:1fr 1fr}
   .outline li{grid-template-columns:32px 1fr}
   .outline em{grid-column:2}

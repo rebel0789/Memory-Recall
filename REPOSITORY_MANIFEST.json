@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T21:02:54.380Z",
+  "generatedAt": "2026-06-24T21:10:15.067Z",
   "fileCount": 804,
-  "totalBytes": 3882955,
+  "totalBytes": 3886918,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -582,8 +582,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 145522,
-      "sha256": "c9ade923c307de3801d5ba933362743bf48b1734e9890e02db5df1058be3a97b"
+      "bytes": 147432,
+      "sha256": "43f22ab76dfaaafc7872b084b466deaa34d79fe3d0ffb7b66a6cea7543fab310"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -597,8 +597,8 @@
     },
     {
       "path": "apps/web/styles.css",
-      "bytes": 26111,
-      "sha256": "c0af475f539e7e09758c964ab6a7d66de8e70e5eed23c7e5d1584508161bec6d"
+      "bytes": 27167,
+      "sha256": "f0267ed01e4004cad575e4b9b4f2d99c1dc38436e069269c2b89feca978be245"
     },
     {
       "path": "apps/web/tokens.css",
@@ -1042,8 +1042,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 18121,
-      "sha256": "7ebe54de5992ee4bdcc53cd4e0d765b12df6aec19061da5ceb589942473d8869"
+      "bytes": 18686,
+      "sha256": "bd2d32a64f0b88087a89f15fdccbd955d109cb5b4a8e157839e11c7400b72d4f"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -2198,7 +2198,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "5217ec608bc4df55dc4138d9c49d0924be64488efe91f77dbcb601f20b170aad"
+      "sha256": "e2f7969e383ab0155c884459cec354c15a5b6ddd5f50674005ff782c9e96e585"
     },
     {
       "path": "LICENSE",
@@ -2207,8 +2207,8 @@
     },
     {
       "path": "LOCAL_DEVELOPMENT.md",
-      "bytes": 10799,
-      "sha256": "79eb63f134e3033841f73d78e9681dccd7f9967a3b11e4a6b1ecbc95fd560ade"
+      "bytes": 10820,
+      "sha256": "5bea34c8a130bd4bb1f50a5e7ec96f8c7df5b59277710652b2f7b93d059fdb40"
     },
     {
       "path": "MAINTAINERS.md",
@@ -3397,8 +3397,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 11559,
-      "sha256": "1b42baa5870204a8f3993c962173094575a03d582d57b1b3041ad371e061da5e"
+      "bytes": 11677,
+      "sha256": "617a1b4af9ff6915060a140a3d6545908c03ce400182bd71b7b68eb9142c5f93"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3927,8 +3927,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 40018,
-      "sha256": "eaf91d85a44aac909ee00ce4eb64375f78177f857d48e35989ac9535a521bafc"
+      "bytes": 40311,
+      "sha256": "c23d53c5ef75620fca052061d701d6caaa2b970b8d7c66fe5c1d8b2b8fd7c97a"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

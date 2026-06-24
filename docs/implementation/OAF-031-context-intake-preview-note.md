@@ -182,6 +182,14 @@ slice.
   local request time, raw-body exclusion, model-call count, and external-write
   state. These are local pack-building signals, not provider billing-token or
   hosted latency claims.
+- The browser also renders a top-level **Use this pack** brief above the raw
+  Markdown output. It brings changed-file coverage, affected symbols, required
+  local reads, hash proof, impacted symbols, and read-only proof commands into
+  the first result screen so a user can hand work to a local agent without
+  searching through the inspector. The brief is derived from existing
+  schema-validated pack fields and still omits raw source bodies, markdown
+  bodies, absolute local paths, model calls, network calls, graph databases,
+  adapters, and external writes.
 - The Control API also reads each freshly built pack through the in-process
   read-only MCP bridge before returning it to the browser. The returned readback
   proof records the resource fingerprint, context-pack fingerprint match,

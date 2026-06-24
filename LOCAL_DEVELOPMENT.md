@@ -70,12 +70,13 @@ config, network, model, adapter, or external-write side effects. The browser
 path does not write files on the server; use the explicit CLI write mode below
 when you want a checked workspace file.
 
-The result inspector starts with an **Impact brief**: changed-file coverage,
-affected symbols, required local reads, hash proof, graph hints, source
-selection reduction, and the exact read-only command to reproduce the report.
-It contains locators, hashes, counts, statuses, and fingerprints only; it does
-not include raw source bodies, diff hunks, prompt text, markdown bodies, local
-absolute paths, model calls, network calls, graph databases, or adapters.
+The result starts with a **Use this pack** brief before the raw Markdown:
+changed-file coverage, affected symbols, required local reads, hash proof,
+graph hints, source selection reduction, and the exact read-only commands to
+reproduce the report. It contains locators, hashes, counts, statuses, and
+fingerprints only; it does not include raw source bodies, diff hunks, prompt
+text, markdown bodies, local absolute paths, model calls, network calls, graph
+databases, or adapters.
 
 CLI dry run:
 

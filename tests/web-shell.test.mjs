@@ -94,6 +94,10 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/name="changedLocator" value="apps\/web\/app\.js"/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
+  assert.match(app,/Handoff operator brief/);
+  assert.match(app,/Use this pack/);
+  assert.match(app,/Changed files, reads, and proof commands are ready/);
+  assert.match(app,/Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief/);
   assert.match(app,/Utility read plan/);
   assert.match(app,/Hash verified/);
   assert.match(app,/Observed build time/);
