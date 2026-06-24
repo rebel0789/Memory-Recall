@@ -814,19 +814,20 @@ function renderContextPack() {
   const pack=contextPackResult?.pack ?? null;
   const markdown=contextPackResult?.markdown ?? '';
   const errorPanel=contextPackError?statePanel('error','Context pack failed',contextPackError,false):'';
-  return `<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Describe the job</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div><label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs"></textarea></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Harness project files, explicit relative files, and user-named changed files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy, download, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+  return `<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Choose sources</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs"></textarea></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, and user-named changed files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy, download, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
 }
 
 function renderContextPackResult(pack,markdown) {
   const model=buildContextPackUiModel(pack,markdown);
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
-  return `<section class="context-value-ledger" aria-label="Context pack value ledger">${ledgerItem(model.selectedLocators,'Selected','Read first locators')}${ledgerItem(model.omittedRefs,'Omitted',`${model.excludedTokens} excluded tokens`)}${ledgerItem(model.deliveredTokenRatio,'Delivery','Handoff / candidates')}${ledgerItem(model.affectedSymbols,'Affected','Symbols from changed files')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack value ledger">${ledgerItem(model.selectedLocators,'Selected','Read first locators')}${ledgerItem(model.omittedRefs,'Omitted',`${model.excludedTokens} excluded tokens`)}${ledgerItem(model.deliveredTokenRatio,'Delivery','Handoff / candidates')}${ledgerItem(model.affectedSymbols,'Affected','Symbols from changed files')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 export function buildContextPackUiModel(pack,markdown='') {
   const candidateTokens=Number(pack?.preview?.candidateTokenCount ?? 0);
   const selectedTokens=Number(pack?.preview?.selectedTokenCount ?? 0);
   const deliveredTokens=Number(pack?.delivery?.deliveredTokenCount ?? 0);
+  const sourceFamilies=contextPackSourceFamilies(pack);
   const estimatedReductionPercent=candidateTokens > 0
     ? Math.max(0,Math.min(100,Math.round((1 - selectedTokens / candidateTokens) * 100)))
     : 0;
@@ -835,6 +836,8 @@ export function buildContextPackUiModel(pack,markdown='') {
     : 0;
   return {
     targetHarness:String(pack?.targetHarness ?? 'generic'),
+    sourceFamilies,
+    sourceFamilyLabel:sourceFamilies.join(', '),
     markdownBytes:new Blob([String(markdown)]).size,
     selectedLocators:Array.isArray(pack?.readFirst) ? pack.readFirst.length : 0,
     omittedRefs:Number(pack?.omissions?.excludedCount ?? 0),
@@ -853,7 +856,28 @@ export function buildContextPackUiModel(pack,markdown='') {
     changedLocators:Array.isArray(pack?.sourceGraph?.impact?.changedLocators) ? pack.sourceGraph.impact.changedLocators.length : 0,
     affectedSymbols:Number(pack?.sourceGraph?.impact?.affectedSymbolCount ?? 0),
     setupClient:contextPackSetupClient(pack),
+    intakeReview:buildContextPackIntakeReview(pack),
     commands:contextPackHarnessCommands(pack)
+  };
+}
+
+function contextPackSourceFamilies(pack) {
+  const values=Array.isArray(pack?.sourceHarnesses) ? pack.sourceHarnesses : [];
+  const allowed=new Set(CONTEXT_PACK_SOURCE_FAMILIES.map(([id])=>id));
+  const selected=values.map(String).filter((value)=>allowed.has(value));
+  return selected.length ? [...new Set(selected)] : ['codex'];
+}
+
+function buildContextPackIntakeReview(pack) {
+  const memoryPlan=pack?.memoryPlan ?? {};
+  const items=Array.isArray(memoryPlan.items) ? memoryPlan.items : [];
+  return {
+    acceptedCount:Array.isArray(pack?.readFirst) ? pack.readFirst.length : 0,
+    excludedCount:Array.isArray(pack?.excluded) ? pack.excluded.length : Number(pack?.omissions?.excludedCount ?? 0),
+    omittedCount:Number(pack?.omissions?.excludedCount ?? 0),
+    proposedCount:Number.isInteger(memoryPlan.proposedCount) ? memoryPlan.proposedCount : items.filter((item)=>item?.action==='would_propose').length,
+    quarantinedCount:Number.isInteger(memoryPlan.quarantinedCount) ? memoryPlan.quarantinedCount : items.filter((item)=>item?.action==='would_quarantine').length,
+    activeMemoryCreated:Number(pack?.safeguards?.activeMemoryCreated ?? memoryPlan.activeMemoryCreated ?? 0)
   };
 }
 
@@ -861,6 +885,7 @@ function contextPackHarnessCommands(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
   const step=quoteShell(pack?.step ?? 'select context');
+  const from=quoteShell(contextPackSourceFamilies(pack).join(','));
   const selected=(pack?.memoryPlan?.items ?? [])
     .filter((item)=>String(item?.locator ?? '').startsWith('user-selected://'))
     .map((item)=>` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u,''))}`)
@@ -868,9 +893,9 @@ function contextPackHarnessCommands(pack) {
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
   const setupClient=contextPackSetupClient(pack);
   return [
-    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from all --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
+    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
     { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
-    { label:'Read current context pack', command:`npm run oaf -- mcp resources --read-only --context-pack --from all --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
+    { label:'Read current context pack', command:`npm run oaf -- mcp resources --read-only --context-pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
@@ -883,6 +908,27 @@ function contextPackSetupClient(pack) {
 
 function contextPackCommandList(commands) {
   return `<ol class="command-list">${commands.map((item)=>`<li><strong>${esc(item.label)}</strong><code>${esc(item.command)}</code></li>`).join('')}</ol>`;
+}
+
+const CONTEXT_PACK_SOURCE_FAMILIES=[
+  ['codex','Codex'],
+  ['claude-code','Claude Code'],
+  ['cursor','Cursor']
+];
+
+function contextPackSourceFamilyControls() {
+  return `<fieldset class="source-family-field"><legend>Source families</legend><div class="source-family-options">${CONTEXT_PACK_SOURCE_FAMILIES.map(([id,label],index)=>`<label><input type="checkbox" name="sourceFamilies" value="${esc(id)}"${index===0?' checked':''}><span>${esc(label)}</span></label>`).join('')}</div></fieldset>`;
+}
+
+function contextPackSelectedSourceFamilies(form) {
+  const selected=[...form.querySelectorAll('input[name="sourceFamilies"]:checked')]
+    .map((input)=>String(input.value))
+    .filter((value)=>CONTEXT_PACK_SOURCE_FAMILIES.some(([id])=>id===value));
+  return selected.length ? selected : ['codex'];
+}
+
+function contextPackIntakeReview(review) {
+  return `<dl class="facts compact-facts intake-review"><div><dt>Accepted</dt><dd>${Number(review.acceptedCount??0)}</dd></div><div><dt>Excluded</dt><dd>${Number(review.excludedCount??0)}</dd></div><div><dt>Omitted</dt><dd>${Number(review.omittedCount??0)}</dd></div><div><dt>Would propose</dt><dd>${Number(review.proposedCount??0)}</dd></div><div><dt>Quarantine</dt><dd>${Number(review.quarantinedCount??0)}</dd></div><div><dt>Active memory</dt><dd>${Number(review.activeMemoryCreated??0)}</dd></div></dl>`;
 }
 
 export function contextPackDownloadName(pack) {
@@ -1172,13 +1218,14 @@ async function submitContextPack(event){
   const objective=String(data.get('objective') ?? '').trim();
   const step=String(data.get('step') ?? '').trim();
   const tokenBudget=Number(data.get('tokenBudget') ?? 4096);
+  const sourceFamilies=contextPackSelectedSourceFamilies(form);
   const userSelectedFiles=parseSelectedFiles(data.get('userSelectedFiles'));
   const changedLocators=parseSelectedFiles(data.get('changedLocators'));
   button.disabled=true;
   button.textContent='Building...';
   document.querySelector('#live-status').textContent='Building local context pack.';
   try{
-    contextPackResult=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,objective,step,tokenBudget,userSelectedFiles,changedLocators})});
+    contextPackResult=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,from:sourceFamilies.join(','),objective,step,tokenBudget,userSelectedFiles,changedLocators})});
     contextPackError=null;
     document.querySelector('#live-status').textContent='Context pack built.';
     render();

@@ -6,6 +6,7 @@
   "createdAt": "2026-06-23T12:00:00.000Z",
   "dryRun": true,
   "targetHarness": "codex",
+  "sourceHarnesses": ["codex"],
   "objective": "Prepare the next coding agent",
   "step": "select useful local context",
   "scannerVersion": "0.1.0",

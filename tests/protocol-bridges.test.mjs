@@ -181,6 +181,7 @@ function contextPackFixture() {
       createdAt: '2026-06-24T00:00:00.000Z',
       dryRun: true,
       targetHarness: 'codex',
+      sourceHarnesses: ['codex'],
       objective: 'Private MCP objective text should not appear.',
       step: 'Private MCP step text should not appear.',
       scannerVersion: 'harness-context@1.0.0',
@@ -512,6 +513,7 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
   assert.equal(payload.resourceKind, 'context-pack-summary');
   assert.equal(payload.provenance.source, 'local-context-pack');
   assert.equal(payload.workspaceId, 'ws_mcp');
+  assert.deepEqual(payload.data.sourceHarnesses, ['codex']);
   assert.equal(payload.data.objectiveLength, 'Private MCP objective text should not appear.'.length);
   assert.match(payload.data.objectiveFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.equal(payload.data.delivery.representation, 'locator-handoff');

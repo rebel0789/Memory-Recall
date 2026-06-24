@@ -2,6 +2,8 @@ node_modules/
 .env
 .local/
 coverage/
+.playwright-cli/
+output/playwright/
 *.log
 *.zip
 .DS_Store

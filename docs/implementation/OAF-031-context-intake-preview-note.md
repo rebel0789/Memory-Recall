@@ -8,13 +8,15 @@ slice.
 - `npm run oaf -- context scan --from <codex|claude|cursor|all> --root . --dry-run`
   scans documented project-visible harness files and returns sanitized
   `HarnessContextSource` records.
-- `npm run oaf -- context preview --from all --root . --objective "..." --step "..." --dry-run`
+- `npm run oaf -- context preview --from <codex|claude|cursor|all> --root . --objective "..." --step "..." --dry-run`
   converts accepted scan records into temporary Context Compiler candidates,
   runs deterministic selection, and returns a sanitized preview report.
-- `npm run oaf -- context pack --from all --root . --objective "..." --step "..." --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown`
+- `npm run oaf -- context pack --from codex --root . --objective "..." --step "..." --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown`
   builds a schema-validated Markdown handoff for Codex, Claude Code, Cursor, or
-  a generic agent from selected safe locators. `--include-file` may be repeated
-  for explicit user-selected relative workspace files; these become
+  a generic agent from selected safe locators. The browser defaults to the Codex
+  source family and requires explicit checkbox selection before scanning
+  Claude Code or Cursor project files. `--include-file` may be repeated for
+  explicit user-selected relative workspace files; these become
   proposal-only `user-selected://` locators. `--changed` may be repeated for
   explicit user-named changed files; these become `workspace://` impact hints
   from the native source graph, not raw source slices. `--write --out
@@ -66,14 +68,14 @@ slice.
 - `npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context/latest --format json`
   reads one resource as a schema-validated JSON envelope. `--stdio` accepts
   local JSON-RPC messages on stdin and writes JSON-RPC responses to stdout.
-- `npm run oaf -- mcp resources --read-only --context-pack --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --uri oaf://workspace/ws_local/context-pack/current --format json`
+- `npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --uri oaf://workspace/ws_local/context-pack/current --format json`
   exposes an opt-in current context-pack summary resource for harnesses. The
   resource carries safe locators, hashes, omission counts, source-selection
   token counts, delivery-budget metrics for the locator handoff, and changed-file
   impact; it does not include raw objective text, raw step text, markdown
   bodies, source bodies, private local paths, active memory, model calls,
   network calls, external adapters, or write tools.
-- `npm run oaf -- mcp smoke context-pack --read-only --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
+- `npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   launches the same read-only stdio MCP resource bridge, reads
   `oaf://workspace/ws_local/context-pack/current`, asserts `tools/list` returns
   no tools, and returns an observed local measurement report with duration,

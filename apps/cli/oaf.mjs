@@ -1076,7 +1076,7 @@ Usage:
   oaf context --request request.json --records records.json
   oaf context scan --from codex --root . --dry-run
   oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run
-  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --dry-run --format markdown
+  oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --dry-run --format markdown
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json

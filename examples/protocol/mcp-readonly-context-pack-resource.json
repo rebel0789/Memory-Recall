@@ -26,6 +26,7 @@
   "data": {
     "id": "ctxpack_example",
     "targetHarness": "codex",
+    "sourceHarnesses": ["codex"],
     "objectiveFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
     "objectiveLength": 42,
     "stepFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",

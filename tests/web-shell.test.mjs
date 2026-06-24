@@ -45,16 +45,28 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/data-action="copy-pack"/);
   assert.match(app,/data-action="download-pack"/);
   assert.match(app,/name="changedLocators"/);
+  assert.match(app,/name="sourceFamilies"/);
+  assert.match(app,/\['codex','Codex'\]/);
+  assert.match(app,/\['claude-code','Claude Code'\]/);
+  assert.match(app,/\['cursor','Cursor'\]/);
+  assert.match(app,/index===0\?' checked':''/);
+  assert.equal(app.includes('name="sourceFamilies" value="all"'),false);
+  assert.equal(app.includes('name="sourceFamilies" value="generic"'),false);
+  assert.match(app,/from:sourceFamilies\.join\(','\)/);
   assert.match(app,/data-action="preview-pack-setup"/);
   assert.match(app,/Change Impact/);
+  assert.match(app,/Intake review/);
   assert.match(app,/mcp resources --read-only --uri oaf:\/\/workspace\/ws_local\/handoff\/latest/);
   const model=buildContextPackUiModel({
     createdAt:'2026-06-24T00:00:00.000Z',
     targetHarness:'codex',
+    sourceHarnesses:['codex','cursor'],
     objective:"Ship user's change safely",
     step:'select useful context',
     readFirst:[{locator:'workspace://AGENTS.md'}],
+    excluded:[{locator:'workspace://.cursor/rules/fabric.mdc'}],
     omissions:{excludedCount:2,excludedTokenCount:500,sourceGraphOmittedCount:1},
+    memoryPlan:{activeMemoryCreated:0,proposedCount:1,quarantinedCount:1,items:[{action:'would_propose'},{action:'would_quarantine'}]},
     preview:{candidateTokenCount:1000,selectedTokenCount:250},
     delivery:{representation:'locator-handoff',sourceCandidateTokenCount:1000,sourceSelectedTokenCount:250,sourceSelectedTokenRatio:0.25,deliveredTokenCount:80,deliveredByteSize:320,deliveredTokenRatio:0.08,observedTokenReductionRatio:0.92,sourceContentTokenCountIncluded:0,sourceContentsIncluded:false},
     sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,affectedSymbols:[]}},
@@ -72,11 +84,17 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.changedLocators,1);
   assert.equal(model.affectedSymbols,3);
   assert.equal(model.setupClient,'codex');
+  assert.deepEqual(model.sourceFamilies,['codex','cursor']);
+  assert.equal(model.sourceFamilyLabel,'codex, cursor');
+  assert.deepEqual(model.intakeReview,{acceptedCount:1,excludedCount:1,omittedCount:2,proposedCount:1,quarantinedCount:1,activeMemoryCreated:0});
   assert.equal(model.estimatedReductionPercent,75);
   assert.equal(model.downloadName,'open-agent-fabric-context-pack-codex-2026-06-24.md');
+  assert.match(model.commands[0].command,/--from 'codex,cursor'/);
   assert.match(model.commands[0].command,/--target codex --changed 'apps\/web\/app\.js' --dry-run --format markdown/);
+  assert.doesNotMatch(model.commands[0].command,/--from all/);
   assert.match(model.commands[0].command,/Ship user'"'"'s change safely/);
   assert.match(model.commands[1].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
+  assert.match(model.commands[2].command,/--from 'codex,cursor'/);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
 });
 

@@ -143,11 +143,11 @@ npm run protocol:validate      # v1 valid, invalid, and compatibility fixtures
 npm run native:smoke           # native memory, artifacts, Agent Pack, model
 npm run demo                   # complete synthetic workflow
 npm run oaf -- context scan --from codex --root . --dry-run
-npm run oaf -- context preview --from all --root . --objective "Prepare handoff" --step "select harness context" --dry-run
-npm run oaf -- context pack --from all --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown
-npm run oaf -- context pack --from all --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
-npm run oaf -- mcp resources --read-only --context-pack --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
-npm run oaf -- mcp smoke context-pack --read-only --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+npm run oaf -- context preview --from codex --root . --objective "Prepare handoff" --step "select harness context" --dry-run
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
+npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
 npm run oaf -- harness setup status --client codex --dry-run --format json
 npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json

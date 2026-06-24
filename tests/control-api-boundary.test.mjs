@@ -196,7 +196,16 @@ test('valid requests receive correlation IDs and preserve local-only behavior', 
 });
 
 test('context pack route is protected and does not mutate run state', async (t) => {
-  const api = await startServer(t);
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-context-pack-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, '.cursor', 'rules'), { recursive: true });
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(path.join(sourceGraphRoot, 'AGENTS.md'), 'API RAW AGENTS BODY should never be returned.');
+  await writeFile(path.join(sourceGraphRoot, 'CONTEXT.md'), 'API RAW SELECTED BODY should never be returned.');
+  await writeFile(path.join(sourceGraphRoot, 'CLAUDE.md'), 'API RAW CLAUDE BODY should never be returned.');
+  await writeFile(path.join(sourceGraphRoot, '.cursor', 'rules', 'fabric.mdc'), 'API RAW CURSOR BODY should never be returned.');
+  await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const webBoundary = true;\n');
+  const api = await startServer(t, { sourceGraphRoot });
   const denied = await request(api.base, '/api/context/pack', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base },
@@ -218,6 +227,7 @@ test('context pack route is protected and does not mutate run state', async (t) 
       objective: 'prepare handoff',
       step: 'select useful context',
       targetHarness: 'codex',
+      from: 'codex',
       userSelectedFiles: ['CONTEXT.md'],
       changedLocators: ['apps/web/app.js'],
       tokenBudget: 96
@@ -226,12 +236,41 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(response.status, 200, response.text);
   assert.equal(response.body.schemaVersion, '1.0.0');
   assert.equal(response.body.pack.targetHarness, 'codex');
+  assert.deepEqual(response.body.pack.sourceHarnesses, ['codex']);
+  assert.equal(response.body.pack.readFirst.every((item) => ['codex', 'generic-mcp'].includes(item.harness)), true);
+  assert.equal(JSON.stringify(response.body.pack).includes('workspace://CLAUDE.md'), false);
+  assert.equal(JSON.stringify(response.body.pack).includes('workspace://.cursor'), false);
   assert(response.body.pack.memoryPlan.items.some((item) => item.locator === 'user-selected://CONTEXT.md'));
   assert.deepEqual(response.body.pack.sourceGraph.impact.changedLocators, ['workspace://apps/web/app.js']);
   assert.equal(response.body.markdown.includes('## Change Impact'), true);
   assert.equal(response.text.includes('/Users/'), false);
   assert.equal(response.body.pack.safeguards.externalWritesEnabled, false);
+  assert.equal(response.body.pack.safeguards.externalAdaptersEnabled, 0);
+  assert.equal(response.body.pack.safeguards.networkCalls, 0);
+  assert.equal(response.body.pack.safeguards.modelCalls, 0);
+  assert.equal(response.body.pack.safeguards.activeMemoryCreated, 0);
+  assert.equal(response.body.pack.delivery.sourceContentsIncluded, false);
+  assert.equal(response.text.includes('API RAW AGENTS BODY'), false);
+  assert.equal(response.text.includes('API RAW SELECTED BODY'), false);
+  assert.equal(response.text.includes('API RAW CLAUDE BODY'), false);
+  assert.equal(response.text.includes('API RAW CURSOR BODY'), false);
   assert.equal(response.body.markdown.includes('# Context Pack'), true);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+
+  const invalidFrom = await request(api.base, '/api/context/pack', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare handoff',
+      step: 'reject invalid source family',
+      targetHarness: 'codex',
+      from: 'codex,evil'
+    })
+  });
+  assert.equal(invalidFrom.status, 400);
+  assert.equal(invalidFrom.body.error.code, 'request_validation_failed');
   assert.equal(api.store.updates, 0);
   assert.equal(api.calls.workflow, 0);
 

@@ -43,6 +43,7 @@ test('context pack renders a harness-specific handoff without raw source bodies 
 
   assertJsonSchema(contextPackSchema, pack, 'context pack');
   assert.equal(pack.targetHarness, 'codex');
+  assert.deepEqual(pack.sourceHarnesses, ['codex', 'claude-code', 'cursor']);
   assert.equal(pack.dryRun, true);
   assert.equal(pack.safeguards.externalWritesEnabled, false);
   assert.equal(pack.safeguards.externalAdaptersEnabled, 0);
@@ -74,6 +75,7 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   const markdown = renderContextPackMarkdown(pack);
   assert.match(markdown, /^# Context Pack/m);
   assert.match(markdown, /Target harness: codex/);
+  assert.match(markdown, /Source families: codex, claude-code, cursor/);
   assert.match(markdown, /workspace:\/\/AGENTS\.md/);
   assert.match(markdown, /## Delivery Budget/);
   assert.match(markdown, /## Omission Refs/);
@@ -126,6 +128,7 @@ test('context pack delivery budget separates locator handoff cost from source se
   });
 
   assertJsonSchema(contextPackSchema, pack, 'context pack delivery budget');
+  assert.deepEqual(pack.sourceHarnesses, ['codex']);
   assert.equal(pack.readFirst.some((item) => item.locator === 'workspace://AGENTS.md'), true);
   assert(pack.delivery.sourceSelectedTokenCount > 1000);
   assert(pack.delivery.deliveredTokenCount < pack.delivery.sourceSelectedTokenCount);

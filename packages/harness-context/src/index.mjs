@@ -1016,6 +1016,7 @@ export function renderContextPackMarkdown(pack) {
     '# Context Pack',
     '',
     `Target harness: ${pack.targetHarness}`,
+    `Source families: ${(pack.sourceHarnesses ?? []).join(', ')}`,
     `Workspace: ${pack.workspaceId}`,
     `Objective: ${pack.objective}`,
     `Step: ${pack.step}`,
@@ -1113,10 +1114,11 @@ export async function buildContextPack({
   clock = () => new Date().toISOString()
 } = {}) {
   const normalizedTarget = normalizeTargetHarness(targetHarness);
+  const sourceHarnesses = selectedHarnesses(harnesses);
   const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
   const preview = await buildHarnessContextPreview({
     root,
-    harnesses,
+    harnesses: sourceHarnesses,
     userSelectedFiles,
     workspaceId,
     objective,
@@ -1143,6 +1145,7 @@ export async function buildContextPack({
     id: `ctxpack_${idDigest(stableStringify({
       workspaceId,
       targetHarness: normalizedTarget,
+      sourceHarnesses,
       objective,
       step,
       previewFingerprint: preview.previewFingerprint,
@@ -1154,6 +1157,7 @@ export async function buildContextPack({
     createdAt: preview.createdAt,
     dryRun: true,
     targetHarness: normalizedTarget,
+    sourceHarnesses,
     objective,
     step,
     scannerVersion: preview.scannerVersion,
@@ -1184,7 +1188,7 @@ export async function buildContextPack({
       instructions: harnessInstructions(normalizedTarget),
       commands: [
         'npm run doctor',
-        'npm run oaf -- context preview --from all --root . --objective "<objective>" --step "<step>" --dry-run',
+        `npm run oaf -- context preview --from ${sourceHarnesses.join(',')} --root . --objective "<objective>" --step "<step>" --dry-run`,
         'npm run ci'
       ],
       limitations: [

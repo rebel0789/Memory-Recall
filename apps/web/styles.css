@@ -96,6 +96,12 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .field input,.field select,.field textarea{width:100%;min-height:44px;border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-2);color:var(--paper);padding:10px 12px;font:inherit}
 .field textarea{min-height:96px;resize:vertical}
 .field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.source-family-field{display:grid;gap:var(--space-8);border:1px solid var(--border);border-radius:var(--radius-control);padding:var(--space-12);margin:0;background:var(--surface-2)}
+.source-family-field legend{padding:0 var(--space-6,6px);font-size:12px;font-weight:720;color:var(--slate);text-transform:uppercase;letter-spacing:.08em}
+.source-family-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-8)}
+.source-family-options label{display:flex;align-items:center;gap:var(--space-8);min-height:42px;border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-3);padding:8px 10px;font-weight:720}
+.source-family-options input{inline-size:18px;block-size:18px;accent-color:var(--signal)}
+.source-family-options input:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
 .primary-flow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:var(--space-20,20px);align-items:end}
 .primary-flow h2{font-size:26px;line-height:1.12;margin:0}
 .primary-flow p{color:var(--slate);max-width:var(--layout-prose)}
@@ -267,6 +273,7 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .outline em{grid-column:2}
   .facts div{grid-template-columns:1fr}
   .field-grid{grid-template-columns:1fr}
+  .source-family-options{grid-template-columns:1fr}
   .context-hero{display:grid}
   .summary-list{grid-template-columns:1fr}
   .diff-grid,.evidence-columns{grid-template-columns:1fr}

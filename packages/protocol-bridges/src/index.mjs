@@ -466,6 +466,7 @@ function summarizeContextPack(currentContextPack) {
     id: safeId(pack.id) ?? 'ctxpack_unknown',
     packVersion: safePublicString(pack.packVersion, 64),
     targetHarness: safePublicString(pack.targetHarness, 64),
+    sourceHarnesses: safeStringList(pack.sourceHarnesses, 3),
     dryRun: pack.dryRun === true,
     createdAt: typeof pack.createdAt === 'string' ? pack.createdAt : null,
     objectiveFingerprint: typeof pack.objective === 'string' ? fingerprintFor(pack.objective) : null,

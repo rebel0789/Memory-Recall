@@ -280,7 +280,12 @@ export function createApiRouteContracts(limits = {}) {
       objective: boundedString(limitShape.objectiveLength),
       step: boundedString(256),
       targetHarness: { enum: ['codex', 'claude-code', 'claude', 'cursor', 'generic'] },
-      from: { type: 'string', minLength: 1, maxLength: 80 },
+      from: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 80,
+        pattern: '^(all|(?:codex|claude|claude-code|cursor)(?:\\s*,\\s*(?:codex|claude|claude-code|cursor))*)$'
+      },
       userSelectedFiles: { type: 'array', maxItems: 16, uniqueItems: true, items: boundedString(240) },
       changedLocators: { type: 'array', maxItems: 16, uniqueItems: true, items: workspaceLocatorInput },
       tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 }
@@ -330,13 +335,20 @@ export function createApiRouteContracts(limits = {}) {
       pack: {
         type: 'object',
         additionalProperties: true,
-        required: ['schemaVersion', 'id', 'workspaceId', 'targetHarness', 'readFirst', 'safeguards', 'contextPackFingerprint'],
+        required: ['schemaVersion', 'id', 'workspaceId', 'targetHarness', 'sourceHarnesses', 'readFirst', 'excluded', 'omissions', 'memoryPlan', 'sourceGraph', 'warnings', 'delivery', 'safeguards', 'contextPackFingerprint'],
         properties: {
           schemaVersion: { const: '1.0.0' },
           id: { type: 'string', pattern: id('ctxpack'), maxLength: 128 },
           workspaceId,
           targetHarness: boundedString(32),
+          sourceHarnesses: { type: 'array', minItems: 1, maxItems: 3, uniqueItems: true, items: { enum: ['codex', 'claude-code', 'cursor'] } },
           readFirst: { type: 'array', maxItems: 128, items: { type: 'object', additionalProperties: true } },
+          excluded: { type: 'array', maxItems: 128, items: { type: 'object', additionalProperties: true } },
+          omissions: { type: 'object', additionalProperties: true },
+          memoryPlan: { type: 'object', additionalProperties: true },
+          sourceGraph: { type: 'object', additionalProperties: true },
+          warnings: { type: 'array', maxItems: 128, items: boundedString(512) },
+          delivery: { type: 'object', additionalProperties: true },
           safeguards: { type: 'object', additionalProperties: true },
           contextPackFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' }
         }
