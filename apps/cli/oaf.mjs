@@ -7,7 +7,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { compileContext } from '../../packages/context-compiler/src/index.mjs';
 import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/evaluation-lab/src/index.mjs';
-import { buildContextPack, buildHarnessContextPreview, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown, scanHarnessContext } from '../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown, scanHarnessContext } from '../../packages/harness-context/src/index.mjs';
 import {
   buildMemoryProfileReport,
   buildMemoryProposalsReport,
@@ -16,6 +16,7 @@ import {
   normalizeMemoryPathsConfig
 } from '../../packages/memory-core/src/index.mjs';
 import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages/protocol-bridges/src/index.mjs';
+import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
 import { buildSourceGraphPreview } from '../../packages/source-graph/src/index.mjs';
@@ -291,8 +292,8 @@ async function contextPackCommand(values) {
   }
 
   const format = option(values, '--format') ?? 'json';
-  if (!['json', 'markdown'].includes(format)) {
-    console.error('context pack only supports --format json or --format markdown');
+  if (!['json', 'markdown', 'use-json'].includes(format)) {
+    console.error('context pack only supports --format json, --format markdown, or --format use-json');
     process.exitCode = 2;
     return;
   }
@@ -308,15 +309,20 @@ async function contextPackCommand(values) {
     const { changedLocators, detection: changedLocatorDetection } = await resolveChangedLocators(values, { root, workspaceId });
     const pack = await buildContextPack({ root, harnesses, userSelectedFiles, changedLocators, workspaceId, objective, step, targetHarness, tokenBudget });
     const markdown = renderContextPackMarkdown(pack);
+    const usePlan = buildContextPackUsePlan(pack);
     if (write) {
       const out = option(values, '--out') ?? 'context-packs/CONTEXT_PACK.md';
       await writeWorkspaceFile(root, `workspace://${out}`, markdown);
+      const useOut = option(values, '--use-out');
+      if (useOut) await writeWorkspaceFile(root, `workspace://${useOut}`, JSON.stringify(usePlan, null, 2));
       const report = {
         schemaVersion: '1.0.0',
         pack,
+        usePlan,
         target: { locator: `workspace://${out}`, contentType: 'text/markdown' },
+        usePlanTarget: useOut ? { locator: `workspace://${useOut}`, contentType: 'application/json' } : null,
         changedLocatorDetection,
-        localFilesWritten: 1,
+        localFilesWritten: useOut ? 2 : 1,
         safeguards: {
           externalWritesEnabled: false,
           externalAdaptersEnabled: 0,
@@ -330,7 +336,11 @@ async function contextPackCommand(values) {
       console.log(markdown);
       return;
     }
-    console.log(JSON.stringify({ schemaVersion: '1.0.0', pack, markdown, changedLocatorDetection, localFilesWritten: 0 }, null, 2));
+    if (format === 'use-json') {
+      console.log(JSON.stringify(usePlan, null, 2));
+      return;
+    }
+    console.log(JSON.stringify({ schemaVersion: '1.0.0', pack, markdown, usePlan, changedLocatorDetection, localFilesWritten: 0 }, null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
@@ -499,6 +509,7 @@ async function mcpResourcesCommand(values) {
   }
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const currentContextPackUsePlan = await loadMcpContextPackUsePlan(values, { root });
   const currentContextPack = await buildMcpContextPackResource(values, { root, workspaceId });
   const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
     schemaVersion: '1.0.0',
@@ -513,6 +524,7 @@ async function mcpResourcesCommand(values) {
     state,
     projectStatus,
     currentContextPack,
+    currentContextPackUsePlan,
     workspaceId,
     generatedAt: fixedNow()
   });
@@ -555,6 +567,31 @@ async function mcpResourcesCommand(values) {
       modelCalls: 0
     }
   }, null, 2));
+}
+
+async function loadMcpContextPackUsePlan(values, { root }) {
+  const relativePath = option(values, '--context-pack-use');
+  if (!relativePath) {
+    if (values.includes('--context-pack-use')) throw new Error('mcp resources --context-pack-use requires a relative context-packs/*.use.json file');
+    return null;
+  }
+  if (values.includes('--context-pack')) {
+    throw new Error('mcp resources supports either --context-pack or --context-pack-use, not both');
+  }
+  if (!/^context-packs\/[A-Za-z0-9._-]+\.use\.json$/.test(relativePath)) {
+    throw new Error('mcp resources --context-pack-use must be a relative context-packs/*.use.json file');
+  }
+  const realRoot = await realpath(root);
+  await assertNoSymlinkAncestors(realRoot, relativePath);
+  const absolute = path.resolve(realRoot, relativePath);
+  const entry = await lstat(absolute);
+  if (entry.isSymbolicLink()) throw new Error(`context-pack use plan target is a symlink: ${relativePath}`);
+  if (!entry.isFile()) throw new Error(`context-pack use plan target is not a file: ${relativePath}`);
+  const actual = await realpath(absolute);
+  if (!isInside(realRoot, actual)) throw new Error(`context-pack use plan escapes root: ${relativePath}`);
+  const plan = JSON.parse(await readFile(actual, 'utf8'));
+  assertJsonSchema(contextPackUsePlanSchema, plan, 'context pack use plan');
+  return plan;
 }
 
 async function buildMcpContextPackResource(values, { root, workspaceId }) {
@@ -944,7 +981,7 @@ async function writeWorkspaceFile(root, locator, content) {
   if (!locator.startsWith('workspace://')) throw new Error('only workspace locators can be written');
   const relativePath = locator.slice('workspace://'.length);
   if (!relativePath || relativePath.includes('..') || relativePath.startsWith('/')) throw new Error('workspace write target is unsupported');
-  if (!isGeneratedMemoryReportTarget(relativePath)) throw new Error('memory report writes are limited to generated memory reports');
+  if (!isGeneratedMemoryReportTarget(relativePath)) throw new Error('workspace writes are limited to generated reports under memory/ or context-packs/');
   const realRoot = await realpath(root);
   const absolute = path.resolve(realRoot, relativePath);
   if (!isInside(realRoot, absolute)) throw new Error(`workspace write target escapes root: ${relativePath}`);
@@ -965,7 +1002,8 @@ async function writeWorkspaceFile(root, locator, content) {
 function isGeneratedMemoryReportTarget(relativePath) {
   return relativePath === 'memory/profile.md' ||
     /^memory\/proposals\/mem_[A-Za-z0-9._-]+\.md$/.test(relativePath) ||
-    /^context-packs\/[A-Za-z0-9._-]+\.md$/.test(relativePath);
+    /^context-packs\/[A-Za-z0-9._-]+\.md$/.test(relativePath) ||
+    /^context-packs\/[A-Za-z0-9._-]+\.use\.json$/.test(relativePath);
 }
 
 async function assertNoSymlinkAncestors(root, relativePath) {
@@ -1100,6 +1138,7 @@ Usage:
   oaf context scan --from codex --root . --dry-run
   oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --changed-from-git --dry-run --format markdown
+  oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
@@ -1108,6 +1147,7 @@ Usage:
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
   oaf mcp resources --read-only --workspace ws_local --format json
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --uri oaf://workspace/ws_local/context-pack/current --format json
+  oaf mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf harness setup status --client codex --dry-run --format json

@@ -8,7 +8,7 @@ import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { buildContextPack, buildHarnessContextPreview, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown } from '../../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown } from '../../../packages/harness-context/src/index.mjs';
 import { buildSourceGraphPreview } from '../../../packages/source-graph/src/index.mjs';
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
@@ -290,6 +290,7 @@ export function createControlApiServer({
           clock
         });
         const markdown = renderContextPackMarkdown(pack);
+        const usePlan = buildContextPackUsePlan(pack);
         const readback = await buildContextPackReadbackProof({
           currentContextPack: { pack, markdown },
           workspaceId: context.workspaceId,
@@ -298,7 +299,7 @@ export function createControlApiServer({
           generatedAt: clock(),
           clock
         });
-        return { schemaVersion: '1.0.0', pack, markdown, readback };
+        return { schemaVersion: '1.0.0', pack, markdown, usePlan, readback };
       }
       case 'previewContextSources':
         return buildHarnessContextPreview({

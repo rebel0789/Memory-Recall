@@ -60,7 +60,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/data-action="copy-command"/);
   assert.match(app,/function copyCommand/);
   assert.match(app,/async function writeClipboardText/);
-  assert.match(app,/Copy markdown first/);
+  assert.match(app,/Export plan explicitly/);
   assert.match(app,/data-action="download-pack"/);
   assert.match(app,/data-action="detect-git-changes"/);
   assert.match(app,/data-action="preview-context-sources"/);
@@ -78,6 +78,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(app.includes('name="sourceFamilies" value="generic"'),false);
   assert.match(app,/from:sourceFamilies\.join\(','\)/);
   assert.match(app,/data-action="preview-pack-setup"/);
+  assert.match(app,/data-action="download-use-plan"/);
   assert.match(app,/Change Impact/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
@@ -195,6 +196,8 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.deepEqual(model.intakeReview,{acceptedCount:1,excludedCount:1,omittedCount:2,proposedCount:1,quarantinedCount:1,activeMemoryCreated:0});
   assert.equal(model.estimatedReductionPercent,75);
   assert.equal(model.downloadName,'open-agent-fabric-context-pack-codex-2026-06-24.md');
+  assert.equal(model.usePlanDownloadName,'open-agent-fabric-context-pack-use-plan-codex-2026-06-24.json');
+  assert.equal(model.usePlanReadCount,2);
   assert.match(model.commands[1].command,/--from 'codex,cursor'/);
   assert.match(model.commands[1].command,/--target codex --changed 'apps\/web\/app\.js' --dry-run --format markdown/);
   assert.doesNotMatch(model.commands[1].command,/--from all/);
@@ -202,6 +205,8 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(model.commands[2].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
   assert.match(model.commands[3].command,/--from 'codex,cursor'/);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
+  assert.equal(model.commands.some((item)=>item.command.includes('--use-out context-packs/CONTEXT_PACK.use.json')),true);
+  assert.equal(model.commands.some((item)=>item.command.includes('--context-pack-use context-packs/CONTEXT_PACK.use.json')),true);
   const sourcePreviewModel=buildContextSourcePreviewUiModel({
     id:'hctxprev_aaaaaaaaaaaaaaaa',
     previewFingerprint:'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',

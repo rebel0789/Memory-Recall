@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "1.0.0",
+  "usePlanVersion": "0.1.0",
+  "id": "ctxuse_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "targetHarness": "codex",
+  "sourceHarnesses": ["codex"],
+  "objective": "raw objective text must not be present",
+  "contextPack": {
+    "id": "ctxpack_bbbbbbbbbbbbbbbbbbbbbbbb",
+    "packVersion": "0.1.0",
+    "createdAt": "2026-06-24T00:00:00.000Z",
+    "fingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "scannerVersion": "0.1.0",
+    "compilerVersion": "context-compiler@1.0.0"
+  },
+  "resource": {
+    "uri": "oaf://workspace/ws_local/context-pack/use-plan/current",
+    "kind": "context-pack-use-plan"
+  },
+  "requestedInputs": {
+    "sourceHarnesses": ["codex"],
+    "userSelectedLocators": [],
+    "changedLocators": [],
+    "userSelectedCount": 0,
+    "changedLocatorCount": 0
+  },
+  "requiredLocalReads": [],
+  "coverage": {
+    "changedLocators": { "total": 0, "covered": 0, "ratio": 0, "status": "not_applicable" },
+    "graphHints": { "total": 0, "covered": 0, "ratio": 0, "status": "not_applicable" }
+  },
+  "sourceSelection": {
+    "candidateUnitCount": 0,
+    "selectedUnitCount": 0,
+    "selectedUnitRatio": 0,
+    "estimatedReductionRatio": 0
+  },
+  "delivery": {
+    "representation": "locator-handoff",
+    "deliveredUnitCount": 0,
+    "deliveredByteSize": 0,
+    "deliveredUnitRatio": 0,
+    "observedReductionRatio": 0,
+    "sourceContentUnitCountIncluded": 0,
+    "sourceContentIncluded": false
+  },
+  "sourceGraph": {
+    "status": "unavailable",
+    "sourceIndexFingerprint": null,
+    "graphFingerprint": null,
+    "queryFingerprint": null,
+    "changedLocators": [],
+    "representedChangedLocators": [],
+    "affectedSymbolCount": 0,
+    "omittedAffectedSymbolCount": 0
+  },
+  "handoffArtifact": {
+    "contentType": "text/markdown",
+    "contentHash": null,
+    "byteSize": 0,
+    "contentIncluded": false
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "objectiveTextIncluded": false,
+    "stepTextIncluded": false,
+    "launchInstructionsIncluded": false,
+    "markdownContentIncluded": false,
+    "sourceContentIncluded": false,
+    "privateContentIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "remoteEndpointDetailsIncluded": false
+  },
+  "usePlanFingerprint": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+}

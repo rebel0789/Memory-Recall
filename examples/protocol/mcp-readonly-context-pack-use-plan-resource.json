@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0.0",
+  "resourceKind": "context-pack-use-plan",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "provenance": {
+    "producer": "open-agent-fabric.protocol-bridges",
+    "producerVersion": "0.1.0",
+    "source": "local-context-pack-use-plan",
+    "sourceFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "privateContentIncluded": false,
+    "instructionTextIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "remoteEndpointDetailsIncluded": false
+  },
+  "data": {
+    "id": "ctxuse_example",
+    "resource": {
+      "uri": "oaf://workspace/ws_local/context-pack/use-plan/current",
+      "kind": "context-pack-use-plan"
+    },
+    "contextPack": {
+      "id": "ctxpack_example",
+      "fingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "requiredLocalReads": [
+      {
+        "locator": "workspace://AGENTS.md",
+        "role": "selected_context",
+        "contentHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    ],
+    "safeguards": {
+      "objectiveTextIncluded": false,
+      "stepTextIncluded": false,
+      "markdownContentIncluded": false,
+      "sourceContentIncluded": false
+    }
+  },
+  "resourceFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

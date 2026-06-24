@@ -628,11 +628,26 @@ components:
     ContextPackResponse:
       type: object
       additionalProperties: false
-      required: [schemaVersion, pack, markdown]
+      required: [schemaVersion, pack, markdown, usePlan, readback]
       properties:
         schemaVersion: { const: '1.0.0' }
         pack: { type: object }
         markdown: { type: string, minLength: 1, maxLength: 200000 }
+        usePlan:
+          type: object
+          additionalProperties: true
+          required: [schemaVersion, usePlanVersion, id, workspaceId, contextPack, resource, requiredLocalReads, safeguards, usePlanFingerprint]
+          properties:
+            schemaVersion: { const: '1.0.0' }
+            usePlanVersion: { type: string, minLength: 1, maxLength: 32 }
+            id: { type: string, pattern: '^ctxuse_[A-Za-z0-9._:-]{1,120}$' }
+            workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+            contextPack: { type: object, additionalProperties: true }
+            resource: { type: object, additionalProperties: true }
+            requiredLocalReads: { type: array, maxItems: 64, items: { type: object, additionalProperties: true } }
+            safeguards: { type: object, additionalProperties: true }
+            usePlanFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        readback: { type: object, additionalProperties: true }
     ContextSourcePreviewRequest:
       type: object
       additionalProperties: false

@@ -5,10 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   buildContextPack,
+  buildContextPackUsePlan,
   renderContextPackMarkdown
 } from '../packages/harness-context/src/index.mjs';
 import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import contextPackSchema from '../packages/protocol/schemas/context-pack.schema.json' with { type: 'json' };
+import contextPackUsePlanSchema from '../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 
 const fixedClock = () => '2026-06-23T12:00:00.000Z';
 
@@ -109,6 +111,63 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert(!markdown.includes('GRAPH RAW BODY SENTINEL'));
   assert(!JSON.stringify(pack).includes('PACK RAW BODY'));
   assert(!JSON.stringify(pack).includes('GRAPH RAW BODY SENTINEL'));
+});
+
+test('context pack use plan exposes complete local reads without private handoff content', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'notes'), { recursive: true });
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'USE PLAN AGENTS RAW BODY should stay out of use plan output.');
+  await writeFile(path.join(root, 'notes', 'handoff.md'), 'USE PLAN SELECTED RAW BODY should stay out.');
+  await writeFile(path.join(root, 'src', 'auth.ts'), [
+    'export function approveTokenResetUsePlan() {',
+    "  return 'USE PLAN SOURCE RAW BODY';",
+    '}'
+  ].join('\n'));
+
+  const objective = 'Use plan private objective should not leak';
+  const step = 'Use plan private step should not leak';
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    userSelectedFiles: ['notes/handoff.md'],
+    changedLocators: ['src/auth.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective,
+    step,
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+  const usePlan = buildContextPackUsePlan(pack);
+
+  assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context pack use plan');
+  assert.equal(usePlan.contextPack.id, pack.id);
+  assert.equal(usePlan.contextPack.fingerprint, pack.contextPackFingerprint);
+  assert.equal(usePlan.resource.uri, 'oaf://workspace/ws_local/context-pack/use-plan/current');
+  assert.equal(usePlan.requiredLocalReads.some((item) => item.locator === 'workspace://AGENTS.md'), true);
+  assert.equal(usePlan.requiredLocalReads.some((item) => item.locator === 'user-selected://notes/handoff.md'), true);
+  assert.equal(usePlan.requiredLocalReads.some((item) => item.locator === 'workspace://src/auth.ts'), true);
+  assert.equal(usePlan.requiredLocalReads.every((item) => typeof item.readHint === 'string' && item.readHint.length > 0), true);
+  assert.equal(usePlan.safeguards.readOnly, true);
+  assert.equal(usePlan.safeguards.localFilesWritten, 0);
+  assert.equal(usePlan.safeguards.objectiveTextIncluded, false);
+  assert.equal(usePlan.safeguards.stepTextIncluded, false);
+  assert.equal(usePlan.safeguards.markdownContentIncluded, false);
+  assert.equal(usePlan.safeguards.sourceContentIncluded, false);
+  assert.equal(usePlan.safeguards.absoluteFilesystemLocationsIncluded, false);
+  const serialized = JSON.stringify(usePlan);
+  for (const forbidden of [
+    'USE PLAN AGENTS RAW BODY',
+    'USE PLAN SELECTED RAW BODY',
+    'USE PLAN SOURCE RAW BODY',
+    objective,
+    step,
+    root,
+    '/Users/rebel'
+  ]) {
+    assert.equal(serialized.includes(forbidden), false, forbidden);
+  }
 });
 
 test('context pack keeps missing changed locators in review with unavailable hash proof', async () => {

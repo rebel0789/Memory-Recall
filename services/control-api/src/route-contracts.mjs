@@ -523,6 +523,59 @@ export function createApiRouteContracts(limits = {}) {
       reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     }
   };
+  const contextPackUsePlan = {
+    type: 'object',
+    additionalProperties: true,
+    required: ['schemaVersion', 'usePlanVersion', 'id', 'workspaceId', 'targetHarness', 'contextPack', 'resource', 'requiredLocalReads', 'safeguards', 'usePlanFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      usePlanVersion: boundedString(32),
+      id: { type: 'string', pattern: id('ctxuse'), maxLength: 128 },
+      workspaceId,
+      targetHarness: { enum: ['codex', 'claude-code', 'cursor', 'generic'] },
+      contextPack: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['id', 'fingerprint'],
+        properties: {
+          id: { type: 'string', pattern: id('ctxpack'), maxLength: 128 },
+          fingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+        }
+      },
+      resource: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['uri', 'kind'],
+        properties: {
+          uri: { type: 'string', pattern: '^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/use-plan/current$', maxLength: 180 },
+          kind: { const: 'context-pack-use-plan' }
+        }
+      },
+      requiredLocalReads: { type: 'array', maxItems: 64, items: { type: 'object', additionalProperties: true } },
+      safeguards: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['readOnly', 'canonicalStateMutated', 'localFilesWritten', 'externalWritesEnabled', 'externalAdaptersEnabled', 'networkCalls', 'modelCalls', 'activeMemoryCreated', 'objectiveTextIncluded', 'stepTextIncluded', 'markdownContentIncluded', 'sourceContentIncluded', 'privateContentIncluded', 'absoluteFilesystemLocationsIncluded'],
+        properties: {
+          readOnly: { const: true },
+          canonicalStateMutated: { const: false },
+          localFilesWritten: { const: 0 },
+          externalWritesEnabled: { const: false },
+          externalAdaptersEnabled: { const: 0 },
+          networkCalls: { const: 0 },
+          modelCalls: { const: 0 },
+          activeMemoryCreated: { const: 0 },
+          objectiveTextIncluded: { const: false },
+          stepTextIncluded: { const: false },
+          markdownContentIncluded: { const: false },
+          sourceContentIncluded: { const: false },
+          privateContentIncluded: { const: false },
+          absoluteFilesystemLocationsIncluded: { const: false }
+        }
+      },
+      usePlanFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
   const contextGraphPreviewRequest = {
     type: 'object',
     additionalProperties: false,
@@ -561,7 +614,7 @@ export function createApiRouteContracts(limits = {}) {
   const contextPackResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'pack', 'markdown', 'readback'],
+    required: ['schemaVersion', 'pack', 'markdown', 'usePlan', 'readback'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       pack: {
@@ -605,6 +658,7 @@ export function createApiRouteContracts(limits = {}) {
         }
       },
       markdown: { type: 'string', minLength: 1, maxLength: 200000 },
+      usePlan: contextPackUsePlan,
       readback: contextPackReadbackProof
     }
   };

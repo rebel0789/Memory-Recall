@@ -684,6 +684,7 @@ function render() {
   root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
   root.querySelectorAll('[data-action=copy-command]').forEach(button=>button.addEventListener('click',copyCommand));
   root.querySelectorAll('[data-action=download-pack]').forEach(button=>button.addEventListener('click',downloadContextPack));
+  root.querySelectorAll('[data-action=download-use-plan]').forEach(button=>button.addEventListener('click',downloadContextPackUsePlan));
   root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
   root.querySelectorAll('[data-action=copy-launch-prompt]').forEach(button=>button.addEventListener('click',copyContextPackLaunchPrompt));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
@@ -825,10 +826,10 @@ function renderContextPack() {
 }
 
 function renderContextPackResult(pack,markdown) {
-  const model=buildContextPackUiModel(pack,markdown,{observedDurationMs:contextPackResult?.observedDurationMs,readback:contextPackResult?.readback});
+  const model=buildContextPackUiModel(pack,markdown,{observedDurationMs:contextPackResult?.observedDurationMs,readback:contextPackResult?.readback,usePlan:contextPackResult?.usePlan});
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
   const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult});
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Copy markdown first</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 export function buildContextPackUiModel(pack,markdown='',meta={}) {
@@ -844,6 +845,7 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
   const readbackResourceBytes=Number(readback?.measurements?.resourceByteSize);
   const readbackResourceBytesLabel=Number.isFinite(readbackResourceBytes) ? `${Math.max(0,Math.round(readbackResourceBytes))} bytes` : 'not measured';
   const readbackFingerprintLabel=readback?.checks?.contextPackFingerprintMatches===true?'match':'check';
+  const usePlan=meta?.usePlan ?? null;
   const estimatedReductionPercent=candidateTokens > 0
     ? Math.max(0,Math.min(100,Math.round((1 - selectedTokens / candidateTokens) * 100)))
     : 0;
@@ -856,6 +858,9 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     sourceFamilies,
     sourceFamilyLabel:sourceFamilies.join(', '),
     markdownBytes:new Blob([String(markdown)]).size,
+    usePlanBytes:new Blob([JSON.stringify(usePlan ?? {},null,2)]).size,
+    usePlanReadCount:Array.isArray(usePlan?.requiredLocalReads) ? usePlan.requiredLocalReads.length : Number(pack?.utility?.requiredLocalReads?.length ?? 0),
+    usePlanDownloadName:contextPackUsePlanDownloadName(pack),
     selectedLocators:Array.isArray(pack?.readFirst) ? pack.readFirst.length : 0,
     omittedRefs:Number(pack?.omissions?.excludedCount ?? 0),
     selectedTokens,
@@ -893,7 +898,7 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
       externalWritesLabel:pack?.safeguards?.externalWritesEnabled===false?'disabled':pack?.safeguards?.externalWritesEnabled===true?'enabled':'check',
       activeMemoryLabel:safeguardCountLabel(pack?.safeguards?.activeMemoryCreated)
     },
-    commands:contextPackHarnessCommands(pack)
+    commands:contextPackHarnessCommands(pack,usePlan)
   };
 }
 
@@ -1000,10 +1005,17 @@ function zeroCount(value) {
   return Number.isFinite(number) && number === 0;
 }
 
-function contextPackHarnessCommands(pack) {
+function contextPackHarnessCommands(pack,usePlan=null) {
   const packCommands=Array.isArray(pack?.handoff?.commands) ? pack.handoff.commands.filter((command)=>typeof command==='string'&&command.trim()) : [];
   if(packCommands.length){
-    return packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
+    const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
+    const generated=contextPackGeneratedUsePlanCommands(pack,usePlan);
+    for(const command of generated){
+      if(!commands.some((item)=>item.command===command.command || item.command.includes('--context-pack-use')===command.command.includes('--context-pack-use') && command.command.includes('--context-pack-use'))){
+        commands.push(command);
+      }
+    }
+    return commands;
   }
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
@@ -1017,18 +1029,39 @@ function contextPackHarnessCommands(pack) {
   const setupClient=contextPackSetupClient(pack);
   return [
     { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
+    { label:'Export use plan', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json` },
     { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
+    { label:'Read use plan', command:'npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
     { label:'Read current context pack', command:`npm run oaf -- mcp resources --read-only --context-pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
 }
 
+function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
+  const target=String(pack?.targetHarness ?? 'generic');
+  const objective=quoteShell(pack?.objective ?? 'Ship safely');
+  const step=quoteShell(pack?.step ?? 'select context');
+  const from=quoteShell(contextPackSourceFamilies(pack).join(','));
+  const selected=(pack?.memoryPlan?.items ?? [])
+    .filter((item)=>String(item?.locator ?? '').startsWith('user-selected://'))
+    .map((item)=>` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u,''))}`)
+    .join('');
+  const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
+  const uri=String(usePlan?.resource?.uri ?? 'oaf://workspace/ws_local/context-pack/use-plan/current');
+  return [
+    { label:'Export use plan', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json` },
+    { label:'Read use plan', command:`npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri ${uri} --format json` }
+  ];
+}
+
 function contextPackCommandLabel(command) {
   if(command === 'npm run doctor')return 'Check local setup';
   if(command === 'npm run ci')return 'Run CI';
+  if(command.includes('--use-out'))return 'Export use plan';
   if(command.includes('context pack'))return 'Rebuild from CLI';
   if(command.includes('harness setup plan'))return 'Preview harness setup';
+  if(command.includes('context-pack/use-plan/current'))return 'Read use plan';
   if(command.includes('context-pack/current'))return 'Read current context pack';
   if(command.includes('mcp resources --read-only'))return 'Read MCP resources';
   return 'Run command';
@@ -1147,6 +1180,12 @@ export function contextPackDownloadName(pack) {
   const target=String(pack?.targetHarness ?? 'generic').replace(/[^A-Za-z0-9._-]/g,'-');
   const date=String(pack?.createdAt ?? new Date().toISOString()).slice(0,10);
   return `open-agent-fabric-context-pack-${target}-${date}.md`;
+}
+
+export function contextPackUsePlanDownloadName(pack) {
+  const target=String(pack?.targetHarness ?? 'generic').replace(/[^A-Za-z0-9._-]/g,'-');
+  const date=String(pack?.createdAt ?? new Date().toISOString()).slice(0,10);
+  return `open-agent-fabric-context-pack-use-plan-${target}-${date}.json`;
 }
 
 function contextPackLocatorList(items) {
@@ -1707,6 +1746,23 @@ function downloadContextPack(event){
   URL.revokeObjectURL(url);
   document.querySelector('#live-status').textContent='Context pack markdown download started.';
   event.currentTarget.textContent='Download .md';
+}
+
+function downloadContextPackUsePlan(event){
+  const usePlan=contextPackResult?.usePlan ?? null;
+  const pack=contextPackResult?.pack ?? null;
+  if(!usePlan||!pack)return;
+  const blob=new Blob([JSON.stringify(usePlan,null,2)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=contextPackUsePlanDownloadName(pack);
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  document.querySelector('#live-status').textContent='Context pack use-plan download started.';
+  event.currentTarget.textContent='Download use plan';
 }
 
 async function showRun(event){

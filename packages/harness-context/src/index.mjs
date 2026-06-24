@@ -14,11 +14,13 @@ import {
 } from '../../context-compiler/src/index.mjs';
 import { assertJsonSchema } from '../../protocol/src/schema-validator.mjs';
 import contextPackSchema from '../../protocol/schemas/context-pack.schema.json' with { type: 'json' };
+import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import harnessContextSourceSchema from '../../protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
 import { buildSourceGraphPreview } from '../../source-graph/src/index.mjs';
 
 export const CONTEXT_PACK_VERSION = '0.1.0';
+export const CONTEXT_PACK_USE_PLAN_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_SCANNER_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
@@ -1151,7 +1153,9 @@ function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, 
   return [
     'npm run doctor',
     `npm run oaf -- context pack ${base} --dry-run --format markdown`,
+    `npm run oaf -- context pack ${base} --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json`,
     `npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
+    'npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json',
     `npm run oaf -- mcp resources --read-only --context-pack ${base} --uri oaf://workspace/ws_local/context-pack/current --format json`,
     'npm run ci'
   ];
@@ -1718,6 +1722,128 @@ export async function buildContextPack({
   pack.contextPackFingerprint = fingerprintContextPack(pack);
   assertJsonSchema(contextPackSchema, pack, 'context pack');
   return pack;
+}
+
+function usePlanReadItem(item) {
+  return {
+    locator: item.locator,
+    role: item.role,
+    required: item.required === true,
+    represented: item.represented === true,
+    contentHash: typeof item.contentHash === 'string' ? item.contentHash : null,
+    reasonCodes: [...new Set((item.reasonCodes ?? []).filter(Boolean))].sort().slice(0, 16),
+    readHint: String(item.readHint ?? '').slice(0, 320)
+  };
+}
+
+function usePlanCoverage(coverage = {}) {
+  return {
+    total: Number.isFinite(coverage.total) ? coverage.total : 0,
+    covered: Number.isFinite(coverage.covered) ? coverage.covered : 0,
+    ratio: Number.isFinite(coverage.ratio) ? coverage.ratio : 0,
+    status: ['covered', 'partial', 'not_applicable'].includes(coverage.status) ? coverage.status : 'not_applicable'
+  };
+}
+
+export function buildContextPackUsePlan(pack, {
+  generatedAt = pack?.createdAt ?? new Date().toISOString(),
+  resourceUri = `oaf://workspace/${pack?.workspaceId ?? 'ws_local'}/context-pack/use-plan/current`
+} = {}) {
+  const requiredLocalReads = (pack?.utility?.requiredLocalReads ?? []).map(usePlanReadItem);
+  const plan = {
+    schemaVersion: '1.0.0',
+    usePlanVersion: CONTEXT_PACK_USE_PLAN_VERSION,
+    id: `ctxuse_${idDigest(stableStringify({
+      contextPackId: pack?.id,
+      contextPackFingerprint: pack?.contextPackFingerprint,
+      resourceUri,
+      requiredLocalReads
+    }))}`,
+    workspaceId: pack?.workspaceId ?? 'ws_local',
+    generatedAt,
+    targetHarness: pack?.targetHarness ?? 'generic',
+    sourceHarnesses: pack?.sourceHarnesses ?? [],
+    contextPack: {
+      id: pack?.id ?? 'ctxpack_unknown',
+      packVersion: pack?.packVersion ?? CONTEXT_PACK_VERSION,
+      createdAt: pack?.createdAt ?? generatedAt,
+      fingerprint: pack?.contextPackFingerprint ?? null,
+      scannerVersion: pack?.scannerVersion ?? HARNESS_CONTEXT_SCANNER_VERSION,
+      compilerVersion: pack?.compilerVersion ?? COMPILER_VERSION
+    },
+    resource: {
+      uri: resourceUri,
+      kind: 'context-pack-use-plan'
+    },
+    requestedInputs: {
+      sourceHarnesses: pack?.requestedInputs?.sourceHarnesses ?? [],
+      userSelectedLocators: pack?.requestedInputs?.userSelectedLocators ?? [],
+      changedLocators: pack?.requestedInputs?.changedLocators ?? [],
+      userSelectedCount: Number.isInteger(pack?.requestedInputs?.userSelectedCount) ? pack.requestedInputs.userSelectedCount : 0,
+      changedLocatorCount: Number.isInteger(pack?.requestedInputs?.changedLocatorCount) ? pack.requestedInputs.changedLocatorCount : 0
+    },
+    requiredLocalReads,
+    coverage: {
+      changedLocators: usePlanCoverage(pack?.utility?.changedLocatorCoverage),
+      graphHints: usePlanCoverage(pack?.utility?.graphHintCoverage)
+    },
+    sourceSelection: {
+      candidateUnitCount: Number.isInteger(pack?.utility?.sourceSelection?.candidateTokenCount) ? pack.utility.sourceSelection.candidateTokenCount : 0,
+      selectedUnitCount: Number.isInteger(pack?.utility?.sourceSelection?.selectedTokenCount) ? pack.utility.sourceSelection.selectedTokenCount : 0,
+      selectedUnitRatio: Number.isFinite(pack?.utility?.sourceSelection?.selectedTokenRatio) ? pack.utility.sourceSelection.selectedTokenRatio : 0,
+      estimatedReductionRatio: Number.isFinite(pack?.utility?.sourceSelection?.estimatedReductionRatio) ? pack.utility.sourceSelection.estimatedReductionRatio : 0
+    },
+    delivery: {
+      representation: 'locator-handoff',
+      deliveredUnitCount: Number.isInteger(pack?.delivery?.deliveredTokenCount) ? pack.delivery.deliveredTokenCount : 0,
+      deliveredByteSize: Number.isInteger(pack?.delivery?.deliveredByteSize) ? pack.delivery.deliveredByteSize : 0,
+      deliveredUnitRatio: Number.isFinite(pack?.delivery?.deliveredTokenRatio) ? pack.delivery.deliveredTokenRatio : 0,
+      observedReductionRatio: Number.isFinite(pack?.delivery?.observedTokenReductionRatio) ? pack.delivery.observedTokenReductionRatio : 0,
+      sourceContentUnitCountIncluded: 0,
+      sourceContentIncluded: false
+    },
+    sourceGraph: {
+      status: pack?.sourceGraph?.status ?? 'unavailable',
+      sourceIndexFingerprint: pack?.sourceGraph?.sourceIndexFingerprint ?? null,
+      graphFingerprint: pack?.sourceGraph?.graphFingerprint ?? null,
+      queryFingerprint: pack?.sourceGraph?.queryFingerprint ?? null,
+      changedLocators: pack?.sourceGraph?.impact?.changedLocators ?? [],
+      representedChangedLocators: pack?.sourceGraph?.impact?.representedChangedLocators ?? [],
+      affectedSymbolCount: Number.isInteger(pack?.sourceGraph?.impact?.affectedSymbolCount) ? pack.sourceGraph.impact.affectedSymbolCount : 0,
+      omittedAffectedSymbolCount: Number.isInteger(pack?.sourceGraph?.impact?.omittedAffectedSymbolCount) ? pack.sourceGraph.impact.omittedAffectedSymbolCount : 0
+    },
+    handoffArtifact: {
+      contentType: 'text/markdown',
+      contentHash: pack?.files?.find((item) => item?.role === 'agent-handoff')?.contentHash ?? null,
+      byteSize: Number.isInteger(pack?.files?.find((item) => item?.role === 'agent-handoff')?.byteSize)
+        ? pack.files.find((item) => item?.role === 'agent-handoff').byteSize
+        : 0,
+      contentIncluded: false
+    },
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      objectiveTextIncluded: false,
+      stepTextIncluded: false,
+      launchInstructionsIncluded: false,
+      markdownContentIncluded: false,
+      sourceContentIncluded: false,
+      privateContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false,
+      remoteEndpointDetailsIncluded: false
+    },
+    usePlanFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  plan.usePlanFingerprint = hash(stableStringify({ ...plan, usePlanFingerprint: null }));
+  assertJsonSchema(contextPackUsePlanSchema, plan, 'context pack use plan');
+  return plan;
 }
 
 function defaultThresholds(dataset) {

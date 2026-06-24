@@ -16,7 +16,7 @@ export class ProtocolBridgeError extends Error {
 const JSONRPC = '2.0';
 const AUTHORITY_KEYS = /(^|\.)(trustedContext|principal|membership|role|owner|isOwner|grant|grantToken|token|authorization|cookie|externalWritesEnabled)($|\.)/i;
 const PRIVATE_KEYS = /(^|\.)(raw|prompt|body|output|secret|token|cookie|authorization|localPath|providerUrl|hiddenReasoning|sql)/i;
-const MAX_RESULT_BYTES = 8192;
+const MAX_RESULT_BYTES = 64 * 1024;
 const MAX_CONTEXT_PACK_ITEMS = 2;
 const MAX_CONTEXT_PACK_BULK_ITEMS = 1;
 
@@ -611,6 +611,7 @@ export function buildOafReadOnlyResourceCatalog({
   state = {},
   projectStatus = {},
   currentContextPack = null,
+  currentContextPackUsePlan = null,
   workspaceId = 'ws_local',
   generatedAt = new Date().toISOString()
 } = {}) {
@@ -737,6 +738,15 @@ export function buildOafReadOnlyResourceCatalog({
       generatedAt,
       provenanceSource: 'local-context-pack',
       data: contextPackSummary
+    })));
+  }
+  if (isPlainObject(currentContextPackUsePlan)) {
+    resources.push(jsonResource(`${base}/context-pack/use-plan/current`, 'Current context pack use plan', 'Sanitized complete local read plan for an explicitly exported context pack.', () => createResourcePayload({
+      resourceKind: 'context-pack-use-plan',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-context-pack-use-plan',
+      data: currentContextPackUsePlan
     })));
   }
   return resources;

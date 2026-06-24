@@ -49,6 +49,25 @@ local measurement report. The report records observed duration, byte counts,
 selected/candidate source units, and delivered-handoff units for that one
 invocation only; it is not a hosted benchmark or performance claim.
 
+For a harness that needs a stable artifact, `context pack --write --use-out`
+can also write a schema-validated use plan under
+`context-packs/*.use.json`. The use plan is separate from the markdown pack:
+the pack remains a dry-run handoff object, while the write report truthfully
+records the local files written. A harness can then launch:
+
+```bash
+npm --silent run oaf -- mcp resources --read-only \
+  --context-pack-use context-packs/CONTEXT_PACK.use.json --stdio
+```
+
+This exposes
+`oaf://workspace/<workspaceId>/context-pack/use-plan/current`, a complete
+sanitized required-read plan with locators, content hashes, coverage, delivery
+metrics, pack fingerprints, and safety flags. It does not expose the raw
+objective, raw step, launch prompt, markdown content, source content, provider
+URLs, absolute filesystem locations, write tools, model calls, network calls,
+external adapters, or home config writes.
+
 ## Authority
 
 The bridge rejects caller-supplied authority fields such as role, owner,

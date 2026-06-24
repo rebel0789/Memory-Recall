@@ -422,6 +422,12 @@
       "expectedValid": true
     },
     {
+      "id": "context-pack-use-plan-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-use-plan.schema.json",
+      "instance": "examples/protocol/context-pack-use-plan.json",
+      "expectedValid": true
+    },
+    {
       "id": "model-generation-request-current-valid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/model-generation-request.json",
@@ -728,6 +734,12 @@
       "expectedValid": true
     },
     {
+      "id": "mcp-readonly-context-pack-use-plan-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-context-pack-use-plan-resource.json",
+      "expectedValid": true
+    },
+    {
       "id": "mcp-context-pack-smoke-current-valid",
       "schema": "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
       "instance": "examples/protocol/mcp-context-pack-smoke.json",
@@ -833,6 +845,12 @@
       "id": "mcp-context-pack-smoke-raw-body-invalid",
       "schema": "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
       "instance": "examples/protocol/compatibility/invalid/mcp-context-pack-smoke-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-pack-use-plan-private-field-invalid",
+      "schema": "packages/protocol/schemas/context-pack-use-plan.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-use-plan-private-field.json",
       "expectedValid": false
     }
   ]

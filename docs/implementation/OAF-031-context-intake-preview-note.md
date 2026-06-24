@@ -24,8 +24,12 @@ slice.
   secret-looking and forbidden paths, caps output at 16 reviewed locators, and
   never reads diffs or file bodies. The browser exposes the same helper as a
   button that fills the changed-file textarea for review before building.
-  `--write --out context-packs/CONTEXT_PACK.md` is the only local write path
-  and writes the generated handoff report, not canonical memory.
+  `--write --out context-packs/CONTEXT_PACK.md` writes the generated markdown
+  handoff report, not canonical memory. `--use-out
+  context-packs/CONTEXT_PACK.use.json` additionally writes a schema-validated
+  use-plan artifact for local harnesses. Both paths are explicit, repo-relative,
+  bounded to `context-packs/`, and keep the original pack object in dry-run
+  semantics; the CLI write report records the local files written.
 - Preview output contains safe locators, hashes, reason codes, token counts,
   selected/excluded decisions, a proposal-only memory plan, safeguards, and a
   preview fingerprint.
@@ -97,6 +101,17 @@ slice.
   impact; it does not include raw objective text, raw step text, markdown
   bodies, source bodies, private local paths, active memory, model calls,
   network calls, external adapters, or write tools.
+- `npm run oaf -- context pack --from codex --objective "..." --step "..." --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json`
+  exports the markdown handoff plus a sanitized `context-pack-use-plan` JSON
+  file. The use plan carries the complete required-read list, content hashes,
+  changed-locator coverage, source-selection metrics, handoff artifact hash,
+  and pack fingerprint. It omits objective text, step text, launch prompt,
+  markdown content, source content, credentials, provider URLs, absolute paths,
+  model calls, network calls, external adapters, active memory, and write tools.
+- `npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json`
+  reads that exported use plan through the read-only MCP resource catalog. The
+  path is restricted to `context-packs/*.use.json`; absolute paths, traversal,
+  backslashes, symlink parents, and non-file targets fail closed.
 - `npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   launches the same read-only stdio MCP resource bridge, reads
   `oaf://workspace/ws_local/context-pack/current`, asserts `tools/list` returns
