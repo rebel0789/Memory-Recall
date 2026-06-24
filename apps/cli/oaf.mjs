@@ -6,7 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { compileContext } from '../../packages/context-compiler/src/index.mjs';
 import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/evaluation-lab/src/index.mjs';
-import { buildContextPack, buildHarnessContextPreview, renderContextPackMarkdown, scanHarnessContext } from '../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildHarnessContextPreview, buildHarnessSetupReport, renderContextPackMarkdown, scanHarnessContext } from '../../packages/harness-context/src/index.mjs';
 import {
   buildMemoryProfileReport,
   buildMemoryProposalsReport,
@@ -39,6 +39,8 @@ if (commands.has(command)) {
   await memoryCommand(args);
 } else if (command === 'mcp') {
   await mcpCommand(args);
+} else if (command === 'harness') {
+  await harnessCommand(args);
 } else if (['help', '--help', '-h'].includes(command)) {
   help();
 } else if (['version', '--version', '-v'].includes(command)) {
@@ -383,6 +385,56 @@ async function mcpCommand(values) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function harnessCommand(values) {
+  const [subcommand, ...rest] = values;
+  try {
+    if (subcommand !== 'setup') {
+      console.error('harness requires setup');
+      process.exitCode = 2;
+      return;
+    }
+    return await harnessSetupCommand(rest);
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function harnessSetupCommand(values) {
+  const [action, ...rest] = values;
+  if (!['status', 'plan', 'uninstall'].includes(action)) {
+    console.error('harness setup requires status, plan, or uninstall');
+    process.exitCode = 2;
+    return;
+  }
+  if (!rest.includes('--dry-run')) {
+    console.error('harness setup requires --dry-run; config writes are not implemented by this command');
+    process.exitCode = 2;
+    return;
+  }
+  if (rest.includes('--write')) {
+    console.error('harness setup is dry-run only; config writes are not implemented by this command');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(rest, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('harness setup only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const home = option(rest, '--home') ?? process.env.HOME ?? process.cwd();
+  const report = await buildHarnessSetupReport({
+    action,
+    client: option(rest, '--client'),
+    server: option(rest, '--server') ?? 'oaf',
+    home,
+    configPath: option(rest, '--config'),
+    generatedAt: fixedNow()
+  });
+  console.log(JSON.stringify(report, null, 2));
 }
 
 async function mcpResourcesCommand(values) {
@@ -759,5 +811,5 @@ function runNode(nodeArgs) {
 }
 
 function help() {
-  console.log(`Open Agent Fabric CLI\n\nUsage:\n  oaf doctor\n  oaf status\n  oaf task OAF-004\n  oaf demo [objective]\n  oaf serve\n  oaf check\n  oaf eval\n  oaf manifest\n  oaf context --request request.json --records records.json\n  oaf context scan --from codex --root . --dry-run\n  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run\n  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --dry-run --format markdown\n  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json\n  oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json\n  oaf memory profile --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json\n  oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json\n  oaf mcp resources --read-only --workspace ws_local --format json\n  oaf mcp resources --read-only --stdio\n  oaf version\n\nThe default bootstrap is local-only and enables no external writes.`);
+  console.log(`Open Agent Fabric CLI\n\nUsage:\n  oaf doctor\n  oaf status\n  oaf task OAF-004\n  oaf demo [objective]\n  oaf serve\n  oaf check\n  oaf eval\n  oaf manifest\n  oaf context --request request.json --records records.json\n  oaf context scan --from codex --root . --dry-run\n  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run\n  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --dry-run --format markdown\n  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json\n  oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json\n  oaf memory profile --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json\n  oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json\n  oaf mcp resources --read-only --workspace ws_local --format json\n  oaf mcp resources --read-only --stdio\n  oaf harness setup status --client codex --dry-run --format json\n  oaf harness setup plan --client cursor --server oaf --dry-run --format json\n  oaf harness setup uninstall --client cursor --server oaf --dry-run --format json\n  oaf version\n\nThe default bootstrap is local-only and enables no external writes.`);
 }

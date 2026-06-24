@@ -295,6 +295,145 @@ test('context graph preview route is protected bounded and does not mutate run s
   assert.equal(api.calls.compile, 0);
 });
 
+test('harness setup plan route is protected plan-only and does not expose home config bodies', async (t) => {
+  const harnessSetupHome = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-harness-home-'));
+  t.after(async () => rm(harnessSetupHome, { recursive: true, force: true }));
+  await mkdir(path.join(harnessSetupHome, '.cursor'), { recursive: true });
+  const configPath = path.join(harnessSetupHome, '.cursor', 'mcp.json');
+  const configBody = JSON.stringify({
+    mcpServers: {
+      other: {
+        command: '/Users/rebel/private-tool',
+        args: ['token=secret-value'],
+        env: { OPENAI_API_KEY: 'secret-value' }
+      }
+    }
+  }, null, 2);
+  await writeFile(configPath, configBody);
+  const api = await startServer(t, { harnessSetupHome });
+
+  const denied = await request(api.base, '/api/harness/setup/plan', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify({ workspaceId: 'ws_local', client: 'cursor' })
+  });
+  assert.equal(denied.status, 401);
+  assert.equal(denied.body.error.code, 'authentication_required');
+
+  const csrfDenied = await request(api.base, '/api/harness/setup/plan', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie },
+    body: JSON.stringify({ workspaceId: 'ws_local', client: 'cursor' })
+  });
+  assert.equal(csrfDenied.status, 403);
+  assert.equal(csrfDenied.body.error.code, 'csrf_failed');
+
+  for (const extra of [{ home: harnessSetupHome }, { configPath: '.cursor/mcp.json' }, { write: true }, { server: 'other' }, { dryRun: true }]) {
+    const rejected = await request(api.base, '/api/harness/setup/plan', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+      body: JSON.stringify({ workspaceId: 'ws_local', client: 'cursor', ...extra })
+    });
+    assert.equal(rejected.status, 400, JSON.stringify(extra));
+    assert.equal(rejected.body.error.code, 'request_validation_failed');
+  }
+
+  const response = await request(api.base, '/api/harness/setup/plan', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', client: 'cursor' })
+  });
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.schemaVersion, '1.0.0');
+  assert.equal(response.body.command, 'harness setup plan');
+  assert.equal(response.body.dryRun, true);
+  assert.equal(response.body.client, 'cursor');
+  assert.equal(response.body.server, 'oaf');
+  assert.equal(response.body.config.ref, 'home://.cursor/mcp.json');
+  assert.equal(response.body.config.serverCount, 1);
+  assert.equal(response.body.diff.redacted, true);
+  assert.deepEqual(response.body.diff.operations, [{ op: 'add', target: 'mcpServers.oaf', before: 'absent', after: 'read-only-oaf-mcp-stdio', summary: 'add oaf with read-only OAF MCP stdio resource bridge' }]);
+  assert.deepEqual(response.body.desiredServer.args, ['run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
+  assert.match(response.body.planFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(response.body.safeguards.localFilesWritten, 0);
+  assert.equal(response.body.safeguards.homeConfigMutated, false);
+  assert.equal(response.body.safeguards.externalWritesEnabled, false);
+  assert.equal(response.body.safeguards.externalAdaptersEnabled, 0);
+  assert.equal(await readFile(configPath, 'utf8'), configBody);
+  assert.equal(response.text.includes(harnessSetupHome), false);
+  assert.equal(response.text.includes('/Users/rebel/private-tool'), false);
+  assert.equal(response.text.includes('secret-value'), false);
+  assert.equal(response.text.includes('OPENAI_API_KEY'), false);
+  assert.equal(response.text.includes('other-secret'), false);
+  assert.equal(response.text.includes('npx'), false);
+  assert.equal(response.text.includes('uvx'), false);
+  assert.equal(response.text.includes('curl'), false);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+  assert.equal(api.calls.compile, 0);
+});
+
+test('context pack and graph preview authorize context resources', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-context-policy-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  const harnessSetupHome = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-context-policy-home-'));
+  t.after(async () => rm(harnessSetupHome, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(path.join(sourceGraphRoot, 'src', 'index.ts'), 'export function buildContextPackPolicyFixture(){ return true; }\n');
+  const policyRequests = [];
+  const policyService = {
+    async evaluate(request) {
+      policyRequests.push(request);
+      return {
+        outcome: 'allow',
+        reasonCodes: [],
+        policyVersion: '1.0.0',
+        policyFingerprint: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        resource: request.resource
+      };
+    }
+  };
+  const api = await startServer(t, { sourceGraphRoot, harnessSetupHome, policyService });
+
+  const pack = await request(api.base, '/api/context/pack', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare handoff',
+      step: 'select useful context',
+      targetHarness: 'codex',
+      tokenBudget: 96
+    })
+  });
+  assert.equal(pack.status, 200, pack.text);
+
+  const graph = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', query: 'context pack policy' })
+  });
+  assert.equal(graph.status, 200, graph.text);
+
+  const harness = await request(api.base, '/api/harness/setup/plan', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', client: 'codex' })
+  });
+  assert.equal(harness.status, 200, harness.text);
+
+  assert.deepEqual(
+    policyRequests
+      .filter((item) => ['buildContextPack', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
+      .map((item) => [item.operationId, item.action, item.resource.type]),
+    [
+      ['buildContextPack', 'context.compile', 'context'],
+      ['previewContextGraph', 'context.compile', 'context'],
+      ['planHarnessSetup', 'workspace.read', 'workspace']
+    ]
+  );
+});
+
 test('dashboard counters are scoped to the authorized workspace', async (t) => {
   const api = await startServer(t);
   api.store.state.memories = [

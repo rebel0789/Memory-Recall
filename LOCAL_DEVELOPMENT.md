@@ -54,6 +54,11 @@ embedding raw source bodies or code slices. The pack also includes omitted
 context refs so a user can recover skipped local files by locator when the
 budget or relevance selector left them out.
 
+In the browser, use **Build context pack** as the primary local handoff flow.
+The result can be copied to the clipboard or downloaded as Markdown from the
+client. The browser path does not write files on the server; use the explicit
+CLI write mode below when you want a checked workspace file.
+
 CLI dry run:
 
 ```bash
@@ -96,6 +101,9 @@ npm run oaf -- mcp resources --read-only --format json
 npm run oaf -- mcp resources --read-only \
   --uri oaf://workspace/ws_local/context/latest \
   --format json
+npm run oaf -- mcp resources --read-only \
+  --uri oaf://workspace/ws_local/handoff/latest \
+  --format json
 ```
 
 For MCP-compatible stdio clients, pipe JSON-RPC messages into the local
@@ -113,6 +121,46 @@ network listener, expose write tools, mutate canonical state, create active
 memory, write source snapshots, call models, perform external egress, enable
 external adapters, or include raw prompts, context bodies, model results,
 credentials, provider URLs, absolute local paths, or hidden reasoning.
+
+## Harness setup planner
+
+Use the harness setup planner when you want to see how a local MCP-compatible
+client would connect to OAF's read-only resource bridge:
+
+```bash
+npm run oaf -- harness setup status \
+  --client codex \
+  --dry-run \
+  --format json
+
+npm run oaf -- harness setup plan \
+  --client cursor \
+  --server oaf \
+  --dry-run \
+  --format json
+```
+
+For a removable preview:
+
+```bash
+npm run oaf -- harness setup uninstall \
+  --client cursor \
+  --server oaf \
+  --dry-run \
+  --format json
+```
+
+The planner reads only the selected home config, reports `home://` locators,
+and emits a redacted operation summary. It does not write `.codex`,
+`.cursor`, or other home-directory config files, does not install packages,
+does not call models, does not make network calls, and does not enable external
+adapters or external writes. Malformed configs fail closed without printing the
+raw config body.
+
+The browser shell exposes the same plan-only flow under
+<http://127.0.0.1:4310/agents-tools>. That API accepts only the workspace and a
+known harness client; it does not accept arbitrary home paths, config paths,
+server names, commands, args, or write flags.
 
 ## Source graph preview
 

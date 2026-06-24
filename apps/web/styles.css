@@ -30,6 +30,7 @@ h3{font-size:15px;line-height:1.3}
 .page-description{margin:var(--space-8) 0 0;color:var(--slate);max-width:var(--layout-prose)}
 .top-actions,.action-row{display:flex;gap:var(--space-8);flex-wrap:wrap}
 .button{border-radius:var(--radius-control);padding:11px 15px;min-height:44px;border:1px solid var(--border);cursor:pointer;font-weight:720}
+a.button{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
 .button.primary{background:var(--signal);color:#07110f;border-color:transparent}
 .button.secondary{background:var(--surface-2);color:var(--paper)}
 .button:disabled{opacity:.55;cursor:not-allowed}
@@ -95,7 +96,23 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .field input,.field select,.field textarea{width:100%;min-height:44px;border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-2);color:var(--paper);padding:10px 12px;font:inherit}
 .field textarea{min-height:96px;resize:vertical}
 .field input:focus-visible,.field select:focus-visible,.field textarea:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.primary-flow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:var(--space-20,20px);align-items:end}
+.primary-flow h2{font-size:26px;line-height:1.12;margin:0}
+.primary-flow p{color:var(--slate);max-width:var(--layout-prose)}
+.flow-mini,.guide-steps{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-8)}
+.flow-mini li,.guide-steps li{border-top:1px solid var(--border);padding-top:var(--space-8);display:grid;grid-template-columns:30px 1fr;gap:var(--space-8);align-items:center}
+.flow-mini strong,.guide-steps strong{width:26px;height:26px;border-radius:999px;background:var(--surface-3);display:grid;place-items:center;color:var(--signal);font-size:12px}
+.flow-mini span,.guide-steps span{color:var(--slate)}
+.context-pack-guide{margin-bottom:var(--space-16)}
+.guide-steps{grid-template-columns:repeat(4,minmax(0,1fr))}
+.guide-steps li{border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-2);padding:var(--space-10,10px);min-height:66px}
+.artifact-actions{display:flex;flex-wrap:wrap;gap:var(--space-8);margin-bottom:var(--space-12)}
+.context-pack-metrics{margin-top:var(--space-8)}
 .pack-output{width:100%;min-height:420px;border:1px solid var(--border);border-radius:var(--radius-panel);background:var(--surface-2);color:var(--paper);padding:var(--space-16);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;resize:vertical}
+.command-list{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-8)}
+.command-list li{display:grid;gap:var(--space-6,6px);border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-3);padding:var(--space-10,10px)}
+.command-list strong{font-size:12px;color:var(--slate);text-transform:uppercase;letter-spacing:.08em}
+.command-list code{display:block;white-space:pre-wrap}
 .facts{display:grid;gap:var(--space-8);margin:var(--space-16) 0 0}
 .facts div{display:grid;grid-template-columns:110px 1fr;gap:var(--space-12);border-top:1px solid var(--border);padding-top:var(--space-8)}
 .facts,.facts div,.facts dd,.facts dt{min-width:0}
@@ -220,9 +237,11 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .metric-strip{grid-template-columns:repeat(2,1fr)}
   .facts-wide{grid-template-columns:1fr}
   .fabric-hero,.fabric-layout{grid-template-columns:1fr}
+  .primary-flow{grid-template-columns:1fr}
   .fabric-node-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
   .fabric-scoreboard{grid-template-columns:repeat(5,minmax(0,1fr))}
   .flow-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .guide-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
   .flow-step:not(:last-child):after{display:none}
 }
 
@@ -244,6 +263,8 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .summary-list{grid-template-columns:1fr}
   .diff-grid,.evidence-columns{grid-template-columns:1fr}
   .fabric-node-grid,.flow-steps{grid-template-columns:1fr}
+  .guide-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .guide-steps li{grid-template-columns:1fr;align-content:start}
   .fabric-scoreboard{grid-template-columns:repeat(2,minmax(0,1fr))}
   .fabric-links li{grid-template-columns:1fr;gap:4px}
   .fabric-links strong{text-align:left}

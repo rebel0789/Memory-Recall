@@ -153,6 +153,7 @@ export function createApiRouteContracts(limits = {}) {
     compileContext: Math.min(limits.bodyBytes ?? 1_000_000, 256 * 1024),
     buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     previewContextGraph: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    planHarnessSetup: Math.min(limits.bodyBytes ?? 1_000_000, 4 * 1024),
     resetBootstrap: 0
   };
   const limitShape = {
@@ -301,6 +302,18 @@ export function createApiRouteContracts(limits = {}) {
       maxFileBytes: { type: 'integer', minimum: 1024, maximum: 1048576 }
     }
   };
+  const harnessSetupPlanRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId', 'client'],
+    maxProperties: 2,
+    properties: {
+      workspaceId,
+      client: {
+        enum: ['codex', 'cursor', 'claude-code', 'opencode', 'openclaw', 'gemini-cli', 'zed', 'aider', 'goose', 'vscode', 'cline', 'roo', 'windsurf', 'generic-mcp']
+      }
+    }
+  };
   const contextPackResponse = {
     type: 'object',
     additionalProperties: false,
@@ -355,6 +368,103 @@ export function createApiRouteContracts(limits = {}) {
           sourceSlicesRead: { const: false }
         }
       }
+    }
+  };
+  const harnessSetupPlanResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'config', 'status', 'desiredServer', 'diff', 'safeguards', 'planFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      plannerVersion: boundedString(32),
+      command: { const: 'harness setup plan' },
+      dryRun: { const: true },
+      generatedAt: { type: 'string', format: 'date-time' },
+      client: boundedString(32),
+      clientLabel: boundedString(80),
+      server: { const: 'oaf' },
+      config: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['ref', 'format', 'exists', 'serverCount'],
+        properties: {
+          ref: { type: 'string', pattern: '^home://[A-Za-z0-9._/-]{1,240}$', maxLength: 256 },
+          format: { enum: ['json', 'jsonc', 'toml', 'yaml'] },
+          exists: { type: 'boolean' },
+          serverCount: { type: 'integer', minimum: 0, maximum: 1000 }
+        }
+      },
+      status: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['config', 'server'],
+        properties: {
+          config: { enum: ['present', 'absent'] },
+          server: { enum: ['installed', 'absent', 'drifted'] }
+        }
+      },
+      desiredServer: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['name', 'transport', 'command', 'args', 'environmentKeys', 'resourceMode', 'externalWrites'],
+        properties: {
+          name: { const: 'oaf' },
+          transport: { const: 'stdio' },
+          command: { const: 'npm' },
+          args: {
+            type: 'array',
+            minItems: 7,
+            maxItems: 7,
+            items: boundedString(32)
+          },
+          environmentKeys: { type: 'array', maxItems: 0 },
+          resourceMode: { const: 'read-only' },
+          externalWrites: { const: false }
+        }
+      },
+      diff: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['redacted', 'operations', 'preview'],
+        properties: {
+          redacted: { const: true },
+          operations: {
+            type: 'array',
+            maxItems: 1,
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['op', 'target', 'before', 'after', 'summary'],
+              properties: {
+                op: { enum: ['add', 'replace', 'remove'] },
+                target: { const: 'mcpServers.oaf' },
+                before: { enum: ['installed', 'absent', 'drifted'] },
+                after: { enum: ['read-only-oaf-mcp-stdio', 'absent'] },
+                summary: boundedString(160)
+              }
+            }
+          },
+          preview: { type: 'array', maxItems: 1, items: boundedString(160) }
+        }
+      },
+      safeguards: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['localFilesWritten', 'canonicalStateMutated', 'homeConfigMutated', 'externalWritesEnabled', 'externalAdaptersEnabled', 'networkCalls', 'modelCalls', 'rawConfigBodyIncluded', 'absoluteFilesystemLocationsIncluded', 'credentialsIncluded'],
+        properties: {
+          localFilesWritten: { const: 0 },
+          canonicalStateMutated: { const: false },
+          homeConfigMutated: { const: false },
+          externalWritesEnabled: { const: false },
+          externalAdaptersEnabled: { const: 0 },
+          networkCalls: { const: 0 },
+          modelCalls: { const: 0 },
+          rawConfigBodyIncluded: { const: false },
+          absoluteFilesystemLocationsIncluded: { const: false },
+          credentialsIncluded: { const: false }
+        }
+      },
+      planFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     }
   };
   const contextManifest = {
@@ -690,6 +800,22 @@ export function createApiRouteContracts(limits = {}) {
       bodyRequired: true,
       streams: false,
       responses: { 200: contextGraphPreviewResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/harness/setup/plan',
+      operationId: 'planHarnessSetup',
+      security: { authenticated: true, sessionOnly: true, action: 'workspace.read', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: harnessSetupPlanRequest,
+      maxBodyBytes: routeBodyBytes.planHarnessSetup,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: harnessSetupPlanResponse }
     },
     {
       method: 'POST',

@@ -28,6 +28,8 @@ let contextPackResult=null;
 let contextPackError=null;
 let sourceGraphResult=null;
 let sourceGraphError=null;
+let harnessSetupResult=null;
+let harnessSetupError=null;
 let activeFabricNode='context';
 
 export function legacyViewPath(view) {
@@ -563,6 +565,44 @@ export function buildFabricMapModel({ dashboard: value = null, shellState: state
   };
 }
 
+export function buildHarnessSetupUiModel(report = null) {
+  const operation = report?.diff?.operations?.[0] ?? null;
+  return {
+    ready:Boolean(report),
+    client:safeText(report?.clientLabel ?? report?.client ?? 'Select a client'),
+    clientId:safeText(report?.client ?? 'codex'),
+    configRef:safeText(report?.config?.ref ?? 'home://not-selected'),
+    configStatus:safeText(report?.status?.config ?? 'not checked'),
+    serverStatus:safeText(report?.status?.server ?? 'not checked'),
+    operation:operation ? safeText(operation.summary) : 'No MCP config change needed',
+    operationKind:safeText(operation?.op ?? 'none'),
+    command:report ? `npm run oaf -- harness setup plan --client ${safeText(report.client)} --server oaf --dry-run --format json` : 'npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json',
+    bridgeCommand:report?.desiredServer ? [report.desiredServer.command,...report.desiredServer.args].join(' ') : 'npm run oaf -- mcp resources --read-only --stdio',
+    fingerprint:safeText(report?.planFingerprint ?? 'not generated'),
+    safeguards:[
+      ['Dry run', report?.dryRun === true ? 'true' : 'not run'],
+      ['Home writes', String(Number(report?.safeguards?.localFilesWritten ?? 0))],
+      ['External writes', report?.safeguards?.externalWritesEnabled ? 'enabled' : 'disabled'],
+      ['External adapters', String(Number(report?.safeguards?.externalAdaptersEnabled ?? 0))],
+      ['Network calls', String(Number(report?.safeguards?.networkCalls ?? 0))],
+      ['Raw config body', report?.safeguards?.rawConfigBodyIncluded ? 'included' : 'excluded']
+    ]
+  };
+}
+
+export function harnessSetupClientsForUi() {
+  return [
+    ['codex','Codex'],
+    ['cursor','Cursor'],
+    ['claude-code','Claude Code'],
+    ['opencode','OpenCode'],
+    ['gemini-cli','Gemini CLI'],
+    ['vscode','VS Code'],
+    ['aider','Aider'],
+    ['windsurf','Windsurf']
+  ];
+}
+
 function workspaceId() {
   return new URL(globalThis.location?.href ?? 'http://127.0.0.1/').searchParams.get('workspaceId') ?? 'ws_local';
 }
@@ -636,6 +676,9 @@ function render() {
   root.querySelector('#auth-form')?.addEventListener('submit',submitAuthForm);
   root.querySelector('#context-pack-form')?.addEventListener('submit',submitContextPack);
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
+  root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
+  root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
+  root.querySelectorAll('[data-action=download-pack]').forEach(button=>button.addEventListener('click',downloadContextPack));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
 }
@@ -682,13 +725,21 @@ function renderRoute(route) {
 function renderHome() {
   const metrics=dashboard?.metrics ?? {runs:0,completed:0,events:0,pendingApprovals:0};
   const stateMarkup = shellState.kind === 'empty'
-    ? statePanel('empty','No local runs yet','Run the content intelligence workflow to populate the local event ledger.',true)
+    ? contextPackEmptyState()
     : shellState.kind === 'partial'
       ? statePanel('partial','Context manifest pending','A run exists, but no persisted context manifest is available yet.')
       : shellState.kind === 'stale'
         ? statePanel('stale','Cached local state',shellState.message,true)
         : '';
-  return `${stateMarkup}<section class="metric-strip" aria-label="Workspace metrics">${metric(metrics.runs,'Runs','Recorded locally')}${metric(metrics.completed,'Completed','Verified outcomes')}${metric(metrics.events,'Events','Append-only ledger')}${metric(metrics.pendingApprovals,'Approvals','Need review')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Recent runs</h2><span>Local event ledger</span></div>${runList(dashboard?.runs)}</div><aside class="inspector" aria-label="Workspace inspector">${contextSummary(dashboard?.latestManifest)}${localBoundary()}</aside></section><section class="surface"><div class="section-heading"><h2>Latest recommendations</h2><span>Evidence-backed candidates</span></div>${angles(dashboard?.latestRun?.output?.output)}</section>`;
+  return `${stateMarkup}${renderPrimaryFlow()}<section class="metric-strip" aria-label="Workspace metrics">${metric(metrics.runs,'Runs','Recorded locally')}${metric(metrics.completed,'Completed','Verified outcomes')}${metric(metrics.events,'Events','Append-only ledger')}${metric(metrics.pendingApprovals,'Approvals','Need review')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Recent runs</h2><span>Local event ledger</span></div>${runList(dashboard?.runs)}</div><aside class="inspector" aria-label="Workspace inspector">${contextSummary(dashboard?.latestManifest)}${localBoundary()}</aside></section><section class="surface"><div class="section-heading"><h2>Latest recommendations</h2><span>Evidence-backed candidates</span></div>${angles(dashboard?.latestRun?.output?.output)}</section>`;
+}
+
+function contextPackEmptyState(){
+  return `<section class="state-panel state-empty"><h2>No local handoff yet</h2><p>Build a context pack first. The demo workflow is optional evidence data, not the main product path.</p><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Build context pack</a><button class="button secondary" data-action="run" type="button">Run demo</button></div></section>`;
+}
+
+function renderPrimaryFlow() {
+  return `<section class="surface primary-flow" aria-label="Primary local context workflow"><div><p class="eyebrow">Start here</p><h2>Build a handoff your next agent can actually use.</h2><p>The pack selects safe local locators, explains omissions, estimates context pressure, and keeps raw source bodies out of the browser and MCP resources.</p></div><ol class="flow-mini" aria-label="Context pack workflow"><li><strong>1</strong><span>Choose target harness</span></li><li><strong>2</strong><span>Add explicit relative files</span></li><li><strong>3</strong><span>Inspect selected and omitted context</span></li><li><strong>4</strong><span>Copy or download the markdown handoff</span></li></ol><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Build context pack</a><a class="button secondary" href="/source-graph" data-route="source-graph">Preview source graph</a></div></section>`;
 }
 
 function renderRuns() {
@@ -762,11 +813,52 @@ function renderContextPack() {
   const pack=contextPackResult?.pack ?? null;
   const markdown=contextPackResult?.markdown ?? '';
   const errorPanel=contextPackError?statePanel('error','Context pack failed',contextPackError,false):'';
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div><label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Selected files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Local-only dry run</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Harness project files and selected relative files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff</dd></div><div><dt>Writes</dt><dd>none from browser</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+  return `<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Describe the job</span></li><li><strong>2</strong><span>Choose safe locators</span></li><li><strong>3</strong><span>Build sanitized markdown</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div><label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators and hashes only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Harness project files and explicit relative files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff</dd></div><div><dt>Browser</dt><dd>copy or download only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
 }
 
 function renderContextPackResult(pack,markdown) {
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff preview</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(shortFingerprint(pack.contextPackFingerprint))}</span></div><textarea class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${pack.warnings.length}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Tokens</dt><dd>${Number(pack.preview.selectedTokenCount)} / ${Number(pack.preview.budget.available)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>`;
+  const model=buildContextPackUiModel(pack,markdown);
+  return `<section class="metric-strip context-pack-metrics" aria-label="Context pack metrics">${metric(model.selectedLocators,'Selected','Read first')}${metric(model.omittedRefs,'Omitted','Inspectable refs')}${metric(model.selectedTokens,'Tokens','Selected estimate')}${metric(model.estimatedReductionPercent,'Reduction','Estimated vs candidates')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(shortFingerprint(pack.contextPackFingerprint))}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${pack.warnings.length}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>`;
+}
+
+export function buildContextPackUiModel(pack,markdown='') {
+  const candidateTokens=Number(pack?.preview?.candidateTokenCount ?? 0);
+  const selectedTokens=Number(pack?.preview?.selectedTokenCount ?? 0);
+  const estimatedReductionPercent=candidateTokens > 0
+    ? Math.max(0,Math.min(100,Math.round((1 - selectedTokens / candidateTokens) * 100)))
+    : 0;
+  return {
+    targetHarness:String(pack?.targetHarness ?? 'generic'),
+    markdownBytes:new Blob([String(markdown)]).size,
+    selectedLocators:Array.isArray(pack?.readFirst) ? pack.readFirst.length : 0,
+    omittedRefs:Number(pack?.omissions?.excludedCount ?? 0),
+    selectedTokens,
+    candidateTokens,
+    estimatedReductionPercent,
+    downloadName:contextPackDownloadName(pack),
+    commands:contextPackHarnessCommands(pack)
+  };
+}
+
+function contextPackHarnessCommands(pack) {
+  const target=String(pack?.targetHarness ?? 'generic');
+  const objective=quoteShell(pack?.objective ?? 'Ship safely');
+  const step=quoteShell(pack?.step ?? 'select context');
+  return [
+    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from all --root . --objective ${objective} --step ${step} --target ${target} --dry-run --format markdown` },
+    { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
+    { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
+  ];
+}
+
+function contextPackCommandList(commands) {
+  return `<ol class="command-list">${commands.map((item)=>`<li><strong>${esc(item.label)}</strong><code>${esc(item.command)}</code></li>`).join('')}</ol>`;
+}
+
+export function contextPackDownloadName(pack) {
+  const target=String(pack?.targetHarness ?? 'generic').replace(/[^A-Za-z0-9._-]/g,'-');
+  const date=String(pack?.createdAt ?? new Date().toISOString()).slice(0,10);
+  return `open-agent-fabric-context-pack-${target}-${date}.md`;
 }
 
 function contextPackLocatorList(items) {
@@ -790,7 +882,7 @@ function contextPackSourceGraphList(sourceGraph) {
   return `<ol class="compact-list locator-list">${results.map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.kind)} · ${esc(item.label)} · ${Number(item.score??0).toFixed(3)}</span></li>`).join('')}</ol>`;
 }
 
-function parseSelectedFiles(value) {
+export function parseSelectedFiles(value) {
   return [...new Set(String(value??'').split(/[,\n]/u).map((item)=>item.trim()).filter(Boolean))];
 }
 
@@ -851,7 +943,14 @@ function renderContentLab() {
 }
 
 function renderAgentsTools() {
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Native baselines</h2><span>Conformance anchors</span></div><div class="table-wrap"><table><thead><tr><th>Surface</th><th>Status</th><th>Boundary</th></tr></thead><tbody>${[['Model gateway','reference','deterministic default'],['Workflow runtime','reference','embedded + durable SQLite'],['Tool broker','reference','one-use local grants'],['External adapters','disabled','12 contracts, 0 enabled']].map(row=>`<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join('')}</tbody></table></div></div><aside class="inspector"><h2>Tool policy</h2><p>Policy, grants, filesystem, loopback egress, and secret references remain independently brokered.</p></aside></section>`;
+  const errorPanel=harnessSetupError?statePanel('error','Harness setup preview failed',harnessSetupError,false):'';
+  const selectedClient=harnessSetupResult?.client ?? 'codex';
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Native baselines</h2><span>Conformance anchors</span></div><div class="table-wrap"><table><thead><tr><th>Surface</th><th>Status</th><th>Boundary</th></tr></thead><tbody>${[['Model gateway','reference','deterministic default'],['Workflow runtime','reference','embedded + durable SQLite'],['Tool broker','reference','one-use local grants'],['External adapters','disabled','12 contracts, 0 enabled']].map(row=>`<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join('')}</tbody></table></div></div><aside class="inspector"><h2>Tool policy</h2><p>Policy, grants, filesystem, loopback egress, and secret references remain independently brokered.</p></aside></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Harness setup preview</h2><span>Dry run only</span></div><form id="harness-setup-form" class="stacked-form"><label class="field"><span>Client</span><select name="client">${harnessSetupClientsForUi().map(([id,label])=>`<option value="${esc(id)}"${id===selectedClient?' selected':''}>${esc(label)}</option>`).join('')}</select></label><div class="action-row"><button class="button primary" type="submit">Preview setup</button><span class="muted">No home config writes. OAF server only.</span></div></form></div><aside class="inspector"><h2>Setup boundary</h2><dl class="facts"><div><dt>API body</dt><dd>workspace and client only</dd></div><div><dt>Server</dt><dd>oaf</dd></div><div><dt>Mode</dt><dd>plan-only dry run</dd></div><div><dt>Bridge</dt><dd>read-only MCP resources</dd></div></dl></aside></section>${errorPanel}${harnessSetupResult?renderHarnessSetupResult(harnessSetupResult):statePanel('empty','No setup preview yet','Choose a local harness client to see the redacted MCP setup plan.')}`;
+}
+
+function renderHarnessSetupResult(report) {
+  const model=buildHarnessSetupUiModel(report);
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.client)} setup plan</h2><span>${esc(shortFingerprint(model.fingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Config</dt><dd>${esc(model.configRef)}</dd></div><div><dt>Config status</dt><dd>${esc(model.configStatus)}</dd></div><div><dt>OAF server</dt><dd>${esc(model.serverStatus)}</dd></div><div><dt>Operation</dt><dd>${esc(model.operation)}</dd></div></dl><ol class="command-list"><li><strong>CLI preview</strong><code>${esc(model.command)}</code></li><li><strong>Read-only bridge</strong><code>${esc(model.bridgeCommand)}</code></li></ol></div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>redacted</span></div><dl class="facts compact-facts">${model.safeguards.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><hr><p class="muted">This preview does not print raw config bodies, credentials, provider URLs, absolute local paths, or hidden reasoning.</p></aside></section>`;
 }
 
 function renderSettings() {
@@ -970,10 +1069,12 @@ function selectFabricNode(event) {
   document.querySelector('#main').focus({preventScroll:true});
 }
 
-async function runDemo(){
-  const button=document.querySelector('#run-button');
-  button.disabled=true;
-  button.textContent='Running...';
+async function runDemo(event){
+  const button=event?.currentTarget ?? document.querySelector('#run-button');
+  if(button){
+    button.disabled=true;
+    button.textContent='Running...';
+  }
   document.querySelector('#live-status').textContent='Local workflow started.';
   try{
     await api('/api/runs',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),workflowId:'workflow:content-intelligence'})});
@@ -984,8 +1085,10 @@ async function runDemo(){
     shellState=classifyDashboardState({error:{status:error.status,message:error.message}});
     render();
   }finally{
-    button.disabled=false;
-    button.textContent='Run local demo';
+    if(button){
+      button.disabled=false;
+      button.textContent='Run demo';
+    }
   }
 }
 
@@ -1086,9 +1189,33 @@ async function submitSourceGraph(event){
   }
 }
 
-async function resetDemo(){
-  const button=document.querySelector('#reset-button');
+async function submitHarnessSetupPlan(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector('button[type=submit]');
+  const data=new FormData(form);
+  const client=String(data.get('client') ?? 'codex');
   button.disabled=true;
+  button.textContent='Previewing...';
+  document.querySelector('#live-status').textContent='Previewing local harness setup.';
+  try{
+    harnessSetupResult=await api('/api/harness/setup/plan',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),client})});
+    harnessSetupError=null;
+    document.querySelector('#live-status').textContent='Harness setup preview ready.';
+    render();
+  }catch(error){
+    document.querySelector('#live-status').textContent=error.message;
+    harnessSetupError=error.message;
+    render();
+  }finally{
+    button.disabled=false;
+    button.textContent='Preview setup';
+  }
+}
+
+async function resetDemo(event){
+  const button=event?.currentTarget ?? document.querySelector('#reset-button');
+  if(button)button.disabled=true;
   try{
     await api('/api/reset',{method:'POST'});
     activeRunDetail=null;
@@ -1097,8 +1224,48 @@ async function resetDemo(){
   }catch(error){
     document.querySelector('#live-status').textContent=error.message;
   }finally{
-    button.disabled=false;
+    if(button)button.disabled=false;
   }
+}
+
+async function copyContextPack(event){
+  const markdown=contextPackResult?.markdown ?? '';
+  if(!markdown)return;
+  const button=event.currentTarget;
+  const previous=button.textContent;
+  try{
+    if(globalThis.navigator?.clipboard?.writeText){
+      await navigator.clipboard.writeText(markdown);
+    }else{
+      const output=document.querySelector('#context-pack-output');
+      output?.focus();
+      output?.select();
+      document.execCommand?.('copy');
+    }
+    document.querySelector('#live-status').textContent='Context pack markdown copied.';
+    button.textContent='Copied';
+  }catch(error){
+    document.querySelector('#live-status').textContent='Copy failed. Select the markdown manually.';
+  }finally{
+    setTimeout(()=>{ button.textContent=previous; },1200);
+  }
+}
+
+function downloadContextPack(event){
+  const markdown=contextPackResult?.markdown ?? '';
+  const pack=contextPackResult?.pack ?? null;
+  if(!markdown||!pack)return;
+  const blob=new Blob([markdown],{type:'text/markdown;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=contextPackDownloadName(pack);
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  document.querySelector('#live-status').textContent='Context pack markdown download started.';
+  event.currentTarget.textContent='Download .md';
 }
 
 async function showRun(event){
@@ -1132,10 +1299,11 @@ function memoryActionsForStatus(status){if(status==='proposed'||status==='verifi
 function approvalActionsForStatus(status){if(status==='pending')return [{label:'Approve exact operation'},{label:'Edit invalidates approval'},{label:'Reject'}];return [{label:'Review outcome'}]}
 function memoryDisplayText(value){const text=String(value??'');return /sk-[A-Za-z0-9_-]{12,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gho_[A-Za-z0-9_]{12,}/.test(text) ? '[redacted-sensitive-value]' : previewText(text)}
 function safeKeyValueList(value){if(!value||typeof value!=='object'||Array.isArray(value))return [];return Object.entries(value).filter(([key])=>!/prompt|body|credential|token|secret|path|url|reasoning|sql/i.test(key)).slice(0,8).map(([key,raw])=>({key:labelize(key),value:Array.isArray(raw)?raw.slice(0,4).map(safeText).join(', '):safeText(raw)}))}
+function quoteShell(value){return `'${String(value??'').replaceAll("'","'\"'\"'")}'`}
 
 function boot(){
-  document.querySelector('#run-button').addEventListener('click',runDemo);
-  document.querySelector('#reset-button').addEventListener('click',resetDemo);
+  document.querySelector('#run-button')?.addEventListener('click',runDemo);
+  document.querySelector('#reset-button')?.addEventListener('click',resetDemo);
   window.addEventListener('popstate',()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else render()});
   const runId=new URL(location.href).searchParams.get('run');
   load().then(()=>{if(runId)loadRunById(runId,{push:false})});

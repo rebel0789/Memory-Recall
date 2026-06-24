@@ -358,5 +358,19 @@ test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped reso
   assert.equal(text.includes('private memory text'), false);
   assert.equal(text.includes('/Users/rebel'), false);
   assert.equal(text.includes('run_other'), false);
+
+  const handoff = await bridge.handle({ jsonrpc: '2.0', id: 4, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/handoff/latest' } });
+  const handoffPayload = JSON.parse(handoff.result.contents[0].text);
+  assert.equal(handoffPayload.resourceKind, 'handoff-bundle-summary');
+  assert.equal(handoffPayload.workspaceId, 'ws_mcp');
+  assert.match(handoffPayload.resourceFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(handoffPayload.safeguards.readOnly, true);
+  assert.equal(handoffPayload.safeguards.canonicalStateMutated, false);
+  const handoffText = JSON.stringify(handoffPayload);
+  assert.equal(handoffText.includes('raw prompt body'), false);
+  assert.equal(handoffText.includes('private model result'), false);
+  assert.equal(handoffText.includes('private memory text'), false);
+  assert.equal(handoffText.includes('/Users/rebel'), false);
+  assert.equal(handoffText.includes('run_other'), false);
   assert.equal(JSON.stringify(state), before);
 });

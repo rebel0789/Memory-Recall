@@ -8,7 +8,7 @@ import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { buildContextPack, renderContextPackMarkdown } from '../../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildHarnessSetupReport, renderContextPackMarkdown } from '../../../packages/harness-context/src/index.mjs';
 import { buildSourceGraphPreview } from '../../../packages/source-graph/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
@@ -79,6 +79,7 @@ export function createControlApiServer({
   compileContext = defaultCompileContext,
   manifestRepository = null,
   sourceGraphRoot = path.resolve(here, '../../..'),
+  harnessSetupHome = process.env.HOME ?? process.cwd(),
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   policyService = null,
@@ -307,6 +308,14 @@ export function createControlApiServer({
           maxFiles: context.body.maxFiles ?? 200,
           maxFileBytes: context.body.maxFileBytes ?? 128 * 1024,
           clock
+        });
+      case 'planHarnessSetup':
+        return buildHarnessSetupReport({
+          action: 'plan',
+          client: context.body.client,
+          server: 'oaf',
+          home: harnessSetupHome,
+          generatedAt: clock()
         });
       case 'resetBootstrap':
         await store.reset();
@@ -857,7 +866,11 @@ function routeResourceType(contract) {
     case 'streamEvents':
       return 'run';
     case 'compileContext':
+    case 'buildContextPack':
+    case 'previewContextGraph':
       return 'context';
+    case 'planHarnessSetup':
+      return 'workspace';
     case 'resetBootstrap':
     case 'getDashboard':
       return 'workspace';

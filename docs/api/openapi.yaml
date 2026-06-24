@@ -255,6 +255,27 @@ paths:
         '403': { $ref: '#/components/responses/BoundaryError' }
         '413': { $ref: '#/components/responses/BoundaryError' }
         '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/harness/setup/plan:
+    post:
+      operationId: planHarnessSetup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HarnessSetupPlanRequest' }
+      responses:
+        '200':
+          description: Redacted dry-run setup plan for connecting a local harness client to OAF read-only MCP resources.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HarnessSetupPlanResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
   /api/reset:
     post:
       operationId: resetBootstrap
@@ -617,6 +638,101 @@ components:
             graphDatabaseUsed: { const: false }
             rawBodyIncluded: { const: false }
             sourceSlicesRead: { const: false }
+    HarnessSetupPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, client]
+      maxProperties: 2
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        client:
+          enum: [codex, cursor, claude-code, opencode, openclaw, gemini-cli, zed, aider, goose, vscode, cline, roo, windsurf, generic-mcp]
+    HarnessSetupPlanResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, plannerVersion, command, dryRun, generatedAt, client, clientLabel, server, config, status, desiredServer, diff, safeguards, planFingerprint]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        plannerVersion: { type: string, maxLength: 32 }
+        command: { const: harness setup plan }
+        dryRun: { const: true }
+        generatedAt: { type: string, format: date-time }
+        client: { type: string, maxLength: 32 }
+        clientLabel: { type: string, maxLength: 80 }
+        server: { const: oaf }
+        config:
+          type: object
+          additionalProperties: false
+          required: [ref, format, exists, serverCount]
+          properties:
+            ref: { type: string, pattern: '^home://[A-Za-z0-9._/-]{1,240}$', maxLength: 256 }
+            format: { enum: [json, jsonc, toml, yaml] }
+            exists: { type: boolean }
+            serverCount: { type: integer, minimum: 0, maximum: 1000 }
+        status:
+          type: object
+          additionalProperties: false
+          required: [config, server]
+          properties:
+            config: { enum: [present, absent] }
+            server: { enum: [installed, absent, drifted] }
+        desiredServer:
+          type: object
+          additionalProperties: false
+          required: [name, transport, command, args, environmentKeys, resourceMode, externalWrites]
+          properties:
+            name: { const: oaf }
+            transport: { const: stdio }
+            command: { const: npm }
+            args:
+              type: array
+              minItems: 7
+              maxItems: 7
+              items: { type: string, maxLength: 32 }
+            environmentKeys:
+              type: array
+              maxItems: 0
+            resourceMode: { const: read-only }
+            externalWrites: { const: false }
+        diff:
+          type: object
+          additionalProperties: false
+          required: [redacted, operations, preview]
+          properties:
+            redacted: { const: true }
+            operations:
+              type: array
+              maxItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [op, target, before, after, summary]
+                properties:
+                  op: { enum: [add, replace, remove] }
+                  target: { const: mcpServers.oaf }
+                  before: { enum: [installed, absent, drifted] }
+                  after: { enum: [read-only-oaf-mcp-stdio, absent] }
+                  summary: { type: string, maxLength: 160 }
+            preview:
+              type: array
+              maxItems: 1
+              items: { type: string, maxLength: 160 }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [localFilesWritten, canonicalStateMutated, homeConfigMutated, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, rawConfigBodyIncluded, absoluteFilesystemLocationsIncluded, credentialsIncluded]
+          properties:
+            localFilesWritten: { const: 0 }
+            canonicalStateMutated: { const: false }
+            homeConfigMutated: { const: false }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            rawConfigBodyIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
+            credentialsIncluded: { const: false }
+        planFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     ResetResponse:
       type: object
       additionalProperties: false

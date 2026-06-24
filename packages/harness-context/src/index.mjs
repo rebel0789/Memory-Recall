@@ -20,6 +20,7 @@ export const CONTEXT_PACK_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_SCANNER_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
+export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
 
 const DEFAULT_MAX_BYTES = 65_536;
 const MAX_USER_SELECTED_FILES = 16;
@@ -44,6 +45,23 @@ const STATIC_PROJECT_SOURCES = Object.freeze({
   ]
 });
 
+export const HARNESS_SETUP_CLIENTS = new Map([
+  ['codex', { id: 'codex', label: 'Codex', format: 'toml', configPath: '.codex/config.toml' }],
+  ['cursor', { id: 'cursor', label: 'Cursor', format: 'json', configPath: '.cursor/mcp.json' }],
+  ['claude-code', { id: 'claude-code', label: 'Claude Code', format: 'json', configPath: '.claude/mcp.json' }],
+  ['opencode', { id: 'opencode', label: 'OpenCode', format: 'jsonc', configPath: 'opencode.jsonc' }],
+  ['openclaw', { id: 'openclaw', label: 'OpenClaw', format: 'jsonc', configPath: '.openclaw/mcp.jsonc' }],
+  ['gemini-cli', { id: 'gemini-cli', label: 'Gemini CLI', format: 'json', configPath: '.gemini/settings.json' }],
+  ['zed', { id: 'zed', label: 'Zed', format: 'json', configPath: '.config/zed/settings.json' }],
+  ['aider', { id: 'aider', label: 'Aider', format: 'yaml', configPath: '.aider.conf.yml' }],
+  ['goose', { id: 'goose', label: 'Goose', format: 'yaml', configPath: '.config/goose/config.yaml' }],
+  ['vscode', { id: 'vscode', label: 'VS Code', format: 'json', configPath: '.vscode/mcp.json' }],
+  ['cline', { id: 'cline', label: 'Cline', format: 'json', configPath: '.cline/mcp.json' }],
+  ['roo', { id: 'roo', label: 'Roo', format: 'json', configPath: '.roo/mcp.json' }],
+  ['windsurf', { id: 'windsurf', label: 'Windsurf', format: 'json', configPath: '.windsurf/mcp.json' }],
+  ['generic-mcp', { id: 'generic-mcp', label: 'Generic MCP', format: 'json', configPath: '.mcp.json' }]
+]);
+
 function hash(value) {
   return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
@@ -67,6 +85,11 @@ function sourceLocator(definition) {
 
 function isEscapedRelative(relativePath) {
   return relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath);
+}
+
+function isInside(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
 function isControlCharacterBuffer(buffer) {
@@ -1260,4 +1283,267 @@ export async function runHarnessContextBenchmarks(dataset, { clock = () => new D
     cases,
     passed
   };
+}
+
+export async function buildHarnessSetupReport({
+  action,
+  client,
+  server = 'oaf',
+  home = process.env.HOME ?? process.cwd(),
+  configPath = null,
+  generatedAt = new Date().toISOString()
+}) {
+  const normalizedAction = normalizeHarnessSetupAction(action);
+  const normalizedClient = normalizeHarnessSetupClient(client);
+  const normalizedServer = normalizeHarnessSetupServer(server);
+  const selectedConfigPath = configPath ?? normalizedClient.configPath;
+  const config = await readHomeConfig(home, selectedConfigPath);
+  const parsed = config.exists ? parseHarnessConfig(config.text, normalizedClient.format) : emptyHarnessConfig(normalizedClient.format);
+  const servers = extractHarnessServers(parsed);
+  const serverState = classifyHarnessServer(servers.get(normalizedServer));
+  const operations = harnessSetupOperations({ action: normalizedAction, server: normalizedServer, serverState });
+  const report = {
+    schemaVersion: '1.0.0',
+    plannerVersion: HARNESS_SETUP_PLANNER_VERSION,
+    command: `harness setup ${normalizedAction}`,
+    dryRun: true,
+    generatedAt,
+    client: normalizedClient.id,
+    clientLabel: normalizedClient.label,
+    server: normalizedServer,
+    config: {
+      ref: config.configRef,
+      format: normalizedClient.format,
+      exists: config.exists,
+      serverCount: servers.size
+    },
+    status: {
+      config: config.exists ? 'present' : 'absent',
+      server: serverState
+    },
+    desiredServer: desiredHarnessServerSummary(normalizedServer),
+    diff: {
+      redacted: true,
+      operations,
+      preview: operations.map((operation) => operation.summary)
+    },
+    safeguards: harnessSetupSafeguards()
+  };
+  return { ...report, planFingerprint: hash(stableStringify(report)) };
+}
+
+export function normalizeHarnessSetupClient(value) {
+  const aliases = new Map([['claude', 'claude-code'], ['gemini', 'gemini-cli'], ['generic', 'generic-mcp']]);
+  const id = aliases.get(String(value ?? '').trim()) ?? String(value ?? '').trim();
+  const client = HARNESS_SETUP_CLIENTS.get(id);
+  if (!client) throw new Error(`unsupported harness setup client: ${value ?? '<missing>'}`);
+  return client;
+}
+
+function normalizeHarnessSetupAction(value) {
+  const action = String(value ?? '').trim();
+  if (!['status', 'plan', 'uninstall'].includes(action)) throw new Error('harness setup requires status, plan, or uninstall');
+  return action;
+}
+
+function normalizeHarnessSetupServer(value) {
+  const name = String(value ?? '').trim();
+  if (!/^[A-Za-z0-9._-]{1,80}$/.test(name)) throw new Error(`invalid harness setup server name: ${name || '<empty>'}`);
+  if (name !== 'oaf') throw new Error('harness setup only supports the oaf MCP server');
+  return name;
+}
+
+async function readHomeConfig(home, relativePath) {
+  if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes('..')) throw new Error(`harness config path is unsupported: ${relativePath}`);
+  const realHome = await realpath(home);
+  const absolute = path.resolve(realHome, relativePath);
+  if (!isInside(realHome, absolute)) throw new Error(`harness config path escapes home: ${relativePath}`);
+  let actual;
+  try {
+    actual = await realpath(absolute);
+  } catch (error) {
+    if (error.code === 'ENOENT') return { exists: false, text: '', configRef: `home://${toPosix(relativePath)}` };
+    throw error;
+  }
+  if (!isInside(realHome, actual)) throw new Error(`harness config path escapes home: ${relativePath}`);
+  const info = await stat(actual);
+  if (!info.isFile()) throw new Error(`harness config path is not a file: ${relativePath}`);
+  if (info.size > 256 * 1024) throw new Error(`harness config exceeds 256 KiB: ${relativePath}`);
+  return { exists: true, text: await readFile(actual, 'utf8'), configRef: `home://${toPosix(relativePath)}` };
+}
+
+function harnessSetupOperations({ action, server, serverState }) {
+  if (action === 'status') return [];
+  if (action === 'plan') {
+    if (serverState === 'installed') return [];
+    return [{
+      op: serverState === 'absent' ? 'add' : 'replace',
+      target: `mcpServers.${server}`,
+      before: serverState,
+      after: 'read-only-oaf-mcp-stdio',
+      summary: `${serverState === 'absent' ? 'add' : 'replace'} ${server} with read-only OAF MCP stdio resource bridge`
+    }];
+  }
+  if (serverState === 'absent') return [];
+  return [{
+    op: 'remove',
+    target: `mcpServers.${server}`,
+    before: serverState,
+    after: 'absent',
+    summary: `remove exactly ${server} from the harness MCP server map`
+  }];
+}
+
+function harnessSetupSafeguards() {
+  return {
+    localFilesWritten: 0,
+    canonicalStateMutated: false,
+    homeConfigMutated: false,
+    externalWritesEnabled: false,
+    externalAdaptersEnabled: 0,
+    networkCalls: 0,
+    modelCalls: 0,
+    rawConfigBodyIncluded: false,
+    absoluteFilesystemLocationsIncluded: false,
+    credentialsIncluded: false
+  };
+}
+
+function desiredHarnessServerSummary(server) {
+  return {
+    name: server,
+    transport: 'stdio',
+    command: 'npm',
+    args: ['run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'],
+    environmentKeys: [],
+    resourceMode: 'read-only',
+    externalWrites: false
+  };
+}
+
+function classifyHarnessServer(server) {
+  if (!server) return 'absent';
+  if (
+    server.command === 'npm' &&
+    Array.isArray(server.args) &&
+    arraysEqual(server.args, ['run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'])
+  ) return 'installed';
+  return 'drifted';
+}
+
+function extractHarnessServers(parsed) {
+  const source = parsed?.mcpServers ?? parsed?.mcp_servers ?? {};
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return new Map();
+  return new Map(Object.entries(source).filter(([name, value]) => /^[A-Za-z0-9._-]{1,80}$/.test(name) && value && typeof value === 'object' && !Array.isArray(value)));
+}
+
+function parseHarnessConfig(text, format) {
+  try {
+    if (format === 'json') return JSON.parse(text);
+    if (format === 'jsonc') return JSON.parse(stripJsonComments(text));
+    if (format === 'toml') return parseHarnessToml(text);
+    if (format === 'yaml') return parseHarnessYaml(text);
+  } catch {
+    throw new Error(`harness config parse failed for ${format}: invalid syntax`);
+  }
+  throw new Error(`unsupported harness config format: ${format}`);
+}
+
+function emptyHarnessConfig(format) {
+  return format === 'toml' ? { mcp_servers: {} } : { mcpServers: {} };
+}
+
+function parseHarnessToml(text) {
+  const result = { mcp_servers: {} };
+  let current = null;
+  for (const rawLine of text.split(/\r\n|\r|\n/u)) {
+    const line = rawLine.replace(/#.*$/u, '').trim();
+    if (!line) continue;
+    const section = /^\[mcp_servers\.([A-Za-z0-9_-]{1,80})\]$/u.exec(line);
+    if (section) {
+      current = section[1];
+      result.mcp_servers[current] ??= {};
+      continue;
+    }
+    if (/^\[\[[^\]]+\]\]$/u.test(line) || /^\[[^\]]+\]$/u.test(line)) {
+      current = null;
+      continue;
+    }
+    if (!current) {
+      if (/^[A-Za-z0-9_.-]+\s*=\s*.+$/u.test(line) || /^"([^"\\]|\\.)+"\s*=\s*.+$/u.test(line)) continue;
+      throw new Error('unsupported top-level statement');
+    }
+    const entry = /^([A-Za-z0-9_-]+)\s*=\s*(.+)$/u.exec(line);
+    if (!entry) throw new Error('invalid key-value statement');
+    const [, key, rawValue] = entry;
+    if (!['command', 'args'].includes(key)) continue;
+    result.mcp_servers[current][key] = parseTomlValue(rawValue);
+  }
+  return result;
+}
+
+function parseTomlValue(rawValue) {
+  const value = rawValue.trim();
+  if (/^"([^"\\]|\\.)*"$/u.test(value)) return JSON.parse(value);
+  if (/^\[(.*)\]$/u.test(value)) {
+    const body = value.slice(1, -1).trim();
+    if (!body) return [];
+    return body.split(',').map((part) => parseTomlValue(part.trim()));
+  }
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error('unsupported TOML value');
+}
+
+function parseHarnessYaml(text) {
+  const result = { mcpServers: {} };
+  const lines = text.split(/\r\n|\r|\n/u);
+  let inServers = false;
+  let current = null;
+  let collectingArgs = false;
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\s+#.*$/u, '').trimEnd();
+    if (!line.trim() || line.trimStart().startsWith('#')) continue;
+    if (/^mcpServers:\s*$/u.test(line.trim())) {
+      inServers = true;
+      current = null;
+      collectingArgs = false;
+      continue;
+    }
+    if (!inServers) throw new Error('expected mcpServers root');
+    const server = /^ {2}([A-Za-z0-9._-]{1,80}):\s*$/u.exec(line);
+    if (server) {
+      current = server[1];
+      result.mcpServers[current] = {};
+      collectingArgs = false;
+      continue;
+    }
+    if (!current) throw new Error('expected server name');
+    const command = /^ {4}command:\s*["']?([^"']+)["']?\s*$/u.exec(line);
+    if (command) {
+      result.mcpServers[current].command = command[1];
+      collectingArgs = false;
+      continue;
+    }
+    if (/^ {4}args:\s*$/u.test(line)) {
+      result.mcpServers[current].args = [];
+      collectingArgs = true;
+      continue;
+    }
+    const arg = /^ {6}-\s*["']?([^"']+)["']?\s*$/u.exec(line);
+    if (arg && collectingArgs) {
+      result.mcpServers[current].args.push(arg[1]);
+      continue;
+    }
+    throw new Error('unsupported YAML statement');
+  }
+  return result;
+}
+
+function stripJsonComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/(^|[^:])\/\/.*$/gmu, '$1');
+}
+
+function arraysEqual(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }

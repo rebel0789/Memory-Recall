@@ -4,16 +4,20 @@ import { readFile } from 'node:fs/promises';
 import {
   ROUTES,
   SHELL_STATES,
+  buildContextPackUiModel,
   buildApprovalReviewModel,
   buildContextInspectorModel,
   buildEvidenceExplorerModel,
   buildFabricMapModel,
+  buildHarnessSetupUiModel,
   buildMemoryReviewModel,
   classifyDashboardState,
   contextDecisionView,
   contextRecordLink,
   legacyViewPath,
   navItems,
+  parseSelectedFiles,
+  harnessSetupClientsForUi,
   resolveRoute,
   runDetailLink,
   safeEventSummary,
@@ -32,6 +36,65 @@ test('web shell exposes stable path routes with legacy query compatibility',()=>
   assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id,'home');
   assert.equal(legacyViewPath('design'),'/settings');
   assert.equal(ROUTES.some(route=>route.id==='content'),true);
+});
+
+test('context pack user flow exposes artifact actions and safe harness commands',async()=>{
+  assert.deepEqual(parseSelectedFiles('docs/handoff.md\n docs/handoff.md,notes/context.md '),['docs/handoff.md','notes/context.md']);
+  const app=await readFile('apps/web/app.js','utf8');
+  assert.match(app,/Build context pack/);
+  assert.match(app,/data-action="copy-pack"/);
+  assert.match(app,/data-action="download-pack"/);
+  assert.match(app,/mcp resources --read-only --uri oaf:\/\/workspace\/ws_local\/handoff\/latest/);
+  const model=buildContextPackUiModel({
+    createdAt:'2026-06-24T00:00:00.000Z',
+    targetHarness:'codex',
+    objective:"Ship user's change safely",
+    step:'select useful context',
+    readFirst:[{locator:'workspace://AGENTS.md'}],
+    omissions:{excludedCount:2},
+    preview:{candidateTokenCount:1000,selectedTokenCount:250}
+  },'# Context Pack');
+  assert.equal(model.selectedLocators,1);
+  assert.equal(model.omittedRefs,2);
+  assert.equal(model.estimatedReductionPercent,75);
+  assert.equal(model.downloadName,'open-agent-fabric-context-pack-codex-2026-06-24.md');
+  assert.match(model.commands[0].command,/--target codex --dry-run --format markdown/);
+  assert.match(model.commands[0].command,/Ship user'"'"'s change safely/);
+  assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
+});
+
+test('agents tools exposes dry-run harness setup planning without install affordances',async()=>{
+  const app=await readFile('apps/web/app.js','utf8');
+  assert.match(app,/Harness setup preview/);
+  assert.equal(app.includes("api('/api/harness/setup/plan'"),true);
+  assert.match(app,/No home config writes/);
+  assert.equal(harnessSetupClientsForUi().some(([id])=>id==='codex'),true);
+  assert.equal(harnessSetupClientsForUi().some(([id])=>id==='cursor'),true);
+  const model=buildHarnessSetupUiModel({
+    schemaVersion:'1.0.0',
+    plannerVersion:'0.1.0',
+    command:'harness setup plan',
+    dryRun:true,
+    generatedAt:'2026-06-24T00:00:00.000Z',
+    client:'cursor',
+    clientLabel:'Cursor',
+    server:'oaf',
+    config:{ref:'home://.cursor/mcp.json',format:'json',exists:false,serverCount:0},
+    status:{config:'absent',server:'absent'},
+    desiredServer:{name:'oaf',transport:'stdio',command:'npm',args:['run','oaf','--','mcp','resources','--read-only','--stdio'],environmentKeys:[],resourceMode:'read-only',externalWrites:false},
+    diff:{redacted:true,operations:[{op:'add',target:'mcpServers.oaf',before:'absent',after:'read-only-oaf-mcp-stdio',summary:'add oaf with read-only OAF MCP stdio resource bridge'}],preview:['add oaf with read-only OAF MCP stdio resource bridge']},
+    safeguards:{localFilesWritten:0,canonicalStateMutated:false,homeConfigMutated:false,externalWritesEnabled:false,externalAdaptersEnabled:0,networkCalls:0,modelCalls:0,rawConfigBodyIncluded:false,absoluteFilesystemLocationsIncluded:false,credentialsIncluded:false},
+    planFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+  });
+  assert.equal(model.client,'Cursor');
+  assert.equal(model.configRef,'home://.cursor/mcp.json');
+  assert.equal(model.operation,'add oaf with read-only OAF MCP stdio resource bridge');
+  assert.equal(model.command,'npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json');
+  assert.equal(model.bridgeCommand,'npm run oaf -- mcp resources --read-only --stdio');
+  assert.deepEqual(model.safeguards.find(([label])=>label==='External writes'),['External writes','disabled']);
+  assert.deepEqual(model.safeguards.find(([label])=>label==='External adapters'),['External adapters','0']);
+  assert.equal(JSON.stringify(model).includes('/Users/'),false);
+  assert.equal(JSON.stringify(model).includes('secret-value'),false);
 });
 
 test('web shell classifies loading, setup, empty, partial, stale, success, denied, and error states',()=>{
