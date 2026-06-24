@@ -739,8 +739,8 @@ export function createApiRouteContracts(limits = {}) {
           command: { const: 'npm' },
           args: {
             type: 'array',
-            minItems: 7,
-            maxItems: 7,
+            minItems: 8,
+            maxItems: 8,
             items: boundedString(32)
           },
           environmentKeys: { type: 'array', maxItems: 0 },

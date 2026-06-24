@@ -307,7 +307,7 @@ npm run oaf -- memory proposals --from workspace --dry-run
 npm run oaf -- memory sgrep "..." --workspace ws_local --dry-run
 npm run oaf -- harness setup status --client codex --dry-run
 npm run oaf -- harness setup plan --client cursor --server oaf --dry-run
-npm run oaf -- mcp resources --read-only --stdio
+npm --silent run oaf -- mcp resources --read-only --stdio
 ```
 
 The first public claim should be narrow:

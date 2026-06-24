@@ -915,8 +915,8 @@ components:
             command: { const: npm }
             args:
               type: array
-              minItems: 7
-              maxItems: 7
+              minItems: 8
+              maxItems: 8
               items: { type: string, maxLength: 32 }
             environmentKeys:
               type: array

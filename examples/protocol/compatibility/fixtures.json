@@ -872,6 +872,18 @@
       "expectedValid": false
     },
     {
+      "id": "context-pack-handoff-report-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-handoff-report.schema.json",
+      "instance": "examples/protocol/context-pack-handoff-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-pack-handoff-report-raw-body-invalid",
+      "schema": "packages/protocol/schemas/context-pack-handoff-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-handoff-report-raw-body.json",
+      "expectedValid": false
+    },
+    {
       "id": "context-pack-use-plan-private-field-invalid",
       "schema": "packages/protocol/schemas/context-pack-use-plan.schema.json",
       "instance": "examples/protocol/compatibility/invalid/context-pack-use-plan-private-field.json",

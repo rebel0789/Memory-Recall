@@ -702,7 +702,7 @@ test('harness setup plan route is protected plan-only and does not expose home c
   assert.equal(response.body.config.serverCount, 1);
   assert.equal(response.body.diff.redacted, true);
   assert.deepEqual(response.body.diff.operations, [{ op: 'add', target: 'mcpServers.oaf', before: 'absent', after: 'read-only-oaf-mcp-stdio', summary: 'add oaf with read-only OAF MCP stdio resource bridge' }]);
-  assert.deepEqual(response.body.desiredServer.args, ['run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
+  assert.deepEqual(response.body.desiredServer.args, ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
   assert.match(response.body.planFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.equal(response.body.safeguards.localFilesWritten, 0);
   assert.equal(response.body.safeguards.homeConfigMutated, false);

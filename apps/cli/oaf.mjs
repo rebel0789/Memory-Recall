@@ -30,6 +30,7 @@ import {
 } from '../../packages/memory-core/src/index.mjs';
 import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages/protocol-bridges/src/index.mjs';
 import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
+import contextPackHandoffReportSchema from '../../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
@@ -218,6 +219,7 @@ async function contextCommand(values) {
   if (values[0] === 'scan') return contextScanCommand(values.slice(1));
   if (values[0] === 'preview') return contextPreviewCommand(values.slice(1));
   if (values[0] === 'pack') return contextPackCommand(values.slice(1));
+  if (values[0] === 'handoff') return contextHandoffCommand(values.slice(1));
   if (values[0] === 'registry') return contextRegistryCommand(values.slice(1));
   if (values[0] === 'graph') {
     if (values[1] === 'preview') return contextGraphPreviewCommand(values.slice(2));
@@ -229,7 +231,7 @@ async function contextCommand(values) {
   const requestPath = option(values, '--request');
   const recordsPath = option(values, '--records');
   if (!requestPath || !recordsPath) {
-    console.error('context requires --request <json> and --records <json>, context scan --from <harness> --dry-run, context preview --from <harness> --dry-run, context pack --dry-run, or context graph preview --dry-run');
+    console.error('context requires --request <json> and --records <json>, context scan --from <harness> --dry-run, context preview --from <harness> --dry-run, context pack --dry-run, context handoff --read-only, or context graph preview --dry-run');
     process.exitCode = 2;
     return;
   }
@@ -448,6 +450,39 @@ async function contextPackCommand(values) {
       return;
     }
     console.log(JSON.stringify({ schemaVersion: '1.0.0', pack, markdown, usePlan, changedLocatorDetection, localFilesWritten: 0 }, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function contextHandoffCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('context handoff requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out') || values.includes('--stdio')) {
+    console.error('context handoff is read-only and does not write, pin, output files, or run as an MCP stdio server');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('context handoff only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const objective = option(values, '--objective');
+  const step = option(values, '--step');
+  if (!objective || !step) {
+    console.error('context handoff requires --objective <text> and --step <text>');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const report = await buildContextHandoffReport(values, { objective, step });
+    console.log(JSON.stringify(report, null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
@@ -938,6 +973,159 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   return report;
 }
 
+async function buildContextHandoffReport(values, { objective, step }) {
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'codex';
+  const from = option(values, '--from') ?? 'codex';
+  const sourceHarnesses = normalizeHarnesses(from);
+  const userSelectedFiles = options(values, '--include-file');
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
+  const generatedAt = fixedNow();
+  const { changedLocators, detection } = await resolveChangedLocators(values, { root, workspaceId });
+  const pack = await buildContextPack({
+    root,
+    harnesses: sourceHarnesses,
+    userSelectedFiles,
+    changedLocators,
+    workspaceId,
+    objective,
+    step,
+    targetHarness,
+    tokenBudget,
+    clock: () => generatedAt
+  });
+  const usePlan = buildContextPackUsePlan(pack);
+  assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context-pack handoff use plan');
+  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
+  const setupClient = contextHandoffSetupClient(targetHarness);
+  const setup = await buildHarnessSetupReport({
+    action: 'plan',
+    client: setupClient,
+    server: 'oaf',
+    home: option(values, '--home') ?? process.env.HOME ?? process.cwd(),
+    configPath: option(values, '--config'),
+    generatedAt
+  });
+  const readFirst = usePlan.requiredLocalReads.slice(0, 12).map((item) => ({
+    locator: item.locator,
+    role: item.role,
+    required: item.required,
+    represented: item.represented,
+    contentHash: item.contentHash,
+    readHint: item.readHint,
+    reasonCodes: item.reasonCodes
+  }));
+  const selected = pack.utility.sourceSelection;
+  const delivery = pack.delivery ?? {};
+  const baseCommand = contextHandoffBaseCommand({ from, objective, step, targetHarness, userSelectedFiles, changedLocators });
+  const startMcpBridge = `npm --silent run oaf -- mcp resources --read-only --context-pack ${baseCommand} --stdio`;
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'context handoff',
+    generatedAt,
+    workspaceId,
+    targetHarness: pack.targetHarness,
+    state: pack.utility.status === 'ready' && smoke.checks.resourceRead && smoke.checks.noToolsExposed && smoke.checks.noMarkdownBody && setup.dryRun === true ? 'ready' : 'review',
+    commitSha: resolveCommitSha(),
+    measurementScope: 'single local context-pack build, MCP readback, and harness setup dry-run',
+    launchPrompt: pack.handoff.launchPrompt,
+    request: {
+      objectiveFingerprint: fingerprintJson(objective),
+      objectiveLength: objective.length,
+      stepFingerprint: fingerprintJson(step),
+      stepLength: step.length,
+      sourceHarnesses,
+      userSelectedLocatorCount: userSelectedFiles.length,
+      changedLocatorCount: changedLocators.length,
+      changedFromGit: Boolean(detection),
+      unitBudget: tokenBudget
+    },
+    contextPack: {
+      contextPackFingerprint: pack.contextPackFingerprint,
+      utilityStatus: pack.utility.status,
+      readFirstCount: pack.readFirst.length,
+      omittedRefCount: pack.omissions.excludedCount,
+      candidateUnitCount: selected.candidateTokenCount,
+      selectedUnitCount: selected.selectedTokenCount,
+      selectedUnitRatio: selected.selectedTokenRatio,
+      estimatedSelectionReductionRatio: selected.estimatedReductionRatio,
+      deliveredUnitCount: Number(delivery.deliveredTokenCount ?? 0),
+      deliveredUnitRatio: Number(delivery.deliveredTokenRatio ?? 0),
+      observedDeliveryReductionRatio: Number(delivery.observedTokenReductionRatio ?? 0),
+      changedLocatorCoverage: pack.utility.changedLocatorCoverage,
+      graphHintCoverage: pack.utility.graphHintCoverage
+    },
+    usePlan: {
+      resourceUri: usePlan.resource.uri,
+      contextPackFingerprint: usePlan.contextPack.fingerprint,
+      requiredReadCount: usePlan.requiredLocalReads.length,
+      requiredLocalReads: readFirst,
+      truncatedRequiredReadCount: Math.max(0, usePlan.requiredLocalReads.length - readFirst.length),
+      markdownContentIncluded: usePlan.safeguards.markdownContentIncluded,
+      sourceContentIncluded: usePlan.safeguards.sourceContentIncluded
+    },
+    mcp: {
+      resourceUri: smoke.resourceUri,
+      setup: {
+        dryRun: setup.dryRun,
+        client: setup.client,
+        configRef: setup.config.ref,
+        serverStatus: setup.status.server,
+        desiredServer: setup.desiredServer
+      },
+      smoke: {
+        durationMs: smoke.measurements.durationMs,
+        stdoutByteSize: smoke.measurements.stdoutByteSize,
+        stderrByteSize: smoke.measurements.stderrByteSize,
+        resourceByteSize: smoke.measurements.resourceByteSize,
+        resourcesListed: smoke.bridge.resourcesListed,
+        toolsExposed: smoke.bridge.toolsExposed,
+        resourceFingerprint: smoke.resource.resourceFingerprint,
+        contextPackFingerprint: smoke.resource.contextPackFingerprint
+      }
+    },
+    commands: {
+      previewSetup: `npm --silent run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
+      startMcpBridge,
+      readCurrentContextPack: `npm --silent run oaf -- mcp resources --read-only --context-pack ${baseCommand} --uri oaf://workspace/${workspaceId}/context-pack/current --format json`,
+      renderMarkdown: `npm --silent run oaf -- context pack ${baseCommand} --dry-run --format markdown`
+    },
+    checks: {
+      contextPackFingerprintMatchesMcp: smoke.resource.contextPackFingerprint === pack.contextPackFingerprint,
+      contextPackFingerprintMatchesUsePlan: usePlan.contextPack.fingerprint === pack.contextPackFingerprint,
+      resourceRead: smoke.checks.resourceRead,
+      noToolsExposed: smoke.checks.noToolsExposed,
+      noMarkdownBody: smoke.checks.noMarkdownBody,
+      setupDryRun: setup.dryRun === true,
+      setupUsesSilentNpm: setup.desiredServer.command === 'npm' && setup.desiredServer.args[0] === '--silent'
+    },
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      homeConfigMutated: false,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      rawSourceBodiesIncluded: false,
+      markdownBodyIncluded: false,
+      sourceContentIncluded: false,
+      credentialsIncluded: false,
+      providerUrlsIncluded: false,
+      absoluteFilesystemLocationsIncluded: false,
+      hiddenReasoningIncluded: false
+    },
+    reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.reportFingerprint = fingerprintJson({ ...report, reportFingerprint: null });
+  assertJsonSchema(contextPackHandoffReportSchema, report, 'context-pack handoff report');
+  return report;
+}
+
 async function buildContextPackMeasurementReport(values, { objective, step }) {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
@@ -1341,6 +1529,20 @@ function normalizeHarnesses(value) {
   return value.split(',').map((item) => aliases.get(item.trim()) ?? item.trim()).filter(Boolean);
 }
 
+function shellQuote(value) {
+  return `'${String(value ?? '').replaceAll("'", `'"'"'`)}'`;
+}
+
+function contextHandoffSetupClient(targetHarness) {
+  return targetHarness === 'cursor' || targetHarness === 'claude-code' || targetHarness === 'codex' ? targetHarness : 'codex';
+}
+
+function contextHandoffBaseCommand({ from, objective, step, targetHarness, userSelectedFiles, changedLocators }) {
+  const includeArgs = userSelectedFiles.map((value) => ` --include-file ${shellQuote(value)}`).join('');
+  const changedArgs = changedLocators.map((value) => ` --changed ${shellQuote(String(value).replace(/^workspace:\/\//u, ''))}`).join('');
+  return `--from ${shellQuote(from)} --root . --objective ${shellQuote(objective)} --step ${shellQuote(step)} --target ${targetHarness}${includeArgs}${changedArgs}`;
+}
+
 function option(values, name) {
   const index = values.indexOf(name);
   return index >= 0 ? values[index + 1] : null;
@@ -1438,6 +1640,7 @@ Usage:
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --changed-from-git --dry-run --format markdown
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
+  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "measure local handoff" --target codex --changed src/auth.ts --format json

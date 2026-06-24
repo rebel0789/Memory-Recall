@@ -117,6 +117,13 @@ only hashes, counts, graph coverage, byte sizes, single-invocation timings, and
 explicit no-write/no-network safeguards. It is not a hosted benchmark,
 provider-token billing claim, or production latency contract.
 
+`context-pack-handoff-report.schema.json` defines the read-only launch report
+for handing a context pack to a local agent harness. It combines the launch
+prompt, utility read plan, MCP context-pack readback proof, silent stdio bridge
+command, dry-run setup preview, and explicit zero-write safeguards. It does not
+install harness config, expose MCP tools, include raw source bodies, or enable
+external adapters.
+
 ## Benchmark truth-floor schemas
 
 The benchmark truth-floor schemas add additive v1 contracts for deterministic

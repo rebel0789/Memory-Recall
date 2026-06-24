@@ -127,7 +127,7 @@ slice.
   hashes. The status report is schema-validated and omits markdown content,
   objective text, source content, credentials, provider URLs, absolute paths,
   model calls, network calls, external adapters, active memory, and write tools.
-- After a pin, `npm run oaf -- mcp resources --read-only --stdio` automatically
+- After a pin, `npm --silent run oaf -- mcp resources --read-only --stdio` automatically
   discovers the current pinned use plan and registry status from
   `context-packs/current.json` and `context-packs/registry.json`. This is the
   standard bridge command used by local harness setup; it still exposes no tools
@@ -160,6 +160,12 @@ slice.
   delivery reduction, source-graph coverage counts, byte sizes, and local
   timings without raw source, raw prompt text, markdown bodies, local paths,
   writes, network calls, model calls, or production benchmark claims.
+- `npm --silent run oaf -- context handoff --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
+  returns a schema-validated Codex handoff preflight report. It includes the
+  launch prompt, required local reads, use-plan fingerprint, read-only MCP
+  context-pack readback proof, `npm --silent` stdio bridge command, and dry-run
+  setup preview. It rejects write, pin, output-file, and stdio-server modes and
+  does not write context-pack artifacts or mutate harness config.
 - The browser context-pack result now surfaces the same proof boundary in plain
   UI terms: estimated local handoff reduction, estimated source kept, observed
   local request time, raw-body exclusion, model-call count, and external-write

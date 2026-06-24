@@ -42,6 +42,9 @@ This repository is an **agent-ready development kit**, not a claim that the full
 - local MCP context-pack stdio smoke report with observed duration, response
   size, selected/candidate source units, and delivered-handoff unit counts for
   one explicit local invocation;
+- read-only Codex handoff preflight report that combines the launch prompt,
+  required local reads, schema-validated use plan, MCP context-pack readback
+  proof, and dry-run setup preview without writing harness config;
 - read-only native JS/TS source graph preview through CLI and loopback API,
   with bounded search, trace, and diff-impact results and no graph database;
 - dry-run harness setup planner for local MCP client configs, with redacted
@@ -74,6 +77,12 @@ changed files manually, build the pack, check **First-use readiness** and the
 local coding-agent session. This is a dry-run locator handoff with read-only MCP
 proof; it does not import harness history, create active memory, write harness
 config, or enable external adapters.
+
+For a single CLI preflight before handing work to Codex:
+
+```bash
+npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+```
 
 The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.
 
@@ -156,6 +165,7 @@ npm run oaf -- context scan --from codex --root . --dry-run
 npm run oaf -- context preview --from codex --root . --objective "Prepare handoff" --step "select harness context" --dry-run
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
+npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
 npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json

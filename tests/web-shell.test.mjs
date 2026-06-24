@@ -123,7 +123,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
         "npm run oaf -- context pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --dry-run --format markdown",
         "npm run oaf -- context pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --write --pin --out context-packs/CONTEXT_PACK.md --format json",
         "npm run oaf -- context registry status --read-only --format json",
-        "npm run oaf -- mcp resources --read-only --stdio",
+        "npm --silent run oaf -- mcp resources --read-only --stdio",
         "npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json",
         "npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
         "npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
@@ -229,7 +229,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(model.commands[1].command,/Ship user'"'"'s change safely/);
   assert.match(model.commands[2].command,/--write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);
   assert.match(model.commands[3].command,/context registry status --read-only --format json/);
-  assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --stdio'),true);
+  assert.equal(model.commands.some((item)=>item.command==='npm --silent run oaf -- mcp resources --read-only --stdio'),true);
   assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'),true);
   assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'),true);
   assert.equal(model.commands.some((item)=>/harness setup plan --client codex --server oaf --dry-run --format json/.test(item.command)),true);
@@ -414,7 +414,7 @@ test('agents tools exposes dry-run harness setup planning without install afford
     server:'oaf',
     config:{ref:'home://.cursor/mcp.json',format:'json',exists:false,serverCount:0},
     status:{config:'absent',server:'absent'},
-    desiredServer:{name:'oaf',transport:'stdio',command:'npm',args:['run','oaf','--','mcp','resources','--read-only','--stdio'],environmentKeys:[],resourceMode:'read-only',externalWrites:false},
+    desiredServer:{name:'oaf',transport:'stdio',command:'npm',args:['--silent','run','oaf','--','mcp','resources','--read-only','--stdio'],environmentKeys:[],resourceMode:'read-only',externalWrites:false},
     diff:{redacted:true,operations:[{op:'add',target:'mcpServers.oaf',before:'absent',after:'read-only-oaf-mcp-stdio',summary:'add oaf with read-only OAF MCP stdio resource bridge'}],preview:['add oaf with read-only OAF MCP stdio resource bridge']},
     safeguards:{localFilesWritten:0,canonicalStateMutated:false,homeConfigMutated:false,externalWritesEnabled:false,externalAdaptersEnabled:0,networkCalls:0,modelCalls:0,rawConfigBodyIncluded:false,absoluteFilesystemLocationsIncluded:false,credentialsIncluded:false},
     planFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -423,7 +423,7 @@ test('agents tools exposes dry-run harness setup planning without install afford
   assert.equal(model.configRef,'home://.cursor/mcp.json');
   assert.equal(model.operation,'add oaf with read-only OAF MCP stdio resource bridge');
   assert.equal(model.command,'npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json');
-  assert.equal(model.bridgeCommand,'npm run oaf -- mcp resources --read-only --stdio');
+  assert.equal(model.bridgeCommand,'npm --silent run oaf -- mcp resources --read-only --stdio');
   assert.deepEqual(model.safeguards.find(([label])=>label==='External writes'),['External writes','disabled']);
   assert.deepEqual(model.safeguards.find(([label])=>label==='External adapters'),['External adapters','0']);
   assert.equal(JSON.stringify(model).includes('/Users/'),false);

@@ -81,6 +81,25 @@ npm run oaf -- context pack \
   --format markdown
 ```
 
+Codex handoff preflight:
+
+```bash
+npm --silent run oaf -- context handoff \
+  --read-only \
+  --from codex \
+  --root . \
+  --objective "Prepare handoff" \
+  --step "select next agent context" \
+  --target codex \
+  --changed apps/web/app.js \
+  --format json
+```
+
+This report combines the launch prompt, required local reads, schema-validated
+use plan, read-only MCP context-pack readback, and dry-run setup preview. It
+does not write context-pack files, mutate harness config, expose MCP tools,
+call models, use network access, or enable adapters.
+
 Explicit local write:
 
 ```bash

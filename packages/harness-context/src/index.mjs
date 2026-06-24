@@ -1160,7 +1160,7 @@ function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, 
     `npm run oaf -- context pack ${base} --dry-run --format markdown`,
     `npm run oaf -- context pack ${base} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
     'npm run oaf -- context registry status --read-only --format json',
-    'npm run oaf -- mcp resources --read-only --stdio',
+    'npm --silent run oaf -- mcp resources --read-only --stdio',
     'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json',
     'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json',
     `npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
@@ -2678,7 +2678,7 @@ function desiredHarnessServerSummary(server) {
     name: server,
     transport: 'stdio',
     command: 'npm',
-    args: ['run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'],
+    args: ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'],
     environmentKeys: [],
     resourceMode: 'read-only',
     externalWrites: false
@@ -2690,7 +2690,7 @@ function classifyHarnessServer(server) {
   if (
     server.command === 'npm' &&
     Array.isArray(server.args) &&
-    arraysEqual(server.args, ['run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'])
+    arraysEqual(server.args, ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'])
   ) return 'installed';
   return 'drifted';
 }
