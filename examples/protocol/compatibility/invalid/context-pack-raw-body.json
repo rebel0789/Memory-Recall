@@ -7,6 +7,13 @@
   "dryRun": true,
   "targetHarness": "codex",
   "sourceHarnesses": ["codex"],
+  "requestedInputs": {
+    "sourceHarnesses": ["codex"],
+    "userSelectedLocators": [],
+    "changedLocators": [],
+    "userSelectedCount": 0,
+    "changedLocatorCount": 0
+  },
   "objective": "Prepare the next coding agent",
   "step": "select useful local context",
   "scannerVersion": "0.1.0",

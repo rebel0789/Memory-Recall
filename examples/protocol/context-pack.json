@@ -7,6 +7,13 @@
   "dryRun": true,
   "targetHarness": "codex",
   "sourceHarnesses": ["codex"],
+  "requestedInputs": {
+    "sourceHarnesses": ["codex"],
+    "userSelectedLocators": [],
+    "changedLocators": ["workspace://src/context-pack.ts"],
+    "userSelectedCount": 0,
+    "changedLocatorCount": 1
+  },
   "objective": "Prepare the next coding agent",
   "step": "select useful local context",
   "scannerVersion": "0.1.0",
@@ -174,8 +181,8 @@
         "role": "changed_locator",
         "required": true,
         "represented": true,
-        "contentHash": null,
-        "reasonCodes": ["changed_locator_supplied", "read_before_edit"],
+        "contentHash": "sha256:abababababababababababababababababababababababababababababababab",
+        "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"],
         "readHint": "Read workspace://src/context-pack.ts from the local workspace before editing or reviewing this changed file."
       },
       {

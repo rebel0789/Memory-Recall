@@ -11,6 +11,11 @@ const EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx']);
 const SKIP_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'build', '.next', 'coverage', 'out', 'vendor']);
 const DEFAULT_MAX_FILE_BYTES = 128 * 1024;
 const DEFAULT_MAX_FILES = 200;
+const MAX_REFERENCES_PER_CHUNK = 80;
+const MAX_CALLS_PER_CHUNK = 40;
+const MAX_TARGETS_PER_SYMBOL_NAME = 8;
+const MAX_REFERENCE_EDGES_PER_CHUNK = 200;
+const MAX_CALL_EDGES_PER_CHUNK = 80;
 const CONTROL_FLOW_NAMES = new Set(['if', 'for', 'while', 'switch', 'catch', 'function']);
 const JS_KEYWORDS = new Set([
   'as', 'async', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
@@ -839,9 +844,12 @@ function buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt }) {
 
   for (const chunk of chunks) {
     const caller = chunk.entities.find((entity) => ['function', 'method'].includes(entity.kind)) ?? chunk.entities[0];
-    for (const reference of chunk.references ?? []) {
+    let referenceEdgesForChunk = 0;
+    for (const reference of (chunk.references ?? []).slice(0, MAX_REFERENCES_PER_CHUNK)) {
+      if (referenceEdgesForChunk >= MAX_REFERENCE_EDGES_PER_CHUNK) break;
       if (!symbolsByName.has(reference.name)) continue;
-      for (const target of symbolsByName.get(reference.name)) {
+      for (const target of symbolsByName.get(reference.name).slice(0, MAX_TARGETS_PER_SYMBOL_NAME)) {
+        if (referenceEdgesForChunk >= MAX_REFERENCE_EDGES_PER_CHUNK) break;
         if (target.chunkId === chunk.id && target.name === caller?.name) continue;
         references.push({
           id: `ref_${sha256(`${chunk.locator}:${reference.name}:${target.id}`).slice(0, 32)}`,
@@ -852,14 +860,18 @@ function buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt }) {
           sourceChunkId: chunk.id,
           referenceHash: reference.referenceHash
         });
+        referenceEdgesForChunk += 1;
       }
     }
     if (!caller) continue;
     const callerSymbol = symbols.find((symbol) => symbol.chunkId === chunk.id && symbol.name === caller.name);
     if (!callerSymbol) continue;
-    for (const call of chunk.calls ?? []) {
+    let callEdgesForChunk = 0;
+    for (const call of (chunk.calls ?? []).slice(0, MAX_CALLS_PER_CHUNK)) {
+      if (callEdgesForChunk >= MAX_CALL_EDGES_PER_CHUNK) break;
       if (!symbolsByName.has(call.name)) continue;
-      for (const callee of symbolsByName.get(call.name)) {
+      for (const callee of symbolsByName.get(call.name).slice(0, MAX_TARGETS_PER_SYMBOL_NAME)) {
+        if (callEdgesForChunk >= MAX_CALL_EDGES_PER_CHUNK) break;
         if (callee.id === callerSymbol.id) continue;
         callEdges.push({
           id: `call_${sha256(`${callerSymbol.id}:${callee.id}:${chunk.locator}`).slice(0, 32)}`,
@@ -871,6 +883,7 @@ function buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt }) {
           sourceLocator: chunk.locator,
           callHash: call.callHash
         });
+        callEdgesForChunk += 1;
       }
     }
   }
@@ -1106,10 +1119,43 @@ function braceDelta(text) {
 }
 
 function stripStringsAndComments(text) {
-  return String(text)
-    .replace(/\/\*[\s\S]*?\*\//gu, '')
-    .replace(/\/\/.*$/gmu, '')
-    .replace(/(['"`])(?:\\.|(?!\1)[\s\S])*?\1/gu, '');
+  const input = String(text);
+  let output = '';
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    const next = input[index + 1];
+    if (char === '/' && next === '/') {
+      index += 2;
+      while (index < input.length && input[index] !== '\n') index += 1;
+      if (input[index] === '\n') output += '\n';
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      index += 2;
+      while (index < input.length && !(input[index] === '*' && input[index + 1] === '/')) {
+        if (input[index] === '\n') output += '\n';
+        index += 1;
+      }
+      if (index < input.length) index += 1;
+      continue;
+    }
+    if (char === '\'' || char === '"' || char === '`') {
+      const quote = char;
+      index += 1;
+      while (index < input.length) {
+        if (input[index] === '\n') output += '\n';
+        if (input[index] === '\\') {
+          index += 2;
+          continue;
+        }
+        if (input[index] === quote) break;
+        index += 1;
+      }
+      continue;
+    }
+    output += char;
+  }
+  return output;
 }
 
 function languageFor(relativePath) {

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -220,6 +221,18 @@ test('AST scanner bounds filesystem access, parse diagnostics, exact slices, and
   const second = await scanAstCodeWorkspace({ root, workspaceId: 'ws_ast', maxFileBytes: 512, clock: () => fixedNow });
   const changedChunk = second.chunks.find((chunk) => chunk.entities.some((entity) => entity.name === 'approveTokenReset'));
   assert.notEqual(changedChunk.contentHash, authChunk.contentHash);
+});
+
+test('AST scanner handles large template-heavy workspace files without CPU spin', () => {
+  const script = [
+    "import('./providers/native/context-candidate-ast-code/src/index.mjs').then(async ({scanAstCodeWorkspace})=>{",
+    "const scan=await scanAstCodeWorkspace({root:'packages/harness-context/src',workspaceId:'ws_ast',maxFiles:1,clock:()=> '2026-06-23T00:00:00.000Z'});",
+    "if(scan.fileCount!==1 || scan.chunkCount<1) throw new Error('scan did not index harness context');",
+    "}).catch((error)=>{console.error(error);process.exit(1);});"
+  ].join('');
+  const result = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8', timeout: 5000 });
+  assert.equal(result.signal, null, result.stderr || result.stdout);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
 test('JS and TS source index exposes definitions references imports exports outlines and calls without raw source', async () => {

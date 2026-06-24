@@ -716,6 +716,12 @@ function mapError(error) {
   if (error?.code === 'response_validation_failed') {
     return new ApiError(500, 'internal_error', PUBLIC_MESSAGES.internal_error, { issues: [], headers: {}, logCode: 'response_validation_failed' });
   }
+  if (typeof error?.code === 'string' && error.code.startsWith('context_pack_')) {
+    const field = error.code.includes('_step_') ? '$.body.step' : error.code.includes('_objective_') ? '$.body.objective' : '$.body';
+    return new ApiError(400, 'request_validation_failed', PUBLIC_MESSAGES.request_validation_failed, {
+      issues: [{ path: field, code: error.code }]
+    });
+  }
   return new ApiError(500, 'internal_error');
 }
 

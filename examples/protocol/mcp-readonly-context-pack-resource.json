@@ -27,6 +27,12 @@
     "id": "ctxpack_example",
     "targetHarness": "codex",
     "sourceHarnesses": ["codex"],
+    "requestedInputs": {
+      "userSelectedLocators": ["user-selected://notes/handoff.md"],
+      "changedLocators": ["workspace://src/auth.ts"],
+      "userSelectedCount": 1,
+      "changedLocatorCount": 1
+    },
     "objectiveFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
     "objectiveLength": 42,
     "stepFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",

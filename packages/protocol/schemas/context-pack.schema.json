@@ -14,6 +14,7 @@
     "dryRun",
     "targetHarness",
     "sourceHarnesses",
+    "requestedInputs",
     "objective",
     "step",
     "scannerVersion",
@@ -47,6 +48,7 @@
       "uniqueItems": true,
       "items": { "enum": ["codex", "claude-code", "cursor"] }
     },
+    "requestedInputs": { "$ref": "#/$defs/requestedInputs" },
     "objective": { "type": "string", "minLength": 1, "maxLength": 2000 },
     "step": { "type": "string", "minLength": 1, "maxLength": 256 },
     "scannerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
@@ -354,12 +356,40 @@
       "required": ["locator", "role", "required", "represented", "contentHash", "reasonCodes", "readHint"],
       "properties": {
         "locator": { "$ref": "#/$defs/readLocator" },
-        "role": { "enum": ["selected_context", "changed_locator", "source_graph_hint"] },
+        "role": { "enum": ["selected_context", "explicit_user_selected", "changed_locator", "source_graph_hint"] },
         "required": { "type": "boolean" },
         "represented": { "type": "boolean" },
         "contentHash": { "$ref": "#/$defs/hashOrNull" },
         "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
         "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "requestedInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceHarnesses", "userSelectedLocators", "changedLocators", "userSelectedCount", "changedLocatorCount"],
+      "properties": {
+        "sourceHarnesses": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": { "enum": ["codex", "claude-code", "cursor"] }
+        },
+        "userSelectedLocators": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/userSelectedLocator" }
+        },
+        "changedLocators": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sourceGraphLocator" }
+        },
+        "userSelectedCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "changedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 }
       }
     },
     "coverageRatio": {
@@ -376,6 +406,11 @@
     "readLocator": {
       "type": "string",
       "pattern": "^(workspace|user-selected)://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+(?:#L[0-9]+-L[0-9]+)?$",
+      "maxLength": 640
+    },
+    "userSelectedLocator": {
+      "type": "string",
+      "pattern": "^user-selected://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+$",
       "maxLength": 640
     },
     "sourceGraph": {

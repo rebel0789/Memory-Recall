@@ -271,7 +271,7 @@ test('context pack route is protected and does not mutate run state', async (t) 
       targetHarness: 'codex',
       from: 'codex',
       userSelectedFiles: ['CONTEXT.md'],
-      changedLocators: ['apps/web/app.js'],
+      changedLocators: ['src/web.ts'],
       tokenBudget: 96
     })
   });
@@ -279,16 +279,22 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(response.body.schemaVersion, '1.0.0');
   assert.equal(response.body.pack.targetHarness, 'codex');
   assert.deepEqual(response.body.pack.sourceHarnesses, ['codex']);
+  assert.deepEqual(response.body.pack.requestedInputs.sourceHarnesses, ['codex']);
+  assert.deepEqual(response.body.pack.requestedInputs.userSelectedLocators, ['user-selected://CONTEXT.md']);
+  assert.deepEqual(response.body.pack.requestedInputs.changedLocators, ['workspace://src/web.ts']);
   assert.equal(response.body.pack.readFirst.every((item) => ['codex', 'generic-mcp'].includes(item.harness)), true);
   assert.equal(JSON.stringify(response.body.pack).includes('workspace://CLAUDE.md'), false);
   assert.equal(JSON.stringify(response.body.pack).includes('workspace://.cursor'), false);
   assert(response.body.pack.memoryPlan.items.some((item) => item.locator === 'user-selected://CONTEXT.md'));
-  assert.deepEqual(response.body.pack.sourceGraph.impact.changedLocators, ['workspace://apps/web/app.js']);
+  assert.deepEqual(response.body.pack.sourceGraph.impact.changedLocators, ['workspace://src/web.ts']);
   assert.equal(response.body.pack.utility.status, 'ready');
   assert.deepEqual(response.body.pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
-  assert(response.body.pack.utility.requiredLocalReads.some((item) => item.locator === 'workspace://apps/web/app.js' && item.role === 'changed_locator'));
+  const changedRead = response.body.pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://src/web.ts' && item.role === 'changed_locator');
+  assert(changedRead);
+  assert.match(changedRead.contentHash, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(changedRead.reasonCodes.includes('content_hash_verified'), true);
   assert(response.body.pack.handoff.launchPrompt.includes('Changed-file coverage: 1/1'));
-  assert(response.body.pack.handoff.commands.some((item) => item.includes("--changed 'apps/web/app.js'")));
+  assert(response.body.pack.handoff.commands.some((item) => item.includes("--changed 'src/web.ts'")));
   assert.equal(response.body.markdown.includes('## Change Impact'), true);
   assert.equal(response.body.markdown.includes('## Utility Read Plan'), true);
   assert.equal(/<objective>|<step>/u.test(response.body.markdown), false);
@@ -381,6 +387,24 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(rejected.status, 400);
   assert.equal(rejected.body.error.code, 'request_validation_failed');
   assert.equal(rejected.text.includes('secret.ts'), false);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+
+  const unsafeField = await request(api.base, '/api/context/pack', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare token=secret-value',
+      step: 'select context',
+      targetHarness: 'codex'
+    })
+  });
+  assert.equal(unsafeField.status, 400);
+  assert.equal(unsafeField.body.error.code, 'request_validation_failed');
+  assert.equal(unsafeField.body.error.issues[0].path, '$.body.objective');
+  assert.equal(unsafeField.body.error.issues[0].code, 'context_pack_objective_unsafe');
+  assert.equal(unsafeField.text.includes('secret-value'), false);
   assert.equal(api.store.updates, 0);
   assert.equal(api.calls.workflow, 0);
 });

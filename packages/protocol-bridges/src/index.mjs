@@ -18,6 +18,7 @@ const AUTHORITY_KEYS = /(^|\.)(trustedContext|principal|membership|role|owner|is
 const PRIVATE_KEYS = /(^|\.)(raw|prompt|body|output|secret|token|cookie|authorization|localPath|providerUrl|hiddenReasoning|sql)/i;
 const MAX_RESULT_BYTES = 8192;
 const MAX_CONTEXT_PACK_ITEMS = 2;
+const MAX_CONTEXT_PACK_BULK_ITEMS = 1;
 
 function hash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -403,7 +404,7 @@ function summarizeContextPackSourceGraph(sourceGraph = {}) {
     } : null,
     resultCount: Number.isInteger(sourceGraph.resultCount) ? sourceGraph.resultCount : 0,
     omittedCount: Number.isInteger(sourceGraph.omittedCount) ? sourceGraph.omittedCount : 0,
-    results: items(sourceGraph.results).slice(0, MAX_CONTEXT_PACK_ITEMS).map((item) => ({
+    results: items(sourceGraph.results).slice(0, MAX_CONTEXT_PACK_BULK_ITEMS).map((item) => ({
       resultType: safePublicString(item?.resultType, 64),
       kind: safePublicString(item?.kind, 64),
       label: safePublicString(item?.label, 160),
@@ -415,7 +416,7 @@ function summarizeContextPackSourceGraph(sourceGraph = {}) {
       changedLocators: items(sourceGraph.impact?.changedLocators).map(safeLocator).filter(Boolean).slice(0, 16),
       affectedSymbolCount: Number.isInteger(sourceGraph.impact?.affectedSymbolCount) ? sourceGraph.impact.affectedSymbolCount : 0,
       omittedAffectedSymbolCount: Number.isInteger(sourceGraph.impact?.omittedAffectedSymbolCount) ? sourceGraph.impact.omittedAffectedSymbolCount : 0,
-      affectedSymbols: items(sourceGraph.impact?.affectedSymbols).slice(0, MAX_CONTEXT_PACK_ITEMS).map((item) => ({
+      affectedSymbols: items(sourceGraph.impact?.affectedSymbols).slice(0, MAX_CONTEXT_PACK_BULK_ITEMS).map((item) => ({
         name: safePublicString(item?.name, 160),
         symbolKind: safePublicString(item?.symbolKind, 64),
         locator: safeLocator(item?.locator),
@@ -476,18 +477,34 @@ function summarizeContextPackUtility(utility = {}) {
   };
 }
 
+function summarizeContextPackRequestedInputs(requestedInputs = {}) {
+  const userSelectedLocators = safeStringList(requestedInputs.userSelectedLocators, 16)
+    .map((locator) => safeLocator(locator))
+    .filter(Boolean);
+  const changedLocators = safeStringList(requestedInputs.changedLocators, 16)
+    .map((locator) => safeLocator(locator))
+    .filter(Boolean);
+  return {
+    userSelectedLocators,
+    changedLocators,
+    userSelectedCount: Number.isInteger(requestedInputs.userSelectedCount) ? requestedInputs.userSelectedCount : userSelectedLocators.length,
+    changedLocatorCount: Number.isInteger(requestedInputs.changedLocatorCount) ? requestedInputs.changedLocatorCount : changedLocators.length
+  };
+}
+
 function summarizeContextPack(currentContextPack) {
   const pack = currentContextPack?.pack ?? currentContextPack;
   if (!isPlainObject(pack)) return null;
   const markdown = typeof currentContextPack?.markdown === 'string' ? currentContextPack.markdown : null;
   const readFirst = items(pack.readFirst).slice(0, MAX_CONTEXT_PACK_ITEMS).map(summarizeContextPackDecision);
-  const excluded = items(pack.excluded).slice(0, MAX_CONTEXT_PACK_ITEMS).map(summarizeContextPackDecision);
-  const omissionRefs = items(pack.omissions?.refs).slice(0, MAX_CONTEXT_PACK_ITEMS).map(summarizeContextPackOmission);
+  const excluded = items(pack.excluded).slice(0, MAX_CONTEXT_PACK_BULK_ITEMS).map(summarizeContextPackDecision);
+  const omissionRefs = items(pack.omissions?.refs).slice(0, MAX_CONTEXT_PACK_BULK_ITEMS).map(summarizeContextPackOmission);
   return {
     id: safeId(pack.id) ?? 'ctxpack_unknown',
     packVersion: safePublicString(pack.packVersion, 64),
     targetHarness: safePublicString(pack.targetHarness, 64),
     sourceHarnesses: safeStringList(pack.sourceHarnesses, 3),
+    requestedInputs: summarizeContextPackRequestedInputs(pack.requestedInputs),
     dryRun: pack.dryRun === true,
     createdAt: typeof pack.createdAt === 'string' ? pack.createdAt : null,
     objectiveFingerprint: typeof pack.objective === 'string' ? fingerprintFor(pack.objective) : null,
@@ -526,7 +543,7 @@ function summarizeContextPack(currentContextPack) {
       activeMemoryCreated: Number.isInteger(pack.memoryPlan?.activeMemoryCreated) ? pack.memoryPlan.activeMemoryCreated : 0,
       proposedCount: items(pack.memoryPlan?.items).filter((item) => item?.action === 'would_propose').length,
       quarantinedCount: items(pack.memoryPlan?.items).filter((item) => item?.action === 'would_quarantine').length,
-      items: items(pack.memoryPlan?.items).slice(0, MAX_CONTEXT_PACK_ITEMS).map((item) => ({
+      items: items(pack.memoryPlan?.items).slice(0, MAX_CONTEXT_PACK_BULK_ITEMS).map((item) => ({
         sourceId: safeId(item?.sourceId) ?? 'source_unknown',
         locator: safeLocator(item?.locator),
         harness: safePublicString(item?.harness, 64),

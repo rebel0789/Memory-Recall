@@ -182,6 +182,13 @@ function contextPackFixture() {
       dryRun: true,
       targetHarness: 'codex',
       sourceHarnesses: ['codex'],
+      requestedInputs: {
+        sourceHarnesses: ['codex'],
+        userSelectedLocators: ['user-selected://notes/handoff.md'],
+        changedLocators: ['workspace://src/auth.ts'],
+        userSelectedCount: 1,
+        changedLocatorCount: 1
+      },
       objective: 'Private MCP objective text should not appear.',
       step: 'Private MCP step text should not appear.',
       scannerVersion: 'harness-context@1.0.0',
@@ -270,7 +277,7 @@ function contextPackFixture() {
         status: 'ready',
         requiredLocalReads: [
           { locator: 'workspace://AGENTS.md', role: 'selected_context', required: true, represented: true, contentHash: hash, reasonCodes: ['selected_context'], readHint: 'Read AGENTS.md' },
-          { locator: 'workspace://src/auth.ts', role: 'changed_locator', required: true, represented: true, contentHash: null, reasonCodes: ['changed_locator_supplied'], readHint: 'Read changed auth file' },
+          { locator: 'workspace://src/auth.ts', role: 'changed_locator', required: true, represented: true, contentHash: hash, reasonCodes: ['changed_locator_supplied', 'content_hash_verified'], readHint: 'Read changed auth file' },
           { locator: 'workspace://src/auth.ts#L1-L3', role: 'source_graph_hint', required: false, represented: true, contentHash: null, reasonCodes: ['source_graph_hint'], readHint: 'Read graph hint' }
         ],
         changedLocatorCoverage: { total: 1, covered: 1, ratio: 1, status: 'covered' },
@@ -526,6 +533,8 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
   assert.equal(payload.provenance.source, 'local-context-pack');
   assert.equal(payload.workspaceId, 'ws_mcp');
   assert.deepEqual(payload.data.sourceHarnesses, ['codex']);
+  assert.deepEqual(payload.data.requestedInputs.userSelectedLocators, ['user-selected://notes/handoff.md']);
+  assert.deepEqual(payload.data.requestedInputs.changedLocators, ['workspace://src/auth.ts']);
   assert.equal(payload.data.objectiveLength, 'Private MCP objective text should not appear.'.length);
   assert.match(payload.data.objectiveFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.equal(payload.data.delivery.representation, 'locator-handoff');
@@ -641,8 +650,8 @@ test('OAF read-only MCP context-pack resource stays bounded for larger sanitized
   const payload = JSON.parse(read.result.contents[0].text);
   assert.equal(payload.data.readFirst.length, 2);
   assert.equal(payload.data.utility.requiredLocalReadCount, 12);
-  assert.equal(payload.data.sourceGraph.results.length, 2);
-  assert.equal(payload.data.sourceGraph.impact.affectedSymbols.length, 2);
+  assert.equal(payload.data.sourceGraph.results.length, 1);
+  assert.equal(payload.data.sourceGraph.impact.affectedSymbols.length, 1);
   assert.equal(payload.data.truncated.readFirst, true);
   assert.equal(payload.data.truncated.sourceGraphResults, true);
   assert.equal(payload.data.truncated.affectedSymbols, true);

@@ -82,6 +82,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
   assert.match(app,/Utility read plan/);
+  assert.match(app,/Hash verified/);
   assert.match(app,/Build time/);
   assert.match(app,/Raw bodies/);
   assert.match(app,/Estimated local tokens/);
@@ -186,6 +187,8 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.launchPrompt.includes('Changed-file coverage: 1/1'),true);
   assert.deepEqual(model.utility.topReads.map((item)=>item.locator),['workspace://AGENTS.md','workspace://apps/web/app.js']);
   assert.equal(model.utility.changedCoverageLabel,'1/1');
+  assert.equal(model.utility.changedHashVerifiedLabel,'0/1');
+  assert.equal(model.utility.topReads[1].contentHash,'');
   assert.equal(model.utility.sourceReduction,'75%');
   assert.deepEqual(model.sourceFamilies,['codex','cursor']);
   assert.equal(model.sourceFamilyLabel,'codex, cursor');

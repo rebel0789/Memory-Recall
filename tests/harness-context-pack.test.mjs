@@ -66,7 +66,11 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert(pack.sourceGraph.results.some((item) => item.locator === 'workspace://src/authWorkflow.ts#L1-L3'));
   assert.equal(pack.utility.status, 'ready');
   assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
-  assert(pack.utility.requiredLocalReads.some((item) => item.locator === 'workspace://src/authWorkflow.ts' && item.role === 'changed_locator' && item.required === true));
+  const changedRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://src/authWorkflow.ts' && item.role === 'changed_locator');
+  assert(changedRead);
+  assert.equal(changedRead.required, true);
+  assert.match(changedRead.contentHash, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(changedRead.reasonCodes.includes('content_hash_verified'), true);
   assert(pack.utility.requiredLocalReads.some((item) => item.role === 'source_graph_hint' && item.required === false));
   assert.equal(pack.utility.sourceSelection.candidateTokenCount, pack.preview.candidateTokenCount);
   assert.equal(pack.utility.delivery.sourceContentsIncluded, false);
@@ -89,6 +93,8 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /## Delivery Budget/);
   assert.match(markdown, /## Launch Prompt/);
   assert.match(markdown, /## Utility Read Plan/);
+  assert.match(markdown, /Content Hash/);
+  assert.match(markdown, /content_hash_verified/);
   assert.match(markdown, /## Omission Refs/);
   assert.match(markdown, /## Source Graph Hints/);
   assert.match(markdown, /## Change Impact/);
@@ -102,6 +108,71 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert(!markdown.includes('GRAPH RAW BODY SENTINEL'));
   assert(!JSON.stringify(pack).includes('PACK RAW BODY'));
   assert(!JSON.stringify(pack).includes('GRAPH RAW BODY SENTINEL'));
+});
+
+test('context pack keeps missing changed locators in review with unavailable hash proof', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Review missing changed locators before handoff.');
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    changedLocators: ['src/missing.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare handoff with missing changed file',
+    step: 'prove unavailable hash changes readiness',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack with missing changed locator');
+  assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://src/missing.ts']);
+  assert.equal(pack.utility.status, 'review');
+  assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
+  const changedRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://src/missing.ts' && item.role === 'changed_locator');
+  assert(changedRead);
+  assert.equal(changedRead.required, true);
+  assert.equal(changedRead.contentHash, null);
+  assert.equal(changedRead.reasonCodes.includes('content_hash_unavailable'), true);
+  assert.equal(changedRead.reasonCodes.includes('missing_changed_locator'), true);
+  const markdown = renderContextPackMarkdown(pack);
+  assert.match(markdown, /hash changes readiness/);
+  assert.match(markdown, /unavailable/);
+  assert.match(markdown, /missing_changed_locator/);
+});
+
+test('context pack hashes large changed text files without embedding source bodies', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Review large changed file hash proof before handoff.');
+  await writeFile(path.join(root, 'src', 'large.ts'), [
+    'export function largeChangedFile() {',
+    `  return '${'large-body-sentinel '.repeat(3800)}';`,
+    '}'
+  ].join('\n'));
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    changedLocators: ['src/large.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare handoff with large changed file',
+    step: 'prove large file hash without raw body',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack with large changed text file');
+  assert.equal(pack.utility.status, 'ready');
+  const changedRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://src/large.ts' && item.role === 'changed_locator');
+  assert(changedRead);
+  assert.match(changedRead.contentHash, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(changedRead.reasonCodes.includes('content_hash_verified'), true);
+  assert.equal(changedRead.reasonCodes.includes('oversized'), false);
+  assert(!JSON.stringify(pack).includes('large-body-sentinel'));
 });
 
 test('context pack rejects unsafe changed locators before building a handoff', async () => {
@@ -120,6 +191,37 @@ test('context pack rejects unsafe changed locators before building a handoff', a
       clock: fixedClock
     }),
     /changed_context_locator_invalid/
+  );
+});
+
+test('context pack rejects secret-like or absolute-path handoff fields before rendering markdown', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), 'Do not echo unsafe objective fields.');
+
+  await assert.rejects(
+    () => buildContextPack({
+      root,
+      harnesses: ['codex'],
+      workspaceId: 'ws_local',
+      targetHarness: 'codex',
+      objective: 'prepare handoff token=secret-value',
+      step: 'select context',
+      clock: fixedClock
+    }),
+    /context_pack_objective_unsafe/
+  );
+
+  await assert.rejects(
+    () => buildContextPack({
+      root,
+      harnesses: ['codex'],
+      workspaceId: 'ws_local',
+      targetHarness: 'codex',
+      objective: 'prepare handoff',
+      step: 'read /Users/rebel/private.txt',
+      clock: fixedClock
+    }),
+    /context_pack_step_unsafe/
   );
 });
 
@@ -202,4 +304,43 @@ test('context pack can include explicit user-selected files without activating m
   assert.match(markdown, /user-selected:\/\/notes\/handoff\.md/);
   assert(!markdown.includes('USER SELECTED RAW BODY'));
   assert(!JSON.stringify(pack).includes('USER SELECTED RAW BODY'));
+});
+
+test('context pack preserves explicit user-selected files even when excluded by budget', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'notes'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Always read repository instructions first.');
+  await writeFile(
+    path.join(root, 'notes', 'large-handoff.md'),
+    Array.from({ length: 240 }, (_, index) => `large omitted handoff note ${index} RAW LARGE USER BODY`).join('\n')
+  );
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    userSelectedFiles: ['notes/large-handoff.md'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Continue the repository instruction handoff',
+    step: 'preserve explicit omitted user file',
+    tokenBudget: 72,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack with omitted user-selected file');
+  assert.deepEqual(pack.requestedInputs.userSelectedLocators, ['user-selected://notes/large-handoff.md']);
+  assert.equal(pack.readFirst.some((item) => item.locator === 'user-selected://notes/large-handoff.md'), false);
+  assert.equal(pack.excluded.some((item) => item.locator === 'user-selected://notes/large-handoff.md'), true);
+  const explicitRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'user-selected://notes/large-handoff.md' && item.role === 'explicit_user_selected');
+  assert(explicitRead);
+  assert.equal(explicitRead.required, true);
+  assert.equal(explicitRead.represented, true);
+  assert.match(explicitRead.contentHash, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(explicitRead.reasonCodes.includes('content_hash_verified'), true);
+  assert(pack.handoff.commands.some((item) => item.includes("--include-file 'notes/large-handoff.md'")));
+  const markdown = renderContextPackMarkdown(pack);
+  assert.match(markdown, /## Requested Inputs/);
+  assert.match(markdown, /user-selected:\/\/notes\/large-handoff\.md/);
+  assert.doesNotMatch(markdown, /RAW LARGE USER BODY/);
+  assert.doesNotMatch(JSON.stringify(pack), /RAW LARGE USER BODY/);
 });

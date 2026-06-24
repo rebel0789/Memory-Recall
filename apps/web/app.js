@@ -899,6 +899,8 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
 
 function buildContextPackUtilityUiModel(utility) {
   const requiredReads=Array.isArray(utility?.requiredLocalReads) ? utility.requiredLocalReads : [];
+  const changedReads=requiredReads.filter((item)=>item?.role==='changed_locator');
+  const changedHashVerified=changedReads.filter((item)=>typeof item?.contentHash==='string'&&item.contentHash.startsWith('sha256:')).length;
   const changed=utility?.changedLocatorCoverage ?? {};
   const graph=utility?.graphHintCoverage ?? {};
   const source=utility?.sourceSelection ?? {};
@@ -907,13 +909,15 @@ function buildContextPackUtilityUiModel(utility) {
     requiredReadCount:requiredReads.filter((item)=>item?.required===true).length,
     changedCoverageLabel:`${Number(changed.covered??0)}/${Number(changed.total??0)}`,
     changedCoveragePercent:`${boundedPercent(changed.ratio)}%`,
+    changedHashVerifiedLabel:`${changedHashVerified}/${changedReads.length}`,
     graphCoverageLabel:`${Number(graph.covered??0)}/${Number(graph.total??0)}`,
     sourceSelectionRatio:`${boundedPercent(source.selectedTokenRatio)}%`,
     sourceReduction:`${boundedPercent(source.estimatedReductionRatio)}%`,
     topReads:requiredReads.slice(0,5).map((item)=>({
       locator:String(item.locator ?? ''),
       role:String(item.role ?? 'selected_context'),
-      required:item.required===true
+      required:item.required===true,
+      contentHash:String(item.contentHash ?? '')
     }))
   };
 }
@@ -1061,7 +1065,7 @@ function contextPackIntakeReview(review) {
 }
 
 function contextPackUtilityPanel(utility) {
-  return `<dl class="facts compact-facts"><div><dt>Changed files</dt><dd>${esc(utility.changedCoverageLabel)} (${esc(utility.changedCoveragePercent)})</dd></div><div><dt>Required reads</dt><dd>${Number(utility.requiredReadCount)}</dd></div><div><dt>Graph hints</dt><dd>${esc(utility.graphCoverageLabel)}</dd></div><div><dt>Source kept</dt><dd>${esc(utility.sourceSelectionRatio)}</dd></div><div><dt>Source reduction</dt><dd>${esc(utility.sourceReduction)}</dd></div></dl>${utility.topReads.length?`<ol class="locator-list compact-list">${utility.topReads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.required?'required':'optional'}</small></li>`).join('')}</ol>`:'<p class="muted">No required local reads recorded.</p>'}`;
+  return `<dl class="facts compact-facts"><div><dt>Changed files</dt><dd>${esc(utility.changedCoverageLabel)} (${esc(utility.changedCoveragePercent)})</dd></div><div><dt>Hash verified</dt><dd>${esc(utility.changedHashVerifiedLabel)}</dd></div><div><dt>Required reads</dt><dd>${Number(utility.requiredReadCount)}</dd></div><div><dt>Graph hints</dt><dd>${esc(utility.graphCoverageLabel)}</dd></div><div><dt>Source kept</dt><dd>${esc(utility.sourceSelectionRatio)}</dd></div><div><dt>Source reduction</dt><dd>${esc(utility.sourceReduction)}</dd></div></dl>${utility.topReads.length?`<ol class="locator-list compact-list">${utility.topReads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.required?'required':'optional'} · ${item.contentHash?'hash':'hash unavailable'}</small></li>`).join('')}</ol>`:'<p class="muted">No required local reads recorded.</p>'}`;
 }
 
 function contextPackProofLedger(proof) {

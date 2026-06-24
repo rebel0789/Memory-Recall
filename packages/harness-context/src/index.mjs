@@ -25,6 +25,7 @@ export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
 export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
 
 const DEFAULT_MAX_BYTES = 65_536;
+const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
 const MAX_USER_SELECTED_FILES = 16;
 const MAX_CHANGED_LOCATORS = 16;
 const GIT_STATUS_TIMEOUT_MS = 2_000;
@@ -36,6 +37,7 @@ const CONTROL_BYTES = new Set([...Array.from({ length: 9 }, (_, index) => index)
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/giu;
 const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)+/gu;
 const LOCAL_USER_ROOT = /\/Users\/[A-Za-z0-9._-]+(?=$|[\s"'`,;).])/gu;
+const HANDOFF_ABSOLUTE_PATH = /(?:\/home\/[A-Za-z0-9._-]+(?:\/[^\s"'`,;).]+)+|[A-Za-z]:\\[^\s"'`,;]+(?:\\[^\s"'`,;]+)+)/gu;
 const execFileAsync = promisify(execFile);
 const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
 
@@ -126,6 +128,19 @@ function redact(text) {
   if (secretCount > 0) reasonCodes.push('secret_like_value');
   if (localPathCount > 0) reasonCodes.push('local_path');
   return { redacted: rootPaths.redacted, secretCount, localPathCount, reasonCodes };
+}
+
+function assertSafeHandoffField(value, fieldName) {
+  const text = String(value ?? '');
+  const secretCount = countMatches(text, SECRET_LIKE);
+  const localPathCount = countMatches(text, LOCAL_FILE_PATH)
+    + countMatches(text, LOCAL_USER_ROOT)
+    + countMatches(text, HANDOFF_ABSOLUTE_PATH);
+  if (secretCount > 0 || localPathCount > 0) {
+    const error = new Error(`context_pack_${fieldName}_unsafe`);
+    error.code = `context_pack_${fieldName}_unsafe`;
+    throw error;
+  }
 }
 
 function summaryFor({ harness, sourceKind, relativePath, redactions }) {
@@ -235,6 +250,77 @@ function normalizeChangedLocators(values) {
     wrapped.cause = error;
     throw wrapped;
   }
+}
+
+function changedLocatorUnavailable(reason) {
+  return {
+    contentHash: null,
+    reasonCodes: ['content_hash_unavailable', reason].filter(Boolean)
+  };
+}
+
+async function inspectChangedLocator({ root, rootReal, locator, maxBytes }) {
+  const relativePath = String(locator ?? '').replace(/^workspace:\/\//u, '');
+  const absolutePath = path.resolve(root, relativePath);
+  const declaredRelative = path.relative(root, absolutePath);
+  if (isEscapedRelative(declaredRelative)) return changedLocatorUnavailable('path_escape');
+
+  try {
+    await lstat(absolutePath);
+  } catch {
+    return changedLocatorUnavailable('missing_changed_locator');
+  }
+
+  let realPath;
+  try {
+    realPath = await realpath(absolutePath);
+  } catch {
+    return changedLocatorUnavailable('unsupported_file');
+  }
+
+  if (isEscapedRelative(path.relative(rootReal, realPath))) {
+    return changedLocatorUnavailable('symlink_escape');
+  }
+
+  let info;
+  try {
+    info = await stat(realPath);
+  } catch {
+    return changedLocatorUnavailable('unsupported_file');
+  }
+  const hashByteLimit = Math.max(Number(maxBytes ?? 0), DEFAULT_CHANGED_HASH_MAX_BYTES);
+  if (!info.isFile()) return changedLocatorUnavailable('unsupported_file');
+  if (info.size > hashByteLimit) return changedLocatorUnavailable('oversized');
+
+  const bodyBuffer = await readFile(realPath);
+  if (isControlCharacterBuffer(bodyBuffer)) return changedLocatorUnavailable('binary');
+
+  const redactions = redact(bodyBuffer.toString('utf8'));
+  return {
+    contentHash: hash(redactions.redacted),
+    reasonCodes: [
+      'content_hash_verified',
+      redactions.secretCount || redactions.localPathCount ? 'redacted_before_hash' : null,
+      ...redactions.reasonCodes
+    ].filter(Boolean)
+  };
+}
+
+async function inspectChangedLocators({ root, changedLocators, maxBytes }) {
+  const resolvedRoot = path.resolve(root);
+  let rootReal;
+  try {
+    rootReal = await realpath(resolvedRoot);
+  } catch {
+    return new Map(changedLocators.map((locator) => [locator, changedLocatorUnavailable('workspace_root_unavailable')]));
+  }
+
+  const entries = [];
+  for (const locator of changedLocators) {
+    const metadata = await inspectChangedLocator({ root: resolvedRoot, rootReal, locator, maxBytes });
+    entries.push([locator, metadata]);
+  }
+  return new Map(entries);
 }
 
 function gitChangeDetectionSafeguards() {
@@ -899,6 +985,17 @@ function buildOmissions({ excluded, sourceGraph, targetHarness }) {
   };
 }
 
+function requestedInputsForPack({ sourceHarnesses, userSelectedFiles, changedLocators }) {
+  const userSelectedLocators = normalizeUserSelectedFiles(userSelectedFiles).map((relativePath) => `user-selected://${relativePath}`);
+  return {
+    sourceHarnesses,
+    userSelectedLocators,
+    changedLocators,
+    userSelectedCount: userSelectedLocators.length,
+    changedLocatorCount: changedLocators.length
+  };
+}
+
 function coverageRatio(total, covered) {
   if (!total) return { total: 0, covered: 0, ratio: 0, status: 'not_applicable' };
   const boundedCovered = Math.max(0, Math.min(total, covered));
@@ -926,9 +1023,10 @@ function requiredReadItem({ locator, role, required, represented = true, content
   };
 }
 
-function buildContextPackUtility({ selected, sourceGraph, preview }) {
+function buildContextPackUtility({ selected, sourceGraph, preview, requestedInputs, changedLocatorMetadata = new Map() }) {
   const reads = [];
   const seen = new Set();
+  const scanSourceByLocator = new Map((preview.scan?.sources ?? []).map((source) => [source.locator, source]));
   const addRead = (item) => {
     const key = `${item.role}:${item.locator}`;
     if (seen.has(key)) return;
@@ -948,15 +1046,38 @@ function buildContextPackUtility({ selected, sourceGraph, preview }) {
     }));
   }
 
+  for (const locator of requestedInputs.userSelectedLocators) {
+    if (reads.some((item) => item.locator === locator)) continue;
+    const source = scanSourceByLocator.get(locator);
+    addRead(requiredReadItem({
+      locator,
+      role: 'explicit_user_selected',
+      required: true,
+      represented: Boolean(source),
+      contentHash: source?.contentHash ?? null,
+      reasonCodes: [
+        'explicit_user_file',
+        'read_before_handoff',
+        source?.contentHash ? 'content_hash_verified' : 'content_hash_unavailable'
+      ],
+      readHint: `Read ${locator} from the local workspace because it was explicitly included for this handoff.`
+    }));
+  }
+
   for (const locator of sourceGraph.impact.changedLocators) {
     const selectedMatch = selected.find((item) => stripLineRange(item.locator) === locator);
+    const metadata = changedLocatorMetadata.get(locator) ?? changedLocatorUnavailable('content_hash_unavailable');
+    const contentHash = selectedMatch?.contentHash ?? metadata.contentHash ?? null;
+    const hashReasonCodes = contentHash && selectedMatch?.contentHash
+      ? ['content_hash_verified']
+      : metadata.reasonCodes;
     addRead(requiredReadItem({
       locator,
       role: 'changed_locator',
       required: true,
       represented: true,
-      contentHash: selectedMatch?.contentHash ?? null,
-      reasonCodes: ['changed_locator_supplied', 'read_before_edit'],
+      contentHash,
+      reasonCodes: ['changed_locator_supplied', 'read_before_edit', ...hashReasonCodes],
       readHint: `Read ${locator} from the local workspace before editing or reviewing this changed file.`
     }));
   }
@@ -982,8 +1103,9 @@ function buildContextPackUtility({ selected, sourceGraph, preview }) {
   const selectedTokenCount = Number(preview.metrics.selectedTokenCount ?? 0);
   const selectedTokenRatio = candidateTokenCount ? Number((selectedTokenCount / candidateTokenCount).toFixed(6)) : 0;
   const changedCoverage = coverageRatio(changedLocators.length, changedCovered);
+  const requiredHashesMissing = reads.some((item) => item.required && item.contentHash === null);
   return {
-    status: changedCoverage.status === 'partial' || reads.filter((item) => item.required).length === 0 ? 'review' : 'ready',
+    status: changedCoverage.status === 'partial' || reads.filter((item) => item.required).length === 0 || requiredHashesMissing ? 'review' : 'ready',
     requiredLocalReads: reads.slice(0, 64),
     changedLocatorCoverage: changedCoverage,
     graphHintCoverage: coverageRatio(graphHintTotal, graphHintIncluded),
@@ -1008,13 +1130,12 @@ function contextPackSetupClient(targetHarness) {
   return targetHarness === 'cursor' || targetHarness === 'claude-code' || targetHarness === 'codex' ? targetHarness : 'codex';
 }
 
-function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, selected, sourceGraph }) {
+function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, requestedInputs, sourceGraph }) {
   const from = quoteShell(sourceHarnesses.join(','));
   const objectiveArg = quoteShell(objective);
   const stepArg = quoteShell(step);
-  const selectedFiles = selected
-    .filter((item) => String(item.locator ?? '').startsWith('user-selected://'))
-    .map((item) => ` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u, ''))}`)
+  const selectedFiles = requestedInputs.userSelectedLocators
+    .map((locator) => ` --include-file ${quoteShell(locator.replace(/^user-selected:\/\//u, ''))}`)
     .join('');
   const changed = sourceGraph.impact.changedLocators
     .map((locator) => ` --changed ${quoteShell(locator.replace(/^workspace:\/\//u, ''))}`)
@@ -1302,10 +1423,14 @@ export function renderContextPackMarkdown(pack) {
   const selectedRows = pack.readFirst.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const excludedRows = pack.excluded.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const omissionRows = pack.omissions.refs.map((item) => `| ${markdownEscape(item.id)} | ${markdownEscape(item.locator)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const requestedRows = [
+    ...pack.requestedInputs.userSelectedLocators.map((locator) => `| ${markdownEscape(locator)} | explicit_user_selected |`),
+    ...pack.requestedInputs.changedLocators.map((locator) => `| ${markdownEscape(locator)} | changed_locator |`)
+  ].join('\n');
   const sourceGraphRows = pack.sourceGraph.results.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const changedLocatorRows = pack.sourceGraph.impact.changedLocators.map((locator) => `| ${markdownEscape(locator)} | reviewed_changed_locator |`).join('\n');
   const affectedSymbolRows = pack.sourceGraph.impact.affectedSymbols.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.symbolKind)} | ${markdownEscape(item.name)} | ${item.depth} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
-  const requiredReadRows = pack.utility.requiredLocalReads.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.role)} | ${item.required ? 'yes' : 'no'} | ${item.represented ? 'yes' : 'no'} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const requiredReadRows = pack.utility.requiredLocalReads.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.role)} | ${item.required ? 'yes' : 'no'} | ${item.represented ? 'yes' : 'no'} | ${markdownEscape(item.contentHash ?? 'unavailable')} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const deliveryLines = pack.delivery ? [
     '## Delivery Budget',
     '',
@@ -1336,6 +1461,16 @@ export function renderContextPackMarkdown(pack) {
     `Model calls: ${pack.safeguards.modelCalls}`,
     `Network calls: ${pack.safeguards.networkCalls}`,
     '',
+    '## Requested Inputs',
+    '',
+    `Source families: ${pack.requestedInputs.sourceHarnesses.join(', ')}`,
+    `Explicit user-selected files: ${pack.requestedInputs.userSelectedCount}`,
+    `Changed locators: ${pack.requestedInputs.changedLocatorCount}`,
+    '',
+    '| Locator | Role |',
+    '| --- | --- |',
+    requestedRows || '| none | none |',
+    '',
     '## Instructions',
     '',
     bulletList(pack.handoff.instructions),
@@ -1359,9 +1494,9 @@ export function renderContextPackMarkdown(pack) {
     `Graph hint coverage: ${pack.utility.graphHintCoverage.covered}/${pack.utility.graphHintCoverage.total} (${Math.round(pack.utility.graphHintCoverage.ratio * 100)}%)`,
     `Source selection ratio: ${Math.round(pack.utility.sourceSelection.selectedTokenRatio * 100)}%`,
     '',
-    '| Locator | Role | Required | Represented | Reasons |',
-    '| --- | --- | --- | --- | --- |',
-    requiredReadRows || '| none | none | no | no | none |',
+    '| Locator | Role | Required | Represented | Content Hash | Reasons |',
+    '| --- | --- | --- | --- | --- | --- |',
+    requiredReadRows || '| none | none | no | no | unavailable | none |',
     '',
     ...deliveryLines,
     '## Excluded',
@@ -1437,12 +1572,20 @@ export async function buildContextPack({
   clock = () => new Date().toISOString()
 } = {}) {
   const normalizedTarget = normalizeTargetHarness(targetHarness);
+  assertSafeHandoffField(objective, 'objective');
+  assertSafeHandoffField(step, 'step');
   const sourceHarnesses = selectedHarnesses(harnesses);
+  const normalizedUserSelectedFiles = normalizeUserSelectedFiles(userSelectedFiles);
   const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
+  const requestedInputs = requestedInputsForPack({
+    sourceHarnesses,
+    userSelectedFiles: normalizedUserSelectedFiles,
+    changedLocators: normalizedChangedLocators
+  });
   const preview = await buildHarnessContextPreview({
     root,
     harnesses: sourceHarnesses,
-    userSelectedFiles,
+    userSelectedFiles: normalizedUserSelectedFiles,
     workspaceId,
     objective,
     step,
@@ -1461,14 +1604,19 @@ export async function buildContextPack({
     changedLocators: normalizedChangedLocators,
     createdAt: preview.createdAt
   });
+  const changedLocatorMetadata = await inspectChangedLocators({
+    root,
+    changedLocators: sourceGraph.impact.changedLocators,
+    maxBytes
+  });
   const omissions = buildOmissions({ excluded, sourceGraph, targetHarness: normalizedTarget });
-  const utility = buildContextPackUtility({ selected, sourceGraph, preview });
+  const utility = buildContextPackUtility({ selected, sourceGraph, preview, requestedInputs, changedLocatorMetadata });
   const handoffCommands = contextPackCommands({
     sourceHarnesses,
     targetHarness: normalizedTarget,
     objective,
     step,
-    selected,
+    requestedInputs,
     sourceGraph
   });
   const pack = {
@@ -1483,13 +1631,14 @@ export async function buildContextPack({
       previewFingerprint: preview.previewFingerprint,
       sourceGraphFingerprint: sourceGraph.graphFingerprint,
       sourceGraphQueryFingerprint: sourceGraph.queryFingerprint,
-      changedLocators: sourceGraph.impact.changedLocators
+      requestedInputs
     }))}`,
     workspaceId,
     createdAt: preview.createdAt,
     dryRun: true,
     targetHarness: normalizedTarget,
     sourceHarnesses,
+    requestedInputs,
     objective,
     step,
     scannerVersion: preview.scannerVersion,

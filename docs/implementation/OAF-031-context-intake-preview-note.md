@@ -35,8 +35,19 @@ slice.
   embedding source slices.
 - Context packs include a schema-backed utility read plan and launch prompt.
   The read plan records required local reads, changed-locator coverage,
-  graph-hint coverage, and source-selection reduction so first-use readiness
-  does not rely only on safety gates or delivery-token reduction.
+  graph-hint coverage, redacted content hashes for safely readable changed
+  files, and source-selection reduction so first-use readiness does not rely
+  only on safety gates or delivery-token reduction. Missing, oversized, binary,
+  or escaping changed-file locators keep the read plan in review with an
+  unavailable hash reason instead of pretending the local file was verified.
+- Context packs also preserve explicit requested inputs separately from
+  selected context. A user-selected file that is excluded by the selector under
+  token budget remains visible as a `requestedInputs` locator, a required
+  utility read, and a generated `--include-file` command argument, without
+  embedding its raw body.
+- Context pack handoff fields reject obvious secret-like values and absolute
+  local filesystem paths before rendering markdown or shell commands, because
+  objective and step text are intentionally visible in the handoff artifact.
 - The deterministic benchmark gate in `evals/harness-context/cases.json`
   measures required-locator recall, distractor exclusion, selected-token ratio,
   leakage, deterministic fingerprints, and disabled side-effect surfaces.
@@ -50,7 +61,9 @@ slice.
 - The same native provider now exposes a read-only derived source graph built
   from that JS/TS source index, with schema-validated file/chunk/symbol/module
   nodes, contains/defined/import/export/reference/call edges, lexical graph
-  search, call tracing, and changed-file impact reports.
+  search, call tracing, and changed-file impact reports. The parser uses a
+  linear string/comment stripper and bounded reference/call fanout so large
+  template-heavy project files cannot spin the CLI, API, or browser preview.
 - Durable context manifests now record explicit assembly representation tiers,
   token budget reports, manifest `etag`s, and `deltaFrom` summaries for
   repeated local runs. The token report separates selected-token ratio
@@ -125,6 +138,8 @@ slice.
   only to create proposal reports.
 - Context packs contain locators, hashes, reason codes, warnings, and
   instructions only. They do not embed raw source bodies or grant authority.
+- `requestedInputs` records explicit source-family choices, user-selected
+  locators, and changed locators as safe locators and counts only.
 - Omission refs are not hidden context. They let a later user or agent recover
   skipped context by explicitly reading the local locator.
 - Raw source bodies, prompts, outputs, credentials, provider URLs, local paths,

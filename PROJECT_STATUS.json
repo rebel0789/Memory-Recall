@@ -205,7 +205,8 @@
       "limitations": [
         "Generates schema-validated local handoff reports from explicit source-family selections over documented harness project files, explicit user-selected relative files, compact native JS/TS source-graph hints, a utility read plan, and a copyable launch prompt",
         "Omission refs expose skipped context through safe locators, hashes, token costs, reason codes, and recovery hints without embedding raw bodies",
-        "Utility read plans record required local reads, changed-locator coverage, graph-hint coverage, and source-selection reduction without embedding raw source bodies",
+        "Utility read plans record required local reads, changed-locator coverage, graph-hint coverage, redacted content hashes for safely readable changed files, unavailable-hash reasons for missing or unsafe changed files, explicit user-selected files omitted by budget, and source-selection reduction without embedding raw source bodies",
+        "Context packs preserve requested source families, user-selected locators, and changed locators in schema-backed requestedInputs, and reject secret-like or absolute-path objective and step text before rendering handoff markdown",
         "Opt-in read-only MCP context-pack summary resource exposes source-family selection, locators, fingerprints, omission counts, source-selection token counts, delivery-budget metrics, changed-file impact, and utility coverage counts without raw objective text, raw step text, markdown bodies, or source bodies",
         "Control API context-pack builds include an in-process read-only MCP resource readback proof for the freshly built pack, including fingerprint match, byte size, zero exposed tools, and no markdown body",
         "Local MCP context-pack smoke report proves the stdio resources/list, tools/list, and resources/read path with observed one-run duration, byte sizes, selected/candidate source units, and delivered-handoff units",
@@ -812,7 +813,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-06-23",
+    "asOf": "2026-06-24",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run bootstrap",
@@ -829,8 +830,8 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 254,
-    "protocolFixturesExpected": 117,
+    "testsExpected": 320,
+    "protocolFixturesExpected": 139,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
