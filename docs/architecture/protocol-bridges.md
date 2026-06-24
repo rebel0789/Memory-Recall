@@ -68,6 +68,34 @@ objective, raw step, launch prompt, markdown content, source content, provider
 URLs, absolute filesystem locations, write tools, model calls, network calls,
 external adapters, or home config writes.
 
+When the user wants to reuse the same exported handoff later, the CLI can pin
+the local artifacts explicitly:
+
+```bash
+npm --silent run oaf -- context pack --from codex --root . \
+  --objective "Ship safely" --step "handoff" --target codex \
+  --write --pin --out context-packs/CONTEXT_PACK.md --format json
+```
+
+Pinning writes `context-packs/CONTEXT_PACK.md`,
+`context-packs/CONTEXT_PACK.use.json`, `context-packs/registry.json`, and
+`context-packs/current.json`. The pack object still reports dry-run semantics;
+the separate registry records artifact hashes, use-plan fingerprints,
+required-read hashes, coverage, and current-pointer metadata. Verification is
+read-only:
+
+```bash
+npm --silent run oaf -- context registry status --read-only --format json
+npm --silent run oaf -- mcp resources --read-only \
+  --context-pack-registry \
+  --uri oaf://workspace/ws_local/context-pack/registry/current --format json
+```
+
+The registry status detects tampered markdown/use-plan artifacts, stale source
+hashes, and modified registry/current-pointer fingerprints without returning
+markdown bodies, objective text, source bodies, absolute local paths, model
+calls, network calls, write tools, active memory, or external adapters.
+
 ## Authority
 
 The bridge rejects caller-supplied authority fields such as role, owner,

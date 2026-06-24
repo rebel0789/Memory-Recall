@@ -5,8 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   buildContextPack,
+  buildContextPackCurrentPointer,
+  buildContextPackRegistry,
+  buildContextPackRegistryEntry,
   buildContextPackUsePlan,
-  renderContextPackMarkdown
+  renderContextPackMarkdown,
+  verifyContextPackRegistry
 } from '../packages/harness-context/src/index.mjs';
 import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import contextPackSchema from '../packages/protocol/schemas/context-pack.schema.json' with { type: 'json' };
@@ -161,6 +165,71 @@ test('context pack use plan exposes complete local reads without private handoff
     'USE PLAN AGENTS RAW BODY',
     'USE PLAN SELECTED RAW BODY',
     'USE PLAN SOURCE RAW BODY',
+    objective,
+    step,
+    root,
+    '/Users/rebel'
+  ]) {
+    assert.equal(serialized.includes(forbidden), false, forbidden);
+  }
+});
+
+test('context pack registry verifies pinned artifacts without exposing private content', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'context-packs'), { recursive: true });
+  await mkdir(path.join(root, 'notes'), { recursive: true });
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'REGISTRY AGENTS RAW BODY should stay out of registry status.');
+  await writeFile(path.join(root, 'notes', 'handoff.md'), 'REGISTRY SELECTED RAW BODY should stay out.');
+  await writeFile(path.join(root, 'src', 'auth.ts'), [
+    'export function approveTokenResetRegistry() {',
+    "  return 'REGISTRY SOURCE RAW BODY';",
+    '}'
+  ].join('\n'));
+
+  const objective = 'Registry private objective should not leak';
+  const step = 'Registry private step should not leak';
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    userSelectedFiles: ['notes/handoff.md'],
+    changedLocators: ['src/auth.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective,
+    step,
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+  const markdown = renderContextPackMarkdown(pack);
+  const usePlan = buildContextPackUsePlan(pack);
+  const usePlanContent = JSON.stringify(usePlan, null, 2);
+  const registryEntry = buildContextPackRegistryEntry({
+    pack,
+    usePlan,
+    markdown,
+    usePlanContent,
+    markdownPath: 'context-packs/CONTEXT_PACK.md',
+    usePlanPath: 'context-packs/CONTEXT_PACK.use.json',
+    createdAt: fixedClock()
+  });
+  const registry = buildContextPackRegistry({ entry: registryEntry, workspaceId: 'ws_local', updatedAt: fixedClock() });
+  const current = buildContextPackCurrentPointer({ registry, entry: registryEntry, updatedAt: fixedClock() });
+  await writeFile(path.join(root, 'context-packs', 'CONTEXT_PACK.md'), markdown);
+  await writeFile(path.join(root, 'context-packs', 'CONTEXT_PACK.use.json'), usePlanContent);
+  await writeFile(path.join(root, 'context-packs', 'registry.json'), JSON.stringify(registry, null, 2));
+  await writeFile(path.join(root, 'context-packs', 'current.json'), JSON.stringify(current, null, 2));
+
+  const verified = await verifyContextPackRegistry({ root, workspaceId: 'ws_local', clock: fixedClock });
+  assert.equal(verified.current.status, 'verified');
+  assert.equal(verified.entries[0].artifactChecks.every((item) => item.status === 'verified'), true);
+  assert.equal(verified.entries[0].sourceChecks.staleLocators.length, 0);
+  assert.equal(verified.safeguards.localFilesWritten, 0);
+  const serialized = JSON.stringify(verified);
+  for (const forbidden of [
+    'REGISTRY AGENTS RAW BODY',
+    'REGISTRY SELECTED RAW BODY',
+    'REGISTRY SOURCE RAW BODY',
     objective,
     step,
     root,

@@ -13,6 +13,7 @@ import {
   stableStringify
 } from '../../context-compiler/src/index.mjs';
 import { assertJsonSchema } from '../../protocol/src/schema-validator.mjs';
+import contextPackRegistryStatusSchema from '../../protocol/schemas/context-pack-registry-status.schema.json' with { type: 'json' };
 import contextPackSchema from '../../protocol/schemas/context-pack.schema.json' with { type: 'json' };
 import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
@@ -21,6 +22,7 @@ import { buildSourceGraphPreview } from '../../source-graph/src/index.mjs';
 
 export const CONTEXT_PACK_VERSION = '0.1.0';
 export const CONTEXT_PACK_USE_PLAN_VERSION = '0.1.0';
+export const CONTEXT_PACK_REGISTRY_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_SCANNER_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
@@ -1153,7 +1155,8 @@ function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, 
   return [
     'npm run doctor',
     `npm run oaf -- context pack ${base} --dry-run --format markdown`,
-    `npm run oaf -- context pack ${base} --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json`,
+    `npm run oaf -- context pack ${base} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
+    'npm run oaf -- context registry status --read-only --format json',
     `npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
     'npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json',
     `npm run oaf -- mcp resources --read-only --context-pack ${base} --uri oaf://workspace/ws_local/context-pack/current --format json`,
@@ -1844,6 +1847,439 @@ export function buildContextPackUsePlan(pack, {
   plan.usePlanFingerprint = hash(stableStringify({ ...plan, usePlanFingerprint: null }));
   assertJsonSchema(contextPackUsePlanSchema, plan, 'context pack use plan');
   return plan;
+}
+
+function artifactHash(content) {
+  return hash(String(content ?? ''));
+}
+
+function registryFingerprint(registry) {
+  return hash(stableStringify({ ...registry, registryFingerprint: null }));
+}
+
+function currentPointerFingerprint(pointer) {
+  return hash(stableStringify({ ...pointer, pointerFingerprint: null }));
+}
+
+function registryEntryId({ workspaceId, contextPackId, contextPackFingerprint, usePlanFingerprint, usePlanPath }) {
+  return `ctxpin_${idDigest(stableStringify({
+    workspaceId,
+    contextPackId,
+    contextPackFingerprint,
+    usePlanFingerprint,
+    usePlanPath
+  }))}`;
+}
+
+function boundedRegistryReads(usePlan) {
+  return (usePlan?.requiredLocalReads ?? [])
+    .filter((item) => item?.required === true)
+    .map((item) => ({
+      locator: item.locator,
+      role: item.role,
+      contentHash: typeof item.contentHash === 'string' ? item.contentHash : null,
+      represented: item.represented === true,
+      reasonCodes: [...new Set((item.reasonCodes ?? []).filter(Boolean))].sort().slice(0, 16)
+    }))
+    .slice(0, 64);
+}
+
+export function buildContextPackRegistryEntry({
+  pack,
+  usePlan,
+  markdown,
+  markdownPath = 'context-packs/CONTEXT_PACK.md',
+  usePlanContent = JSON.stringify(usePlan, null, 2),
+  usePlanPath = 'context-packs/CONTEXT_PACK.use.json',
+  createdAt = usePlan?.generatedAt ?? pack?.createdAt ?? new Date().toISOString()
+} = {}) {
+  assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context pack registry use plan');
+  const markdownContent = String(markdown ?? '');
+  const usePlanText = String(usePlanContent ?? '');
+  const entry = {
+    schemaVersion: '1.0.0',
+    registryVersion: CONTEXT_PACK_REGISTRY_VERSION,
+    id: registryEntryId({
+      workspaceId: usePlan.workspaceId,
+      contextPackId: usePlan.contextPack.id,
+      contextPackFingerprint: usePlan.contextPack.fingerprint,
+      usePlanFingerprint: usePlan.usePlanFingerprint,
+      usePlanPath
+    }),
+    workspaceId: usePlan.workspaceId,
+    createdAt,
+    targetHarness: usePlan.targetHarness,
+    sourceHarnesses: usePlan.sourceHarnesses,
+    contextPack: {
+      id: usePlan.contextPack.id,
+      createdAt: usePlan.contextPack.createdAt,
+      fingerprint: usePlan.contextPack.fingerprint,
+      packVersion: usePlan.contextPack.packVersion,
+      scannerVersion: usePlan.contextPack.scannerVersion,
+      compilerVersion: usePlan.contextPack.compilerVersion
+    },
+    usePlan: {
+      id: usePlan.id,
+      fingerprint: usePlan.usePlanFingerprint,
+      generatedAt: usePlan.generatedAt,
+      resourceUri: usePlan.resource.uri
+    },
+    artifacts: [
+      {
+        role: 'agent-handoff',
+        locator: `workspace://${markdownPath}`,
+        contentType: 'text/markdown',
+        contentHash: artifactHash(markdownContent),
+        byteSize: Buffer.byteLength(markdownContent, 'utf8'),
+        contentIncluded: false
+      },
+      {
+        role: 'use-plan',
+        locator: `workspace://${usePlanPath}`,
+        contentType: 'application/json',
+        contentHash: artifactHash(usePlanText),
+        byteSize: Buffer.byteLength(usePlanText, 'utf8'),
+        contentIncluded: false
+      }
+    ],
+    requestedInputs: {
+      userSelectedCount: usePlan.requestedInputs.userSelectedCount,
+      changedLocatorCount: usePlan.requestedInputs.changedLocatorCount
+    },
+    coverage: usePlan.coverage,
+    sourceSelection: usePlan.sourceSelection,
+    delivery: usePlan.delivery,
+    sourceGraph: {
+      status: usePlan.sourceGraph.status,
+      graphFingerprint: usePlan.sourceGraph.graphFingerprint,
+      changedLocatorCount: usePlan.sourceGraph.changedLocators.length,
+      affectedSymbolCount: usePlan.sourceGraph.affectedSymbolCount
+    },
+    requiredLocalReads: boundedRegistryReads(usePlan),
+    safeguards: {
+      readOnlyUsePlan: true,
+      canonicalStateMutated: false,
+      localFilesWrittenByRegistryAction: 4,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      markdownContentIncluded: false,
+      sourceContentIncluded: false,
+      privateContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+  return entry;
+}
+
+export function buildContextPackRegistry({
+  existingRegistry = null,
+  entry,
+  workspaceId = entry?.workspaceId ?? 'ws_local',
+  updatedAt = entry?.createdAt ?? new Date().toISOString()
+} = {}) {
+  const existingEntries = Array.isArray(existingRegistry?.entries) ? existingRegistry.entries : [];
+  const entriesById = new Map(existingEntries.map((item) => [item.id, item]));
+  entriesById.set(entry.id, entry);
+  const entries = [...entriesById.values()].sort((left, right) => {
+    const created = String(right.createdAt ?? '').localeCompare(String(left.createdAt ?? ''));
+    return created || String(left.id).localeCompare(String(right.id));
+  }).slice(0, 50);
+  const registry = {
+    schemaVersion: '1.0.0',
+    registryVersion: CONTEXT_PACK_REGISTRY_VERSION,
+    workspaceId,
+    updatedAt,
+    currentEntryId: entry.id,
+    entries,
+    safeguards: {
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      markdownContentIncluded: false,
+      sourceContentIncluded: false,
+      privateContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    },
+    registryFingerprint: null
+  };
+  registry.registryFingerprint = registryFingerprint(registry);
+  return registry;
+}
+
+export function buildContextPackCurrentPointer({
+  registry,
+  entry,
+  updatedAt = registry?.updatedAt ?? entry?.createdAt ?? new Date().toISOString()
+} = {}) {
+  const pointer = {
+    schemaVersion: '1.0.0',
+    registryVersion: CONTEXT_PACK_REGISTRY_VERSION,
+    workspaceId: entry.workspaceId,
+    updatedAt,
+    entryId: entry.id,
+    registryLocator: 'workspace://context-packs/registry.json',
+    usePlanLocator: entry.artifacts.find((item) => item.role === 'use-plan')?.locator ?? null,
+    contextPackFingerprint: entry.contextPack.fingerprint,
+    registryFingerprint: registry.registryFingerprint,
+    safeguards: {
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      markdownContentIncluded: false,
+      sourceContentIncluded: false
+    },
+    pointerFingerprint: null
+  };
+  pointer.pointerFingerprint = currentPointerFingerprint(pointer);
+  return pointer;
+}
+
+function registryRelativePath(locator) {
+  if (typeof locator !== 'string' || !locator.startsWith('workspace://context-packs/')) return null;
+  const relativePath = locator.slice('workspace://'.length);
+  if (!/^context-packs\/(?:registry\.json|current\.json|[A-Za-z0-9._-]+\.md|[A-Za-z0-9._-]+\.use\.json)$/.test(relativePath)) return null;
+  return relativePath;
+}
+
+function sourceRelativePath(locator) {
+  const stripped = stripLineRange(String(locator ?? ''));
+  const withoutScheme = stripped.replace(/^(?:workspace|user-selected):\/\//u, '');
+  try {
+    return normalizeUserSelectedFilePath(withoutScheme);
+  } catch {
+    return null;
+  }
+}
+
+async function readRegistryWorkspaceFile(rootReal, relativePath) {
+  await assertRegistryNoSymlinkAncestors(rootReal, relativePath);
+  const absolute = path.resolve(rootReal, relativePath);
+  const entry = await lstat(absolute);
+  if (entry.isSymbolicLink()) throw new Error('registry_target_symlink');
+  if (!entry.isFile()) throw new Error('registry_target_not_file');
+  const actual = await realpath(absolute);
+  if (!isInside(rootReal, actual)) throw new Error('registry_target_escape');
+  return {
+    text: await readFile(actual, 'utf8'),
+    byteSize: entry.size
+  };
+}
+
+async function assertRegistryNoSymlinkAncestors(rootReal, relativePath) {
+  const parts = relativePath.split('/').slice(0, -1);
+  let current = rootReal;
+  for (const part of parts) {
+    current = path.join(current, part);
+    const entry = await lstat(current).catch((error) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    });
+    if (!entry) return;
+    if (entry.isSymbolicLink()) throw new Error('registry_parent_symlink');
+    if (!entry.isDirectory()) throw new Error('registry_parent_not_directory');
+  }
+}
+
+async function verifyRegistryArtifact(rootReal, artifact) {
+  const relativePath = registryRelativePath(artifact?.locator);
+  if (!relativePath) {
+    return {
+      role: artifact?.role ?? 'unknown',
+      locator: artifact?.locator ?? null,
+      status: 'tampered',
+      reasonCodes: ['registry_artifact_locator_invalid']
+    };
+  }
+  try {
+    const file = await readRegistryWorkspaceFile(rootReal, relativePath);
+    const actualHash = artifactHash(file.text);
+    const status = actualHash === artifact.contentHash && file.byteSize === artifact.byteSize ? 'verified' : 'tampered';
+    return {
+      role: artifact.role,
+      locator: artifact.locator,
+      expectedHash: artifact.contentHash,
+      actualHash,
+      expectedByteSize: artifact.byteSize,
+      actualByteSize: file.byteSize,
+      status,
+      reasonCodes: status === 'verified' ? ['artifact_hash_verified'] : ['artifact_hash_mismatch']
+    };
+  } catch (error) {
+    return {
+      role: artifact?.role ?? 'unknown',
+      locator: artifact?.locator ?? null,
+      expectedHash: artifact?.contentHash ?? null,
+      actualHash: null,
+      expectedByteSize: artifact?.byteSize ?? null,
+      actualByteSize: null,
+      status: 'missing',
+      reasonCodes: [error?.message === 'registry_parent_symlink' ? 'registry_parent_symlink' : 'artifact_unavailable']
+    };
+  }
+}
+
+async function verifyRegistrySourceRead(rootReal, item) {
+  const relativePath = sourceRelativePath(item?.locator);
+  if (!relativePath || !item?.contentHash) {
+    return {
+      locator: item?.locator ?? null,
+      role: item?.role ?? null,
+      expectedHash: item?.contentHash ?? null,
+      actualHash: null,
+      status: 'unavailable',
+      reasonCodes: ['source_hash_unavailable']
+    };
+  }
+  const metadata = await inspectChangedLocator({
+    root: rootReal,
+    rootReal,
+    locator: `workspace://${relativePath}`,
+    maxBytes: DEFAULT_CHANGED_HASH_MAX_BYTES
+  });
+  if (!metadata.contentHash) {
+    return {
+      locator: item.locator,
+      role: item.role,
+      expectedHash: item.contentHash,
+      actualHash: null,
+      status: 'unavailable',
+      reasonCodes: metadata.reasonCodes
+    };
+  }
+  const status = metadata.contentHash === item.contentHash ? 'verified' : 'stale';
+  return {
+    locator: item.locator,
+    role: item.role,
+    expectedHash: item.contentHash,
+    actualHash: metadata.contentHash,
+    status,
+    reasonCodes: status === 'verified' ? ['source_hash_verified'] : ['source_hash_changed']
+  };
+}
+
+function entryVerificationStatus({ artifactChecks, sourceChecks }) {
+  if (artifactChecks.some((item) => item.status === 'tampered' || item.status === 'missing')) return 'tampered';
+  if (sourceChecks.some((item) => item.status === 'stale')) return 'stale';
+  if (sourceChecks.some((item) => item.status === 'unavailable')) return 'review';
+  return 'verified';
+}
+
+async function verifyRegistryEntry(rootReal, entry) {
+  const artifactChecks = [];
+  for (const artifact of entry.artifacts ?? []) artifactChecks.push(await verifyRegistryArtifact(rootReal, artifact));
+  const sourceChecksList = [];
+  for (const item of entry.requiredLocalReads ?? []) sourceChecksList.push(await verifyRegistrySourceRead(rootReal, item));
+  const staleLocators = sourceChecksList.filter((item) => item.status === 'stale').map((item) => item.locator);
+  const unavailableLocators = sourceChecksList.filter((item) => item.status === 'unavailable').map((item) => item.locator);
+  const verifiedLocators = sourceChecksList.filter((item) => item.status === 'verified').map((item) => item.locator);
+  const status = entryVerificationStatus({ artifactChecks, sourceChecks: sourceChecksList });
+  return {
+    id: entry.id,
+    workspaceId: entry.workspaceId,
+    createdAt: entry.createdAt,
+    targetHarness: entry.targetHarness,
+    contextPack: entry.contextPack,
+    usePlan: entry.usePlan,
+    artifactChecks,
+    sourceChecks: {
+      total: sourceChecksList.length,
+      verified: verifiedLocators.length,
+      stale: staleLocators.length,
+      unavailable: unavailableLocators.length,
+      verifiedLocators,
+      staleLocators,
+      unavailableLocators
+    },
+    status
+  };
+}
+
+export async function verifyContextPackRegistry({
+  root = process.cwd(),
+  workspaceId = 'ws_local',
+  registryPath = 'context-packs/registry.json',
+  currentPath = 'context-packs/current.json',
+  clock = () => new Date().toISOString()
+} = {}) {
+  const rootReal = await realpath(root);
+  const generatedAt = clock();
+  let registry = null;
+  let currentPointer = null;
+  const warnings = [];
+  try {
+    registry = JSON.parse((await readRegistryWorkspaceFile(rootReal, registryPath)).text);
+  } catch {
+    registry = null;
+    warnings.push('context_pack_registry_missing');
+  }
+  try {
+    currentPointer = JSON.parse((await readRegistryWorkspaceFile(rootReal, currentPath)).text);
+  } catch {
+    currentPointer = null;
+    warnings.push('context_pack_current_pointer_missing');
+  }
+  const registryFingerprintStatus = registry
+    ? (registry.registryFingerprint === registryFingerprint(registry) ? 'verified' : 'tampered')
+    : 'missing';
+  const pointerFingerprintStatus = currentPointer
+    ? (currentPointer.pointerFingerprint === currentPointerFingerprint(currentPointer) ? 'verified' : 'tampered')
+    : 'missing';
+  const entries = [];
+  for (const entry of registry?.entries ?? []) entries.push(await verifyRegistryEntry(rootReal, entry));
+  const currentEntryId = currentPointer?.entryId ?? registry?.currentEntryId ?? null;
+  const current = entries.find((entry) => entry.id === currentEntryId) ?? null;
+  const currentStatus = registryFingerprintStatus === 'tampered' || pointerFingerprintStatus === 'tampered'
+    ? 'tampered'
+    : (current ? current.status : 'missing');
+  const report = {
+    schemaVersion: '1.0.0',
+    registryVersion: CONTEXT_PACK_REGISTRY_VERSION,
+    command: 'context registry status',
+    workspaceId,
+    generatedAt,
+    registry: {
+      exists: Boolean(registry),
+      locator: 'workspace://context-packs/registry.json',
+      currentEntryId: registry?.currentEntryId ?? null,
+      entryCount: Array.isArray(registry?.entries) ? registry.entries.length : 0,
+      registryFingerprint: registry?.registryFingerprint ?? null,
+      fingerprintStatus: registryFingerprintStatus
+    },
+    currentPointer: {
+      exists: Boolean(currentPointer),
+      locator: 'workspace://context-packs/current.json',
+      entryId: currentPointer?.entryId ?? null,
+      pointerFingerprint: currentPointer?.pointerFingerprint ?? null,
+      fingerprintStatus: pointerFingerprintStatus
+    },
+    current: current ? { entryId: current.id, status: currentStatus } : { entryId: currentEntryId, status: currentStatus },
+    entries,
+    warnings: [...new Set(warnings)].sort(),
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      markdownContentIncluded: false,
+      sourceContentIncluded: false,
+      privateContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+  assertJsonSchema(contextPackRegistryStatusSchema, report, 'context pack registry status');
+  return report;
 }
 
 function defaultThresholds(dataset) {

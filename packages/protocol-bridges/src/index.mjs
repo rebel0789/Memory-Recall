@@ -612,6 +612,7 @@ export function buildOafReadOnlyResourceCatalog({
   projectStatus = {},
   currentContextPack = null,
   currentContextPackUsePlan = null,
+  currentContextPackRegistryStatus = null,
   workspaceId = 'ws_local',
   generatedAt = new Date().toISOString()
 } = {}) {
@@ -747,6 +748,15 @@ export function buildOafReadOnlyResourceCatalog({
       generatedAt,
       provenanceSource: 'local-context-pack-use-plan',
       data: currentContextPackUsePlan
+    })));
+  }
+  if (isPlainObject(currentContextPackRegistryStatus)) {
+    resources.push(jsonResource(`${base}/context-pack/registry/current`, 'Current context pack registry status', 'Sanitized read-only verification status for pinned context-pack artifacts.', () => createResourcePayload({
+      resourceKind: 'context-pack-registry-status',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-context-pack-registry',
+      data: currentContextPackRegistryStatus
     })));
   }
   return resources;

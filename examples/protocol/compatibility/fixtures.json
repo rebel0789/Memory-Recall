@@ -428,6 +428,12 @@
       "expectedValid": true
     },
     {
+      "id": "context-pack-registry-status-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-registry-status.schema.json",
+      "instance": "examples/protocol/context-pack-registry-status.json",
+      "expectedValid": true
+    },
+    {
       "id": "model-generation-request-current-valid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/model-generation-request.json",
@@ -737,6 +743,12 @@
       "id": "mcp-readonly-context-pack-use-plan-resource-current-valid",
       "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
       "instance": "examples/protocol/mcp-readonly-context-pack-use-plan-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-readonly-context-pack-registry-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-context-pack-registry-resource.json",
       "expectedValid": true
     },
     {

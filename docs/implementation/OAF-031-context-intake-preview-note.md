@@ -108,10 +108,27 @@ slice.
   and pack fingerprint. It omits objective text, step text, launch prompt,
   markdown content, source content, credentials, provider URLs, absolute paths,
   model calls, network calls, external adapters, active memory, and write tools.
+- `npm run oaf -- context pack --from codex --objective "..." --step "..." --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json`
+  explicitly pins the exported local handoff by writing the markdown, the
+  derived `context-packs/CONTEXT_PACK.use.json`, `context-packs/registry.json`,
+  and `context-packs/current.json`. Pinning is separate from pack semantics:
+  the pack object remains `dryRun: true` and `contextPackWritten: false`, while
+  the registry records artifact hashes, use-plan fingerprints, required-read
+  hashes, coverage, and current-pointer metadata.
+- `npm run oaf -- context registry status --read-only --format json`
+  verifies the pinned registry without writes. It reports verified, stale,
+  tampered, review, or missing status by checking registry and current-pointer
+  fingerprints, markdown/use-plan artifact hashes, and required local source
+  hashes. The status report is schema-validated and omits markdown content,
+  objective text, source content, credentials, provider URLs, absolute paths,
+  model calls, network calls, external adapters, active memory, and write tools.
 - `npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json`
   reads that exported use plan through the read-only MCP resource catalog. The
   path is restricted to `context-packs/*.use.json`; absolute paths, traversal,
   backslashes, symlink parents, and non-file targets fail closed.
+- `npm run oaf -- mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json`
+  exposes the same sanitized registry verification report through the read-only
+  MCP resource catalog. It adds no MCP tools and keeps `tools/list` empty.
 - `npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   launches the same read-only stdio MCP resource bridge, reads
   `oaf://workspace/ws_local/context-pack/current`, asserts `tools/list` returns

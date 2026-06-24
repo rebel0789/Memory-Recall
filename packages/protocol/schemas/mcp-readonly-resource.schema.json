@@ -24,7 +24,8 @@
         "memory-proposal-summary",
         "handoff-bundle-summary",
         "context-pack-summary",
-        "context-pack-use-plan"
+        "context-pack-use-plan",
+        "context-pack-registry-status"
       ]
     },
     "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
@@ -42,7 +43,7 @@
       "properties": {
         "producer": { "enum": ["open-agent-fabric.protocol-bridges"] },
         "producerVersion": { "type": "string", "minLength": 1, "maxLength": 40 },
-        "source": { "enum": ["local-state", "local-context-pack", "local-context-pack-use-plan"] },
+        "source": { "enum": ["local-state", "local-context-pack", "local-context-pack-use-plan", "local-context-pack-registry"] },
         "sourceFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
       }
     },

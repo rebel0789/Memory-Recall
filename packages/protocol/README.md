@@ -104,11 +104,12 @@ are not authority.
 
 `mcp-readonly-resource.schema.json` defines the sanitized JSON envelope for
 OAF-owned read-only MCP resources. These resources expose status, context
-manifest, run, memory-proposal, and handoff summaries with provenance,
-fingerprints, timestamps, and explicit no-write/no-network safeguards. Resource
-payloads contain counts, IDs, hashes, reason codes, and statuses; they do not
-contain raw prompts, context bodies, model results, credentials, provider URLs,
-absolute local paths, or hidden reasoning.
+manifest, run, memory-proposal, handoff, context-pack, context-pack use-plan,
+and pinned context-pack registry summaries with provenance, fingerprints,
+timestamps, and explicit no-write/no-network safeguards. Resource payloads
+contain counts, IDs, hashes, reason codes, and statuses; they do not contain
+raw prompts, context bodies, markdown bodies, model results, credentials,
+provider URLs, absolute local paths, or hidden reasoning.
 
 ## Benchmark truth-floor schemas
 

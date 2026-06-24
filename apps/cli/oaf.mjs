@@ -7,7 +7,19 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { compileContext } from '../../packages/context-compiler/src/index.mjs';
 import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/evaluation-lab/src/index.mjs';
-import { buildContextPack, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown, scanHarnessContext } from '../../packages/harness-context/src/index.mjs';
+import {
+  buildContextPack,
+  buildContextPackCurrentPointer,
+  buildContextPackRegistry,
+  buildContextPackRegistryEntry,
+  buildContextPackUsePlan,
+  buildHarnessContextPreview,
+  buildHarnessSetupReport,
+  detectGitChangedLocators,
+  renderContextPackMarkdown,
+  scanHarnessContext,
+  verifyContextPackRegistry
+} from '../../packages/harness-context/src/index.mjs';
 import {
   buildMemoryProfileReport,
   buildMemoryProposalsReport,
@@ -162,6 +174,7 @@ async function contextCommand(values) {
   if (values[0] === 'scan') return contextScanCommand(values.slice(1));
   if (values[0] === 'preview') return contextPreviewCommand(values.slice(1));
   if (values[0] === 'pack') return contextPackCommand(values.slice(1));
+  if (values[0] === 'registry') return contextRegistryCommand(values.slice(1));
   if (values[0] === 'graph') {
     if (values[1] === 'preview') return contextGraphPreviewCommand(values.slice(2));
     console.error('context graph requires preview');
@@ -282,6 +295,11 @@ async function contextPackCommand(values) {
     process.exitCode = 2;
     return;
   }
+  if (values.includes('--pin') && !write) {
+    console.error('context pack --pin requires --write');
+    process.exitCode = 2;
+    return;
+  }
 
   const objective = option(values, '--objective');
   const step = option(values, '--step');
@@ -312,9 +330,54 @@ async function contextPackCommand(values) {
     const usePlan = buildContextPackUsePlan(pack);
     if (write) {
       const out = option(values, '--out') ?? 'context-packs/CONTEXT_PACK.md';
+      const useOut = option(values, '--use-out') ?? (values.includes('--pin') ? defaultUsePlanPathFor(out) : null);
       await writeWorkspaceFile(root, `workspace://${out}`, markdown);
-      const useOut = option(values, '--use-out');
-      if (useOut) await writeWorkspaceFile(root, `workspace://${useOut}`, JSON.stringify(usePlan, null, 2));
+      const usePlanContent = JSON.stringify(usePlan, null, 2);
+      if (useOut) await writeWorkspaceFile(root, `workspace://${useOut}`, usePlanContent);
+      if (values.includes('--pin')) {
+        const registryEntry = buildContextPackRegistryEntry({
+          pack,
+          usePlan,
+          markdown,
+          markdownPath: out,
+          usePlanContent,
+          usePlanPath: useOut,
+          createdAt: fixedNow()
+        });
+        const existingRegistry = await readOptionalContextPackRegistry(root);
+        const registry = buildContextPackRegistry({
+          existingRegistry,
+          entry: registryEntry,
+          workspaceId,
+          updatedAt: fixedNow()
+        });
+        const current = buildContextPackCurrentPointer({ registry, entry: registryEntry, updatedAt: fixedNow() });
+        await writeWorkspaceFile(root, 'workspace://context-packs/registry.json', JSON.stringify(registry, null, 2));
+        await writeWorkspaceFile(root, 'workspace://context-packs/current.json', JSON.stringify(current, null, 2));
+        const report = {
+          schemaVersion: '1.0.0',
+          usePlan,
+          target: { locator: `workspace://${out}`, contentType: 'text/markdown' },
+          usePlanTarget: { locator: `workspace://${useOut}`, contentType: 'application/json' },
+          registryTarget: { locator: 'workspace://context-packs/registry.json', contentType: 'application/json' },
+          currentTarget: { locator: 'workspace://context-packs/current.json', contentType: 'application/json' },
+          registryEntry,
+          registry: {
+            currentEntryId: registry.currentEntryId,
+            entryCount: registry.entries.length,
+            registryFingerprint: registry.registryFingerprint
+          },
+          changedLocatorDetection,
+          localFilesWritten: 4,
+          safeguards: {
+            externalWritesEnabled: false,
+            externalAdaptersEnabled: 0,
+            rawBodyIncluded: false
+          }
+        };
+        console.log(JSON.stringify(report, null, 2));
+        return;
+      }
       const report = {
         schemaVersion: '1.0.0',
         pack,
@@ -344,6 +407,51 @@ async function contextPackCommand(values) {
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
+  }
+}
+
+async function contextRegistryCommand(values) {
+  const subcommand = values[0] ?? 'status';
+  if (subcommand !== 'status') {
+    console.error('context registry requires status');
+    process.exitCode = 2;
+    return;
+  }
+  if (!values.includes('--read-only')) {
+    console.error('context registry status requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('context registry status only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  try {
+    const report = await verifyContextPackRegistry({ root, workspaceId, clock: fixedNow });
+    console.log(JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+function defaultUsePlanPathFor(markdownPath) {
+  const value = String(markdownPath ?? '');
+  if (/^context-packs\/[A-Za-z0-9._-]+\.md$/.test(value)) {
+    return value.replace(/\.md$/u, '.use.json');
+  }
+  return 'context-packs/CONTEXT_PACK.use.json';
+}
+
+async function readOptionalContextPackRegistry(root) {
+  try {
+    return JSON.parse(await readFile(path.resolve(root, 'context-packs', 'registry.json'), 'utf8'));
+  } catch {
+    return null;
   }
 }
 
@@ -511,6 +619,9 @@ async function mcpResourcesCommand(values) {
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const currentContextPackUsePlan = await loadMcpContextPackUsePlan(values, { root });
   const currentContextPack = await buildMcpContextPackResource(values, { root, workspaceId });
+  const currentContextPackRegistryStatus = values.includes('--context-pack-registry')
+    ? await verifyContextPackRegistry({ root, workspaceId, clock: fixedNow })
+    : null;
   const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
     schemaVersion: '1.0.0',
     runs: [],
@@ -525,6 +636,7 @@ async function mcpResourcesCommand(values) {
     projectStatus,
     currentContextPack,
     currentContextPackUsePlan,
+    currentContextPackRegistryStatus,
     workspaceId,
     generatedAt: fixedNow()
   });
@@ -1003,7 +1115,9 @@ function isGeneratedMemoryReportTarget(relativePath) {
   return relativePath === 'memory/profile.md' ||
     /^memory\/proposals\/mem_[A-Za-z0-9._-]+\.md$/.test(relativePath) ||
     /^context-packs\/[A-Za-z0-9._-]+\.md$/.test(relativePath) ||
-    /^context-packs\/[A-Za-z0-9._-]+\.use\.json$/.test(relativePath);
+    /^context-packs\/[A-Za-z0-9._-]+\.use\.json$/.test(relativePath) ||
+    relativePath === 'context-packs/registry.json' ||
+    relativePath === 'context-packs/current.json';
 }
 
 async function assertNoSymlinkAncestors(root, relativePath) {
@@ -1139,6 +1253,8 @@ Usage:
   oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --changed-from-git --dry-run --format markdown
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json
+  oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
+  oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
@@ -1148,6 +1264,7 @@ Usage:
   oaf mcp resources --read-only --workspace ws_local --format json
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --uri oaf://workspace/ws_local/context-pack/current --format json
   oaf mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json
+  oaf mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf harness setup status --client codex --dry-run --format json

@@ -120,7 +120,11 @@ test('context pack user flow exposes artifact actions and safe harness commands'
       commands:[
         "npm run doctor",
         "npm run oaf -- context pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --dry-run --format markdown",
+        "npm run oaf -- context pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --write --pin --out context-packs/CONTEXT_PACK.md --format json",
+        "npm run oaf -- context registry status --read-only --format json",
         "npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
+        "npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
+        "npm run oaf -- mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json",
         "npm run oaf -- mcp resources --read-only --context-pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --uri oaf://workspace/ws_local/context-pack/current --format json",
         "npm run ci"
       ]
@@ -202,10 +206,11 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(model.commands[1].command,/--target codex --changed 'apps\/web\/app\.js' --dry-run --format markdown/);
   assert.doesNotMatch(model.commands[1].command,/--from all/);
   assert.match(model.commands[1].command,/Ship user'"'"'s change safely/);
-  assert.match(model.commands[2].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
-  assert.match(model.commands[3].command,/--from 'codex,cursor'/);
+  assert.match(model.commands[2].command,/--write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);
+  assert.match(model.commands[3].command,/context registry status --read-only --format json/);
+  assert.match(model.commands[4].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
-  assert.equal(model.commands.some((item)=>item.command.includes('--use-out context-packs/CONTEXT_PACK.use.json')),true);
+  assert.equal(model.commands.some((item)=>item.command.includes('--context-pack-registry')),true);
   assert.equal(model.commands.some((item)=>item.command.includes('--context-pack-use context-packs/CONTEXT_PACK.use.json')),true);
   const sourcePreviewModel=buildContextSourcePreviewUiModel({
     id:'hctxprev_aaaaaaaaaaaaaaaa',

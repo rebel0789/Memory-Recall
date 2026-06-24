@@ -1,0 +1,206 @@
+{
+  "$id": "https://openagentfabric.dev/schemas/context-pack-registry-status-1.0.json",
+  "title": "Context pack registry status",
+  "description": "Sanitized read-only verification report for explicitly pinned local context-pack artifacts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "registryVersion",
+    "command",
+    "workspaceId",
+    "generatedAt",
+    "registry",
+    "currentPointer",
+    "current",
+    "entries",
+    "warnings",
+    "safeguards"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "registryVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "command": { "const": "context registry status" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exists", "locator", "currentEntryId", "entryCount", "registryFingerprint", "fingerprintStatus"],
+      "properties": {
+        "exists": { "type": "boolean" },
+        "locator": { "const": "workspace://context-packs/registry.json" },
+        "currentEntryId": { "$ref": "#/$defs/nullableEntryId" },
+        "entryCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "registryFingerprint": { "$ref": "#/$defs/nullableFingerprint" },
+        "fingerprintStatus": { "$ref": "#/$defs/verificationStatus" }
+      }
+    },
+    "currentPointer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exists", "locator", "entryId", "pointerFingerprint", "fingerprintStatus"],
+      "properties": {
+        "exists": { "type": "boolean" },
+        "locator": { "const": "workspace://context-packs/current.json" },
+        "entryId": { "$ref": "#/$defs/nullableEntryId" },
+        "pointerFingerprint": { "$ref": "#/$defs/nullableFingerprint" },
+        "fingerprintStatus": { "$ref": "#/$defs/verificationStatus" }
+      }
+    },
+    "current": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entryId", "status"],
+      "properties": {
+        "entryId": { "$ref": "#/$defs/nullableEntryId" },
+        "status": { "$ref": "#/$defs/entryStatus" }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/entry" }
+    },
+    "warnings": { "$ref": "#/$defs/reasonCodes" },
+    "safeguards": { "$ref": "#/$defs/safeguards" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "nullableFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "entryId": { "type": "string", "pattern": "^ctxpin_[a-f0-9]{24}$" },
+    "nullableEntryId": { "type": ["string", "null"], "pattern": "^ctxpin_[a-f0-9]{24}$" },
+    "contextPackId": { "type": "string", "pattern": "^ctxpack_[a-f0-9]{16,64}$" },
+    "usePlanId": { "type": "string", "pattern": "^ctxuse_[a-f0-9]{24}$" },
+    "locator": { "type": "string", "pattern": "^(workspace|user-selected)://[^\\s]{1,512}$" },
+    "artifactLocator": { "type": "string", "pattern": "^workspace://context-packs/[A-Za-z0-9._-]+\\.(md|use\\.json)$" },
+    "verificationStatus": { "enum": ["verified", "tampered", "missing"] },
+    "entryStatus": { "enum": ["verified", "stale", "tampered", "review", "missing"] },
+    "reasonCodes": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "contextPackRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "createdAt", "fingerprint", "packVersion", "scannerVersion", "compilerVersion"],
+      "properties": {
+        "id": { "$ref": "#/$defs/contextPackId" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "packVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "scannerVersion": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "compilerVersion": { "type": "string", "minLength": 1, "maxLength": 80 }
+      }
+    },
+    "usePlanRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "fingerprint", "generatedAt", "resourceUri"],
+      "properties": {
+        "id": { "$ref": "#/$defs/usePlanId" },
+        "fingerprint": { "$ref": "#/$defs/fingerprint" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "resourceUri": { "type": "string", "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/use-plan/current$" }
+      }
+    },
+    "artifactCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "locator",
+        "expectedHash",
+        "actualHash",
+        "expectedByteSize",
+        "actualByteSize",
+        "status",
+        "reasonCodes"
+      ],
+      "properties": {
+        "role": { "enum": ["agent-handoff", "use-plan", "unknown"] },
+        "locator": { "type": ["string", "null"], "pattern": "^workspace://context-packs/[A-Za-z0-9._-]+\\.(md|use\\.json)$" },
+        "expectedHash": { "$ref": "#/$defs/nullableFingerprint" },
+        "actualHash": { "$ref": "#/$defs/nullableFingerprint" },
+        "expectedByteSize": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000000 },
+        "actualByteSize": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000000 },
+        "status": { "enum": ["verified", "tampered", "missing"] },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" }
+      }
+    },
+    "sourceChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "verified", "stale", "unavailable", "verifiedLocators", "staleLocators", "unavailableLocators"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "verified": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "stale": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "unavailable": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "verifiedLocators": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/locator" } },
+        "staleLocators": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/locator" } },
+        "unavailableLocators": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/locator" } }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "workspaceId",
+        "createdAt",
+        "targetHarness",
+        "contextPack",
+        "usePlan",
+        "artifactChecks",
+        "sourceChecks",
+        "status"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/entryId" },
+        "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+        "contextPack": { "$ref": "#/$defs/contextPackRef" },
+        "usePlan": { "$ref": "#/$defs/usePlanRef" },
+        "artifactChecks": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/artifactCheck" } },
+        "sourceChecks": { "$ref": "#/$defs/sourceChecks" },
+        "status": { "$ref": "#/$defs/entryStatus" }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "canonicalStateMutated",
+        "localFilesWritten",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "networkCalls",
+        "modelCalls",
+        "activeMemoryCreated",
+        "markdownContentIncluded",
+        "sourceContentIncluded",
+        "privateContentIncluded",
+        "absoluteFilesystemLocationsIncluded"
+      ],
+      "properties": {
+        "readOnly": { "const": true },
+        "canonicalStateMutated": { "const": false },
+        "localFilesWritten": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "markdownContentIncluded": { "const": false },
+        "sourceContentIncluded": { "const": false },
+        "privateContentIncluded": { "const": false },
+        "absoluteFilesystemLocationsIncluded": { "const": false }
+      }
+    }
+  }
+}
