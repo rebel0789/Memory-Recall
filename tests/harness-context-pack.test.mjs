@@ -32,6 +32,7 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   const pack = await buildContextPack({
     root,
     harnesses: ['all'],
+    changedLocators: ['src/authWorkflow.ts'],
     workspaceId: 'ws_local',
     targetHarness: 'codex',
     objective: 'Prepare the next coding agent to continue Open Agent Fabric approve token reset workflow',
@@ -50,6 +51,9 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.equal(pack.safeguards.graphDatabaseUsed, false);
   assert.equal(pack.safeguards.sourceSlicesRead, false);
   assert.equal(pack.sourceGraph.status, 'available');
+  assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://src/authWorkflow.ts']);
+  assert(pack.sourceGraph.impact.affectedSymbols.some((item) => item.name === 'approveTokenResetWorkflow'));
+  assert.equal(pack.sourceGraph.impact.omittedAffectedSymbolCount, 0);
   assert.equal(pack.sourceGraph.safeguards.graphDatabaseUsed, false);
   assert.equal(pack.sourceGraph.safeguards.sourceSlicesRead, false);
   assert(pack.sourceGraph.summary.fileCount >= 1);
@@ -68,6 +72,9 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /workspace:\/\/AGENTS\.md/);
   assert.match(markdown, /## Omission Refs/);
   assert.match(markdown, /## Source Graph Hints/);
+  assert.match(markdown, /## Change Impact/);
+  assert.match(markdown, /workspace:\/\/src\/authWorkflow\.ts/);
+  assert.match(markdown, /approveTokenResetWorkflow/);
   assert.match(markdown, /workspace:\/\/src\/authWorkflow\.ts#L1-L3/);
   assert.match(markdown, /External writes: disabled/);
   assert(!markdown.includes('PACK RAW BODY'));
@@ -75,6 +82,25 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert(!markdown.includes('GRAPH RAW BODY SENTINEL'));
   assert(!JSON.stringify(pack).includes('PACK RAW BODY'));
   assert(!JSON.stringify(pack).includes('GRAPH RAW BODY SENTINEL'));
+});
+
+test('context pack rejects unsafe changed locators before building a handoff', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'AGENTS.md'), 'Do not leak /Users/rebel/private.txt token=secret-value.');
+
+  await assert.rejects(
+    () => buildContextPack({
+      root,
+      harnesses: ['codex'],
+      changedLocators: ['workspace://../secret.ts'],
+      workspaceId: 'ws_local',
+      targetHarness: 'codex',
+      objective: 'Prepare unsafe locator test',
+      step: 'reject path escape',
+      clock: fixedClock
+    }),
+    /changed_context_locator_invalid/
+  );
 });
 
 test('context pack fingerprints are deterministic for fixed input', async () => {

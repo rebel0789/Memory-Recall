@@ -24,6 +24,7 @@ export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
 
 const DEFAULT_MAX_BYTES = 65_536;
 const MAX_USER_SELECTED_FILES = 16;
+const MAX_CHANGED_LOCATORS = 16;
 const SUPPORTED_HARNESSES = new Set(['codex', 'claude-code', 'cursor']);
 const SUPPORTED_TARGET_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
 const FORBIDDEN_USER_SELECTED_ROOTS = new Set(['.git', '.local', 'node_modules']);
@@ -209,6 +210,25 @@ function normalizeUserSelectedFiles(values) {
   const list = Array.isArray(values) ? values : String(values).split(',');
   if (list.length > MAX_USER_SELECTED_FILES) throw new Error('user_selected_context_too_many_files');
   return [...new Set(list.map(normalizeUserSelectedFilePath))].sort();
+}
+
+function normalizeChangedLocator(value) {
+  const raw = String(value ?? '').trim();
+  const withoutScheme = raw.startsWith('workspace://') ? raw.slice('workspace://'.length) : raw;
+  return `workspace://${normalizeUserSelectedFilePath(withoutScheme)}`;
+}
+
+function normalizeChangedLocators(values) {
+  if (values === null || values === undefined || values === '') return [];
+  const list = Array.isArray(values) ? values : String(values).split(',');
+  if (list.length > MAX_CHANGED_LOCATORS) throw new Error('changed_context_too_many_locators');
+  try {
+    return [...new Set(list.map(normalizeChangedLocator))].sort();
+  } catch (error) {
+    const wrapped = new Error(error.message.startsWith('user_selected_context_path') ? 'changed_context_locator_invalid' : error.message);
+    wrapped.cause = error;
+    throw wrapped;
+  }
 }
 
 function userSelectedDefinitions(userSelectedFiles) {
@@ -838,20 +858,41 @@ function compactSourceGraphResults(results) {
   return output;
 }
 
+function compactSourceGraphImpact(impact, changedLocators) {
+  const totalAffected = Number(impact?.affectedSymbols?.length ?? 0);
+  const affectedSymbols = (impact?.affectedSymbols ?? []).slice(0, 12).map((item) => ({
+    name: item.name,
+    symbolKind: item.symbolKind ?? 'symbol',
+    locator: item.locator,
+    depth: Number(item.depth ?? 0),
+    reasonCodes: Array.isArray(item.reasonCodes) && item.reasonCodes.length ? item.reasonCodes : ['changed_locator_impact'],
+    readHint: `Inspect ${item.locator} because it may be affected by ${changedLocators.join(', ')}.`
+  }));
+  return {
+    changedLocators,
+    affectedSymbolCount: totalAffected,
+    omittedAffectedSymbolCount: Math.max(0, totalAffected - affectedSymbols.length),
+    affectedSymbols
+  };
+}
+
 async function buildContextPackSourceGraph({
   root,
   workspaceId,
   objective,
   step,
+  changedLocators,
   createdAt
 }) {
   const query = sourceGraphPackQuery({ objective, step });
-  const queryFingerprint = hashRef(stableStringify({ query, limit: 12, offset: 0 }));
+  const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
+  const queryFingerprint = hashRef(stableStringify({ query, changedLocators: normalizedChangedLocators, limit: 12, offset: 0 }));
   try {
     const preview = await buildSourceGraphPreview({
       root,
       workspaceId,
       query,
+      changedLocators: normalizedChangedLocators,
       limit: 12,
       sampleLimit: 1,
       maxFiles: 200,
@@ -872,6 +913,7 @@ async function buildContextPackSourceGraph({
       resultCount: preview.search.total,
       omittedCount: preview.search.omittedCount,
       results,
+      impact: compactSourceGraphImpact(preview.impact, normalizedChangedLocators),
       warnings,
       safeguards: preview.safeguards
     };
@@ -887,6 +929,7 @@ async function buildContextPackSourceGraph({
       resultCount: 0,
       omittedCount: 0,
       results: [],
+      impact: compactSourceGraphImpact(null, normalizedChangedLocators),
       warnings: [`source_graph_unavailable:${safeSourceGraphErrorCode(error)}`],
       safeguards: sourceGraphSafeguards()
     };
@@ -911,6 +954,8 @@ export function renderContextPackMarkdown(pack) {
   const excludedRows = pack.excluded.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const omissionRows = pack.omissions.refs.map((item) => `| ${markdownEscape(item.id)} | ${markdownEscape(item.locator)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const sourceGraphRows = pack.sourceGraph.results.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const changedLocatorRows = pack.sourceGraph.impact.changedLocators.map((locator) => `| ${markdownEscape(locator)} | explicit_user_input |`).join('\n');
+  const affectedSymbolRows = pack.sourceGraph.impact.affectedSymbols.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.symbolKind)} | ${markdownEscape(item.name)} | ${item.depth} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   return [
     '# Context Pack',
     '',
@@ -967,6 +1012,20 @@ export function renderContextPackMarkdown(pack) {
     '| --- | --- | --- | ---: | --- |',
     sourceGraphRows || '| none | none | none | 0 | none |',
     '',
+    '## Change Impact',
+    '',
+    `Changed locators: ${pack.sourceGraph.impact.changedLocators.length}`,
+    `Affected symbols: ${pack.sourceGraph.impact.affectedSymbolCount}`,
+    `Omitted affected symbols: ${pack.sourceGraph.impact.omittedAffectedSymbolCount}`,
+    '',
+    '| Changed Locator | Source |',
+    '| --- | --- |',
+    changedLocatorRows || '| none | none |',
+    '',
+    '| Locator | Symbol Kind | Symbol | Depth | Reasons |',
+    '| --- | --- | --- | ---: | --- |',
+    affectedSymbolRows || '| none | none | none | 0 | none |',
+    '',
     '## Warnings',
     '',
     bulletList(pack.warnings),
@@ -987,6 +1046,7 @@ export async function buildContextPack({
   root = process.cwd(),
   harnesses = ['codex', 'claude-code', 'cursor'],
   userSelectedFiles = [],
+  changedLocators = [],
   workspaceId = 'ws_local',
   targetHarness = 'generic',
   objective,
@@ -996,6 +1056,7 @@ export async function buildContextPack({
   clock = () => new Date().toISOString()
 } = {}) {
   const normalizedTarget = normalizeTargetHarness(targetHarness);
+  const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
   const preview = await buildHarnessContextPreview({
     root,
     harnesses,
@@ -1015,6 +1076,7 @@ export async function buildContextPack({
     workspaceId,
     objective,
     step,
+    changedLocators: normalizedChangedLocators,
     createdAt: preview.createdAt
   });
   const omissions = buildOmissions({ excluded, sourceGraph, targetHarness: normalizedTarget });
@@ -1028,7 +1090,8 @@ export async function buildContextPack({
       step,
       previewFingerprint: preview.previewFingerprint,
       sourceGraphFingerprint: sourceGraph.graphFingerprint,
-      sourceGraphQueryFingerprint: sourceGraph.queryFingerprint
+      sourceGraphQueryFingerprint: sourceGraph.queryFingerprint,
+      changedLocators: sourceGraph.impact.changedLocators
     }))}`,
     workspaceId,
     createdAt: preview.createdAt,

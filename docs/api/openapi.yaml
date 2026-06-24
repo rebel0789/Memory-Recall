@@ -570,6 +570,15 @@ components:
           maxItems: 16
           uniqueItems: true
           items: { type: string, minLength: 1, maxLength: 240 }
+        changedLocators:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: "^(workspace://)?(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
         tokenBudget: { type: integer, minimum: 1, maximum: 100000 }
     ContextPackResponse:
       type: object
@@ -591,7 +600,11 @@ components:
         changedLocators:
           type: array
           maxItems: 100
-          items: { type: string, minLength: 1, maxLength: 512 }
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: "^(workspace://)?(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
         nodeKinds:
           type: array
           maxItems: 4

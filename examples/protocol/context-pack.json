@@ -114,6 +114,21 @@
         "readHint": "Read workspace://src/context-pack.ts#L1-L6 before editing related symbol prepareAgentHandoff."
       }
     ],
+    "impact": {
+      "changedLocators": ["workspace://src/context-pack.ts"],
+      "affectedSymbolCount": 1,
+      "omittedAffectedSymbolCount": 0,
+      "affectedSymbols": [
+        {
+          "name": "prepareAgentHandoff",
+          "symbolKind": "function",
+          "locator": "workspace://src/context-pack.ts#L1-L6",
+          "depth": 0,
+          "reasonCodes": ["changed_locator_impact"],
+          "readHint": "Inspect workspace://src/context-pack.ts#L1-L6 because it may be affected by workspace://src/context-pack.ts."
+        }
+      ]
+    },
     "warnings": [],
     "safeguards": {
       "dryRun": true,

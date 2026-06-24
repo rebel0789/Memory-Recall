@@ -44,6 +44,9 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Build context pack/);
   assert.match(app,/data-action="copy-pack"/);
   assert.match(app,/data-action="download-pack"/);
+  assert.match(app,/name="changedLocators"/);
+  assert.match(app,/data-action="preview-pack-setup"/);
+  assert.match(app,/Change Impact/);
   assert.match(app,/mcp resources --read-only --uri oaf:\/\/workspace\/ws_local\/handoff\/latest/);
   const model=buildContextPackUiModel({
     createdAt:'2026-06-24T00:00:00.000Z',
@@ -51,15 +54,25 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     objective:"Ship user's change safely",
     step:'select useful context',
     readFirst:[{locator:'workspace://AGENTS.md'}],
-    omissions:{excludedCount:2},
-    preview:{candidateTokenCount:1000,selectedTokenCount:250}
+    omissions:{excludedCount:2,excludedTokenCount:500,sourceGraphOmittedCount:1},
+    preview:{candidateTokenCount:1000,selectedTokenCount:250},
+    sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,affectedSymbols:[]}},
+    warnings:['dry_run_no_import'],
+    contextPackFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
   },'# Context Pack');
   assert.equal(model.selectedLocators,1);
   assert.equal(model.omittedRefs,2);
+  assert.equal(model.excludedTokens,500);
+  assert.equal(model.sourceGraphOmittedCount,1);
+  assert.equal(model.selectedTokenRatio,'25%');
+  assert.equal(model.changedLocators,1);
+  assert.equal(model.affectedSymbols,3);
+  assert.equal(model.setupClient,'codex');
   assert.equal(model.estimatedReductionPercent,75);
   assert.equal(model.downloadName,'open-agent-fabric-context-pack-codex-2026-06-24.md');
-  assert.match(model.commands[0].command,/--target codex --dry-run --format markdown/);
+  assert.match(model.commands[0].command,/--target codex --changed 'apps\/web\/app\.js' --dry-run --format markdown/);
   assert.match(model.commands[0].command,/Ship user'"'"'s change safely/);
+  assert.match(model.commands[1].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
 });
 

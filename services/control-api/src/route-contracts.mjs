@@ -6,6 +6,12 @@ const tokenId = { type: 'string', pattern: id('tok'), maxLength: 128 };
 const workspaceId = { type: 'string', pattern: id('ws'), maxLength: 128 };
 const username = { type: 'string', pattern: '^[a-zA-Z0-9._:-]{1,80}$', maxLength: 80 };
 const password = { type: 'string', minLength: 1, maxLength: 256 };
+const workspaceLocatorInput = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 512,
+  pattern: "^(workspace://)?(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+};
 const event = {
   type: 'object',
   additionalProperties: true,
@@ -276,6 +282,7 @@ export function createApiRouteContracts(limits = {}) {
       targetHarness: { enum: ['codex', 'claude-code', 'claude', 'cursor', 'generic'] },
       from: { type: 'string', minLength: 1, maxLength: 80 },
       userSelectedFiles: { type: 'array', maxItems: 16, uniqueItems: true, items: boundedString(240) },
+      changedLocators: { type: 'array', maxItems: 16, uniqueItems: true, items: workspaceLocatorInput },
       tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 }
     }
   };
@@ -288,7 +295,7 @@ export function createApiRouteContracts(limits = {}) {
       query: boundedString(512),
       startName: boundedString(240),
       startNodeId: boundedString(128),
-      changedLocators: { type: 'array', maxItems: 100, uniqueItems: true, items: boundedString(512) },
+      changedLocators: { type: 'array', maxItems: 100, uniqueItems: true, items: workspaceLocatorInput },
       nodeKinds: { type: 'array', maxItems: 4, uniqueItems: true, items: { enum: ['file', 'chunk', 'symbol', 'module'] } },
       edgeKinds: { type: 'array', maxItems: 6, uniqueItems: true, items: { enum: ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls'] } },
       labelPattern: boundedString(240),

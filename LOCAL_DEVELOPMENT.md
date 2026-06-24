@@ -49,10 +49,11 @@ The Context Pack page at <http://127.0.0.1:4310/context-pack> builds a
 schema-validated handoff for the next local agent. It selects safe workspace
 locators from documented Codex, Claude Code, and Cursor project files, adds
 bounded native JS/TS source graph hints, optionally includes explicit
-user-selected relative files, then renders Markdown instructions without
-embedding raw source bodies or code slices. The pack also includes omitted
-context refs so a user can recover skipped local files by locator when the
-budget or relevance selector left them out.
+user-selected relative files, and maps explicitly named changed files to compact
+impact hints. It then renders Markdown instructions without embedding raw source
+bodies or code slices. The pack also includes omitted context refs so a user can
+recover skipped local files by locator when the budget or relevance selector
+left them out.
 
 In the browser, use **Build context pack** as the primary local handoff flow.
 The result can be copied to the clipboard or downloaded as Markdown from the
@@ -69,6 +70,7 @@ npm run oaf -- context pack \
   --step "select next agent context" \
   --target codex \
   --include-file docs/context.md \
+  --changed apps/web/app.js \
   --dry-run \
   --format markdown
 ```

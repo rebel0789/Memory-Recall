@@ -273,6 +273,7 @@
         "resultCount",
         "omittedCount",
         "results",
+        "impact",
         "warnings",
         "safeguards"
       ],
@@ -291,8 +292,42 @@
           "maxItems": 12,
           "items": { "$ref": "#/$defs/sourceGraphHint" }
         },
+        "impact": { "$ref": "#/$defs/sourceGraphImpact" },
         "warnings": { "$ref": "#/$defs/stringList" },
         "safeguards": { "$ref": "#/$defs/sourceGraphSafeguards" }
+      }
+    },
+    "sourceGraphImpact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changedLocators", "affectedSymbolCount", "omittedAffectedSymbolCount", "affectedSymbols"],
+      "properties": {
+        "changedLocators": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sourceGraphLocator" }
+        },
+        "affectedSymbolCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "omittedAffectedSymbolCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "affectedSymbols": {
+          "type": "array",
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/sourceGraphImpactSymbol" }
+        }
+      }
+    },
+    "sourceGraphImpactSymbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "symbolKind", "locator", "depth", "reasonCodes", "readHint"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "symbolKind": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+        "locator": { "$ref": "#/$defs/sourceGraphLocator" },
+        "depth": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
       }
     },
     "sourceGraphSummary": {

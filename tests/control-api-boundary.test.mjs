@@ -219,6 +219,7 @@ test('context pack route is protected and does not mutate run state', async (t) 
       step: 'select useful context',
       targetHarness: 'codex',
       userSelectedFiles: ['CONTEXT.md'],
+      changedLocators: ['apps/web/app.js'],
       tokenBudget: 96
     })
   });
@@ -226,8 +227,28 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(response.body.schemaVersion, '1.0.0');
   assert.equal(response.body.pack.targetHarness, 'codex');
   assert(response.body.pack.memoryPlan.items.some((item) => item.locator === 'user-selected://CONTEXT.md'));
+  assert.deepEqual(response.body.pack.sourceGraph.impact.changedLocators, ['workspace://apps/web/app.js']);
+  assert.equal(response.body.markdown.includes('## Change Impact'), true);
+  assert.equal(response.text.includes('/Users/'), false);
   assert.equal(response.body.pack.safeguards.externalWritesEnabled, false);
   assert.equal(response.body.markdown.includes('# Context Pack'), true);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+
+  const rejected = await request(api.base, '/api/context/pack', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare handoff',
+      step: 'reject unsafe changed locator',
+      targetHarness: 'codex',
+      changedLocators: ['workspace://../secret.ts']
+    })
+  });
+  assert.equal(rejected.status, 400);
+  assert.equal(rejected.body.error.code, 'request_validation_failed');
+  assert.equal(rejected.text.includes('secret.ts'), false);
   assert.equal(api.store.updates, 0);
   assert.equal(api.calls.workflow, 0);
 });

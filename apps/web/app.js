@@ -679,6 +679,7 @@ function render() {
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
   root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
   root.querySelectorAll('[data-action=download-pack]').forEach(button=>button.addEventListener('click',downloadContextPack));
+  root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
 }
@@ -739,7 +740,7 @@ function contextPackEmptyState(){
 }
 
 function renderPrimaryFlow() {
-  return `<section class="surface primary-flow" aria-label="Primary local context workflow"><div><p class="eyebrow">Start here</p><h2>Build a handoff your next agent can actually use.</h2><p>The pack selects safe local locators, explains omissions, estimates context pressure, and keeps raw source bodies out of the browser and MCP resources.</p></div><ol class="flow-mini" aria-label="Context pack workflow"><li><strong>1</strong><span>Choose target harness</span></li><li><strong>2</strong><span>Add explicit relative files</span></li><li><strong>3</strong><span>Inspect selected and omitted context</span></li><li><strong>4</strong><span>Copy or download the markdown handoff</span></li></ol><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Build context pack</a><a class="button secondary" href="/source-graph" data-route="source-graph">Preview source graph</a></div></section>`;
+  return `<section class="surface primary-flow" aria-label="Primary local context workflow"><div><p class="eyebrow">Start here</p><h2>Build a handoff your next agent can actually use.</h2><p>The pack selects safe local locators, explains omissions, estimates context pressure, maps explicitly changed files, and keeps raw source bodies out of the browser and MCP resources.</p></div><ol class="flow-mini" aria-label="Context pack workflow"><li><strong>1</strong><span>Choose target harness</span></li><li><strong>2</strong><span>Add explicit files and changed locators</span></li><li><strong>3</strong><span>Inspect selected, omitted, and impacted context</span></li><li><strong>4</strong><span>Preview read-only harness setup</span></li></ol><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Build context pack</a><a class="button secondary" href="/source-graph" data-route="source-graph">Preview source graph</a></div></section>`;
 }
 
 function renderRuns() {
@@ -813,12 +814,13 @@ function renderContextPack() {
   const pack=contextPackResult?.pack ?? null;
   const markdown=contextPackResult?.markdown ?? '';
   const errorPanel=contextPackError?statePanel('error','Context pack failed',contextPackError,false):'';
-  return `<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Describe the job</span></li><li><strong>2</strong><span>Choose safe locators</span></li><li><strong>3</strong><span>Build sanitized markdown</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div><label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators and hashes only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Harness project files and explicit relative files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff</dd></div><div><dt>Browser</dt><dd>copy or download only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+  return `<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Describe the job</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div><label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs"></textarea></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Harness project files, explicit relative files, and user-named changed files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy, download, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
 }
 
 function renderContextPackResult(pack,markdown) {
   const model=buildContextPackUiModel(pack,markdown);
-  return `<section class="metric-strip context-pack-metrics" aria-label="Context pack metrics">${metric(model.selectedLocators,'Selected','Read first')}${metric(model.omittedRefs,'Omitted','Inspectable refs')}${metric(model.selectedTokens,'Tokens','Selected estimate')}${metric(model.estimatedReductionPercent,'Reduction','Estimated vs candidates')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(shortFingerprint(pack.contextPackFingerprint))}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${pack.warnings.length}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>`;
+  const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
+  return `<section class="context-value-ledger" aria-label="Context pack value ledger">${ledgerItem(model.selectedLocators,'Selected','Read first locators')}${ledgerItem(model.omittedRefs,'Omitted',`${model.excludedTokens} excluded tokens`)}${ledgerItem(model.selectedTokenRatio,'Token ratio','Selected / candidates')}${ledgerItem(model.affectedSymbols,'Affected','Symbols from changed files')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 export function buildContextPackUiModel(pack,markdown='') {
@@ -836,6 +838,14 @@ export function buildContextPackUiModel(pack,markdown='') {
     candidateTokens,
     estimatedReductionPercent,
     downloadName:contextPackDownloadName(pack),
+    excludedTokens:Number(pack?.omissions?.excludedTokenCount ?? 0),
+    sourceGraphOmittedCount:Number(pack?.omissions?.sourceGraphOmittedCount ?? 0),
+    warningCount:Array.isArray(pack?.warnings) ? pack.warnings.length : 0,
+    selectedTokenRatio:candidateTokens > 0 ? `${Math.round(selectedTokens / candidateTokens * 100)}%` : '0%',
+    fingerprintShort:shortFingerprint(pack?.contextPackFingerprint ?? ''),
+    changedLocators:Array.isArray(pack?.sourceGraph?.impact?.changedLocators) ? pack.sourceGraph.impact.changedLocators.length : 0,
+    affectedSymbols:Number(pack?.sourceGraph?.impact?.affectedSymbolCount ?? 0),
+    setupClient:contextPackSetupClient(pack),
     commands:contextPackHarnessCommands(pack)
   };
 }
@@ -844,11 +854,19 @@ function contextPackHarnessCommands(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
   const step=quoteShell(pack?.step ?? 'select context');
+  const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
+  const setupClient=contextPackSetupClient(pack);
   return [
-    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from all --root . --objective ${objective} --step ${step} --target ${target} --dry-run --format markdown` },
+    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from all --root . --objective ${objective} --step ${step} --target ${target}${changed} --dry-run --format markdown` },
+    { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
+}
+
+function contextPackSetupClient(pack) {
+  const target=String(pack?.targetHarness ?? 'codex');
+  return target === 'cursor' || target === 'claude-code' || target === 'codex' ? target : 'codex';
 }
 
 function contextPackCommandList(commands) {
@@ -869,7 +887,7 @@ function contextPackLocatorList(items) {
 function contextPackOmissionList(omissions) {
   const refs=omissions?.refs??[];
   if(!refs.length)return '<p class="muted">No omitted context refs.</p>';
-  return `<ol class="compact-list locator-list">${refs.slice(0,6).map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.id)} · ${Number(item.tokens??0)} tokens</span></li>`).join('')}</ol>`;
+  return `<ol class="compact-list locator-list">${refs.slice(0,6).map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.id)} · ${Number(item.tokens??0)} tokens · ${esc(item.reasonCodes.join(', '))}</span><small>${esc(item.recoveryHint)}</small></li>`).join('')}</ol>`;
 }
 
 function contextPackSourceGraphList(sourceGraph) {
@@ -881,6 +899,15 @@ function contextPackSourceGraphList(sourceGraph) {
   }
   return `<ol class="compact-list locator-list">${results.map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.kind)} · ${esc(item.label)} · ${Number(item.score??0).toFixed(3)}</span></li>`).join('')}</ol>`;
 }
+
+function contextPackChangeImpact(impact={}) {
+  const changed=impact?.changedLocators ?? [];
+  const symbols=impact?.affectedSymbols ?? [];
+  if(!changed.length)return '<p class="muted">No changed files were supplied for impact mapping.</p>';
+  return `<ol class="compact-list locator-list">${changed.map((locator)=>`<li><strong>${esc(locator)}</strong><span>explicit changed file</span></li>`).join('')}</ol>${symbols.length?`<ol class="compact-list locator-list">${symbols.slice(0,6).map((item)=>`<li><strong>${esc(item.name)}</strong><span>${esc(item.symbolKind)} · ${esc(item.locator)}</span></li>`).join('')}</ol>`:'<p class="muted">No affected symbols found for the supplied locators.</p>'}`;
+}
+
+function ledgerItem(value,label,copy){return `<div><strong>${esc(value)}</strong><span>${esc(label)}</span><small>${esc(copy)}</small></div>`}
 
 export function parseSelectedFiles(value) {
   return [...new Set(String(value??'').split(/[,\n]/u).map((item)=>item.trim()).filter(Boolean))];
@@ -1134,11 +1161,12 @@ async function submitContextPack(event){
   const step=String(data.get('step') ?? '').trim();
   const tokenBudget=Number(data.get('tokenBudget') ?? 4096);
   const userSelectedFiles=parseSelectedFiles(data.get('userSelectedFiles'));
+  const changedLocators=parseSelectedFiles(data.get('changedLocators'));
   button.disabled=true;
   button.textContent='Building...';
   document.querySelector('#live-status').textContent='Building local context pack.';
   try{
-    contextPackResult=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,objective,step,tokenBudget,userSelectedFiles})});
+    contextPackResult=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,objective,step,tokenBudget,userSelectedFiles,changedLocators})});
     contextPackError=null;
     document.querySelector('#live-status').textContent='Context pack built.';
     render();
@@ -1186,6 +1214,27 @@ async function submitSourceGraph(event){
   }finally{
     button.disabled=false;
     button.textContent='Preview graph';
+  }
+}
+
+async function previewContextPackSetup(event){
+  const button=event.currentTarget;
+  const client=button.dataset.client ?? 'codex';
+  button.disabled=true;
+  button.textContent='Previewing...';
+  document.querySelector('#live-status').textContent='Previewing matching harness setup.';
+  try{
+    harnessSetupResult=await api('/api/harness/setup/plan',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),client})});
+    harnessSetupError=null;
+    document.querySelector('#live-status').textContent='Harness setup preview ready.';
+    render();
+  }catch(error){
+    document.querySelector('#live-status').textContent=error.message;
+    harnessSetupError=error.message;
+    render();
+  }finally{
+    button.disabled=false;
+    button.textContent='Preview setup';
   }
 }
 

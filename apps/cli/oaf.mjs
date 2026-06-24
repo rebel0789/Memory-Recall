@@ -299,8 +299,9 @@ async function contextPackCommand(values) {
   const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
   const harnesses = normalizeHarnesses(from);
   const userSelectedFiles = options(values, '--include-file');
+  const changedLocators = [...options(values, '--changed'), ...options(values, '--changed-locator')];
   try {
-    const pack = await buildContextPack({ root, harnesses, userSelectedFiles, workspaceId, objective, step, targetHarness, tokenBudget });
+    const pack = await buildContextPack({ root, harnesses, userSelectedFiles, changedLocators, workspaceId, objective, step, targetHarness, tokenBudget });
     const markdown = renderContextPackMarkdown(pack);
     if (write) {
       const out = option(values, '--out') ?? 'context-packs/CONTEXT_PACK.md';
@@ -354,7 +355,7 @@ async function contextGraphPreviewCommand(values) {
       query,
       startName: option(values, '--trace') ?? option(values, '--start-name'),
       startNodeId: option(values, '--start-node'),
-      changedLocators: option(values, '--changed') ?? option(values, '--changed-locators') ?? '',
+      changedLocators: [...options(values, '--changed'), ...options(values, '--changed-locator'), ...(option(values, '--changed-locators') ? [option(values, '--changed-locators')] : [])],
       nodeKinds: option(values, '--node-kinds'),
       edgeKinds: option(values, '--edge-kinds'),
       labelPattern: option(values, '--label-pattern'),
@@ -811,5 +812,33 @@ function runNode(nodeArgs) {
 }
 
 function help() {
-  console.log(`Open Agent Fabric CLI\n\nUsage:\n  oaf doctor\n  oaf status\n  oaf task OAF-004\n  oaf demo [objective]\n  oaf serve\n  oaf check\n  oaf eval\n  oaf manifest\n  oaf context --request request.json --records records.json\n  oaf context scan --from codex --root . --dry-run\n  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run\n  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --dry-run --format markdown\n  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json\n  oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json\n  oaf memory profile --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json\n  oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json\n  oaf mcp resources --read-only --workspace ws_local --format json\n  oaf mcp resources --read-only --stdio\n  oaf harness setup status --client codex --dry-run --format json\n  oaf harness setup plan --client cursor --server oaf --dry-run --format json\n  oaf harness setup uninstall --client cursor --server oaf --dry-run --format json\n  oaf version\n\nThe default bootstrap is local-only and enables no external writes.`);
+  console.log(`Open Agent Fabric CLI
+
+Usage:
+  oaf doctor
+  oaf status
+  oaf task OAF-004
+  oaf demo [objective]
+  oaf serve
+  oaf check
+  oaf eval
+  oaf manifest
+  oaf context --request request.json --records records.json
+  oaf context scan --from codex --root . --dry-run
+  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run
+  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --dry-run --format markdown
+  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
+  oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
+  oaf memory profile --records memory-export.json --root . --dry-run --format json
+  oaf memory proposals --records memory-export.json --root . --dry-run --format json
+  oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json
+  oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
+  oaf mcp resources --read-only --workspace ws_local --format json
+  oaf mcp resources --read-only --stdio
+  oaf harness setup status --client codex --dry-run --format json
+  oaf harness setup plan --client cursor --server oaf --dry-run --format json
+  oaf harness setup uninstall --client cursor --server oaf --dry-run --format json
+  oaf version
+
+The default bootstrap is local-only and enables no external writes.`);
 }

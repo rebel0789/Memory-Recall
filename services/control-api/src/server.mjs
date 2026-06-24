@@ -279,6 +279,7 @@ export function createControlApiServer({
           root: path.resolve(here, '../../..'),
           harnesses: normalizeHarnesses(context.body.from ?? 'all'),
           userSelectedFiles: context.body.userSelectedFiles ?? [],
+          changedLocators: context.body.changedLocators ?? [],
           workspaceId: context.workspaceId,
           targetHarness: context.body.targetHarness ?? 'generic',
           objective: context.body.objective,

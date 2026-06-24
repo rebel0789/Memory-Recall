@@ -11,11 +11,13 @@ slice.
 - `npm run oaf -- context preview --from all --root . --objective "..." --step "..." --dry-run`
   converts accepted scan records into temporary Context Compiler candidates,
   runs deterministic selection, and returns a sanitized preview report.
-- `npm run oaf -- context pack --from all --root . --objective "..." --step "..." --target codex --include-file docs/context.md --dry-run --format markdown`
+- `npm run oaf -- context pack --from all --root . --objective "..." --step "..." --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown`
   builds a schema-validated Markdown handoff for Codex, Claude Code, Cursor, or
   a generic agent from selected safe locators. `--include-file` may be repeated
   for explicit user-selected relative workspace files; these become
-  proposal-only `user-selected://` locators. `--write --out
+  proposal-only `user-selected://` locators. `--changed` may be repeated for
+  explicit user-named changed files; these become `workspace://` impact hints
+  from the native source graph, not raw source slices. `--write --out
   context-packs/CONTEXT_PACK.md` is the only local write path and writes the
   generated handoff report, not canonical memory.
 - Preview output contains safe locators, hashes, reason codes, token counts,
