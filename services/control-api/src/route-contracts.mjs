@@ -164,6 +164,7 @@ export function createApiRouteContracts(limits = {}) {
     startRun: Math.min(limits.bodyBytes ?? 1_000_000, 32 * 1024),
     compileContext: Math.min(limits.bodyBytes ?? 1_000_000, 256 * 1024),
     buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    detectGitChanges: Math.min(limits.bodyBytes ?? 1_000_000, 1024),
     previewContextGraph: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     planHarnessSetup: Math.min(limits.bodyBytes ?? 1_000_000, 4 * 1024),
     resetBootstrap: 0
@@ -355,6 +356,55 @@ export function createApiRouteContracts(limits = {}) {
       sourceGraphPreviewed: { type: 'boolean' },
       graphDatabaseUsed: { const: false },
       sourceSlicesRead: { const: false }
+    }
+  };
+  const gitChangedLocatorsRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId'],
+    maxProperties: 1,
+    properties: { workspaceId }
+  };
+  const gitChangeDetectionSafeguards = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['readOnly', 'canonicalStateMutated', 'localFilesWritten', 'externalWritesEnabled', 'externalAdaptersEnabled', 'networkCalls', 'modelCalls', 'activeMemoryCreated', 'sourceSnapshotsWritten', 'privateBodiesIncluded', 'diffBodiesIncluded', 'rawBodyIncluded', 'absoluteFilesystemLocationsIncluded'],
+    properties: {
+      readOnly: { const: true },
+      canonicalStateMutated: { const: false },
+      localFilesWritten: { const: 0 },
+      externalWritesEnabled: { const: false },
+      externalAdaptersEnabled: { const: 0 },
+      networkCalls: { const: 0 },
+      modelCalls: { const: 0 },
+      activeMemoryCreated: { const: 0 },
+      sourceSnapshotsWritten: { const: 0 },
+      privateBodiesIncluded: { const: false },
+      diffBodiesIncluded: { const: false },
+      rawBodyIncluded: { const: false },
+      absoluteFilesystemLocationsIncluded: { const: false }
+    }
+  };
+  const gitChangedLocatorsResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'command', 'generatedAt', 'workspaceId', 'status', 'source', 'reason', 'changedLocators', 'totalChangedLocatorCount', 'omittedChangedLocatorCount', 'skippedCount', 'truncated', 'warnings', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      command: { const: 'git changed locators' },
+      generatedAt: { type: 'string', format: 'date-time' },
+      workspaceId,
+      status: { enum: ['available', 'unavailable'] },
+      source: { enum: ['git-status-porcelain', 'unavailable'] },
+      reason: { enum: [null, 'not_git_repository', 'git_unavailable', 'git_status_failed', 'git_status_timeout'] },
+      changedLocators: { type: 'array', maxItems: 16, uniqueItems: true, items: contextPackLocator },
+      totalChangedLocatorCount: { type: 'integer', minimum: 0, maximum: 200000 },
+      omittedChangedLocatorCount: { type: 'integer', minimum: 0, maximum: 200000 },
+      skippedCount: { type: 'integer', minimum: 0, maximum: 200000 },
+      truncated: { type: 'boolean' },
+      warnings: { type: 'array', maxItems: 16, uniqueItems: true, items: boundedString(128) },
+      safeguards: gitChangeDetectionSafeguards,
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     }
   };
   const contextPackReadbackProof = {
@@ -965,6 +1015,22 @@ export function createApiRouteContracts(limits = {}) {
       bodyRequired: true,
       streams: false,
       responses: { 200: contextPackResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/context/git-changes',
+      operationId: 'detectGitChanges',
+      security: { authenticated: true, action: 'context.compile', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: gitChangedLocatorsRequest,
+      maxBodyBytes: routeBodyBytes.detectGitChanges,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: gitChangedLocatorsResponse }
     },
     {
       method: 'POST',

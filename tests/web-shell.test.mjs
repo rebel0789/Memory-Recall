@@ -45,6 +45,9 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Build context pack/);
   assert.match(app,/data-action="copy-pack"/);
   assert.match(app,/data-action="download-pack"/);
+  assert.match(app,/data-action="detect-git-changes"/);
+  assert.match(app,/api\('\/api\/context\/git-changes'/);
+  assert.match(app,/Review before building/);
   assert.match(app,/name="changedLocators"/);
   assert.match(app,/name="sourceFamilies"/);
   assert.match(app,/\['codex','Codex'\]/);

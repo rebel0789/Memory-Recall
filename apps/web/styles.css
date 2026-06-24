@@ -110,6 +110,7 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .flow-mini strong,.guide-steps strong{width:26px;height:26px;border-radius:999px;background:var(--surface-3);display:grid;place-items:center;color:var(--signal);font-size:12px}
 .flow-mini span,.guide-steps span{color:var(--slate)}
 .context-pack-guide{margin-bottom:var(--space-16)}
+.context-pack-detect-row{align-items:center;border-top:1px solid var(--border);padding-top:var(--space-8)}
 .guide-steps{grid-template-columns:repeat(4,minmax(0,1fr))}
 .guide-steps li{border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-2);padding:var(--space-10,10px);min-height:66px}
 .context-value-ledger{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-8);margin-bottom:var(--space-16)}

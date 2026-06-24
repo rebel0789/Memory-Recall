@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import {
   COMPILER_VERSION,
   compileContext,
@@ -25,6 +27,8 @@ export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
 const DEFAULT_MAX_BYTES = 65_536;
 const MAX_USER_SELECTED_FILES = 16;
 const MAX_CHANGED_LOCATORS = 16;
+const GIT_STATUS_TIMEOUT_MS = 2_000;
+const GIT_STATUS_MAX_BUFFER = 256 * 1024;
 const SUPPORTED_HARNESSES = new Set(['codex', 'claude-code', 'cursor']);
 const SUPPORTED_TARGET_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
 const FORBIDDEN_USER_SELECTED_ROOTS = new Set(['.git', '.local', 'node_modules']);
@@ -32,6 +36,8 @@ const CONTROL_BYTES = new Set([...Array.from({ length: 9 }, (_, index) => index)
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/giu;
 const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)+/gu;
 const LOCAL_USER_ROOT = /\/Users\/[A-Za-z0-9._-]+(?=$|[\s"'`,;).])/gu;
+const execFileAsync = promisify(execFile);
+const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
 
 const STATIC_PROJECT_SOURCES = Object.freeze({
   codex: [
@@ -228,6 +234,157 @@ function normalizeChangedLocators(values) {
     const wrapped = new Error(error.message.startsWith('user_selected_context_path') ? 'changed_context_locator_invalid' : error.message);
     wrapped.cause = error;
     throw wrapped;
+  }
+}
+
+function gitChangeDetectionSafeguards() {
+  return {
+    readOnly: true,
+    canonicalStateMutated: false,
+    localFilesWritten: 0,
+    externalWritesEnabled: false,
+    externalAdaptersEnabled: 0,
+    networkCalls: 0,
+    modelCalls: 0,
+    activeMemoryCreated: 0,
+    sourceSnapshotsWritten: 0,
+    privateBodiesIncluded: false,
+    diffBodiesIncluded: false,
+    rawBodyIncluded: false,
+    absoluteFilesystemLocationsIncluded: false
+  };
+}
+
+function gitChangeDetectionFingerprint(report) {
+  const copy = { ...report };
+  delete copy.reportFingerprint;
+  return hash(stableStringify(copy));
+}
+
+function gitChangeDetectionReport(report) {
+  return {
+    ...report,
+    reportFingerprint: gitChangeDetectionFingerprint(report)
+  };
+}
+
+function gitChangedUnavailableReport({ workspaceId, generatedAt, reason, warnings = [] }) {
+  return gitChangeDetectionReport({
+    schemaVersion: '1.0.0',
+    command: 'git changed locators',
+    generatedAt,
+    workspaceId,
+    status: 'unavailable',
+    source: 'unavailable',
+    reason,
+    changedLocators: [],
+    totalChangedLocatorCount: 0,
+    omittedChangedLocatorCount: 0,
+    skippedCount: 0,
+    truncated: false,
+    warnings: [...new Set(warnings)].sort(),
+    safeguards: gitChangeDetectionSafeguards()
+  });
+}
+
+function parseGitStatusPorcelainZ(stdout) {
+  const entries = String(stdout ?? '').split('\0').filter(Boolean);
+  const paths = [];
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    if (entry.length < 4) continue;
+    const status = entry.slice(0, 2);
+    const filePath = entry.slice(3);
+    if (filePath) paths.push(filePath);
+    if (status.includes('R') || status.includes('C')) index += 1;
+  }
+  return paths;
+}
+
+function shouldSkipAutoDetectedChangedPath(relativePath) {
+  const normalized = toPosix(relativePath);
+  if (/\s/u.test(normalized) || /[\u0000-\u001f\u007f]/u.test(normalized)) return true;
+  const parts = normalized.split('/').filter(Boolean);
+  if (!parts.length) return true;
+  if (FORBIDDEN_USER_SELECTED_ROOTS.has(parts[0])) return true;
+  return AUTO_DETECTED_SECRET_PATH.test(normalized);
+}
+
+function safeGitErrorReason(error) {
+  if (error?.killed || error?.signal === 'SIGTERM') return 'git_status_timeout';
+  if (error?.code === 'ENOENT') return 'git_unavailable';
+  if (error?.code === 128) return 'not_git_repository';
+  return 'git_status_failed';
+}
+
+export async function detectGitChangedLocators({
+  root = process.cwd(),
+  workspaceId = 'ws_local',
+  maxLocators = MAX_CHANGED_LOCATORS,
+  clock = () => new Date().toISOString()
+} = {}) {
+  const generatedAt = clock();
+  const limit = Math.max(0, Math.min(MAX_CHANGED_LOCATORS, Number.isInteger(maxLocators) ? maxLocators : MAX_CHANGED_LOCATORS));
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['--no-optional-locks', '-C', path.resolve(root), 'status', '--porcelain=v1', '-z', '--untracked-files=all', '--ignore-submodules=all'],
+      {
+        encoding: 'utf8',
+        timeout: GIT_STATUS_TIMEOUT_MS,
+        maxBuffer: GIT_STATUS_MAX_BUFFER,
+        env: {
+          ...process.env,
+          GIT_OPTIONAL_LOCKS: '0',
+          GIT_TERMINAL_PROMPT: '0',
+          GIT_PAGER: 'cat',
+          PAGER: 'cat'
+        }
+      }
+    );
+    const detected = parseGitStatusPorcelainZ(stdout);
+    const accepted = [];
+    let skippedCount = 0;
+    for (const relativePath of detected) {
+      if (shouldSkipAutoDetectedChangedPath(relativePath)) {
+        skippedCount += 1;
+        continue;
+      }
+      try {
+        accepted.push(normalizeChangedLocator(relativePath));
+      } catch {
+        skippedCount += 1;
+      }
+    }
+    const changedLocators = [...new Set(accepted)].sort();
+    const limited = changedLocators.slice(0, limit);
+    const omittedChangedLocatorCount = Math.max(0, changedLocators.length - limited.length);
+    const warnings = [];
+    if (omittedChangedLocatorCount > 0) warnings.push('git_changed_locators_truncated');
+    if (skippedCount > 0) warnings.push('git_changed_locators_skipped');
+    return gitChangeDetectionReport({
+      schemaVersion: '1.0.0',
+      command: 'git changed locators',
+      generatedAt,
+      workspaceId,
+      status: 'available',
+      source: 'git-status-porcelain',
+      reason: null,
+      changedLocators: limited,
+      totalChangedLocatorCount: changedLocators.length,
+      omittedChangedLocatorCount,
+      skippedCount,
+      truncated: omittedChangedLocatorCount > 0,
+      warnings,
+      safeguards: gitChangeDetectionSafeguards()
+    });
+  } catch (error) {
+    return gitChangedUnavailableReport({
+      workspaceId,
+      generatedAt,
+      reason: safeGitErrorReason(error),
+      warnings: ['git_changed_locators_unavailable']
+    });
   }
 }
 
@@ -998,7 +1155,7 @@ export function renderContextPackMarkdown(pack) {
   const excludedRows = pack.excluded.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const omissionRows = pack.omissions.refs.map((item) => `| ${markdownEscape(item.id)} | ${markdownEscape(item.locator)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const sourceGraphRows = pack.sourceGraph.results.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
-  const changedLocatorRows = pack.sourceGraph.impact.changedLocators.map((locator) => `| ${markdownEscape(locator)} | explicit_user_input |`).join('\n');
+  const changedLocatorRows = pack.sourceGraph.impact.changedLocators.map((locator) => `| ${markdownEscape(locator)} | reviewed_changed_locator |`).join('\n');
   const affectedSymbolRows = pack.sourceGraph.impact.affectedSymbols.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.symbolKind)} | ${markdownEscape(item.name)} | ${item.depth} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const deliveryLines = pack.delivery ? [
     '## Delivery Budget',

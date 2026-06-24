@@ -7,7 +7,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { compileContext } from '../../packages/context-compiler/src/index.mjs';
 import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/evaluation-lab/src/index.mjs';
-import { buildContextPack, buildHarnessContextPreview, buildHarnessSetupReport, renderContextPackMarkdown, scanHarnessContext } from '../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildHarnessContextPreview, buildHarnessSetupReport, detectGitChangedLocators, renderContextPackMarkdown, scanHarnessContext } from '../../packages/harness-context/src/index.mjs';
 import {
   buildMemoryProfileReport,
   buildMemoryProposalsReport,
@@ -304,8 +304,8 @@ async function contextPackCommand(values) {
   const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
   const harnesses = normalizeHarnesses(from);
   const userSelectedFiles = options(values, '--include-file');
-  const changedLocators = [...options(values, '--changed'), ...options(values, '--changed-locator')];
   try {
+    const { changedLocators, detection: changedLocatorDetection } = await resolveChangedLocators(values, { root, workspaceId });
     const pack = await buildContextPack({ root, harnesses, userSelectedFiles, changedLocators, workspaceId, objective, step, targetHarness, tokenBudget });
     const markdown = renderContextPackMarkdown(pack);
     if (write) {
@@ -315,6 +315,7 @@ async function contextPackCommand(values) {
         schemaVersion: '1.0.0',
         pack,
         target: { locator: `workspace://${out}`, contentType: 'text/markdown' },
+        changedLocatorDetection,
         localFilesWritten: 1,
         safeguards: {
           externalWritesEnabled: false,
@@ -329,7 +330,7 @@ async function contextPackCommand(values) {
       console.log(markdown);
       return;
     }
-    console.log(JSON.stringify({ schemaVersion: '1.0.0', pack, markdown, localFilesWritten: 0 }, null, 2));
+    console.log(JSON.stringify({ schemaVersion: '1.0.0', pack, markdown, changedLocatorDetection, localFilesWritten: 0 }, null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
@@ -354,13 +355,14 @@ async function contextGraphPreviewCommand(values) {
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const query = option(values, '--query') ?? firstPositional(values) ?? '';
   try {
+    const { changedLocators } = await resolveChangedLocators(values, { root, workspaceId });
     const preview = await buildSourceGraphPreview({
       root,
       workspaceId,
       query,
       startName: option(values, '--trace') ?? option(values, '--start-name'),
       startNodeId: option(values, '--start-node'),
-      changedLocators: [...options(values, '--changed'), ...options(values, '--changed-locator'), ...(option(values, '--changed-locators') ? [option(values, '--changed-locators')] : [])],
+      changedLocators: [...changedLocators, ...(option(values, '--changed-locators') ? [option(values, '--changed-locators')] : [])],
       nodeKinds: option(values, '--node-kinds'),
       edgeKinds: option(values, '--edge-kinds'),
       labelPattern: option(values, '--label-pattern'),
@@ -567,7 +569,7 @@ async function buildMcpContextPackResource(values, { root, workspaceId }) {
   const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
   const harnesses = normalizeHarnesses(from);
   const userSelectedFiles = options(values, '--include-file');
-  const changedLocators = [...options(values, '--changed'), ...options(values, '--changed-locator')];
+  const { changedLocators } = await resolveChangedLocators(values, { root, workspaceId });
   const pack = await buildContextPack({
     root,
     harnesses,
@@ -620,6 +622,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step }) {
   for (const value of options(values, '--include-file')) childArgs.push('--include-file', value);
   for (const value of options(values, '--changed')) childArgs.push('--changed', value);
   for (const value of options(values, '--changed-locator')) childArgs.push('--changed-locator', value);
+  if (gitChangedLocatorsRequested(values)) childArgs.push('--changed-from-git');
 
   const messages = [
     { jsonrpc: '2.0', id: 1, method: 'initialize' },
@@ -1015,6 +1018,26 @@ function options(values, name) {
   return output;
 }
 
+function gitChangedLocatorsRequested(values) {
+  return values.includes('--changed-from-git') || option(values, '--changed-from') === 'git';
+}
+
+async function resolveChangedLocators(values, { root, workspaceId }) {
+  const explicit = [...options(values, '--changed'), ...options(values, '--changed-locator')];
+  if (!gitChangedLocatorsRequested(values)) return { changedLocators: explicit, detection: null };
+  const detection = await detectGitChangedLocators({ root, workspaceId, clock: fixedNow });
+  if (detection.status !== 'available') {
+    console.error(`local git changed-file detection unavailable: ${detection.reason}`);
+    return { changedLocators: explicit, detection };
+  }
+  if (detection.truncated) {
+    console.error(`local git changed-file detection capped at ${detection.changedLocators.length} locators; review explicit --changed entries for omitted files`);
+  }
+  const changedLocators = [...new Set([...explicit, ...detection.changedLocators])].sort();
+  if (changedLocators.length > 16) throw new Error('changed_context_too_many_locators');
+  return { changedLocators, detection };
+}
+
 function firstPositional(values) {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
@@ -1076,16 +1099,16 @@ Usage:
   oaf context --request request.json --records records.json
   oaf context scan --from codex --root . --dry-run
   oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run
-  oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --dry-run --format markdown
-  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
+  oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --changed-from-git --dry-run --format markdown
+  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
   oaf mcp resources --read-only --workspace ws_local --format json
-  oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --uri oaf://workspace/ws_local/context-pack/current --format json
-  oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
+  oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --uri oaf://workspace/ws_local/context-pack/current --format json
+  oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json

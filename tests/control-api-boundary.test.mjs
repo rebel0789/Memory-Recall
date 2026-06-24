@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import http from 'node:http';
 import { once } from 'node:events';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -336,6 +337,65 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(api.calls.workflow, 0);
 });
 
+test('git changed-locator detection route is opt-in protected and read-only', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-git-changes-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await mkdir(path.join(sourceGraphRoot, 'secrets'), { recursive: true });
+  const git = spawnSync('git', ['init'], { cwd: sourceGraphRoot, encoding: 'utf8' });
+  if (git.status !== 0) return;
+  await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const apiGitChangedSymbol = true;\n');
+  await writeFile(path.join(sourceGraphRoot, '.env'), 'OAF_API_SECRET=secret-value\n');
+  await writeFile(path.join(sourceGraphRoot, 'secrets', 'token.ts'), 'export const token = "secret";\n');
+  const api = await startServer(t, { sourceGraphRoot });
+  const denied = await request(api.base, '/api/context/git-changes', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify({ workspaceId: 'ws_local' })
+  });
+  assert.equal(denied.status, 401);
+  assert.equal(denied.body.error.code, 'authentication_required');
+
+  const response = await request(api.base, '/api/context/git-changes', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local' })
+  });
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.schemaVersion, '1.0.0');
+  assert.equal(response.body.command, 'git changed locators');
+  assert.equal(response.body.status, 'available');
+  assert.equal(response.body.source, 'git-status-porcelain');
+  assert.equal(response.body.changedLocators.includes('workspace://src/web.ts'), true);
+  assert.equal(response.body.changedLocators.some((locator) => locator.includes('.env') || locator.includes('secrets/')), false);
+  assert(response.body.skippedCount >= 1);
+  assert.equal(response.body.safeguards.readOnly, true);
+  assert.equal(response.body.safeguards.canonicalStateMutated, false);
+  assert.equal(response.body.safeguards.localFilesWritten, 0);
+  assert.equal(response.body.safeguards.externalWritesEnabled, false);
+  assert.equal(response.body.safeguards.externalAdaptersEnabled, 0);
+  assert.equal(response.body.safeguards.networkCalls, 0);
+  assert.equal(response.body.safeguards.modelCalls, 0);
+  assert.equal(response.body.safeguards.rawBodyIncluded, false);
+  assert.equal(response.body.safeguards.absoluteFilesystemLocationsIncluded, false);
+  assert.equal(response.text.includes('secret-value'), false);
+  assert.equal(response.text.includes(sourceGraphRoot), false);
+  assert.equal(response.text.includes('/Users/'), false);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+
+  const rejectedRoot = await request(api.base, '/api/context/git-changes', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', root: sourceGraphRoot })
+  });
+  assert.equal(rejectedRoot.status, 400);
+  assert.equal(rejectedRoot.body.error.code, 'request_validation_failed');
+  assert.equal(rejectedRoot.text.includes(sourceGraphRoot), false);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+});
+
 test('context graph preview route is protected bounded and does not mutate run state', async (t) => {
   const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-source-graph-'));
   t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
@@ -512,6 +572,13 @@ test('context pack and graph preview authorize context resources', async (t) => 
   });
   assert.equal(pack.status, 200, pack.text);
 
+  const gitChanges = await request(api.base, '/api/context/git-changes', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local' })
+  });
+  assert.equal(gitChanges.status, 200, gitChanges.text);
+
   const graph = await request(api.base, '/api/context/graph/preview', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
@@ -528,10 +595,11 @@ test('context pack and graph preview authorize context resources', async (t) => 
 
   assert.deepEqual(
     policyRequests
-      .filter((item) => ['buildContextPack', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
+      .filter((item) => ['buildContextPack', 'detectGitChanges', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
       .map((item) => [item.operationId, item.action, item.resource.type]),
     [
       ['buildContextPack', 'context.compile', 'context'],
+      ['detectGitChanges', 'context.compile', 'context'],
       ['previewContextGraph', 'context.compile', 'context'],
       ['planHarnessSetup', 'workspace.read', 'workspace']
     ]

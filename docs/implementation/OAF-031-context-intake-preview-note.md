@@ -11,7 +11,7 @@ slice.
 - `npm run oaf -- context preview --from <codex|claude|cursor|all> --root . --objective "..." --step "..." --dry-run`
   converts accepted scan records into temporary Context Compiler candidates,
   runs deterministic selection, and returns a sanitized preview report.
-- `npm run oaf -- context pack --from codex --root . --objective "..." --step "..." --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown`
+- `npm run oaf -- context pack --from codex --root . --objective "..." --step "..." --target codex --include-file docs/context.md --changed apps/web/app.js --changed-from-git --dry-run --format markdown`
   builds a schema-validated Markdown handoff for Codex, Claude Code, Cursor, or
   a generic agent from selected safe locators. The browser defaults to the Codex
   source family and requires explicit checkbox selection before scanning
@@ -19,9 +19,13 @@ slice.
   explicit user-selected relative workspace files; these become
   proposal-only `user-selected://` locators. `--changed` may be repeated for
   explicit user-named changed files; these become `workspace://` impact hints
-  from the native source graph, not raw source slices. `--write --out
-  context-packs/CONTEXT_PACK.md` is the only local write path and writes the
-  generated handoff report, not canonical memory.
+  from the native source graph, not raw source slices. `--changed-from-git` is
+  an explicit read-only helper that reads local `git status` metadata, skips
+  secret-looking and forbidden paths, caps output at 16 reviewed locators, and
+  never reads diffs or file bodies. The browser exposes the same helper as a
+  button that fills the changed-file textarea for review before building.
+  `--write --out context-packs/CONTEXT_PACK.md` is the only local write path
+  and writes the generated handoff report, not canonical memory.
 - Preview output contains safe locators, hashes, reason codes, token counts,
   selected/excluded decisions, a proposal-only memory plan, safeguards, and a
   preview fingerprint.
@@ -104,6 +108,9 @@ slice.
 ## Safety Boundary
 
 - No source snapshots are persisted.
+- Git changed-file detection is opt-in only. It reads local status metadata,
+  not diffs, raw source bodies, remotes, hooks, submodules, credentials, or
+  caller-supplied filesystem roots.
 - No active memory is created.
 - No model calls are made.
 - No network calls are made.

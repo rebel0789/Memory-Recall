@@ -234,6 +234,27 @@ paths:
         '403': { $ref: '#/components/responses/BoundaryError' }
         '413': { $ref: '#/components/responses/BoundaryError' }
         '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/git-changes:
+    post:
+      operationId: detectGitChanges
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GitChangedLocatorsRequest' }
+      responses:
+        '200':
+          description: Opt-in read-only local git changed-file locator report.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GitChangedLocatorsResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
   /api/context/graph/preview:
     post:
       operationId: previewContextGraph
@@ -591,6 +612,62 @@ components:
         schemaVersion: { const: '1.0.0' }
         pack: { type: object }
         markdown: { type: string, minLength: 1, maxLength: 200000 }
+    GitChangedLocatorsRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId]
+      maxProperties: 1
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+    GitChangedLocatorsResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, command, generatedAt, workspaceId, status, source, reason, changedLocators, totalChangedLocatorCount, omittedChangedLocatorCount, skippedCount, truncated, warnings, safeguards, reportFingerprint]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        command: { const: 'git changed locators' }
+        generatedAt: { type: string, format: date-time }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        status: { enum: [available, unavailable] }
+        source: { enum: [git-status-porcelain, unavailable] }
+        reason: { enum: [null, not_git_repository, git_unavailable, git_status_failed, git_status_timeout] }
+        changedLocators:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+        totalChangedLocatorCount: { type: integer, minimum: 0, maximum: 200000 }
+        omittedChangedLocatorCount: { type: integer, minimum: 0, maximum: 200000 }
+        skippedCount: { type: integer, minimum: 0, maximum: 200000 }
+        truncated: { type: boolean }
+        warnings:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 128 }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [readOnly, canonicalStateMutated, localFilesWritten, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, activeMemoryCreated, sourceSnapshotsWritten, privateBodiesIncluded, diffBodiesIncluded, rawBodyIncluded, absoluteFilesystemLocationsIncluded]
+          properties:
+            readOnly: { const: true }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            sourceSnapshotsWritten: { const: 0 }
+            privateBodiesIncluded: { const: false }
+            diffBodiesIncluded: { const: false }
+            rawBodyIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
+        reportFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     ContextGraphPreviewRequest:
       type: object
       additionalProperties: false
