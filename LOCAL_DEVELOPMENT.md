@@ -53,7 +53,10 @@ user-selected relative files, and maps explicitly named changed files to compact
 impact hints. It then renders Markdown instructions without embedding raw source
 bodies or code slices. The pack also includes omitted context refs so a user can
 recover skipped local files by locator when the budget or relevance selector
-left them out.
+left them out. The pack tracks a delivery budget separately from the source
+selection budget: source tokens estimate the underlying records that were
+scanned or selected, while delivery tokens estimate the locator-only handoff
+that is actually given to another agent.
 
 In the browser, use **Build context pack** as the primary local handoff flow.
 The result can be copied to the clipboard or downloaded as Markdown from the
@@ -127,8 +130,9 @@ composition. The optional context-pack resource is summary-only: it includes
 locators, fingerprints, counts, omissions, and changed-file impact, but not raw
 objective text, raw step text, source bodies, markdown bodies, credentials, or
 local absolute paths. The smoke command invokes that same stdio path and reports
-observed local duration, response size, resource size, and selected/candidate
-unit counts for the single run; it is not a production latency benchmark.
+observed local duration, response size, resource size, selected/candidate
+source units, and delivered-handoff units for the single run; it is not a
+production latency benchmark.
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"resources/list"}' | \

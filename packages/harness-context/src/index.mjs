@@ -949,6 +949,50 @@ function fingerprintContextPack(pack) {
   return hashRef(stableStringify(copy));
 }
 
+function buildDeliveryBudget(pack, markdown) {
+  const sourceCandidateTokenCount = Number(pack.preview?.candidateTokenCount ?? 0);
+  const sourceSelectedTokenCount = Number(pack.preview?.selectedTokenCount ?? 0);
+  const deliveredTokenCount = estimateTokens(markdown);
+  const deliveredByteSize = Buffer.byteLength(markdown, 'utf8');
+  return {
+    representation: 'locator-handoff',
+    sourceCandidateTokenCount,
+    sourceSelectedTokenCount,
+    sourceSelectedTokenRatio: sourceCandidateTokenCount
+      ? Number((sourceSelectedTokenCount / sourceCandidateTokenCount).toFixed(6))
+      : 0,
+    deliveredTokenCount,
+    deliveredByteSize,
+    deliveredTokenRatio: sourceCandidateTokenCount
+      ? Number((deliveredTokenCount / sourceCandidateTokenCount).toFixed(6))
+      : 0,
+    observedTokenReductionRatio: sourceCandidateTokenCount
+      ? Number(Math.max(0, 1 - deliveredTokenCount / sourceCandidateTokenCount).toFixed(6))
+      : 0,
+    sourceContentTokenCountIncluded: 0,
+    sourceContentsIncluded: false
+  };
+}
+
+function deliveryStable(left, right) {
+  return stableStringify(left) === stableStringify(right);
+}
+
+function settleDeliveryBudget(pack) {
+  let markdown = renderContextPackMarkdown(pack);
+  let delivery = buildDeliveryBudget(pack, markdown);
+  for (let index = 0; index < 4; index += 1) {
+    pack.delivery = delivery;
+    markdown = renderContextPackMarkdown(pack);
+    const next = buildDeliveryBudget(pack, markdown);
+    if (deliveryStable(delivery, next)) return { delivery: next, markdown };
+    delivery = next;
+  }
+  pack.delivery = delivery;
+  markdown = renderContextPackMarkdown(pack);
+  return { delivery: buildDeliveryBudget(pack, markdown), markdown };
+}
+
 export function renderContextPackMarkdown(pack) {
   const selectedRows = pack.readFirst.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const excludedRows = pack.excluded.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
@@ -956,6 +1000,18 @@ export function renderContextPackMarkdown(pack) {
   const sourceGraphRows = pack.sourceGraph.results.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const changedLocatorRows = pack.sourceGraph.impact.changedLocators.map((locator) => `| ${markdownEscape(locator)} | explicit_user_input |`).join('\n');
   const affectedSymbolRows = pack.sourceGraph.impact.affectedSymbols.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.symbolKind)} | ${markdownEscape(item.name)} | ${item.depth} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const deliveryLines = pack.delivery ? [
+    '## Delivery Budget',
+    '',
+    `Representation: ${pack.delivery.representation}`,
+    `Source candidate tokens: ${pack.delivery.sourceCandidateTokenCount}`,
+    `Source selected tokens: ${pack.delivery.sourceSelectedTokenCount}`,
+    `Delivered handoff tokens: ${pack.delivery.deliveredTokenCount}`,
+    `Delivered token ratio: ${pack.delivery.deliveredTokenRatio}`,
+    `Observed token reduction: ${pack.delivery.observedTokenReductionRatio}`,
+    `Embedded source-content tokens: ${pack.delivery.sourceContentTokenCountIncluded}`,
+    ''
+  ] : [];
   return [
     '# Context Pack',
     '',
@@ -983,6 +1039,7 @@ export function renderContextPackMarkdown(pack) {
     '| --- | --- | ---: | --- |',
     selectedRows || '| none | none | 0 | none |',
     '',
+    ...deliveryLines,
     '## Excluded',
     '',
     '| Locator | Harness | Tokens | Reasons |',
@@ -1114,6 +1171,7 @@ export async function buildContextPack({
       selectedTokenCount: preview.metrics.selectedTokenCount,
       selectedTokenRatio: preview.metrics.selectedTokenRatio
     },
+    delivery: null,
     readFirst: selected,
     excluded,
     omissions,
@@ -1145,7 +1203,8 @@ export async function buildContextPack({
     },
     contextPackFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
   };
-  const markdown = renderContextPackMarkdown(pack);
+  const { delivery, markdown } = settleDeliveryBudget(pack);
+  pack.delivery = delivery;
   pack.files = [{
     path: 'CONTEXT_PACK.md',
     role: 'agent-handoff',

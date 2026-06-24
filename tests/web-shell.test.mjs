@@ -56,6 +56,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     readFirst:[{locator:'workspace://AGENTS.md'}],
     omissions:{excludedCount:2,excludedTokenCount:500,sourceGraphOmittedCount:1},
     preview:{candidateTokenCount:1000,selectedTokenCount:250},
+    delivery:{representation:'locator-handoff',sourceCandidateTokenCount:1000,sourceSelectedTokenCount:250,sourceSelectedTokenRatio:0.25,deliveredTokenCount:80,deliveredByteSize:320,deliveredTokenRatio:0.08,observedTokenReductionRatio:0.92,sourceContentTokenCountIncluded:0,sourceContentsIncluded:false},
     sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,affectedSymbols:[]}},
     warnings:['dry_run_no_import'],
     contextPackFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -65,6 +66,9 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.excludedTokens,500);
   assert.equal(model.sourceGraphOmittedCount,1);
   assert.equal(model.selectedTokenRatio,'25%');
+  assert.equal(model.deliveredTokens,80);
+  assert.equal(model.deliveredTokenRatio,'8%');
+  assert.equal(model.deliveryReductionPercent,'92%');
   assert.equal(model.changedLocators,1);
   assert.equal(model.affectedSymbols,3);
   assert.equal(model.setupClient,'codex');

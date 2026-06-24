@@ -648,6 +648,9 @@ async function buildMcpContextPackSmokeReport(values, { objective, step }) {
   const selectedUnitCount = Number(payload.data?.preview?.selectedUnitCount ?? 0);
   const selectedUnitRatio = Number(payload.data?.preview?.selectedUnitRatio ?? 0);
   const observedReductionRatio = candidateUnitCount > 0 ? Number(Math.max(0, 1 - selectedUnitCount / candidateUnitCount).toFixed(6)) : 0;
+  const deliveredUnitCount = Number(payload.data?.delivery?.deliveredTokenCount ?? 0);
+  const deliveredUnitRatio = Number(payload.data?.delivery?.deliveredTokenRatio ?? 0);
+  const observedDeliveryReductionRatio = Number(payload.data?.delivery?.observedTokenReductionRatio ?? 0);
   const report = {
     schemaVersion: '1.0.0',
     command: 'mcp smoke context-pack',
@@ -693,7 +696,10 @@ async function buildMcpContextPackSmokeReport(values, { objective, step }) {
       candidateUnitCount,
       selectedUnitCount,
       selectedUnitRatio,
-      observedReductionRatio
+      observedReductionRatio,
+      deliveredUnitCount,
+      deliveredUnitRatio,
+      observedDeliveryReductionRatio
     },
     checks: {
       initialized: true,

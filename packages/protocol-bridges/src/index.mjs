@@ -440,6 +440,21 @@ function summarizeContextPackSourceGraph(sourceGraph = {}) {
   };
 }
 
+function summarizeContextPackDelivery(delivery = {}) {
+  return {
+    representation: 'locator-handoff',
+    sourceCandidateTokenCount: Number.isInteger(delivery.sourceCandidateTokenCount) ? delivery.sourceCandidateTokenCount : 0,
+    sourceSelectedTokenCount: Number.isInteger(delivery.sourceSelectedTokenCount) ? delivery.sourceSelectedTokenCount : 0,
+    sourceSelectedTokenRatio: Number.isFinite(delivery.sourceSelectedTokenRatio) ? delivery.sourceSelectedTokenRatio : 0,
+    deliveredTokenCount: Number.isInteger(delivery.deliveredTokenCount) ? delivery.deliveredTokenCount : 0,
+    deliveredByteSize: Number.isInteger(delivery.deliveredByteSize) ? delivery.deliveredByteSize : 0,
+    deliveredTokenRatio: Number.isFinite(delivery.deliveredTokenRatio) ? delivery.deliveredTokenRatio : 0,
+    observedTokenReductionRatio: Number.isFinite(delivery.observedTokenReductionRatio) ? delivery.observedTokenReductionRatio : 0,
+    sourceContentTokenCountIncluded: 0,
+    sourceContentsIncluded: false
+  };
+}
+
 function summarizeContextPack(currentContextPack) {
   const pack = currentContextPack?.pack ?? currentContextPack;
   if (!isPlainObject(pack)) return null;
@@ -476,6 +491,7 @@ function summarizeContextPack(currentContextPack) {
       selectedUnitCount: Number.isFinite(pack.preview?.selectedTokenCount) ? pack.preview.selectedTokenCount : null,
       selectedUnitRatio: Number.isFinite(pack.preview?.selectedTokenRatio) ? pack.preview.selectedTokenRatio : null
     },
+    delivery: summarizeContextPackDelivery(pack.delivery),
     readFirst,
     excluded,
     omissions: {

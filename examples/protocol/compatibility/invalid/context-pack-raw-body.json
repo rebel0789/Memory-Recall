@@ -23,8 +23,26 @@
     "selectedTokenCount": 0,
     "selectedTokenRatio": 0
   },
+  "delivery": {
+    "representation": "locator-handoff",
+    "sourceCandidateTokenCount": 0,
+    "sourceSelectedTokenCount": 0,
+    "sourceSelectedTokenRatio": 0,
+    "deliveredTokenCount": 12,
+    "deliveredByteSize": 48,
+    "deliveredTokenRatio": 0,
+    "observedTokenReductionRatio": 0,
+    "sourceContentTokenCountIncluded": 0,
+    "sourceContentsIncluded": false
+  },
   "readFirst": [],
   "excluded": [],
+  "omissions": {
+    "excludedCount": 0,
+    "excludedTokenCount": 0,
+    "sourceGraphOmittedCount": 0,
+    "refs": []
+  },
   "memoryPlan": {
     "activeMemoryCreated": 0,
     "proposedCount": 0,
@@ -51,6 +69,12 @@
     "resultCount": 0,
     "omittedCount": 0,
     "results": [],
+    "impact": {
+      "changedLocators": [],
+      "affectedSymbolCount": 0,
+      "omittedAffectedSymbolCount": 0,
+      "affectedSymbols": []
+    },
     "warnings": [],
     "safeguards": {
       "dryRun": true,

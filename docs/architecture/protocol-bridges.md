@@ -36,7 +36,8 @@ When launched with `--context-pack --objective ... --step ...`, the same
 read-only composition also exposes
 `oaf://workspace/<workspaceId>/context-pack/current`. This is a compact JSON
 summary of an in-memory context pack: selected and omitted locators, token
-counts, fingerprints, changed locators, source-graph impact, and safeguards.
+counts, delivery-budget metrics for the locator-only handoff, fingerprints,
+changed locators, source-graph impact, and safeguards.
 It intentionally omits raw objective text, raw step text, markdown bodies,
 source bodies, credentials, provider URLs, absolute local paths, model calls,
 network calls, memory activation, external adapters, and write tools.
@@ -44,8 +45,9 @@ network calls, memory activation, external adapters, and write tools.
 `npm run oaf -- mcp smoke context-pack --read-only ...` proves the same path by
 launching the local stdio composition, sending JSON-RPC `resources/list`,
 `tools/list`, and `resources/read` messages, and returning a schema-validated
-local measurement report. The report records observed duration and byte counts
-for that one invocation only; it is not a hosted benchmark or performance claim.
+local measurement report. The report records observed duration, byte counts,
+selected/candidate source units, and delivered-handoff units for that one
+invocation only; it is not a hosted benchmark or performance claim.
 
 ## Authority
 

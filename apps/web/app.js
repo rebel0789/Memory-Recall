@@ -820,14 +820,18 @@ function renderContextPack() {
 function renderContextPackResult(pack,markdown) {
   const model=buildContextPackUiModel(pack,markdown);
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
-  return `<section class="context-value-ledger" aria-label="Context pack value ledger">${ledgerItem(model.selectedLocators,'Selected','Read first locators')}${ledgerItem(model.omittedRefs,'Omitted',`${model.excludedTokens} excluded tokens`)}${ledgerItem(model.selectedTokenRatio,'Token ratio','Selected / candidates')}${ledgerItem(model.affectedSymbols,'Affected','Symbols from changed files')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack value ledger">${ledgerItem(model.selectedLocators,'Selected','Read first locators')}${ledgerItem(model.omittedRefs,'Omitted',`${model.excludedTokens} excluded tokens`)}${ledgerItem(model.deliveredTokenRatio,'Delivery','Handoff / candidates')}${ledgerItem(model.affectedSymbols,'Affected','Symbols from changed files')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 export function buildContextPackUiModel(pack,markdown='') {
   const candidateTokens=Number(pack?.preview?.candidateTokenCount ?? 0);
   const selectedTokens=Number(pack?.preview?.selectedTokenCount ?? 0);
+  const deliveredTokens=Number(pack?.delivery?.deliveredTokenCount ?? 0);
   const estimatedReductionPercent=candidateTokens > 0
     ? Math.max(0,Math.min(100,Math.round((1 - selectedTokens / candidateTokens) * 100)))
+    : 0;
+  const deliveryReductionPercent=candidateTokens > 0
+    ? Math.max(0,Math.min(100,Math.round((1 - deliveredTokens / candidateTokens) * 100)))
     : 0;
   return {
     targetHarness:String(pack?.targetHarness ?? 'generic'),
@@ -835,6 +839,7 @@ export function buildContextPackUiModel(pack,markdown='') {
     selectedLocators:Array.isArray(pack?.readFirst) ? pack.readFirst.length : 0,
     omittedRefs:Number(pack?.omissions?.excludedCount ?? 0),
     selectedTokens,
+    deliveredTokens,
     candidateTokens,
     estimatedReductionPercent,
     downloadName:contextPackDownloadName(pack),
@@ -842,6 +847,8 @@ export function buildContextPackUiModel(pack,markdown='') {
     sourceGraphOmittedCount:Number(pack?.omissions?.sourceGraphOmittedCount ?? 0),
     warningCount:Array.isArray(pack?.warnings) ? pack.warnings.length : 0,
     selectedTokenRatio:candidateTokens > 0 ? `${Math.round(selectedTokens / candidateTokens * 100)}%` : '0%',
+    deliveredTokenRatio:candidateTokens > 0 ? `${Math.round(deliveredTokens / candidateTokens * 100)}%` : '0%',
+    deliveryReductionPercent:`${deliveryReductionPercent}%`,
     fingerprintShort:shortFingerprint(pack?.contextPackFingerprint ?? ''),
     changedLocators:Array.isArray(pack?.sourceGraph?.impact?.changedLocators) ? pack.sourceGraph.impact.changedLocators.length : 0,
     affectedSymbols:Number(pack?.sourceGraph?.impact?.affectedSymbolCount ?? 0),

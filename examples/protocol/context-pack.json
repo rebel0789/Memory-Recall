@@ -26,6 +26,18 @@
     "selectedTokenCount": 512,
     "selectedTokenRatio": 0.8
   },
+  "delivery": {
+    "representation": "locator-handoff",
+    "sourceCandidateTokenCount": 640,
+    "sourceSelectedTokenCount": 512,
+    "sourceSelectedTokenRatio": 0.8,
+    "deliveredTokenCount": 180,
+    "deliveredByteSize": 720,
+    "deliveredTokenRatio": 0.28125,
+    "observedTokenReductionRatio": 0.71875,
+    "sourceContentTokenCountIncluded": 0,
+    "sourceContentsIncluded": false
+  },
   "readFirst": [
     {
       "id": "hctxrec_selected",

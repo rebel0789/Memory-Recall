@@ -31,13 +31,15 @@ This repository is an **agent-ready development kit**, not a claim that the full
   benchmark gates;
 - dry-run context pack builder for Codex, Claude Code, Cursor, and generic
   agents, producing a schema-validated locator handoff with compact source
-  graph hints and explicit user-selected file locators, without raw source
-  bodies or automatic memory import;
+  graph hints, explicit user-selected file locators, and a delivery-budget
+  metric distinct from source-body token counts, without raw source bodies or
+  automatic memory import;
 - opt-in read-only MCP context-pack summary resource for local harnesses,
   exposing locators, hashes, token counts, omissions, and changed-file impact
   without raw task text, source bodies, markdown bodies, or write tools;
 - local MCP context-pack stdio smoke report with observed duration, response
-  size, and selected/candidate unit counts for one explicit local invocation;
+  size, selected/candidate source units, and delivered-handoff unit counts for
+  one explicit local invocation;
 - read-only native JS/TS source graph preview through CLI and loopback API,
   with bounded search, trace, and diff-impact results and no graph database;
 - dry-run harness setup planner for local MCP client configs, with redacted

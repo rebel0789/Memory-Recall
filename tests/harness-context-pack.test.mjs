@@ -50,6 +50,11 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.equal(pack.safeguards.sourceGraphPreviewed, true);
   assert.equal(pack.safeguards.graphDatabaseUsed, false);
   assert.equal(pack.safeguards.sourceSlicesRead, false);
+  assert.equal(pack.delivery.representation, 'locator-handoff');
+  assert.equal(pack.delivery.sourceCandidateTokenCount, pack.preview.candidateTokenCount);
+  assert.equal(pack.delivery.sourceSelectedTokenCount, pack.preview.selectedTokenCount);
+  assert.equal(pack.delivery.sourceContentTokenCountIncluded, 0);
+  assert.equal(pack.delivery.sourceContentsIncluded, false);
   assert.equal(pack.sourceGraph.status, 'available');
   assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://src/authWorkflow.ts']);
   assert(pack.sourceGraph.impact.affectedSymbols.some((item) => item.name === 'approveTokenResetWorkflow'));
@@ -70,6 +75,7 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /^# Context Pack/m);
   assert.match(markdown, /Target harness: codex/);
   assert.match(markdown, /workspace:\/\/AGENTS\.md/);
+  assert.match(markdown, /## Delivery Budget/);
   assert.match(markdown, /## Omission Refs/);
   assert.match(markdown, /## Source Graph Hints/);
   assert.match(markdown, /## Change Impact/);
@@ -101,6 +107,36 @@ test('context pack rejects unsafe changed locators before building a handoff', a
     }),
     /changed_context_locator_invalid/
   );
+});
+
+test('context pack delivery budget separates locator handoff cost from source selection cost', async () => {
+  const root = await workspace();
+  const largeInstruction = Array.from({ length: 420 }, (_, index) => `policy-${index} preserve local-only context boundaries`).join(' ');
+  await writeFile(path.join(root, 'AGENTS.md'), `LONG RAW POLICY BODY ${largeInstruction}`);
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare a compact locator handoff for a large repository policy file',
+    step: 'measure delivered context budget',
+    tokenBudget: 8192,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack delivery budget');
+  assert.equal(pack.readFirst.some((item) => item.locator === 'workspace://AGENTS.md'), true);
+  assert(pack.delivery.sourceSelectedTokenCount > 1000);
+  assert(pack.delivery.deliveredTokenCount < pack.delivery.sourceSelectedTokenCount);
+  assert(pack.delivery.deliveredTokenRatio < pack.delivery.sourceSelectedTokenRatio);
+  assert(pack.delivery.observedTokenReductionRatio > 0);
+  assert.equal(pack.delivery.sourceContentTokenCountIncluded, 0);
+  assert.equal(pack.delivery.sourceContentsIncluded, false);
+  const markdown = renderContextPackMarkdown(pack);
+  assert.match(markdown, /Delivered handoff tokens:/);
+  assert(!markdown.includes('LONG RAW POLICY BODY'));
+  assert(!JSON.stringify(pack).includes('LONG RAW POLICY BODY'));
 });
 
 test('context pack fingerprints are deterministic for fixed input', async () => {

@@ -205,6 +205,18 @@ function contextPackFixture() {
       excluded: [
         { id: 'ctx_private', locator: 'workspace://Users/rebel/private.txt', harness: 'codex', sourceKind: 'private', tokens: 10, contentHash: hash, reasonCodes: ['private_path'] }
       ],
+      delivery: {
+        representation: 'locator-handoff',
+        sourceCandidateTokenCount: 200,
+        sourceSelectedTokenCount: 80,
+        sourceSelectedTokenRatio: 0.4,
+        deliveredTokenCount: 48,
+        deliveredByteSize: 192,
+        deliveredTokenRatio: 0.24,
+        observedTokenReductionRatio: 0.76,
+        sourceContentTokenCountIncluded: 0,
+        sourceContentsIncluded: false
+      },
       omissions: {
         excludedCount: 1,
         excludedTokenCount: 10,
@@ -502,6 +514,11 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
   assert.equal(payload.workspaceId, 'ws_mcp');
   assert.equal(payload.data.objectiveLength, 'Private MCP objective text should not appear.'.length);
   assert.match(payload.data.objectiveFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(payload.data.delivery.representation, 'locator-handoff');
+  assert.equal(payload.data.delivery.sourceCandidateTokenCount, 200);
+  assert.equal(payload.data.delivery.deliveredTokenCount, 48);
+  assert.equal(payload.data.delivery.sourceContentTokenCountIncluded, 0);
+  assert.equal(payload.data.delivery.sourceContentsIncluded, false);
   assert.equal(payload.data.readFirst.some((item) => item.locator === 'user-selected://notes/handoff.md'), true);
   assert.equal(payload.data.excluded[0].locator, null);
   assert.equal(payload.data.omissions.refs[0].locator, null);

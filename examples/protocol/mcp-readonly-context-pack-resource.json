@@ -31,6 +31,18 @@
     "stepFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
     "stepLength": 18,
     "contextPackFingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "delivery": {
+      "representation": "locator-handoff",
+      "sourceCandidateTokenCount": 200,
+      "sourceSelectedTokenCount": 80,
+      "sourceSelectedTokenRatio": 0.4,
+      "deliveredTokenCount": 48,
+      "deliveredByteSize": 192,
+      "deliveredTokenRatio": 0.24,
+      "observedTokenReductionRatio": 0.76,
+      "sourceContentTokenCountIncluded": 0,
+      "sourceContentsIncluded": false
+    },
     "readFirst": [
       {
         "id": "ctx_agents",

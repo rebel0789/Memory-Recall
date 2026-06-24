@@ -16,6 +16,10 @@ _Avoid_: Token savings at any cost, fastest response wins, broad harness support
 The first public beta promise: OAF runs locally and gives coding agents safe, token-efficient repository and memory context through context packs, read-only MCP resources, and proposal-gated memory writes.
 _Avoid_: Hidden transcript upload, automatic cloud memory, invisible context injection, write-enabled MCP by default
 
+**Delivery Budget**:
+The estimated token and byte cost of the locator-only handoff that OAF actually gives another agent. It is tracked separately from the source budget, which estimates the full underlying context records that were scanned and selected.
+_Avoid_: Treating raw source-body token counts as the cost of a sanitized handoff, claiming token savings without a delivered-context measurement
+
 **Proposal-Gated Memory Import**:
 The rule that imported harness context or transcript-derived learnings can become memory proposals, but cannot become active memory until the user reviews and accepts them. Users choose which Codex, Claude Code, Cursor, or other harness sources OAF may inspect.
 _Avoid_: Automatic active memory, silent transcript capture, default import from hidden app state

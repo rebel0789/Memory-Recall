@@ -43,7 +43,10 @@
     "candidateUnitCount": 200,
     "selectedUnitCount": 80,
     "selectedUnitRatio": 0.4,
-    "observedReductionRatio": 0.6
+    "observedReductionRatio": 0.6,
+    "deliveredUnitCount": 48,
+    "deliveredUnitRatio": 0.24,
+    "observedDeliveryReductionRatio": 0.76
   },
   "checks": {
     "initialized": true,

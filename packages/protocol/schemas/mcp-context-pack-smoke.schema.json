@@ -111,7 +111,19 @@
     "measurements": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["durationMs", "stdoutByteSize", "stderrByteSize", "resourceByteSize", "candidateUnitCount", "selectedUnitCount", "selectedUnitRatio", "observedReductionRatio"],
+      "required": [
+        "durationMs",
+        "stdoutByteSize",
+        "stderrByteSize",
+        "resourceByteSize",
+        "candidateUnitCount",
+        "selectedUnitCount",
+        "selectedUnitRatio",
+        "observedReductionRatio",
+        "deliveredUnitCount",
+        "deliveredUnitRatio",
+        "observedDeliveryReductionRatio"
+      ],
       "properties": {
         "durationMs": { "type": "integer", "minimum": 0, "maximum": 600000 },
         "stdoutByteSize": { "type": "integer", "minimum": 1, "maximum": 2000000 },
@@ -120,7 +132,10 @@
         "candidateUnitCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
         "selectedUnitCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
         "selectedUnitRatio": { "type": "number", "minimum": 0, "maximum": 1 },
-        "observedReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+        "observedReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "deliveredUnitCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "deliveredUnitRatio": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "observedDeliveryReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },
     "checks": {

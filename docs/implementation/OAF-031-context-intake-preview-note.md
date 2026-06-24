@@ -68,17 +68,18 @@ slice.
   local JSON-RPC messages on stdin and writes JSON-RPC responses to stdout.
 - `npm run oaf -- mcp resources --read-only --context-pack --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --uri oaf://workspace/ws_local/context-pack/current --format json`
   exposes an opt-in current context-pack summary resource for harnesses. The
-  resource carries safe locators, hashes, omission counts, token counts, and
-  changed-file impact; it does not include raw objective text, raw step text,
-  markdown bodies, source bodies, private local paths, active memory, model
-  calls, network calls, external adapters, or write tools.
+  resource carries safe locators, hashes, omission counts, source-selection
+  token counts, delivery-budget metrics for the locator handoff, and changed-file
+  impact; it does not include raw objective text, raw step text, markdown
+  bodies, source bodies, private local paths, active memory, model calls,
+  network calls, external adapters, or write tools.
 - `npm run oaf -- mcp smoke context-pack --read-only --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   launches the same read-only stdio MCP resource bridge, reads
   `oaf://workspace/ws_local/context-pack/current`, asserts `tools/list` returns
   no tools, and returns an observed local measurement report with duration,
-  response size, resource size, and selected/candidate unit counts. These
-  measurements describe one local invocation only and are not production latency
-  or external benchmark claims.
+  response size, resource size, selected/candidate source units, and
+  delivered-handoff units. These measurements describe one local invocation only
+  and are not production latency or external benchmark claims.
 - The native SQLite memory provider now preserves memory-core lifecycle and
   review fields and includes a local proposal queue with idempotent
   fingerprints, leases, retries, and poison/error records.
