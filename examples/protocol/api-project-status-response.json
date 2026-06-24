@@ -2,5 +2,5 @@
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
-  "nextTask": "OAF-007"
+  "nextTask": null
 }

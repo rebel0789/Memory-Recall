@@ -697,7 +697,7 @@ export function createApiRouteContracts(limits = {}) {
       maxBodyBytes: 0,
       allowsBody: false,
       streams: false,
-      responses: { 200: { type: 'object', additionalProperties: true, required: ['schemaVersion', 'project', 'release', 'nextTask'], properties: { schemaVersion: { const: '1.0.0' }, project: boundedString(128), release: boundedString(64), nextTask: boundedString(32) } } }
+      responses: { 200: { type: 'object', additionalProperties: true, required: ['schemaVersion', 'project', 'release', 'nextTask'], properties: { schemaVersion: { const: '1.0.0' }, project: boundedString(128), release: boundedString(64), nextTask: { type: ['string', 'null'], minLength: 1, maxLength: 32 } } } }
     },
     {
       method: 'GET',

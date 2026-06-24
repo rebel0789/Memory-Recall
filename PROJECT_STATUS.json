@@ -3,7 +3,7 @@
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
   "phase": "1.0-release-candidate-readiness",
-  "nextTask": "OAF-030",
+  "nextTask": null,
   "defaults": {
     "network": "deny",
     "externalWrites": false,

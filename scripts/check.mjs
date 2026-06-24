@@ -171,7 +171,17 @@ if (backlog) {
     visited.add(id);
   }
   for (const id of taskIds) visit(id);
-  if (projectStatus && !taskSet.has(projectStatus.nextTask)) errors.push(`PROJECT_STATUS.json: unknown nextTask ${projectStatus.nextTask}`);
+  if (projectStatus?.nextTask !== null && projectStatus?.nextTask !== undefined) {
+    const nextTask = byId.get(projectStatus.nextTask);
+    if (!nextTask) errors.push(`PROJECT_STATUS.json: unknown nextTask ${projectStatus.nextTask}`);
+    else if (nextTask.status !== 'planned') errors.push(`PROJECT_STATUS.json: nextTask ${projectStatus.nextTask} is ${nextTask.status}`);
+    else {
+      const completed = new Set((backlog.tasks ?? []).filter((task) => task.status === 'completed').map((task) => task.id));
+      for (const dependency of nextTask.dependsOn ?? []) {
+        if (!completed.has(dependency)) errors.push(`PROJECT_STATUS.json: nextTask ${projectStatus.nextTask} dependency ${dependency} is not completed`);
+      }
+    }
+  }
 }
 
 const agentPack = jsonValues.get(path.join(root, 'examples/agentpacks/content-intelligence.agentpack.json'));

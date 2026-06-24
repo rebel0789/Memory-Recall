@@ -406,7 +406,10 @@ components:
         schemaVersion: { const: '1.0.0' }
         project: { type: string, maxLength: 128 }
         release: { type: string, maxLength: 64 }
-        nextTask: { type: string, maxLength: 32 }
+        nextTask:
+          oneOf:
+            - { type: string, maxLength: 32 }
+            - { type: 'null' }
     StartRunRequest:
       type: object
       additionalProperties: false

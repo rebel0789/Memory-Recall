@@ -27,7 +27,7 @@
       "type": "string"
     },
     "nextTask": {
-      "type": "string",
+      "type": ["string", "null"],
       "pattern": "^OAF-[0-9]{3}$"
     },
     "defaults": {

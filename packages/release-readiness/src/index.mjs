@@ -259,6 +259,7 @@ async function buildProvenance(root, evidence, files, outputs) {
 }
 
 function readinessReport(evidence, summary) {
+  const nextTask = evidence.nextTask ?? 'none; checked-in backlog complete';
   return `# 1.0 Readiness Report
 
 Status: ${summary.status}
@@ -271,7 +272,7 @@ ${table(['Area', 'Evidence'], [
   ['Release', evidence.release],
   ['Phase', evidence.phase],
   ['Completed backlog tasks', `${evidence.completedTasks}/${evidence.taskCount}`],
-  ['Backlog status task', `${evidence.nextTask} (canonical 30-task release backlog; OAF-031 preview work is branch-local)`],
+  ['Backlog status task', `${nextTask} (canonical 30-task release backlog; OAF-031 preview work is branch-local)`],
   ['Network default', evidence.defaults.network],
   ['External writes', String(evidence.defaults.externalWrites)],
   ['Model mode', evidence.defaults.modelMode],
