@@ -65,6 +65,13 @@ npm run dev
 
 Open <http://127.0.0.1:4310>.
 
+First practical path: open **Context Pack**, keep the target as Codex or choose
+your local harness, add any explicitly changed files, build the pack, check
+**First-use readiness**, then copy the markdown into the next local coding-agent
+session. This is a dry-run locator handoff with read-only MCP proof; it does not
+import harness history, create active memory, write harness config, or enable
+external adapters.
+
 The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.
 
 ## Give this repository to a coding agent

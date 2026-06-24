@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T14:47:30.091Z",
+  "generatedAt": "2026-06-24T15:03:52.991Z",
   "fileCount": 778,
-  "totalBytes": 3355270,
+  "totalBytes": 3364764,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -102,8 +102,8 @@
     },
     {
       "path": ".playwright-cli/console-2026-06-24T14-45-43-860Z.log",
-      "bytes": 164,
-      "sha256": "f4184092b4d9cfc3ae52198cca59edbf474521afbfe28117991828f5950c76a5"
+      "bytes": 962,
+      "sha256": "fdd1d9f1c0e86782bbe9a3039ee9c98305a0e84d1118a07149a20953f9f4e67a"
     },
     {
       "path": ".playwright-cli/page-2026-06-24T14-45-43-960Z.yml",
@@ -517,8 +517,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 108840,
-      "sha256": "9e9f8e2105201ea6a6dda4d12ab77d431651a416ca4050da300de9eff0c5cc62"
+      "bytes": 113206,
+      "sha256": "7dbe9e1da7d95f24077f9e2dc514ad4eb8a9a7670ac174c020a1b772df1133d3"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -532,8 +532,8 @@
     },
     {
       "path": "apps/web/styles.css",
-      "bytes": 25000,
-      "sha256": "bb962573c6aae6652adbe59dcd77d544be8668e8dc5b17a806d5af10e4a96371"
+      "bytes": 25827,
+      "sha256": "887914e439af532c6016178c16cc4f4dc3df2728394037be6dcfe81c8bae61c5"
     },
     {
       "path": "apps/web/tokens.css",
@@ -2088,7 +2088,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "03e3ef537f07691b5dea97f998a7ed9d04093a26884f76853a6c2c00f6a6aa9a"
+      "sha256": "3ed7b889b6a3d5d513c0a81fd117080ec2631841131a76598bd2970bb1a583f4"
     },
     {
       "path": "LICENSE",
@@ -3267,8 +3267,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 9494,
-      "sha256": "182becc6a0567ab4bbcb10b131ffbc4c26410437f9dd74be76d027c711935982"
+      "bytes": 9910,
+      "sha256": "f6993badc75cf8c1c8ac824caf7d1679fd7122b47edb999ca549c44577c99664"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3797,8 +3797,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 22174,
-      "sha256": "c56e4ca0c9a2889dfcc5538819fa1b311e1dcc0065c63e7ee9b8df4409a9e8e2"
+      "bytes": 25261,
+      "sha256": "fe4606928f29a0337e7a7a911a958af7a49efbd919c75542399deb39b89df6fa"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

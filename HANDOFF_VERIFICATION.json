@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
   "version": "0.2.0-dev",
-  "verifiedAt": "2026-06-24T14:47:29.896Z",
+  "verifiedAt": "2026-06-24T15:03:52.772Z",
   "environment": {
     "platform": "darwin",
     "release": "25.5.0",
@@ -18,32 +18,32 @@
     {
       "command": "npm run check",
       "exitCode": 0,
-      "durationMs": 244
+      "durationMs": 260
     },
     {
       "command": "npm run protocol:validate",
       "exitCode": 0,
-      "durationMs": 174
+      "durationMs": 172
     },
     {
       "command": "npm test",
       "exitCode": 0,
-      "durationMs": 2609
+      "durationMs": 2798
     },
     {
       "command": "npm run eval",
       "exitCode": 0,
-      "durationMs": 262
+      "durationMs": 273
     },
     {
       "command": "npm run demo",
       "exitCode": 0,
-      "durationMs": 157
+      "durationMs": 166
     },
     {
       "command": "npm run native:smoke",
       "exitCode": 0,
-      "durationMs": 205
+      "durationMs": 222
     }
   ],
   "result": "passed"

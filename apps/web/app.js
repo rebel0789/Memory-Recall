@@ -820,7 +820,8 @@ function renderContextPack() {
 function renderContextPackResult(pack,markdown) {
   const model=buildContextPackUiModel(pack,markdown,{observedDurationMs:contextPackResult?.observedDurationMs,readback:contextPackResult?.readback});
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult});
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 export function buildContextPackUiModel(pack,markdown='',meta={}) {
@@ -907,6 +908,59 @@ function buildContextPackIntakeReview(pack) {
   };
 }
 
+export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null,setupResult=null} = {}) {
+  const selectedLocators=Array.isArray(pack?.readFirst) ? pack.readFirst.length : 0;
+  const markdownReady=String(markdown??'').trim().length > 0;
+  const hasPack=Boolean(pack?.contextPackFingerprint);
+  const readbackMatched=readback?.checks?.contextPackFingerprintMatches === true;
+  const noMarkdownBody=readback?.checks?.noMarkdownBody === true;
+  const noToolsExposed=readback?.checks?.noToolsExposed === true && zeroCount(readback?.bridge?.toolsExposed);
+  const rawBodiesExcluded=pack?.delivery?.sourceContentsIncluded === false && pack?.safeguards?.rawBodyIncluded === false;
+  const noSideEffects=pack?.safeguards?.externalWritesEnabled === false && zeroCount(pack?.safeguards?.networkCalls) && zeroCount(pack?.safeguards?.modelCalls);
+  const noActiveMemory=zeroCount(pack?.safeguards?.activeMemoryCreated);
+  const setupPreviewed=Boolean(setupResult);
+  const setupPreviewSafe=setupPreviewed
+    && setupResult?.dryRun === true
+    && zeroCount(setupResult?.safeguards?.localFilesWritten)
+    && setupResult?.safeguards?.externalWritesEnabled === false
+    && zeroCount(setupResult?.safeguards?.networkCalls)
+    && setupResult?.safeguards?.rawConfigBodyIncluded === false;
+  const gates=[
+    readinessGate('artifact','Pack artifact',hasPack && markdownReady,'Markdown handoff is generated in the browser for copy or download.'),
+    readinessGate('selection','Selected context',selectedLocators > 0,`${selectedLocators} safe local locator${selectedLocators===1?'':'s'} selected.`),
+    readinessGate('readback','MCP readback',readbackMatched && noMarkdownBody,'Read-only resource matches the generated pack and omits markdown bodies.'),
+    readinessGate('resource-tools','Resource tools',noToolsExposed,'The context-pack MCP resource exposes zero tools.'),
+    readinessGate('raw-bodies','Raw bodies',rawBodiesExcluded,'Source bodies stay out of the pack, shell, and MCP summary.'),
+    readinessGate('side-effects','Side effects',noSideEffects,'Model calls, network calls, and external writes remain off.'),
+    readinessGate('memory','Memory import',noActiveMemory,'Harness context can propose memory, but creates no active memory.'),
+    readinessGate('setup-preview','Setup preview',setupPreviewed ? setupPreviewSafe : null,setupPreviewed ? 'Dry-run harness setup preview remains redacted.' : 'Optional: preview the read-only MCP setup plan before editing any harness config.',setupPreviewed)
+  ];
+  const blocking=gates.find((gate)=>gate.blocking);
+  const ready=!blocking;
+  return {
+    ready,
+    title:ready?'Ready for local handoff':'Review before handoff',
+    status:ready?'ready':'blocked',
+    copy:ready
+      ? 'Copy the markdown into your next local agent, or preview setup if you want a read-only MCP resource.'
+      : 'Do not hand this to another agent until the failed gate is fixed.',
+    nextAction:ready
+      ? (setupPreviewed ? 'Use Copy markdown, Download .md, or the previewed read-only MCP command.' : 'Use Copy markdown now. Preview setup only if you want MCP resource discovery.')
+      : `Fix: ${blocking.label}.`,
+    gates
+  };
+}
+
+function readinessGate(id,label,passed,detail,required=true) {
+  const status=passed === true ? 'pass' : passed === null ? 'pending' : 'failed';
+  return { id, label, status, detail, required, blocking:required && status !== 'pass' };
+}
+
+function zeroCount(value) {
+  const number=Number(value);
+  return Number.isFinite(number) && number === 0;
+}
+
 function contextPackHarnessCommands(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
@@ -971,6 +1025,11 @@ function contextPackProofLedger(proof) {
 
 function contextPackReadbackProof(proof) {
   return `<dl class="facts compact-facts"><div><dt>Transport</dt><dd>${esc(proof.readbackTransport)}</dd></div><div><dt>Scope</dt><dd>${esc(proof.readbackScope)}</dd></div><div><dt>Fingerprint</dt><dd>${esc(proof.readbackFingerprintLabel)}</dd></div><div><dt>Resource</dt><dd>${esc(proof.readbackResourceBytesLabel)}</dd></div><div><dt>Tools</dt><dd>${esc(proof.readbackToolsLabel)}</dd></div></dl>`;
+}
+
+function contextPackReadinessPanel(readiness) {
+  const chip=statusChip(readiness.ready?'success':'partial',readiness.title,readiness.ready?'critical gates passed':'blocked gate');
+  return `<div class="readiness-panel" aria-label="First-use readiness"><div class="section-heading"><h2>First-use readiness</h2>${chip}</div><p>${esc(readiness.copy)}</p><ol class="readiness-list">${readiness.gates.map((gate)=>`<li class="readiness-${esc(gate.status)}"><strong>${esc(gate.status)}</strong><span><b>${esc(gate.label)}</b><small>${esc(gate.detail)}</small></span></li>`).join('')}</ol><p class="readiness-next"><strong>Next:</strong> ${esc(readiness.nextAction)}</p></div>`;
 }
 
 function safeguardCountLabel(value) {

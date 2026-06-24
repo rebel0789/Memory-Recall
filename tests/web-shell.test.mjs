@@ -9,6 +9,7 @@ import {
   buildContextInspectorModel,
   buildEvidenceExplorerModel,
   buildFabricMapModel,
+  buildFirstUseReadinessModel,
   buildHarnessSetupUiModel,
   buildMemoryReviewModel,
   classifyDashboardState,
@@ -149,6 +150,74 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(model.commands[1].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
   assert.match(model.commands[2].command,/--from 'codex,cursor'/);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
+});
+
+test('first-use readiness proves local handoff gates before recommending use',()=>{
+  const safePack={
+    createdAt:'2026-06-24T00:00:00.000Z',
+    targetHarness:'codex',
+    sourceHarnesses:['codex'],
+    readFirst:[{locator:'workspace://AGENTS.md'}],
+    delivery:{sourceContentsIncluded:false},
+    safeguards:{rawBodyIncluded:false,externalWritesEnabled:false,networkCalls:0,modelCalls:0,activeMemoryCreated:0},
+    contextPackFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+  };
+  const safeReadback={
+    checks:{contextPackFingerprintMatches:true,noMarkdownBody:true,noToolsExposed:true},
+    bridge:{toolsExposed:0}
+  };
+  const ready=buildFirstUseReadinessModel({pack:safePack,markdown:'# Context Pack\n',readback:safeReadback});
+  assert.equal(ready.ready,true);
+  assert.equal(ready.title,'Ready for local handoff');
+  assert.equal(ready.gates.find((gate)=>gate.id==='setup-preview').status,'pending');
+  assert.equal(ready.nextAction,'Use Copy markdown now. Preview setup only if you want MCP resource discovery.');
+  const setupReady=buildFirstUseReadinessModel({
+    pack:safePack,
+    markdown:'# Context Pack\n',
+    readback:safeReadback,
+    setupResult:{dryRun:true,safeguards:{localFilesWritten:0,externalWritesEnabled:false,networkCalls:0,rawConfigBodyIncluded:false}}
+  });
+  assert.equal(setupReady.ready,true);
+  assert.equal(setupReady.gates.find((gate)=>gate.id==='setup-preview').status,'pass');
+  const setupUnsafe=buildFirstUseReadinessModel({
+    pack:safePack,
+    markdown:'# Context Pack\n',
+    readback:safeReadback,
+    setupResult:{dryRun:false,safeguards:{localFilesWritten:1,externalWritesEnabled:true,networkCalls:1,rawConfigBodyIncluded:true}}
+  });
+  assert.equal(setupUnsafe.ready,false);
+  assert.equal(setupUnsafe.gates.find((gate)=>gate.id==='setup-preview').blocking,true);
+  const unsafe=buildFirstUseReadinessModel({
+    pack:{
+      ...safePack,
+      readFirst:[],
+      delivery:{sourceContentsIncluded:true},
+      safeguards:{rawBodyIncluded:true,externalWritesEnabled:true,networkCalls:1,modelCalls:1,activeMemoryCreated:1}
+    },
+    markdown:'',
+    readback:{checks:{contextPackFingerprintMatches:false,noMarkdownBody:false,noToolsExposed:false},bridge:{toolsExposed:1}}
+  });
+  assert.equal(unsafe.ready,false);
+  assert.equal(unsafe.title,'Review before handoff');
+  assert.deepEqual(unsafe.gates.filter((gate)=>gate.blocking).map((gate)=>gate.id),['artifact','selection','readback','resource-tools','raw-bodies','side-effects','memory']);
+  assert.equal(unsafe.nextAction,'Fix: Pack artifact.');
+});
+
+test('web shell copy avoids public beta and hidden-import claims',async()=>{
+  const app=await readFile('apps/web/app.js','utf8');
+  for (const forbidden of [
+    /public beta/i,
+    /production-ready/i,
+    /automatic import/i,
+    /automatically imports/i,
+    /write-capable MCP/i,
+    /external adapter enabled/i,
+    /publishing enabled/i,
+    /hosted benchmark/i,
+    /saves provider tokens/i
+  ]) {
+    assert.doesNotMatch(app,forbidden);
+  }
 });
 
 test('agents tools exposes dry-run harness setup planning without install affordances',async()=>{
