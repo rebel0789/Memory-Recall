@@ -287,10 +287,12 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(JSON.stringify(response.body.pack).includes('workspace://.cursor'), false);
   assert(response.body.pack.memoryPlan.items.some((item) => item.locator === 'user-selected://CONTEXT.md'));
   assert.deepEqual(response.body.pack.sourceGraph.impact.changedLocators, ['workspace://src/web.ts']);
+  assert.deepEqual(response.body.pack.sourceGraph.impact.representedChangedLocators, ['workspace://src/web.ts']);
   assert.equal(response.body.pack.utility.status, 'ready');
   assert.deepEqual(response.body.pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
   const changedRead = response.body.pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://src/web.ts' && item.role === 'changed_locator');
   assert(changedRead);
+  assert.equal(changedRead.represented, true);
   assert.match(changedRead.contentHash, /^sha256:[a-f0-9]{64}$/);
   assert.equal(changedRead.reasonCodes.includes('content_hash_verified'), true);
   assert(response.body.pack.handoff.launchPrompt.includes('Changed-file coverage: 1/1'));
@@ -523,9 +525,35 @@ test('context graph preview route is protected bounded and does not mutate run s
   assert.equal(response.body.safeguards.externalWritesEnabled, false);
   assert(response.body.search.results.some((item) => item.label.includes('approveTokenReset')));
   assert(response.body.trace.paths.some((item) => item.terminalLabel === 'approveTokenReset'));
+  assert.deepEqual(response.body.impact.representedChangedLocators, ['workspace://src/auth.ts']);
   assert(response.body.impact.affectedSymbols.some((item) => item.name === 'approveTokenReset'));
   assert.equal(response.text.includes('API GRAPH RAW BODY'), false);
   assert.equal(response.text.includes(sourceGraphRoot), false);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+  assert.equal(api.calls.compile, 0);
+});
+
+test('context graph preview route returns sanitized unavailable preview when source root disappears', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-source-graph-missing-'));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(path.join(sourceGraphRoot, 'src', 'auth.ts'), 'export const vanishedRoot = true;\n');
+  const api = await startServer(t, { sourceGraphRoot });
+  await rm(sourceGraphRoot, { recursive: true, force: true });
+
+  const response = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', query: 'vanished root', changedLocators: ['src/auth.ts'] })
+  });
+
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.schemaVersion, '1.0.0');
+  assert.equal(response.body.graph.summary.fileCount, 0);
+  assert.equal(response.body.graph.diagnostics.some((item) => String(item.code).startsWith('source_graph_unavailable')), true);
+  assert.deepEqual(response.body.impact.representedChangedLocators, []);
+  assert.equal(response.text.includes(sourceGraphRoot), false);
+  assert.equal(response.text.includes('/Users/'), false);
   assert.equal(api.store.updates, 0);
   assert.equal(api.calls.workflow, 0);
   assert.equal(api.calls.compile, 0);

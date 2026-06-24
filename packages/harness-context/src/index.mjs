@@ -1027,6 +1027,7 @@ function buildContextPackUtility({ selected, sourceGraph, preview, requestedInpu
   const reads = [];
   const seen = new Set();
   const scanSourceByLocator = new Map((preview.scan?.sources ?? []).map((source) => [source.locator, source]));
+  const representedChangedLocators = new Set(sourceGraph.impact.representedChangedLocators ?? []);
   const addRead = (item) => {
     const key = `${item.role}:${item.locator}`;
     if (seen.has(key)) return;
@@ -1071,13 +1072,19 @@ function buildContextPackUtility({ selected, sourceGraph, preview, requestedInpu
     const hashReasonCodes = contentHash && selectedMatch?.contentHash
       ? ['content_hash_verified']
       : metadata.reasonCodes;
+    const represented = representedChangedLocators.has(locator);
     addRead(requiredReadItem({
       locator,
       role: 'changed_locator',
       required: true,
-      represented: true,
+      represented,
       contentHash,
-      reasonCodes: ['changed_locator_supplied', 'read_before_edit', ...hashReasonCodes],
+      reasonCodes: [
+        'changed_locator_supplied',
+        'read_before_edit',
+        represented ? 'source_graph_changed_locator_matched' : 'source_graph_changed_locator_unmatched',
+        ...hashReasonCodes
+      ],
       readHint: `Read ${locator} from the local workspace before editing or reviewing this changed file.`
     }));
   }
@@ -1094,9 +1101,8 @@ function buildContextPackUtility({ selected, sourceGraph, preview, requestedInpu
     }));
   }
 
-  const requiredLocators = new Set(reads.filter((item) => item.required && item.represented).map((item) => stripLineRange(item.locator)));
   const changedLocators = sourceGraph.impact.changedLocators;
-  const changedCovered = changedLocators.filter((locator) => requiredLocators.has(stripLineRange(locator))).length;
+  const changedCovered = changedLocators.filter((locator) => representedChangedLocators.has(stripLineRange(locator))).length;
   const graphHintIncluded = sourceGraph.results.length;
   const graphHintTotal = graphHintIncluded + Number(sourceGraph.omittedCount ?? 0);
   const candidateTokenCount = Number(preview.metrics.candidateTokenCount ?? 0);
@@ -1286,6 +1292,9 @@ function compactSourceGraphResults(results) {
 
 function compactSourceGraphImpact(impact, changedLocators) {
   const totalAffected = Number(impact?.affectedSymbols?.length ?? 0);
+  const representedChangedLocators = (impact?.representedChangedLocators ?? [])
+    .filter((locator) => changedLocators.includes(locator))
+    .sort();
   const affectedSymbols = (impact?.affectedSymbols ?? []).slice(0, 12).map((item) => ({
     name: item.name,
     symbolKind: item.symbolKind ?? 'symbol',
@@ -1296,6 +1305,7 @@ function compactSourceGraphImpact(impact, changedLocators) {
   }));
   return {
     changedLocators,
+    representedChangedLocators,
     affectedSymbolCount: totalAffected,
     omittedAffectedSymbolCount: Math.max(0, totalAffected - affectedSymbols.length),
     affectedSymbols
@@ -1328,6 +1338,10 @@ async function buildContextPackSourceGraph({
     const warnings = [];
     if (!results.length) warnings.push('source_graph_no_locator_matches');
     if (preview.graph.diagnostics.length) warnings.push('source_graph_diagnostics_present');
+    const representedChangedLocators = new Set(preview.impact?.representedChangedLocators ?? []);
+    if (normalizedChangedLocators.some((locator) => !representedChangedLocators.has(locator))) {
+      warnings.push('source_graph_changed_locator_unmatched');
+    }
     return {
       status: 'available',
       previewVersion: preview.previewVersion,

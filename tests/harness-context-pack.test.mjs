@@ -58,6 +58,7 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.equal(pack.delivery.sourceContentsIncluded, false);
   assert.equal(pack.sourceGraph.status, 'available');
   assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://src/authWorkflow.ts']);
+  assert.deepEqual(pack.sourceGraph.impact.representedChangedLocators, ['workspace://src/authWorkflow.ts']);
   assert(pack.sourceGraph.impact.affectedSymbols.some((item) => item.name === 'approveTokenResetWorkflow'));
   assert.equal(pack.sourceGraph.impact.omittedAffectedSymbolCount, 0);
   assert.equal(pack.sourceGraph.safeguards.graphDatabaseUsed, false);
@@ -129,18 +130,56 @@ test('context pack keeps missing changed locators in review with unavailable has
 
   assertJsonSchema(contextPackSchema, pack, 'context pack with missing changed locator');
   assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://src/missing.ts']);
+  assert.deepEqual(pack.sourceGraph.impact.representedChangedLocators, []);
   assert.equal(pack.utility.status, 'review');
-  assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
+  assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 0, ratio: 0, status: 'partial' });
   const changedRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://src/missing.ts' && item.role === 'changed_locator');
   assert(changedRead);
   assert.equal(changedRead.required, true);
+  assert.equal(changedRead.represented, false);
   assert.equal(changedRead.contentHash, null);
+  assert.equal(changedRead.reasonCodes.includes('source_graph_changed_locator_unmatched'), true);
   assert.equal(changedRead.reasonCodes.includes('content_hash_unavailable'), true);
   assert.equal(changedRead.reasonCodes.includes('missing_changed_locator'), true);
   const markdown = renderContextPackMarkdown(pack);
   assert.match(markdown, /hash changes readiness/);
   assert.match(markdown, /unavailable/);
   assert.match(markdown, /missing_changed_locator/);
+});
+
+test('context pack keeps non-graph changed files in review without overclaiming coverage', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Review README-only changes before handoff.');
+  await writeFile(path.join(root, 'README.md'), '# Operator Notes\n\nNo TypeScript symbols live here.\n');
+  await writeFile(path.join(root, 'src', 'index.ts'), 'export const indexedSymbol = true;\n');
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    changedLocators: ['README.md'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare handoff for documentation-only context change',
+    step: 'prove changed file coverage is not overclaimed',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack with non-graph changed locator');
+  assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://README.md']);
+  assert.deepEqual(pack.sourceGraph.impact.representedChangedLocators, []);
+  assert.equal(pack.sourceGraph.warnings.includes('source_graph_changed_locator_unmatched'), true);
+  assert.equal(pack.utility.status, 'review');
+  assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 0, ratio: 0, status: 'partial' });
+  const changedRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://README.md' && item.role === 'changed_locator');
+  assert(changedRead);
+  assert.equal(changedRead.required, true);
+  assert.equal(changedRead.represented, false);
+  assert.match(changedRead.contentHash, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(changedRead.reasonCodes.includes('source_graph_changed_locator_unmatched'), true);
+  assert.equal(changedRead.reasonCodes.includes('content_hash_verified'), true);
+  assert.equal(pack.handoff.launchPrompt.includes('Changed-file coverage: 0/1'), true);
 });
 
 test('context pack hashes large changed text files without embedding source bodies', async () => {

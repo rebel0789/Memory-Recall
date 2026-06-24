@@ -50,6 +50,7 @@ test('source graph preview builds bounded read-only report without raw source bo
   assert.equal(preview.safeguards.externalWritesEnabled, false);
   assert(preview.search.results.some((item) => item.label.includes('approveTokenReset')));
   assert(preview.trace.paths.some((item) => item.terminalLabel === 'approveTokenReset'));
+  assert.deepEqual(preview.impact.representedChangedLocators, ['workspace://src/auth.ts']);
   assert(preview.impact.affectedSymbols.some((item) => item.name === 'approveTokenReset'));
   assert(preview.graph.sampleNodes.length <= 3);
   const serialized = JSON.stringify(preview);
@@ -71,6 +72,21 @@ test('source graph preview fingerprints are deterministic for fixed input', asyn
   const second = await buildSourceGraphPreview(input);
   assert.equal(first.graph.graphFingerprint, second.graph.graphFingerprint);
   assert.equal(first.search.queryFingerprint, second.search.queryFingerprint);
+});
+
+test('source graph preview reports when file caps make results partial', async () => {
+  const root = await fixtureWorkspace();
+  const preview = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    query: 'run auth workflow',
+    maxFiles: 1,
+    clock: () => fixedNow
+  });
+  assert.equal(preview.graph.summary.fileCount, 1);
+  assert.equal(preview.graph.diagnostics.some((item) => item.code === 'max_files_reached'), true);
+  assert.equal(preview.search.results.some((item) => item.label.includes('runAuthWorkflow')), false);
+  assert(!JSON.stringify(preview).includes(root));
 });
 
 test('source graph preview rejects unsafe changed locators', async () => {

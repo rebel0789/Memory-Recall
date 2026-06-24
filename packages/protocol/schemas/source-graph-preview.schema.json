@@ -193,12 +193,13 @@
     "impactResult": {
       "type": ["object", "null"],
       "additionalProperties": false,
-      "required": ["schemaVersion", "workspaceId", "graphFingerprint", "changedLocators", "depth", "impactedNodeIds", "impactedEdgeIds", "affectedSymbols"],
+      "required": ["schemaVersion", "workspaceId", "graphFingerprint", "changedLocators", "representedChangedLocators", "depth", "impactedNodeIds", "impactedEdgeIds", "affectedSymbols"],
       "properties": {
         "schemaVersion": { "const": "1.0.0" },
         "workspaceId": { "$ref": "#/$defs/workspaceId" },
         "graphFingerprint": { "$ref": "#/$defs/fingerprint" },
         "changedLocators": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/locator" } },
+        "representedChangedLocators": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/locator" } },
         "depth": { "type": "integer", "minimum": 1, "maximum": 5 },
         "impactedNodeIds": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/nodeId" } },
         "impactedEdgeIds": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/edgeId" } },

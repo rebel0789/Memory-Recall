@@ -99,13 +99,26 @@ export async function scanAstCodeWorkspace({
   const chunks = [];
   const fileOutlines = [];
   let visitedFiles = 0;
+  let maxFilesReached = false;
+
+  function markMaxFilesReached() {
+    if (maxFilesReached) return;
+    maxFilesReached = true;
+    diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'max_files_reached'));
+  }
 
   async function walk(relativeDirectory = '') {
-    if (visitedFiles >= maxFiles) return;
+    if (visitedFiles >= maxFiles) {
+      markMaxFilesReached();
+      return;
+    }
     const absoluteDirectory = path.join(rootReal, relativeDirectory);
     const entries = (await readdir(absoluteDirectory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
-      if (visitedFiles >= maxFiles) return;
+      if (visitedFiles >= maxFiles) {
+        markMaxFilesReached();
+        return;
+      }
       const relativePath = normalizeRelative(path.join(relativeDirectory, entry.name));
       const absolutePath = path.join(rootReal, relativePath);
       const locator = locatorFor(relativePath);
@@ -567,6 +580,7 @@ export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 
   const boundedLimit = boundedInteger(limit, 'source_graph_diff_limit', 1, 500);
   const changed = new Set(changedLocators.map(fileLocatorFor));
   const startNodes = graph.nodes.filter((node) => node.kind === 'file' && changed.has(node.locator));
+  const representedChangedLocators = startNodes.map((node) => node.locator).sort();
   const adjacency = new Map();
   for (const edge of graph.edges) {
     const fromValues = adjacency.get(edge.fromNodeId) ?? [];
@@ -602,6 +616,7 @@ export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 
     workspaceId: graph.workspaceId,
     graphFingerprint: graph.graphFingerprint,
     changedLocators: [...changed].sort(),
+    representedChangedLocators,
     depth: boundedDepth,
     impactedNodeIds: [...impactedNodes].sort(),
     impactedEdgeIds: [...impactedEdges].sort(),

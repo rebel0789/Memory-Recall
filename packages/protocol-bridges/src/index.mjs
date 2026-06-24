@@ -414,6 +414,7 @@ function summarizeContextPackSourceGraph(sourceGraph = {}) {
     })),
     impact: {
       changedLocators: items(sourceGraph.impact?.changedLocators).map(safeLocator).filter(Boolean).slice(0, 16),
+      representedChangedLocators: items(sourceGraph.impact?.representedChangedLocators).map(safeLocator).filter(Boolean).slice(0, 16),
       affectedSymbolCount: Number.isInteger(sourceGraph.impact?.affectedSymbolCount) ? sourceGraph.impact.affectedSymbolCount : 0,
       omittedAffectedSymbolCount: Number.isInteger(sourceGraph.impact?.omittedAffectedSymbolCount) ? sourceGraph.impact.omittedAffectedSymbolCount : 0,
       affectedSymbols: items(sourceGraph.impact?.affectedSymbols).slice(0, MAX_CONTEXT_PACK_BULK_ITEMS).map((item) => ({

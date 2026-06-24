@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { hashRef, stableStringify } from '../../context-compiler/src/index.mjs';
 import {
   buildJsTsSourceGraph,
   mapSourceGraphDiffImpact,
@@ -48,13 +49,32 @@ export async function buildSourceGraphPreview({
   if (!TRACE_DIRECTIONS.has(direction)) throw new Error(`source_graph_preview_direction_invalid:${direction}`);
 
   const generatedAt = clock();
-  const graph = await buildJsTsSourceGraph({
-    root,
-    workspaceId: safeWorkspaceId,
-    maxFiles: boundedMaxFiles,
-    maxFileBytes: boundedMaxFileBytes,
-    clock: () => generatedAt
-  });
+  let graph;
+  try {
+    graph = await buildJsTsSourceGraph({
+      root,
+      workspaceId: safeWorkspaceId,
+      maxFiles: boundedMaxFiles,
+      maxFileBytes: boundedMaxFileBytes,
+      clock: () => generatedAt
+    });
+  } catch (error) {
+    return unavailableSourceGraphPreview({
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      query,
+      normalizedChangedLocators,
+      normalizedNodeKinds,
+      normalizedEdgeKinds,
+      labelPattern,
+      normalizedLocatorPrefix,
+      limit: boundedLimit,
+      offset: boundedOffset,
+      depth: boundedDepth,
+      sampleLimit: boundedSampleLimit,
+      errorCode: safeSourceGraphErrorCode(error)
+    });
+  }
   const search = searchSourceGraph(graph, {
     query,
     nodeKinds: normalizedNodeKinds,
@@ -124,6 +144,134 @@ function compactGraph(graph, sampleLimit) {
     omittedNodes: Math.max(0, graph.nodes.length - sampleLimit),
     omittedEdges: Math.max(0, graph.edges.length - sampleLimit)
   });
+}
+
+function unavailableSourceGraphPreview({
+  workspaceId,
+  generatedAt,
+  query,
+  normalizedChangedLocators,
+  normalizedNodeKinds,
+  normalizedEdgeKinds,
+  labelPattern,
+  normalizedLocatorPrefix,
+  limit,
+  offset,
+  depth,
+  sampleLimit,
+  errorCode
+}) {
+  const code = safeDiagnosticCode(`source_graph_unavailable:${errorCode}`);
+  const graphFingerprint = hashRef(stableStringify({ kind: 'source-graph-unavailable', workspaceId, code }));
+  const sourceIndexFingerprint = hashRef(stableStringify({ kind: 'source-index-unavailable', workspaceId, code }));
+  const diagnostic = Object.freeze({ locator: 'workspace://__source_graph_preview__', code });
+  const search = Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId,
+    graphFingerprint,
+    retrievalMethod: 'source_graph_lexical',
+    queryFingerprint: hashRef(stableStringify({
+      query: String(query ?? ''),
+      nodeKinds: normalizedNodeKinds ?? [],
+      edgeKinds: normalizedEdgeKinds ?? [],
+      labelPattern,
+      locatorPrefix: normalizedLocatorPrefix,
+      limit,
+      offset,
+      unavailable: true
+    })),
+    total: 0,
+    limit,
+    offset,
+    hasMore: false,
+    omittedCount: 0,
+    results: []
+  });
+  const impact = normalizedChangedLocators.length
+    ? Object.freeze({
+      schemaVersion: '1.0.0',
+      workspaceId,
+      graphFingerprint,
+      changedLocators: normalizedChangedLocators,
+      representedChangedLocators: [],
+      depth,
+      impactedNodeIds: [],
+      impactedEdgeIds: [],
+      affectedSymbols: []
+    })
+    : null;
+  return Object.freeze({
+    schemaVersion: '1.0.0',
+    previewVersion: PREVIEW_VERSION,
+    workspaceId,
+    generatedAt,
+    graph: Object.freeze({
+      schemaVersion: '1.0.0',
+      workspaceId,
+      graphVersion: 'oaf-native-source-graph-unavailable-1.0.0',
+      parserVersion: 'oaf-js-ts-static-unavailable',
+      builtAt: generatedAt,
+      sourceIndexFingerprint,
+      graphFingerprint,
+      summary: Object.freeze({
+        fileCount: 0,
+        symbolCount: 0,
+        moduleCount: 0,
+        nodeCount: 0,
+        edgeCount: 0,
+        nodeKindCounts: Object.freeze({}),
+        edgeKindCounts: Object.freeze({}),
+        hotspots: [],
+        entryPoints: []
+      }),
+      diagnostics: [diagnostic],
+      sampleLimit,
+      sampleNodes: [],
+      sampleEdges: [],
+      omittedNodes: 0,
+      omittedEdges: 0
+    }),
+    search,
+    trace: null,
+    impact,
+    safeguards: sourceGraphPreviewSafeguards()
+  });
+}
+
+function sourceGraphPreviewSafeguards() {
+  return {
+    dryRun: true,
+    persisted: false,
+    canonicalStateMutated: false,
+    localFilesWritten: 0,
+    modelCalls: 0,
+    networkCalls: 0,
+    externalAdaptersEnabled: 0,
+    externalWritesEnabled: false,
+    graphDatabaseUsed: false,
+    rawBodyIncluded: false,
+    sourceSlicesRead: false
+  };
+}
+
+function safeSourceGraphErrorCode(error) {
+  const code = String(error?.message ?? 'source_graph_unavailable')
+    .split(':')[0]
+    .replace(/[^A-Za-z0-9_]/gu, '_')
+    .replace(/_+/gu, '_')
+    .replace(/^_+|_+$/gu, '')
+    .toLowerCase();
+  return /^[a-z][a-z0-9_]{0,35}$/u.test(code) ? code : 'source_graph_unavailable';
+}
+
+function safeDiagnosticCode(value) {
+  const normalized = String(value ?? 'source_graph_unavailable')
+    .replace(/[^A-Za-z0-9_:-]/gu, '_')
+    .replace(/_+/gu, '_')
+    .replace(/^_+|_+$/gu, '')
+    .toLowerCase()
+    .slice(0, 64);
+  return /^[a-z][a-z0-9_:-]*$/u.test(normalized) ? normalized : 'source_graph_unavailable';
 }
 
 function normalizeWorkspaceId(value) {

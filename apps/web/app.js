@@ -954,7 +954,7 @@ export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null
   const noActiveMemory=zeroCount(pack?.safeguards?.activeMemoryCreated);
   const utilityReady=pack?.utility?.status === 'ready';
   const utilityDetail=utilityReady
-    ? `${Number(pack?.utility?.changedLocatorCoverage?.covered ?? 0)}/${Number(pack?.utility?.changedLocatorCoverage?.total ?? 0)} changed locators covered by required local reads.`
+    ? `${Number(pack?.utility?.changedLocatorCoverage?.covered ?? 0)}/${Number(pack?.utility?.changedLocatorCoverage?.total ?? 0)} changed locators represented by source-graph evidence.`
     : 'The pack must include a schema-backed utility read plan before handoff.';
   const setupPreviewed=Boolean(setupResult);
   const setupPreviewSafe=setupPreviewed
@@ -1247,7 +1247,11 @@ function renderAgentsTools() {
 
 function renderHarnessSetupResult(report) {
   const model=buildHarnessSetupUiModel(report);
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.client)} setup plan</h2><span>${esc(shortFingerprint(model.fingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Config</dt><dd>${esc(model.configRef)}</dd></div><div><dt>Config status</dt><dd>${esc(model.configStatus)}</dd></div><div><dt>OAF server</dt><dd>${esc(model.serverStatus)}</dd></div><div><dt>Operation</dt><dd>${esc(model.operation)}</dd></div></dl><ol class="command-list"><li><strong>CLI preview</strong><code>${esc(model.command)}</code></li><li><strong>Read-only bridge</strong><code>${esc(model.bridgeCommand)}</code></li></ol></div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>redacted</span></div><dl class="facts compact-facts">${model.safeguards.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><hr><p class="muted">This preview does not print raw config bodies, credentials, provider URLs, absolute local paths, or hidden reasoning.</p></aside></section>`;
+  const commands=[
+    {label:'CLI preview',command:model.command},
+    {label:'Read-only bridge',command:model.bridgeCommand}
+  ];
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.client)} setup plan</h2><span>${esc(shortFingerprint(model.fingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Config</dt><dd>${esc(model.configRef)}</dd></div><div><dt>Config status</dt><dd>${esc(model.configStatus)}</dd></div><div><dt>OAF server</dt><dd>${esc(model.serverStatus)}</dd></div><div><dt>Operation</dt><dd>${esc(model.operation)}</dd></div></dl>${contextPackCommandList(commands)}</div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>redacted</span></div><dl class="facts compact-facts">${model.safeguards.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><hr><p class="muted">This preview does not print raw config bodies, credentials, provider URLs, absolute local paths, or hidden reasoning.</p></aside></section>`;
 }
 
 function renderSettings() {

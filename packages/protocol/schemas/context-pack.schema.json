@@ -454,9 +454,15 @@
     "sourceGraphImpact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["changedLocators", "affectedSymbolCount", "omittedAffectedSymbolCount", "affectedSymbols"],
+      "required": ["changedLocators", "representedChangedLocators", "affectedSymbolCount", "omittedAffectedSymbolCount", "affectedSymbols"],
       "properties": {
         "changedLocators": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sourceGraphLocator" }
+        },
+        "representedChangedLocators": {
           "type": "array",
           "maxItems": 16,
           "uniqueItems": true,

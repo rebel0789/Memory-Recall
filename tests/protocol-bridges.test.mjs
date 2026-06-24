@@ -252,6 +252,7 @@ function contextPackFixture() {
         ],
         impact: {
           changedLocators: ['workspace://src/auth.ts'],
+          representedChangedLocators: ['workspace://src/auth.ts'],
           affectedSymbolCount: 1,
           omittedAffectedSymbolCount: 0,
           affectedSymbols: [
@@ -546,6 +547,7 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
   assert.equal(payload.data.excluded[0].locator, null);
   assert.equal(payload.data.omissions.refs[0].locator, null);
   assert.deepEqual(payload.data.sourceGraph.impact.changedLocators, ['workspace://src/auth.ts']);
+  assert.deepEqual(payload.data.sourceGraph.impact.representedChangedLocators, ['workspace://src/auth.ts']);
   assert.equal(payload.data.sourceGraph.impact.affectedSymbols[0].name, 'approveTokenReset');
   assert.equal(payload.data.utility.status, 'ready');
   assert.deepEqual(payload.data.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });

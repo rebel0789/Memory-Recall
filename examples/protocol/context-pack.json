@@ -136,6 +136,7 @@
     ],
     "impact": {
       "changedLocators": ["workspace://src/context-pack.ts"],
+      "representedChangedLocators": ["workspace://src/context-pack.ts"],
       "affectedSymbolCount": 1,
       "omittedAffectedSymbolCount": 0,
       "affectedSymbols": [

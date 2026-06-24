@@ -34,12 +34,13 @@ slice.
   recovery hints. They also report source-graph omitted match counts without
   embedding source slices.
 - Context packs include a schema-backed utility read plan and launch prompt.
-  The read plan records required local reads, changed-locator coverage,
-  graph-hint coverage, redacted content hashes for safely readable changed
-  files, and source-selection reduction so first-use readiness does not rely
-  only on safety gates or delivery-token reduction. Missing, oversized, binary,
-  or escaping changed-file locators keep the read plan in review with an
-  unavailable hash reason instead of pretending the local file was verified.
+  The read plan records required local reads, source-graph representation for
+  changed locators, graph-hint coverage, redacted content hashes for safely
+  readable changed files, and source-selection reduction so first-use readiness
+  does not rely only on safety gates or delivery-token reduction. Missing,
+  oversized, binary, escaping, or non-graph changed-file locators keep the read
+  plan in review with explicit reason codes instead of pretending the local file
+  was source-graph verified.
 - Context packs also preserve explicit requested inputs separately from
   selected context. A user-selected file that is excluded by the selector under
   token budget remains visible as a `requestedInputs` locator, a required

@@ -345,6 +345,7 @@ test('native source graph exposes sanitized graph search trace and diff impact o
     changedLocators: ['workspace://src/auth.ts'],
     depth: 3
   });
+  assert.deepEqual(impact.representedChangedLocators, ['workspace://src/auth.ts']);
   assert(impact.affectedSymbols.some((item) => item.name === 'approveTokenReset'));
   assert(impact.affectedSymbols.some((item) => item.name === 'runAuthWorkflow'));
   assert(impact.impactedEdgeIds.length >= 1);

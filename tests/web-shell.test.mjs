@@ -102,7 +102,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     memoryPlan:{activeMemoryCreated:0,proposedCount:1,quarantinedCount:1,items:[{action:'would_propose'},{action:'would_quarantine'}]},
     preview:{candidateTokenCount:1000,selectedTokenCount:250},
     delivery:{representation:'locator-handoff',sourceCandidateTokenCount:1000,sourceSelectedTokenCount:250,sourceSelectedTokenRatio:0.25,deliveredTokenCount:80,deliveredByteSize:320,deliveredTokenRatio:0.08,observedTokenReductionRatio:0.92,sourceContentTokenCountIncluded:0,sourceContentsIncluded:false},
-    sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,affectedSymbols:[]}},
+    sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],representedChangedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,affectedSymbols:[]}},
     utility:{
       status:'ready',
       requiredLocalReads:[
@@ -173,7 +173,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     memoryPlan:{items:[]},
     preview:{candidateTokenCount:10,selectedTokenCount:5},
     delivery:{deliveredTokenCount:4,sourceContentsIncluded:true},
-    sourceGraph:{impact:{changedLocators:[],affectedSymbolCount:0,affectedSymbols:[]}},
+    sourceGraph:{impact:{changedLocators:[],representedChangedLocators:[],affectedSymbolCount:0,affectedSymbols:[]}},
     safeguards:{externalWritesEnabled:true,rawBodyIncluded:true},
     contextPackFingerprint:'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
   });
@@ -364,6 +364,9 @@ test('agents tools exposes dry-run harness setup planning without install afford
   assert.match(app,/Harness setup preview/);
   assert.equal(app.includes("api('/api/harness/setup/plan'"),true);
   assert.match(app,/No home config writes/);
+  assert.match(app,/contextPackCommandList\(commands\)/);
+  assert.match(app,/CLI preview/);
+  assert.match(app,/Read-only bridge/);
   assert.equal(harnessSetupClientsForUi().some(([id])=>id==='codex'),true);
   assert.equal(harnessSetupClientsForUi().some(([id])=>id==='cursor'),true);
   const model=buildHarnessSetupUiModel({
