@@ -148,6 +148,13 @@ slice.
   response size, resource size, selected/candidate source units, and
   delivered-handoff units. These measurements describe one local invocation only
   and are not production latency or external benchmark claims.
+- `npm run oaf -- measure context-pack --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
+  wraps the same local pack build and stdio MCP readback into a
+  schema-validated current-checkout measurement report. It records commit SHA,
+  objective and step fingerprints, source-selection reduction, locator-handoff
+  delivery reduction, source-graph coverage counts, byte sizes, and local
+  timings without raw source, raw prompt text, markdown bodies, local paths,
+  writes, network calls, model calls, or production benchmark claims.
 - The browser context-pack result now surfaces the same proof boundary in plain
   UI terms: estimated local handoff reduction, estimated source kept, observed
   local request time, raw-body exclusion, model-call count, and external-write

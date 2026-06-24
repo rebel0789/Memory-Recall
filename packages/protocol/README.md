@@ -111,6 +111,12 @@ contain counts, IDs, hashes, reason codes, and statuses; they do not contain
 raw prompts, context bodies, markdown bodies, model results, credentials,
 provider URLs, absolute local paths, or hidden reasoning.
 
+`context-pack-measurement-report.schema.json` defines the local read-only
+measurement report for context-pack builds and MCP stdio readback. It records
+only hashes, counts, graph coverage, byte sizes, single-invocation timings, and
+explicit no-write/no-network safeguards. It is not a hosted benchmark,
+provider-token billing claim, or production latency contract.
+
 ## Benchmark truth-floor schemas
 
 The benchmark truth-floor schemas add additive v1 contracts for deterministic

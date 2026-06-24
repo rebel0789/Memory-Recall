@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T19:25:12.038Z",
-  "fileCount": 798,
-  "totalBytes": 3751113,
+  "generatedAt": "2026-06-24T19:47:57.919Z",
+  "fileCount": 801,
+  "totalBytes": 3784263,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -572,8 +572,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 50748,
-      "sha256": "1ac7552cb14cc12c756141fcaebc6671d611a95ac6f49fccd2dc52af04eae8ad"
+      "bytes": 58504,
+      "sha256": "f7ce43421817cb2954eb1f58e22762d3c8304b7c58928b9ceb499b4432ca8dee"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -582,8 +582,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 132562,
-      "sha256": "9aeaf24f5b73fd18db92fde41d5426b97891c81db89e4af2de7e569b7629f407"
+      "bytes": 132915,
+      "sha256": "df694317e9a057edc9a1f845053c97b66b14192a3552fbd6c967a9170584f0e7"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -1042,8 +1042,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 15604,
-      "sha256": "6fe039e44540859d56e0e9a055cdba7c4f4dcbc0bc1322fa47cdf3b57061c2d8"
+      "bytes": 16208,
+      "sha256": "46760966612e674648c8f62beca0e1fc3f8e15364c98cb157f82a4fc743415d4"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1153,7 +1153,7 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "4fb632e3e38dcaa91716a2f14ff1b2a4c0b8b089aeb487a5361b49323ddd5c20"
+      "sha256": "c41c58804544857747f79c6695f100fedf97dc5050467344d27494e3c94f94a3"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -1672,8 +1672,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 35942,
-      "sha256": "7bfdcf5ee37ef7623097557bab0f96cd82d7ebf2bad4043eabdc0f5400608162"
+      "bytes": 36511,
+      "sha256": "216f0e23e03cf16f45b86bbf56e6c677578057e2c46ae4c38a6d47ee7a64682c"
     },
     {
       "path": "examples/protocol/compatibility/invalid-harness-context-source.json",
@@ -1714,6 +1714,11 @@
       "path": "examples/protocol/compatibility/invalid/candidate-source-request-authority-injection.json",
       "bytes": 658,
       "sha256": "ec11b869dc74eb3757a3f510c1a3bd8294c5af1c0c7b1e02d6ea6859ca919f5e"
+    },
+    {
+      "path": "examples/protocol/compatibility/invalid/context-pack-measurement-report-raw-body.json",
+      "bytes": 3438,
+      "sha256": "c0b86ffd4677921c0bff624dbeacb78c26e6bb3d3900481c3981f498c4e42a75"
     },
     {
       "path": "examples/protocol/compatibility/invalid/context-pack-raw-body.json",
@@ -1879,6 +1884,11 @@
       "path": "examples/protocol/context-manifest.json",
       "bytes": 880,
       "sha256": "ebe0e1d9ef332b5d10910bd87a15177163ed278b876903d579a48fa1829423b0"
+    },
+    {
+      "path": "examples/protocol/context-pack-measurement-report.json",
+      "bytes": 3502,
+      "sha256": "d7ef87e179b2c950877dd88282e8015423a01dec6d68b9f6f38bb42df5c222a8"
     },
     {
       "path": "examples/protocol/context-pack-registry-status.json",
@@ -2178,7 +2188,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "de9ae393f0c973604d69984dfd147eb72d2f0d31259d6f5cafdc20b253f6e7b2"
+      "sha256": "8fdccab13532a29571d40471694f06b8b317b8285a4d199e094f1dfe12e21e7d"
     },
     {
       "path": "LICENSE",
@@ -2387,8 +2397,8 @@
     },
     {
       "path": "packages/protocol/README.md",
-      "bytes": 7618,
-      "sha256": "4a831f419bfe6a2f7d2b51fa78e68f030cc7dc2805bfc20a2729a6831d483f01"
+      "bytes": 7984,
+      "sha256": "add86c77692652d54558229ebc07c1e2dc09a8bdcc3861a8d2cb87fa7d56567f"
     },
     {
       "path": "packages/protocol/schemas/adapter-conformance-fixture.schema.json",
@@ -2649,6 +2659,11 @@
       "path": "packages/protocol/schemas/context-manifest.schema.json",
       "bytes": 10772,
       "sha256": "9d5f27b0cb72cedc89721de81d8159cea1e44f8ab3bc67c1ddf148e1cd357920"
+    },
+    {
+      "path": "packages/protocol/schemas/context-pack-measurement-report.schema.json",
+      "bytes": 10534,
+      "sha256": "2503db9775c509557eaab28dbcd69153fd3a0dd95ed14678a3f6799470e21fd6"
     },
     {
       "path": "packages/protocol/schemas/context-pack-registry-status.schema.json",
@@ -3157,8 +3172,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 41956,
-      "sha256": "32a5b0437e4bf1cb8233ac86bd42f3cd8685b24807ea13cada119c90241aebf2"
+      "bytes": 42282,
+      "sha256": "74f59ce9572dc6d79e1a90e48771c7e60a0bc2b8c667960b884bb571b1bfc62c"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3662,8 +3677,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 62894,
-      "sha256": "98f93639e5fa165212fecdd45fde72eb8395f19964c2858f7fce232b07029052"
+      "bytes": 67441,
+      "sha256": "69ace82f9e8f6738c41a936d38923655e55a3adf4ec7eb045a59e1e750c3c3e0"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -3897,8 +3912,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 35157,
-      "sha256": "42a841e27b82d743b55270fec408c8d6d8c9704c8071a8b385deead028dbd87d"
+      "bytes": 36312,
+      "sha256": "7fc1fd6d5c85b6ef447ad53e4ae6098435a103c3cf072ccc85ecb84cd1d1b697"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

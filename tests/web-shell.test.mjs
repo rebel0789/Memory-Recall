@@ -84,12 +84,13 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Context pack proof metrics/);
   assert.match(app,/Utility read plan/);
   assert.match(app,/Hash verified/);
-  assert.match(app,/Build time/);
+  assert.match(app,/Observed build time/);
   assert.match(app,/Raw bodies/);
-  assert.match(app,/Estimated local tokens/);
-  assert.match(app,/Observed local request/);
+  assert.match(app,/Estimate vs candidate source tokens/);
+  assert.match(app,/Browser request time/);
+  assert.match(app,/Observed around local API call/);
   assert.match(app,/Readback proof/);
-  assert.match(app,/MCP readback/);
+  assert.match(app,/MCP summary read/);
   assert.match(app,/mcp resources --read-only --uri oaf:\/\/workspace\/ws_local\/handoff\/latest/);
   const model=buildContextPackUiModel({
     createdAt:'2026-06-24T00:00:00.000Z',
@@ -205,6 +206,23 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.downloadName,'open-agent-fabric-context-pack-codex-2026-06-24.md');
   assert.equal(model.usePlanDownloadName,'open-agent-fabric-context-pack-use-plan-codex-2026-06-24.json');
   assert.equal(model.usePlanReadCount,2);
+  const noBaselineModel=buildContextPackUiModel({
+    targetHarness:'codex',
+    sourceHarnesses:['codex'],
+    readFirst:[],
+    excluded:[],
+    omissions:{excludedCount:0,excludedTokenCount:0,sourceGraphOmittedCount:0},
+    memoryPlan:{items:[]},
+    preview:{candidateTokenCount:0,selectedTokenCount:0},
+    delivery:{deliveredTokenCount:0,sourceContentsIncluded:false},
+    sourceGraph:{impact:{changedLocators:[],representedChangedLocators:[],affectedSymbolCount:0,affectedSymbols:[]}},
+    safeguards:{modelCalls:0,networkCalls:0,activeMemoryCreated:0,externalWritesEnabled:false,rawBodyIncluded:false},
+    contextPackFingerprint:'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'
+  });
+  assert.equal(noBaselineModel.selectedTokenRatio,'not measured');
+  assert.equal(noBaselineModel.deliveredTokenRatio,'not measured');
+  assert.equal(noBaselineModel.deliveryReductionPercent,'not measured');
+  assert.equal(noBaselineModel.proof.tokenSaved,'not measured');
   assert.match(model.commands[1].command,/--from 'codex,cursor'/);
   assert.match(model.commands[1].command,/--target codex --changed 'apps\/web\/app\.js' --dry-run --format markdown/);
   assert.doesNotMatch(model.commands[1].command,/--from all/);
@@ -475,6 +493,7 @@ test('fabric map model visualizes current local state without enabling external 
   assert.equal(model.safeguards.rawBodiesRendered,false);
   assert.equal(model.contextFlow.budgetPercent,50);
   assert.equal(model.nodes.find((node)=>node.id==='context').status,'active');
+  assert.equal(model.nodes.find((node)=>node.id==='context').statusLabel,'has data');
   assert.equal(model.nodes.find((node)=>node.id==='approvals').status,'waiting');
   assert.equal(model.links.find((link)=>link.to==='external').blocked,true);
 });

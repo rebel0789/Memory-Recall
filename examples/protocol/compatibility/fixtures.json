@@ -434,6 +434,12 @@
       "expectedValid": true
     },
     {
+      "id": "context-pack-measurement-report-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-measurement-report.schema.json",
+      "instance": "examples/protocol/context-pack-measurement-report.json",
+      "expectedValid": true
+    },
+    {
       "id": "model-generation-request-current-valid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/model-generation-request.json",
@@ -857,6 +863,12 @@
       "id": "mcp-context-pack-smoke-raw-body-invalid",
       "schema": "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
       "instance": "examples/protocol/compatibility/invalid/mcp-context-pack-smoke-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-pack-measurement-report-raw-body-invalid",
+      "schema": "packages/protocol/schemas/context-pack-measurement-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-measurement-report-raw-body.json",
       "expectedValid": false
     },
     {

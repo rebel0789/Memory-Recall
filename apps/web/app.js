@@ -516,7 +516,7 @@ export function buildFabricMapModel({ dashboard: value = null, shellState: state
     ...node,
     status:nodeStatuses[node.id] ?? 'waiting',
     statusLabel:({
-      active:'live',
+      active:'has data',
       waiting:'waiting',
       ready:'ready',
       guarded:'guarded',
@@ -769,7 +769,7 @@ function renderWorkflows() {
 
 function renderFabricMap() {
   const model=buildFabricMapModel({dashboard,shellState,activeNodeId:activeFabricNode});
-  return `<section class="fabric-stage" aria-label="Open Agent Fabric system map"><div class="fabric-hero surface"><div><p class="eyebrow">Runtime map</p><h2>Local agent fabric</h2><p>Process flow, context assembly, policy gates, and disabled external boundaries rendered from the current workspace state.</p></div><dl class="fabric-scoreboard" aria-label="Current fabric counts"><div><dt>Runs</dt><dd>${model.summary.runs}</dd></div><div><dt>Context</dt><dd>${model.summary.selectedRecords}/${model.summary.excludedRecords}</dd></div><div><dt>Evidence</dt><dd>${model.summary.evidenceCards}</dd></div><div><dt>Approvals</dt><dd>${model.summary.pendingApprovals}</dd></div><div><dt>Adapters</dt><dd>${model.summary.externalAdaptersEnabled}</dd></div></dl></div><div class="fabric-layout"><div class="surface surface-primary fabric-board"><div class="section-heading"><h2>Node conversation</h2><span>${model.links.filter((link)=>link.active).length} active links</span></div>${fabricNodeGrid(model)}${fabricLinkList(model.links)}</div><aside class="inspector fabric-inspector"><div class="section-heading"><h2>${esc(model.activeNode.label)}</h2>${fabricStatus(model.activeNode.status,model.activeNode.statusLabel)}</div><p>${esc(model.activeNode.detail)}</p><dl class="facts compact-facts">${model.activeNode.facts.map((fact)=>`<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('')}<div><dt>Route</dt><dd><a href="${esc(model.activeNode.route)}" data-route="${esc(routeByPath.get(model.activeNode.route)?.id ?? 'home')}">${esc(model.activeNode.route)}</a></dd></div></dl><hr><div class="section-heading"><h2>Safeguards</h2><span>default posture</span></div>${fabricSafeguards(model.safeguards)}</aside></div>${fabricContextFlow(model.contextFlow)}</section>`;
+  return `<section class="fabric-stage" aria-label="Open Agent Fabric system map"><div class="fabric-hero surface"><div><p class="eyebrow">Local map</p><h2>Local agent fabric</h2><p>Process flow, context assembly, policy gates, and disabled external boundaries rendered from the current workspace state.</p></div><dl class="fabric-scoreboard" aria-label="Current fabric counts"><div><dt>Runs</dt><dd>${model.summary.runs}</dd></div><div><dt>Context</dt><dd>${model.summary.selectedRecords}/${model.summary.excludedRecords}</dd></div><div><dt>Evidence</dt><dd>${model.summary.evidenceCards}</dd></div><div><dt>Approvals</dt><dd>${model.summary.pendingApprovals}</dd></div><div><dt>Adapters</dt><dd>${model.summary.externalAdaptersEnabled}</dd></div></dl></div><div class="fabric-layout"><div class="surface surface-primary fabric-board"><div class="section-heading"><h2>Node conversation</h2><span>${model.links.filter((link)=>link.active).length} links with data</span></div>${fabricNodeGrid(model)}${fabricLinkList(model.links)}</div><aside class="inspector fabric-inspector"><div class="section-heading"><h2>${esc(model.activeNode.label)}</h2>${fabricStatus(model.activeNode.status,model.activeNode.statusLabel)}</div><p>${esc(model.activeNode.detail)}</p><dl class="facts compact-facts">${model.activeNode.facts.map((fact)=>`<div><dt>${esc(fact.label)}</dt><dd>${esc(fact.value)}</dd></div>`).join('')}<div><dt>Route</dt><dd><a href="${esc(model.activeNode.route)}" data-route="${esc(routeByPath.get(model.activeNode.route)?.id ?? 'home')}">${esc(model.activeNode.route)}</a></dd></div></dl><hr><div class="section-heading"><h2>Safeguards</h2><span>default posture</span></div>${fabricSafeguards(model.safeguards)}</aside></div>${fabricContextFlow(model.contextFlow)}</section>`;
 }
 
 function fabricNodeGrid(model) {
@@ -846,12 +846,16 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
   const readbackResourceBytesLabel=Number.isFinite(readbackResourceBytes) ? `${Math.max(0,Math.round(readbackResourceBytes))} bytes` : 'not measured';
   const readbackFingerprintLabel=readback?.checks?.contextPackFingerprintMatches===true?'match':'check';
   const usePlan=meta?.usePlan ?? null;
-  const estimatedReductionPercent=candidateTokens > 0
+  const hasCandidateTokenBaseline=candidateTokens > 0;
+  const selectedTokenRatioLabel=hasCandidateTokenBaseline ? `${Math.round(selectedTokens / candidateTokens * 100)}%` : 'not measured';
+  const deliveredTokenRatioLabel=hasCandidateTokenBaseline ? `${Math.round(deliveredTokens / candidateTokens * 100)}%` : 'not measured';
+  const estimatedReductionPercent=hasCandidateTokenBaseline
     ? Math.max(0,Math.min(100,Math.round((1 - selectedTokens / candidateTokens) * 100)))
-    : 0;
-  const deliveryReductionPercent=candidateTokens > 0
+    : null;
+  const deliveryReductionPercent=hasCandidateTokenBaseline
     ? Math.max(0,Math.min(100,Math.round((1 - deliveredTokens / candidateTokens) * 100)))
-    : 0;
+    : null;
+  const deliveryReductionLabel=deliveryReductionPercent===null ? 'not measured' : `${deliveryReductionPercent}%`;
   const rawBodiesExcluded=pack?.delivery?.sourceContentsIncluded===false && pack?.safeguards?.rawBodyIncluded===false;
   return {
     targetHarness:String(pack?.targetHarness ?? 'generic'),
@@ -866,14 +870,14 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     selectedTokens,
     deliveredTokens,
     candidateTokens,
-    estimatedReductionPercent,
+    estimatedReductionPercent:estimatedReductionPercent ?? 0,
     downloadName:contextPackDownloadName(pack),
     excludedTokens:Number(pack?.omissions?.excludedTokenCount ?? 0),
     sourceGraphOmittedCount:Number(pack?.omissions?.sourceGraphOmittedCount ?? 0),
     warningCount:Array.isArray(pack?.warnings) ? pack.warnings.length : 0,
-    selectedTokenRatio:candidateTokens > 0 ? `${Math.round(selectedTokens / candidateTokens * 100)}%` : '0%',
-    deliveredTokenRatio:candidateTokens > 0 ? `${Math.round(deliveredTokens / candidateTokens * 100)}%` : '0%',
-    deliveryReductionPercent:`${deliveryReductionPercent}%`,
+    selectedTokenRatio:selectedTokenRatioLabel,
+    deliveredTokenRatio:deliveredTokenRatioLabel,
+    deliveryReductionPercent:deliveryReductionLabel,
     fingerprintShort:shortFingerprint(pack?.contextPackFingerprint ?? ''),
     changedLocators:Array.isArray(pack?.sourceGraph?.impact?.changedLocators) ? pack.sourceGraph.impact.changedLocators.length : 0,
     affectedSymbols:Number(pack?.sourceGraph?.impact?.affectedSymbolCount ?? 0),
@@ -882,8 +886,8 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     launchPrompt:String(pack?.handoff?.launchPrompt ?? ''),
     utility:buildContextPackUtilityUiModel(pack?.utility),
     proof:{
-      tokenSaved:`${deliveryReductionPercent}%`,
-      selectedTokenRatio:candidateTokens > 0 ? `${Math.round(selectedTokens / candidateTokens * 100)}%` : '0%',
+      tokenSaved:deliveryReductionLabel,
+      selectedTokenRatio:selectedTokenRatioLabel,
       deliveredTokens:String(deliveredTokens),
       observedDurationLabel,
       readbackDurationLabel,
@@ -1113,10 +1117,10 @@ function contextPackUtilityPanel(utility) {
 
 function contextPackProofLedger(proof) {
   return [
-    ledgerItem(proof.tokenSaved,'Handoff reduction','Estimated local tokens'),
-    ledgerItem(proof.selectedTokenRatio,'Source kept','Estimated source tokens'),
-    ledgerItem(proof.observedDurationLabel,'Build time','Observed local request'),
-    ledgerItem(proof.readbackDurationLabel,'MCP readback','In-process bridge'),
+    ledgerItem(proof.tokenSaved,'Locator handoff reduction','Estimate vs candidate source tokens'),
+    ledgerItem(proof.selectedTokenRatio,'Source kept','Estimate vs candidate source tokens'),
+    ledgerItem(proof.observedDurationLabel,'Browser request time','Observed around local API call'),
+    ledgerItem(proof.readbackDurationLabel,'MCP summary read','Single in-process read'),
     ledgerItem(proof.rawBodiesLabel,'Raw bodies','Schema safeguard'),
     ledgerItem(proof.readbackToolsLabel,'Tools exposed','Read-only resource'),
     ledgerItem(proof.externalWritesLabel,'External writes','Global gate')

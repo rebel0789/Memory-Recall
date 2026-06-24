@@ -30,6 +30,7 @@ import {
 } from '../../packages/memory-core/src/index.mjs';
 import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages/protocol-bridges/src/index.mjs';
 import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
+import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
 import { buildSourceGraphPreview } from '../../packages/source-graph/src/index.mjs';
@@ -58,6 +59,8 @@ if (commands.has(command)) {
   await memoryCommand(args);
 } else if (command === 'mcp') {
   await mcpCommand(args);
+} else if (command === 'measure') {
+  await measureCommand(args);
 } else if (command === 'harness') {
   await harnessCommand(args);
 } else if (['help', '--help', '-h'].includes(command)) {
@@ -83,6 +86,46 @@ async function memoryCommand(values) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function measureCommand(values) {
+  const [subcommand, ...rest] = values;
+  try {
+    if (subcommand === 'context-pack') return await measureContextPackCommand(rest);
+    console.error('measure requires context-pack');
+    process.exitCode = 2;
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function measureContextPackCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('measure context-pack requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out')) {
+    console.error('measure context-pack is read-only and does not write or pin context packs');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('measure context-pack only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const objective = option(values, '--objective');
+  const step = option(values, '--step');
+  if (!objective || !step) {
+    console.error('measure context-pack requires --objective <text> and --step <text>');
+    process.exitCode = 2;
+    return;
+  }
+  const report = await buildContextPackMeasurementReport(values, { objective, step });
+  console.log(JSON.stringify(report, null, 2));
 }
 
 async function memoryProfileCommand(values) {
@@ -746,12 +789,13 @@ async function buildMcpContextPackResource(values, { root, workspaceId }) {
   };
 }
 
-async function buildMcpContextPackSmokeReport(values, { objective, step }) {
+async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp = null }) {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
   const from = option(values, '--from') ?? 'all';
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
+  const generatedAt = fixedTimestamp ?? fixedNow();
   const resourceUri = `oaf://workspace/${workspaceId}/context-pack/current`;
   const childArgs = [
     CLI_PATH,
@@ -789,7 +833,9 @@ async function buildMcpContextPackSmokeReport(values, { objective, step }) {
     { jsonrpc: '2.0', id: 4, method: 'resources/read', params: { uri: resourceUri } }
   ];
   const started = process.hrtime.bigint();
-  const child = await runCliStdio(childArgs, messages.map((message) => JSON.stringify(message)).join('\n'));
+  const child = await runCliStdio(childArgs, messages.map((message) => JSON.stringify(message)).join('\n'), {
+    env: fixedTimestamp ? { ...process.env, OAF_FIXED_NOW: fixedTimestamp } : process.env
+  });
   const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
   if (child.code !== 0) {
     throw new Error(`mcp context-pack smoke bridge failed with status ${child.code}`);
@@ -815,7 +861,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step }) {
   const report = {
     schemaVersion: '1.0.0',
     command: 'mcp smoke context-pack',
-    generatedAt: fixedNow(),
+    generatedAt,
     workspaceId,
     transport: 'stdio',
     resourceUri,
@@ -892,11 +938,140 @@ async function buildMcpContextPackSmokeReport(values, { objective, step }) {
   return report;
 }
 
-function runCliStdio(nodeArgs, input) {
+async function buildContextPackMeasurementReport(values, { objective, step }) {
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
+  const from = option(values, '--from') ?? 'all';
+  const sourceHarnesses = normalizeHarnesses(from);
+  const userSelectedFiles = options(values, '--include-file');
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
+  const generatedAt = fixedNow();
+  const { changedLocators, detection } = await resolveChangedLocators(values, { root, workspaceId });
+  const started = process.hrtime.bigint();
+  const pack = await buildContextPack({
+    root,
+    harnesses: sourceHarnesses,
+    userSelectedFiles,
+    changedLocators,
+    workspaceId,
+    objective,
+    step,
+    targetHarness,
+    tokenBudget,
+    clock: () => generatedAt
+  });
+  const buildDurationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
+  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
+  const summary = pack.sourceGraph.summary ?? {};
+  const selection = pack.utility.sourceSelection;
+  const delivery = pack.delivery ?? {};
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'measure context-pack',
+    generatedAt,
+    workspaceId,
+    targetHarness: pack.targetHarness,
+    commitSha: resolveCommitSha(),
+    measurementScope: 'single local context-pack build plus stdio readback',
+    request: {
+      objectiveFingerprint: fingerprintJson(objective),
+      objectiveLength: objective.length,
+      stepFingerprint: fingerprintJson(step),
+      stepLength: step.length,
+      sourceHarnesses: pack.sourceHarnesses,
+      userSelectedLocatorCount: userSelectedFiles.length,
+      changedLocatorCount: changedLocators.length,
+      changedFromGit: Boolean(detection),
+      unitBudget: tokenBudget
+    },
+    contextPack: {
+      contextPackFingerprint: pack.contextPackFingerprint,
+      utilityStatus: pack.utility.status,
+      readFirstCount: pack.readFirst.length,
+      omittedRefCount: pack.omissions.excludedCount,
+      candidateUnitCount: selection.candidateTokenCount,
+      selectedUnitCount: selection.selectedTokenCount,
+      selectedUnitRatio: selection.selectedTokenRatio,
+      estimatedSelectionReductionRatio: selection.estimatedReductionRatio,
+      deliveredUnitCount: Number(delivery.deliveredTokenCount ?? 0),
+      deliveredUnitRatio: Number(delivery.deliveredTokenRatio ?? 0),
+      observedDeliveryReductionRatio: Number(delivery.observedTokenReductionRatio ?? 0),
+      changedLocatorCoverage: pack.utility.changedLocatorCoverage,
+      graphHintCoverage: pack.utility.graphHintCoverage
+    },
+    sourceGraph: {
+      status: pack.sourceGraph.status,
+      previewVersion: pack.sourceGraph.previewVersion,
+      sourceIndexFingerprint: pack.sourceGraph.sourceIndexFingerprint,
+      graphFingerprint: pack.sourceGraph.graphFingerprint,
+      fileCount: Number(summary.fileCount ?? 0),
+      symbolCount: Number(summary.symbolCount ?? 0),
+      nodeCount: Number(summary.nodeCount ?? 0),
+      edgeCount: Number(summary.edgeCount ?? 0),
+      resultCount: Number(pack.sourceGraph.resultCount ?? 0),
+      omittedCount: Number(pack.sourceGraph.omittedCount ?? 0),
+      changedLocatorCount: pack.sourceGraph.impact.changedLocators.length,
+      representedChangedLocatorCount: pack.sourceGraph.impact.representedChangedLocators.length,
+      affectedSymbolCount: pack.sourceGraph.impact.affectedSymbolCount,
+      omittedAffectedSymbolCount: pack.sourceGraph.impact.omittedAffectedSymbolCount,
+      warningCodes: pack.sourceGraph.warnings
+    },
+    mcpReadback: {
+      transport: smoke.transport,
+      resourceUri: smoke.resourceUri,
+      durationMs: smoke.measurements.durationMs,
+      stdoutByteSize: smoke.measurements.stdoutByteSize,
+      stderrByteSize: smoke.measurements.stderrByteSize,
+      resourceByteSize: smoke.measurements.resourceByteSize,
+      toolsExposed: smoke.bridge.toolsExposed,
+      resourcesListed: smoke.bridge.resourcesListed,
+      resourceFingerprint: smoke.resource.resourceFingerprint,
+      contextPackFingerprint: smoke.resource.contextPackFingerprint
+    },
+    timings: {
+      contextPackBuildMs: buildDurationMs,
+      mcpReadbackMs: smoke.measurements.durationMs,
+      totalObservedMs: buildDurationMs + smoke.measurements.durationMs
+    },
+    checks: {
+      contextPackFingerprintMatchesMcp: smoke.resource.contextPackFingerprint === pack.contextPackFingerprint,
+      resourceRead: smoke.checks.resourceRead,
+      noToolsExposed: smoke.checks.noToolsExposed,
+      noMarkdownBody: smoke.checks.noMarkdownBody,
+      noLocalFilesWritten: smoke.safeguards.localFilesWritten === 0,
+      readOnly: smoke.safeguards.readOnly
+    },
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      privateBodiesIncluded: false,
+      objectiveTextIncluded: false,
+      stepTextIncluded: false,
+      markdownBodyIncluded: false,
+      sourceContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false,
+      productionBenchmarkClaimed: false
+    },
+    reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.reportFingerprint = fingerprintJson({ ...report, reportFingerprint: null });
+  assertJsonSchema(contextPackMeasurementReportSchema, report, 'context-pack measurement report');
+  return report;
+}
+
+function runCliStdio(nodeArgs, input, { env = process.env } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, nodeArgs, {
       cwd: process.cwd(),
-      env: process.env,
+      env,
       stdio: ['pipe', 'pipe', 'pipe']
     });
     const stdout = [];
@@ -1265,6 +1440,7 @@ Usage:
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
+  oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "measure local handoff" --target codex --changed src/auth.ts --format json
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --records memory-export.json --root . --dry-run --format json

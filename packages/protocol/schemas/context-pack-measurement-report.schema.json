@@ -1,0 +1,268 @@
+{
+  "$id": "https://open-agent-fabric.dev/schemas/context-pack-measurement-report-1.0.json",
+  "title": "Context pack measurement report",
+  "description": "Observed local read-only measurement of an OAF context pack build and MCP stdio resource readback.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "generatedAt",
+    "workspaceId",
+    "targetHarness",
+    "commitSha",
+    "measurementScope",
+    "request",
+    "contextPack",
+    "sourceGraph",
+    "mcpReadback",
+    "timings",
+    "checks",
+    "safeguards",
+    "reportFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "command": { "const": "measure context-pack" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "measurementScope": { "const": "single local context-pack build plus stdio readback" },
+    "request": { "$ref": "#/$defs/request" },
+    "contextPack": { "$ref": "#/$defs/contextPack" },
+    "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
+    "mcpReadback": { "$ref": "#/$defs/mcpReadback" },
+    "timings": { "$ref": "#/$defs/timings" },
+    "checks": { "$ref": "#/$defs/checks" },
+    "safeguards": { "$ref": "#/$defs/safeguards" },
+    "reportFingerprint": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "maybeHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+    "count": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+    "duration": { "type": "integer", "minimum": 0, "maximum": 600000 },
+    "byteSize": { "type": "integer", "minimum": 0, "maximum": 2000000 },
+    "warningCode": { "type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[a-z][a-z0-9_:-]*$" },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objectiveFingerprint",
+        "objectiveLength",
+        "stepFingerprint",
+        "stepLength",
+        "sourceHarnesses",
+        "userSelectedLocatorCount",
+        "changedLocatorCount",
+        "changedFromGit",
+        "unitBudget"
+      ],
+      "properties": {
+        "objectiveFingerprint": { "$ref": "#/$defs/hash" },
+        "objectiveLength": { "type": "integer", "minimum": 1, "maximum": 2000 },
+        "stepFingerprint": { "$ref": "#/$defs/hash" },
+        "stepLength": { "type": "integer", "minimum": 1, "maximum": 512 },
+        "sourceHarnesses": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "enum": ["codex", "claude-code", "cursor", "generic-mcp"] }
+        },
+        "userSelectedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "changedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "changedFromGit": { "type": "boolean" },
+        "unitBudget": { "type": "integer", "minimum": 1, "maximum": 100000 }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "covered", "ratio", "status"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "covered": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "ratio": { "$ref": "#/$defs/ratio" },
+        "status": { "enum": ["not_applicable", "covered", "partial"] }
+      }
+    },
+    "contextPack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contextPackFingerprint",
+        "utilityStatus",
+        "readFirstCount",
+        "omittedRefCount",
+        "candidateUnitCount",
+        "selectedUnitCount",
+        "selectedUnitRatio",
+        "estimatedSelectionReductionRatio",
+        "deliveredUnitCount",
+        "deliveredUnitRatio",
+        "observedDeliveryReductionRatio",
+        "changedLocatorCoverage",
+        "graphHintCoverage"
+      ],
+      "properties": {
+        "contextPackFingerprint": { "$ref": "#/$defs/hash" },
+        "utilityStatus": { "enum": ["ready", "review"] },
+        "readFirstCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "omittedRefCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "candidateUnitCount": { "$ref": "#/$defs/count" },
+        "selectedUnitCount": { "$ref": "#/$defs/count" },
+        "selectedUnitRatio": { "$ref": "#/$defs/ratio" },
+        "estimatedSelectionReductionRatio": { "$ref": "#/$defs/ratio" },
+        "deliveredUnitCount": { "$ref": "#/$defs/count" },
+        "deliveredUnitRatio": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "observedDeliveryReductionRatio": { "$ref": "#/$defs/ratio" },
+        "changedLocatorCoverage": { "$ref": "#/$defs/coverage" },
+        "graphHintCoverage": { "$ref": "#/$defs/coverage" }
+      }
+    },
+    "sourceGraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "previewVersion",
+        "sourceIndexFingerprint",
+        "graphFingerprint",
+        "fileCount",
+        "symbolCount",
+        "nodeCount",
+        "edgeCount",
+        "resultCount",
+        "omittedCount",
+        "changedLocatorCount",
+        "representedChangedLocatorCount",
+        "affectedSymbolCount",
+        "omittedAffectedSymbolCount",
+        "warningCodes"
+      ],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "previewVersion": { "type": ["string", "null"], "minLength": 1, "maxLength": 96, "pattern": "^[A-Za-z0-9._:-]+$" },
+        "sourceIndexFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "graphFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "fileCount": { "$ref": "#/$defs/count" },
+        "symbolCount": { "$ref": "#/$defs/count" },
+        "nodeCount": { "$ref": "#/$defs/count" },
+        "edgeCount": { "$ref": "#/$defs/count" },
+        "resultCount": { "$ref": "#/$defs/count" },
+        "omittedCount": { "$ref": "#/$defs/count" },
+        "changedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "representedChangedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "affectedSymbolCount": { "$ref": "#/$defs/count" },
+        "omittedAffectedSymbolCount": { "$ref": "#/$defs/count" },
+        "warningCodes": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/warningCode" }
+        }
+      }
+    },
+    "mcpReadback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transport",
+        "resourceUri",
+        "durationMs",
+        "stdoutByteSize",
+        "stderrByteSize",
+        "resourceByteSize",
+        "toolsExposed",
+        "resourcesListed",
+        "resourceFingerprint",
+        "contextPackFingerprint"
+      ],
+      "properties": {
+        "transport": { "const": "stdio" },
+        "resourceUri": { "type": "string", "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/current$" },
+        "durationMs": { "$ref": "#/$defs/duration" },
+        "stdoutByteSize": { "type": "integer", "minimum": 1, "maximum": 2000000 },
+        "stderrByteSize": { "$ref": "#/$defs/byteSize" },
+        "resourceByteSize": { "type": "integer", "minimum": 1, "maximum": 2000000 },
+        "toolsExposed": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "resourcesListed": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "resourceFingerprint": { "$ref": "#/$defs/hash" },
+        "contextPackFingerprint": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "timings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contextPackBuildMs", "mcpReadbackMs", "totalObservedMs"],
+      "properties": {
+        "contextPackBuildMs": { "$ref": "#/$defs/duration" },
+        "mcpReadbackMs": { "$ref": "#/$defs/duration" },
+        "totalObservedMs": { "$ref": "#/$defs/duration" }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contextPackFingerprintMatchesMcp",
+        "resourceRead",
+        "noToolsExposed",
+        "noMarkdownBody",
+        "noLocalFilesWritten",
+        "readOnly"
+      ],
+      "properties": {
+        "contextPackFingerprintMatchesMcp": { "const": true },
+        "resourceRead": { "const": true },
+        "noToolsExposed": { "const": true },
+        "noMarkdownBody": { "const": true },
+        "noLocalFilesWritten": { "const": true },
+        "readOnly": { "const": true }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "canonicalStateMutated",
+        "localFilesWritten",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "networkCalls",
+        "modelCalls",
+        "activeMemoryCreated",
+        "sourceSnapshotsWritten",
+        "privateBodiesIncluded",
+        "objectiveTextIncluded",
+        "stepTextIncluded",
+        "markdownBodyIncluded",
+        "sourceContentIncluded",
+        "absoluteFilesystemLocationsIncluded",
+        "productionBenchmarkClaimed"
+      ],
+      "properties": {
+        "readOnly": { "const": true },
+        "canonicalStateMutated": { "const": false },
+        "localFilesWritten": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "networkCalls": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "modelCalls": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "activeMemoryCreated": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "sourceSnapshotsWritten": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "privateBodiesIncluded": { "const": false },
+        "objectiveTextIncluded": { "const": false },
+        "stepTextIncluded": { "const": false },
+        "markdownBodyIncluded": { "const": false },
+        "sourceContentIncluded": { "const": false },
+        "absoluteFilesystemLocationsIncluded": { "const": false },
+        "productionBenchmarkClaimed": { "const": false }
+      }
+    }
+  }
+}
