@@ -127,6 +127,14 @@ command, dry-run setup preview, and explicit zero-write safeguards. It does not
 install harness config, expose MCP tools, include raw source bodies, or enable
 external adapters.
 
+`context-pack-receive-report.schema.json` defines the read-only receiver report
+for consuming an explicitly pinned local context pack. It verifies the registry,
+current pointer, current use-plan, read-only MCP resource surface, and dry-run
+harness status without rebuilding the pack or requiring objective/step text.
+It reports only statuses, counts, safe locators, and fingerprints; it does not
+include raw markdown, source bodies, launch prompts, provider URLs, credentials,
+absolute filesystem paths, model calls, network calls, writes, or adapters.
+
 ## Benchmark truth-floor schemas
 
 The benchmark truth-floor schemas add additive v1 contracts for deterministic

@@ -113,6 +113,34 @@ use plan, read-only MCP context-pack readback, and dry-run setup preview. It
 does not write context-pack files, mutate harness config, expose MCP tools,
 call models, use network access, or enable adapters.
 
+Pinned local handoff receive:
+
+```bash
+npm run oaf -- context pack \
+  --from codex \
+  --root . \
+  --objective "Prepare handoff" \
+  --step "select next agent context" \
+  --target codex \
+  --write \
+  --pin \
+  --out context-packs/CONTEXT_PACK.md \
+  --format json
+
+npm run oaf -- context receive \
+  --read-only \
+  --root . \
+  --target codex \
+  --format json
+```
+
+`context receive` consumes only the pinned `context-packs/current.json`,
+registry, and schema-validated use-plan. It returns `ready`, `review`, or
+`blocked` with required read locators, content hashes, MCP read-only resource
+proof, zero-tool proof, and harness status. It rejects rebuild inputs such as
+`--objective`, `--step`, `--from`, `--changed`, and `--include-file`, and it
+does not accept write, pin, home, config, or stdio overrides.
+
 Impact brief:
 
 ```bash

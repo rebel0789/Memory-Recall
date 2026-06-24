@@ -112,6 +112,21 @@ hashes, and modified registry/current-pointer fingerprints without returning
 markdown bodies, objective text, source bodies, absolute local paths, model
 calls, network calls, write tools, active memory, or external adapters.
 
+For a target harness readiness check, `context receive --read-only` consumes
+only the pinned current pointer, registry, and use plan:
+
+```bash
+npm --silent run oaf -- context receive --read-only --root . \
+  --target codex --format json
+```
+
+The receive report is schema-validated and returns `ready`, `review`, or
+`blocked`. It proves registry/current/use-plan fingerprints, required local
+reads, read-only MCP resource access, `tools/list == []`, and dry-run harness
+status. It rejects rebuild inputs and write/setup overrides, and it never
+returns raw markdown, source bodies, launch prompts, credentials, provider
+URLs, absolute paths, model calls, network calls, write tools, or adapters.
+
 ## Authority
 
 The bridge rejects caller-supplied authority fields such as role, owner,

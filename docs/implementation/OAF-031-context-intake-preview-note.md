@@ -130,6 +130,15 @@ slice.
   hashes. The status report is schema-validated and omits markdown content,
   objective text, source content, credentials, provider URLs, absolute paths,
   model calls, network calls, external adapters, active memory, and write tools.
+- `npm run oaf -- context receive --read-only --root . --target codex --format json`
+  consumes the already pinned registry, current pointer, and use-plan without
+  rebuilding the pack or accepting objective/step text. It returns `ready`,
+  `review`, or `blocked` with pinned artifact fingerprints, required local
+  reads, content hashes, MCP read-only resource proof, zero exposed tools, and
+  harness status. It rejects write, pin, stdio, home/config, and rebuild inputs,
+  and it omits raw markdown, source bodies, launch prompts, credentials,
+  provider URLs, absolute paths, model calls, network calls, external adapters,
+  active memory, and write tools.
 - After a pin, `npm --silent run oaf -- mcp resources --read-only --stdio` automatically
   discovers the current pinned use plan and registry status from
   `context-packs/current.json` and `context-packs/registry.json`. This is the

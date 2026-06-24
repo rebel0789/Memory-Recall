@@ -1,0 +1,205 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "context receive",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "workspaceId": "ws_local",
+  "targetHarness": "codex",
+  "state": "ready",
+  "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "measurementScope": "single pinned context-pack registry/use-plan verification, MCP read-only resource proof, and harness setup status dry-run",
+  "registry": {
+    "registryExists": true,
+    "currentPointerExists": true,
+    "currentEntryId": "ctxpin_111111111111111111111111",
+    "currentStatus": "verified",
+    "registryFingerprintStatus": "verified",
+    "currentPointerFingerprintStatus": "verified",
+    "registryFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "currentPointerFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "entryCount": 1,
+    "currentTargetHarness": "codex",
+    "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "usePlanFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "sourceChecks": {
+      "total": 3,
+      "verified": 3,
+      "stale": 0,
+      "unavailable": 0,
+      "verifiedLocators": ["workspace://AGENTS.md", "user-selected://notes/handoff.md", "workspace://src/auth.ts"],
+      "staleLocators": [],
+      "unavailableLocators": []
+    },
+    "artifactChecks": [
+      {
+        "role": "agent-handoff",
+        "locator": "workspace://context-packs/CONTEXT_PACK.md",
+        "expectedHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "actualHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "status": "verified",
+        "reasonCodes": ["artifact_hash_verified"]
+      },
+      {
+        "role": "use-plan",
+        "locator": "workspace://context-packs/CONTEXT_PACK.use.json",
+        "expectedHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "actualHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "status": "verified",
+        "reasonCodes": ["artifact_hash_verified"]
+      }
+    ],
+    "warnings": []
+  },
+  "usePlan": {
+    "exists": true,
+    "resourceUri": "oaf://workspace/ws_local/context-pack/use-plan/current",
+    "id": "ctxuse_222222222222222222222222",
+    "targetHarness": "codex",
+    "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "usePlanFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "requiredReadCount": 3,
+    "requiredLocalReads": [
+      {
+        "locator": "workspace://AGENTS.md",
+        "role": "selected_context",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex.",
+        "reasonCodes": ["explicit_requirement", "selected_context", "token_efficient"]
+      },
+      {
+        "locator": "user-selected://notes/handoff.md",
+        "role": "explicit_user_selected",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "readHint": "Read user-selected://notes/handoff.md from the local workspace because it was explicitly included for this handoff.",
+        "reasonCodes": ["content_hash_verified", "explicit_user_file", "read_before_handoff"]
+      },
+      {
+        "locator": "workspace://src/auth.ts",
+        "role": "changed_locator",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "readHint": "Read workspace://src/auth.ts from the local workspace before editing or reviewing this changed file.",
+        "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"]
+      }
+    ],
+    "truncatedRequiredReadCount": 0,
+    "coverage": {
+      "changedLocators": { "total": 1, "covered": 1, "ratio": 1, "status": "covered" },
+      "graphHints": { "total": 4, "covered": 3, "ratio": 0.75, "status": "partial" }
+    },
+    "sourceSelection": {
+      "candidateUnitCount": 2400,
+      "selectedUnitCount": 960,
+      "selectedUnitRatio": 0.4,
+      "estimatedReductionRatio": 0.6
+    },
+    "delivery": {
+      "representation": "locator-handoff",
+      "deliveredUnitCount": 720,
+      "deliveredByteSize": 4096,
+      "deliveredUnitRatio": 0.3,
+      "observedReductionRatio": 0.7,
+      "sourceContentIncluded": false
+    },
+    "safeguards": {
+      "readOnly": true,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "externalWritesEnabled": false,
+      "externalAdaptersEnabled": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "activeMemoryCreated": 0,
+      "sourceSnapshotsWritten": 0,
+      "objectiveTextIncluded": false,
+      "stepTextIncluded": false,
+      "launchInstructionsIncluded": false,
+      "markdownContentIncluded": false,
+      "sourceContentIncluded": false,
+      "privateContentIncluded": false,
+      "absoluteFilesystemLocationsIncluded": false,
+      "remoteEndpointDetailsIncluded": false
+    }
+  },
+  "mcp": {
+    "mode": "read-only",
+    "resourcesListed": 7,
+    "resourceUris": [
+      "oaf://workspace/ws_local/context/latest",
+      "oaf://workspace/ws_local/context-pack/registry/current",
+      "oaf://workspace/ws_local/context-pack/use-plan/current",
+      "oaf://workspace/ws_local/handoff/latest",
+      "oaf://workspace/ws_local/memory/proposals",
+      "oaf://workspace/ws_local/runs/latest",
+      "oaf://workspace/ws_local/status"
+    ],
+    "toolsExposed": 0,
+    "usePlanResourceRead": true,
+    "registryResourceRead": true,
+    "usePlanResourceFingerprint": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "registryResourceFingerprint": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+  },
+  "setup": {
+    "dryRun": true,
+    "client": "codex",
+    "configRef": "home://.codex/config.toml",
+    "serverStatus": "absent",
+    "desiredServer": {
+      "name": "oaf",
+      "transport": "stdio",
+      "command": "npm",
+      "args": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"],
+      "environmentKeys": [],
+      "resourceMode": "read-only",
+      "externalWrites": false
+    }
+  },
+  "commands": {
+    "checkRegistry": "npm --silent run oaf -- context registry status --read-only --root . --workspace ws_local --format json",
+    "readUsePlan": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
+    "readRegistry": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/registry/current --format json",
+    "previewSetup": "npm --silent run oaf -- harness setup status --client codex --server oaf --dry-run --format json",
+    "startReadOnlyBridge": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --stdio"
+  },
+  "checks": {
+    "registryFingerprintVerified": true,
+    "currentPointerVerified": true,
+    "currentEntryVerified": true,
+    "currentEntryMatchesTarget": true,
+    "usePlanLoaded": true,
+    "usePlanFingerprintMatchesRegistry": true,
+    "contextPackFingerprintMatchesRegistry": true,
+    "noToolsExposed": true,
+    "usePlanResourceRead": true,
+    "registryResourceRead": true,
+    "setupDryRun": true,
+    "setupUsesSilentNpm": true
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "homeConfigMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "rawSourceBodiesIncluded": false,
+    "markdownBodyIncluded": false,
+    "sourceContentIncluded": false,
+    "objectiveTextIncluded": false,
+    "stepTextIncluded": false,
+    "launchInstructionsIncluded": false,
+    "credentialsIncluded": false,
+    "providerUrlsIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "hiddenReasoningIncluded": false
+  },
+  "reportFingerprint": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+}

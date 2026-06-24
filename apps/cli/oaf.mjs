@@ -33,6 +33,7 @@ import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages
 import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import contextPackHandoffReportSchema from '../../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
+import contextPackReceiveReportSchema from '../../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
 import {
@@ -224,6 +225,7 @@ async function contextCommand(values) {
   if (values[0] === 'preview') return contextPreviewCommand(values.slice(1));
   if (values[0] === 'pack') return contextPackCommand(values.slice(1));
   if (values[0] === 'handoff') return contextHandoffCommand(values.slice(1));
+  if (values[0] === 'receive') return contextReceiveCommand(values.slice(1));
   if (values[0] === 'registry') return contextRegistryCommand(values.slice(1));
   if (values[0] === 'graph') {
     if (values[1] === 'preview') return contextGraphPreviewCommand(values.slice(2));
@@ -235,7 +237,7 @@ async function contextCommand(values) {
   const requestPath = option(values, '--request');
   const recordsPath = option(values, '--records');
   if (!requestPath || !recordsPath) {
-    console.error('context requires --request <json> and --records <json>, context scan --from <harness> --dry-run, context preview --from <harness> --dry-run, context pack --dry-run, context handoff --read-only, or context graph preview --dry-run');
+    console.error('context requires --request <json> and --records <json>, context scan --from <harness> --dry-run, context preview --from <harness> --dry-run, context pack --dry-run, context handoff --read-only, context receive --read-only, or context graph preview --dry-run');
     process.exitCode = 2;
     return;
   }
@@ -486,6 +488,42 @@ async function contextHandoffCommand(values) {
   }
   try {
     const report = await buildContextHandoffReport(values, { objective, step });
+    console.log(JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function contextReceiveCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('context receive requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out') || values.includes('--stdio')) {
+    console.error('context receive is read-only and does not write, pin, output files, or run as an MCP stdio server');
+    process.exitCode = 2;
+    return;
+  }
+  if (option(values, '--home') || option(values, '--config') || option(values, '--server')) {
+    console.error('context receive uses the default local harness status only; --home, --config, and --server overrides are not accepted');
+    process.exitCode = 2;
+    return;
+  }
+  if (option(values, '--objective') || option(values, '--step') || option(values, '--from') || values.includes('--changed-from-git') || options(values, '--changed').length || options(values, '--changed-locator').length || options(values, '--include-file').length) {
+    console.error('context receive consumes the pinned context pack; rebuild inputs such as --objective, --step, --from, --changed, or --include-file are not accepted');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('context receive only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const report = await buildContextReceiveReport(values);
     console.log(JSON.stringify(report, null, 2));
   } catch (error) {
     console.error(error.message);
@@ -1130,6 +1168,215 @@ async function buildContextHandoffReport(values, { objective, step }) {
   return report;
 }
 
+async function buildContextReceiveReport(values) {
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const registryStatus = await verifyContextPackRegistry({ root, workspaceId, clock: () => generatedAt });
+  const currentEntry = registryStatus.entries.find((entry) => entry.id === registryStatus.current.entryId) ?? null;
+  const usePlan = await loadCurrentContextPackUsePlan({ root, workspaceId, clock: () => generatedAt }).catch(() => null);
+  const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? usePlan?.targetHarness ?? currentEntry?.targetHarness ?? 'codex';
+  const setupClient = contextHandoffSetupClient(targetHarness);
+  const setup = await buildHarnessSetupReport({
+    action: 'status',
+    client: setupClient,
+    server: 'oaf',
+    home: process.env.HOME ?? process.cwd(),
+    generatedAt
+  });
+  const resources = buildOafReadOnlyResourceCatalog({
+    state: {},
+    projectStatus: {},
+    currentContextPackUsePlan: usePlan,
+    currentContextPackRegistryStatus: registryStatus,
+    workspaceId,
+    generatedAt
+  });
+  const bridge = createMcpBridge({
+    trustedContext: localMcpTrustedContext(workspaceId),
+    resources,
+    tools: [],
+    clock: () => generatedAt
+  });
+  const usePlanResourceUri = `oaf://workspace/${workspaceId}/context-pack/use-plan/current`;
+  const registryResourceUri = `oaf://workspace/${workspaceId}/context-pack/registry/current`;
+  const resourcesResponse = await bridge.handle({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
+  const toolsResponse = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+  const usePlanRead = usePlan ? await bridge.handle({ jsonrpc: '2.0', id: 3, method: 'resources/read', params: { uri: usePlanResourceUri } }) : null;
+  const registryRead = await bridge.handle({ jsonrpc: '2.0', id: 4, method: 'resources/read', params: { uri: registryResourceUri } });
+  const usePlanPayload = parseMcpJsonPayload(usePlanRead);
+  const registryPayload = parseMcpJsonPayload(registryRead);
+  const listedResources = resourcesResponse?.result?.resources ?? [];
+  const listedTools = toolsResponse?.result?.tools ?? [];
+  const currentStatus = registryStatus.current.status;
+  const registryBlocking = !registryStatus.registry.exists
+    || !registryStatus.currentPointer.exists
+    || registryStatus.registry.fingerprintStatus !== 'verified'
+    || registryStatus.currentPointer.fingerprintStatus !== 'verified'
+    || currentStatus === 'tampered'
+    || currentStatus === 'missing';
+  const checks = {
+    registryFingerprintVerified: registryStatus.registry.fingerprintStatus === 'verified',
+    currentPointerVerified: registryStatus.currentPointer.fingerprintStatus === 'verified',
+    currentEntryVerified: currentStatus === 'verified',
+    currentEntryMatchesTarget: Boolean(usePlan && currentEntry && usePlan.targetHarness === targetHarness && currentEntry.targetHarness === targetHarness),
+    usePlanLoaded: Boolean(usePlan),
+    usePlanFingerprintMatchesRegistry: Boolean(usePlan && currentEntry?.usePlan?.fingerprint === usePlan.usePlanFingerprint),
+    contextPackFingerprintMatchesRegistry: Boolean(usePlan && currentEntry?.contextPack?.fingerprint === usePlan.contextPack.fingerprint),
+    noToolsExposed: listedTools.length === 0,
+    usePlanResourceRead: usePlanPayload?.resourceKind === 'context-pack-use-plan',
+    registryResourceRead: registryPayload?.resourceKind === 'context-pack-registry-status',
+    setupDryRun: setup.dryRun === true,
+    setupUsesSilentNpm: setup.desiredServer.command === 'npm' && setup.desiredServer.args[0] === '--silent'
+  };
+  const readyChecks = [
+    checks.registryFingerprintVerified,
+    checks.currentPointerVerified,
+    checks.currentEntryVerified,
+    checks.currentEntryMatchesTarget,
+    checks.usePlanLoaded,
+    checks.usePlanFingerprintMatchesRegistry,
+    checks.contextPackFingerprintMatchesRegistry,
+    checks.noToolsExposed,
+    checks.usePlanResourceRead,
+    checks.registryResourceRead,
+    checks.setupDryRun,
+    checks.setupUsesSilentNpm
+  ];
+  const state = registryBlocking || !usePlan ? 'blocked' : (readyChecks.every(Boolean) ? 'ready' : 'review');
+  const requiredLocalReads = (usePlan?.requiredLocalReads ?? []).slice(0, 12).map((item) => ({
+    locator: item.locator,
+    role: item.role,
+    required: item.required,
+    represented: item.represented,
+    contentHash: item.contentHash,
+    readHint: item.readHint,
+    reasonCodes: item.reasonCodes
+  }));
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'context receive',
+    generatedAt,
+    workspaceId,
+    targetHarness,
+    state,
+    commitSha: resolveCommitSha(),
+    measurementScope: 'single pinned context-pack registry/use-plan verification, MCP read-only resource proof, and harness setup status dry-run',
+    registry: {
+      registryExists: registryStatus.registry.exists,
+      currentPointerExists: registryStatus.currentPointer.exists,
+      currentEntryId: registryStatus.current.entryId,
+      currentStatus,
+      registryFingerprintStatus: registryStatus.registry.fingerprintStatus,
+      currentPointerFingerprintStatus: registryStatus.currentPointer.fingerprintStatus,
+      registryFingerprint: registryStatus.registry.registryFingerprint,
+      currentPointerFingerprint: registryStatus.currentPointer.pointerFingerprint,
+      entryCount: registryStatus.registry.entryCount,
+      currentTargetHarness: currentEntry?.targetHarness ?? null,
+      contextPackFingerprint: currentEntry?.contextPack?.fingerprint ?? null,
+      usePlanFingerprint: currentEntry?.usePlan?.fingerprint ?? null,
+      sourceChecks: currentEntry?.sourceChecks ?? null,
+      artifactChecks: (currentEntry?.artifactChecks ?? []).map((item) => ({
+        role: item.role,
+        locator: item.locator,
+        expectedHash: item.expectedHash,
+        actualHash: item.actualHash,
+        status: item.status,
+        reasonCodes: item.reasonCodes
+      })),
+      warnings: registryStatus.warnings
+    },
+    usePlan: {
+      exists: Boolean(usePlan),
+      resourceUri: usePlan?.resource?.uri ?? null,
+      id: usePlan?.id ?? null,
+      targetHarness: usePlan?.targetHarness ?? null,
+      contextPackFingerprint: usePlan?.contextPack?.fingerprint ?? null,
+      usePlanFingerprint: usePlan?.usePlanFingerprint ?? null,
+      requiredReadCount: usePlan?.requiredLocalReads?.length ?? 0,
+      requiredLocalReads,
+      truncatedRequiredReadCount: Math.max(0, (usePlan?.requiredLocalReads?.length ?? 0) - requiredLocalReads.length),
+      coverage: usePlan?.coverage ?? null,
+      sourceSelection: usePlan ? {
+        candidateUnitCount: usePlan.sourceSelection.candidateUnitCount,
+        selectedUnitCount: usePlan.sourceSelection.selectedUnitCount,
+        selectedUnitRatio: usePlan.sourceSelection.selectedUnitRatio,
+        estimatedReductionRatio: usePlan.sourceSelection.estimatedReductionRatio
+      } : null,
+      delivery: usePlan ? {
+        representation: usePlan.delivery.representation,
+        deliveredUnitCount: usePlan.delivery.deliveredUnitCount,
+        deliveredByteSize: usePlan.delivery.deliveredByteSize,
+        deliveredUnitRatio: usePlan.delivery.deliveredUnitRatio,
+        observedReductionRatio: usePlan.delivery.observedReductionRatio,
+        sourceContentIncluded: usePlan.delivery.sourceContentIncluded
+      } : null,
+      safeguards: usePlan?.safeguards ?? null
+    },
+    mcp: {
+      mode: 'read-only',
+      resourcesListed: listedResources.length,
+      resourceUris: listedResources.map((item) => item.uri).sort(),
+      toolsExposed: listedTools.length,
+      usePlanResourceRead: checks.usePlanResourceRead,
+      registryResourceRead: checks.registryResourceRead,
+      usePlanResourceFingerprint: usePlanPayload?.resourceFingerprint ?? null,
+      registryResourceFingerprint: registryPayload?.resourceFingerprint ?? null
+    },
+    setup: {
+      dryRun: setup.dryRun,
+      client: setup.client,
+      configRef: setup.config.ref,
+      serverStatus: setup.status.server,
+      desiredServer: setup.desiredServer
+    },
+    commands: {
+      checkRegistry: `npm --silent run oaf -- context registry status --read-only --root . --workspace ${workspaceId} --format json`,
+      readUsePlan: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --uri ${usePlanResourceUri} --format json`,
+      readRegistry: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --uri ${registryResourceUri} --format json`,
+      previewSetup: `npm --silent run oaf -- harness setup status --client ${setupClient} --server oaf --dry-run --format json`,
+      startReadOnlyBridge: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --stdio`
+    },
+    checks,
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      homeConfigMutated: false,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      rawSourceBodiesIncluded: false,
+      markdownBodyIncluded: false,
+      sourceContentIncluded: false,
+      objectiveTextIncluded: false,
+      stepTextIncluded: false,
+      launchInstructionsIncluded: false,
+      credentialsIncluded: false,
+      providerUrlsIncluded: false,
+      absoluteFilesystemLocationsIncluded: false,
+      hiddenReasoningIncluded: false
+    },
+    reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.reportFingerprint = fingerprintJson({ ...report, reportFingerprint: null });
+  assertJsonSchema(contextPackReceiveReportSchema, report, 'context-pack receive report');
+  return report;
+}
+
+function parseMcpJsonPayload(response) {
+  const text = response?.result?.contents?.[0]?.text;
+  if (typeof text !== 'string') return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 async function buildContextPackMeasurementReport(values, { objective, step }) {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
@@ -1652,6 +1899,7 @@ Usage:
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
   oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
+  oaf context receive --read-only --root . --target codex --format json
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json

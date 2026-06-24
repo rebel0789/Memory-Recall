@@ -86,6 +86,20 @@ current handoff status without installing anything. This is a dry-run locator
 handoff with read-only MCP proof; it does not import harness history, create
 active memory, write harness config, or enable external adapters.
 
+For a pinned local pack that another harness can consume without retyping the
+objective, write and pin first, then receive the pinned artifact:
+
+```bash
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- context receive --read-only --root . --target codex --format json
+```
+
+`context receive` reads `context-packs/current.json`, the pinned use-plan, and
+the registry only. It returns `ready`, `review`, or `blocked` with hashes,
+required local reads, MCP zero-tool proof, and harness status; it does not
+rebuild the pack, accept objective/step text, write files, or expose raw source
+or Markdown bodies.
+
 For a single CLI preflight before handing work to Codex:
 
 ```bash
@@ -179,6 +193,8 @@ npm run oaf -- context scan --from codex --root . --dry-run
 npm run oaf -- context preview --from codex --root . --objective "Prepare handoff" --step "select harness context" --dry-run
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- context receive --read-only --root . --target codex --format json
 npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
 npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
