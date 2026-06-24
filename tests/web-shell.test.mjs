@@ -14,6 +14,7 @@ import {
   buildMemoryReviewModel,
   classifyDashboardState,
   contextDecisionView,
+  copyCommand,
   contextRecordLink,
   legacyViewPath,
   navItems,
@@ -23,8 +24,18 @@ import {
   runDetailLink,
   safeEventSummary,
   shellStatusLabel,
-  summarizeRunSteps
+  summarizeRunSteps,
+  writeClipboardText
 } from '../apps/web/app.js';
+
+function replaceGlobal(name,value) {
+  const previous=Object.getOwnPropertyDescriptor(globalThis,name);
+  Object.defineProperty(globalThis,name,{ configurable:true, writable:true, value });
+  return ()=>{
+    if(previous)Object.defineProperty(globalThis,name,previous);
+    else delete globalThis[name];
+  };
+}
 
 test('web shell exposes stable path routes with legacy query compatibility',()=>{
   assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/fabric-map','/context','/context-pack','/source-graph','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
@@ -44,6 +55,10 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   const app=await readFile('apps/web/app.js','utf8');
   assert.match(app,/Build context pack/);
   assert.match(app,/data-action="copy-pack"/);
+  assert.match(app,/data-action="copy-command"/);
+  assert.match(app,/function copyCommand/);
+  assert.match(app,/async function writeClipboardText/);
+  assert.match(app,/Copy markdown first/);
   assert.match(app,/data-action="download-pack"/);
   assert.match(app,/data-action="detect-git-changes"/);
   assert.match(app,/api\('\/api\/context\/git-changes'/);
@@ -153,6 +168,62 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(model.commands[1].command,/harness setup plan --client codex --server oaf --dry-run --format json/);
   assert.match(model.commands[2].command,/--from 'codex,cursor'/);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
+});
+
+test('context pack command copy copies the adjacent command text',async()=>{
+  const restores=[];
+  try {
+    const copied=[];
+    const liveStatus={ textContent:'' };
+    const command='npm run oaf -- mcp resources --read-only --format json';
+    const button={
+      textContent:'Copy',
+      closest:(selector)=>selector==='li' ? { querySelector:(inner)=>inner==='code' ? { textContent:command } : null } : null
+    };
+    restores.push(replaceGlobal('navigator',{ clipboard:{ writeText:async(value)=>{ copied.push(value); } } }));
+    restores.push(replaceGlobal('document',{ querySelector:(selector)=>selector==='#live-status' ? liveStatus : null }));
+    restores.push(replaceGlobal('setTimeout',()=>0));
+    await copyCommand({ currentTarget:button });
+    assert.deepEqual(copied,[command]);
+    assert.equal(liveStatus.textContent,'Command copied.');
+    assert.equal(button.textContent,'Copied');
+  } finally {
+    for(const restore of restores.reverse())restore();
+  }
+});
+
+test('clipboard fallback rejects when browser copy fails',async()=>{
+  const restores=[];
+  try {
+    let appended=false;
+    let removed=false;
+    const helper={
+      value:'',
+      style:{},
+      setAttribute(){},
+      focus(){},
+      select(){},
+      remove(){ removed=true; }
+    };
+    restores.push(replaceGlobal('navigator',{}));
+    restores.push(replaceGlobal('document',{
+      body:{ appendChild(node){ appended=node===helper; } },
+      createElement(tag){
+        assert.equal(tag,'textarea');
+        return helper;
+      },
+      execCommand(command){
+        assert.equal(command,'copy');
+        return false;
+      }
+    }));
+    await assert.rejects(()=>writeClipboardText('copy me'),/clipboard_unavailable/);
+    assert.equal(helper.value,'copy me');
+    assert.equal(appended,true);
+    assert.equal(removed,true);
+  } finally {
+    for(const restore of restores.reverse())restore();
+  }
 });
 
 test('first-use readiness proves local handoff gates before recommending use',()=>{

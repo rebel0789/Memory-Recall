@@ -123,8 +123,10 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .pack-output{width:100%;min-height:420px;border:1px solid var(--border);border-radius:var(--radius-panel);background:var(--surface-2);color:var(--paper);padding:var(--space-16);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;resize:vertical}
 .command-list{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-8)}
 .command-list li{display:grid;gap:var(--space-6,6px);border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-3);padding:var(--space-10,10px)}
+.command-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--space-8)}
 .command-list strong{font-size:12px;color:var(--slate);text-transform:uppercase;letter-spacing:.08em}
 .command-list code{display:block;white-space:pre-wrap}
+.command-copy{min-width:44px;min-height:44px;padding:8px 12px;font-size:12px}
 .readiness-panel{display:grid;gap:var(--space-10,10px)}
 .readiness-panel p{margin:0;color:var(--slate)}
 .readiness-list{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-8)}

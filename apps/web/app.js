@@ -679,6 +679,7 @@ function render() {
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
   root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
+  root.querySelectorAll('[data-action=copy-command]').forEach(button=>button.addEventListener('click',copyCommand));
   root.querySelectorAll('[data-action=download-pack]').forEach(button=>button.addEventListener('click',downloadContextPack));
   root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
@@ -822,7 +823,7 @@ function renderContextPackResult(pack,markdown) {
   const model=buildContextPackUiModel(pack,markdown,{observedDurationMs:contextPackResult?.observedDurationMs,readback:contextPackResult?.readback});
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
   const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult});
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Use now</h2><span>Copy markdown first</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 export function buildContextPackUiModel(pack,markdown='',meta={}) {
@@ -988,7 +989,7 @@ function contextPackSetupClient(pack) {
 }
 
 function contextPackCommandList(commands) {
-  return `<ol class="command-list">${commands.map((item)=>`<li><strong>${esc(item.label)}</strong><code>${esc(item.command)}</code></li>`).join('')}</ol>`;
+  return `<ol class="command-list">${commands.map((item)=>`<li><div class="command-heading"><strong>${esc(item.label)}</strong><button class="button secondary command-copy" data-action="copy-command" type="button" aria-label="Copy ${esc(item.label)} command">Copy</button></div><code>${esc(item.command)}</code></li>`).join('')}</ol>`;
 }
 
 const CONTEXT_PACK_SOURCE_FAMILIES=[
@@ -1489,18 +1490,46 @@ async function copyContextPack(event){
   const button=event.currentTarget;
   const previous=button.textContent;
   try{
-    if(globalThis.navigator?.clipboard?.writeText){
-      await navigator.clipboard.writeText(markdown);
-    }else{
-      const output=document.querySelector('#context-pack-output');
-      output?.focus();
-      output?.select();
-      document.execCommand?.('copy');
-    }
+    await writeClipboardText(markdown);
     document.querySelector('#live-status').textContent='Context pack markdown copied.';
     button.textContent='Copied';
   }catch(error){
     document.querySelector('#live-status').textContent='Copy failed. Select the markdown manually.';
+  }finally{
+    setTimeout(()=>{ button.textContent=previous; },1200);
+  }
+}
+
+export async function writeClipboardText(text) {
+  if(globalThis.navigator?.clipboard?.writeText){
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+  const helper=document.createElement('textarea');
+  helper.value=text;
+  helper.setAttribute('readonly','');
+  helper.style.position='fixed';
+  helper.style.opacity='0';
+  document.body.appendChild(helper);
+  helper.focus();
+  helper.select();
+  const copied=document.execCommand?.('copy') ?? false;
+  helper.remove();
+  if(!copied)throw new Error('clipboard_unavailable');
+  return copied;
+}
+
+export async function copyCommand(event){
+  const button=event.currentTarget;
+  const command=button.closest('li')?.querySelector('code')?.textContent ?? '';
+  if(!command)return;
+  const previous=button.textContent;
+  try{
+    await writeClipboardText(command);
+    document.querySelector('#live-status').textContent='Command copied.';
+    button.textContent='Copied';
+  }catch(error){
+    document.querySelector('#live-status').textContent='Copy failed. Select the command manually.';
   }finally{
     setTimeout(()=>{ button.textContent=previous; },1200);
   }
