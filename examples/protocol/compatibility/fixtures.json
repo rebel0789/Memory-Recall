@@ -716,6 +716,12 @@
       "expectedValid": true
     },
     {
+      "id": "mcp-readonly-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-resource.json",
+      "expectedValid": true
+    },
+    {
       "id": "benchmark-dataset-current-valid",
       "schema": "packages/protocol/schemas/benchmark-dataset.schema.json",
       "instance": "examples/protocol/benchmark-dataset.json",

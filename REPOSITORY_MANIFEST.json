@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T06:32:07.312Z",
-  "fileCount": 767,
-  "totalBytes": 2936665,
+  "generatedAt": "2026-06-24T07:00:57.332Z",
+  "fileCount": 769,
+  "totalBytes": 2973331,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -482,8 +482,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 24153,
-      "sha256": "1ced1b9b1ff2fb7ff9e3e56e6ab6b03cf6921e2e75dc59fc6789c809e787b5fe"
+      "bytes": 29002,
+      "sha256": "517f71f47b4139b02693eb3dac38f9e52c35fed05c0dd3bb20214a18f40466a7"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -812,8 +812,8 @@
     },
     {
       "path": "docs/architecture/protocol-bridges.md",
-      "bytes": 1457,
-      "sha256": "cc04edb38e3248cd9bc40a483328a6fadae77d6c6863c95f726595cc30b4f0d9"
+      "bytes": 2030,
+      "sha256": "cb9df5b64a0bb26616ed478c86a736865b206f6dae4bdb6bccb004c3d7624629"
     },
     {
       "path": "docs/architecture/sequence-flows.md",
@@ -952,8 +952,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 6892,
-      "sha256": "0b57a93efb71c2d42297bbf09b6559cffbcec553d25323908e3b01475f6542ca"
+      "bytes": 7657,
+      "sha256": "ec63b75096901f805e8d0e28bb8989b219d68896ebd16764001b10d29ebb660a"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1063,7 +1063,7 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "de5fa110fed1b5385bc151b6bafd5350ec6ec546a1f288a4621753dd15bf57e3"
+      "sha256": "780f92ac7db0e925ae465d536ee43fa4b2481a37f5be3d7caa41642115b8e7b4"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -1582,8 +1582,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 33588,
-      "sha256": "d48ce0e684756c396b9a8e8452675892b00a0da1b252dc5fed146939dde1f218"
+      "bytes": 33825,
+      "sha256": "330b057a3ee01660871bd71fec4e77845e273474241a12ad0eeae4a52da348fa"
     },
     {
       "path": "examples/protocol/compatibility/invalid-harness-context-source.json",
@@ -1891,6 +1891,11 @@
       "sha256": "98ba1d8f6ed34ebd25cd4370fdb662a9b799a3e5ba78059ebf4801d363f81955"
     },
     {
+      "path": "examples/protocol/mcp-readonly-resource.json",
+      "bytes": 1221,
+      "sha256": "e541f21568417caa8bd1c9bb013cf6345ce280b0a2817f49d3f355ea5d5d6c17"
+    },
+    {
       "path": "examples/protocol/memory-profile-report.json",
       "bytes": 1193,
       "sha256": "26c9ace911cb8c1d9ea323e87fb1356aab65a0cc5754055ff5102a007dc87aa3"
@@ -2043,7 +2048,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "f54f47de25b8eea99321de2d6d596f3a81f06e0b6bdb1c9d2fe496455484ed5b"
+      "sha256": "651bf5692ff5cdde2cecaf778aefb18318ba1d2b600917316cbab70c608ff0c5"
     },
     {
       "path": "LICENSE",
@@ -2052,8 +2057,8 @@
     },
     {
       "path": "LOCAL_DEVELOPMENT.md",
-      "bytes": 4905,
-      "sha256": "20ad22480fb74b6d04c8f045b24fdf8936ee58dcc4a4481ddddc5fb373f24083"
+      "bytes": 5945,
+      "sha256": "56bf5f58b6af6d4d4761cb6bc1e9faa4094780db477336450a55b9522369c39e"
     },
     {
       "path": "MAINTAINERS.md",
@@ -2237,8 +2242,8 @@
     },
     {
       "path": "packages/protocol-bridges/src/index.mjs",
-      "bytes": 11062,
-      "sha256": "afa9257aa712b488b262bf310ce560cb6726b13e87bf1fea522935dcc60feed9"
+      "bytes": 25442,
+      "sha256": "5a68d44e0f5de8fe633aac2a5777c836f8ed758deb4e6cc25248d042dc602499"
     },
     {
       "path": "packages/protocol/AGENTS.md",
@@ -2252,8 +2257,8 @@
     },
     {
       "path": "packages/protocol/README.md",
-      "bytes": 7031,
-      "sha256": "2b500cd5755f8e41c18617dc21443dea0d78fb516a9c0cd57ca700c9f8d878d5"
+      "bytes": 7534,
+      "sha256": "50fb2fb3274f432c36ba30cfec871705c7cf5969267fee9136e64540a6546ac8"
     },
     {
       "path": "packages/protocol/schemas/adapter-conformance-fixture.schema.json",
@@ -2656,6 +2661,11 @@
       "sha256": "1a8835d89e8f5d74395da22eec6a418ee6ee42bd9572db1a24f77380da68d1f1"
     },
     {
+      "path": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "bytes": 2948,
+      "sha256": "4ed9f2a4f0d1c568a86339f2b93ed9ece7a3735b2b9212a1818f170e757734cc"
+    },
+    {
       "path": "packages/protocol/schemas/memory-profile-report.schema.json",
       "bytes": 3228,
       "sha256": "886b0b8483dc089faa445521159503910e15a8319318dca56c56f7616333b764"
@@ -3002,8 +3012,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 36544,
-      "sha256": "3429c20ade96e630e67905bfd6e73401d3bf83b500576e40b5b445a46a0f86a7"
+      "bytes": 37117,
+      "sha256": "216995bc16e182e80319201e4b1e4e5175b830cf8b3597ebc799eb1d1bd61767"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3507,8 +3517,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 18946,
-      "sha256": "368e7a817cd2a634e303d2ca6093e09961b7394c9d4edd669b3e821a623bb67f"
+      "bytes": 22878,
+      "sha256": "119ba7c7b92d8fe182b12cc04d00b5fc54eeb33638923d6fc9b04932f8e659d8"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -3682,8 +3692,8 @@
     },
     {
       "path": "tests/protocol-bridges.test.mjs",
-      "bytes": 7040,
-      "sha256": "8b7b313b5ce424082bfca6d0e58b713d3cf5a0cb3b98f32a7bc3ad46b8d37395"
+      "bytes": 12685,
+      "sha256": "d59d2243beb9ec9f43fc1ab4a8856ef5514b30d38ade62f347f8ca18f7b3f743"
     },
     {
       "path": "tests/protocol-schema-validator.test.mjs",

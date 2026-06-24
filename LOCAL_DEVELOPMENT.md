@@ -87,6 +87,33 @@ persist a graph database, enable external adapters, or enable external writes.
 Selected files are proposal-only `user-selected://` locators and must stay under
 the workspace root.
 
+## Read-only MCP resources
+
+Local harnesses can inspect sanitized OAF state through read-only MCP resources:
+
+```bash
+npm run oaf -- mcp resources --read-only --format json
+npm run oaf -- mcp resources --read-only \
+  --uri oaf://workspace/ws_local/context/latest \
+  --format json
+```
+
+For MCP-compatible stdio clients, pipe JSON-RPC messages into the local
+composition:
+
+```bash
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"resources/list"}' | \
+  npm --silent run oaf -- mcp resources --read-only --stdio
+```
+
+The resources expose status, latest context manifest, latest run, memory
+proposal, and handoff/artifact summaries. They return counts, IDs, hashes,
+reason codes, timestamps, and explicit safeguards only. They do not start a
+network listener, expose write tools, mutate canonical state, create active
+memory, write source snapshots, call models, perform external egress, enable
+external adapters, or include raw prompts, context bodies, model results,
+credentials, provider URLs, absolute local paths, or hidden reasoning.
+
 ## Source graph preview
 
 Use the native JS/TS source graph preview when you need a quick local map of

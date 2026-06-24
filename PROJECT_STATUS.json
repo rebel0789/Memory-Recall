@@ -200,7 +200,7 @@
         "Generates schema-validated local handoff reports from documented harness project files, explicit user-selected relative files, and compact native JS/TS source-graph hints",
         "Omission refs expose skipped context through safe locators, hashes, token costs, reason codes, and recovery hints without embedding raw bodies",
         "Raw source bodies, prompts, outputs, credentials, provider URLs, private local paths, and hidden reasoning are omitted",
-        "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, MCP bridge, persisted graph database, graph candidate-source integration, publishing, or external write",
+        "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, persisted graph database, graph candidate-source integration, publishing, or external write",
         "The only write path is explicit CLI output under context-packs/*.md"
       ]
     },
@@ -659,12 +659,18 @@
       "evidence": [
         "packages/protocol-bridges/src/index.mjs",
         "packages/protocol/schemas/mcp-bridge-request.schema.json",
+        "packages/protocol/schemas/mcp-readonly-resource.schema.json",
         "examples/protocol/mcp-bridge-request.json",
+        "examples/protocol/mcp-readonly-resource.json",
+        "apps/cli/oaf.mjs",
         "tests/protocol-bridges.test.mjs",
+        "tests/cli.test.mjs",
+        "docs/architecture/protocol-bridges.md",
         "docs/implementation/OAF-028-protocol-bridges-note.md"
       ],
       "limitations": [
-        "In-process dependency-free MCP-shaped bridge only; no stdio, HTTP, SSE, hosted bridge, or network listener is started",
+        "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio composition; no HTTP, SSE, hosted bridge, or network listener is started",
+        "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, and handoff/artifact review; they do not expose write tools, source bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
         "Requires OAF trusted context and server-side exact grants; remote protocol clients do not inherit local authority",
         "A2A, AG-UI, ACP, and CCCC remain pending until accepted use-case RFCs exist"
       ]

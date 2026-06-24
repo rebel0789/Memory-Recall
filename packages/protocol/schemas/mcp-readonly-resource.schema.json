@@ -1,0 +1,80 @@
+{
+  "$id": "https://open-agent-fabric.dev/schemas/mcp-readonly-resource-1.0.json",
+  "title": "OAF MCP read-only resource payload",
+  "description": "Sanitized JSON payload returned by OAF read-only MCP resources.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "resourceKind",
+    "workspaceId",
+    "generatedAt",
+    "provenance",
+    "safeguards",
+    "data",
+    "resourceFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "enum": ["1.0.0"] },
+    "resourceKind": {
+      "enum": [
+        "status-summary",
+        "context-manifest-summary",
+        "run-summary",
+        "memory-proposal-summary",
+        "handoff-bundle-summary"
+      ]
+    },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+    "generatedAt": { "type": "string", "minLength": 20, "maxLength": 40 },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "safeguards": { "$ref": "#/$defs/safeguards" },
+    "data": { "type": "object", "additionalProperties": true },
+    "resourceFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer", "producerVersion", "source", "sourceFingerprint"],
+      "properties": {
+        "producer": { "enum": ["open-agent-fabric.protocol-bridges"] },
+        "producerVersion": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "source": { "enum": ["local-state"] },
+        "sourceFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "canonicalStateMutated",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "networkCalls",
+        "modelCalls",
+        "activeMemoryCreated",
+        "sourceSnapshotsWritten",
+        "privateContentIncluded",
+        "instructionTextIncluded",
+        "absoluteFilesystemLocationsIncluded",
+        "remoteEndpointDetailsIncluded"
+      ],
+      "properties": {
+        "readOnly": { "const": true },
+        "canonicalStateMutated": { "const": false },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "networkCalls": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "modelCalls": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "activeMemoryCreated": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "sourceSnapshotsWritten": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "privateContentIncluded": { "const": false },
+        "instructionTextIncluded": { "const": false },
+        "absoluteFilesystemLocationsIncluded": { "const": false },
+        "remoteEndpointDetailsIncluded": { "const": false }
+      }
+    }
+  }
+}

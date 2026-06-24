@@ -14,6 +14,7 @@ import {
   evaluateMemoryWrite,
   normalizeMemoryPathsConfig
 } from '../../packages/memory-core/src/index.mjs';
+import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages/protocol-bridges/src/index.mjs';
 import { buildSourceGraphPreview } from '../../packages/source-graph/src/index.mjs';
 
 const [command = 'help', ...args] = process.argv.slice(2);
@@ -36,6 +37,8 @@ if (commands.has(command)) {
   await benchmarkCommand(args);
 } else if (command === 'memory') {
   await memoryCommand(args);
+} else if (command === 'mcp') {
+  await mcpCommand(args);
 } else if (['help', '--help', '-h'].includes(command)) {
   help();
 } else if (['version', '--version', '-v'].includes(command)) {
@@ -370,6 +373,140 @@ async function contextGraphPreviewCommand(values) {
   }
 }
 
+async function mcpCommand(values) {
+  const [subcommand, ...rest] = values;
+  try {
+    if (subcommand === 'resources') return await mcpResourcesCommand(rest);
+    console.error('mcp requires resources');
+    process.exitCode = 2;
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function mcpResourcesCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('mcp resources requires --read-only; MCP write tools are not exposed by this command');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('mcp resources only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
+    schemaVersion: '1.0.0',
+    runs: [],
+    events: [],
+    memories: [],
+    approvals: [],
+    artifacts: []
+  });
+  const projectStatus = await loadWorkspaceJson(root, option(values, '--project-status') ?? 'PROJECT_STATUS.json', {});
+  const resources = buildOafReadOnlyResourceCatalog({
+    state,
+    projectStatus,
+    workspaceId,
+    generatedAt: fixedNow()
+  });
+  const trustedContext = localMcpTrustedContext(workspaceId);
+
+  if (values.includes('--stdio')) {
+    await mcpResourcesStdio({ resources, trustedContext });
+    return;
+  }
+
+  const uri = option(values, '--uri');
+  if (uri) {
+    const resource = resources.find((item) => item.uri === uri);
+    if (!resource) {
+      console.error(`unknown MCP resource: ${uri}`);
+      process.exitCode = 2;
+      return;
+    }
+    const contents = await resource.read({ trustedContext, replayMode: false });
+    console.log(JSON.stringify({
+      schemaVersion: '1.0.0',
+      mode: 'read-only',
+      workspaceId,
+      uri,
+      contents
+    }, null, 2));
+    return;
+  }
+
+  console.log(JSON.stringify({
+    schemaVersion: '1.0.0',
+    mode: 'read-only',
+    workspaceId,
+    resources: resources.map(({ uri: resourceUri, name, description, mimeType }) => ({ uri: resourceUri, name, description, mimeType })),
+    safeguards: {
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0
+    }
+  }, null, 2));
+}
+
+async function mcpResourcesStdio({ resources, trustedContext }) {
+  const input = await readStdinText();
+  if (!input.trim()) {
+    console.error('mcp resources --stdio requires JSON-RPC input on stdin');
+    process.exitCode = 2;
+    return;
+  }
+  const bridge = createMcpBridge({ trustedContext, resources, tools: [] });
+  const messages = parseJsonRpcMessages(input);
+  for (const message of messages) {
+    const response = await bridge.handle(message);
+    console.log(JSON.stringify(response));
+  }
+}
+
+async function readStdinText() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+function parseJsonRpcMessages(input) {
+  const trimmed = input.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch {
+    return trimmed.split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
+  }
+}
+
+function localMcpTrustedContext(workspaceId) {
+  return {
+    principal: {
+      userId: 'usr_local_cli',
+      principalType: 'user',
+      authenticationMethod: 'local-cli',
+      status: 'active'
+    },
+    membership: {
+      workspaceId,
+      role: 'builder',
+      status: 'active'
+    },
+    environment: {
+      deploymentProfile: 'local-dev',
+      locality: 'local-only',
+      externalWritesEnabled: false
+    }
+  };
+}
+
 function validateJsonFormat(values) {
   const format = option(values, '--format') ?? 'json';
   if (format !== 'json') {
@@ -406,6 +543,22 @@ async function loadMemoryRecords(values) {
     return null;
   }
   return records;
+}
+
+async function loadWorkspaceJson(root, relativePath, fallback) {
+  if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes('..')) throw new Error(`workspace JSON path is unsupported: ${relativePath}`);
+  const realRoot = await realpath(root);
+  const absolute = path.resolve(realRoot, relativePath);
+  if (!isInside(realRoot, absolute)) throw new Error(`workspace JSON path escapes root: ${relativePath}`);
+  let actual;
+  try {
+    actual = await realpath(absolute);
+  } catch (error) {
+    if (error.code === 'ENOENT') return fallback;
+    throw error;
+  }
+  if (!isInside(realRoot, actual)) throw new Error(`workspace JSON path escapes root: ${relativePath}`);
+  return JSON.parse(await readFile(actual, 'utf8'));
 }
 
 async function loadMemorySearchRecords(values, { workspaceId, query, limit }) {
@@ -606,5 +759,5 @@ function runNode(nodeArgs) {
 }
 
 function help() {
-  console.log(`Open Agent Fabric CLI\n\nUsage:\n  oaf doctor\n  oaf status\n  oaf task OAF-004\n  oaf demo [objective]\n  oaf serve\n  oaf check\n  oaf eval\n  oaf manifest\n  oaf context --request request.json --records records.json\n  oaf context scan --from codex --root . --dry-run\n  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run\n  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --dry-run --format markdown\n  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json\n  oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json\n  oaf memory profile --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json\n  oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json\n  oaf version\n\nThe default bootstrap is local-only and enables no external writes.`);
+  console.log(`Open Agent Fabric CLI\n\nUsage:\n  oaf doctor\n  oaf status\n  oaf task OAF-004\n  oaf demo [objective]\n  oaf serve\n  oaf check\n  oaf eval\n  oaf manifest\n  oaf context --request request.json --records records.json\n  oaf context scan --from codex --root . --dry-run\n  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run\n  oaf context pack --from all --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --dry-run --format markdown\n  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json\n  oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json\n  oaf memory profile --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --records memory-export.json --root . --dry-run --format json\n  oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json\n  oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json\n  oaf mcp resources --read-only --workspace ws_local --format json\n  oaf mcp resources --read-only --stdio\n  oaf version\n\nThe default bootstrap is local-only and enables no external writes.`);
 }

@@ -18,6 +18,20 @@ The package is in-process only. It does not start a stdio server, HTTP server,
 SSE stream, hosted bridge, or network listener. Application composition can
 wrap it later, but the bridge itself keeps transport separate from authority.
 
+OAF-031 adds a local read-only resource catalog on top of this bridge. The CLI
+composition:
+
+```bash
+npm run oaf -- mcp resources --read-only --format json
+npm --silent run oaf -- mcp resources --read-only --stdio
+```
+
+exposes sanitized resources for workspace status, the latest context manifest,
+the latest run, memory proposals, and the latest handoff/artifact summary. The
+stdio mode reads JSON-RPC messages from stdin and writes JSON-RPC responses to
+stdout; it does not bind a socket, start a public listener, expose write tools,
+or grant client-supplied authority.
+
 ## Authority
 
 The bridge rejects caller-supplied authority fields such as role, owner,

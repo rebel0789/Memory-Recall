@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 export const PROTOCOL_BRIDGES_VERSION = '0.1.0';
 export const MCP_BRIDGE_PROTOCOL_VERSION = '2025-06-18';
+export const OAF_READ_ONLY_MCP_RESOURCE_VERSION = '1.0.0';
 
 export class ProtocolBridgeError extends Error {
   constructor(code, message, details = {}) {
@@ -123,6 +124,343 @@ function publicResource(resource) {
     description: resource.description,
     mimeType: resource.mimeType ?? 'application/json'
   };
+}
+
+function items(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function workspaceScopedState(state = {}, workspaceId = 'ws_local') {
+  return {
+    runs: items(state.runs).filter((item) => item?.workspaceId === workspaceId),
+    events: items(state.events).filter((item) => item?.workspaceId === workspaceId),
+    memories: items(state.memories).filter((item) => (item?.workspaceId ?? workspaceId) === workspaceId),
+    approvals: items(state.approvals).filter((item) => (item?.workspaceId ?? workspaceId) === workspaceId),
+    artifacts: items(state.artifacts).filter((item) => (item?.workspaceId ?? workspaceId) === workspaceId)
+  };
+}
+
+function latestContextManifest(scoped) {
+  const eventManifest = [...scoped.events].reverse()
+    .find((event) => event?.type === 'context.compiled')?.payload;
+  if (eventManifest) return eventManifest.manifest ?? eventManifest;
+  const latestRun = scoped.runs.at(-1);
+  return latestRun?.contextManifest ?? latestRun?.result?.contextManifest ?? null;
+}
+
+function sortedCounts(values) {
+  const counts = new Map();
+  for (const value of values.filter(Boolean)) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return [...counts.entries()].sort(([left], [right]) => left.localeCompare(right)).map(([id, count]) => ({ id, count }));
+}
+
+function safeLocator(value) {
+  if (typeof value !== 'string') return null;
+  if (/^(workspace|artifact|evidence|memory|run|context|user-selected|omit|oaf):\/\//.test(value)) return value;
+  if (/^(provider|adapter|workflow|tool|model|policy):[A-Za-z0-9._:/-]+$/.test(value)) return value;
+  return null;
+}
+
+function safeId(value) {
+  return typeof value === 'string' && /^[A-Za-z0-9._:@/-]{1,160}$/.test(value) ? value : null;
+}
+
+function validateWorkspaceId(value) {
+  if (typeof value === 'string' && /^ws_[A-Za-z0-9._:-]{1,120}$/.test(value)) return value;
+  throw new ProtocolBridgeError('mcp_invalid_params', 'workspaceId must be a safe OAF workspace id');
+}
+
+function fingerprintFor(value) {
+  return `sha256:${hash(value)}`;
+}
+
+function summarizeRun(run) {
+  if (!run) return null;
+  return {
+    id: safeId(run.id) ?? 'run_unknown',
+    workflowId: safeId(run.workflowId) ?? null,
+    workflowVersion: typeof run.workflowVersion === 'string' ? run.workflowVersion : null,
+    status: typeof run.status === 'string' ? run.status : 'unknown',
+    residency: typeof run.residency === 'string' ? run.residency : 'local-only',
+    createdAt: typeof run.createdAt === 'string' ? run.createdAt : null,
+    completedAt: typeof run.completedAt === 'string' ? run.completedAt : null,
+    objectiveFingerprint: typeof run.objective === 'string' ? fingerprintFor(run.objective) : null,
+    objectiveLength: typeof run.objective === 'string' ? run.objective.length : 0,
+    hasVerification: Boolean(run.verification),
+    hasResultSummary: Boolean(run.result ?? run.output)
+  };
+}
+
+function summarizeManifestDecision(item) {
+  return {
+    id: safeId(item?.id) ?? 'record_unknown',
+    kind: typeof item?.kind === 'string' ? item.kind : 'unknown',
+    category: typeof item?.category === 'string' ? item.category : null,
+    rank: Number.isInteger(item?.order) ? item.order : null,
+    score: Number.isFinite(item?.score) ? item.score : null,
+    unitEstimate: Number.isFinite(item?.tokens) ? item.tokens : Number.isFinite(item?.estimatedTokens) ? item.estimatedTokens : null,
+    reasonCodes: items(item?.reasonCodes).filter((code) => typeof code === 'string').slice(0, 12),
+    locator: safeLocator(item?.locator ?? item?.sourceLocator ?? item?.source),
+    contentFingerprint: typeof item?.contentHash === 'string' ? item.contentHash : typeof item?.sourceHash === 'string' ? item.sourceHash : null
+  };
+}
+
+function summarizeContextManifest(manifest) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    return {
+      present: false,
+      selectedCount: 0,
+      excludedCount: 0,
+      reasonCodeCounts: [],
+      selected: [],
+      excluded: []
+    };
+  }
+  const selected = items(manifest.selected ?? manifest.selectedRecords ?? manifest.selectedDecisions);
+  const excluded = items(manifest.excluded ?? manifest.excludedRecords ?? manifest.excludedDecisions);
+  const reasonCodeCounts = sortedCounts([
+    ...selected.flatMap((item) => items(item?.reasonCodes)),
+    ...excluded.flatMap((item) => items(item?.reasonCodes))
+  ]);
+  return {
+    present: true,
+    id: safeId(manifest.id ?? manifest.manifestId) ?? null,
+    requestId: safeId(manifest.requestId) ?? null,
+    compilerVersion: typeof manifest.compilerVersion === 'string' ? manifest.compilerVersion : null,
+    createdAt: typeof manifest.createdAt === 'string' ? manifest.createdAt : null,
+    fingerprint: typeof manifest.manifestFingerprint === 'string' ? manifest.manifestFingerprint : fingerprintFor({
+      id: manifest.id ?? null,
+      selected: selected.map((item) => item?.id ?? null),
+      excluded: excluded.map((item) => item?.id ?? null),
+      budget: manifest.budget ?? null
+    }),
+    budget: {
+      available: Number.isFinite(manifest.budget?.available) ? manifest.budget.available : null,
+      used: Number.isFinite(manifest.budget?.used) ? manifest.budget.used : null
+    },
+    selectedCount: selected.length,
+    excludedCount: excluded.length,
+    reasonCodeCounts,
+    selected: selected.slice(0, 12).map(summarizeManifestDecision),
+    excluded: excluded.slice(0, 12).map(summarizeManifestDecision),
+    truncated: selected.length > 12 || excluded.length > 12
+  };
+}
+
+function summarizeMemory(record) {
+  return {
+    id: safeId(record?.id) ?? 'mem_unknown',
+    kind: typeof record?.kind === 'string' ? record.kind : 'unknown',
+    status: typeof record?.status === 'string' ? record.status : 'unknown',
+    decision: typeof record?.decision === 'string' ? record.decision : null,
+    confidence: Number.isFinite(record?.confidence) ? record.confidence : null,
+    evidenceIds: items(record?.evidenceIds).filter((id) => typeof id === 'string').slice(0, 12),
+    supersedes: typeof record?.supersedes === 'string' ? record.supersedes : null,
+    createdAt: typeof record?.createdAt === 'string' ? record.createdAt : null,
+    updatedAt: typeof record?.updatedAt === 'string' ? record.updatedAt : null,
+    recordFingerprint: fingerprintFor({
+      id: record?.id ?? null,
+      kind: record?.kind ?? null,
+      status: record?.status ?? null,
+      decision: record?.decision ?? null,
+      evidenceIds: items(record?.evidenceIds)
+    })
+  };
+}
+
+function summarizeApproval(approval) {
+  return {
+    id: safeId(approval?.id) ?? 'approval_unknown',
+    status: typeof approval?.status === 'string' ? approval.status : 'unknown',
+    riskClass: typeof approval?.riskClass === 'string' ? approval.riskClass : null,
+    operation: typeof approval?.operation === 'string' ? approval.operation : null,
+    createdAt: typeof approval?.createdAt === 'string' ? approval.createdAt : null,
+    expiresAt: typeof approval?.expiresAt === 'string' ? approval.expiresAt : null
+  };
+}
+
+function summarizeArtifact(artifact) {
+  return {
+    id: safeId(artifact?.id) ?? 'artifact_unknown',
+    kind: typeof artifact?.kind === 'string' ? artifact.kind : typeof artifact?.type === 'string' ? artifact.type : 'unknown',
+    runId: safeId(artifact?.runId) ?? null,
+    contentType: typeof artifact?.contentType === 'string' ? artifact.contentType : null,
+    fingerprint: typeof artifact?.sha256 === 'string' ? `sha256:${artifact.sha256.replace(/^sha256:/, '')}` : typeof artifact?.hash === 'string' ? artifact.hash : null,
+    createdAt: typeof artifact?.createdAt === 'string' ? artifact.createdAt : null
+  };
+}
+
+function commonSafeguards() {
+  return {
+    readOnly: true,
+    canonicalStateMutated: false,
+    externalWritesEnabled: false,
+    externalAdaptersEnabled: 0,
+    networkCalls: 0,
+    modelCalls: 0,
+    activeMemoryCreated: 0,
+    sourceSnapshotsWritten: 0,
+    privateContentIncluded: false,
+    instructionTextIncluded: false,
+    absoluteFilesystemLocationsIncluded: false,
+    remoteEndpointDetailsIncluded: false
+  };
+}
+
+function createResourcePayload({ resourceKind, workspaceId, generatedAt, data }) {
+  const payload = {
+    schemaVersion: OAF_READ_ONLY_MCP_RESOURCE_VERSION,
+    resourceKind,
+    workspaceId,
+    generatedAt,
+    provenance: {
+      producer: 'open-agent-fabric.protocol-bridges',
+      producerVersion: PROTOCOL_BRIDGES_VERSION,
+      source: 'local-state',
+      sourceFingerprint: fingerprintFor(data)
+    },
+    safeguards: commonSafeguards(),
+    data
+  };
+  const withFingerprint = { ...payload, resourceFingerprint: fingerprintFor(payload) };
+  assertSafeResult(withFingerprint);
+  return withFingerprint;
+}
+
+function jsonResource(uri, name, description, readPayload) {
+  return {
+    uri,
+    name,
+    description,
+    mimeType: 'application/json',
+    read: async () => {
+      const payload = readPayload();
+      return [{ uri, mimeType: 'application/json', text: JSON.stringify(payload, null, 2) }];
+    }
+  };
+}
+
+export function buildOafReadOnlyResourceCatalog({
+  state = {},
+  projectStatus = {},
+  workspaceId = 'ws_local',
+  generatedAt = new Date().toISOString()
+} = {}) {
+  const safeWorkspaceId = validateWorkspaceId(workspaceId);
+  const scoped = workspaceScopedState(state, safeWorkspaceId);
+  const base = `oaf://workspace/${safeWorkspaceId}`;
+  const buildData = () => {
+    const latestRun = scoped.runs.at(-1) ?? null;
+    const manifest = latestContextManifest(scoped);
+    const statuses = sortedCounts(scoped.runs.map((run) => run?.status));
+    const recentEvents = scoped.events.slice(-30).map((event) => ({
+      id: safeId(event?.id) ?? null,
+      runId: safeId(event?.runId) ?? null,
+      sequence: Number.isInteger(event?.sequence) ? event.sequence : null,
+      type: typeof event?.type === 'string' ? event.type : 'unknown',
+      occurredAt: typeof event?.occurredAt === 'string' ? event.occurredAt : null
+    }));
+    return {
+      latestRun,
+      manifest,
+      statuses,
+      recentEvents,
+      proposedMemories: scoped.memories.filter((memory) => ['proposed', 'quarantined', 'pending'].includes(memory?.status)),
+      acceptedMemories: scoped.memories.filter((memory) => ['active', 'verified'].includes(memory?.status)),
+      pendingApprovals: scoped.approvals.filter((approval) => approval?.status === 'pending'),
+      artifacts: scoped.artifacts
+    };
+  };
+
+  return [
+    jsonResource(`${base}/status`, 'OAF workspace status', 'Sanitized local OAF workspace status and default safety posture.', () => {
+      const data = buildData();
+      return createResourcePayload({
+        resourceKind: 'status-summary',
+        workspaceId: safeWorkspaceId,
+        generatedAt,
+        data: {
+          release: projectStatus?.release ?? null,
+          phase: projectStatus?.phase ?? null,
+          nextTask: projectStatus?.nextTask ?? null,
+          defaults: {
+            network: projectStatus?.defaults?.network ?? 'deny',
+            externalWrites: projectStatus?.defaults?.externalWrites === true,
+            modelMode: projectStatus?.defaults?.modelMode ?? 'deterministic',
+            dataResidency: projectStatus?.defaults?.dataResidency ?? 'local-only',
+            adapters: projectStatus?.defaults?.adapters ?? 'disabled'
+          },
+          counts: {
+            runs: scoped.runs.length,
+            completedRuns: scoped.runs.filter((run) => run?.status === 'completed').length,
+            events: scoped.events.length,
+            memoryRecords: scoped.memories.length,
+            proposedMemories: data.proposedMemories.length,
+            acceptedMemories: data.acceptedMemories.length,
+            pendingApprovals: data.pendingApprovals.length,
+            artifacts: scoped.artifacts.length
+          },
+          runStatusCounts: data.statuses,
+          latestRun: summarizeRun(data.latestRun),
+          latestContextManifest: summarizeContextManifest(data.manifest)
+        }
+      });
+    }),
+    jsonResource(`${base}/context/latest`, 'Latest context manifest summary', 'Sanitized selected and excluded context manifest summary.', () => {
+      const data = buildData();
+      return createResourcePayload({
+        resourceKind: 'context-manifest-summary',
+        workspaceId: safeWorkspaceId,
+        generatedAt,
+        data: {
+          latestRun: summarizeRun(data.latestRun),
+          contextManifest: summarizeContextManifest(data.manifest)
+        }
+      });
+    }),
+    jsonResource(`${base}/runs/latest`, 'Latest run summary', 'Sanitized latest run and recent event timeline without event bodies.', () => {
+      const data = buildData();
+      return createResourcePayload({
+        resourceKind: 'run-summary',
+        workspaceId: safeWorkspaceId,
+        generatedAt,
+        data: {
+          latestRun: summarizeRun(data.latestRun),
+          recentRuns: scoped.runs.slice(-8).reverse().map(summarizeRun),
+          recentEvents: data.recentEvents,
+          eventTypeCounts: sortedCounts(scoped.events.map((event) => event?.type))
+        }
+      });
+    }),
+    jsonResource(`${base}/memory/proposals`, 'Memory proposal summary', 'Proposal-only memory queue summary without memory text.', () => {
+      const data = buildData();
+      return createResourcePayload({
+        resourceKind: 'memory-proposal-summary',
+        workspaceId: safeWorkspaceId,
+        generatedAt,
+        data: {
+          proposedCount: data.proposedMemories.length,
+          acceptedCount: data.acceptedMemories.length,
+          proposed: data.proposedMemories.slice(-20).reverse().map(summarizeMemory),
+          acceptedSummary: data.acceptedMemories.slice(-20).reverse().map(summarizeMemory)
+        }
+      });
+    }),
+    jsonResource(`${base}/handoff/latest`, 'Handoff bundle summary', 'Sanitized handoff and artifact summary for local agent review.', () => {
+      const data = buildData();
+      return createResourcePayload({
+        resourceKind: 'handoff-bundle-summary',
+        workspaceId: safeWorkspaceId,
+        generatedAt,
+        data: {
+          latestRun: summarizeRun(data.latestRun),
+          latestContextManifest: summarizeContextManifest(data.manifest),
+          pendingApprovals: data.pendingApprovals.slice(-20).reverse().map(summarizeApproval),
+          artifacts: data.artifacts.slice(-20).reverse().map(summarizeArtifact)
+        }
+      });
+    })
+  ];
 }
 
 export function createMcpBridge({

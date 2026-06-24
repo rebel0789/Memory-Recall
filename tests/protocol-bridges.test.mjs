@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createMcpBridge } from '../packages/protocol-bridges/src/index.mjs';
+import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../packages/protocol-bridges/src/index.mjs';
 
 const trustedContext = {
   principal: {
@@ -54,6 +54,119 @@ function resource() {
     description: 'Sanitized run summary',
     mimeType: 'application/json',
     read: async () => [{ uri: 'oaf://workspace/ws_mcp/runs/run_demo', mimeType: 'application/json', text: '{"status":"completed"}' }]
+  };
+}
+
+function oafState() {
+  return {
+    schemaVersion: '1.0.0',
+    runs: [
+      {
+        id: 'run_mcp',
+        workspaceId: 'ws_mcp',
+        workflowId: 'workflow:content-intelligence',
+        workflowVersion: '0.1.0',
+        objective: 'Private objective should be fingerprinted only.',
+        status: 'completed',
+        residency: 'local-only',
+        createdAt: '2026-06-24T00:00:00.000Z',
+        completedAt: '2026-06-24T00:00:01.000Z',
+        output: { text: 'private model result should not leave state' }
+      },
+      {
+        id: 'run_other',
+        workspaceId: 'ws_other',
+        workflowId: 'workflow:content-intelligence',
+        objective: 'Other workspace objective',
+        status: 'failed'
+      }
+    ],
+    events: [
+      {
+        id: 'evt_1',
+        workspaceId: 'ws_mcp',
+        runId: 'run_mcp',
+        sequence: 1,
+        type: 'context.compiled',
+        occurredAt: '2026-06-24T00:00:00.500Z',
+        payload: {
+          id: 'ctx_mcp',
+          compilerVersion: 'context-compiler@1.0.0',
+          createdAt: '2026-06-24T00:00:00.500Z',
+          budget: { available: 200, used: 42 },
+          selected: [{
+            id: 'doc_safe',
+            kind: 'instruction',
+            category: 'governance',
+            order: 1,
+            score: 1,
+            tokens: 42,
+            reasonCodes: ['explicit_requirement'],
+            source: '/Users/rebel/private.txt',
+            text: 'raw prompt body with token=secret should never be included'
+          }],
+          excluded: [{
+            id: 'doc_noise',
+            kind: 'note',
+            tokens: 18,
+            reasonCodes: ['insufficient_relevance'],
+            source: 'workspace://notes/noise.md',
+            text: 'excluded raw body should not be included'
+          }]
+        }
+      },
+      {
+        id: 'evt_other',
+        workspaceId: 'ws_other',
+        runId: 'run_other',
+        sequence: 1,
+        type: 'run.started',
+        occurredAt: '2026-06-24T00:00:00.000Z',
+        payload: { text: 'other workspace payload' }
+      }
+    ],
+    memories: [
+      {
+        id: 'mem_proposed',
+        workspaceId: 'ws_mcp',
+        kind: 'decision',
+        status: 'proposed',
+        decision: 'review',
+        confidence: 0.7,
+        evidenceIds: ['ev_mcp'],
+        createdAt: '2026-06-24T00:00:00.000Z',
+        text: 'private memory text'
+      },
+      {
+        id: 'mem_other',
+        workspaceId: 'ws_other',
+        kind: 'decision',
+        status: 'proposed',
+        text: 'other workspace memory'
+      }
+    ],
+    approvals: [
+      {
+        id: 'approval_mcp',
+        workspaceId: 'ws_mcp',
+        status: 'pending',
+        riskClass: 'reversible-write',
+        operation: 'draft.write',
+        createdAt: '2026-06-24T00:00:00.000Z'
+      }
+    ],
+    artifacts: [
+      {
+        id: 'artifact_mcp',
+        workspaceId: 'ws_mcp',
+        kind: 'handoff',
+        runId: 'run_mcp',
+        contentType: 'text/markdown',
+        hash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        createdAt: '2026-06-24T00:00:00.000Z',
+        localPath: '/Users/rebel/private/handoff.md'
+      }
+    ]
   };
 }
 
@@ -199,4 +312,51 @@ test('MCP bridge rejects malformed messages and private result payloads', async 
     params: { name: 'oaf.readRun', grantId: 'grant_read', arguments: { runId: 'run_demo' } }
   });
   assert.equal(privatePayload.error.data.code, 'mcp_private_payload');
+});
+
+test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped resources', async () => {
+  const state = oafState();
+  const before = JSON.stringify(state);
+  const resources = buildOafReadOnlyResourceCatalog({
+    state,
+    projectStatus: {
+      release: '0.2.0-dev',
+      phase: 'local-test',
+      nextTask: 'OAF-031',
+      defaults: { network: 'deny', externalWrites: false, modelMode: 'deterministic', dataResidency: 'local-only', adapters: 'disabled' }
+    },
+    workspaceId: 'ws_mcp',
+    generatedAt: '2026-06-24T00:00:00.000Z'
+  });
+  const bridge = createMcpBridge({ trustedContext, resources });
+  const listed = await bridge.handle({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
+  assert.deepEqual(listed.result.resources.map((item) => item.uri), [
+    'oaf://workspace/ws_mcp/status',
+    'oaf://workspace/ws_mcp/context/latest',
+    'oaf://workspace/ws_mcp/runs/latest',
+    'oaf://workspace/ws_mcp/memory/proposals',
+    'oaf://workspace/ws_mcp/handoff/latest'
+  ]);
+
+  const first = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context/latest' } });
+  const second = await bridge.handle({ jsonrpc: '2.0', id: 3, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context/latest' } });
+  assert.equal(first.result.contents[0].text, second.result.contents[0].text);
+  const payload = JSON.parse(first.result.contents[0].text);
+  assert.equal(payload.resourceKind, 'context-manifest-summary');
+  assert.equal(payload.workspaceId, 'ws_mcp');
+  assert.equal(payload.data.contextManifest.selectedCount, 1);
+  assert.equal(payload.data.contextManifest.excludedCount, 1);
+  assert.equal(payload.data.contextManifest.selected[0].locator, null);
+  assert.match(payload.resourceFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(payload.safeguards.readOnly, true);
+  assert.equal(payload.safeguards.canonicalStateMutated, false);
+  assert.equal(payload.safeguards.networkCalls, 0);
+  assert.equal(payload.safeguards.modelCalls, 0);
+  const text = JSON.stringify(payload);
+  assert.equal(text.includes('raw prompt body'), false);
+  assert.equal(text.includes('private model result'), false);
+  assert.equal(text.includes('private memory text'), false);
+  assert.equal(text.includes('/Users/rebel'), false);
+  assert.equal(text.includes('run_other'), false);
+  assert.equal(JSON.stringify(state), before);
 });

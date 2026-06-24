@@ -58,6 +58,12 @@ slice.
 - `npm run oaf -- memory sgrep "..." --records memory-export.json --workspace ws_local --dry-run --format json`
   returns local source-grounded memory search results with lifecycle state,
   evidence IDs, and optional context-manifest reason codes.
+- `npm run oaf -- mcp resources --read-only --format json` lists sanitized
+  OAF-owned MCP resources for local harnesses: status, latest context manifest,
+  latest run, memory proposals, and handoff/artifact summary.
+- `npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context/latest --format json`
+  reads one resource as a schema-validated JSON envelope. `--stdio` accepts
+  local JSON-RPC messages on stdin and writes JSON-RPC responses to stdout.
 - The native SQLite memory provider now preserves memory-core lifecycle and
   review fields and includes a local proposal queue with idempotent
   fingerprints, leases, retries, and poison/error records.
@@ -92,6 +98,11 @@ slice.
 - The Fabric Map is an observer surface only. It does not add telemetry, import
   harness chat history, call models, activate memory, enable external adapters,
   enable external writes, or render raw context bodies.
+- Read-only MCP resources are local summaries only. They do not start a network
+  listener, expose write tools, mutate canonical state, create memory, write
+  source snapshots, call models, perform external egress, or include raw
+  prompts, source bodies, model results, credentials, provider URLs, absolute
+  local paths, or hidden reasoning.
 
 ## Prior Art Boundary
 
@@ -107,6 +118,5 @@ engine, daemon, embeddings, mutating MCP tools, or performance claims.
   repository-scale benchmarks, and bounded subgraph selection into context
   manifests.
 - Automatic harness chat history import and active-memory activation.
-- Read-only MCP exposure of sanitized OAF resources.
 - Optional disabled adapters for external memory or code-intelligence systems
   after pin, checksum, license, trust-boundary, and conformance review.
