@@ -74,9 +74,10 @@ The result starts with a **Use this pack** brief before the raw Markdown:
 changed-file coverage, affected symbols, required local reads, hash proof,
 graph hints, source selection reduction, and the exact read-only commands to
 reproduce the report. It contains locators, hashes, counts, statuses, and
-fingerprints only; it does not include raw source bodies, diff hunks, prompt
-text, markdown bodies, local absolute paths, model calls, network calls, graph
-databases, or adapters.
+fingerprints only; it does not include raw source bodies, diff hunks, markdown
+bodies, local absolute paths, model calls, network calls, graph databases, or
+adapters. The proof commands intentionally include the visible objective and
+step arguments because they are runnable local CLI commands.
 
 CLI dry run:
 

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T21:10:15.067Z",
+  "generatedAt": "2026-06-24T21:17:30.965Z",
   "fileCount": 804,
-  "totalBytes": 3886918,
+  "totalBytes": 3888138,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -582,8 +582,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 147432,
-      "sha256": "43f22ab76dfaaafc7872b084b466deaa34d79fe3d0ffb7b66a6cea7543fab310"
+      "bytes": 148044,
+      "sha256": "1ef5c83560d1dda02511c4c1550aa4cfb82edbd0a3f4c5e1f3554d944f3e1de3"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -1042,8 +1042,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 18686,
-      "sha256": "bd2d32a64f0b88087a89f15fdccbd955d109cb5b4a8e157839e11c7400b72d4f"
+      "bytes": 18839,
+      "sha256": "75ea55dc2c6251feb0c297a70cc1782da45a06f5730f23a8adb3567c438daacd"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -2198,7 +2198,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "e2f7969e383ab0155c884459cec354c15a5b6ddd5f50674005ff782c9e96e585"
+      "sha256": "527f0e8d812aeefddad677d63806ca6ff603a73cddce9b62efa96030060e803f"
     },
     {
       "path": "LICENSE",
@@ -2207,8 +2207,8 @@
     },
     {
       "path": "LOCAL_DEVELOPMENT.md",
-      "bytes": 10820,
-      "sha256": "5bea34c8a130bd4bb1f50a5e7ec96f8c7df5b59277710652b2f7b93d059fdb40"
+      "bytes": 10935,
+      "sha256": "27f773b928b2a80c51a58683511c6ccd3d6553cffe1f190fea866dbf06f95571"
     },
     {
       "path": "MAINTAINERS.md",
@@ -3927,8 +3927,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 40311,
-      "sha256": "c23d53c5ef75620fca052061d701d6caaa2b970b8d7c66fe5c1d8b2b8fd7c97a"
+      "bytes": 40651,
+      "sha256": "e7225c2284ed10eb268dfca6b106083f21419d672b0500516d18f8c4804ddfa5"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

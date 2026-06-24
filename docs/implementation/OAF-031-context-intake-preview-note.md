@@ -189,7 +189,9 @@ slice.
   searching through the inspector. The brief is derived from existing
   schema-validated pack fields and still omits raw source bodies, markdown
   bodies, absolute local paths, model calls, network calls, graph databases,
-  adapters, and external writes.
+  adapters, and external writes. The proof commands in the brief intentionally
+  include the visible objective and step CLI arguments because they are local
+  commands the user can run.
 - The Control API also reads each freshly built pack through the in-process
   read-only MCP bridge before returning it to the browser. The returned readback
   proof records the resource fingerprint, context-pack fingerprint match,

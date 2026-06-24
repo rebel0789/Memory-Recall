@@ -97,7 +97,10 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Handoff operator brief/);
   assert.match(app,/Use this pack/);
   assert.match(app,/Changed files, reads, and proof commands are ready/);
+  assert.match(app,/Review changed files, reads, and proof commands before handoff/);
   assert.match(app,/Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief/);
+  assert.match(app,/Proof commands intentionally include the visible objective and step arguments/);
+  assert.match(app,/\['Test local handoff','Read current context pack','Copy impact command'\]/);
   assert.match(app,/Utility read plan/);
   assert.match(app,/Hash verified/);
   assert.match(app,/Observed build time/);
@@ -255,6 +258,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.doesNotMatch(model.commands[1].command,/--from all/);
   assert.match(model.commands[1].command,/Ship user'"'"'s change safely/);
   assert.match(model.commands[2].command,/--write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);
+  assert.equal(model.commands[2].label,'Pin locally');
   assert.match(model.commands[3].command,/context registry status --read-only --format json/);
   assert.equal(model.commands.some((item)=>item.command==='npm --silent run oaf -- mcp resources --read-only --stdio'),true);
   const preflightCommand=model.commands.find((item)=>item.label==='Test local handoff')?.command ?? '';
