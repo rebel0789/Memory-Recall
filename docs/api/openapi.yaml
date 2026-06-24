@@ -234,6 +234,22 @@ paths:
         '403': { $ref: '#/components/responses/BoundaryError' }
         '413': { $ref: '#/components/responses/BoundaryError' }
         '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack/registry/status:
+    get:
+      operationId: getContextPackRegistryStatus
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Read-only verification status for explicitly pinned local context-pack artifacts.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPackRegistryStatusResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
   /api/context/source-preview:
     post:
       operationId: previewContextSources
@@ -648,6 +664,44 @@ components:
             safeguards: { type: object, additionalProperties: true }
             usePlanFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
         readback: { type: object, additionalProperties: true }
+    ContextPackRegistryStatusResponse:
+      type: object
+      additionalProperties: true
+      required: [schemaVersion, registryVersion, command, workspaceId, generatedAt, registry, currentPointer, current, entries, warnings, safeguards]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        registryVersion: { type: string, minLength: 1, maxLength: 32 }
+        command: { const: context registry status }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        generatedAt: { type: string, format: date-time }
+        registry: { type: object, additionalProperties: true }
+        currentPointer: { type: object, additionalProperties: true }
+        current: { type: object, additionalProperties: true }
+        entries:
+          type: array
+          maxItems: 50
+          items: { type: object, additionalProperties: true }
+        warnings:
+          type: array
+          maxItems: 16
+          items: { type: string, minLength: 1, maxLength: 128 }
+        safeguards:
+          type: object
+          additionalProperties: true
+          required: [readOnly, canonicalStateMutated, localFilesWritten, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, activeMemoryCreated, markdownContentIncluded, sourceContentIncluded, privateContentIncluded, absoluteFilesystemLocationsIncluded]
+          properties:
+            readOnly: { const: true }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            markdownContentIncluded: { const: false }
+            sourceContentIncluded: { const: false }
+            privateContentIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
     ContextSourcePreviewRequest:
       type: object
       additionalProperties: false

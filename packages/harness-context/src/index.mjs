@@ -1157,6 +1157,9 @@ function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, 
     `npm run oaf -- context pack ${base} --dry-run --format markdown`,
     `npm run oaf -- context pack ${base} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
     'npm run oaf -- context registry status --read-only --format json',
+    'npm run oaf -- mcp resources --read-only --stdio',
+    'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json',
+    'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json',
     `npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
     'npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json',
     `npm run oaf -- mcp resources --read-only --context-pack ${base} --uri oaf://workspace/ws_local/context-pack/current --format json`,
@@ -2280,6 +2283,27 @@ export async function verifyContextPackRegistry({
   };
   assertJsonSchema(contextPackRegistryStatusSchema, report, 'context pack registry status');
   return report;
+}
+
+export async function loadCurrentContextPackUsePlan({
+  root = process.cwd(),
+  workspaceId = 'ws_local',
+  currentPath = 'context-packs/current.json',
+  clock = () => new Date().toISOString()
+} = {}) {
+  const status = await verifyContextPackRegistry({ root, workspaceId, currentPath, clock });
+  if (!status.registry.exists || status.registry.fingerprintStatus !== 'verified') return null;
+  if (!status.currentPointer.exists || status.currentPointer.fingerprintStatus !== 'verified') return null;
+  if (status.current.status === 'tampered' || status.current.status === 'missing') return null;
+  const rootReal = await realpath(root);
+  const pointer = JSON.parse((await readRegistryWorkspaceFile(rootReal, currentPath)).text);
+  const relativePath = registryRelativePath(pointer.usePlanLocator);
+  if (!relativePath || !relativePath.endsWith('.use.json')) return null;
+  const plan = JSON.parse((await readRegistryWorkspaceFile(rootReal, relativePath)).text);
+  assertJsonSchema(contextPackUsePlanSchema, plan, 'current context pack use plan');
+  if (plan.workspaceId !== workspaceId) return null;
+  if (pointer.contextPackFingerprint !== plan.contextPack.fingerprint) return null;
+  return plan;
 }
 
 function defaultThresholds(dataset) {

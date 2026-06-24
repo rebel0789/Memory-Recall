@@ -122,6 +122,13 @@ slice.
   hashes. The status report is schema-validated and omits markdown content,
   objective text, source content, credentials, provider URLs, absolute paths,
   model calls, network calls, external adapters, active memory, and write tools.
+- After a pin, `npm run oaf -- mcp resources --read-only --stdio` automatically
+  discovers the current pinned use plan and registry status from
+  `context-packs/current.json` and `context-packs/registry.json`. This is the
+  standard bridge command used by local harness setup; it still exposes no tools
+  and does not require a special context-pack flag to list or read
+  `oaf://workspace/ws_local/context-pack/use-plan/current` or
+  `oaf://workspace/ws_local/context-pack/registry/current`.
 - `npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json`
   reads that exported use plan through the read-only MCP resource catalog. The
   path is restricted to `context-packs/*.use.json`; absolute paths, traversal,
@@ -129,6 +136,11 @@ slice.
 - `npm run oaf -- mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json`
   exposes the same sanitized registry verification report through the read-only
   MCP resource catalog. It adds no MCP tools and keeps `tools/list` empty.
+- `GET /api/context/pack/registry/status?workspaceId=ws_local` exposes the same
+  read-only registry verification report through the authenticated loopback
+  Control API. It is a read path only: no CSRF token is needed for GET, no
+  canonical state is mutated, and response validation uses the same protocol
+  schema as the CLI report.
 - `npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   launches the same read-only stdio MCP resource bridge, reads
   `oaf://workspace/ws_local/context-pack/current`, asserts `tools/list` returns

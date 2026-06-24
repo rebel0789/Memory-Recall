@@ -1031,9 +1031,10 @@ function contextPackHarnessCommands(pack,usePlan=null) {
     { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
+    { label:'Start MCP bridge', command:'npm run oaf -- mcp resources --read-only --stdio' },
     { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
-    { label:'Read use plan', command:'npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
-    { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
+    { label:'Read use plan', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
+    { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
     { label:'Read current context pack', command:`npm run oaf -- mcp resources --read-only --context-pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
     { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
     { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
@@ -1054,8 +1055,9 @@ function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
   return [
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
-    { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
-    { label:'Read use plan', command:`npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri ${uri} --format json` }
+    { label:'Start MCP bridge', command:'npm run oaf -- mcp resources --read-only --stdio' },
+    { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
+    { label:'Read use plan', command:`npm run oaf -- mcp resources --read-only --uri ${uri} --format json` }
   ];
 }
 
@@ -1063,6 +1065,8 @@ function contextPackCommandLabel(command) {
   if(command === 'npm run doctor')return 'Check local setup';
   if(command === 'npm run ci')return 'Run CI';
   if(command.includes('context registry status'))return 'Verify pin';
+  if(command.includes('--stdio'))return 'Start MCP bridge';
+  if(command.includes('context-pack/registry/current'))return 'Read registry';
   if(command.includes('context-pack-registry'))return 'Read registry';
   if(command.includes('--use-out'))return 'Export use plan';
   if(command.includes('context pack'))return 'Rebuild from CLI';

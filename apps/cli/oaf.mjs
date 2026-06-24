@@ -16,6 +16,7 @@ import {
   buildHarnessContextPreview,
   buildHarnessSetupReport,
   detectGitChangedLocators,
+  loadCurrentContextPackUsePlan,
   renderContextPackMarkdown,
   scanHarnessContext,
   verifyContextPackRegistry
@@ -617,11 +618,9 @@ async function mcpResourcesCommand(values) {
   }
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
-  const currentContextPackUsePlan = await loadMcpContextPackUsePlan(values, { root });
+  const currentContextPackUsePlan = await loadMcpContextPackUsePlan(values, { root, workspaceId });
   const currentContextPack = await buildMcpContextPackResource(values, { root, workspaceId });
-  const currentContextPackRegistryStatus = values.includes('--context-pack-registry')
-    ? await verifyContextPackRegistry({ root, workspaceId, clock: fixedNow })
-    : null;
+  const currentContextPackRegistryStatus = await loadMcpContextPackRegistryStatus(values, { root, workspaceId });
   const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
     schemaVersion: '1.0.0',
     runs: [],
@@ -681,11 +680,12 @@ async function mcpResourcesCommand(values) {
   }, null, 2));
 }
 
-async function loadMcpContextPackUsePlan(values, { root }) {
+async function loadMcpContextPackUsePlan(values, { root, workspaceId }) {
   const relativePath = option(values, '--context-pack-use');
   if (!relativePath) {
     if (values.includes('--context-pack-use')) throw new Error('mcp resources --context-pack-use requires a relative context-packs/*.use.json file');
-    return null;
+    if (values.includes('--context-pack')) return null;
+    return loadCurrentContextPackUsePlan({ root, workspaceId, clock: fixedNow }).catch(() => null);
   }
   if (values.includes('--context-pack')) {
     throw new Error('mcp resources supports either --context-pack or --context-pack-use, not both');
@@ -704,6 +704,15 @@ async function loadMcpContextPackUsePlan(values, { root }) {
   const plan = JSON.parse(await readFile(actual, 'utf8'));
   assertJsonSchema(contextPackUsePlanSchema, plan, 'context pack use plan');
   return plan;
+}
+
+async function loadMcpContextPackRegistryStatus(values, { root, workspaceId }) {
+  const report = values.includes('--context-pack-registry')
+    ? await verifyContextPackRegistry({ root, workspaceId, clock: fixedNow })
+    : await verifyContextPackRegistry({ root, workspaceId, clock: fixedNow }).catch(() => null);
+  if (!report) return null;
+  if (values.includes('--context-pack-registry')) return report;
+  return report.registry.exists || report.currentPointer.exists ? report : null;
 }
 
 async function buildMcpContextPackResource(values, { root, workspaceId }) {

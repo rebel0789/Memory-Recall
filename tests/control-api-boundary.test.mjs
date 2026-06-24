@@ -426,6 +426,76 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(api.calls.workflow, 0);
 });
 
+test('context pack registry status route is protected read-only and sanitized', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-context-registry-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(path.join(sourceGraphRoot, 'AGENTS.md'), 'API REGISTRY RAW AGENTS BODY should not leak.');
+  await writeFile(path.join(sourceGraphRoot, 'CONTEXT.md'), 'API REGISTRY RAW SELECTED BODY should not leak.');
+  await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export function registryStatusFixture(){ return true; }\n');
+  const objective = 'private registry objective must not leak';
+  const step = 'private registry step must not leak';
+  const pinned = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs',
+    'context',
+    'pack',
+    '--root',
+    sourceGraphRoot,
+    '--from',
+    'codex',
+    '--objective',
+    objective,
+    '--step',
+    step,
+    '--target',
+    'codex',
+    '--include-file',
+    'CONTEXT.md',
+    '--changed',
+    'src/web.ts',
+    '--write',
+    '--pin',
+    '--out',
+    'context-packs/CONTEXT_PACK.md',
+    '--format',
+    'json'
+  ], { encoding: 'utf8', env: { ...process.env, OAF_FIXED_NOW: '2026-06-19T10:00:00.000Z' } });
+  assert.equal(pinned.status, 0, pinned.stderr);
+
+  const api = await startServer(t, { sourceGraphRoot });
+  const denied = await request(api.base, '/api/context/pack/registry/status?workspaceId=ws_local');
+  assert.equal(denied.status, 401);
+  assert.equal(denied.body.error.code, 'authentication_required');
+
+  const response = await request(api.base, '/api/context/pack/registry/status?workspaceId=ws_local', {
+    method: 'GET',
+    headers: { cookie: api.auth.cookie }
+  });
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.command, 'context registry status');
+  assert.equal(response.body.current.status, 'verified');
+  assert.equal(response.body.registry.entryCount, 1);
+  assert.equal(response.body.safeguards.readOnly, true);
+  assert.equal(response.body.safeguards.localFilesWritten, 0);
+  assert.equal(response.body.safeguards.externalWritesEnabled, false);
+  assert.equal(response.body.safeguards.externalAdaptersEnabled, 0);
+  assert.equal(response.body.safeguards.networkCalls, 0);
+  assert.equal(response.body.safeguards.modelCalls, 0);
+  assert.equal(response.body.safeguards.markdownContentIncluded, false);
+  assert.equal(response.body.safeguards.sourceContentIncluded, false);
+  assert.equal(response.body.entries[0].sourceChecks.stale, 0);
+  assert.equal(response.body.entries[0].sourceChecks.verifiedLocators.includes('workspace://src/web.ts'), true);
+  assert.equal(response.text.includes('API REGISTRY RAW AGENTS BODY'), false);
+  assert.equal(response.text.includes('API REGISTRY RAW SELECTED BODY'), false);
+  assert.equal(response.text.includes(objective), false);
+  assert.equal(response.text.includes(step), false);
+  assert.equal(response.text.includes(sourceGraphRoot), false);
+  assert.equal(response.text.includes('/Users/'), false);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+  assert.equal(api.calls.compile, 0);
+});
+
 test('git changed-locator detection route is opt-in protected and read-only', async (t) => {
   const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-git-changes-'));
   t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
@@ -687,6 +757,12 @@ test('context pack and graph preview authorize context resources', async (t) => 
   });
   assert.equal(pack.status, 200, pack.text);
 
+  const registryStatus = await request(api.base, '/api/context/pack/registry/status?workspaceId=ws_local', {
+    method: 'GET',
+    headers: { cookie: api.auth.cookie }
+  });
+  assert.equal(registryStatus.status, 200, registryStatus.text);
+
   const gitChanges = await request(api.base, '/api/context/git-changes', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
@@ -717,10 +793,11 @@ test('context pack and graph preview authorize context resources', async (t) => 
 
   assert.deepEqual(
     policyRequests
-      .filter((item) => ['buildContextPack', 'previewContextSources', 'detectGitChanges', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
+      .filter((item) => ['buildContextPack', 'getContextPackRegistryStatus', 'previewContextSources', 'detectGitChanges', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
       .map((item) => [item.operationId, item.action, item.resource.type]),
     [
       ['buildContextPack', 'context.compile', 'context'],
+      ['getContextPackRegistryStatus', 'context.compile', 'context'],
       ['detectGitChanges', 'context.compile', 'context'],
       ['previewContextGraph', 'context.compile', 'context'],
       ['previewContextSources', 'context.compile', 'context'],

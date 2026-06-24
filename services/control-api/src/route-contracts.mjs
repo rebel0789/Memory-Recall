@@ -1,4 +1,5 @@
 import harnessContextPreviewSchema from '../../../packages/protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
+import contextPackRegistryStatusSchema from '../../../packages/protocol/schemas/context-pack-registry-status.schema.json' with { type: 'json' };
 
 const id = (prefix) => `^${prefix}_[A-Za-z0-9._:-]{1,120}$`;
 const boundedString = (maxLength) => ({ type: 'string', minLength: 1, maxLength });
@@ -1109,6 +1110,22 @@ export function createApiRouteContracts(limits = {}) {
       bodyRequired: true,
       streams: false,
       responses: { 200: contextPackResponse }
+    },
+    {
+      method: 'GET',
+      path: '/api/context/pack/registry/status',
+      operationId: 'getContextPackRegistryStatus',
+      security: { authenticated: true, action: 'context.compile', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      bodyRequired: false,
+      streams: false,
+      responses: { 200: contextPackRegistryStatusSchema }
     },
     {
       method: 'POST',

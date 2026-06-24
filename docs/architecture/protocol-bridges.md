@@ -68,6 +68,20 @@ objective, raw step, launch prompt, markdown content, source content, provider
 URLs, absolute filesystem locations, write tools, model calls, network calls,
 external adapters, or home config writes.
 
+After a context pack is pinned, the standard installed bridge command also
+discovers the pinned use plan and registry status automatically:
+
+```bash
+npm --silent run oaf -- mcp resources --read-only --stdio
+```
+
+That default catalog lists and serves
+`oaf://workspace/<workspaceId>/context-pack/use-plan/current` and
+`oaf://workspace/<workspaceId>/context-pack/registry/current` when the pinned
+registry exists. If the artifacts are tampered, the bridge withholds the use
+plan but still exposes the registry status so the harness can show why the pack
+needs review.
+
 When the user wants to reuse the same exported handoff later, the CLI can pin
 the local artifacts explicitly:
 
@@ -86,6 +100,8 @@ read-only:
 
 ```bash
 npm --silent run oaf -- context registry status --read-only --format json
+npm --silent run oaf -- mcp resources --read-only \
+  --uri oaf://workspace/ws_local/context-pack/registry/current --format json
 npm --silent run oaf -- mcp resources --read-only \
   --context-pack-registry \
   --uri oaf://workspace/ws_local/context-pack/registry/current --format json
