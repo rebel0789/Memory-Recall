@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T21:00:11.136Z",
+  "generatedAt": "2026-06-24T21:02:54.380Z",
   "fileCount": 804,
-  "totalBytes": 3882619,
+  "totalBytes": 3882955,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -582,8 +582,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 145436,
-      "sha256": "63bd2db18b09c33f9ec1682edb26000b3f3a17e7c713b97d8d0849ad4c25eff7"
+      "bytes": 145522,
+      "sha256": "c9ade923c307de3801d5ba933362743bf48b1734e9890e02db5df1058be3a97b"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -2198,7 +2198,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "82921ae5991d12f53c7a1e1aef9b04a37b159189092e8be373b2e8b6bb405a0e"
+      "sha256": "5217ec608bc4df55dc4138d9c49d0924be64488efe91f77dbcb601f20b170aad"
     },
     {
       "path": "LICENSE",
@@ -3927,8 +3927,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 39768,
-      "sha256": "02005019a61634e7de3f5498474c8764dbef380e9f1878699d5ea1979cf821f7"
+      "bytes": 40018,
+      "sha256": "eaf91d85a44aac909ee00ce4eb64375f78177f857d48e35989ac9535a521bafc"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",

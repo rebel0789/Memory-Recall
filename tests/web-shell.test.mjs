@@ -73,6 +73,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Preview sources/);
   assert.match(app,/Review before building/);
   assert.match(app,/name="changedLocators"/);
+  assert.match(app,/>apps\/web\/app\.js<\/textarea>/);
   assert.match(app,/name="sourceFamilies"/);
   assert.match(app,/\['codex','Codex'\]/);
   assert.match(app,/\['claude-code','Claude Code'\]/);
@@ -88,6 +89,9 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/measure context-pack --read-only/);
   assert.match(app,/Read-only impact brief/);
   assert.match(app,/Change Impact/);
+  assert.match(app,/value="context pack buildContextPackUiModel"/);
+  assert.match(app,/value="buildContextPackUiModel"/);
+  assert.match(app,/name="changedLocator" value="apps\/web\/app\.js"/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
   assert.match(app,/Utility read plan/);
