@@ -63,6 +63,20 @@ npm run check
 npm run ci
 ```
 
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `rebel0789/open-agent-fabric`; local markdown under `.scratch/` may be used for offline or scratch drafts. External PRs are a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default five-label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses a single-context layout: root `CONTEXT.md` when present, plus architecture decisions in `docs/adr/`. See `docs/agents/domain.md`.
+
 ## Architecture invariants
 
 1. **Canonical events:** state-changing operations emit append-only events.

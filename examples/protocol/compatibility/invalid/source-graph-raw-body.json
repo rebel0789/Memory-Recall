@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_ast",
+  "graphVersion": "oaf-native-source-graph-1.0.0",
+  "parserVersion": "oaf-js-ts-static-1.0.0",
+  "builtAt": "2026-06-23T00:00:00.000Z",
+  "sourceIndexFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "summary": {
+    "fileCount": 1,
+    "symbolCount": 1,
+    "moduleCount": 0,
+    "nodeCount": 1,
+    "edgeCount": 0,
+    "nodeKindCounts": { "symbol": 1 },
+    "edgeKindCounts": {},
+    "hotspots": [],
+    "entryPoints": []
+  },
+  "nodes": [
+    {
+      "id": "sgnode_11111111111111111111111111111111",
+      "workspaceId": "ws_ast",
+      "kind": "symbol",
+      "label": "approveTokenReset",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "rawSourceBody": "export function approveTokenReset() { return secret; }"
+    }
+  ],
+  "edges": [],
+  "diagnostics": [],
+  "graphFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

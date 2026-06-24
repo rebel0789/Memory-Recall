@@ -50,6 +50,7 @@ product repository was not edited during source audits.
 | `supermemoryai/llm-bridge` | `9ebb7c70336cf4db9c1ede73a2a049d7523e58c3` | MIT | provider translation fixtures, stream event edge cases, safe error taxonomy ideas | proxy handler, raw `_original` persistence, default-to-OpenAI detection, remote pricing fetch, silent schema weakening |
 | `supermemoryai/install-mcp` | `c2a97fbbfc0dcfdbff0b4b4778b9ec1ba6a7ac7f` | MIT | client config matrix, JSON/JSONC/YAML/TOML install shapes | global config writes without preview, unpinned `mcp-remote@latest`, secret logging, parse-failure overwrite behavior |
 | `supermemoryai/supermemory-mcp` | `84f5dc9f1cf077ba753decbf56805205b5c0443a` | MIT | simple MCP memory affordance and deprecation warning | automatic memory-write prompt, path secrets, CORS looseness, logging memories/API keys, no resource model |
+| `DeusData/codebase-memory-mcp` | `684e35b0e22929f9aa30817d8495f04f6cdaf0b3` | MIT | local source graph indexing, graph search, BM25 lookup, structural filters, call/data-flow traces, architecture summaries, graph-augmented code search, git diff impact mapping, compact modes, pagination/truncation signals, shareable graph artifact patterns | default config writes, mutating graph/ADR tools, artifact-as-authority, dependency on upstream binary as core, source deletion/reset surfaces, token-saving claims without OAF benchmark reproduction |
 
 ## Design Direction
 
@@ -163,6 +164,17 @@ Deliverables:
 - graph schema and fixtures;
 - graph build from source candidates, evidence records, memory records,
   context manifests, tool manifests, Agent Packs, and benchmark cases;
+- graph search with lexical/BM25-style ranking, regex/name filters, label,
+  file, degree, and structural filters;
+- trace paths for callers, callees, data flow, cross-service routes, async
+  edges, tests, and configuration edges where the source candidate model can
+  prove them;
+- graph-augmented code search with compact, full, and files-only result modes
+  plus explicit pagination, truncation, and omitted-result counts;
+- architecture summaries for packages, entry points, routes, hotspots,
+  boundaries, dependency clusters, and high-risk files;
+- git diff impact mapping from changed files to affected symbols, manifests,
+  tests, policies, and benchmark cases;
 - bounded subgraph selector that returns candidates to the Context Compiler;
 - incremental rebuild by source content hash;
 - graph diff between full rebuild and incremental rebuild.

@@ -21,9 +21,11 @@ import {
 } from '../apps/web/app.js';
 
 test('web shell exposes stable path routes with legacy query compatibility',()=>{
-  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/context','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
+  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/context','/context-pack','/source-graph','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
   assert.equal(resolveRoute('http://127.0.0.1:4310/runs').id,'runs');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context?manifest=ctx_1').id,'context');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/context-pack').id,'context-pack');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/source-graph').id,'source-graph');
   assert.equal(resolveRoute('http://127.0.0.1:4310/?view=evidence').id,'evidence');
   assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id,'home');
   assert.equal(legacyViewPath('design'),'/settings');
@@ -50,6 +52,9 @@ test('status labels include text and do not rely on color alone',()=>{
 test('web shell markup keeps accessibility anchors and mobile navigation landmarks',async()=>{
   const html=await readFile('apps/web/index.html','utf8');
   const css=await readFile('apps/web/styles.css','utf8');
+  const app=await readFile('apps/web/app.js','utf8');
+  const usernamePattern=app.match(/name="username"[^>]+pattern="([^"]+)"/)?.[1];
+  const renderedUsernamePattern=usernamePattern.replaceAll('\\\\','\\');
   assert.match(html,/href="#main"/);
   assert.match(html,/aria-label="Primary navigation"/);
   assert.match(html,/aria-label="Mobile navigation"/);
@@ -58,6 +63,7 @@ test('web shell markup keeps accessibility anchors and mobile navigation landmar
   assert.match(css,/min-height:44px/);
   assert.match(css,/focus-visible/);
   assert.match(css,/bottom-nav/);
+  assert.equal(new RegExp(`^(?:${renderedUsernamePattern})$`,'v').test('agent-user_1:local'),true);
 });
 
 test('run inspector builds stable deep links and sanitized step summaries',()=>{

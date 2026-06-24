@@ -12,10 +12,15 @@ import {
 } from '../packages/context-compiler/src/index.mjs';
 import {
   buildJsTsSourceIndex,
+  buildJsTsSourceGraph,
+  buildSourceGraphFromIndex,
   createNativeAstCodeCandidateSource,
+  mapSourceGraphDiffImpact,
   querySourceIndex,
   readAstCodeSlice,
-  scanAstCodeWorkspace
+  searchSourceGraph,
+  scanAstCodeWorkspace,
+  traceSourceGraph
 } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 
 const fixedNow = '2026-06-23T00:00:00.000Z';
@@ -108,6 +113,10 @@ test('AST code chunk protocol fixtures validate and reject raw source bodies', a
   const symbolSchema = await readJson('packages/protocol/schemas/source-symbol-index.schema.json');
   const symbolValid = await readJson('examples/protocol/source-symbol-index.json');
   const symbolInvalid = await readJson('examples/protocol/compatibility/invalid/source-symbol-index-raw-body.json');
+  const graphSchema = await readJson('packages/protocol/schemas/source-graph.schema.json');
+  const graphValid = await readJson('examples/protocol/source-graph.json');
+  const graphInvalidRawBody = await readJson('examples/protocol/compatibility/invalid/source-graph-raw-body.json');
+  const graphInvalidLocalPath = await readJson('examples/protocol/compatibility/invalid/source-graph-local-path.json');
 
   assert.equal(validateJsonSchema(schema, valid).valid, true);
   const invalidResult = validateJsonSchema(schema, invalid);
@@ -117,6 +126,13 @@ test('AST code chunk protocol fixtures validate and reject raw source bodies', a
   const invalidSymbolResult = validateJsonSchema(symbolSchema, symbolInvalid);
   assert.equal(invalidSymbolResult.valid, false);
   assert(invalidSymbolResult.errors.some((error) => error.keyword === 'additionalProperties' || error.keyword === 'pattern'));
+  assert.equal(validateJsonSchema(graphSchema, graphValid).valid, true);
+  const invalidGraphRawBodyResult = validateJsonSchema(graphSchema, graphInvalidRawBody);
+  assert.equal(invalidGraphRawBodyResult.valid, false);
+  assert(invalidGraphRawBodyResult.errors.some((error) => error.keyword === 'additionalProperties'));
+  const invalidGraphLocalPathResult = validateJsonSchema(graphSchema, graphInvalidLocalPath);
+  assert.equal(invalidGraphLocalPathResult.valid, false);
+  assert(invalidGraphLocalPathResult.errors.some((error) => error.keyword === 'pattern'));
 
   const invalidLocator = await readJson('examples/protocol/compatibility/invalid/ast-code-chunk-local-workspace-path.json');
   const invalidLocatorResult = validateJsonSchema(schema, invalidLocator);
@@ -251,6 +267,76 @@ test('JS and TS source index exposes definitions references imports exports outl
   assert(fileOutline[0].symbols.some((item) => item.name === 'TokenResetService'));
 
   const serialized = JSON.stringify(index);
+  assert(!serialized.includes('private implementation body'));
+  assert(!serialized.includes(root));
+  assert(!serialized.includes('/Users/'));
+  assert(!serialized.includes('/Users/rebel/private/secret'));
+  assert(!serialized.includes('missing close brace'));
+});
+
+test('native source graph exposes sanitized graph search trace and diff impact over JS and TS source index', async () => {
+  const root = await fixtureWorkspace();
+  const graphSchema = await readJson('packages/protocol/schemas/source-graph.schema.json');
+  const index = await buildJsTsSourceIndex({
+    root,
+    workspaceId: 'ws_ast',
+    clock: () => fixedNow
+  });
+  const graph = buildSourceGraphFromIndex(index, { builtAt: fixedNow });
+  const graphFromScanner = await buildJsTsSourceGraph({
+    root,
+    workspaceId: 'ws_ast',
+    clock: () => fixedNow
+  });
+
+  assert.equal(validateJsonSchema(graphSchema, graph).valid, true);
+  assert.equal(validateJsonSchema(graphSchema, graphFromScanner).valid, true);
+  assert.match(graph.graphFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(graph.workspaceId, 'ws_ast');
+  assert.equal(graph.summary.fileCount, 5);
+  assert(graph.summary.symbolCount >= 7);
+  assert(graph.summary.edgeKindCounts.calls >= 2);
+  assert(graph.nodes.some((node) => node.kind === 'module' && node.label === 'zod'));
+  assert(graph.edges.some((edge) => edge.kind === 'calls'));
+
+  const search = searchSourceGraph(graph, { query: 'approve token reset workflow', limit: 10 });
+  assert.equal(search.retrievalMethod, 'source_graph_lexical');
+  assert(search.results.length <= 10);
+  assert.equal(search.hasMore, search.total > search.results.length);
+  assert(search.results.some((item) => item.resultType === 'node' && item.label === 'approveTokenReset'));
+  assert(search.results.some((item) => item.resultType === 'edge' && item.kind === 'calls'));
+  assert(search.results.every((item) => item.reasonCodes.includes('lexical_match')));
+
+  const filtered = searchSourceGraph(graph, {
+    query: 'service',
+    nodeKinds: ['symbol'],
+    edgeKinds: [],
+    labelPattern: '.*Service$',
+    locatorPrefix: 'workspace://src/auth.ts'
+  });
+  assert(filtered.results.some((item) => item.label === 'TokenResetService'));
+  assert(filtered.results.every((item) => item.resultType === 'node' && item.kind === 'symbol'));
+  assert(filtered.results.every((item) => item.locator.startsWith('workspace://src/auth.ts')));
+
+  const trace = traceSourceGraph(graph, {
+    startName: 'runAuthWorkflow',
+    direction: 'outbound',
+    edgeKinds: ['calls'],
+    depth: 2
+  });
+  assert(trace.startNodeIds.length >= 1);
+  assert(trace.paths.some((item) => item.terminalLabel === 'approveTokenReset'));
+  assert(trace.paths.every((item) => item.depth <= 2));
+
+  const impact = mapSourceGraphDiffImpact(graph, {
+    changedLocators: ['workspace://src/auth.ts'],
+    depth: 3
+  });
+  assert(impact.affectedSymbols.some((item) => item.name === 'approveTokenReset'));
+  assert(impact.affectedSymbols.some((item) => item.name === 'runAuthWorkflow'));
+  assert(impact.impactedEdgeIds.length >= 1);
+
+  const serialized = JSON.stringify({ graph, search, filtered, trace, impact });
   assert(!serialized.includes('private implementation body'));
   assert(!serialized.includes(root));
   assert(!serialized.includes('/Users/'));

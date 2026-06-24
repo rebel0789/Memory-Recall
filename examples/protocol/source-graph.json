@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_ast",
+  "graphVersion": "oaf-native-source-graph-1.0.0",
+  "parserVersion": "oaf-js-ts-static-1.0.0",
+  "builtAt": "2026-06-23T00:00:00.000Z",
+  "sourceIndexFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "summary": {
+    "fileCount": 2,
+    "symbolCount": 2,
+    "moduleCount": 1,
+    "nodeCount": 6,
+    "edgeCount": 5,
+    "nodeKindCounts": {
+      "chunk": 1,
+      "file": 2,
+      "module": 1,
+      "symbol": 2
+    },
+    "edgeKindCounts": {
+      "calls": 1,
+      "contains": 1,
+      "defined_in": 2,
+      "imports": 1
+    },
+    "hotspots": [
+      {
+        "nodeId": "sgnode_11111111111111111111111111111111",
+        "label": "approveTokenReset",
+        "inbound": 1,
+        "outbound": 1,
+        "total": 2
+      }
+    ],
+    "entryPoints": [
+      {
+        "nodeId": "sgnode_22222222222222222222222222222222",
+        "label": "runAuthWorkflow",
+        "locator": "workspace://src/workflow.ts#L3-L7",
+        "symbolKind": "function"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "sgnode_11111111111111111111111111111111",
+      "workspaceId": "ws_ast",
+      "kind": "symbol",
+      "label": "approveTokenReset",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "sourceRef": "symbol_11111111111111111111111111111111",
+      "symbolKind": "method",
+      "contentHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "sourceSnapshotId": "srcsnap_3333333333333333"
+    },
+    {
+      "id": "sgnode_22222222222222222222222222222222",
+      "workspaceId": "ws_ast",
+      "kind": "symbol",
+      "label": "runAuthWorkflow",
+      "locator": "workspace://src/workflow.ts#L3-L7",
+      "sourceRef": "symbol_44444444444444444444444444444444",
+      "symbolKind": "function",
+      "contentHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "sourceSnapshotId": "srcsnap_6666666666666666"
+    },
+    {
+      "id": "sgnode_33333333333333333333333333333333",
+      "workspaceId": "ws_ast",
+      "kind": "chunk",
+      "label": "src/auth.ts#L4-L8",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "sourceRef": "astchunk_77777777777777777777777777777777",
+      "contentHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "sourceSnapshotId": "srcsnap_3333333333333333"
+    },
+    {
+      "id": "sgnode_44444444444444444444444444444444",
+      "workspaceId": "ws_ast",
+      "kind": "file",
+      "label": "src/auth.ts",
+      "locator": "workspace://src/auth.ts",
+      "contentHash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+      "sourceSnapshotId": "srcsnap_3333333333333333"
+    },
+    {
+      "id": "sgnode_55555555555555555555555555555555",
+      "workspaceId": "ws_ast",
+      "kind": "file",
+      "label": "src/workflow.ts",
+      "locator": "workspace://src/workflow.ts",
+      "contentHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "sourceSnapshotId": "srcsnap_6666666666666666"
+    },
+    {
+      "id": "sgnode_66666666666666666666666666666666",
+      "workspaceId": "ws_ast",
+      "kind": "module",
+      "label": "zod",
+      "sourceRef": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "moduleHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "edges": [
+    {
+      "id": "sgedge_11111111111111111111111111111111",
+      "workspaceId": "ws_ast",
+      "kind": "contains",
+      "fromNodeId": "sgnode_44444444444444444444444444444444",
+      "toNodeId": "sgnode_33333333333333333333333333333333",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "sourceRef": "astchunk_77777777777777777777777777777777",
+      "confidence": 1
+    },
+    {
+      "id": "sgedge_22222222222222222222222222222222",
+      "workspaceId": "ws_ast",
+      "kind": "defined_in",
+      "fromNodeId": "sgnode_11111111111111111111111111111111",
+      "toNodeId": "sgnode_33333333333333333333333333333333",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "sourceRef": "symbol_11111111111111111111111111111111",
+      "confidence": 1
+    },
+    {
+      "id": "sgedge_33333333333333333333333333333333",
+      "workspaceId": "ws_ast",
+      "kind": "defined_in",
+      "fromNodeId": "sgnode_22222222222222222222222222222222",
+      "toNodeId": "sgnode_33333333333333333333333333333333",
+      "locator": "workspace://src/workflow.ts#L3-L7",
+      "sourceRef": "symbol_44444444444444444444444444444444",
+      "confidence": 1
+    },
+    {
+      "id": "sgedge_44444444444444444444444444444444",
+      "workspaceId": "ws_ast",
+      "kind": "imports",
+      "fromNodeId": "sgnode_33333333333333333333333333333333",
+      "toNodeId": "sgnode_66666666666666666666666666666666",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "sourceRef": "import_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "confidence": 0.9
+    },
+    {
+      "id": "sgedge_55555555555555555555555555555555",
+      "workspaceId": "ws_ast",
+      "kind": "calls",
+      "fromNodeId": "sgnode_22222222222222222222222222222222",
+      "toNodeId": "sgnode_11111111111111111111111111111111",
+      "locator": "workspace://src/workflow.ts#L3-L7",
+      "sourceRef": "call_cccccccccccccccccccccccccccccccc",
+      "confidence": 0.7
+    }
+  ],
+  "diagnostics": [],
+  "graphFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

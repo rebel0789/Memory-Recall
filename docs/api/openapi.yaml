@@ -213,6 +213,48 @@ paths:
         '400': { $ref: '#/components/responses/BoundaryError' }
         '413': { $ref: '#/components/responses/BoundaryError' }
         '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack:
+    post:
+      operationId: buildContextPack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextPackRequest' }
+      responses:
+        '200':
+          description: Sanitized local context handoff pack and markdown.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPackResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/graph/preview:
+    post:
+      operationId: previewContextGraph
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextGraphPreviewRequest' }
+      responses:
+        '200':
+          description: Bounded read-only native JS/TS source graph preview.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextGraphPreviewResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
   /api/reset:
     post:
       operationId: resetBootstrap
@@ -492,6 +534,84 @@ components:
       properties:
         request: { type: object }
         records: { type: array, maxItems: 100 }
+    ContextPackRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, objective, step]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        objective: { type: string, minLength: 1, maxLength: 2000 }
+        step: { type: string, minLength: 1, maxLength: 256 }
+        targetHarness: { enum: [codex, claude-code, claude, cursor, generic] }
+        from: { type: string, minLength: 1, maxLength: 80 }
+        tokenBudget: { type: integer, minimum: 1, maximum: 100000 }
+    ContextPackResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, pack, markdown]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        pack: { type: object }
+        markdown: { type: string, minLength: 1, maxLength: 200000 }
+    ContextGraphPreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        query: { type: string, minLength: 1, maxLength: 512 }
+        startName: { type: string, minLength: 1, maxLength: 240 }
+        startNodeId: { type: string, minLength: 1, maxLength: 128 }
+        changedLocators:
+          type: array
+          maxItems: 100
+          items: { type: string, minLength: 1, maxLength: 512 }
+        nodeKinds:
+          type: array
+          maxItems: 4
+          items: { enum: [file, chunk, symbol, module] }
+        edgeKinds:
+          type: array
+          maxItems: 6
+          items: { enum: [contains, defined_in, imports, exports, references, calls] }
+        labelPattern: { type: string, minLength: 1, maxLength: 240 }
+        locatorPrefix: { type: string, minLength: 1, maxLength: 512 }
+        direction: { enum: [outbound, inbound, both] }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        offset: { type: integer, minimum: 0, maximum: 10000 }
+        depth: { type: integer, minimum: 1, maximum: 5 }
+        sampleLimit: { type: integer, minimum: 1, maximum: 50 }
+        maxFiles: { type: integer, minimum: 1, maximum: 1000 }
+        maxFileBytes: { type: integer, minimum: 1024, maximum: 1048576 }
+    ContextGraphPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, previewVersion, workspaceId, generatedAt, graph, search, trace, impact, safeguards]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        previewVersion: { const: oaf-source-graph-preview-1.0.0 }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        generatedAt: { type: string, format: date-time }
+        graph: { type: object }
+        search: { type: object }
+        trace: { type: [object, 'null'] }
+        impact: { type: [object, 'null'] }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [dryRun, persisted, canonicalStateMutated, localFilesWritten, modelCalls, networkCalls, externalAdaptersEnabled, externalWritesEnabled, graphDatabaseUsed, rawBodyIncluded, sourceSlicesRead]
+          properties:
+            dryRun: { const: true }
+            persisted: { const: false }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            modelCalls: { const: 0 }
+            networkCalls: { const: 0 }
+            externalAdaptersEnabled: { const: 0 }
+            externalWritesEnabled: { const: false }
+            graphDatabaseUsed: { const: false }
+            rawBodyIncluded: { const: false }
+            sourceSlicesRead: { const: false }
     ResetResponse:
       type: object
       additionalProperties: false

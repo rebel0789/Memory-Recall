@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "1.0.0",
+  "previewVersion": "oaf-source-graph-preview-1.0.0",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "graph": {
+    "schemaVersion": "1.0.0",
+    "workspaceId": "ws_local",
+    "graphVersion": "oaf-native-source-graph-1.0.0",
+    "parserVersion": "oaf-native-ast-code-1.0.0",
+    "builtAt": "2026-06-23T00:00:00.000Z",
+    "sourceIndexFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "graphFingerprint": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "summary": {
+      "fileCount": 1,
+      "symbolCount": 1,
+      "moduleCount": 0,
+      "nodeCount": 2,
+      "edgeCount": 1,
+      "nodeKindCounts": { "file": 1, "symbol": 1 },
+      "edgeKindCounts": { "defined_in": 1 },
+      "hotspots": [
+        {
+          "nodeId": "sgnode_22222222222222222222222222222222",
+          "label": "approveTokenReset",
+          "inbound": 1,
+          "outbound": 0,
+          "total": 1
+        }
+      ],
+      "entryPoints": [
+        {
+          "nodeId": "sgnode_22222222222222222222222222222222",
+          "label": "approveTokenReset",
+          "locator": "workspace://src/auth.ts#L2-L4",
+          "symbolKind": "method"
+        }
+      ]
+    },
+    "diagnostics": [],
+    "sampleLimit": 2,
+    "sampleNodes": [
+      {
+        "id": "sgnode_11111111111111111111111111111111",
+        "workspaceId": "ws_local",
+        "kind": "file",
+        "label": "src/auth.ts",
+        "locator": "workspace://src/auth.ts",
+        "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "sourceSnapshotId": "srcsnap_1111111111111111"
+      },
+      {
+        "id": "sgnode_22222222222222222222222222222222",
+        "workspaceId": "ws_local",
+        "kind": "symbol",
+        "label": "approveTokenReset",
+        "locator": "workspace://src/auth.ts#L2-L4",
+        "sourceRef": "symbol_11111111111111111111111111111111",
+        "symbolKind": "method",
+        "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "sourceSnapshotId": "srcsnap_1111111111111111"
+      }
+    ],
+    "sampleEdges": [
+      {
+        "id": "sgedge_11111111111111111111111111111111",
+        "workspaceId": "ws_local",
+        "kind": "defined_in",
+        "fromNodeId": "sgnode_22222222222222222222222222222222",
+        "toNodeId": "sgnode_11111111111111111111111111111111",
+        "locator": "workspace://src/auth.ts#L2-L4",
+        "sourceRef": "symbol_11111111111111111111111111111111",
+        "confidence": 1
+      }
+    ],
+    "omittedNodes": 0,
+    "omittedEdges": 0
+  },
+  "search": {
+    "schemaVersion": "1.0.0",
+    "workspaceId": "ws_local",
+    "graphFingerprint": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "retrievalMethod": "source_graph_lexical",
+    "queryFingerprint": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "total": 1,
+    "limit": 20,
+    "offset": 0,
+    "hasMore": false,
+    "omittedCount": 0,
+    "results": [
+      {
+        "resultType": "node",
+        "id": "sgnode_22222222222222222222222222222222",
+        "kind": "symbol",
+        "label": "approveTokenReset",
+        "locator": "workspace://src/auth.ts#L2-L4",
+        "score": 1,
+        "reasonCodes": ["term_match"]
+      }
+    ]
+  },
+  "trace": null,
+  "impact": null,
+  "safeguards": {
+    "dryRun": true,
+    "persisted": false,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "modelCalls": 0,
+    "networkCalls": 0,
+    "externalAdaptersEnabled": 0,
+    "externalWritesEnabled": false,
+    "graphDatabaseUsed": false,
+    "rawBodyIncluded": false,
+    "sourceSlicesRead": false
+  }
+}

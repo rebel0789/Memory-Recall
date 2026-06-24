@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { once } from 'node:events';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createControlApiServer } from '../services/control-api/src/server.mjs';
@@ -193,6 +193,104 @@ test('valid requests receive correlation IDs and preserve local-only behavior', 
   assert.equal(supplied.status, 200);
   assert.equal(supplied.headers.get('x-correlation-id'), 'req_client-00000000-0000-4000-8000-000000000001');
   assert.equal(api.calls.compile, 1);
+});
+
+test('context pack route is protected and does not mutate run state', async (t) => {
+  const api = await startServer(t);
+  const denied = await request(api.base, '/api/context/pack', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare handoff',
+      step: 'select useful context',
+      targetHarness: 'codex'
+    })
+  });
+  assert.equal(denied.status, 401);
+  assert.equal(denied.body.error.code, 'authentication_required');
+
+  const response = await request(api.base, '/api/context/pack', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare handoff',
+      step: 'select useful context',
+      targetHarness: 'codex',
+      tokenBudget: 96
+    })
+  });
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.schemaVersion, '1.0.0');
+  assert.equal(response.body.pack.targetHarness, 'codex');
+  assert.equal(response.body.pack.safeguards.externalWritesEnabled, false);
+  assert.equal(response.body.markdown.includes('# Context Pack'), true);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+});
+
+test('context graph preview route is protected bounded and does not mutate run state', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-source-graph-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(path.join(sourceGraphRoot, 'src', 'auth.ts'), [
+    'export class TokenResetService {',
+    '  approveTokenReset(request: ResetRequest) {',
+    "    return { ok: true, secret: 'API GRAPH RAW BODY' };",
+    '  }',
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(sourceGraphRoot, 'src', 'workflow.ts'), [
+    "import { TokenResetService } from './auth';",
+    'export function runAuthWorkflow(request: ResetRequest) {',
+    '  const service = new TokenResetService();',
+    '  return service.approveTokenReset(request);',
+    '}'
+  ].join('\n'));
+  const api = await startServer(t, { sourceGraphRoot });
+  const denied = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify({ workspaceId: 'ws_local', query: 'approve token reset' })
+  });
+  assert.equal(denied.status, 401);
+  assert.equal(denied.body.error.code, 'authentication_required');
+
+  const rejectedRoot = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', root: '/Users/rebel/private', query: 'approve token reset' })
+  });
+  assert.equal(rejectedRoot.status, 400);
+  assert.equal(rejectedRoot.body.error.code, 'request_validation_failed');
+
+  const response = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      query: 'approve token reset workflow',
+      startName: 'runAuthWorkflow',
+      changedLocators: ['src/auth.ts'],
+      sampleLimit: 3
+    })
+  });
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.schemaVersion, '1.0.0');
+  assert.equal(response.body.safeguards.persisted, false);
+  assert.equal(response.body.safeguards.modelCalls, 0);
+  assert.equal(response.body.safeguards.networkCalls, 0);
+  assert.equal(response.body.safeguards.externalAdaptersEnabled, 0);
+  assert.equal(response.body.safeguards.externalWritesEnabled, false);
+  assert(response.body.search.results.some((item) => item.label.includes('approveTokenReset')));
+  assert(response.body.trace.paths.some((item) => item.terminalLabel === 'approveTokenReset'));
+  assert(response.body.impact.affectedSymbols.some((item) => item.name === 'approveTokenReset'));
+  assert.equal(response.text.includes('API GRAPH RAW BODY'), false);
+  assert.equal(response.text.includes(sourceGraphRoot), false);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+  assert.equal(api.calls.compile, 0);
 });
 
 test('dashboard counters are scoped to the authorized workspace', async (t) => {

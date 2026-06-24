@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-pack-1.0.json",
+  "title": "Context Pack",
+  "description": "Sanitized, local-first handoff pack for a target agent harness. It contains locators, hashes, reason codes, warnings, and instructions; raw context bodies, prompts, outputs, credentials, provider URLs, hidden reasoning, and private local paths are not represented.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packVersion",
+    "id",
+    "workspaceId",
+    "createdAt",
+    "dryRun",
+    "targetHarness",
+    "objective",
+    "step",
+    "scannerVersion",
+    "compilerVersion",
+    "preview",
+    "readFirst",
+    "excluded",
+    "memoryPlan",
+    "sourceGraph",
+    "warnings",
+    "handoff",
+    "files",
+    "safeguards",
+    "contextPackFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "packVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "id": { "type": "string", "pattern": "^ctxpack_[a-f0-9]{16,64}$" },
+    "workspaceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "dryRun": { "const": true },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "objective": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "step": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "scannerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "compilerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "previewFingerprint",
+        "requestId",
+        "selectionPolicyFingerprint",
+        "resultFingerprint",
+        "budget",
+        "selectedCount",
+        "excludedCount",
+        "candidateTokenCount",
+        "selectedTokenCount",
+        "selectedTokenRatio"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^hctxprev_[a-f0-9]{16,64}$" },
+        "previewFingerprint": { "$ref": "#/$defs/hash" },
+        "requestId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "selectionPolicyFingerprint": { "$ref": "#/$defs/hash" },
+        "resultFingerprint": { "$ref": "#/$defs/hash" },
+        "budget": { "$ref": "#/$defs/budget" },
+        "selectedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "excludedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "candidateTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "selectedTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "selectedTokenRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "readFirst": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "excluded": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "memoryPlan": { "$ref": "#/$defs/memoryPlan" },
+    "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
+    "warnings": { "$ref": "#/$defs/stringList" },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "summary", "instructions", "commands", "limitations"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "instructions": { "$ref": "#/$defs/stringList" },
+        "commands": { "$ref": "#/$defs/stringList" },
+        "limitations": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "role", "contentType", "contentHash", "byteSize"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^[A-Za-z0-9._/-]{1,160}$" },
+          "role": { "enum": ["agent-handoff", "manifest", "machine-readable"] },
+          "contentType": { "enum": ["text/markdown", "application/json"] },
+          "contentHash": { "$ref": "#/$defs/hash" },
+          "byteSize": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+        }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "persisted",
+        "modelCalls",
+        "networkCalls",
+        "sourceSnapshotsWritten",
+        "activeMemoryCreated",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "rawBodyIncluded",
+        "contextPackWritten",
+        "sourceGraphPreviewed",
+        "graphDatabaseUsed",
+        "sourceSlicesRead"
+      ],
+      "properties": {
+        "persisted": { "const": false },
+        "modelCalls": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "sourceSnapshotsWritten": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "rawBodyIncluded": { "const": false },
+        "contextPackWritten": { "const": false },
+        "sourceGraphPreviewed": { "type": "boolean" },
+        "graphDatabaseUsed": { "const": false },
+        "sourceSlicesRead": { "const": false }
+      }
+    },
+    "contextPackFingerprint": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "locator": {
+      "type": "string",
+      "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$",
+      "maxLength": 640
+    },
+    "stringList": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "reasonCodes": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["available", "used"],
+      "properties": {
+        "available": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "used": { "type": "integer", "minimum": 0, "maximum": 200000 }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "locator",
+        "harness",
+        "sourceKind",
+        "tokens",
+        "score",
+        "reasonCodes",
+        "contentHash",
+        "readHint"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "locator": { "$ref": "#/$defs/locator" },
+        "harness": { "enum": ["codex", "claude-code", "cursor"] },
+        "sourceKind": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "tokens": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "score": { "type": ["number", "null"] },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "contentHash": { "$ref": "#/$defs/hash" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "memoryPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activeMemoryCreated", "proposedCount", "quarantinedCount", "items"],
+      "properties": {
+        "activeMemoryCreated": { "const": 0 },
+        "proposedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "quarantinedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "items": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sourceId", "locator", "harness", "sourceKind", "action", "reasonCodes"],
+            "properties": {
+              "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "locator": { "$ref": "#/$defs/locator" },
+              "harness": { "enum": ["codex", "claude-code", "cursor"] },
+              "sourceKind": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "action": { "enum": ["would_propose", "would_quarantine"] },
+              "reasonCodes": { "$ref": "#/$defs/reasonCodes" }
+            }
+          }
+        }
+      }
+    },
+    "sourceGraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "previewVersion",
+        "generatedAt",
+        "sourceIndexFingerprint",
+        "graphFingerprint",
+        "summary",
+        "queryFingerprint",
+        "resultCount",
+        "omittedCount",
+        "results",
+        "warnings",
+        "safeguards"
+      ],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "previewVersion": { "type": ["string", "null"], "minLength": 1, "maxLength": 64 },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "sourceIndexFingerprint": { "$ref": "#/$defs/hashOrNull" },
+        "graphFingerprint": { "$ref": "#/$defs/hashOrNull" },
+        "summary": { "$ref": "#/$defs/sourceGraphSummary" },
+        "queryFingerprint": { "$ref": "#/$defs/hashOrNull" },
+        "resultCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "omittedCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "results": {
+          "type": "array",
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/sourceGraphHint" }
+        },
+        "warnings": { "$ref": "#/$defs/stringList" },
+        "safeguards": { "$ref": "#/$defs/sourceGraphSafeguards" }
+      }
+    },
+    "sourceGraphSummary": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["fileCount", "symbolCount", "moduleCount", "nodeCount", "edgeCount", "diagnosticCount", "hotspotCount", "entryPointCount"],
+      "properties": {
+        "fileCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "symbolCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "moduleCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "nodeCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "edgeCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "diagnosticCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "hotspotCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "entryPointCount": { "type": "integer", "minimum": 0, "maximum": 200000 }
+      }
+    },
+    "hashOrNull": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sourceGraphHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resultType", "kind", "label", "locator", "score", "reasonCodes", "readHint"],
+      "properties": {
+        "resultType": { "enum": ["node", "edge"] },
+        "kind": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "locator": { "$ref": "#/$defs/sourceGraphLocator" },
+        "score": { "type": "number", "minimum": 0 },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "sourceGraphLocator": {
+      "type": "string",
+      "pattern": "^workspace://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+(?:#L[0-9]+-L[0-9]+)?$",
+      "maxLength": 640
+    },
+    "sourceGraphSafeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dryRun", "persisted", "canonicalStateMutated", "localFilesWritten", "modelCalls", "networkCalls", "externalAdaptersEnabled", "externalWritesEnabled", "graphDatabaseUsed", "rawBodyIncluded", "sourceSlicesRead"],
+      "properties": {
+        "dryRun": { "const": true },
+        "persisted": { "const": false },
+        "canonicalStateMutated": { "const": false },
+        "localFilesWritten": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "externalAdaptersEnabled": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "graphDatabaseUsed": { "const": false },
+        "rawBodyIncluded": { "const": false },
+        "sourceSlicesRead": { "const": false }
+      }
+    }
+  }
+}

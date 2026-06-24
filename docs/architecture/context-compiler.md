@@ -35,6 +35,13 @@ outbound network calls, persistent index writes, or adapter activation. Same
 record ID plus same version/hash merges source hits deterministically; same ID
 with conflicting version/hash fails closed as `candidate_identity_conflict`.
 
+The native JS/TS source graph is a read-only derived index over the native
+AST-code source index. It exposes files, chunks, symbols, modules, structural
+edges, lexical graph search, call traces, and diff-impact reports for local
+inspection and future context selection. It is not a `graph` candidate-source
+provider yet, not canonical source or memory state, and not backed by a graph
+database or external adapter.
+
 ## Selection policy
 
 OAF-011 adds a strict internal selection policy contract at
@@ -69,7 +76,7 @@ selector stops at the smallest sufficient set instead of filling the window.
 
 1. **Authorize and normalize.** Remove inaccessible, malformed, quarantined, expired, retracted, and superseded candidates before ranking.
 2. **Force governance.** Include applicable policies, hard constraints, output schema, current plan, unresolved obligations, and explicitly referenced records.
-3. **Generate candidates.** Use source ports for exact references, lexical search, and dependency-free static JS/TS code evidence now; semantic, graph, temporal, preference, and episode sources are declared but unavailable until later tasks.
+3. **Generate candidates.** Use source ports for exact references, lexical search, and dependency-free static JS/TS code evidence now; semantic, graph, temporal, preference, and episode sources are declared but unavailable until later tasks. Native source-graph helpers expose a bounded read-only CLI/API preview over the JS/TS source index, but they do not currently emit graph candidate-source records into model context.
 4. **Resolve versions and conflicts.** Prefer active versions, preserve unresolved conflicts, and never silently merge contradictory values.
 5. **Fuse and rerank.** Apply weighted reciprocal rank fusion, deterministic feature weights, and stable tie-breaks.
 6. **Diversify and budget.** Select complementary records under token budget and category caps, with soft reserves recorded in policy.

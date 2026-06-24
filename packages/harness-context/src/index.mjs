@@ -11,15 +11,19 @@ import {
   stableStringify
 } from '../../context-compiler/src/index.mjs';
 import { assertJsonSchema } from '../../protocol/src/schema-validator.mjs';
+import contextPackSchema from '../../protocol/schemas/context-pack.schema.json' with { type: 'json' };
 import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import harnessContextSourceSchema from '../../protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
+import { buildSourceGraphPreview } from '../../source-graph/src/index.mjs';
 
+export const CONTEXT_PACK_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_SCANNER_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
 
 const DEFAULT_MAX_BYTES = 65_536;
 const SUPPORTED_HARNESSES = new Set(['codex', 'claude-code', 'cursor']);
+const SUPPORTED_TARGET_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
 const CONTROL_BYTES = new Set([...Array.from({ length: 9 }, (_, index) => index), 11, 12, ...Array.from({ length: 18 }, (_, index) => index + 14)]);
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/giu;
 const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)+/gu;
@@ -451,6 +455,7 @@ export async function buildHarnessContextPreview({
   objective,
   step,
   tokenBudget = 4096,
+  requiredLocators = [],
   maxBytes = DEFAULT_MAX_BYTES,
   clock = () => new Date().toISOString()
 } = {}) {
@@ -467,6 +472,7 @@ export async function buildHarnessContextPreview({
   });
   const records = harnessSourcesToContextRecords(scan);
   const byRecordId = new Map(records.map((record) => [record.id, record]));
+  const requiredIds = requiredIdsForLocators(records, requiredLocators, tokenBudget);
   const request = {
     schemaVersion: '1.0.0',
     id: previewRequestId({ workspaceId, objective, step }),
@@ -474,7 +480,7 @@ export async function buildHarnessContextPreview({
     workspaceId,
     objective,
     step,
-    requiredIds: [],
+    requiredIds,
     requiredEntities: [],
     allowedScopes: ['workspace-private'],
     allowedDataClasses: ['public', 'workspace-private'],
@@ -544,6 +550,413 @@ export async function buildHarnessContextPreview({
   preview.previewFingerprint = fingerprintPreview(preview);
   assertJsonSchema(harnessContextPreviewSchema, preview, 'harness context preview');
   return preview;
+}
+
+function requiredIdsForLocators(records, locators, tokenBudget) {
+  if (!Array.isArray(locators) || !locators.length) return [];
+  const byLocator = new Map(records.map((record) => [record.metadata?.locator, record]));
+  const ids = [];
+  let used = 0;
+  for (const locator of locators) {
+    const record = byLocator.get(locator);
+    if (!record || ids.includes(record.id)) continue;
+    if (used + record.tokens > tokenBudget) continue;
+    ids.push(record.id);
+    used += record.tokens;
+  }
+  return ids;
+}
+
+function normalizeTargetHarness(targetHarness) {
+  const normalized = targetHarness === 'claude' ? 'claude-code' : targetHarness;
+  if (!SUPPORTED_TARGET_HARNESSES.has(normalized)) {
+    const error = new Error(`Unsupported target harness: ${targetHarness}`);
+    error.code = 'unsupported_target_harness';
+    throw error;
+  }
+  return normalized;
+}
+
+function markdownEscape(value) {
+  return String(value ?? '').replaceAll('|', '\\|').replace(/\s+/gu, ' ').trim();
+}
+
+function bulletList(items) {
+  return items.length ? items.map((item) => `- ${item}`).join('\n') : '- none';
+}
+
+function decisionForPack(item, targetHarness) {
+  return {
+    id: item.id,
+    locator: item.locator,
+    harness: item.harness,
+    sourceKind: item.sourceKind,
+    tokens: item.tokens,
+    score: item.score,
+    reasonCodes: item.reasonCodes,
+    contentHash: item.contentHash,
+    readHint: item.locator
+      ? `Read ${item.locator} from the local workspace before acting in ${targetHarness}.`
+      : `Use ${item.id} only as sanitized context metadata.`
+  };
+}
+
+function harnessInstructions(targetHarness) {
+  const shared = [
+    'Treat this pack as a locator manifest, not as hidden memory or authority.',
+    'Read selected local files before changing code; do not assume raw context was embedded here.',
+    'Preserve external adapters disabled and external writes disabled unless a later explicit task changes policy.',
+    'Run the repository verification commands before claiming completion.'
+  ];
+  if (targetHarness === 'codex') {
+    return [
+      'Codex: start with AGENTS.md and any selected scoped instructions, then inspect the repo before editing.',
+      ...shared
+    ];
+  }
+  if (targetHarness === 'claude-code') {
+    return [
+      'Claude Code: read CLAUDE.md if selected, then reconcile it with AGENTS.md and repo-local task files.',
+      ...shared
+    ];
+  }
+  if (targetHarness === 'cursor') {
+    return [
+      'Cursor: load selected .cursor rules with AGENTS.md and keep generated changes inside the active workspace.',
+      ...shared
+    ];
+  }
+  return [
+    'Generic agent: use the selected locators as the ordered read list for this workspace.',
+    ...shared
+  ];
+}
+
+function packWarnings(preview) {
+  const warnings = new Set(preview.manifest.warnings ?? []);
+  if (!preview.manifest.selected.length) warnings.add('no_selected_context');
+  for (const item of preview.memoryPlan.items) {
+    if (item.action === 'would_quarantine') warnings.add(`quarantine:${item.locator}`);
+  }
+  if (preview.safeguards.rawBodyIncluded === false) warnings.add('raw_context_bodies_omitted');
+  warnings.add('dry_run_no_import');
+  warnings.add('external_writes_disabled');
+  return [...warnings].sort();
+}
+
+function sourceGraphSafeguards() {
+  return {
+    dryRun: true,
+    persisted: false,
+    canonicalStateMutated: false,
+    localFilesWritten: 0,
+    modelCalls: 0,
+    networkCalls: 0,
+    externalAdaptersEnabled: 0,
+    externalWritesEnabled: false,
+    graphDatabaseUsed: false,
+    rawBodyIncluded: false,
+    sourceSlicesRead: false
+  };
+}
+
+function sourceGraphPackQuery({ objective, step }) {
+  const query = [objective, step]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, 512);
+  return query || 'context';
+}
+
+function compactSourceGraphSummary(preview) {
+  const summary = preview.graph.summary;
+  return {
+    fileCount: summary.fileCount,
+    symbolCount: summary.symbolCount,
+    moduleCount: summary.moduleCount,
+    nodeCount: summary.nodeCount,
+    edgeCount: summary.edgeCount,
+    diagnosticCount: preview.graph.diagnostics.length,
+    hotspotCount: summary.hotspots.length,
+    entryPointCount: summary.entryPoints.length
+  };
+}
+
+function safeSourceGraphErrorCode(error) {
+  const code = String(error?.code ?? error?.message ?? 'source_graph_unavailable')
+    .split(':')[0]
+    .replace(/[^a-z0-9_]/giu, '_')
+    .replace(/_+/gu, '_')
+    .replace(/^_+|_+$/gu, '')
+    .toLowerCase()
+    .slice(0, 64);
+  return code || 'source_graph_unavailable';
+}
+
+function compactSourceGraphResults(results) {
+  const seen = new Set();
+  const output = [];
+  for (const item of results) {
+    if (!item.locator) continue;
+    const key = `${item.resultType}:${item.kind}:${item.label}:${item.locator}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push({
+      resultType: item.resultType,
+      kind: item.kind,
+      label: item.label,
+      locator: item.locator,
+      score: item.score,
+      reasonCodes: item.reasonCodes,
+      readHint: `Read ${item.locator} before editing related ${item.kind} ${item.label}.`
+    });
+    if (output.length >= 12) break;
+  }
+  return output;
+}
+
+async function buildContextPackSourceGraph({
+  root,
+  workspaceId,
+  objective,
+  step,
+  createdAt
+}) {
+  const query = sourceGraphPackQuery({ objective, step });
+  const queryFingerprint = hashRef(stableStringify({ query, limit: 12, offset: 0 }));
+  try {
+    const preview = await buildSourceGraphPreview({
+      root,
+      workspaceId,
+      query,
+      limit: 12,
+      sampleLimit: 1,
+      maxFiles: 200,
+      clock: () => createdAt
+    });
+    const results = compactSourceGraphResults(preview.search.results);
+    const warnings = [];
+    if (!results.length) warnings.push('source_graph_no_locator_matches');
+    if (preview.graph.diagnostics.length) warnings.push('source_graph_diagnostics_present');
+    return {
+      status: 'available',
+      previewVersion: preview.previewVersion,
+      generatedAt: preview.generatedAt,
+      sourceIndexFingerprint: preview.graph.sourceIndexFingerprint,
+      graphFingerprint: preview.graph.graphFingerprint,
+      summary: compactSourceGraphSummary(preview),
+      queryFingerprint: preview.search.queryFingerprint,
+      resultCount: preview.search.total,
+      omittedCount: preview.search.omittedCount,
+      results,
+      warnings,
+      safeguards: preview.safeguards
+    };
+  } catch (error) {
+    return {
+      status: 'unavailable',
+      previewVersion: null,
+      generatedAt: createdAt,
+      sourceIndexFingerprint: null,
+      graphFingerprint: null,
+      summary: null,
+      queryFingerprint,
+      resultCount: 0,
+      omittedCount: 0,
+      results: [],
+      warnings: [`source_graph_unavailable:${safeSourceGraphErrorCode(error)}`],
+      safeguards: sourceGraphSafeguards()
+    };
+  }
+}
+
+function requiredLocatorsForTarget(targetHarness) {
+  if (targetHarness === 'codex') return ['workspace://AGENTS.md'];
+  if (targetHarness === 'claude-code') return ['workspace://AGENTS.md', 'workspace://CLAUDE.md'];
+  if (targetHarness === 'cursor') return ['workspace://AGENTS.md', 'workspace://.cursorrules', 'workspace://.cursor/mcp.json'];
+  return ['workspace://AGENTS.md'];
+}
+
+function fingerprintContextPack(pack) {
+  const copy = JSON.parse(JSON.stringify(pack));
+  delete copy.contextPackFingerprint;
+  return hashRef(stableStringify(copy));
+}
+
+export function renderContextPackMarkdown(pack) {
+  const selectedRows = pack.readFirst.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const excludedRows = pack.excluded.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.harness)} | ${item.tokens} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  const sourceGraphRows = pack.sourceGraph.results.map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.kind)} | ${markdownEscape(item.label)} | ${item.score} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
+  return [
+    '# Context Pack',
+    '',
+    `Target harness: ${pack.targetHarness}`,
+    `Workspace: ${pack.workspaceId}`,
+    `Objective: ${pack.objective}`,
+    `Step: ${pack.step}`,
+    `Created: ${pack.createdAt}`,
+    '',
+    '## Safety',
+    '',
+    `External writes: ${pack.safeguards.externalWritesEnabled ? 'enabled' : 'disabled'}`,
+    `External adapters: ${pack.safeguards.externalAdaptersEnabled}`,
+    `Raw context bodies included: ${pack.safeguards.rawBodyIncluded ? 'yes' : 'no'}`,
+    `Model calls: ${pack.safeguards.modelCalls}`,
+    `Network calls: ${pack.safeguards.networkCalls}`,
+    '',
+    '## Instructions',
+    '',
+    bulletList(pack.handoff.instructions),
+    '',
+    '## Read First',
+    '',
+    '| Locator | Harness | Tokens | Reasons |',
+    '| --- | --- | ---: | --- |',
+    selectedRows || '| none | none | 0 | none |',
+    '',
+    '## Excluded',
+    '',
+    '| Locator | Harness | Tokens | Reasons |',
+    '| --- | --- | ---: | --- |',
+    excludedRows || '| none | none | 0 | none |',
+    '',
+    '## Source Graph Hints',
+    '',
+    `Status: ${pack.sourceGraph.status}`,
+    `Graph database used: ${pack.sourceGraph.safeguards.graphDatabaseUsed ? 'yes' : 'no'}`,
+    `Source slices included: ${pack.sourceGraph.safeguards.sourceSlicesRead ? 'yes' : 'no'}`,
+    pack.sourceGraph.summary
+      ? `Graph summary: ${pack.sourceGraph.summary.fileCount} files, ${pack.sourceGraph.summary.symbolCount} symbols, ${pack.sourceGraph.summary.edgeCount} edges`
+      : 'Graph summary: unavailable',
+    '',
+    '| Locator | Kind | Label | Score | Reasons |',
+    '| --- | --- | --- | ---: | --- |',
+    sourceGraphRows || '| none | none | none | 0 | none |',
+    '',
+    '## Warnings',
+    '',
+    bulletList(pack.warnings),
+    '',
+    '## Verification',
+    '',
+    bulletList(pack.handoff.commands),
+    '',
+    '## Fingerprints',
+    '',
+    `Preview: ${pack.preview.previewFingerprint}`,
+    `Selection: ${pack.preview.resultFingerprint}`,
+    ''
+  ].join('\n');
+}
+
+export async function buildContextPack({
+  root = process.cwd(),
+  harnesses = ['codex', 'claude-code', 'cursor'],
+  workspaceId = 'ws_local',
+  targetHarness = 'generic',
+  objective,
+  step,
+  tokenBudget = 4096,
+  maxBytes = DEFAULT_MAX_BYTES,
+  clock = () => new Date().toISOString()
+} = {}) {
+  const normalizedTarget = normalizeTargetHarness(targetHarness);
+  const preview = await buildHarnessContextPreview({
+    root,
+    harnesses,
+    workspaceId,
+    objective,
+    step,
+    tokenBudget,
+    requiredLocators: requiredLocatorsForTarget(normalizedTarget),
+    maxBytes,
+    clock
+  });
+  const selected = preview.manifest.selected.map((item) => decisionForPack(item, normalizedTarget));
+  const excluded = preview.manifest.excluded.map((item) => decisionForPack(item, normalizedTarget));
+  const sourceGraph = await buildContextPackSourceGraph({
+    root,
+    workspaceId,
+    objective,
+    step,
+    createdAt: preview.createdAt
+  });
+  const pack = {
+    schemaVersion: '1.0.0',
+    packVersion: CONTEXT_PACK_VERSION,
+    id: `ctxpack_${idDigest(stableStringify({
+      workspaceId,
+      targetHarness: normalizedTarget,
+      objective,
+      step,
+      previewFingerprint: preview.previewFingerprint,
+      sourceGraphFingerprint: sourceGraph.graphFingerprint,
+      sourceGraphQueryFingerprint: sourceGraph.queryFingerprint
+    }))}`,
+    workspaceId,
+    createdAt: preview.createdAt,
+    dryRun: true,
+    targetHarness: normalizedTarget,
+    objective,
+    step,
+    scannerVersion: preview.scannerVersion,
+    compilerVersion: preview.manifest.compilerVersion,
+    preview: {
+      id: preview.id,
+      previewFingerprint: preview.previewFingerprint,
+      requestId: preview.manifest.requestId,
+      selectionPolicyFingerprint: preview.manifest.selectionPolicyFingerprint,
+      resultFingerprint: preview.manifest.resultFingerprint,
+      budget: preview.manifest.budget,
+      selectedCount: selected.length,
+      excludedCount: excluded.length,
+      candidateTokenCount: preview.metrics.candidateTokenCount,
+      selectedTokenCount: preview.metrics.selectedTokenCount,
+      selectedTokenRatio: preview.metrics.selectedTokenRatio
+    },
+    readFirst: selected,
+    excluded,
+    memoryPlan: preview.memoryPlan,
+    sourceGraph,
+    warnings: [...new Set([...packWarnings(preview), ...sourceGraph.warnings])].sort(),
+    handoff: {
+      title: `${normalizedTarget} context handoff`,
+      summary: `Selected ${selected.length} of ${preview.candidates.totalCount} safe workspace context records for ${objective}.`,
+      instructions: harnessInstructions(normalizedTarget),
+      commands: [
+        'npm run doctor',
+        'npm run oaf -- context preview --from all --root . --objective "<objective>" --step "<step>" --dry-run',
+        'npm run ci'
+      ],
+      limitations: [
+        'This pack references local workspace locators and hashes; it does not import harness chat history.',
+        'Raw context bodies, credentials, provider URLs, hidden reasoning, and private local paths are omitted.',
+        'External adapters, model calls, network calls, and external writes remain disabled.'
+      ]
+    },
+    files: [],
+    safeguards: {
+      ...preview.safeguards,
+      contextPackWritten: false,
+      sourceGraphPreviewed: sourceGraph.status === 'available',
+      graphDatabaseUsed: false,
+      sourceSlicesRead: false
+    },
+    contextPackFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  const markdown = renderContextPackMarkdown(pack);
+  pack.files = [{
+    path: 'CONTEXT_PACK.md',
+    role: 'agent-handoff',
+    contentType: 'text/markdown',
+    contentHash: hash(markdown),
+    byteSize: Buffer.byteLength(markdown, 'utf8')
+  }];
+  pack.contextPackFingerprint = fingerprintContextPack(pack);
+  assertJsonSchema(contextPackSchema, pack, 'context pack');
+  return pack;
 }
 
 function defaultThresholds(dataset) {

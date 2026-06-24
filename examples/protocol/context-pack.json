@@ -1,0 +1,151 @@
+{
+  "schemaVersion": "1.0.0",
+  "packVersion": "0.1.0",
+  "id": "ctxpack_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_local",
+  "createdAt": "2026-06-23T12:00:00.000Z",
+  "dryRun": true,
+  "targetHarness": "codex",
+  "objective": "Prepare the next coding agent",
+  "step": "select useful local context",
+  "scannerVersion": "0.1.0",
+  "compilerVersion": "0.2.0",
+  "preview": {
+    "id": "hctxprev_bbbbbbbbbbbbbbbbbbbbbbbb",
+    "previewFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "requestId": "ctxreq_example",
+    "selectionPolicyFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "resultFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "budget": {
+      "available": 4096,
+      "used": 512
+    },
+    "selectedCount": 1,
+    "excludedCount": 1,
+    "candidateTokenCount": 640,
+    "selectedTokenCount": 512,
+    "selectedTokenRatio": 0.8
+  },
+  "readFirst": [
+    {
+      "id": "hctxrec_selected",
+      "locator": "workspace://AGENTS.md",
+      "harness": "codex",
+      "sourceKind": "instruction",
+      "tokens": 512,
+      "score": 4.2,
+      "reasonCodes": ["high_task_relevance", "source_fusion"],
+      "contentHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex."
+    }
+  ],
+  "excluded": [
+    {
+      "id": "hctxrec_excluded",
+      "locator": "workspace://CLAUDE.md",
+      "harness": "claude-code",
+      "sourceKind": "instruction",
+      "tokens": 128,
+      "score": 0.2,
+      "reasonCodes": ["insufficient_relevance"],
+      "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "readHint": "Read workspace://CLAUDE.md from the local workspace before acting in codex."
+    }
+  ],
+  "memoryPlan": {
+    "activeMemoryCreated": 0,
+    "proposedCount": 1,
+    "quarantinedCount": 0,
+    "items": [
+      {
+        "sourceId": "hctx_source",
+        "locator": "workspace://AGENTS.md",
+        "harness": "codex",
+        "sourceKind": "instruction",
+        "action": "would_propose",
+        "reasonCodes": ["proposal_only", "review_required"]
+      }
+    ]
+  },
+  "sourceGraph": {
+    "status": "available",
+    "previewVersion": "oaf-source-graph-preview-1.0.0",
+    "generatedAt": "2026-06-23T12:00:00.000Z",
+    "sourceIndexFingerprint": "sha256:abababababababababababababababababababababababababababababababab",
+    "graphFingerprint": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "summary": {
+      "fileCount": 1,
+      "symbolCount": 1,
+      "moduleCount": 0,
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "diagnosticCount": 0,
+      "hotspotCount": 1,
+      "entryPointCount": 1
+    },
+    "queryFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "resultCount": 1,
+    "omittedCount": 0,
+    "results": [
+      {
+        "resultType": "node",
+        "kind": "symbol",
+        "label": "prepareAgentHandoff",
+        "locator": "workspace://src/context-pack.ts#L1-L6",
+        "score": 0.82,
+        "reasonCodes": ["lexical_match"],
+        "readHint": "Read workspace://src/context-pack.ts#L1-L6 before editing related symbol prepareAgentHandoff."
+      }
+    ],
+    "warnings": [],
+    "safeguards": {
+      "dryRun": true,
+      "persisted": false,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "modelCalls": 0,
+      "networkCalls": 0,
+      "externalAdaptersEnabled": 0,
+      "externalWritesEnabled": false,
+      "graphDatabaseUsed": false,
+      "rawBodyIncluded": false,
+      "sourceSlicesRead": false
+    }
+  },
+  "warnings": ["dry_run_no_import", "external_writes_disabled", "raw_context_bodies_omitted"],
+  "handoff": {
+    "title": "codex context handoff",
+    "summary": "Selected 1 of 2 safe workspace context records.",
+    "instructions": [
+      "Codex: start with AGENTS.md and any selected scoped instructions, then inspect the repo before editing."
+    ],
+    "commands": ["npm run doctor", "npm run ci"],
+    "limitations": [
+      "Raw context bodies, credentials, provider URLs, hidden reasoning, and private local paths are omitted."
+    ]
+  },
+  "files": [
+    {
+      "path": "CONTEXT_PACK.md",
+      "role": "agent-handoff",
+      "contentType": "text/markdown",
+      "contentHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "byteSize": 1024
+    }
+  ],
+  "safeguards": {
+    "persisted": false,
+    "modelCalls": 0,
+    "networkCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false,
+    "contextPackWritten": false,
+    "sourceGraphPreviewed": true,
+    "graphDatabaseUsed": false,
+    "sourceSlicesRead": false
+  },
+  "contextPackFingerprint": "sha256:1212121212121212121212121212121212121212121212121212121212121212"
+}

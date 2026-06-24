@@ -11,6 +11,11 @@ slice.
 - `npm run oaf -- context preview --from all --root . --objective "..." --step "..." --dry-run`
   converts accepted scan records into temporary Context Compiler candidates,
   runs deterministic selection, and returns a sanitized preview report.
+- `npm run oaf -- context pack --from all --root . --objective "..." --step "..." --target codex --dry-run --format markdown`
+  builds a schema-validated Markdown handoff for Codex, Claude Code, Cursor, or
+  a generic agent from selected safe locators. `--write --out
+  context-packs/CONTEXT_PACK.md` is the only local write path and writes the
+  generated handoff report, not canonical memory.
 - Preview output contains safe locators, hashes, reason codes, token counts,
   selected/excluded decisions, a proposal-only memory plan, safeguards, and a
   preview fingerprint.
@@ -24,6 +29,10 @@ slice.
   JS/TS static source index with definitions, references, imports, exports,
   callers, callees, file outlines, repository outlines, exact slice hashes, and
   content-hash journals.
+- The same native provider now exposes a read-only derived source graph built
+  from that JS/TS source index, with schema-validated file/chunk/symbol/module
+  nodes, contains/defined/import/export/reference/call edges, lexical graph
+  search, call tracing, and changed-file impact reports.
 - Durable context manifests now record explicit assembly representation tiers,
   token budget reports, manifest `etag`s, and `deltaFrom` summaries for
   repeated local runs. The token report separates selected-token ratio
@@ -54,6 +63,8 @@ slice.
   activate canonical memory.
 - `memoryPaths` config is explicit, workspace-relative, size-bounded, and used
   only to create proposal reports.
+- Context packs contain locators, hashes, reason codes, warnings, and
+  instructions only. They do not embed raw source bodies or grant authority.
 - Raw source bodies, prompts, outputs, credentials, provider URLs, local paths,
   and hidden reasoning are not present in public scan or preview reports.
 - Source-index outputs are hashes, safe workspace locators, symbol names, and
@@ -72,9 +83,11 @@ engine, daemon, embeddings, mutating MCP tools, or performance claims.
 
 ## Still Planned
 
-- Native graph work after the source, compiler, token, and memory baselines are
-  established.
-- Handoff export for Codex, Claude Code, Cursor, and similar harnesses.
+- Broader native graph work after the source, compiler, token, and memory
+  baselines are established, including graph candidate-source records,
+  repository-scale benchmarks, and bounded subgraph selection into context
+  manifests.
+- Automatic harness chat history import and active-memory activation.
 - Read-only MCP exposure of sanitized OAF resources.
 - Optional disabled adapters for external memory or code-intelligence systems
   after pin, checksum, license, trust-boundary, and conformance review.

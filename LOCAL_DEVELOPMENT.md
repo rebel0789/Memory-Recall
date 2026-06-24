@@ -31,6 +31,65 @@ the first owner through `POST /api/auth/bootstrap` when
 `GET /api/auth/bootstrap-status` reports `bootstrapRequired: true`. The local
 identity store is `.local/identity/identity.json`.
 
+## Context pack handoff
+
+The Context Pack page at <http://127.0.0.1:4310/context-pack> builds a
+schema-validated handoff for the next local agent. It selects safe workspace
+locators from documented Codex, Claude Code, and Cursor project files, adds
+bounded native JS/TS source graph hints, then renders Markdown instructions
+without embedding raw source bodies or code slices.
+
+CLI dry run:
+
+```bash
+npm run oaf -- context pack \
+  --from all \
+  --root . \
+  --objective "Prepare handoff" \
+  --step "select next agent context" \
+  --target codex \
+  --dry-run \
+  --format markdown
+```
+
+Explicit local write:
+
+```bash
+npm run oaf -- context pack \
+  --from all \
+  --root . \
+  --objective "Prepare handoff" \
+  --step "select next agent context" \
+  --target codex \
+  --write \
+  --out context-packs/CONTEXT_PACK.md \
+  --format json
+```
+
+This does not import harness chat history, create active memory, call a model,
+persist a graph database, enable external adapters, or enable external writes.
+
+## Source graph preview
+
+Use the native JS/TS source graph preview when you need a quick local map of
+symbols, calls, references, and likely diff impact without creating memory or a
+persisted index:
+
+```bash
+npm run oaf -- context graph preview \
+  --root . \
+  --query "approve token reset" \
+  --trace runAuthWorkflow \
+  --changed src/auth.ts \
+  --dry-run \
+  --format json
+```
+
+The preview is read-only. It returns safe locators, fingerprints, bounded search
+results, optional call traces, optional diff-impact summaries, and explicit
+safeguards. It does not read raw source slices, write files, call models, enable
+external adapters, perform network access, or require a graph database.
+
 ## Durable workflow smoke
 
 The explicit native durable workflow baseline uses local SQLite only:

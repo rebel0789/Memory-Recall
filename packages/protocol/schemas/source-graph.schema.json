@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/source-graph.schema.json",
+  "title": "Native Source Graph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workspaceId", "graphVersion", "parserVersion", "builtAt", "sourceIndexFingerprint", "summary", "nodes", "edges", "diagnostics", "graphFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "graphVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "parserVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "builtAt": { "type": "string", "format": "date-time" },
+    "sourceIndexFingerprint": { "$ref": "#/$defs/fingerprint" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "nodes": { "type": "array", "maxItems": 20000, "items": { "$ref": "#/$defs/node" } },
+    "edges": { "type": "array", "maxItems": 50000, "items": { "$ref": "#/$defs/edge" } },
+    "diagnostics": { "type": "array", "maxItems": 5000, "items": { "$ref": "#/$defs/diagnostic" } },
+    "graphFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "nodeId": { "type": "string", "pattern": "^sgnode_[a-f0-9]{32}$" },
+    "edgeId": { "type": "string", "pattern": "^sgedge_[a-f0-9]{32}$" },
+    "locator": { "type": "string", "pattern": "^workspace://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+(?:#L[0-9]+-L[0-9]+)?$" },
+    "safeLabel": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])Users[\\\\/])(?!.*(?:^|[\\\\/])private[\\\\/])(?!.*(?:^|[\\\\/])var[\\\\/]folders[\\\\/]).+$" },
+    "sourceRef": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^(symbol|astchunk|import|export|call|ref|srcsnap)_[a-f0-9]{16,32}$|^sha256:[a-f0-9]{64}$" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fileCount", "symbolCount", "moduleCount", "nodeCount", "edgeCount", "nodeKindCounts", "edgeKindCounts", "hotspots", "entryPoints"],
+      "properties": {
+        "fileCount": { "type": "integer", "minimum": 0 },
+        "symbolCount": { "type": "integer", "minimum": 0 },
+        "moduleCount": { "type": "integer", "minimum": 0 },
+        "nodeCount": { "type": "integer", "minimum": 0 },
+        "edgeCount": { "type": "integer", "minimum": 0 },
+        "nodeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "edgeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "hotspots": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/hotspot" } },
+        "entryPoints": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/nodeReference" } }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "kind", "label"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nodeId" },
+        "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "kind": { "enum": ["file", "chunk", "symbol", "module"] },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "sourceRef": { "$ref": "#/$defs/sourceRef" },
+        "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] },
+        "moduleHash": { "$ref": "#/$defs/fingerprint" },
+        "contentHash": { "$ref": "#/$defs/fingerprint" },
+        "sourceSnapshotId": { "type": "string", "pattern": "^srcsnap_[a-f0-9]{16}$" }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "kind", "fromNodeId", "toNodeId", "confidence"],
+      "properties": {
+        "id": { "$ref": "#/$defs/edgeId" },
+        "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+        "kind": { "enum": ["contains", "defined_in", "imports", "exports", "references", "calls"] },
+        "fromNodeId": { "$ref": "#/$defs/nodeId" },
+        "toNodeId": { "$ref": "#/$defs/nodeId" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "sourceRef": { "$ref": "#/$defs/sourceRef" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "hotspot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "label", "inbound", "outbound", "total"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "inbound": { "type": "integer", "minimum": 0 },
+        "outbound": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "nodeReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "label", "locator", "symbolKind"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "code"],
+      "properties": {
+        "locator": { "$ref": "#/$defs/locator" },
+        "code": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_:-]*$" }
+      }
+    }
+  }
+}

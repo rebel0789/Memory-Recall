@@ -416,6 +416,12 @@
       "expectedValid": true
     },
     {
+      "id": "context-pack-current-valid",
+      "schema": "packages/protocol/schemas/context-pack.schema.json",
+      "instance": "examples/protocol/context-pack.json",
+      "expectedValid": true
+    },
+    {
       "id": "model-generation-request-current-valid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/model-generation-request.json",
@@ -668,6 +674,12 @@
       "expectedValid": false
     },
     {
+      "id": "context-pack-raw-body-invalid",
+      "schema": "packages/protocol/schemas/context-pack.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-raw-body.json",
+      "expectedValid": false
+    },
+    {
       "id": "model-generation-request-raw-prompt-invalid",
       "schema": "packages/protocol/schemas/model-generation-request.schema.json",
       "instance": "examples/protocol/compatibility/invalid/model-generation-request-raw-prompt.json",
@@ -755,6 +767,42 @@
       "id": "source-symbol-index-raw-body-invalid",
       "schema": "packages/protocol/schemas/source-symbol-index.schema.json",
       "instance": "examples/protocol/compatibility/invalid/source-symbol-index-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-current-valid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/source-graph.json",
+      "expectedValid": true
+    },
+    {
+      "id": "source-graph-preview-current-valid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/source-graph-preview.json",
+      "expectedValid": true
+    },
+    {
+      "id": "source-graph-raw-body-invalid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-local-path-invalid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-local-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-preview-raw-body-invalid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-preview-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-preview-local-path-invalid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-preview-local-path.json",
       "expectedValid": false
     },
     {

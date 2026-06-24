@@ -213,6 +213,397 @@ export function querySourceIndex(index, { operation, name = null, module = null,
   }
 }
 
+export async function buildJsTsSourceGraph(options = {}) {
+  const index = await buildJsTsSourceIndex(options);
+  return buildSourceGraphFromIndex(index, { builtAt: safeTimestamp(options.clock) });
+}
+
+export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOString() } = {}) {
+  if (!index?.symbolIndex) throw new Error('source index is required');
+  const workspaceId = index.workspaceId ?? index.symbolIndex.workspaceId;
+  if (!workspaceId) throw new Error('source graph workspaceId is required');
+  const nodesById = new Map();
+  const edgesById = new Map();
+  const fileOutlinesByLocator = new Map((index.fileOutlines ?? []).map((file) => [file.locator, file]));
+  const symbolNodeBySymbolId = new Map();
+
+  function addNode(node) {
+    const frozen = Object.freeze(node);
+    nodesById.set(frozen.id, frozen);
+    return frozen;
+  }
+
+  function addEdge(edge) {
+    if (!nodesById.has(edge.fromNodeId) || !nodesById.has(edge.toNodeId)) return null;
+    const frozen = Object.freeze(edge);
+    edgesById.set(frozen.id, frozen);
+    return frozen;
+  }
+
+  function ensureFileNode(locator) {
+    const fileLocator = fileLocatorFor(locator);
+    const outline = fileOutlinesByLocator.get(fileLocator);
+    const id = sourceGraphNodeId('file', fileLocator);
+    if (nodesById.has(id)) return nodesById.get(id);
+    return addNode(withDefined({
+      id,
+      workspaceId,
+      kind: 'file',
+      label: fileLocator.replace(/^workspace:\/\//u, ''),
+      locator: fileLocator,
+      contentHash: outline?.contentHash,
+      sourceSnapshotId: outline?.sourceSnapshotId
+    }));
+  }
+
+  function ensureChunkNode({ chunkId, locator, contentHash = null, sourceSnapshotId = null }) {
+    if (!chunkId || !locator) return null;
+    const id = sourceGraphNodeId('chunk', chunkId);
+    if (nodesById.has(id)) return nodesById.get(id);
+    const fileNode = ensureFileNode(locator);
+    const chunkNode = addNode(withDefined({
+      id,
+      workspaceId,
+      kind: 'chunk',
+      label: locatorLabel(locator),
+      locator,
+      sourceRef: chunkId,
+      contentHash,
+      sourceSnapshotId
+    }));
+    addEdge(withDefined({
+      id: sourceGraphEdgeId('contains', fileNode.id, chunkNode.id, chunkId),
+      workspaceId,
+      kind: 'contains',
+      fromNodeId: fileNode.id,
+      toNodeId: chunkNode.id,
+      locator,
+      sourceRef: chunkId,
+      confidence: 1
+    }));
+    return chunkNode;
+  }
+
+  for (const locator of index.symbolIndex.fileLocators ?? index.repositoryOutline?.locators ?? []) ensureFileNode(locator);
+  for (const file of index.fileOutlines ?? []) ensureFileNode(file.locator);
+
+  for (const symbol of index.symbolIndex.symbols ?? []) {
+    const chunkNode = ensureChunkNode({
+      chunkId: symbol.chunkId,
+      locator: symbol.locator,
+      contentHash: symbol.contentHash,
+      sourceSnapshotId: symbol.sourceSnapshotId
+    });
+    const node = addNode(withDefined({
+      id: sourceGraphNodeId('symbol', symbol.id),
+      workspaceId,
+      kind: 'symbol',
+      label: symbol.name,
+      locator: symbol.locator,
+      sourceRef: symbol.id,
+      symbolKind: symbol.kind,
+      contentHash: symbol.contentHash,
+      sourceSnapshotId: symbol.sourceSnapshotId
+    }));
+    symbolNodeBySymbolId.set(symbol.id, node);
+    if (chunkNode) {
+      addEdge(withDefined({
+        id: sourceGraphEdgeId('defined_in', node.id, chunkNode.id, symbol.id),
+        workspaceId,
+        kind: 'defined_in',
+        fromNodeId: node.id,
+        toNodeId: chunkNode.id,
+        locator: symbol.locator,
+        sourceRef: symbol.id,
+        confidence: 1
+      }));
+    }
+  }
+
+  for (const item of index.symbolIndex.imports ?? []) {
+    const chunkNode = ensureChunkNode({ chunkId: item.chunkId, locator: item.locator });
+    const moduleNode = addNode(withDefined({
+      id: sourceGraphNodeId('module', item.module),
+      workspaceId,
+      kind: 'module',
+      label: item.module,
+      sourceRef: item.moduleHash,
+      moduleHash: item.moduleHash
+    }));
+    if (chunkNode) {
+      addEdge(withDefined({
+        id: sourceGraphEdgeId('imports', chunkNode.id, moduleNode.id, item.id),
+        workspaceId,
+        kind: 'imports',
+        fromNodeId: chunkNode.id,
+        toNodeId: moduleNode.id,
+        locator: item.locator,
+        sourceRef: item.id,
+        confidence: 0.9
+      }));
+    }
+  }
+
+  for (const item of index.symbolIndex.exports ?? []) {
+    const fileNode = ensureFileNode(item.locator);
+    const targetSymbol = (index.symbolIndex.symbols ?? []).find((symbol) => symbol.chunkId === item.chunkId && symbol.name === item.name);
+    const targetNode = targetSymbol ? symbolNodeBySymbolId.get(targetSymbol.id) : ensureChunkNode({ chunkId: item.chunkId, locator: item.locator });
+    if (targetNode) {
+      addEdge(withDefined({
+        id: sourceGraphEdgeId('exports', fileNode.id, targetNode.id, item.id),
+        workspaceId,
+        kind: 'exports',
+        fromNodeId: fileNode.id,
+        toNodeId: targetNode.id,
+        locator: item.locator,
+        sourceRef: item.id,
+        confidence: 1
+      }));
+    }
+  }
+
+  for (const item of index.symbolIndex.references ?? []) {
+    const sourceChunk = ensureChunkNode({ chunkId: item.sourceChunkId, locator: item.sourceLocator });
+    const targetNode = symbolNodeBySymbolId.get(item.targetSymbolId);
+    if (sourceChunk && targetNode) {
+      addEdge(withDefined({
+        id: sourceGraphEdgeId('references', sourceChunk.id, targetNode.id, item.id),
+        workspaceId,
+        kind: 'references',
+        fromNodeId: sourceChunk.id,
+        toNodeId: targetNode.id,
+        locator: item.sourceLocator,
+        sourceRef: item.id,
+        confidence: 0.75
+      }));
+    }
+  }
+
+  for (const item of index.symbolIndex.callEdges ?? []) {
+    const callerNode = symbolNodeBySymbolId.get(item.callerSymbolId);
+    const calleeNode = symbolNodeBySymbolId.get(item.calleeSymbolId);
+    if (callerNode && calleeNode) {
+      addEdge(withDefined({
+        id: sourceGraphEdgeId('calls', callerNode.id, calleeNode.id, item.id),
+        workspaceId,
+        kind: 'calls',
+        fromNodeId: callerNode.id,
+        toNodeId: calleeNode.id,
+        locator: item.sourceLocator,
+        sourceRef: item.id,
+        confidence: 0.7
+      }));
+    }
+  }
+
+  const nodes = [...nodesById.values()].sort((a, b) => a.id.localeCompare(b.id));
+  const edges = [...edgesById.values()].sort((a, b) => a.id.localeCompare(b.id));
+  const graph = {
+    schemaVersion: '1.0.0',
+    workspaceId,
+    graphVersion: 'oaf-native-source-graph-1.0.0',
+    parserVersion: index.parserVersion ?? index.symbolIndex.parserVersion ?? AST_CODE_PARSER_VERSION,
+    builtAt,
+    sourceIndexFingerprint: index.sourceIndexFingerprint ?? index.symbolIndex.symbolIndexFingerprint,
+    summary: sourceGraphSummary({ nodes, edges }),
+    nodes,
+    edges,
+    diagnostics: [...(index.diagnostics ?? [])].sort((a, b) => a.locator.localeCompare(b.locator) || a.code.localeCompare(b.code))
+  };
+  return Object.freeze({ ...graph, graphFingerprint: graphContentFingerprint(graph) });
+}
+
+export function searchSourceGraph(graph, {
+  query = '',
+  nodeKinds = null,
+  edgeKinds = null,
+  labelPattern = null,
+  locatorPrefix = null,
+  limit = 20,
+  offset = 0
+} = {}) {
+  assertSourceGraph(graph);
+  const boundedLimit = boundedInteger(limit, 'source_graph_search_limit', 1, 100);
+  const boundedOffset = boundedInteger(offset, 'source_graph_search_offset', 0, 10_000);
+  const nodeKindSet = nodeKinds ? new Set(nodeKinds) : null;
+  const edgeKindSet = edgeKinds ? new Set(edgeKinds) : null;
+  const pattern = labelPattern ? safeRegex(labelPattern, 'source_graph_label_pattern_invalid') : null;
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const queryText = String(query ?? '');
+  const queryTerms = terms(queryText);
+  const results = [];
+
+  for (const node of graph.nodes) {
+    if (nodeKindSet && !nodeKindSet.has(node.kind)) continue;
+    if (locatorPrefix && !(node.locator ?? '').startsWith(locatorPrefix)) continue;
+    if (pattern && !pattern.test(node.label)) continue;
+    const score = graphSearchScore(queryTerms, sourceGraphNodeSearchText(node));
+    if (queryTerms.size && score <= 0) continue;
+    results.push({
+      resultType: 'node',
+      id: node.id,
+      kind: node.kind,
+      label: node.label,
+      locator: node.locator,
+      score,
+      reasonCodes: sourceGraphSearchReasons({ score, pattern, locatorPrefix })
+    });
+  }
+
+  for (const edge of graph.edges) {
+    if (edgeKindSet && !edgeKindSet.has(edge.kind)) continue;
+    if (locatorPrefix && !(edge.locator ?? '').startsWith(locatorPrefix)) continue;
+    const from = nodeById.get(edge.fromNodeId);
+    const to = nodeById.get(edge.toNodeId);
+    const score = graphSearchScore(queryTerms, sourceGraphEdgeSearchText(edge, from, to));
+    if (queryTerms.size && score <= 0) continue;
+    results.push({
+      resultType: 'edge',
+      id: edge.id,
+      kind: edge.kind,
+      label: `${from?.label ?? edge.fromNodeId} ${edge.kind} ${to?.label ?? edge.toNodeId}`,
+      locator: edge.locator,
+      fromNodeId: edge.fromNodeId,
+      toNodeId: edge.toNodeId,
+      score,
+      reasonCodes: sourceGraphSearchReasons({ score, pattern: null, locatorPrefix })
+    });
+  }
+
+  const sorted = results.sort((a, b) => b.score - a.score || a.resultType.localeCompare(b.resultType) || a.id.localeCompare(b.id));
+  const page = sorted.slice(boundedOffset, boundedOffset + boundedLimit);
+  return Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId: graph.workspaceId,
+    graphFingerprint: graph.graphFingerprint,
+    retrievalMethod: 'source_graph_lexical',
+    queryFingerprint: hashRef(stableStringify({ query: queryText, nodeKinds: nodeKinds ?? [], edgeKinds: edgeKinds ?? [], labelPattern, locatorPrefix, limit: boundedLimit, offset: boundedOffset })),
+    total: sorted.length,
+    limit: boundedLimit,
+    offset: boundedOffset,
+    hasMore: boundedOffset + boundedLimit < sorted.length,
+    omittedCount: Math.max(0, sorted.length - boundedOffset - page.length),
+    results: page.map((item) => Object.freeze({ ...item, score: Number(item.score.toFixed(6)) }))
+  });
+}
+
+export function traceSourceGraph(graph, {
+  startName = null,
+  startNodeId = null,
+  edgeKinds = ['calls'],
+  direction = 'outbound',
+  depth = 2,
+  limit = 20
+} = {}) {
+  assertSourceGraph(graph);
+  const boundedDepth = boundedInteger(depth, 'source_graph_trace_depth', 1, 5);
+  const boundedLimit = boundedInteger(limit, 'source_graph_trace_limit', 1, 100);
+  if (!['outbound', 'inbound', 'both'].includes(direction)) throw new Error(`source_graph_trace_direction_invalid:${direction}`);
+  const edgeKindSet = new Set(edgeKinds ?? ['calls']);
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const starts = startNodeId
+    ? graph.nodes.filter((node) => node.id === startNodeId)
+    : graph.nodes.filter((node) => node.kind === 'symbol' && safeTag(node.label) === safeTag(startName));
+  const outgoing = new Map();
+  const incoming = new Map();
+  for (const edge of graph.edges.filter((item) => edgeKindSet.has(item.kind)).sort((a, b) => a.id.localeCompare(b.id))) {
+    const outValues = outgoing.get(edge.fromNodeId) ?? [];
+    outValues.push(edge);
+    outgoing.set(edge.fromNodeId, outValues);
+    const inValues = incoming.get(edge.toNodeId) ?? [];
+    inValues.push(edge);
+    incoming.set(edge.toNodeId, inValues);
+  }
+  const queue = starts.map((node) => ({ nodeIds: [node.id], edgeIds: [], currentNodeId: node.id }));
+  const paths = [];
+  while (queue.length && paths.length < boundedLimit) {
+    const item = queue.shift();
+    if (item.edgeIds.length >= boundedDepth) continue;
+    const nextEdges = [
+      ...(['outbound', 'both'].includes(direction) ? (outgoing.get(item.currentNodeId) ?? []).map((edge) => ({ edge, nextNodeId: edge.toNodeId })) : []),
+      ...(['inbound', 'both'].includes(direction) ? (incoming.get(item.currentNodeId) ?? []).map((edge) => ({ edge, nextNodeId: edge.fromNodeId })) : [])
+    ].sort((a, b) => a.edge.id.localeCompare(b.edge.id));
+    for (const { edge, nextNodeId } of nextEdges) {
+      if (item.nodeIds.includes(nextNodeId)) continue;
+      const nextPath = {
+        nodeIds: [...item.nodeIds, nextNodeId],
+        edgeIds: [...item.edgeIds, edge.id],
+        currentNodeId: nextNodeId
+      };
+      const terminal = nodeById.get(nextNodeId);
+      paths.push(Object.freeze({
+        depth: nextPath.edgeIds.length,
+        nodeIds: nextPath.nodeIds,
+        edgeIds: nextPath.edgeIds,
+        terminalNodeId: nextNodeId,
+        terminalLabel: terminal?.label ?? nextNodeId
+      }));
+      if (paths.length >= boundedLimit) break;
+      queue.push(nextPath);
+    }
+  }
+  return Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId: graph.workspaceId,
+    graphFingerprint: graph.graphFingerprint,
+    retrievalMethod: 'source_graph_trace',
+    startNodeIds: starts.map((node) => node.id).sort(),
+    direction,
+    edgeKinds: [...edgeKindSet].sort(),
+    depth: boundedDepth,
+    limit: boundedLimit,
+    paths
+  });
+}
+
+export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 2, limit = 100 } = {}) {
+  assertSourceGraph(graph);
+  const boundedDepth = boundedInteger(depth, 'source_graph_diff_depth', 1, 5);
+  const boundedLimit = boundedInteger(limit, 'source_graph_diff_limit', 1, 500);
+  const changed = new Set(changedLocators.map(fileLocatorFor));
+  const startNodes = graph.nodes.filter((node) => node.kind === 'file' && changed.has(node.locator));
+  const adjacency = new Map();
+  for (const edge of graph.edges) {
+    const fromValues = adjacency.get(edge.fromNodeId) ?? [];
+    fromValues.push({ edge, nextNodeId: edge.toNodeId });
+    adjacency.set(edge.fromNodeId, fromValues);
+    const toValues = adjacency.get(edge.toNodeId) ?? [];
+    toValues.push({ edge, nextNodeId: edge.fromNodeId });
+    adjacency.set(edge.toNodeId, toValues);
+  }
+  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const impactedNodes = new Set(startNodes.map((node) => node.id));
+  const impactedEdges = new Set();
+  const queue = startNodes.map((node) => ({ nodeId: node.id, depth: 0 }));
+  while (queue.length && impactedNodes.size < boundedLimit) {
+    const item = queue.shift();
+    if (item.depth >= boundedDepth) continue;
+    for (const { edge, nextNodeId } of (adjacency.get(item.nodeId) ?? []).sort((a, b) => a.edge.id.localeCompare(b.edge.id))) {
+      impactedEdges.add(edge.id);
+      if (!impactedNodes.has(nextNodeId)) {
+        impactedNodes.add(nextNodeId);
+        queue.push({ nodeId: nextNodeId, depth: item.depth + 1 });
+      }
+      if (impactedNodes.size >= boundedLimit) break;
+    }
+  }
+  const affectedSymbols = [...impactedNodes]
+    .map((id) => nodeById.get(id))
+    .filter((node) => node?.kind === 'symbol')
+    .map((node) => ({ nodeId: node.id, name: node.label, locator: node.locator, symbolKind: node.symbolKind }))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.nodeId.localeCompare(b.nodeId));
+  return Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId: graph.workspaceId,
+    graphFingerprint: graph.graphFingerprint,
+    changedLocators: [...changed].sort(),
+    depth: boundedDepth,
+    impactedNodeIds: [...impactedNodes].sort(),
+    impactedEdgeIds: [...impactedEdges].sort(),
+    affectedSymbols
+  });
+}
+
 export async function readAstCodeSlice({ root, chunk } = {}) {
   // Internal verification helper: provider query/protocol outputs expose only hashes and locators.
   if (typeof root !== 'string' || !root) throw new Error('root is required');
@@ -662,6 +1053,17 @@ function locatorFor(relativePath) {
   return `workspace://${normalizeRelative(relativePath)}`;
 }
 
+function fileLocatorFor(locator) {
+  if (typeof locator !== 'string') return '';
+  const value = locator.split('#')[0];
+  if (!value.startsWith('workspace://')) throw new Error('source_graph_locator_invalid');
+  return value;
+}
+
+function locatorLabel(locator) {
+  return String(locator ?? '').replace(/^workspace:\/\//u, '');
+}
+
 function relativeFromLocator(locator) {
   if (!locator.startsWith('workspace://')) throw new Error('ast_code_locator_invalid');
   const withoutScheme = locator.slice('workspace://'.length).split('#')[0];
@@ -723,6 +1125,158 @@ function importAlias(moduleName) {
 
 function safeTag(value) {
   return String(value).normalize('NFKC').replace(/[^A-Za-z0-9_:-]+/gu, '-').replace(/^-|-$/gu, '') || 'unknown';
+}
+
+function safeTimestamp(clock) {
+  const value = typeof clock === 'function' ? clock() : new Date().toISOString();
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+function sourceGraphNodeId(kind, value) {
+  return `sgnode_${sha256(`${kind}:${value}`).slice(0, 32)}`;
+}
+
+function sourceGraphEdgeId(kind, fromNodeId, toNodeId, sourceRef = '') {
+  return `sgedge_${sha256(`${kind}:${fromNodeId}:${toNodeId}:${sourceRef}`).slice(0, 32)}`;
+}
+
+function withDefined(value) {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null));
+}
+
+function sourceGraphSummary({ nodes, edges }) {
+  const nodeKindCounts = countBy(nodes, (node) => node.kind);
+  const edgeKindCounts = countBy(edges, (edge) => edge.kind);
+  const degree = new Map(nodes.map((node) => [node.id, { inbound: 0, outbound: 0 }]));
+  for (const edge of edges) {
+    const from = degree.get(edge.fromNodeId);
+    const to = degree.get(edge.toNodeId);
+    if (from) from.outbound += 1;
+    if (to) to.inbound += 1;
+  }
+  const hotspots = nodes
+    .filter((node) => node.kind === 'symbol')
+    .map((node) => {
+      const counts = degree.get(node.id) ?? { inbound: 0, outbound: 0 };
+      return { nodeId: node.id, label: node.label, inbound: counts.inbound, outbound: counts.outbound, total: counts.inbound + counts.outbound };
+    })
+    .filter((item) => item.total > 0)
+    .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label) || a.nodeId.localeCompare(b.nodeId))
+    .slice(0, 10);
+  const entryPoints = nodes
+    .filter((node) => node.kind === 'symbol')
+    .map((node) => {
+      const counts = degree.get(node.id) ?? { inbound: 0, outbound: 0 };
+      return { node, counts };
+    })
+    .filter(({ counts }) => counts.inbound === 0 && counts.outbound > 0)
+    .map(({ node }) => ({ nodeId: node.id, label: node.label, locator: node.locator, symbolKind: node.symbolKind }))
+    .sort((a, b) => a.label.localeCompare(b.label) || a.nodeId.localeCompare(b.nodeId))
+    .slice(0, 10);
+  return Object.freeze({
+    fileCount: nodeKindCounts.file ?? 0,
+    symbolCount: nodeKindCounts.symbol ?? 0,
+    moduleCount: nodeKindCounts.module ?? 0,
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    nodeKindCounts,
+    edgeKindCounts,
+    hotspots,
+    entryPoints
+  });
+}
+
+function countBy(items, keyFn) {
+  const counts = {};
+  for (const item of items) {
+    const key = keyFn(item);
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return Object.freeze(Object.fromEntries(Object.entries(counts).sort((a, b) => a[0].localeCompare(b[0]))));
+}
+
+function graphContentFingerprint(value) {
+  return hashRef(stableStringify(stripGraphVolatile(value)));
+}
+
+function stripGraphVolatile(value) {
+  if (Array.isArray(value)) return value.map(stripGraphVolatile);
+  if (!value || typeof value !== 'object') return value;
+  const output = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (['builtAt', 'graphFingerprint'].includes(key)) continue;
+    output[key] = stripGraphVolatile(item);
+  }
+  return output;
+}
+
+function assertSourceGraph(graph) {
+  if (!graph || graph.schemaVersion !== '1.0.0' || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
+    throw new Error('source graph is required');
+  }
+}
+
+function boundedInteger(value, name, min, max) {
+  if (!Number.isInteger(value) || value < min || value > max) throw new Error(`${name}:invalid`);
+  return value;
+}
+
+function safeRegex(pattern, errorCode) {
+  try {
+    return new RegExp(String(pattern), 'u');
+  } catch {
+    throw new Error(errorCode);
+  }
+}
+
+function graphSearchScore(queryTerms, text) {
+  if (!queryTerms.size) return 1;
+  const graphTerms = terms(text);
+  if (!graphTerms.size) return 0;
+  let matches = 0;
+  for (const term of queryTerms) if (graphTerms.has(term)) matches += 1;
+  return matches / Math.sqrt(queryTerms.size * graphTerms.size);
+}
+
+function sourceGraphNodeSearchText(node) {
+  return expandSearchText([
+    node.kind,
+    node.label,
+    node.symbolKind,
+    node.locator,
+    node.sourceRef,
+    node.moduleHash
+  ].filter(Boolean).join(' '));
+}
+
+function sourceGraphEdgeSearchText(edge, from, to) {
+  return expandSearchText([
+    edge.kind,
+    edge.locator,
+    edge.sourceRef,
+    from?.kind,
+    from?.label,
+    from?.locator,
+    to?.kind,
+    to?.label,
+    to?.locator
+  ].filter(Boolean).join(' '));
+}
+
+function expandSearchText(value) {
+  const raw = String(value ?? '');
+  const expanded = raw
+    .replace(/([a-z0-9])([A-Z])/gu, '$1 $2')
+    .replace(/[_:./#-]+/gu, ' ');
+  return `${raw} ${expanded}`;
+}
+
+function sourceGraphSearchReasons({ score, pattern, locatorPrefix }) {
+  return [
+    score > 0 ? 'lexical_match' : 'unfiltered_match',
+    pattern ? 'label_pattern_match' : null,
+    locatorPrefix ? 'locator_prefix_match' : null
+  ].filter(Boolean);
 }
 
 function uniqueBy(items, keyFn) {

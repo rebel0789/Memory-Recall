@@ -151,6 +151,8 @@ export function createApiRouteContracts(limits = {}) {
     createApiToken: Math.min(limits.bodyBytes ?? 1_000_000, 8 * 1024),
     startRun: Math.min(limits.bodyBytes ?? 1_000_000, 32 * 1024),
     compileContext: Math.min(limits.bodyBytes ?? 1_000_000, 256 * 1024),
+    buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    previewContextGraph: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     resetBootstrap: 0
   };
   const limitShape = {
@@ -260,6 +262,98 @@ export function createApiRouteContracts(limits = {}) {
     properties: {
       request: contextRequestSchema(limitShape),
       records: { type: 'array', maxItems: limitShape.jsonArrayItems, items: recordSchema(limitShape) }
+    }
+  };
+  const contextPackRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId', 'objective', 'step'],
+    properties: {
+      workspaceId,
+      objective: boundedString(limitShape.objectiveLength),
+      step: boundedString(256),
+      targetHarness: { enum: ['codex', 'claude-code', 'claude', 'cursor', 'generic'] },
+      from: { type: 'string', minLength: 1, maxLength: 80 },
+      tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 }
+    }
+  };
+  const contextGraphPreviewRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId'],
+    properties: {
+      workspaceId,
+      query: boundedString(512),
+      startName: boundedString(240),
+      startNodeId: boundedString(128),
+      changedLocators: { type: 'array', maxItems: 100, uniqueItems: true, items: boundedString(512) },
+      nodeKinds: { type: 'array', maxItems: 4, uniqueItems: true, items: { enum: ['file', 'chunk', 'symbol', 'module'] } },
+      edgeKinds: { type: 'array', maxItems: 6, uniqueItems: true, items: { enum: ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls'] } },
+      labelPattern: boundedString(240),
+      locatorPrefix: boundedString(512),
+      direction: { enum: ['outbound', 'inbound', 'both'] },
+      limit: { type: 'integer', minimum: 1, maximum: 100 },
+      offset: { type: 'integer', minimum: 0, maximum: 10000 },
+      depth: { type: 'integer', minimum: 1, maximum: 5 },
+      sampleLimit: { type: 'integer', minimum: 1, maximum: 50 },
+      maxFiles: { type: 'integer', minimum: 1, maximum: 1000 },
+      maxFileBytes: { type: 'integer', minimum: 1024, maximum: 1048576 }
+    }
+  };
+  const contextPackResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'pack', 'markdown'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      pack: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['schemaVersion', 'id', 'workspaceId', 'targetHarness', 'readFirst', 'safeguards', 'contextPackFingerprint'],
+        properties: {
+          schemaVersion: { const: '1.0.0' },
+          id: { type: 'string', pattern: id('ctxpack'), maxLength: 128 },
+          workspaceId,
+          targetHarness: boundedString(32),
+          readFirst: { type: 'array', maxItems: 128, items: { type: 'object', additionalProperties: true } },
+          safeguards: { type: 'object', additionalProperties: true },
+          contextPackFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' }
+        }
+      },
+      markdown: { type: 'string', minLength: 1, maxLength: 200000 }
+    }
+  };
+  const contextGraphPreviewResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'previewVersion', 'workspaceId', 'generatedAt', 'graph', 'search', 'trace', 'impact', 'safeguards'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      previewVersion: { const: 'oaf-source-graph-preview-1.0.0' },
+      workspaceId,
+      generatedAt: { type: 'string', format: 'date-time' },
+      graph: { type: 'object', additionalProperties: true, required: ['graphFingerprint', 'summary', 'sampleNodes', 'sampleEdges'], properties: {} },
+      search: { type: 'object', additionalProperties: true, required: ['queryFingerprint', 'results'], properties: {} },
+      trace: { type: ['object', 'null'], additionalProperties: true, properties: {} },
+      impact: { type: ['object', 'null'], additionalProperties: true, properties: {} },
+      safeguards: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['dryRun', 'persisted', 'canonicalStateMutated', 'localFilesWritten', 'modelCalls', 'networkCalls', 'externalAdaptersEnabled', 'externalWritesEnabled', 'graphDatabaseUsed', 'rawBodyIncluded', 'sourceSlicesRead'],
+        properties: {
+          dryRun: { const: true },
+          persisted: { const: false },
+          canonicalStateMutated: { const: false },
+          localFilesWritten: { const: 0 },
+          modelCalls: { const: 0 },
+          networkCalls: { const: 0 },
+          externalAdaptersEnabled: { const: 0 },
+          externalWritesEnabled: { const: false },
+          graphDatabaseUsed: { const: false },
+          rawBodyIncluded: { const: false },
+          sourceSlicesRead: { const: false }
+        }
+      }
     }
   };
   const contextManifest = {
@@ -563,6 +657,38 @@ export function createApiRouteContracts(limits = {}) {
       bodyRequired: true,
       streams: false,
       responses: { 200: contextManifest }
+    },
+    {
+      method: 'POST',
+      path: '/api/context/pack',
+      operationId: 'buildContextPack',
+      security: { authenticated: true, action: 'context.compile', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: contextPackRequest,
+      maxBodyBytes: routeBodyBytes.buildContextPack,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: contextPackResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/context/graph/preview',
+      operationId: 'previewContextGraph',
+      security: { authenticated: true, action: 'context.compile', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: contextGraphPreviewRequest,
+      maxBodyBytes: routeBodyBytes.previewContextGraph,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: contextGraphPreviewResponse }
     },
     {
       method: 'POST',

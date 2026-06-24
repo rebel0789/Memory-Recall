@@ -8,6 +8,8 @@ import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
+import { buildContextPack, renderContextPackMarkdown } from '../../../packages/harness-context/src/index.mjs';
+import { buildSourceGraphPreview } from '../../../packages/source-graph/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
 import { createTelemetryFromEnv, createTraceContext, routeSpanAttributes } from '../../../packages/observability/src/index.mjs';
@@ -76,6 +78,7 @@ export function createControlApiServer({
   runWorkflow = runContentIntelligence,
   compileContext = defaultCompileContext,
   manifestRepository = null,
+  sourceGraphRoot = path.resolve(here, '../../..'),
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   policyService = null,
@@ -270,6 +273,40 @@ export function createControlApiServer({
           return result.manifest;
         }
         return compileContext(context.body.request, context.body.records);
+      case 'buildContextPack': {
+        const pack = await buildContextPack({
+          root: path.resolve(here, '../../..'),
+          harnesses: normalizeHarnesses(context.body.from ?? 'all'),
+          workspaceId: context.workspaceId,
+          targetHarness: context.body.targetHarness ?? 'generic',
+          objective: context.body.objective,
+          step: context.body.step,
+          tokenBudget: context.body.tokenBudget ?? 4096,
+          clock
+        });
+        return { schemaVersion: '1.0.0', pack, markdown: renderContextPackMarkdown(pack) };
+      }
+      case 'previewContextGraph':
+        return buildSourceGraphPreview({
+          root: sourceGraphRoot,
+          workspaceId: context.workspaceId,
+          query: context.body.query ?? '',
+          startName: context.body.startName ?? null,
+          startNodeId: context.body.startNodeId ?? null,
+          changedLocators: context.body.changedLocators ?? [],
+          nodeKinds: context.body.nodeKinds ?? null,
+          edgeKinds: context.body.edgeKinds ?? null,
+          labelPattern: context.body.labelPattern ?? null,
+          locatorPrefix: context.body.locatorPrefix ?? null,
+          direction: context.body.direction ?? 'outbound',
+          limit: context.body.limit ?? 20,
+          offset: context.body.offset ?? 0,
+          depth: context.body.depth ?? 2,
+          sampleLimit: context.body.sampleLimit ?? 12,
+          maxFiles: context.body.maxFiles ?? 200,
+          maxFileBytes: context.body.maxFileBytes ?? 128 * 1024,
+          clock
+        });
       case 'resetBootstrap':
         await store.reset();
         return { schemaVersion: '1.0.0', reset: true, time: clock() };
@@ -897,6 +934,11 @@ async function serveStatic(response, rawPathname) {
     response.writeHead(200, { ...securityHeaders(), 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
     response.end(fallback);
   }
+}
+
+function normalizeHarnesses(value) {
+  const aliases = new Map([['claude', 'claude-code']]);
+  return String(value ?? 'all').split(',').map((item) => aliases.get(item.trim()) ?? item.trim()).filter(Boolean);
 }
 
 function securityHeaders() {

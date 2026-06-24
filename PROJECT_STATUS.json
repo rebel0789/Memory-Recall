@@ -78,9 +78,15 @@
         "tests/context-compiler.test.mjs",
         "tests/context-candidate-sources.test.mjs",
         "tests/ast-code-candidate-source.test.mjs",
+        "tests/source-graph-preview.test.mjs",
+        "tests/cli.test.mjs",
+        "tests/control-api-boundary.test.mjs",
         "packages/protocol/schemas/candidate-source-request.schema.json",
         "packages/protocol/schemas/ast-code-chunk.schema.json",
         "packages/protocol/schemas/source-symbol-index.schema.json",
+        "packages/protocol/schemas/source-graph.schema.json",
+        "packages/protocol/schemas/source-graph-preview.schema.json",
+        "packages/source-graph/src/index.mjs",
         "packages/protocol/schemas/context-candidate.schema.json",
         "packages/protocol/schemas/context-selection-policy.schema.json",
         "packages/protocol/schemas/context-selection-result.schema.json",
@@ -91,8 +97,9 @@
         "docs/implementation/OAF-012-context-manifests-note.md"
       ],
       "limitations": [
-        "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index queries",
+        "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
+        "Native source graph is read-only derived metadata; it is not canonical source state, not a graph database, not persisted as memory, and does not emit graph candidate-source records yet",
         "Token estimate is approximate",
         "Manifest persistence is local native or repository-layer only; no production orchestration is implied"
       ]
@@ -109,16 +116,20 @@
         "providers/native/catalog.json",
         "tests/context-candidate-sources.test.mjs",
         "tests/ast-code-candidate-source.test.mjs",
+        "tests/source-graph-preview.test.mjs",
         "packages/adapter-contracts/src/index.mjs",
         "packages/protocol/schemas/candidate-source-descriptor.schema.json",
         "packages/protocol/schemas/candidate-source-hit.schema.json",
         "packages/protocol/schemas/ast-code-chunk.schema.json",
         "packages/protocol/schemas/source-symbol-index.schema.json",
+        "packages/protocol/schemas/source-graph.schema.json",
+        "packages/protocol/schemas/source-graph-preview.schema.json",
+        "packages/source-graph/src/index.mjs",
         "docs/architecture/context-compiler.md"
       ],
       "limitations": [
         "Only native exact, lexical, and AST-code sources are implemented and enabled",
-        "AST-code source is a dependency-free static JS/TS chunker and symbol index; it is not a full semantic parser, language server, graph index, or executor",
+        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; it is not a full semantic parser, language server, graph database, or executor",
         "Vector, graph, temporal, preference, and episode sources are declared but unavailable",
         "Sources generate candidates only; final selection remains in the Context Compiler selector",
         "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
@@ -161,6 +172,33 @@
         "Records selected-record use and outcome references only; it does not infer causality",
         "Selector experiments are reversible and review-only; defaults are not mutated by assignment",
         "No online experimentation service, hosted analytics, telemetry upload, external adapters, or model/provider default change"
+      ]
+    },
+    {
+      "id": "context.pack-handoff",
+      "name": "Dry-run context pack handoff builder",
+      "status": "reference",
+      "evidence": [
+        "packages/harness-context/src/index.mjs",
+        "packages/source-graph/src/index.mjs",
+        "packages/protocol/schemas/context-pack.schema.json",
+        "examples/protocol/context-pack.json",
+        "examples/protocol/compatibility/invalid/context-pack-raw-body.json",
+        "apps/cli/oaf.mjs",
+        "apps/web/app.js",
+        "services/control-api/src/server.mjs",
+        "services/control-api/src/route-contracts.mjs",
+        "tests/harness-context-pack.test.mjs",
+        "tests/cli.test.mjs",
+        "tests/control-api-boundary.test.mjs",
+        "tests/web-shell.test.mjs",
+        "docs/implementation/OAF-031-context-intake-preview-note.md"
+      ],
+      "limitations": [
+        "Generates schema-validated local handoff reports from documented harness project files plus compact native JS/TS source-graph hints",
+        "Raw source bodies, prompts, outputs, credentials, provider URLs, private local paths, and hidden reasoning are omitted",
+        "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, MCP bridge, persisted graph database, graph candidate-source integration, publishing, or external write",
+        "The only write path is explicit CLI output under context-packs/*.md"
       ]
     },
     {

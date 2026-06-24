@@ -160,6 +160,15 @@
       "devDependencyCount": 0
     },
     {
+      "path": "packages/source-graph/package.json",
+      "name": "@open-agent-fabric/source-graph",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
       "path": "packages/storage/package.json",
       "name": "@open-agent-fabric/storage",
       "version": "0.2.0-dev",

@@ -117,8 +117,13 @@ version, workspace locator, line and byte ranges, scope chain, symbol,
 import/export metadata, sibling locators, signature hashes, parse error state,
 and source hashes. `source-symbol-index.schema.json` describes the derived
 read-only JS/TS symbol index for definitions, references, imports, exports,
-callers, callees, and file locators. Both intentionally exclude raw source
-bodies, absolute paths, executable parser output, embeddings, graph records, and
-provider configuration. The native provider's root-bounded exact-slice helper is
-for internal reconstruction tests only; it is not a protocol output or a
-candidate-source query result.
+callers, callees, and file locators. `source-graph.schema.json` describes the
+native derived source graph built from that index: files, chunks, symbols,
+modules, contains, defined-in, import, export, reference, and call edges, plus
+safe summaries. `source-graph-preview.schema.json` describes the bounded
+read-only CLI/API preview envelope for graph summary, search, optional trace,
+optional diff impact, and explicit no-write/no-model safeguards. These schemas
+intentionally exclude raw source bodies, absolute paths, executable parser
+output, embeddings, graph-database records, and provider configuration. The
+native provider's root-bounded exact-slice helper is for internal reconstruction
+tests only; it is not a protocol output or a candidate-source query result.

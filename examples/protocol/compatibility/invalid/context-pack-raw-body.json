@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "1.0.0",
+  "packVersion": "0.1.0",
+  "id": "ctxpack_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_local",
+  "createdAt": "2026-06-23T12:00:00.000Z",
+  "dryRun": true,
+  "targetHarness": "codex",
+  "objective": "Prepare the next coding agent",
+  "step": "select useful local context",
+  "scannerVersion": "0.1.0",
+  "compilerVersion": "0.2.0",
+  "preview": {
+    "id": "hctxprev_bbbbbbbbbbbbbbbbbbbbbbbb",
+    "previewFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "requestId": "ctxreq_example",
+    "selectionPolicyFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "resultFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "budget": { "available": 4096, "used": 512 },
+    "selectedCount": 0,
+    "excludedCount": 0,
+    "candidateTokenCount": 0,
+    "selectedTokenCount": 0,
+    "selectedTokenRatio": 0
+  },
+  "readFirst": [],
+  "excluded": [],
+  "memoryPlan": {
+    "activeMemoryCreated": 0,
+    "proposedCount": 0,
+    "quarantinedCount": 0,
+    "items": []
+  },
+  "sourceGraph": {
+    "status": "available",
+    "previewVersion": "oaf-source-graph-preview-1.0.0",
+    "generatedAt": "2026-06-23T12:00:00.000Z",
+    "sourceIndexFingerprint": "sha256:abababababababababababababababababababababababababababababababab",
+    "graphFingerprint": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "summary": {
+      "fileCount": 0,
+      "symbolCount": 0,
+      "moduleCount": 0,
+      "nodeCount": 0,
+      "edgeCount": 0,
+      "diagnosticCount": 0,
+      "hotspotCount": 0,
+      "entryPointCount": 0
+    },
+    "queryFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "resultCount": 0,
+    "omittedCount": 0,
+    "results": [],
+    "warnings": [],
+    "safeguards": {
+      "dryRun": true,
+      "persisted": false,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "modelCalls": 0,
+      "networkCalls": 0,
+      "externalAdaptersEnabled": 0,
+      "externalWritesEnabled": false,
+      "graphDatabaseUsed": false,
+      "rawBodyIncluded": false,
+      "sourceSlicesRead": false
+    }
+  },
+  "warnings": ["dry_run_no_import"],
+  "handoff": {
+    "title": "codex context handoff",
+    "summary": "No selected context.",
+    "instructions": ["Read selected local files before changing code."],
+    "commands": ["npm run ci"],
+    "limitations": ["Raw context bodies are omitted."]
+  },
+  "files": [
+    {
+      "path": "CONTEXT_PACK.md",
+      "role": "agent-handoff",
+      "contentType": "text/markdown",
+      "contentHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "byteSize": 1024
+    }
+  ],
+  "safeguards": {
+    "persisted": false,
+    "modelCalls": 0,
+    "networkCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false,
+    "contextPackWritten": false,
+    "sourceGraphPreviewed": true,
+    "graphDatabaseUsed": false,
+    "sourceSlicesRead": false
+  },
+  "rawBody": "This must not be valid in a context pack.",
+  "contextPackFingerprint": "sha256:1212121212121212121212121212121212121212121212121212121212121212"
+}

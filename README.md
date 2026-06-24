@@ -29,13 +29,18 @@ This repository is an **agent-ready development kit**, not a claim that the full
 - preview-only harness context compiler path with selected/excluded safe
   locators, proposal-only memory plan, token-ratio metrics, and deterministic
   benchmark gates;
+- dry-run context pack builder for Codex, Claude Code, Cursor, and generic
+  agents, producing a schema-validated locator handoff with compact source
+  graph hints, without raw source bodies or automatic memory import;
+- read-only native JS/TS source graph preview through CLI and loopback API,
+  with bounded search, trace, and diff-impact results and no graph database;
 - versioned contract fixtures for 12 disabled external adapter targets;
 - tests, evaluations, repository checks, and agent task tooling;
 - no API key, paid service, database server, or external network required.
 
 ## What is deliberately not claimed
 
-Production PostgreSQL repositories, crash-resumable workflow orchestration, production authentication, proposal-based harness context import, handoff generation, MCP bridge exposure, real social connectors, hardened sandboxes, external publishing, signed Agent Pack distribution, and a production frontend framework are **specified and planned**, but not completed. `PROJECT_STATUS.json` is the machine-readable source for current capability status and limitations.
+Production PostgreSQL repositories, crash-resumable workflow orchestration, production authentication, proposal-based harness context import, automatic harness history import, MCP bridge exposure, real social connectors, hardened sandboxes, external publishing, signed Agent Pack distribution, and a production frontend framework are **specified and planned**, but not completed. `PROJECT_STATUS.json` is the machine-readable source for current capability status and limitations.
 
 ## Start in five minutes
 
@@ -129,6 +134,9 @@ npm run native:smoke           # native memory, artifacts, Agent Pack, model
 npm run demo                   # complete synthetic workflow
 npm run oaf -- context scan --from codex --root . --dry-run
 npm run oaf -- context preview --from all --root . --objective "Prepare handoff" --step "select harness context" --dry-run
+npm run oaf -- context pack --from all --root . --objective "Prepare handoff" --step "select next agent context" --target codex --dry-run --format markdown
+npm run oaf -- context pack --from all --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
 npm run dev                    # local API and dashboard
 npm run ci                     # checks, protocol, tests, evaluations
 npm run verify:handoff         # full handoff gate plus manifests

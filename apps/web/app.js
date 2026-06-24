@@ -5,6 +5,8 @@ export const ROUTES = [
   { id:'runs', path:'/runs', label:'Runs', title:'Runs', eyebrow:'Execution', description:'Run history, status, current step, artifacts, and sanitized timelines.' },
   { id:'workflows', path:'/workflows', label:'Workflows', title:'Workflows', eyebrow:'Definitions', description:'Workflow versions, graph outline, risk, retries, approvals, and tests.' },
   { id:'context', path:'/context', label:'Context', title:'Context', eyebrow:'Manifest inspector', description:'Selected and excluded records, budgets, conflicts, assembly, and compiler versions.' },
+  { id:'context-pack', path:'/context-pack', label:'Context Pack', title:'Context Pack', eyebrow:'Agent handoff', description:'Build a safe, token-aware handoff for Codex, Claude Code, Cursor, or a generic agent.' },
+  { id:'source-graph', path:'/source-graph', label:'Source Graph', title:'Source Graph', eyebrow:'Code map', description:'Search symbols, trace calls, and inspect likely diff impact from local JS/TS metadata.' },
   { id:'memory', path:'/memory', label:'Memory', title:'Memory', eyebrow:'Lifecycle', description:'Proposals, active records, supersession, retraction, expiry, and provenance.' },
   { id:'evidence', path:'/evidence', label:'Evidence', title:'Evidence', eyebrow:'Observed facts', description:'Snapshots, observations, citations, staleness, and inferred pattern boundaries.' },
   { id:'approvals', path:'/approvals', label:'Approvals', title:'Approvals', eyebrow:'Consequences', description:'Exact actions, risk, policy reasons, idempotency, expiry, and disabled publisher state.' },
@@ -21,6 +23,10 @@ export const navItems = ROUTES;
 let dashboard=null;
 let shellState={kind:'loading',message:'Loading local workspace state.'};
 let activeRunDetail=null;
+let contextPackResult=null;
+let contextPackError=null;
+let sourceGraphResult=null;
+let sourceGraphError=null;
 
 export function legacyViewPath(view) {
   return legacyViews.get(String(view??'')) ?? '/';
@@ -401,6 +407,8 @@ function render() {
   root.querySelectorAll('[data-run-id]').forEach(link=>link.addEventListener('click',showRun));
   root.querySelectorAll('[data-step-id],[data-record-id]').forEach(link=>link.addEventListener('click',navigateLocal));
   root.querySelector('#auth-form')?.addEventListener('submit',submitAuthForm);
+  root.querySelector('#context-pack-form')?.addEventListener('submit',submitContextPack);
+  root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
 }
 
@@ -431,6 +439,8 @@ function renderRoute(route) {
   if (route.id === 'runs') return activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns();
   if (route.id === 'workflows') return renderWorkflows();
   if (route.id === 'context') return renderContext();
+  if (route.id === 'context-pack') return renderContextPack();
+  if (route.id === 'source-graph') return renderSourceGraph();
   if (route.id === 'memory') return renderMemory();
   if (route.id === 'evidence') return renderEvidence();
   if (route.id === 'approvals') return renderApprovals();
@@ -479,6 +489,66 @@ function renderContext() {
   return `<section class="context-hero surface"><div><p class="eyebrow">Context manifest</p><h2>${esc(model.id)}</h2><p>${esc(model.objective)}</p></div>${contextHeaderFacts(model)}</section>${selectedRecord?`<section class="surface"><div class="section-heading"><h2>Decision detail</h2><span>${esc(selectedRecord.selectedOrExcluded)}</span></div>${contextDecisionCard(selectedRecord,true)}</section>`:''}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Selected</h2><span>${model.selected.length} records</span></div>${contextDecisionList(model.selected)}</div><aside class="inspector"><div class="section-heading"><h2>Excluded</h2><span>${model.excluded.length} records</span></div>${contextDecisionList(model.excluded)}</aside></section><section class="work-grid"><div class="surface"><div class="section-heading"><h2>Assembly</h2><span>${model.sections.length} sections</span></div>${assemblySections(model)}</div><aside class="inspector"><div class="section-heading"><h2>Comparison</h2><span>Selected vs assembly</span></div>${contextComparison(model)}<hr><div class="section-heading"><h2>Conflicts</h2><span>${model.conflicts.length}</span></div>${contextConflicts(model.conflicts)}</aside></section>`;
 }
 
+function renderContextPack() {
+  const pack=contextPackResult?.pack ?? null;
+  const markdown=contextPackResult?.markdown ?? '';
+  const errorPanel=contextPackError?statePanel('error','Context pack failed',contextPackError,false):'';
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div><label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Local-only dry run</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Documented harness project files</dd></div><div><dt>Output</dt><dd>Markdown locator handoff</dd></div><div><dt>Writes</dt><dd>none from browser</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+}
+
+function renderContextPackResult(pack,markdown) {
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff preview</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(shortFingerprint(pack.contextPackFingerprint))}</span></div><textarea class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${pack.warnings.length}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Tokens</dt><dd>${Number(pack.preview.selectedTokenCount)} / ${Number(pack.preview.budget.available)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>`;
+}
+
+function contextPackLocatorList(items) {
+  if(!items?.length)return '<p class="muted">No selected locators.</p>';
+  return `<ol class="compact-list locator-list">${items.map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.reasonCodes.join(', '))}</span></li>`).join('')}</ol>`;
+}
+
+function contextPackSourceGraphList(sourceGraph) {
+  const results=sourceGraph?.results??[];
+  const summary=sourceGraph?.summary;
+  if(!results.length){
+    const label=summary?`${Number(summary.fileCount??0)} files · ${Number(summary.symbolCount??0)} symbols`:'No source graph preview.';
+    return `<p class="muted">${esc(label)}</p>`;
+  }
+  return `<ol class="compact-list locator-list">${results.map((item)=>`<li><strong>${esc(item.locator)}</strong><span>${esc(item.kind)} · ${esc(item.label)} · ${Number(item.score??0).toFixed(3)}</span></li>`).join('')}</ol>`;
+}
+
+function renderSourceGraph() {
+  const errorPanel=sourceGraphError?statePanel('error','Source graph preview failed',sourceGraphError,false):'';
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Preview source graph</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="context graph preview" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" placeholder="runAuthWorkflow" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" placeholder="src/auth.ts" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview graph</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No graph preview yet','Run a source graph preview to inspect symbols, calls, and likely diff impact.')}`;
+}
+
+function renderSourceGraphResult(report) {
+  const summary=report.graph?.summary ?? {};
+  return `<section class="metric-strip" aria-label="Source graph metrics">${metric(summary.fileCount??0,'Files','Scanned JS/TS')}${metric(summary.symbolCount??0,'Symbols','Static parser')}${metric(summary.nodeCount??0,'Nodes','Metadata graph')}${metric(summary.edgeCount??0,'Edges','Calls and refs')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Search results</h2><span>${Number(report.search?.total??0)} matches</span></div>${sourceGraphSearchList(report.search?.results)}</div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>${esc(shortFingerprint(report.graph?.graphFingerprint))}</span></div>${sourceGraphSafeguards(report.safeguards)}<hr><div class="section-heading"><h2>Sample nodes</h2><span>${report.graph?.sampleNodes?.length??0}</span></div>${sourceGraphNodeList(report.graph?.sampleNodes)}</aside></section><section class="work-grid"><div class="surface"><div class="section-heading"><h2>Trace</h2><span>${report.trace?.paths?.length??0} paths</span></div>${sourceGraphTraceList(report.trace?.paths)}</div><aside class="inspector"><div class="section-heading"><h2>Diff impact</h2><span>${report.impact?.affectedSymbols?.length??0} symbols</span></div>${sourceGraphImpactList(report.impact?.affectedSymbols)}</aside></section>`;
+}
+
+function sourceGraphSearchList(results=[]) {
+  if(!results.length)return '<p class="muted">No matching graph records.</p>';
+  return `<ol class="compact-list locator-list">${results.map((item)=>`<li><strong>${esc(item.label)}</strong><span>${esc(item.kind)} · ${esc(item.locator??'no locator')} · ${Number(item.score??0).toFixed(3)}</span></li>`).join('')}</ol>`;
+}
+
+function sourceGraphNodeList(nodes=[]) {
+  if(!nodes.length)return '<p class="muted">No sample nodes.</p>';
+  return `<ol class="compact-list locator-list">${nodes.map((node)=>`<li><strong>${esc(node.label)}</strong><span>${esc(node.kind)} · ${esc(node.locator??node.sourceRef??node.id)}</span></li>`).join('')}</ol>`;
+}
+
+function sourceGraphTraceList(paths=[]) {
+  if(!paths.length)return '<p class="muted">No trace paths for the selected symbol.</p>';
+  return `<ol class="compact-list locator-list">${paths.map((path)=>`<li><strong>${esc(path.terminalLabel)}</strong><span>depth ${Number(path.depth??0)} · ${path.nodeIds?.length??0} nodes</span></li>`).join('')}</ol>`;
+}
+
+function sourceGraphImpactList(symbols=[]) {
+  if(!symbols.length)return '<p class="muted">No impacted symbols for the supplied locator.</p>';
+  return `<ol class="compact-list locator-list">${symbols.map((symbol)=>`<li><strong>${esc(symbol.name)}</strong><span>${esc(symbol.symbolKind)} · ${esc(symbol.locator)}</span></li>`).join('')}</ol>`;
+}
+
+function sourceGraphSafeguards(safeguards={}) {
+  return `<dl class="facts compact-facts"><div><dt>Persisted</dt><dd>${safeguards.persisted?'yes':'no'}</dd></div><div><dt>Model calls</dt><dd>${Number(safeguards.modelCalls??0)}</dd></div><div><dt>Network</dt><dd>${Number(safeguards.networkCalls??0)}</dd></div><div><dt>Graph DB</dt><dd>${safeguards.graphDatabaseUsed?'yes':'no'}</dd></div><div><dt>Raw bodies</dt><dd>${safeguards.rawBodyIncluded?'included':'excluded'}</dd></div></dl>`;
+}
+
 function renderMemory() {
   const memories=buildMemoryReviewModel({memories:dashboard?.memories});
   return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Memory diffs</h2><span>${memories.length} reviewable records</span></div>${memoryDiffList(memories)}</div><aside class="inspector"><h2>Lifecycle states</h2><ol class="compact-list"><li>Observed</li><li>Proposed</li><li>Verified</li><li>Active</li><li>Superseded / retracted / expired</li></ol><hr><p class="muted">Memory remains proposal-first. Raw source bodies, credentials, local paths, and hidden reasoning are not rendered.</p></aside></section>`;
@@ -517,7 +587,7 @@ function deniedState(){return authPanel('login','Sign in with the local owner ac
 function authPanel(mode,copy){
   const isBootstrap=mode==='bootstrap';
   const title=isBootstrap?'Set up local owner':'Sign in locally';
-  return `<section class="state-panel state-${isBootstrap?'setup':'denied'} auth-panel"><h2>${title}</h2><p>${esc(copy)}</p><form id="auth-form" data-mode="${mode}" autocomplete="on"><div class="field-grid"><label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap?'rebel':''}" required maxlength="80" pattern="[A-Za-z0-9._:-]{1,80}"></label>${isBootstrap?'<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>':''}<label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap?'new-password':'current-password'}" required minlength="12" maxlength="256"></label></div><div class="action-row"><button class="button primary" type="submit">${isBootstrap?'Create owner':'Sign in'}</button>${isBootstrap?'<span class="muted">Local-only. Stored in .local/identity with hashed credentials.</span>':'<span class="muted">No external network or fallback identity provider is used.</span>'}</div></form></section>`;
+  return `<section class="state-panel state-${isBootstrap?'setup':'denied'} auth-panel"><h2>${title}</h2><p>${esc(copy)}</p><form id="auth-form" data-mode="${mode}" autocomplete="on"><div class="field-grid"><label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap?'rebel':''}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>${isBootstrap?'<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>':''}<label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap?'new-password':'current-password'}" required minlength="12" maxlength="256"></label></div><div class="action-row"><button class="button primary" type="submit">${isBootstrap?'Create owner':'Sign in'}</button>${isBootstrap?'<span class="muted">Local-only. Stored in .local/identity with hashed credentials.</span>':'<span class="muted">No external network or fallback identity provider is used.</span>'}</div></form></section>`;
 }
 function runList(items){if(!items?.length)return statePanel('empty','No runs yet','Execute the synthetic local workflow to populate the event ledger.',true);return `<div class="run-list">${items.map(run=>`<article class="run-row"><header><a href="${runDetailLink(run.id)}" data-run-id="${esc(run.id)}">${esc(run.workflowId)}</a>${statusChip(run.status,run.status,'Run status')}</header><p>${esc(run.objective??'')}</p><div class="meta-row"><span>Version: ${esc(run.workflowVersion??'unknown')}</span><span>Residency: ${esc(run.residency??'local-only')}</span><span>Current step: ${esc(currentStepLabel(run))}</span><span>Owner: local workspace</span><span>Warnings: ${Number(run.warningCount??0)}</span></div><div class="meta-row"><code>${esc(run.id)}</code><span>Started ${date(run.createdAt)}</span><span>${duration(run.createdAt,run.completedAt)}</span></div></article>`).join('')}</div>`}
 function contextSummary(manifest){if(!manifest)return '<div class="state-inline">No context has been compiled.</div>';const percent=Math.min(100,Math.round(manifest.budget.used/manifest.budget.available*100));return `<div class="section-heading"><h2>Context budget</h2><span>${percent}% used</span></div><strong>${manifest.budget.used} / ${manifest.budget.available} estimated tokens</strong><div class="progress" aria-label="${percent}% of context budget used"><span style="width:${percent}%"></span></div><p class="muted">${manifest.selected.length} selected · ${manifest.excluded.length} excluded · ${manifest.conflicts.length} conflicts</p>`}
@@ -666,6 +736,70 @@ async function submitAuthForm(event){
   }
 }
 
+async function submitContextPack(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector('button[type=submit]');
+  const data=new FormData(form);
+  const targetHarness=String(data.get('targetHarness') ?? 'generic');
+  const objective=String(data.get('objective') ?? '').trim();
+  const step=String(data.get('step') ?? '').trim();
+  const tokenBudget=Number(data.get('tokenBudget') ?? 4096);
+  button.disabled=true;
+  button.textContent='Building...';
+  document.querySelector('#live-status').textContent='Building local context pack.';
+  try{
+    contextPackResult=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,objective,step,tokenBudget})});
+    contextPackError=null;
+    document.querySelector('#live-status').textContent='Context pack built.';
+    render();
+  }catch(error){
+    document.querySelector('#live-status').textContent=error.message;
+    contextPackError=error.message;
+    render();
+  }finally{
+    button.disabled=false;
+    button.textContent='Build context pack';
+  }
+}
+
+async function submitSourceGraph(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector('button[type=submit]');
+  const data=new FormData(form);
+  const query=String(data.get('query') ?? '').trim();
+  const startName=String(data.get('startName') ?? '').trim();
+  const changedLocator=String(data.get('changedLocator') ?? '').trim();
+  const limit=Number(data.get('limit') ?? 8);
+  const depth=Number(data.get('depth') ?? 2);
+  const body={
+    workspaceId:workspaceId(),
+    limit,
+    depth,
+    sampleLimit:6
+  };
+  if(query)body.query=query;
+  if(startName)body.startName=startName;
+  if(changedLocator)body.changedLocators=[changedLocator];
+  button.disabled=true;
+  button.textContent='Previewing...';
+  document.querySelector('#live-status').textContent='Previewing local source graph.';
+  try{
+    sourceGraphResult=await api('/api/context/graph/preview',{method:'POST',body:JSON.stringify(body)});
+    sourceGraphError=null;
+    document.querySelector('#live-status').textContent='Source graph preview ready.';
+    render();
+  }catch(error){
+    document.querySelector('#live-status').textContent=error.message;
+    sourceGraphError=error.message;
+    render();
+  }finally{
+    button.disabled=false;
+    button.textContent='Preview graph';
+  }
+}
+
 async function resetDemo(){
   const button=document.querySelector('#reset-button');
   button.disabled=true;
@@ -698,6 +832,7 @@ async function loadRunById(id,{push=true}={}){
 }
 
 function esc(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
+function shortFingerprint(value){return `${String(value??'').slice(0,19)}...`}
 function date(value){return value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'-'}
 function duration(start,end){if(!start)return '-';const from=Date.parse(start),to=end?Date.parse(end):Date.now();if(!Number.isFinite(from)||!Number.isFinite(to))return '-';const ms=Math.max(0,to-from);if(ms<1000)return `${ms} ms`;if(ms<60000)return `${Math.round(ms/1000)} s`;return `${Math.round(ms/60000)} min`}
 function titleize(value){return String(value??'').split(/[-_]/).filter(Boolean).map((part)=>part[0]?.toUpperCase()+part.slice(1)).join(' ')||'Step'}
