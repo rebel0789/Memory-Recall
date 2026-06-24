@@ -249,7 +249,36 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(response.body.pack.safeguards.networkCalls, 0);
   assert.equal(response.body.pack.safeguards.modelCalls, 0);
   assert.equal(response.body.pack.safeguards.activeMemoryCreated, 0);
+  assert.deepEqual(response.body.pack.safeguards, {
+    persisted: false,
+    modelCalls: 0,
+    networkCalls: 0,
+    sourceSnapshotsWritten: 0,
+    activeMemoryCreated: 0,
+    externalWritesEnabled: false,
+    externalAdaptersEnabled: 0,
+    rawBodyIncluded: false,
+    contextPackWritten: false,
+    sourceGraphPreviewed: true,
+    graphDatabaseUsed: false,
+    sourceSlicesRead: false
+  });
+  assert.equal(response.body.pack.delivery.representation, 'locator-handoff');
+  assert.equal(response.body.pack.delivery.sourceContentTokenCountIncluded, 0);
   assert.equal(response.body.pack.delivery.sourceContentsIncluded, false);
+  assert.equal(response.body.readback.command, 'mcp readback context-pack');
+  assert.equal(response.body.readback.transport, 'in-process');
+  assert.equal(response.body.readback.measurementScope, 'single local in-process bridge read');
+  assert.equal(response.body.readback.resource.contextPackFingerprint, response.body.pack.contextPackFingerprint);
+  assert.equal(response.body.readback.checks.contextPackFingerprintMatches, true);
+  assert.equal(response.body.readback.checks.noToolsExposed, true);
+  assert.equal(response.body.readback.checks.noMarkdownBody, true);
+  assert.equal(response.body.readback.bridge.toolsExposed, 0);
+  assert.equal(response.body.readback.safeguards.externalWritesEnabled, false);
+  assert.equal(response.body.readback.safeguards.modelCalls, 0);
+  assert.equal(response.body.readback.safeguards.networkCalls, 0);
+  assert.equal(response.body.readback.safeguards.localFilesWritten, 0);
+  assert(response.body.readback.measurements.resourceByteSize > 0);
   assert.equal(response.text.includes('API RAW AGENTS BODY'), false);
   assert.equal(response.text.includes('API RAW SELECTED BODY'), false);
   assert.equal(response.text.includes('API RAW CLAUDE BODY'), false);
@@ -257,6 +286,21 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(response.body.markdown.includes('# Context Pack'), true);
   assert.equal(api.store.updates, 0);
   assert.equal(api.calls.workflow, 0);
+
+  const clientMetric = await request(api.base, '/api/context/pack', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      objective: 'prepare handoff',
+      step: 'reject client metrics',
+      targetHarness: 'codex',
+      observedDurationMs: 1
+    })
+  });
+  assert.equal(clientMetric.status, 400);
+  assert.equal(clientMetric.body.error.code, 'request_validation_failed');
+  assert.equal(api.store.updates, 0);
 
   const invalidFrom = await request(api.base, '/api/context/pack', {
     method: 'POST',

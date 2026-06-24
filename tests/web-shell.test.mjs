@@ -56,6 +56,13 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/data-action="preview-pack-setup"/);
   assert.match(app,/Change Impact/);
   assert.match(app,/Intake review/);
+  assert.match(app,/Context pack proof metrics/);
+  assert.match(app,/Build time/);
+  assert.match(app,/Raw bodies/);
+  assert.match(app,/Estimated local tokens/);
+  assert.match(app,/Observed local request/);
+  assert.match(app,/Readback proof/);
+  assert.match(app,/MCP readback/);
   assert.match(app,/mcp resources --read-only --uri oaf:\/\/workspace\/ws_local\/handoff\/latest/);
   const model=buildContextPackUiModel({
     createdAt:'2026-06-24T00:00:00.000Z',
@@ -70,9 +77,19 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     preview:{candidateTokenCount:1000,selectedTokenCount:250},
     delivery:{representation:'locator-handoff',sourceCandidateTokenCount:1000,sourceSelectedTokenCount:250,sourceSelectedTokenRatio:0.25,deliveredTokenCount:80,deliveredByteSize:320,deliveredTokenRatio:0.08,observedTokenReductionRatio:0.92,sourceContentTokenCountIncluded:0,sourceContentsIncluded:false},
     sourceGraph:{impact:{changedLocators:['workspace://apps/web/app.js'],affectedSymbolCount:3,affectedSymbols:[]}},
+    safeguards:{modelCalls:0,networkCalls:0,activeMemoryCreated:0,externalWritesEnabled:false,rawBodyIncluded:false},
     warnings:['dry_run_no_import'],
     contextPackFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-  },'# Context Pack');
+  },'# Context Pack',{
+    observedDurationMs:34.4,
+    readback:{
+      transport:'in-process',
+      measurementScope:'single local in-process bridge read',
+      bridge:{toolsExposed:0},
+      measurements:{durationMs:3,resourceByteSize:640},
+      checks:{contextPackFingerprintMatches:true}
+    }
+  });
   assert.equal(model.selectedLocators,1);
   assert.equal(model.omittedRefs,2);
   assert.equal(model.excludedTokens,500);
@@ -81,6 +98,42 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.deliveredTokens,80);
   assert.equal(model.deliveredTokenRatio,'8%');
   assert.equal(model.deliveryReductionPercent,'92%');
+  assert.deepEqual(model.proof,{
+    tokenSaved:'92%',
+    selectedTokenRatio:'25%',
+    deliveredTokens:'80',
+    observedDurationLabel:'34 ms',
+    readbackDurationLabel:'3 ms',
+    readbackResourceBytesLabel:'640 bytes',
+    readbackFingerprintLabel:'match',
+    readbackScope:'single local in-process bridge read',
+    readbackTransport:'in-process',
+    readbackToolsLabel:'0',
+    rawBodiesLabel:'excluded',
+    modelCallsLabel:'0',
+    networkCallsLabel:'0',
+    externalWritesLabel:'disabled',
+    activeMemoryLabel:'0'
+  });
+  const unsafeModel=buildContextPackUiModel({
+    targetHarness:'codex',
+    sourceHarnesses:['codex'],
+    objective:'unsafe fixture',
+    step:'check safeguards',
+    readFirst:[],
+    excluded:[],
+    omissions:{excludedCount:0,excludedTokenCount:0,sourceGraphOmittedCount:0},
+    memoryPlan:{items:[]},
+    preview:{candidateTokenCount:10,selectedTokenCount:5},
+    delivery:{deliveredTokenCount:4,sourceContentsIncluded:true},
+    sourceGraph:{impact:{changedLocators:[],affectedSymbolCount:0,affectedSymbols:[]}},
+    safeguards:{externalWritesEnabled:true,rawBodyIncluded:true},
+    contextPackFingerprint:'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+  });
+  assert.equal(unsafeModel.proof.rawBodiesLabel,'check');
+  assert.equal(unsafeModel.proof.externalWritesLabel,'enabled');
+  assert.equal(unsafeModel.proof.modelCallsLabel,'check');
+  assert.equal(unsafeModel.proof.networkCallsLabel,'check');
   assert.equal(model.changedLocators,1);
   assert.equal(model.affectedSymbols,3);
   assert.equal(model.setupClient,'codex');

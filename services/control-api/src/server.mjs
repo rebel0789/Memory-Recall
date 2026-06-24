@@ -10,6 +10,7 @@ import { runContentIntelligence } from '../../../workflows/content-intelligence/
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
 import { buildContextPack, buildHarnessSetupReport, renderContextPackMarkdown } from '../../../packages/harness-context/src/index.mjs';
 import { buildSourceGraphPreview } from '../../../packages/source-graph/src/index.mjs';
+import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
 import { createTelemetryFromEnv, createTraceContext, routeSpanAttributes } from '../../../packages/observability/src/index.mjs';
@@ -275,19 +276,29 @@ export function createControlApiServer({
         }
         return compileContext(context.body.request, context.body.records);
       case 'buildContextPack': {
+        const targetHarness = context.body.targetHarness ?? 'generic';
         const pack = await buildContextPack({
           root: sourceGraphRoot,
           harnesses: normalizeHarnesses(context.body.from ?? 'all'),
           userSelectedFiles: context.body.userSelectedFiles ?? [],
           changedLocators: context.body.changedLocators ?? [],
           workspaceId: context.workspaceId,
-          targetHarness: context.body.targetHarness ?? 'generic',
+          targetHarness,
           objective: context.body.objective,
           step: context.body.step,
           tokenBudget: context.body.tokenBudget ?? 4096,
           clock
         });
-        return { schemaVersion: '1.0.0', pack, markdown: renderContextPackMarkdown(pack) };
+        const markdown = renderContextPackMarkdown(pack);
+        const readback = await buildContextPackReadbackProof({
+          currentContextPack: { pack, markdown },
+          workspaceId: context.workspaceId,
+          targetHarness,
+          trustedContext: createMcpTrustedContext(context),
+          generatedAt: clock(),
+          clock
+        });
+        return { schemaVersion: '1.0.0', pack, markdown, readback };
       }
       case 'previewContextGraph':
         return buildSourceGraphPreview({
@@ -850,6 +861,26 @@ function createRoutePolicyRequest({ principal, workspaceId, action, contract, co
       externalWritesEnabled: false
     },
     trustedTimestamp: now
+  };
+}
+
+function createMcpTrustedContext(context) {
+  const membership = context.workspaceId
+    ? context.principal.memberships?.find((item) => item.workspaceId === context.workspaceId && item.status === 'active') ?? null
+    : null;
+  if (!membership) throw new ApiError(403, 'forbidden');
+  return {
+    principal: {
+      userId: context.principal.user.id,
+      principalType: 'user',
+      authenticationMethod: context.principal.credentialType === 'bearer' ? 'bearer' : 'session',
+      status: context.principal.user.status
+    },
+    membership: {
+      workspaceId: membership.workspaceId,
+      role: membership.role,
+      status: membership.status
+    }
   };
 }
 

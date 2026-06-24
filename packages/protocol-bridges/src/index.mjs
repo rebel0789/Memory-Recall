@@ -701,6 +701,127 @@ export function buildOafReadOnlyResourceCatalog({
   return resources;
 }
 
+export async function buildContextPackReadbackProof({
+  currentContextPack,
+  workspaceId = 'ws_local',
+  targetHarness = null,
+  trustedContext,
+  generatedAt = new Date().toISOString(),
+  clock = () => generatedAt
+} = {}) {
+  const safeWorkspaceId = validateWorkspaceId(workspaceId);
+  const resourceUri = `oaf://workspace/${safeWorkspaceId}/context-pack/current`;
+  const resources = buildOafReadOnlyResourceCatalog({
+    state: {},
+    projectStatus: {},
+    currentContextPack,
+    workspaceId: safeWorkspaceId,
+    generatedAt
+  });
+  const bridge = createMcpBridge({ trustedContext, resources, tools: [], clock });
+  const messages = [
+    { jsonrpc: JSONRPC, id: 1, method: 'initialize' },
+    { jsonrpc: JSONRPC, id: 2, method: 'resources/list' },
+    { jsonrpc: JSONRPC, id: 3, method: 'tools/list' },
+    { jsonrpc: JSONRPC, id: 4, method: 'resources/read', params: { uri: resourceUri } }
+  ];
+  const started = globalThis.performance?.now?.() ?? Date.now();
+  const responses = [];
+  for (const message of messages) responses.push(await bridge.handle(message));
+  const durationMs = Math.max(0, Math.round((globalThis.performance?.now?.() ?? Date.now()) - started));
+  const errors = responses.filter((response) => response.error);
+  if (errors.length) {
+    const code = errors[0].error?.data?.code ?? 'mcp_readback_failed';
+    throw new ProtocolBridgeError('mcp_readback_failed', `context-pack readback failed: ${code}`);
+  }
+  const listed = responses.find((response) => response.id === 2)?.result?.resources ?? [];
+  const tools = responses.find((response) => response.id === 3)?.result?.tools ?? [];
+  const read = responses.find((response) => response.id === 4)?.result?.contents?.[0];
+  if (!read?.text) throw new ProtocolBridgeError('mcp_readback_failed', 'context-pack readback returned no resource body');
+  const payload = JSON.parse(read.text);
+  const pack = currentContextPack?.pack ?? currentContextPack;
+  const candidateUnitCount = Number(payload.data?.preview?.candidateUnitCount ?? 0);
+  const selectedUnitCount = Number(payload.data?.preview?.selectedUnitCount ?? 0);
+  const selectedUnitRatio = Number(payload.data?.preview?.selectedUnitRatio ?? 0);
+  const observedReductionRatio = candidateUnitCount > 0 ? Number(Math.max(0, 1 - selectedUnitCount / candidateUnitCount).toFixed(6)) : 0;
+  const deliveredUnitCount = Number(payload.data?.delivery?.deliveredTokenCount ?? 0);
+  const deliveredUnitRatio = Number(payload.data?.delivery?.deliveredTokenRatio ?? 0);
+  const observedDeliveryReductionRatio = Number(payload.data?.delivery?.observedTokenReductionRatio ?? 0);
+  const contextPackFingerprint = payload.data?.contextPackFingerprint ?? null;
+  const expectedFingerprint = typeof pack?.contextPackFingerprint === 'string' ? pack.contextPackFingerprint : null;
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'mcp readback context-pack',
+    generatedAt,
+    workspaceId: safeWorkspaceId,
+    transport: 'in-process',
+    resourceUri,
+    targetHarness: targetHarness ?? pack?.targetHarness ?? 'generic',
+    measurementScope: 'single local in-process bridge read',
+    bridge: {
+      invocation: 'createMcpBridge read-only context-pack resource',
+      jsonRpcMessageCount: messages.length,
+      responseCount: responses.length,
+      resourcesListed: listed.length,
+      toolsExposed: tools.length
+    },
+    resource: {
+      resourceKind: payload.resourceKind,
+      resourceFingerprint: payload.resourceFingerprint,
+      contextPackFingerprint,
+      markdownArtifactHash: payload.data?.markdownArtifact?.contentHash ?? null,
+      readFirstCount: Number(payload.data?.preview?.selectedCount ?? 0),
+      omittedRefCount: Number(payload.data?.omissions?.excludedCount ?? 0),
+      changedLocatorCount: Number(payload.data?.sourceGraph?.impact?.changedLocators?.length ?? 0),
+      affectedSymbolCount: Number(payload.data?.sourceGraph?.impact?.affectedSymbolCount ?? 0),
+      readFirstLocators: items(payload.data?.readFirst).map((item) => item.locator).filter(Boolean).slice(0, 8),
+      changedLocators: items(payload.data?.sourceGraph?.impact?.changedLocators).slice(0, 16)
+    },
+    measurements: {
+      durationMs,
+      resourceByteSize: Buffer.byteLength(read.text, 'utf8'),
+      candidateUnitCount,
+      selectedUnitCount,
+      selectedUnitRatio,
+      observedReductionRatio,
+      deliveredUnitCount,
+      deliveredUnitRatio,
+      observedDeliveryReductionRatio
+    },
+    checks: {
+      initialized: responses[0]?.result?.protocolVersion === MCP_BRIDGE_PROTOCOL_VERSION,
+      resourceListed: listed.some((resource) => resource.uri === resourceUri),
+      resourceRead: payload.resourceKind === 'context-pack-summary',
+      noToolsExposed: tools.length === 0,
+      noMarkdownBody: payload.data?.markdownArtifact?.included === false,
+      contextPackFingerprintMatches: Boolean(expectedFingerprint && contextPackFingerprint === expectedFingerprint)
+    },
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      privateBodiesIncluded: false,
+      objectiveTextIncluded: false,
+      stepTextIncluded: false,
+      markdownBodyIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    },
+    reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  if (!Object.values(report.checks).every(Boolean)) {
+    throw new ProtocolBridgeError('mcp_readback_failed', 'context-pack readback checks failed');
+  }
+  report.reportFingerprint = fingerprintFor({ ...report, reportFingerprint: null });
+  assertSafeResult(report);
+  return report;
+}
+
 export function createMcpBridge({
   name = 'open-agent-fabric',
   version = PROTOCOL_BRIDGES_VERSION,

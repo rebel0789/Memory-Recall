@@ -12,6 +12,12 @@ const workspaceLocatorInput = {
   maxLength: 512,
   pattern: "^(workspace://)?(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
 };
+const contextPackLocator = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 512,
+  pattern: "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+};
 const event = {
   type: 'object',
   additionalProperties: true,
@@ -291,6 +297,161 @@ export function createApiRouteContracts(limits = {}) {
       tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 }
     }
   };
+  const contextPackDelivery = {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'representation',
+      'sourceCandidateTokenCount',
+      'sourceSelectedTokenCount',
+      'sourceSelectedTokenRatio',
+      'deliveredTokenCount',
+      'deliveredByteSize',
+      'deliveredTokenRatio',
+      'observedTokenReductionRatio',
+      'sourceContentTokenCountIncluded',
+      'sourceContentsIncluded'
+    ],
+    properties: {
+      representation: { const: 'locator-handoff' },
+      sourceCandidateTokenCount: { type: 'integer', minimum: 0, maximum: 200000 },
+      sourceSelectedTokenCount: { type: 'integer', minimum: 0, maximum: 200000 },
+      sourceSelectedTokenRatio: { type: 'number', minimum: 0, maximum: 1 },
+      deliveredTokenCount: { type: 'integer', minimum: 1, maximum: 200000 },
+      deliveredByteSize: { type: 'integer', minimum: 1, maximum: 1000000 },
+      deliveredTokenRatio: { type: 'number', minimum: 0, maximum: 1000 },
+      observedTokenReductionRatio: { type: 'number', minimum: 0, maximum: 1 },
+      sourceContentTokenCountIncluded: { const: 0 },
+      sourceContentsIncluded: { const: false }
+    }
+  };
+  const contextPackSafeguards = {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'persisted',
+      'modelCalls',
+      'networkCalls',
+      'sourceSnapshotsWritten',
+      'activeMemoryCreated',
+      'externalWritesEnabled',
+      'externalAdaptersEnabled',
+      'rawBodyIncluded',
+      'contextPackWritten',
+      'sourceGraphPreviewed',
+      'graphDatabaseUsed',
+      'sourceSlicesRead'
+    ],
+    properties: {
+      persisted: { const: false },
+      modelCalls: { const: 0 },
+      networkCalls: { const: 0 },
+      sourceSnapshotsWritten: { const: 0 },
+      activeMemoryCreated: { const: 0 },
+      externalWritesEnabled: { const: false },
+      externalAdaptersEnabled: { const: 0 },
+      rawBodyIncluded: { const: false },
+      contextPackWritten: { const: false },
+      sourceGraphPreviewed: { type: 'boolean' },
+      graphDatabaseUsed: { const: false },
+      sourceSlicesRead: { const: false }
+    }
+  };
+  const contextPackReadbackProof = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'command', 'generatedAt', 'workspaceId', 'transport', 'resourceUri', 'targetHarness', 'measurementScope', 'bridge', 'resource', 'measurements', 'checks', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      command: { const: 'mcp readback context-pack' },
+      generatedAt: { type: 'string', format: 'date-time' },
+      workspaceId,
+      transport: { const: 'in-process' },
+      resourceUri: { type: 'string', pattern: '^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/current$', maxLength: 180 },
+      targetHarness: { enum: ['codex', 'claude-code', 'cursor', 'generic'] },
+      measurementScope: { const: 'single local in-process bridge read' },
+      bridge: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['invocation', 'jsonRpcMessageCount', 'responseCount', 'resourcesListed', 'toolsExposed'],
+        properties: {
+          invocation: { const: 'createMcpBridge read-only context-pack resource' },
+          jsonRpcMessageCount: { const: 4 },
+          responseCount: { const: 4 },
+          resourcesListed: { type: 'integer', minimum: 1, maximum: 64 },
+          toolsExposed: { const: 0 }
+        }
+      },
+      resource: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['resourceKind', 'resourceFingerprint', 'contextPackFingerprint', 'markdownArtifactHash', 'readFirstCount', 'omittedRefCount', 'changedLocatorCount', 'affectedSymbolCount', 'readFirstLocators', 'changedLocators'],
+        properties: {
+          resourceKind: { const: 'context-pack-summary' },
+          resourceFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+          contextPackFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+          markdownArtifactHash: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+          readFirstCount: { type: 'integer', minimum: 0, maximum: 128 },
+          omittedRefCount: { type: 'integer', minimum: 0, maximum: 128 },
+          changedLocatorCount: { type: 'integer', minimum: 0, maximum: 16 },
+          affectedSymbolCount: { type: 'integer', minimum: 0, maximum: 200000 },
+          readFirstLocators: { type: 'array', maxItems: 8, uniqueItems: true, items: contextPackLocator },
+          changedLocators: { type: 'array', maxItems: 16, uniqueItems: true, items: contextPackLocator }
+        }
+      },
+      measurements: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['durationMs', 'resourceByteSize', 'candidateUnitCount', 'selectedUnitCount', 'selectedUnitRatio', 'observedReductionRatio', 'deliveredUnitCount', 'deliveredUnitRatio', 'observedDeliveryReductionRatio'],
+        properties: {
+          durationMs: { type: 'integer', minimum: 0, maximum: 600000 },
+          resourceByteSize: { type: 'integer', minimum: 1, maximum: 2000000 },
+          candidateUnitCount: { type: 'integer', minimum: 0, maximum: 200000 },
+          selectedUnitCount: { type: 'integer', minimum: 0, maximum: 200000 },
+          selectedUnitRatio: { type: 'number', minimum: 0, maximum: 1 },
+          observedReductionRatio: { type: 'number', minimum: 0, maximum: 1 },
+          deliveredUnitCount: { type: 'integer', minimum: 0, maximum: 200000 },
+          deliveredUnitRatio: { type: 'number', minimum: 0, maximum: 1000 },
+          observedDeliveryReductionRatio: { type: 'number', minimum: 0, maximum: 1 }
+        }
+      },
+      checks: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['initialized', 'resourceListed', 'resourceRead', 'noToolsExposed', 'noMarkdownBody', 'contextPackFingerprintMatches'],
+        properties: {
+          initialized: { const: true },
+          resourceListed: { const: true },
+          resourceRead: { const: true },
+          noToolsExposed: { const: true },
+          noMarkdownBody: { const: true },
+          contextPackFingerprintMatches: { const: true }
+        }
+      },
+      safeguards: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['readOnly', 'canonicalStateMutated', 'localFilesWritten', 'externalWritesEnabled', 'externalAdaptersEnabled', 'networkCalls', 'modelCalls', 'activeMemoryCreated', 'sourceSnapshotsWritten', 'privateBodiesIncluded', 'objectiveTextIncluded', 'stepTextIncluded', 'markdownBodyIncluded', 'absoluteFilesystemLocationsIncluded'],
+        properties: {
+          readOnly: { const: true },
+          canonicalStateMutated: { const: false },
+          localFilesWritten: { const: 0 },
+          externalWritesEnabled: { const: false },
+          externalAdaptersEnabled: { const: 0 },
+          networkCalls: { const: 0 },
+          modelCalls: { const: 0 },
+          activeMemoryCreated: { const: 0 },
+          sourceSnapshotsWritten: { const: 0 },
+          privateBodiesIncluded: { const: false },
+          objectiveTextIncluded: { const: false },
+          stepTextIncluded: { const: false },
+          markdownBodyIncluded: { const: false },
+          absoluteFilesystemLocationsIncluded: { const: false }
+        }
+      },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
   const contextGraphPreviewRequest = {
     type: 'object',
     additionalProperties: false,
@@ -329,7 +490,7 @@ export function createApiRouteContracts(limits = {}) {
   const contextPackResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'pack', 'markdown'],
+    required: ['schemaVersion', 'pack', 'markdown', 'readback'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       pack: {
@@ -348,12 +509,13 @@ export function createApiRouteContracts(limits = {}) {
           memoryPlan: { type: 'object', additionalProperties: true },
           sourceGraph: { type: 'object', additionalProperties: true },
           warnings: { type: 'array', maxItems: 128, items: boundedString(512) },
-          delivery: { type: 'object', additionalProperties: true },
-          safeguards: { type: 'object', additionalProperties: true },
+          delivery: contextPackDelivery,
+          safeguards: contextPackSafeguards,
           contextPackFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$' }
         }
       },
-      markdown: { type: 'string', minLength: 1, maxLength: 200000 }
+      markdown: { type: 'string', minLength: 1, maxLength: 200000 },
+      readback: contextPackReadbackProof
     }
   };
   const contextGraphPreviewResponse = {

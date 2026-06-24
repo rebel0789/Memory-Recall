@@ -818,22 +818,31 @@ function renderContextPack() {
 }
 
 function renderContextPackResult(pack,markdown) {
-  const model=buildContextPackUiModel(pack,markdown);
+  const model=buildContextPackUiModel(pack,markdown,{observedDurationMs:contextPackResult?.observedDurationMs,readback:contextPackResult?.readback});
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
-  return `<section class="context-value-ledger" aria-label="Context pack value ledger">${ledgerItem(model.selectedLocators,'Selected','Read first locators')}${ledgerItem(model.omittedRefs,'Omitted',`${model.excludedTokens} excluded tokens`)}${ledgerItem(model.deliveredTokenRatio,'Delivery','Handoff / candidates')}${ledgerItem(model.affectedSymbols,'Affected','Symbols from changed files')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector"><div class="section-heading"><h2>Use now</h2><span>${esc(pack.targetHarness)}</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
-export function buildContextPackUiModel(pack,markdown='') {
+export function buildContextPackUiModel(pack,markdown='',meta={}) {
   const candidateTokens=Number(pack?.preview?.candidateTokenCount ?? 0);
   const selectedTokens=Number(pack?.preview?.selectedTokenCount ?? 0);
   const deliveredTokens=Number(pack?.delivery?.deliveredTokenCount ?? 0);
   const sourceFamilies=contextPackSourceFamilies(pack);
+  const observedDurationMs=Number(meta?.observedDurationMs);
+  const observedDurationLabel=Number.isFinite(observedDurationMs) ? `${Math.max(0,Math.round(observedDurationMs))} ms` : 'not measured';
+  const readback=meta?.readback ?? null;
+  const readbackDurationMs=Number(readback?.measurements?.durationMs);
+  const readbackDurationLabel=Number.isFinite(readbackDurationMs) ? `${Math.max(0,Math.round(readbackDurationMs))} ms` : 'not run';
+  const readbackResourceBytes=Number(readback?.measurements?.resourceByteSize);
+  const readbackResourceBytesLabel=Number.isFinite(readbackResourceBytes) ? `${Math.max(0,Math.round(readbackResourceBytes))} bytes` : 'not measured';
+  const readbackFingerprintLabel=readback?.checks?.contextPackFingerprintMatches===true?'match':'check';
   const estimatedReductionPercent=candidateTokens > 0
     ? Math.max(0,Math.min(100,Math.round((1 - selectedTokens / candidateTokens) * 100)))
     : 0;
   const deliveryReductionPercent=candidateTokens > 0
     ? Math.max(0,Math.min(100,Math.round((1 - deliveredTokens / candidateTokens) * 100)))
     : 0;
+  const rawBodiesExcluded=pack?.delivery?.sourceContentsIncluded===false && pack?.safeguards?.rawBodyIncluded===false;
   return {
     targetHarness:String(pack?.targetHarness ?? 'generic'),
     sourceFamilies,
@@ -857,6 +866,23 @@ export function buildContextPackUiModel(pack,markdown='') {
     affectedSymbols:Number(pack?.sourceGraph?.impact?.affectedSymbolCount ?? 0),
     setupClient:contextPackSetupClient(pack),
     intakeReview:buildContextPackIntakeReview(pack),
+    proof:{
+      tokenSaved:`${deliveryReductionPercent}%`,
+      selectedTokenRatio:candidateTokens > 0 ? `${Math.round(selectedTokens / candidateTokens * 100)}%` : '0%',
+      deliveredTokens:String(deliveredTokens),
+      observedDurationLabel,
+      readbackDurationLabel,
+      readbackResourceBytesLabel,
+      readbackFingerprintLabel,
+      readbackScope:String(readback?.measurementScope ?? 'not run'),
+      readbackTransport:String(readback?.transport ?? 'not run'),
+      readbackToolsLabel:safeguardCountLabel(readback?.bridge?.toolsExposed),
+      rawBodiesLabel:rawBodiesExcluded?'excluded':'check',
+      modelCallsLabel:safeguardCountLabel(pack?.safeguards?.modelCalls),
+      networkCallsLabel:safeguardCountLabel(pack?.safeguards?.networkCalls),
+      externalWritesLabel:pack?.safeguards?.externalWritesEnabled===false?'disabled':pack?.safeguards?.externalWritesEnabled===true?'enabled':'check',
+      activeMemoryLabel:safeguardCountLabel(pack?.safeguards?.activeMemoryCreated)
+    },
     commands:contextPackHarnessCommands(pack)
   };
 }
@@ -929,6 +955,26 @@ function contextPackSelectedSourceFamilies(form) {
 
 function contextPackIntakeReview(review) {
   return `<dl class="facts compact-facts intake-review"><div><dt>Accepted</dt><dd>${Number(review.acceptedCount??0)}</dd></div><div><dt>Excluded</dt><dd>${Number(review.excludedCount??0)}</dd></div><div><dt>Omitted</dt><dd>${Number(review.omittedCount??0)}</dd></div><div><dt>Would propose</dt><dd>${Number(review.proposedCount??0)}</dd></div><div><dt>Quarantine</dt><dd>${Number(review.quarantinedCount??0)}</dd></div><div><dt>Active memory</dt><dd>${Number(review.activeMemoryCreated??0)}</dd></div></dl>`;
+}
+
+function contextPackProofLedger(proof) {
+  return [
+    ledgerItem(proof.tokenSaved,'Handoff reduction','Estimated local tokens'),
+    ledgerItem(proof.selectedTokenRatio,'Source kept','Estimated source tokens'),
+    ledgerItem(proof.observedDurationLabel,'Build time','Observed local request'),
+    ledgerItem(proof.readbackDurationLabel,'MCP readback','In-process bridge'),
+    ledgerItem(proof.rawBodiesLabel,'Raw bodies','Schema safeguard'),
+    ledgerItem(proof.readbackToolsLabel,'Tools exposed','Read-only resource'),
+    ledgerItem(proof.externalWritesLabel,'External writes','Global gate')
+  ].join('');
+}
+
+function contextPackReadbackProof(proof) {
+  return `<dl class="facts compact-facts"><div><dt>Transport</dt><dd>${esc(proof.readbackTransport)}</dd></div><div><dt>Scope</dt><dd>${esc(proof.readbackScope)}</dd></div><div><dt>Fingerprint</dt><dd>${esc(proof.readbackFingerprintLabel)}</dd></div><div><dt>Resource</dt><dd>${esc(proof.readbackResourceBytesLabel)}</dd></div><div><dt>Tools</dt><dd>${esc(proof.readbackToolsLabel)}</dd></div></dl>`;
+}
+
+function safeguardCountLabel(value) {
+  return Number.isInteger(value) && value >= 0 ? String(value) : 'check';
 }
 
 export function contextPackDownloadName(pack) {
@@ -1225,7 +1271,10 @@ async function submitContextPack(event){
   button.textContent='Building...';
   document.querySelector('#live-status').textContent='Building local context pack.';
   try{
-    contextPackResult=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,from:sourceFamilies.join(','),objective,step,tokenBudget,userSelectedFiles,changedLocators})});
+    const started=globalThis.performance?.now?.() ?? Date.now();
+    const result=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,from:sourceFamilies.join(','),objective,step,tokenBudget,userSelectedFiles,changedLocators})});
+    const finished=globalThis.performance?.now?.() ?? Date.now();
+    contextPackResult={...result,observedDurationMs:Math.max(0,Math.round(finished-started))};
     contextPackError=null;
     document.querySelector('#live-status').textContent='Context pack built.';
     render();

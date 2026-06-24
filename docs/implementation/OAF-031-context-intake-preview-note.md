@@ -82,6 +82,17 @@ slice.
   response size, resource size, selected/candidate source units, and
   delivered-handoff units. These measurements describe one local invocation only
   and are not production latency or external benchmark claims.
+- The browser context-pack result now surfaces the same proof boundary in plain
+  UI terms: estimated local handoff reduction, estimated source kept, observed
+  local request time, raw-body exclusion, model-call count, and external-write
+  state. These are local pack-building signals, not provider billing-token or
+  hosted latency claims.
+- The Control API also reads each freshly built pack through the in-process
+  read-only MCP bridge before returning it to the browser. The returned readback
+  proof records the resource fingerprint, context-pack fingerprint match,
+  resource byte size, zero exposed tools, no markdown body, and the
+  `single local in-process bridge read` measurement scope. The CLI smoke above
+  remains the separate stdio-path proof.
 - The native SQLite memory provider now preserves memory-core lifecycle and
   review fields and includes a local proposal queue with idempotent
   fingerprints, leases, retries, and poison/error records.
