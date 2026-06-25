@@ -55,6 +55,27 @@ test('rejects secret-bearing query parameters in source locators', () => {
   );
 });
 
+test('verifies declared source snapshot hash and size against captured body', () => {
+  assert.throws(
+    () => normalizeSourceSnapshot({
+      body: 'tampered source text',
+      contentHash: '0'.repeat(64),
+      sourceLocator: 'https://example.test/source',
+      capturedAt: collectedAt
+    }),
+    /contentHash mismatch/
+  );
+  assert.throws(
+    () => normalizeSourceSnapshot({
+      body: 'Observed source text',
+      byteSize: 1,
+      sourceLocator: 'https://example.test/source',
+      capturedAt: collectedAt
+    }),
+    /byteSize mismatch/
+  );
+});
+
 test('normalizes observations while linking snapshots and separating inference', () => {
   const snapshot = normalizeSourceSnapshot({
     id: 'src_0123456789abcde0',

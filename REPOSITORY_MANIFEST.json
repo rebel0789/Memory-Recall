@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-25T15:02:48.361Z",
+  "generatedAt": "2026-06-25T15:09:26.527Z",
   "fileCount": 795,
-  "totalBytes": 5789938,
+  "totalBytes": 5791153,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -1065,12 +1065,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "f786dc211ccaebbd27e25e4772b96470279d9893aa43d07082f7c22157c7e64c"
+      "sha256": "7704f692ea7e0be15d56afda22d702063200d956feff15ce0cc99b39b657f0ca"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 1621,
-      "sha256": "8cbee7f7b860ccb9da0fa4b605a658d35eb7820476ba7bb89bd7eb87a35e3012"
+      "sha256": "5ae02c6271519d39373226b749f229f3b098d0e2af6102a334e7e81c33ce89de"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1080,7 +1080,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "2411cd8a667a14cdc2a5174e72a280f4cfb13cf7ec2909df02f37f87d4a8a15a"
+      "sha256": "e2ed66a651147f4a0d0c83cdc74ded00bc33a765c421006319e9902a2f2f5d42"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -2130,7 +2130,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "63211897093dba0ce517132cd932cd88f3b3eb1be24dcfaa4f4fcdfc7b78883d"
+      "sha256": "53075746c15ab0768711062d352c18e058321fdec8fb18ad09fa0093e07fe125"
     },
     {
       "path": "LICENSE",
@@ -2249,8 +2249,8 @@
     },
     {
       "path": "packages/evidence/src/index.mjs",
-      "bytes": 30734,
-      "sha256": "36397a864c5da4497c89e91c190402533661e99eaf42887ae7dddacd3d49d5e0"
+      "bytes": 31167,
+      "sha256": "573033425816d67a4f96a51d7808cec19ff5069089461b5c2f779ddac1fb4c86"
     },
     {
       "path": "packages/harness-context/package.json",
@@ -2294,8 +2294,8 @@
     },
     {
       "path": "packages/observability/src/index.mjs",
-      "bytes": 11462,
-      "sha256": "4effab1eb87578918c36ab1d5f28b8ea4eb2d4d35034f51eb61cd0e97012212c"
+      "bytes": 11497,
+      "sha256": "8e3e5b48ccbf19f627c51bb021d938d8ea510a3624fe089ae7a2cbbd441356e6"
     },
     {
       "path": "packages/operations/package.json",
@@ -3130,7 +3130,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 45746,
-      "sha256": "3b9f3c3927a776f4882971cff6d8a07884ac0e7bef21ad5ad5bd8ebe89d3d96d"
+      "sha256": "f258ab9b1302c79f44c413442a1846daa46eb231ea769b603fb30eaca49c4a59"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3709,8 +3709,8 @@
     },
     {
       "path": "tests/evidence.test.mjs",
-      "bytes": 6549,
-      "sha256": "c1e66f2fc5f042ab176afdf910471bf6c9ab5b29f1eaaa43c79c3f0d78b19e17"
+      "bytes": 7113,
+      "sha256": "f3cf5842666723bacc09669b363fd5753b5393648e1f4d7bbae30901c39a4695"
     },
     {
       "path": "tests/fixtures/durable-worker-child.mjs",
@@ -3784,8 +3784,8 @@
     },
     {
       "path": "tests/observability.test.mjs",
-      "bytes": 6165,
-      "sha256": "6cf1ffd3100db2571281ffacc311be7fc11629815705b25b55052cfa144a5fa0"
+      "bytes": 6348,
+      "sha256": "5c04a24c0046e32b27d9bbeaf0f11c9a2767e7cce5099672dc0d19fb07efcc12"
     },
     {
       "path": "tests/operations.test.mjs",

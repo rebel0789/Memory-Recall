@@ -514,12 +514,17 @@ export function ingestResearchSources(input, options = {}) {
 export function normalizeSourceSnapshot(input) {
   assertPlainObject(input, 'source snapshot');
   assertNoSnapshotInference(input);
+  const hasBody = Object.hasOwn(input, 'body');
   const body = toBuffer(input.body ?? '');
-  const contentHash = input.contentHash ?? sha256(body);
+  const actualContentHash = hasBody ? sha256(body) : null;
+  const contentHash = input.contentHash ?? actualContentHash;
   if (!/^[a-f0-9]{64}$/.test(contentHash)) throw new Error('contentHash must be sha256 hex');
+  if (hasBody && contentHash !== actualContentHash) throw new Error('source snapshot contentHash mismatch');
   const id = optionalString(input.id, `src_${contentHash.slice(0, 32)}`, 'source snapshot id');
   if (!/^src_[A-Za-z0-9._-]{16,128}$/.test(id)) throw new Error('source snapshot id must use src_ prefix with at least 16 safe characters');
   const byteSize = input.byteSize ?? body.byteLength;
+  if (!Number.isInteger(byteSize) || byteSize < 0) throw new Error('byteSize must be a non-negative integer');
+  if (hasBody && byteSize !== body.byteLength) throw new Error('source snapshot byteSize mismatch');
   const snapshot = {
     schemaVersion: '1.0.0',
     id,

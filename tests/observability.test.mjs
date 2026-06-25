@@ -46,6 +46,8 @@ test('observability attributes are stable and redact private bodies, paths, and 
     requestBody: 'do not emit',
     localPath: '/Users/rebel/private.txt',
     apiToken: tokenLikeFixture,
+    note: `contains ghp_${'a'.repeat(36)}`,
+    detail: `contains github_pat_${'b'.repeat(32)}`,
     'model.provider': 'provider:native:model:deterministic',
     'context.selected_count': 2
   });
@@ -53,6 +55,8 @@ test('observability attributes are stable and redact private bodies, paths, and 
   assert.equal(attrs.requestBody, undefined);
   assert.equal(attrs.localPath, undefined);
   assert.equal(attrs.apiToken, undefined);
+  assert.equal(attrs.note, '[redacted]');
+  assert.equal(attrs.detail, '[redacted]');
   assert.equal(attrs['model.provider'], 'provider:native:model:deterministic');
   assert.equal(attrs['context.selected_count'], 2);
 });

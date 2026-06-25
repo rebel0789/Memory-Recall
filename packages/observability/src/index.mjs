@@ -5,7 +5,7 @@ export const DEFAULT_SERVICE_NAME = 'open-agent-fabric';
 export const DEFAULT_SERVICE_VERSION = '0.2.0-dev';
 
 const BLOCKED_KEY_SEGMENTS = new Set(['authorization', 'body', 'content', 'cookie', 'credential', 'credentials', 'database', 'dsn', 'header', 'headers', 'hidden', 'localpath', 'password', 'path', 'prompt', 'reasoning', 'secret', 'secrets', 'sql', 'text', 'token', 'tokens', 'url', 'urls']);
-const SECRET_VALUE = /sk-[A-Za-z0-9_-]{12,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gho_[A-Za-z0-9_]{12,}/;
+const SECRET_VALUE = /sk-[A-Za-z0-9_-]{12,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[opusr]_[A-Za-z0-9_]{12,}|github_pat_[A-Za-z0-9_]{22,}/;
 const LOCAL_PATH = /(?:^|[\s"'=])\/Users\/|(?:^|[\s"'=])\/private\/|(?:^|[\s"'=])\/var\/folders\//;
 const TRACE_ID = /^[a-f0-9]{32}$/;
 const SPAN_ID = /^[a-f0-9]{16}$/;
