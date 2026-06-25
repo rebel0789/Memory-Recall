@@ -31,11 +31,16 @@ test('local handoff guide documents read-only Codex Cursor and Claude paths', ()
   const guide = read('docs/usage/local-agent-handoff.md');
 
   assert.match(guide, /target codex --changed-from-git --format json/);
+  assert.match(guide, /Create a first local handoff/);
+  assert.match(guide, /Inputs to review/);
+  assert.match(guide, /Practical handoff/);
+  assert.match(guide, /Memory preflight\s+sources \(optional\)/);
   assert.match(guide, /--from codex,cursor .* --target cursor --changed-from-git --format json/);
   assert.match(guide, /--from codex,claude-code .* --target claude-code --changed-from-git --format json/);
   assert.match(guide, /harness setup plan --client cursor --server oaf --dry-run --format json/);
   assert.match(guide, /harness setup plan --client claude-code --server oaf --dry-run --format json/);
   assert.match(guide, /git add -f context-packs\/\.\.\./);
   assert.match(guide, /does not write context-pack files, mutate harness configs/);
+  assert.match(guide, /externalAdaptersEnabled/);
   assert.match(guide, /does not yet provide production authentication/);
 });

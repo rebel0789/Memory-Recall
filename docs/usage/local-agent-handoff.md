@@ -47,20 +47,24 @@ Do not pass local passwords as command arguments.
 Use this path when you want to inspect the pack before copying it into another
 agent session.
 
-1. Open **Context Pack**.
-2. Choose a target: Codex, Claude Code, Cursor, or Generic agent.
+1. Open **Context Pack** and start at **Create a first local handoff**.
+2. In **Inputs to review**, choose a target: Codex, Claude Code, Cursor, or
+   Generic agent.
 3. Leave source families at Codex unless you explicitly want to inspect Claude
    Code or Cursor project files.
 4. Click **Preview sources**.
-5. Click **Detect git changes**, or enter changed relative paths manually.
-6. Optionally enter reviewed workspace-relative files under **Memory proposal
-   source files**. The browser can copy or download `oaf.memory.json`; it does
-   not send those paths to the context-pack API or read memory bodies.
+5. Click **Detect current git changes**, or enter changed relative paths
+   manually.
+6. Optionally enter reviewed workspace-relative files under **Memory preflight
+   sources (optional)**. The browser can copy or download `oaf.memory.json`; it
+   does not send those paths to the context-pack API or read memory bodies.
 7. Click **Build context pack**.
-8. Review **Use this pack**, **First-use readiness**, selected locators,
-   omissions, changed-file coverage, and proof commands.
-9. Use **Copy markdown** for a manual paste, or copy and run the impact and
-   handoff terminal commands for reproducible read-only preflight proof.
+8. Start with **Practical handoff**: copy the Markdown or launch prompt, copy
+   or download `oaf.memory.json` only if you entered memory proposal files, then
+   copy and run **Test local handoff** for reproducible read-only CLI/MCP proof.
+9. Review **Use this pack**, **First-use readiness**, selected locators,
+   omissions, changed-file coverage, and proof commands when you need deeper
+   trace detail.
 10. Use **Preview setup** when you want a generated Codex, Cursor, or Claude
    Code MCP config snippet. The snippet is a manual-copy template only; OAF
    does not write harness config files.

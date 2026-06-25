@@ -82,11 +82,13 @@ printf '%s\n' 'correct horse battery staple' | \
 ```
 
 First practical path: open **Context Pack**, keep the target as Codex or choose
-your local harness, click **Preview sources**, use **Detect git changes** or add
-changed files manually, build the pack, check **First-use readiness** and the
-top-level **Use this pack** brief, then copy Markdown or copy and run the
-impact and handoff terminal commands for a single read-only CLI/MCP preflight
-before handing work to the next local coding-agent session. The brief shows
+your local harness from **Inputs to review**, click **Preview sources**, use
+**Detect current git changes** or add changed files manually, optionally list
+reviewed memory preflight sources, then build the pack. Use the **Practical
+handoff** path: copy Markdown or the launch prompt, copy/download
+`oaf.memory.json` only if you chose memory files, run the read-only handoff
+preflight command, and preview MCP setup only when the target harness should
+read OAF resources. The brief shows
 changed-file coverage, required reads, hash proof, affected symbols, and proof
 commands without source bodies. Fabric Map and Agents & Tools show the same
 current handoff status without installing anything. This is a dry-run locator

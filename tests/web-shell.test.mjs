@@ -75,12 +75,18 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/api\('\/api\/context\/git-changes'/);
   assert.match(app,/api\('\/api\/context\/source-preview'/);
   assert.match(app,/Preview sources/);
+  assert.match(app,/Create a first local handoff/);
+  assert.match(app,/Prepare this repository for the next coding agent/);
+  assert.match(app,/without sending source bodies, writing server state, calling models, using the network, or enabling adapters/);
+  assert.match(app,/Inputs to review/);
+  assert.match(app,/Detect current git changes/);
   assert.match(app,/Review before building/);
   assert.match(app,/name="changedLocators"/);
-  assert.match(app,/>apps\/web\/app\.js<\/textarea>/);
+  assert.doesNotMatch(app,/name="changedLocators"[^>]*>apps\/web\/app\.js<\/textarea>/);
   assert.match(app,/name="sourceFamilies"/);
   assert.match(app,/name="memorySourceFiles"/);
-  assert.match(app,/Memory proposal source files/);
+  assert.match(app,/Memory preflight sources \(optional\)/);
+  assert.match(app,/The browser keeps paths only and can copy or download/);
   assert.match(app,/data-action="copy-memory-config"/);
   assert.match(app,/data-action="download-memory-config"/);
   assert.match(app,/function contextPackMemoryConfigPanel/);
@@ -112,12 +118,23 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/\/api\/context\/pack\/registry\/status\?workspaceId=/);
   assert.match(app,/This panel reads the local registry status only/);
   assert.match(app,/Handoff operator brief/);
+  assert.match(app,/Practical handoff/);
+  assert.match(app,/Use this in another local agent session/);
+  assert.match(app,/Copy the locator pack first/);
+  assert.match(app,/Give the agent context/);
+  assert.match(app,/Add memory only by choice/);
+  assert.match(app,/Prove the handoff locally/);
+  assert.match(app,/Connect MCP manually/);
+  assert.match(app,/browser copy\/download only/);
+  assert.match(app,/writes no context-pack files, harness config, memory, or external state/);
   assert.match(app,/Use this pack/);
   assert.match(app,/Changed files, reads, and proof commands are ready/);
   assert.match(app,/Review changed files, reads, and proof commands before handoff/);
   assert.match(app,/Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief/);
   assert.match(app,/This page does not write files; the copied Pin locally command writes explicit local context-packs artifacts, and Receive pinned pack only reads the pinned local artifacts/);
   assert.match(app,/Pin and receive/);
+  assert.match(app,/setupPreviewed/);
+  assert.match(app,/Setup preview already passed for this browser session/);
   assert.match(app,/\['Test local handoff','Pin locally','Receive pinned pack','Copy impact command'\]/);
   assert.match(app,/context receive --read-only --root \. --target/);
   assert.match(app,/Utility read plan/);
@@ -135,6 +152,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(submitContextPackSource,/api\('\/api\/context\/pack'/);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memoryConfig/s);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memorySourceFiles/s);
+  assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*(?:checklist|preflight|externalAdaptersEnabled|setupPreview)/s);
   assert.deepEqual(normalizeMemorySourceFiles('notes/memory.md\nnotes/memory.md\n../secret.md\n/private/path.txt\nnode_modules/pkg.md\nhttps://bad.example/memory'),['notes/memory.md']);
   const model=buildContextPackUiModel({
     createdAt:'2026-06-24T00:00:00.000Z',
@@ -466,7 +484,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
     readFirst:[{locator:'workspace://AGENTS.md'}],
     delivery:{sourceContentsIncluded:false},
     utility:{status:'ready',changedLocatorCoverage:{total:0,covered:0,ratio:0,status:'not_applicable'},requiredLocalReads:[{locator:'workspace://AGENTS.md',role:'selected_context',required:true,represented:true}],graphHintCoverage:{total:0,covered:0,ratio:0,status:'not_applicable'},sourceSelection:{candidateTokenCount:10,selectedTokenCount:10,selectedTokenRatio:1,estimatedReductionRatio:0},delivery:{representation:'locator-handoff',sourceContentsIncluded:false}},
-    safeguards:{rawBodyIncluded:false,externalWritesEnabled:false,networkCalls:0,modelCalls:0,activeMemoryCreated:0},
+    safeguards:{rawBodyIncluded:false,externalWritesEnabled:false,externalAdaptersEnabled:0,networkCalls:0,modelCalls:0,activeMemoryCreated:0},
     contextPackFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
   };
   const safeReadback={
@@ -476,6 +494,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   const ready=buildFirstUseReadinessModel({pack:safePack,markdown:'# Context Pack\n',readback:safeReadback});
   assert.equal(ready.ready,true);
   assert.equal(ready.title,'Ready for local handoff');
+  assert.equal(ready.gates.find((gate)=>gate.id==='adapters').status,'pass');
   assert.equal(ready.gates.find((gate)=>gate.id==='setup-preview').status,'pending');
   assert.equal(ready.nextAction,'Use Copy markdown now, or copy and run Test local handoff for CLI and MCP proof. For durable CLI reuse, copy and run Pin locally, then Receive pinned pack.');
   const handoffStatus=buildCurrentHandoffStatusModel({
@@ -525,14 +544,14 @@ test('first-use readiness proves local handoff gates before recommending use',()
       readFirst:[],
       delivery:{sourceContentsIncluded:true},
       utility:{status:'review',changedLocatorCoverage:{total:1,covered:0,ratio:0,status:'partial'},requiredLocalReads:[],graphHintCoverage:{total:0,covered:0,ratio:0,status:'not_applicable'},sourceSelection:{candidateTokenCount:10,selectedTokenCount:0,selectedTokenRatio:0,estimatedReductionRatio:1},delivery:{representation:'locator-handoff',sourceContentsIncluded:false}},
-      safeguards:{rawBodyIncluded:true,externalWritesEnabled:true,networkCalls:1,modelCalls:1,activeMemoryCreated:1}
+      safeguards:{rawBodyIncluded:true,externalWritesEnabled:true,externalAdaptersEnabled:1,networkCalls:1,modelCalls:1,activeMemoryCreated:1}
     },
     markdown:'',
     readback:{checks:{contextPackFingerprintMatches:false,noMarkdownBody:false,noToolsExposed:false},bridge:{toolsExposed:1}}
   });
   assert.equal(unsafe.ready,false);
   assert.equal(unsafe.title,'Review before handoff');
-  assert.deepEqual(unsafe.gates.filter((gate)=>gate.blocking).map((gate)=>gate.id),['artifact','selection','readback','resource-tools','raw-bodies','utility','side-effects','memory']);
+  assert.deepEqual(unsafe.gates.filter((gate)=>gate.blocking).map((gate)=>gate.id),['artifact','selection','readback','resource-tools','raw-bodies','utility','side-effects','adapters','memory']);
   assert.equal(unsafe.nextAction,'Fix: Pack artifact.');
 });
 
