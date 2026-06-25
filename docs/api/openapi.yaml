@@ -147,6 +147,16 @@ paths:
           description: Local dashboard projection.
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/loop/workbench:
+    get:
+      operationId: getLoopWorkbench
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Loop Workbench read model for plan, runs, observation, verification, budget, and stop reasons.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
   /api/runs:
     get:
       operationId: listRuns

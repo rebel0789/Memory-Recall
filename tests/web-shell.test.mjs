@@ -15,6 +15,7 @@ import {
   buildFabricMapModel,
   buildFirstUseReadinessModel,
   buildHarnessSetupUiModel,
+  buildLoopWorkbenchModel,
   buildMemoryReviewModel,
   buildPinnedHandoffStatusModel,
   canReceivePinnedHandoff,
@@ -46,8 +47,9 @@ function replaceGlobal(name,value) {
 }
 
 test('web shell exposes stable path routes with legacy query compatibility',()=>{
-  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/fabric-map','/context','/context-pack','/source-graph','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
+  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/loop-workbench','/fabric-map','/context','/context-pack','/source-graph','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
   assert.equal(resolveRoute('http://127.0.0.1:4310/runs').id,'runs');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/loop-workbench').id,'loop-workbench');
   assert.equal(resolveRoute('http://127.0.0.1:4310/fabric-map').id,'fabric-map');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context?manifest=ctx_1').id,'context');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context-pack').id,'context-pack');
@@ -433,6 +435,33 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(sourcePreviewModel.rawBodiesLabel,'excluded');
   assert.equal(sourcePreviewModel.externalWritesLabel,'disabled');
   assert.equal(sourcePreviewModel.activeMemoryCreated,0);
+});
+
+test('loop workbench model exposes plan run observation verification budget and stop reasons',async()=>{
+  const report={
+    schemaVersion:'1.0.0',
+    workspaceId:'ws_local',
+    generatedAt:'2026-06-26T00:00:00.000Z',
+    plan:{status:'reference',command:'loop plan',maxIterations:4,timeoutSeconds:1200,sideEffectClass:'read-only'},
+    runs:{status:'blocked',count:2,latestRunId:'run_loop',controller:'bounded maxIterations and timeout'},
+    observations:{status:'recorded',count:1,rawOutputIncluded:false},
+    verification:{status:'reported',count:1,autoMerge:false},
+    tokenBudget:{basis:'contextBudget estimate',estimatedDeliveryTokens:10,aggregatedEstimatedDeliveryTokens:20,providerBillingClaimed:false},
+    stopReasons:['completed','validation_failed','blocked_needs_human','max_iterations','timeout','unrelated_changes'],
+    trace:{eventCount:3,eventTypes:['loop.run_started','loop.verification_reported','loop.run_stopped']},
+    safeguards:{readOnlyViews:true,planCreationViaControlApi:true,externalWritesEnabled:false,networkCalls:0,modelCalls:0,autoMerge:false}
+  };
+  const model=buildLoopWorkbenchModel(report,{dashboard:{metrics:{runs:5,pendingApprovals:1}}});
+  assert.equal(model.plan.maxIterations,4);
+  assert.equal(model.runs.count,2);
+  assert.equal(model.observations.rawOutputIncluded,false);
+  assert.equal(model.verification.autoMerge,false);
+  assert.equal(model.tokenBudget.aggregatedEstimatedDeliveryTokens,20);
+  assert.equal(model.stopReasons.includes('unrelated_changes'),true);
+  const app=await readFile('apps/web/app.js','utf8');
+  assert.match(app,/function renderLoopWorkbench/);
+  assert.match(app,/\/api\/loop\/workbench\?workspaceId=/);
+  assert.match(app,/Create plan context/);
 });
 
 test('context pack command copy copies the adjacent command text',async()=>{

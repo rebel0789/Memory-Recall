@@ -242,7 +242,7 @@
     },
     {
       "id": "builder.loop-workbench",
-      "name": "Loop Workbench (Plan, observation, verification, and run primitives)",
+      "name": "Loop Workbench (Plan, observation, verification, run, and UI primitives)",
       "status": "reference",
       "evidence": [
         "packages/protocol/schemas/loop-plan.schema.json",
@@ -259,18 +259,25 @@
         "examples/protocol/compatibility/invalid/loop-run-auto-merge.json",
         "packages/harness-context/src/index.mjs",
         "apps/cli/oaf.mjs",
+        "apps/web/app.js",
+        "services/control-api/src/server.mjs",
+        "services/control-api/src/route-contracts.mjs",
+        "docs/api/openapi.yaml",
         "tests/harness-context-loop-plan.test.mjs",
         "tests/harness-context-loop-observation.test.mjs",
         "tests/harness-context-loop-verification.test.mjs",
         "tests/harness-context-loop-run.test.mjs",
         "tests/cli.test.mjs",
+        "tests/control-api-boundary.test.mjs",
+        "tests/web-shell.test.mjs",
         "docs/product/loop-workbench.md"
       ],
       "limitations": [
-        "Read-only Loop Plan generator, sanitized observation capture, maker/checker verification report, and bounded loop-run projection only.",
+        "Read-only Loop Plan generator, sanitized observation capture, maker/checker verification report, bounded loop-run projection, and /loop-workbench route only.",
         "The verifier uses an isolated worktree, injected implementer, plan-limited checker commands, unrelated-diff blocking, replay side-effect disabling, and no auto-merge.",
         "The run controller bounds iterations/timeouts, projects durable workflow history, aggregates contextBudget estimates, and supports opt-in schedule prompt reports; it is not a background daemon.",
-        "Proof summary, UI, and autonomous executor are not implemented.",
+        "The web route is a dependency-free read surface over the local Control API model; it does not add a production frontend framework.",
+        "Proof summary and autonomous executor are not implemented.",
         "contextBudget is an estimate carried from a context-pack measurement; it does not claim provider billing tokens."
       ]
     },
@@ -897,7 +904,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 380,
+    "testsExpected": 382,
     "protocolFixturesExpected": 159,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

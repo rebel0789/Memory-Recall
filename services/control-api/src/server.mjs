@@ -130,6 +130,71 @@ function redactContextPackForApiTransport(pack) {
   return safePack;
 }
 
+function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt }) {
+  const runs = state.runs.filter((run) => run.workspaceId === workspaceId);
+  const events = state.events.filter((event) => event.workspaceId === workspaceId);
+  const loopEvents = events.filter((event) => String(event.type ?? '').startsWith('loop.'));
+  const loopRunRecords = runs.filter((run) => String(run.workflowId ?? '').includes('loop'));
+  const eventTypes = [...new Set(loopEvents.map((event) => event.type))].sort();
+  return {
+    schemaVersion: '1.0.0',
+    workspaceId,
+    generatedAt,
+    plan: {
+      status: 'reference',
+      command: 'loop plan',
+      inputs: ['objective', 'stopCondition', 'validationCommands', 'changedLocators'],
+      maxIterations: 3,
+      timeoutSeconds: 1800,
+      sideEffectClass: 'read-only'
+    },
+    runs: {
+      status: loopRunRecords.at(-1)?.status ?? 'ready',
+      count: loopRunRecords.length,
+      latestRunId: loopRunRecords.at(-1)?.id ?? null,
+      controller: 'bounded maxIterations and timeout'
+    },
+    observations: {
+      status: loopEvents.some((event) => event.type === 'loop.observation_recorded') ? 'recorded' : 'ready',
+      count: loopEvents.filter((event) => event.type === 'loop.observation_recorded').length,
+      rawOutputIncluded: false
+    },
+    verification: {
+      status: loopEvents.some((event) => event.type === 'loop.verification_reported') ? 'reported' : 'ready',
+      count: loopEvents.filter((event) => event.type === 'loop.verification_reported').length,
+      autoMerge: false
+    },
+    tokenBudget: {
+      basis: 'contextBudget estimate',
+      estimatedDeliveryTokens: 0,
+      aggregatedEstimatedDeliveryTokens: 0,
+      providerBillingClaimed: false
+    },
+    stopReasons: [
+      'completed',
+      'validation_failed',
+      'blocked_needs_human',
+      'unsafe_action_required',
+      'max_iterations',
+      'timeout',
+      'unrelated_changes',
+      'out_of_scope'
+    ],
+    trace: {
+      eventCount: loopEvents.length,
+      eventTypes
+    },
+    safeguards: {
+      readOnlyViews: true,
+      planCreationViaControlApi: true,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      autoMerge: false
+    }
+  };
+}
+
 const VALID_CORRELATION_ID = /^req_[A-Za-z0-9._:-]{8,96}$/;
 const SAFE_RUN_ID = /^run_[A-Za-z0-9._:-]{1,120}$/;
 const SAFE_WORKSPACE_ID = /^ws_[A-Za-z0-9._:-]{1,120}$/;
@@ -286,6 +351,10 @@ export function createControlApiServer({
           approvals: approvals.slice(-20).reverse(),
           artifacts: state.artifacts.filter((artifact) => (artifact.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse()
         };
+      }
+      case 'getLoopWorkbench': {
+        const state = await store.read();
+        return buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock() });
       }
       case 'listRuns': {
         const state = await store.read();
@@ -1066,6 +1135,7 @@ function routeResourceType(contract) {
       return 'workspace';
     case 'resetBootstrap':
     case 'getDashboard':
+    case 'getLoopWorkbench':
       return 'workspace';
     default:
       return 'workspace';

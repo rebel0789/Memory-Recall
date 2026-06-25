@@ -1257,6 +1257,40 @@ export function createApiRouteContracts(limits = {}) {
     },
     {
       method: 'GET',
+      path: '/api/loop/workbench',
+      operationId: 'getLoopWorkbench',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: {
+        200: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['schemaVersion', 'workspaceId', 'generatedAt', 'plan', 'runs', 'observations', 'verification', 'tokenBudget', 'stopReasons', 'trace', 'safeguards'],
+          properties: {
+            schemaVersion: { const: '1.0.0' },
+            workspaceId,
+            generatedAt: { type: 'string', format: 'date-time' },
+            plan: { type: 'object', additionalProperties: true },
+            runs: { type: 'object', additionalProperties: true },
+            observations: { type: 'object', additionalProperties: true },
+            verification: { type: 'object', additionalProperties: true },
+            tokenBudget: { type: 'object', additionalProperties: true },
+            stopReasons: { type: 'array', maxItems: 16, items: boundedString(64) },
+            trace: { type: 'object', additionalProperties: true },
+            safeguards: { type: 'object', additionalProperties: true }
+          }
+        }
+      }
+    },
+    {
+      method: 'GET',
       path: '/api/runs',
       operationId: 'listRuns',
       security: { authenticated: true, action: 'run.read', workspace: 'query' },

@@ -4,6 +4,7 @@ export const ROUTES = [
   { id:'home', path:'/', label:'Home', title:'Home', eyebrow:'Workspace / local', description:'Health, active work, approvals, residency, and the next local action.' },
   { id:'runs', path:'/runs', label:'Runs', title:'Runs', eyebrow:'Execution', description:'Run history, status, current step, artifacts, and sanitized timelines.' },
   { id:'workflows', path:'/workflows', label:'Workflows', title:'Workflows', eyebrow:'Definitions', description:'Workflow versions, graph outline, risk, retries, approvals, and tests.' },
+  { id:'loop-workbench', path:'/loop-workbench', label:'Loop Workbench', title:'Loop Workbench', eyebrow:'Loop engineering', description:'Plan, run, observe, verify, budget, and stop loops with local proof.' },
   { id:'fabric-map', path:'/fabric-map', label:'Fabric Map', title:'Fabric Map', eyebrow:'System graph', description:'Visualize local process flow, context assembly, node handoffs, and disabled external boundaries.' },
   { id:'context', path:'/context', label:'Context', title:'Context', eyebrow:'Manifest inspector', description:'Selected and excluded records, budgets, conflicts, assembly, and compiler versions.' },
   { id:'context-pack', path:'/context-pack', label:'Context Pack', title:'Context Pack', eyebrow:'Agent handoff', description:'Build a safe, token-aware handoff for Codex, Claude Code, Cursor, or a generic agent.' },
@@ -34,6 +35,8 @@ let pinnedHandoffStatus=null;
 let pinnedHandoffError=null;
 let pinnedHandoffReceiveReport=null;
 let pinnedHandoffReceiveError=null;
+let loopWorkbench=null;
+let loopWorkbenchError=null;
 let contextSourcePreviewResult=null;
 let contextSourcePreviewError=null;
 let sourceGraphResult=null;
@@ -720,7 +723,7 @@ async function load() {
   render();
   try {
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
-    await loadPinnedHandoffStatus();
+    await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench()]);
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
     dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
@@ -738,6 +741,16 @@ async function loadPinnedHandoffStatus() {
   } catch (error) {
     pinnedHandoffStatus = null;
     pinnedHandoffError = error.message;
+  }
+}
+
+async function loadLoopWorkbench() {
+  try {
+    loopWorkbench = await api(`/api/loop/workbench?workspaceId=${encodeURIComponent(workspaceId())}`);
+    loopWorkbenchError = null;
+  } catch (error) {
+    loopWorkbench = null;
+    loopWorkbenchError = error.message;
   }
 }
 
@@ -897,6 +910,7 @@ function renderRoute(route) {
   if (route.id === 'home') return renderHome();
   if (route.id === 'runs') return activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns();
   if (route.id === 'workflows') return renderWorkflows();
+  if (route.id === 'loop-workbench') return renderLoopWorkbench();
   if (route.id === 'fabric-map') return renderFabricMap();
   if (route.id === 'context') return renderContext();
   if (route.id === 'context-pack') return renderContextPack();
@@ -945,6 +959,60 @@ function renderRunDetail(data) {
 function renderWorkflows() {
   const steps=['collect','normalize','analyze-patterns','compile-context','generate-angles','verify-recommendations','local-draft-outcome'];
   return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Content Intelligence</h2><span>workflow:content-intelligence</span></div><ol class="outline">${steps.map((step,index)=>`<li><span>${index+1}</span><strong>${step}</strong><em>${workflowStepCopy(step)}</em></li>`).join('')}</ol></div><aside class="inspector"><h2>Equivalent outline</h2><p>Graph information is presented as an ordered list for keyboard and screen-reader access.</p><dl class="facts"><div><dt>Risk</dt><dd>Read-only/local-only outputs</dd></div><div><dt>Timeout</dt><dd>5s deterministic steps, 120s model step</dd></div><div><dt>Approval</dt><dd>Local candidate approval record only</dd></div></dl></aside></section>`;
+}
+
+export function buildLoopWorkbenchModel(report=null,{dashboard=null,error=null}={}) {
+  const fallback={
+    schemaVersion:'1.0.0',
+    workspaceId:'ws_local',
+    generatedAt:new Date(0).toISOString(),
+    plan:{status:'reference',command:'loop plan',maxIterations:3,timeoutSeconds:1800,sideEffectClass:'read-only'},
+    runs:{status:'ready',count:0,latestRunId:null,controller:'bounded maxIterations and timeout'},
+    observations:{status:'ready',count:0,rawOutputIncluded:false},
+    verification:{status:'ready',count:0,autoMerge:false},
+    tokenBudget:{basis:'contextBudget estimate',estimatedDeliveryTokens:0,aggregatedEstimatedDeliveryTokens:0,providerBillingClaimed:false},
+    stopReasons:['completed','validation_failed','blocked_needs_human','unsafe_action_required','max_iterations','timeout','unrelated_changes','out_of_scope'],
+    trace:{eventCount:0,eventTypes:[]},
+    safeguards:{readOnlyViews:true,planCreationViaControlApi:true,externalWritesEnabled:false,networkCalls:0,modelCalls:0,autoMerge:false}
+  };
+  const source=report?.schemaVersion === '1.0.0' ? report : fallback;
+  return {
+    source:error ? 'fallback' : report ? 'api' : 'local',
+    error:error ? String(error) : null,
+    workspaceId:source.workspaceId,
+    generatedAt:source.generatedAt,
+    plan:source.plan,
+    runs:source.runs,
+    observations:source.observations,
+    verification:source.verification,
+    tokenBudget:source.tokenBudget,
+    stopReasons:source.stopReasons,
+    trace:source.trace,
+    safeguards:source.safeguards,
+    dashboardRuns:Number(dashboard?.metrics?.runs ?? 0),
+    pendingApprovals:Number(dashboard?.metrics?.pendingApprovals ?? 0)
+  };
+}
+
+function renderLoopWorkbench() {
+  const model=buildLoopWorkbenchModel(loopWorkbench,{dashboard,error:loopWorkbenchError});
+  const stopReasonRows=model.stopReasons.map((reason)=>`<tr><td><code>${esc(reason)}</code></td><td>${loopStopReasonCopy(reason)}</td></tr>`).join('');
+  const traceRows=(model.trace.eventTypes.length ? model.trace.eventTypes : ['loop.run_started','loop.run_stopped']).map((type)=>`<li><span>${esc(type)}</span></li>`).join('');
+  const errorPanel=model.error ? statePanel('partial','Loop Workbench API unavailable',model.error,false) : '';
+  return `${errorPanel}<section class="surface primary-flow" aria-label="Loop Workbench summary"><div><p class="eyebrow">Outcome</p><h2>${esc(model.runs.status)} loop controller</h2><p>Plan, observation, verification, schedule prompt, and stop-reason views stay local and read-only.</p></div><ol class="flow-mini" aria-label="Loop stages"><li><strong>1</strong><span>Intent plan</span></li><li><strong>2</strong><span>Scoped action</span></li><li><strong>3</strong><span>Observation</span></li><li><strong>4</strong><span>Verifier gate</span></li></ol><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Create plan context</a><a class="button secondary" href="/runs" data-route="runs">View run trace</a></div></section><section class="metric-strip" aria-label="Loop Workbench metrics">${metric(model.plan.maxIterations,'Max iterations','Controller bound')}${metric(Math.round(Number(model.plan.timeoutSeconds??0)/60),'Timeout min','Stop bound')}${metric(model.tokenBudget.aggregatedEstimatedDeliveryTokens,'Budget tokens','Aggregated estimate')}${metric(model.trace.eventCount,'Loop events','Flight recorder')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Current loop</h2><span>outcome before trace</span></div><dl class="facts facts-wide"><div><dt>Plan</dt><dd>${esc(model.plan.command)} · ${esc(model.plan.sideEffectClass)}</dd></div><div><dt>Runs</dt><dd>${esc(model.runs.status)} · ${model.runs.count} loop records</dd></div><div><dt>Observation</dt><dd>${esc(model.observations.status)} · raw output included: ${model.observations.rawOutputIncluded?'yes':'no'}</dd></div><div><dt>Verification</dt><dd>${esc(model.verification.status)} · auto-merge: ${model.verification.autoMerge?'enabled':'off'}</dd></div><div><dt>Budget basis</dt><dd>${esc(model.tokenBudget.basis)} · provider billing claimed: ${model.tokenBudget.providerBillingClaimed?'yes':'no'}</dd></div></dl><div class="section-heading"><h2>Stop reasons</h2><span>${model.stopReasons.length} controller exits</span></div><div class="table-wrap"><table><thead><tr><th>Reason</th><th>Meaning</th></tr></thead><tbody>${stopReasonRows}</tbody></table></div></div><aside class="inspector"><div class="section-heading"><h2>Trace</h2><span>${model.trace.eventCount} events</span></div><ol class="outline compact-outline">${traceRows}</ol><hr><h2>Safeguards</h2><dl class="facts compact-facts"><div><dt>Views</dt><dd>${model.safeguards.readOnlyViews?'read-only':'write-capable'}</dd></div><div><dt>Plan creation</dt><dd>${model.safeguards.planCreationViaControlApi?'Control API':'unavailable'}</dd></div><div><dt>External writes</dt><dd>${model.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div><div><dt>Network calls</dt><dd>${model.safeguards.networkCalls}</dd></div><div><dt>Model calls</dt><dd>${model.safeguards.modelCalls}</dd></div></dl></aside></section>`;
+}
+
+function loopStopReasonCopy(reason) {
+  return ({
+    completed:'Stop condition passed.',
+    validation_failed:'Checker command failed or returned non-zero.',
+    blocked_needs_human:'Human approval or clarification is required.',
+    unsafe_action_required:'Requested action exceeds the current policy boundary.',
+    max_iterations:'Controller reached its bounded iteration cap.',
+    timeout:'Controller reached its wall-clock timeout.',
+    unrelated_changes:'Verifier found changes outside the Loop Plan scope.',
+    out_of_scope:'The next action no longer matches the Loop Plan.'
+  })[reason] ?? 'Controller stopped with a recorded reason.';
 }
 
 function renderFabricMap() {

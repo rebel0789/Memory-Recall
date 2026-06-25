@@ -90,7 +90,9 @@ the whole product is done.
    aggregation, durable history/resume proof, human approval gates, and opt-in
    schedule prompt reports for triage, PR babysitter, and CI sweeper. No
    background daemon.
-5. **Slice 5 — Loop Workbench UI.** The `/loop-workbench` route, last.
+5. **Slice 5 — Loop Workbench UI.** The `/loop-workbench` route: dependency-free
+   web shell views over plan, runs, observations, verification, token budget,
+   stop reasons, and trace, backed by the local Control API read model.
 
 Two skills layer across all slices: an **Action-stage efficiency skill** (reuse
 before generate; smallest change that works) and an **Intent-stage clarification
@@ -109,8 +111,8 @@ skill** (interrogate the objective before work begins).
 
 ## What is not claimed
 
-Proof summaries, reusable loop templates, the web UI, and any autonomous
-executor are **specified and planned, not shipped**. The shipped native
-primitives are the Loop Plan generator, sanitized observation capture,
-maker/checker verification report, and bounded loop-run projection with opt-in
-schedule prompt reports.
+Proof summaries, reusable loop templates, and any autonomous executor are
+**specified and planned, not shipped**. The shipped native primitives are the
+Loop Plan generator, sanitized observation capture, maker/checker verification
+report, bounded loop-run projection with opt-in schedule prompt reports, and the
+`/loop-workbench` read surface.
