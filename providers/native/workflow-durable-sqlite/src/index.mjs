@@ -795,7 +795,7 @@ export class DurableSQLiteWorkflowRuntime {
         idempotencyKey,
         signal: abort.signal,
         clock: this.clock,
-        emitEvent: async (type, payload) => this.#transaction(() => this.#appendEvent({ workspaceId, runId, type, payload })),
+        emitEvent: async (type, payload) => this.#appendActivityEvent({ workspaceId, runId, stepId: stepRow.step_id, workerId, signal: abort.signal, type, payload }),
         effect: async ({ idempotencyKey: key = idempotencyKey, operationFingerprint: fingerprint = operationFingerprint, execute }) => this.#commitEffect({ workspaceId, runId, stepId: stepRow.step_id, idempotencyKey: key, operationFingerprint: fingerprint, execute, workerId, signal: abort.signal })
       };
       const output = await Promise.race([handler.run(context), timeout.promise]);
@@ -811,12 +811,24 @@ export class DurableSQLiteWorkflowRuntime {
     }
   }
 
-  #assertEffectCommitAllowed({ workspaceId, runId, stepId, workerId, signal }) {
+  #assertActiveStep({ workspaceId, runId, stepId, workerId, signal }) {
     if (signal?.aborted) throw signal.reason ?? workflowError('run_cancelled', 'workflow attempt is no longer active');
     const run = this.#run(workspaceId, runId);
     if (!run || TERMINAL.has(run.status) || run.lease_owner !== workerId) throw workflowError('run_cancelled', 'workflow attempt is no longer active');
     const step = this.database.prepare('SELECT status FROM steps WHERE workspace_id = ? AND run_id = ? AND step_id = ?').get(workspaceId, runId, stepId);
     if (!step || step.status !== 'running') throw workflowError('run_cancelled', 'workflow step is no longer running');
+  }
+
+  #appendActivityEvent({ workspaceId, runId, stepId, workerId, signal, type, payload }) {
+    this.#assertActiveStep({ workspaceId, runId, stepId, workerId, signal });
+    return this.#transaction(() => {
+      this.#assertActiveStep({ workspaceId, runId, stepId, workerId, signal });
+      return this.#appendEvent({ workspaceId, runId, type, payload });
+    });
+  }
+
+  #assertEffectCommitAllowed({ workspaceId, runId, stepId, workerId, signal }) {
+    this.#assertActiveStep({ workspaceId, runId, stepId, workerId, signal });
   }
 
   async #commitEffect({ workspaceId, runId, stepId, idempotencyKey, operationFingerprint, execute, workerId, signal }) {

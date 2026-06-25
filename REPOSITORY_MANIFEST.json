@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-25T15:09:26.527Z",
+  "generatedAt": "2026-06-25T15:12:41.503Z",
   "fileCount": 795,
-  "totalBytes": 5791153,
+  "totalBytes": 5793673,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -1065,12 +1065,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "7704f692ea7e0be15d56afda22d702063200d956feff15ce0cc99b39b657f0ca"
+      "sha256": "abf42573f6e0b58e4d8a4e6e0db9e792c88196fd53671e7ef9f3a9d694351cfd"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 1621,
-      "sha256": "5ae02c6271519d39373226b749f229f3b098d0e2af6102a334e7e81c33ce89de"
+      "sha256": "8139ce574db7b05692723d14e9a1456405d6000c4dbc2a1ed01260974ca1ea7b"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1080,7 +1080,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "e2ed66a651147f4a0d0c83cdc74ded00bc33a765c421006319e9902a2f2f5d42"
+      "sha256": "7009715d3bf86d7f1e367da673b0a024582f98e509744bc7157eb61ec97029f7"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -2130,7 +2130,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "53075746c15ab0768711062d352c18e058321fdec8fb18ad09fa0093e07fe125"
+      "sha256": "928f717b4ea1076f326fb515bc7506528a70c8cd8c32fa5d0db306d0eb9baf0b"
     },
     {
       "path": "LICENSE",
@@ -3130,7 +3130,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 45746,
-      "sha256": "f258ab9b1302c79f44c413442a1846daa46eb231ea769b603fb30eaca49c4a59"
+      "sha256": "2e6edf08a7b456f34ccf4a83f273a1e0be03e204cb4e1affba01b1295c77dd49"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3319,8 +3319,8 @@
     },
     {
       "path": "providers/native/workflow-durable-sqlite/src/index.mjs",
-      "bytes": 51664,
-      "sha256": "2cc70c85f224053cbf62f5aa5e4a4da27574e5dfe4d1db0da35440500ae25c5d"
+      "bytes": 52228,
+      "sha256": "2d85afe950f6bcd8e0beaef882db9e5536187fcc71993f3e5752298244720e30"
     },
     {
       "path": "providers/native/workflow-embedded/package.json",
@@ -3894,8 +3894,8 @@
     },
     {
       "path": "tests/workflow-durable-sqlite.test.mjs",
-      "bytes": 15343,
-      "sha256": "e0b8b375680e9c18c81381a56c1fe7019d2d472d208b9e0a96b2f245c9de6ca3"
+      "bytes": 17299,
+      "sha256": "33b1652118d4ccb06c1a9b77922f0167b27b7f2e76bb76af5aa91af08eddaa91"
     },
     {
       "path": "tests/workflow-runtime.test.mjs",

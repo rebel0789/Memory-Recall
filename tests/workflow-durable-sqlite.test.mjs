@@ -368,3 +368,52 @@ test('durable runtime rejects effects attempted after timeout', async (t) => {
   assert.equal((await runtime.get({ workspaceId: 'ws_local', runId: 'run_late_effect' })).status, 'failed');
   runtime.close();
 });
+
+test('durable runtime rejects events attempted after timeout', async (t) => {
+  const directory = await tempDir(t);
+  let lateEventAttempt;
+  const registry = new DurableWorkflowHandlerRegistry();
+  registry.register({
+    id: 'handler:late-event',
+    version: '1.0.0',
+    capabilities: ['deterministic.local'],
+    run: async ({ emitEvent }) => {
+      lateEventAttempt = new Promise((resolve) => {
+        setTimeout(() => {
+          emitEvent('memory.proposed', { recordId: 'mem_late_event' }).then(resolve, resolve);
+        }, 25);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return { ignored: true };
+    }
+  });
+  const definition = {
+    schemaVersion: '1.0.0',
+    id: 'workflow:late-event',
+    version: '1.0.0',
+    name: 'Late event workflow',
+    description: 'Proves timed-out attempts cannot append late events',
+    steps: [{
+      id: 'late',
+      kind: 'activity',
+      handler: { id: 'handler:late-event', version: '1.0.0' },
+      timeoutMs: 5,
+      retry: { maxAttempts: 1 },
+      approval: { required: false },
+      idempotency: { required: false },
+      riskClass: 'read-only',
+      inputSchema: {},
+      outputSchema: {}
+    }]
+  };
+  const runtime = new DurableSQLiteWorkflowRuntime({ dataRoot: directory, registry });
+  await runtime.registerWorkflow(definition);
+  await runtime.start({ workspaceId: 'ws_local', workflowId: definition.id, workflowVersion: definition.version, runId: 'run_late_event', input: {} });
+  await runtime.tick({ workerId: 'worker_late_event' });
+  const lateResult = await lateEventAttempt;
+  assert.equal(lateResult.code, 'step_timeout');
+  const history = await runtime.history({ workspaceId: 'ws_local', runId: 'run_late_event' });
+  assert.equal(history.events.some((event) => event.type === 'memory.proposed'), false);
+  assert.equal((await runtime.get({ workspaceId: 'ws_local', runId: 'run_late_event' })).status, 'failed');
+  runtime.close();
+});
