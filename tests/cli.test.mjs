@@ -335,6 +335,12 @@ test('context receive reads pinned Codex context pack without writes or private 
   assert.equal(staleReport.state,'review');
   assert.equal(staleReport.registry.currentStatus,'stale');
   assert.equal(staleReport.registry.sourceChecks.staleLocators.includes('workspace://src/auth.ts'),true);
+  assert.equal(staleReport.usePlan.exists,false);
+  assert.equal(staleReport.checks.usePlanLoaded,false);
+  assert.equal(staleReport.mcp.resourceUris.includes('oaf://workspace/ws_local/context-pack/use-plan/current'),false);
+  assert.equal(staleReport.mcp.resourceUris.includes('oaf://workspace/ws_local/context-pack/registry/current'),true);
+  assert.equal(staleReport.mcp.usePlanResourceRead,false);
+  assert.equal(staleReport.mcp.registryResourceRead,true);
   assert.equal(staleReceive.stdout.includes('stale receive raw body hidden'),false);
   for(const args of [
     ['apps/cli/oaf.mjs','context','receive','--root',root,'--target','codex','--format','json'],

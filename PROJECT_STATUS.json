@@ -234,6 +234,7 @@
         "Read-only context-pack measurement reports combine current-checkout context-pack build metrics and stdio MCP readback metrics with commit SHA, fingerprints, source-graph coverage counts, byte sizes, zero exposed tools, and explicit no-production-benchmark safeguards",
         "Raw source bodies, prompts, outputs, credentials, provider URLs, private local paths, and hidden reasoning are omitted",
         "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, persisted graph database, graph candidate-source integration, publishing, or external write",
+        "The browser Context Pack page reads existing pinned registry/current status through the authenticated loopback API and withholds the MCP use-plan read command unless the current pinned entry verifies",
         "The only context-pack write paths are explicit CLI outputs under context-packs/*.md, context-packs/*.use.json, context-packs/registry.json, and context-packs/current.json"
       ]
     },

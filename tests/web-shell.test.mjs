@@ -14,6 +14,7 @@ import {
   buildFirstUseReadinessModel,
   buildHarnessSetupUiModel,
   buildMemoryReviewModel,
+  buildPinnedHandoffStatusModel,
   classifyDashboardState,
   contextDecisionView,
   copyCommand,
@@ -94,6 +95,10 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/name="changedLocator" value="apps\/web\/app\.js"/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
+  assert.match(app,/Pinned handoff status/);
+  assert.match(app,/Check pinned handoff/);
+  assert.match(app,/\/api\/context\/pack\/registry\/status\?workspaceId=/);
+  assert.match(app,/This panel reads the local registry status only/);
   assert.match(app,/Handoff operator brief/);
   assert.match(app,/Use this pack/);
   assert.match(app,/Changed files, reads, and proof commands are ready/);
@@ -339,6 +344,48 @@ test('context pack command copy copies the adjacent command text',async()=>{
   } finally {
     for(const restore of restores.reverse())restore();
   }
+});
+
+test('pinned handoff status model gates receive commands by registry verification',()=>{
+  const verifiedReport={
+    registry:{exists:true,fingerprintStatus:'verified',entryCount:1},
+    currentPointer:{exists:true,fingerprintStatus:'verified'},
+    current:{entryId:'ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa',status:'verified'},
+    entries:[{
+      id:'ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa',
+      targetHarness:'codex',
+      contextPack:{fingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'},
+      usePlan:{fingerprint:'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'},
+      sourceChecks:{total:2,verified:2,stale:0,unavailable:0,verifiedLocators:['workspace://AGENTS.md'],staleLocators:[],unavailableLocators:[]},
+      artifactChecks:[{role:'agent-handoff',status:'verified'},{role:'use-plan',status:'verified'}]
+    }]
+  };
+  const ready=buildPinnedHandoffStatusModel(verifiedReport);
+  assert.equal(ready.state,'ready');
+  assert.equal(ready.statusLabel,'verified');
+  assert.equal(ready.commands.some((item)=>item.label==='Receive pinned pack'),true);
+  assert.equal(ready.commands.some((item)=>item.label==='Read pinned use plan'),true);
+  assert.equal(ready.facts.some(([key,value])=>key==='Use plan'&&value==='available'),true);
+
+  const staleReport={
+    ...verifiedReport,
+    current:{entryId:'ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa',status:'stale'},
+    entries:[{
+      ...verifiedReport.entries[0],
+      sourceChecks:{total:2,verified:1,stale:1,unavailable:0,verifiedLocators:['workspace://AGENTS.md'],staleLocators:['workspace://apps/web/app.js'],unavailableLocators:[]}
+    }]
+  };
+  const stale=buildPinnedHandoffStatusModel(staleReport);
+  assert.equal(stale.state,'review');
+  assert.equal(stale.statusLabel,'stale');
+  assert.equal(stale.commands.some((item)=>item.label==='Receive pinned pack'),true);
+  assert.equal(stale.commands.some((item)=>item.label==='Read pinned use plan'),false);
+  assert.equal(stale.facts.some(([key,value])=>key==='Use plan'&&value==='withheld'),true);
+
+  const missing=buildPinnedHandoffStatusModel({registry:{exists:false},currentPointer:{exists:false},current:{entryId:null,status:'missing'},entries:[]});
+  assert.equal(missing.state,'none');
+  assert.equal(missing.statusLabel,'not pinned');
+  assert.equal(missing.commands.some((item)=>item.label==='Read pinned use plan'),false);
 });
 
 test('clipboard fallback rejects when browser copy fails',async()=>{

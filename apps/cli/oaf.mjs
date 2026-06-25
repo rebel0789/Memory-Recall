@@ -1243,7 +1243,13 @@ async function buildContextReceiveReport(values) {
     checks.setupDryRun,
     checks.setupUsesSilentNpm
   ];
-  const state = registryBlocking || !usePlan ? 'blocked' : (readyChecks.every(Boolean) ? 'ready' : 'review');
+  const state = registryBlocking
+    ? 'blocked'
+    : currentStatus !== 'verified'
+      ? 'review'
+      : !usePlan
+        ? 'blocked'
+        : (readyChecks.every(Boolean) ? 'ready' : 'review');
   const requiredLocalReads = (usePlan?.requiredLocalReads ?? []).slice(0, 12).map((item) => ({
     locator: item.locator,
     role: item.role,

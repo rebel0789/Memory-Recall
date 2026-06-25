@@ -86,6 +86,13 @@ current handoff status without installing anything. This is a dry-run locator
 handoff with read-only MCP proof; it does not import harness history, create
 active memory, write harness config, or enable external adapters.
 
+If the repository already has an explicitly pinned CLI handoff, the Context Pack
+page also shows **Pinned handoff status** by reading
+`context-packs/registry.json` and `context-packs/current.json` through the
+loopback API. Verified pins expose a read-only receive command and MCP use-plan
+read command; stale or review pins withhold the use-plan resource until the
+registry verifies again.
+
 For a pinned local pack that another harness can consume without retyping the
 objective, write and pin first, then receive the pinned artifact:
 

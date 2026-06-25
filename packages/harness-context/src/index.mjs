@@ -2436,9 +2436,18 @@ export async function verifyContextPackRegistry({
   const registryFingerprintStatus = registry
     ? (registry.registryFingerprint === registryFingerprint(registry) ? 'verified' : 'tampered')
     : 'missing';
-  const pointerFingerprintStatus = currentPointer
+  const pointerSelfFingerprintStatus = currentPointer
     ? (currentPointer.pointerFingerprint === currentPointerFingerprint(currentPointer) ? 'verified' : 'tampered')
     : 'missing';
+  const pointerRegistryFingerprintStatus = currentPointer
+    ? (registry && currentPointer.registryFingerprint === registry.registryFingerprint ? 'verified' : 'tampered')
+    : 'missing';
+  const pointerFingerprintStatus = currentPointer
+    ? (pointerSelfFingerprintStatus === 'verified' && pointerRegistryFingerprintStatus === 'verified' ? 'verified' : 'tampered')
+    : 'missing';
+  if (pointerSelfFingerprintStatus === 'verified' && pointerRegistryFingerprintStatus === 'tampered') {
+    warnings.push('context_pack_current_pointer_registry_mismatch');
+  }
   const entries = [];
   for (const entry of registry?.entries ?? []) entries.push(await verifyRegistryEntry(rootReal, entry));
   const currentEntryId = currentPointer?.entryId ?? registry?.currentEntryId ?? null;
@@ -2498,7 +2507,7 @@ export async function loadCurrentContextPackUsePlan({
   const status = await verifyContextPackRegistry({ root, workspaceId, currentPath, clock });
   if (!status.registry.exists || status.registry.fingerprintStatus !== 'verified') return null;
   if (!status.currentPointer.exists || status.currentPointer.fingerprintStatus !== 'verified') return null;
-  if (status.current.status === 'tampered' || status.current.status === 'missing') return null;
+  if (status.current.status !== 'verified') return null;
   const rootReal = await realpath(root);
   const pointer = JSON.parse((await readRegistryWorkspaceFile(rootReal, currentPath)).text);
   const relativePath = registryRelativePath(pointer.usePlanLocator);

@@ -70,6 +70,12 @@ config, network, model, adapter, or external-write side effects. The browser
 path does not write files on the server; use the explicit CLI write mode below
 when you want a checked workspace file.
 
+The page also reads existing pinned handoff status through
+`GET /api/context/pack/registry/status?workspaceId=ws_local`. This status card
+is read-only: it shows whether the local registry/current pointer is verified,
+stale, tampered, or missing, and it only offers the MCP use-plan read command
+when the current pinned entry verifies.
+
 The result starts with a **Use this pack** brief before the raw Markdown:
 changed-file coverage, affected symbols, required local reads, hash proof,
 graph hints, source selection reduction, and the exact read-only commands to

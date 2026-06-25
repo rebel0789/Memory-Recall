@@ -256,6 +256,18 @@ test('context pack registry verifies pinned artifacts without exposing private c
   ]) {
     assert.equal(serialized.includes(forbidden), false, forbidden);
   }
+
+  const newerRegistry = buildContextPackRegistry({
+    entry: registryEntry,
+    workspaceId: 'ws_local',
+    updatedAt: '2026-06-23T12:01:00.000Z'
+  });
+  await writeFile(path.join(root, 'context-packs', 'registry.json'), JSON.stringify(newerRegistry, null, 2));
+  const mismatched = await verifyContextPackRegistry({ root, workspaceId: 'ws_local', clock: fixedClock });
+  assert.equal(mismatched.registry.fingerprintStatus, 'verified');
+  assert.equal(mismatched.currentPointer.fingerprintStatus, 'tampered');
+  assert.equal(mismatched.current.status, 'tampered');
+  assert.equal(mismatched.warnings.includes('context_pack_current_pointer_registry_mismatch'), true);
 });
 
 test('context pack keeps missing changed locators in review with unavailable hash proof', async () => {

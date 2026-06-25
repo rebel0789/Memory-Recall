@@ -26,6 +26,8 @@ let shellState={kind:'loading',message:'Loading local workspace state.'};
 let activeRunDetail=null;
 let contextPackResult=null;
 let contextPackError=null;
+let pinnedHandoffStatus=null;
+let pinnedHandoffError=null;
 let contextSourcePreviewResult=null;
 let contextSourcePreviewError=null;
 let sourceGraphResult=null;
@@ -652,6 +654,7 @@ async function load() {
   render();
   try {
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
+    await loadPinnedHandoffStatus();
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
     dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
@@ -659,6 +662,16 @@ async function load() {
   } finally {
     render();
     root.setAttribute('aria-busy','false');
+  }
+}
+
+async function loadPinnedHandoffStatus() {
+  try {
+    pinnedHandoffStatus = await api(`/api/context/pack/registry/status?workspaceId=${encodeURIComponent(workspaceId())}`);
+    pinnedHandoffError = null;
+  } catch (error) {
+    pinnedHandoffStatus = null;
+    pinnedHandoffError = error.message;
   }
 }
 
@@ -683,6 +696,7 @@ function render() {
   root.querySelector('#context-pack-form')?.addEventListener('submit',submitContextPack);
   root.querySelectorAll('[data-action=preview-context-sources]').forEach(button=>button.addEventListener('click',previewContextSources));
   root.querySelectorAll('[data-action=detect-git-changes]').forEach(button=>button.addEventListener('click',detectContextPackGitChanges));
+  root.querySelectorAll('[data-action=refresh-pinned-handoff]').forEach(button=>button.addEventListener('click',refreshPinnedHandoff));
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
   root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
@@ -718,6 +732,82 @@ function currentHandoffStatus() {
   const setupClient=contextPackResult?.pack ? contextPackSetupClient(contextPackResult.pack) : null;
   const setupResult=setupClient && harnessSetupResult?.client === setupClient ? harnessSetupResult : null;
   return buildCurrentHandoffStatusModel({contextPackResult,setupResult});
+}
+
+export function buildPinnedHandoffStatusModel(report=null,error=null) {
+  if(error){
+    return {
+      state:'blocked',
+      statusLabel:'error',
+      title:'Pinned handoff unavailable',
+      copy:String(error),
+      currentEntryId:null,
+      contextPackFingerprint:'unavailable',
+      usePlanFingerprint:'unavailable',
+      sourceChecks:null,
+      commands:pinnedHandoffCommands('codex',false),
+      facts:[['Registry','error'],['Current pointer','error'],['Use plan','not loaded']]
+    };
+  }
+  const registryExists=report?.registry?.exists === true;
+  const pointerExists=report?.currentPointer?.exists === true;
+  const currentStatus=String(report?.current?.status ?? 'missing');
+  const currentEntryId=report?.current?.entryId ?? null;
+  const currentEntry=(report?.entries ?? []).find((entry)=>entry.id===currentEntryId) ?? null;
+  const targetHarness=String(currentEntry?.targetHarness ?? 'codex');
+  const verified=currentStatus === 'verified' && registryExists && pointerExists;
+  const review=(currentStatus === 'stale' || currentStatus === 'review') && registryExists && pointerExists;
+  const blocked=currentStatus === 'tampered' || (!registryExists && pointerExists) || (registryExists && !pointerExists);
+  const state=verified ? 'ready' : review ? 'review' : blocked ? 'blocked' : 'none';
+  const sourceChecks=currentEntry?.sourceChecks ?? null;
+  const staleCount=Number(sourceChecks?.stale ?? 0);
+  const unavailableCount=Number(sourceChecks?.unavailable ?? 0);
+  const artifactProblem=(currentEntry?.artifactChecks ?? []).filter((item)=>item.status!=='verified').length;
+  const title=state === 'ready'
+    ? 'Pinned handoff ready'
+    : state === 'review'
+      ? 'Pinned handoff needs review'
+      : state === 'blocked'
+        ? 'Pinned handoff blocked'
+        : 'No pinned handoff yet';
+  const copy=state === 'ready'
+    ? 'A CLI-pinned context pack is verified and ready for read-only receive.'
+    : state === 'review'
+      ? 'The pinned pack still exists, but changed or unavailable source hashes require review before the use-plan resource is served.'
+      : state === 'blocked'
+        ? 'The pinned registry, pointer, or artifacts failed verification. Re-pin before handing this to another agent.'
+        : 'Use the CLI Pin locally command to write context-packs artifacts, then check again.';
+  return {
+    state,
+    statusLabel:state === 'none' ? 'not pinned' : currentStatus,
+    title,
+    copy,
+    currentEntryId,
+    contextPackFingerprint:currentEntry?.contextPack?.fingerprint ? shortFingerprint(currentEntry.contextPack.fingerprint) : 'unavailable',
+    usePlanFingerprint:currentEntry?.usePlan?.fingerprint ? shortFingerprint(currentEntry.usePlan.fingerprint) : 'unavailable',
+    sourceChecks,
+    commands:pinnedHandoffCommands(targetHarness,verified),
+    facts:[
+      ['Registry', registryExists ? report.registry.fingerprintStatus : 'missing'],
+      ['Current pointer', pointerExists ? report.currentPointer.fingerprintStatus : 'missing'],
+      ['Use plan', verified ? 'available' : 'withheld'],
+      ['Stale sources', String(staleCount)],
+      ['Unavailable hashes', String(unavailableCount)],
+      ['Artifact issues', String(artifactProblem)]
+    ]
+  };
+}
+
+function pinnedHandoffCommands(targetHarness='codex',includeUsePlan=false) {
+  const commands=[
+    {label:'Receive pinned pack',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`},
+    {label:'Check registry',command:'npm run oaf -- context registry status --read-only --format json'},
+    {label:'Read registry',command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'}
+  ];
+  if(includeUsePlan){
+    commands.splice(2,0,{label:'Read pinned use plan',command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'});
+  }
+  return commands;
 }
 
 function renderRoute(route) {
@@ -833,7 +923,12 @@ function renderContextPack() {
   const markdown=contextPackResult?.markdown ?? '';
   const errorPanel=contextPackError?statePanel('error','Context pack failed',contextPackError,false):'';
   const sourcePreviewPanel=contextSourcePreviewError?statePanel('error','Source preview failed',contextSourcePreviewError,false):contextSourcePreviewResult?renderContextSourcePreview(contextSourcePreviewResult):'';
-  return `<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Choose sources</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs">apps/web/app.js</textarea></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, and reviewed changed-file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy, download, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+  return `${renderPinnedHandoffPanel(pinnedHandoffStatus,pinnedHandoffError)}<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Choose sources</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;docs/context.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs">apps/web/app.js</textarea></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, and reviewed changed-file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy, download, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+}
+
+function renderPinnedHandoffPanel(report,error=null) {
+  const model=buildPinnedHandoffStatusModel(report,error);
+  return `<section class="work-grid pinned-handoff" aria-label="Pinned handoff status"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.title)}</h2>${statusChip(model.state,model.statusLabel,'Pinned handoff status')}</div><p>${esc(model.copy)}</p><dl class="facts facts-wide"><div><dt>Entry</dt><dd>${esc(model.currentEntryId ?? 'none')}</dd></div><div><dt>Context pack</dt><dd>${esc(model.contextPackFingerprint)}</dd></div><div><dt>Use plan</dt><dd>${esc(model.usePlanFingerprint)}</dd></div>${model.facts.map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><div class="action-row"><button class="button secondary" data-action="refresh-pinned-handoff" type="button">Check pinned handoff</button></div></div><aside class="inspector"><div class="section-heading"><h2>Receive boundary</h2><span>read-only</span></div><p class="muted">This panel reads the local registry status only. It does not create memory, write harness config, call models, use network access, or enable adapters.</p>${contextPackCommandList(model.commands)}</aside></section>`;
 }
 
 function renderContextPackResult(pack,markdown) {
@@ -1789,6 +1884,28 @@ async function detectContextPackGitChanges(event){
   }finally{
     button.disabled=false;
     button.textContent='Detect git changes';
+  }
+}
+
+async function refreshPinnedHandoff(event) {
+  const button=event.currentTarget;
+  const previous=button.textContent;
+  button.disabled=true;
+  button.textContent='Checking...';
+  document.querySelector('#live-status').textContent='Checking pinned local handoff.';
+  try {
+    await loadPinnedHandoffStatus();
+    document.querySelector('#live-status').textContent='Pinned handoff status checked.';
+    render();
+  } catch (error) {
+    pinnedHandoffError=error.message;
+    document.querySelector('#live-status').textContent=error.message;
+    render();
+  } finally {
+    if(button.isConnected){
+      button.disabled=false;
+      button.textContent=previous;
+    }
   }
 }
 

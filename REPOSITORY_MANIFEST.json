@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-24T21:39:22.069Z",
+  "generatedAt": "2026-06-25T06:13:08.378Z",
   "fileCount": 807,
-  "totalBytes": 3952032,
+  "totalBytes": 3963842,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -572,8 +572,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 80306,
-      "sha256": "1f5ec1c8eecb8ed1f3012ed658312c1d7792fccc9c73a42bbe1843d9c95d242f"
+      "bytes": 80395,
+      "sha256": "9a937a3e6978416e29a53d9477a499ee58ba35b26e7bad49812252e7a6321c73"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -582,8 +582,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 149239,
-      "sha256": "367ed927eec80d39170dd16ba946afeec3dbfd16bd058836e4707e806c2fbfc7"
+      "bytes": 155708,
+      "sha256": "d16b8658b55685b6d601b3d45fb0c11f8a8ae957ffdcc45fabafb448546c4727"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -1153,7 +1153,7 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "47d6f4a39c489ebd9e27651768ef33ceb30b9227e27b06fa11d2405eee66218c"
+      "sha256": "797a7882ff4ed4ac4eb1db5e21f356e4145fdaa19b0e50af480acf31e3e3c0f9"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -2208,7 +2208,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "e9b435145104eaaf90764d809f125b8b70bceb036836ceb4b667f25475de8f83"
+      "sha256": "326a294061843b0be81e722ae28f405cdc923e980374b20be0a819ad6ef04306"
     },
     {
       "path": "LICENSE",
@@ -2217,8 +2217,8 @@
     },
     {
       "path": "LOCAL_DEVELOPMENT.md",
-      "bytes": 11750,
-      "sha256": "4a7ed7c50d3d9899aab627d1056202d018a42596f67dd1405bdd51c975928533"
+      "bytes": 12086,
+      "sha256": "d4f17406c340052ed31ac3e23637bdfa9d4d939cb36bc2c31f31a8fed92270c0"
     },
     {
       "path": "MAINTAINERS.md",
@@ -2332,8 +2332,8 @@
     },
     {
       "path": "packages/harness-context/src/index.mjs",
-      "bytes": 117561,
-      "sha256": "3cbdb15d33aacf5d67e487de6137d3018d43f977dcedd9fdf72763bc5d6ac5d9"
+      "bytes": 118088,
+      "sha256": "a2bbec4d252656738f6c844b8a58abe48876b6973c9c8e84f5c38ea0c91e3c61"
     },
     {
       "path": "packages/memory-core/package.json",
@@ -3202,8 +3202,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 44169,
-      "sha256": "ae3b840e4c439489fd7a34110ce8bfcbe7decae85fc7d3852657fddc637b013b"
+      "bytes": 44380,
+      "sha256": "09fe179059b1a6fa2ec5a0c472367857c42b48d6f49da301fc7ca884a30cc116"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3412,8 +3412,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 12715,
-      "sha256": "939b804a68036173b4c37eb5714f7efff7bb42778862875b75d7b6ee2676eee3"
+      "bytes": 13106,
+      "sha256": "89cd3bf6c14232498aac35f9002637ff1641964b587d372d1e68716d7ea6cda5"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3707,8 +3707,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 85833,
-      "sha256": "4c032cc65a259624836e72853bf93a2f4bf60414d6c285d430586d4d6c17c0b7"
+      "bytes": 86294,
+      "sha256": "a78daeb2e05a8b7db314683be215bd14652aa8962ceff422329771239866a080"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -3787,8 +3787,8 @@
     },
     {
       "path": "tests/harness-context-pack.test.mjs",
-      "bytes": 32609,
-      "sha256": "b7db520b3733d50788f949f0b73c950bbe6e66b5e401994ad4d3d2eb21fbb036"
+      "bytes": 33279,
+      "sha256": "ac802674c2230d6db850c1e18a0a5d4dbbc9e764b1e4d67117790010fbdfd9d1"
     },
     {
       "path": "tests/harness-context-preview.test.mjs",
@@ -3942,8 +3942,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 41579,
-      "sha256": "b29102af6c8439395873a8ec75e09cedb44a8b94c162dae7ecb899878464aa6d"
+      "bytes": 44235,
+      "sha256": "2a84cd49f2933571d9546c7fc4a4103b5cbbfab016bb9ddbbe609b16d9ce7114"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",
