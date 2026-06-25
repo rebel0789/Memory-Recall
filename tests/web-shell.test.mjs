@@ -86,14 +86,18 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/name="sourceFamilies"/);
   assert.match(app,/name="memorySourceFiles"/);
   assert.match(app,/Memory preflight sources \(optional\)/);
-  assert.match(app,/The browser keeps paths only and can copy or download/);
+  assert.match(app,/The browser keeps paths as config and can run read-only local preflight after the pack is built/);
   assert.match(app,/data-action="copy-memory-config"/);
   assert.match(app,/data-action="download-memory-config"/);
+  assert.match(app,/data-action="run-memory-preflight"/);
+  assert.match(app,/async function runContextPackMemoryPreflight/);
+  assert.match(app,/api\('\/api\/context\/pack\/memory-preflight'/);
   assert.match(app,/function contextPackMemoryConfigPanel/);
   assert.match(app,/async function copyContextPackMemoryConfig/);
   assert.match(app,/function downloadContextPackMemoryConfig/);
   assert.match(app,/oaf\.memory\.json/);
   assert.match(app,/Memory preflight/);
+  assert.match(app,/Preflight ran locally in dry-run mode/);
   assert.match(app,/\['codex','Codex'\]/);
   assert.match(app,/\['claude-code','Claude Code'\]/);
   assert.match(app,/\['cursor','Cursor'\]/);
@@ -148,7 +152,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Readback proof/);
   assert.match(app,/MCP summary read/);
   assert.match(app,/mcp resources --read-only --uri oaf:\/\/workspace\/ws_local\/handoff\/latest/);
-  const submitContextPackSource=app.slice(app.indexOf('async function submitContextPack'),app.indexOf('async function previewContextSources'));
+  const submitContextPackSource=app.slice(app.indexOf('async function submitContextPack'),app.indexOf('async function runContextPackMemoryPreflight'));
   assert.match(submitContextPackSource,/contextPackMemoryConfig=buildMemoryWorkspaceConfig\(data\.get\('memorySourceFiles'\)\)/);
   assert.match(submitContextPackSource,/api\('\/api\/context\/pack'/);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memoryConfig/s);

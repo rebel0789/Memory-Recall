@@ -16,6 +16,7 @@ import {
   buildContextPackUsePlan,
   buildHarnessContextPreview,
   buildHarnessSetupReport,
+  buildMemoryProposalPreflightFromFile,
   detectGitChangedLocators,
   loadCurrentContextPackUsePlan,
   renderContextPackMarkdown,
@@ -1310,43 +1311,11 @@ async function buildMemoryProposalPreflight(values, { root, workspaceId, generat
       safeguards: memoryPreflightSafeguards()
     };
   }
-  const relativeConfigPath = safeWorkspaceRelativePath(configuredPath, 'memory config');
-  const config = normalizeMemoryPathsConfig(await loadWorkspaceJson(root, relativeConfigPath, null));
-  const records = [];
-  for (const entry of config.memoryPaths) {
-    const source = await readWorkspaceMemoryPath(root, entry.path);
-    const { text, locator } = source;
-    records.push(evaluateMemoryWrite({
-      id: deterministicMemoryId(locator, text),
-      workspaceId,
-      kind: entry.kind,
-      text,
-      source: locator,
-      sourceTrust: entry.sourceTrust,
-      dataClass: entry.dataClass,
-      metadata: {
-        sourceLocator: locator,
-        sourceHash: `sha256:${createHash('sha256').update(text).digest('hex')}`,
-        sourceRole: entry.sourceRole,
-        sourceLineCount: source.lineCount,
-        sourceByteSize: source.byteSize,
-        sourceUpdatedAt: source.updatedAt,
-        proposalSource: 'memoryPaths'
-      },
-      now: generatedAt
-    }));
-  }
-  const report = buildMemoryProposalsReport({
-    records,
+  return buildMemoryProposalPreflightFromFile({
+    root,
     workspaceId,
-    generatedAt,
-    targetDirectory: 'memory/proposals',
-    dryRun: true,
-    localFilesWritten: 0
-  });
-  return summarizeMemoryProposalReport(report, {
-    configRef: `workspace://${relativeConfigPath}`,
-    command: memoryProposalCommand(relativeConfigPath)
+    configPath: configuredPath,
+    generatedAt
   });
 }
 

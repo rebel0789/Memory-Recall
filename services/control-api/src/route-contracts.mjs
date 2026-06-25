@@ -168,6 +168,7 @@ export function createApiRouteContracts(limits = {}) {
     startRun: Math.min(limits.bodyBytes ?? 1_000_000, 32 * 1024),
     compileContext: Math.min(limits.bodyBytes ?? 1_000_000, 256 * 1024),
     buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    preflightContextPackMemory: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     previewContextSources: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     detectGitChanges: Math.min(limits.bodyBytes ?? 1_000_000, 1024),
     previewContextGraph: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
@@ -319,6 +320,105 @@ export function createApiRouteContracts(limits = {}) {
       },
       userSelectedFiles: { type: 'array', maxItems: 16, uniqueItems: true, items: boundedString(240) },
       tokenBudget: { type: 'integer', minimum: 1, maximum: 100000 }
+    }
+  };
+  const memoryPathInput = {
+    type: 'string',
+    minLength: 1,
+    maxLength: 512,
+    pattern: "^(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+  };
+  const memoryPathEntry = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['path'],
+    properties: {
+      path: memoryPathInput,
+      kind: { enum: ['fact', 'decision', 'preference', 'procedure', 'episode'] },
+      sourceTrust: { enum: ['verified', 'unverified', 'external'] },
+      dataClass: { enum: ['public', 'workspace-private', 'sensitive'] },
+      sourceRole: boundedString(64)
+    }
+  };
+  const contextPackMemoryPreflightRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId', 'memoryConfig'],
+    properties: {
+      workspaceId,
+      memoryConfig: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['schemaVersion', 'memoryPaths'],
+        properties: {
+          schemaVersion: { const: '1.0.0' },
+          memoryPaths: { type: 'array', minItems: 1, maxItems: 32, items: memoryPathEntry }
+        }
+      }
+    }
+  };
+  const memoryProposalPreflightResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['state', 'configured', 'configRef', 'command', 'dryRun', 'summary', 'diagnostics', 'reportFingerprint', 'safeguards'],
+    properties: {
+      state: { enum: ['ready', 'review'] },
+      configured: { const: true },
+      configRef: { type: 'string', pattern: '^workspace://[A-Za-z0-9._~!$&\'()*+,;=:@%/-]{1,512}$', maxLength: 540 },
+      command: {
+        type: 'string',
+        pattern: "^(?![\\s\\S]*(?:/Users|/private|/var/folders|OPENAI_API_KEY|authorization|cookie|secret=|token=|api[_-]?key=|curl|https?://))[\\s\\S]*memory proposals --from memoryPaths[\\s\\S]*--dry-run[\\s\\S]*$",
+        maxLength: 1000
+      },
+      dryRun: { const: true },
+      summary: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['proposalCount', 'quarantinedCount', 'skippedCount', 'reviewItemCount'],
+        properties: {
+          proposalCount: { type: 'integer', minimum: 0, maximum: 128 },
+          quarantinedCount: { type: 'integer', minimum: 0, maximum: 128 },
+          skippedCount: { type: 'integer', minimum: 0, maximum: 128 },
+          reviewItemCount: { type: 'integer', minimum: 0, maximum: 256 }
+        }
+      },
+      diagnostics: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['sourceCount', 'memoryIndexCount', 'staleSourceCount', 'indexCliffRiskCount', 'warningCodes'],
+        properties: {
+          sourceCount: { type: 'integer', minimum: 0, maximum: 32 },
+          memoryIndexCount: { type: 'integer', minimum: 0, maximum: 128 },
+          staleSourceCount: { type: 'integer', minimum: 0, maximum: 128 },
+          indexCliffRiskCount: { type: 'integer', minimum: 0, maximum: 128 },
+          warningCodes: { type: 'array', maxItems: 32, uniqueItems: true, items: boundedString(80) }
+        }
+      },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+      safeguards: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['dryRun', 'canonicalStateMutated', 'localFilesWritten', 'externalWritesEnabled', 'externalAdaptersEnabled', 'networkCalls', 'modelCalls', 'activeMemoryCreated', 'sourceSnapshotsWritten', 'rawSourceBodiesIncluded', 'proposalTextIncluded', 'proposalMarkdownIncluded', 'sourceContentIncluded', 'credentialsIncluded', 'providerUrlsIncluded', 'hiddenReasoningIncluded', 'absoluteFilesystemLocationsIncluded'],
+        properties: {
+          dryRun: { const: true },
+          canonicalStateMutated: { const: false },
+          localFilesWritten: { const: 0 },
+          externalWritesEnabled: { const: false },
+          externalAdaptersEnabled: { const: 0 },
+          networkCalls: { const: 0 },
+          modelCalls: { const: 0 },
+          activeMemoryCreated: { const: 0 },
+          sourceSnapshotsWritten: { const: 0 },
+          rawSourceBodiesIncluded: { const: false },
+          proposalTextIncluded: { const: false },
+          proposalMarkdownIncluded: { const: false },
+          sourceContentIncluded: { const: false },
+          credentialsIncluded: { const: false },
+          providerUrlsIncluded: { const: false },
+          hiddenReasoningIncluded: { const: false },
+          absoluteFilesystemLocationsIncluded: { const: false }
+        }
+      }
     }
   };
   const contextPackDelivery = {
@@ -1113,6 +1213,22 @@ export function createApiRouteContracts(limits = {}) {
       bodyRequired: false,
       streams: false,
       responses: { 200: contextPackRegistryStatusSchema }
+    },
+    {
+      method: 'POST',
+      path: '/api/context/pack/memory-preflight',
+      operationId: 'preflightContextPackMemory',
+      security: { authenticated: true, action: 'context.compile', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: contextPackMemoryPreflightRequest,
+      maxBodyBytes: routeBodyBytes.preflightContextPackMemory,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: memoryProposalPreflightResponse }
     },
     {
       method: 'POST',

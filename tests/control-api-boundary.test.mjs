@@ -200,11 +200,13 @@ test('context pack route is protected and does not mutate run state', async (t) 
   const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-context-pack-'));
   t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
   await mkdir(path.join(sourceGraphRoot, '.cursor', 'rules'), { recursive: true });
+  await mkdir(path.join(sourceGraphRoot, 'notes'), { recursive: true });
   await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
   await writeFile(path.join(sourceGraphRoot, 'AGENTS.md'), 'API RAW AGENTS BODY should never be returned.');
   await writeFile(path.join(sourceGraphRoot, 'CONTEXT.md'), 'API RAW SELECTED BODY should never be returned.');
   await writeFile(path.join(sourceGraphRoot, 'CLAUDE.md'), 'API RAW CLAUDE BODY should never be returned.');
   await writeFile(path.join(sourceGraphRoot, '.cursor', 'rules', 'fabric.mdc'), 'API RAW CURSOR BODY should never be returned.');
+  await writeFile(path.join(sourceGraphRoot, 'notes', 'memory.md'), 'API RAW MEMORY BODY should never be returned. Prefer local-only context handoffs.');
   await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const webBoundary = true;\n');
   const api = await startServer(t, { sourceGraphRoot });
   const denied = await request(api.base, '/api/context/pack', {
@@ -231,6 +233,17 @@ test('context pack route is protected and does not mutate run state', async (t) 
   });
   assert.equal(deniedPreview.status, 401);
   assert.equal(deniedPreview.body.error.code, 'authentication_required');
+
+  const deniedMemoryPreflight = await request(api.base, '/api/context/pack/memory-preflight', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      memoryConfig: { schemaVersion: '1.0.0', memoryPaths: [{ path: 'notes/memory.md' }] }
+    })
+  });
+  assert.equal(deniedMemoryPreflight.status, 401);
+  assert.equal(deniedMemoryPreflight.body.error.code, 'authentication_required');
 
   const sourcePreview = await request(api.base, '/api/context/source-preview', {
     method: 'POST',
@@ -351,6 +364,47 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(response.body.readback.safeguards.networkCalls, 0);
   assert.equal(response.body.readback.safeguards.localFilesWritten, 0);
   assert(response.body.readback.measurements.resourceByteSize > 0);
+
+  const memoryPreflight = await request(api.base, '/api/context/pack/memory-preflight', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      memoryConfig: {
+        schemaVersion: '1.0.0',
+        memoryPaths: [{ path: 'notes/memory.md', kind: 'preference', sourceTrust: 'unverified', dataClass: 'workspace-private' }]
+      }
+    })
+  });
+  assert.equal(memoryPreflight.status, 200, memoryPreflight.text);
+  assert.equal(memoryPreflight.body.configured, true);
+  assert.equal(memoryPreflight.body.state, 'review');
+  assert.equal(memoryPreflight.body.summary.proposalCount, 1);
+  assert.equal(memoryPreflight.body.summary.reviewItemCount, 1);
+  assert.equal(memoryPreflight.body.safeguards.localFilesWritten, 0);
+  assert.equal(memoryPreflight.body.safeguards.externalWritesEnabled, false);
+  assert.equal(memoryPreflight.body.safeguards.externalAdaptersEnabled, 0);
+  assert.equal(memoryPreflight.body.safeguards.networkCalls, 0);
+  assert.equal(memoryPreflight.body.safeguards.modelCalls, 0);
+  assert.equal(memoryPreflight.body.safeguards.activeMemoryCreated, 0);
+  assert.match(memoryPreflight.body.reportFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.match(memoryPreflight.body.command, /memory proposals --from memoryPaths/);
+  assert.equal(memoryPreflight.text.includes('API RAW MEMORY BODY'), false);
+  assert.equal(memoryPreflight.text.includes('local-only context handoffs'), false);
+  assert.equal(memoryPreflight.text.includes('/Users/'), false);
+  assert.equal(memoryPreflight.text.includes('notes/memory.md'), false);
+
+  const invalidMemoryPreflight = await request(api.base, '/api/context/pack/memory-preflight', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      memoryConfig: { schemaVersion: '1.0.0', memoryPaths: [{ path: '../private.md' }] }
+    })
+  });
+  assert.equal(invalidMemoryPreflight.status, 400);
+  assert.equal(invalidMemoryPreflight.body.error.code, 'request_validation_failed');
+
   assert.equal(response.text.includes('API RAW AGENTS BODY'), false);
   assert.equal(response.text.includes('API RAW SELECTED BODY'), false);
   assert.equal(response.text.includes('API RAW CLAUDE BODY'), false);
@@ -735,7 +789,9 @@ test('context pack and graph preview authorize context resources', async (t) => 
   const harnessSetupHome = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-context-policy-home-'));
   t.after(async () => rm(harnessSetupHome, { recursive: true, force: true }));
   await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await mkdir(path.join(sourceGraphRoot, 'notes'), { recursive: true });
   await writeFile(path.join(sourceGraphRoot, 'src', 'index.ts'), 'export function buildContextPackPolicyFixture(){ return true; }\n');
+  await writeFile(path.join(sourceGraphRoot, 'notes', 'memory.md'), 'Remember to keep context packs local-only.');
   const policyRequests = [];
   const policyService = {
     async evaluate(request) {
@@ -770,6 +826,16 @@ test('context pack and graph preview authorize context resources', async (t) => 
   });
   assert.equal(registryStatus.status, 200, registryStatus.text);
 
+  const memoryPreflight = await request(api.base, '/api/context/pack/memory-preflight', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      memoryConfig: { schemaVersion: '1.0.0', memoryPaths: [{ path: 'notes/memory.md' }] }
+    })
+  });
+  assert.equal(memoryPreflight.status, 200, memoryPreflight.text);
+
   const gitChanges = await request(api.base, '/api/context/git-changes', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
@@ -800,11 +866,12 @@ test('context pack and graph preview authorize context resources', async (t) => 
 
   assert.deepEqual(
     policyRequests
-      .filter((item) => ['buildContextPack', 'getContextPackRegistryStatus', 'previewContextSources', 'detectGitChanges', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
+      .filter((item) => ['buildContextPack', 'getContextPackRegistryStatus', 'preflightContextPackMemory', 'previewContextSources', 'detectGitChanges', 'previewContextGraph', 'planHarnessSetup'].includes(item.operationId))
       .map((item) => [item.operationId, item.action, item.resource.type]),
     [
       ['buildContextPack', 'context.compile', 'context'],
       ['getContextPackRegistryStatus', 'context.compile', 'context'],
+      ['preflightContextPackMemory', 'context.compile', 'context'],
       ['detectGitChanges', 'context.compile', 'context'],
       ['previewContextGraph', 'context.compile', 'context'],
       ['previewContextSources', 'context.compile', 'context'],

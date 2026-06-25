@@ -19,6 +19,11 @@ import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-pl
 import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import harnessContextSourceSchema from '../../protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
 import {
+  buildMemoryProposalsReport,
+  evaluateMemoryWrite,
+  normalizeMemoryPathsConfig
+} from '../../memory-core/src/index.mjs';
+import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
 } from '../../source-graph/src/index.mjs';
@@ -87,6 +92,10 @@ export const HARNESS_SETUP_CLIENTS = new Map([
 
 function hash(value) {
   return `sha256:${createHash('sha256').update(value).digest('hex')}`;
+}
+
+function hashJson(value) {
+  return hash(stableStringify(value));
 }
 
 function idDigest(value) {
@@ -245,6 +254,191 @@ function normalizeUserSelectedFiles(values) {
   const list = Array.isArray(values) ? values : String(values).split(',');
   if (list.length > MAX_USER_SELECTED_FILES) throw new Error('user_selected_context_too_many_files');
   return [...new Set(list.map(normalizeUserSelectedFilePath))].sort();
+}
+
+function safeWorkspaceRelativePath(value, label) {
+  const relativePath = String(value ?? '').trim();
+  if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes('..') || relativePath.includes('\\') || /^[a-z]+:/iu.test(relativePath)) {
+    throw new Error(`${label} must be workspace-relative`);
+  }
+  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(relativePath)) throw new Error(`${label} contains unsupported characters`);
+  if (/(^|\/)(?:\.git|\.local|node_modules)(?:\/|$)/u.test(relativePath)) throw new Error(`${label} points to an unsupported workspace location`);
+  return relativePath;
+}
+
+function shellQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function memoryProposalCommand(configPath = 'oaf.memory.json') {
+  return `npm --silent run oaf -- memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
+}
+
+function memoryPreflightSafeguards(report = null) {
+  return {
+    dryRun: true,
+    canonicalStateMutated: false,
+    localFilesWritten: 0,
+    externalWritesEnabled: false,
+    externalAdaptersEnabled: 0,
+    networkCalls: 0,
+    modelCalls: 0,
+    activeMemoryCreated: Number(report?.safeguards?.activeMemoryCreated ?? 0),
+    sourceSnapshotsWritten: 0,
+    rawSourceBodiesIncluded: false,
+    proposalTextIncluded: false,
+    proposalMarkdownIncluded: false,
+    sourceContentIncluded: false,
+    credentialsIncluded: false,
+    providerUrlsIncluded: false,
+    hiddenReasoningIncluded: false,
+    absoluteFilesystemLocationsIncluded: false
+  };
+}
+
+function summarizeMemoryProposalReport(report, { configRef, command }) {
+  const warnings = [...new Set(report.diagnostics?.warnings ?? [])].sort();
+  const proposalCount = Number(report.summary.proposalCount ?? 0);
+  const quarantinedCount = Number(report.summary.quarantinedCount ?? 0);
+  const reviewItemCount = proposalCount + quarantinedCount;
+  const review = reviewItemCount > 0 || warnings.length > 0;
+  return {
+    state: review ? 'review' : 'ready',
+    configured: true,
+    configRef,
+    command,
+    dryRun: report.dryRun === true,
+    summary: {
+      proposalCount,
+      quarantinedCount,
+      skippedCount: Number(report.summary.skippedCount ?? 0),
+      reviewItemCount
+    },
+    diagnostics: {
+      sourceCount: Number(report.diagnostics?.sourceCount ?? 0),
+      memoryIndexCount: Number(report.diagnostics?.memoryIndexCount ?? 0),
+      staleSourceCount: Number(report.diagnostics?.staleSourceCount ?? 0),
+      indexCliffRiskCount: Number(report.diagnostics?.indexCliffRiskCount ?? 0),
+      warningCodes: warnings
+    },
+    reportFingerprint: hashJson({
+      id: report.id,
+      summary: report.summary,
+      diagnostics: {
+        sourceCount: report.diagnostics?.sourceCount ?? 0,
+        memoryIndexCount: report.diagnostics?.memoryIndexCount ?? 0,
+        staleSourceCount: report.diagnostics?.staleSourceCount ?? 0,
+        indexCliffRiskCount: report.diagnostics?.indexCliffRiskCount ?? 0,
+        warnings
+      },
+      safeguards: report.safeguards
+    }),
+    safeguards: memoryPreflightSafeguards(report)
+  };
+}
+
+async function loadWorkspaceJson(root, relativePath) {
+  const safePath = safeWorkspaceRelativePath(relativePath, 'memory config');
+  const realRoot = await realpath(root);
+  const absolute = path.resolve(realRoot, safePath);
+  if (!isInside(realRoot, absolute)) throw new Error(`workspace JSON path escapes root: ${safePath}`);
+  const actual = await realpath(absolute);
+  if (!isInside(realRoot, actual)) throw new Error(`workspace JSON path escapes root: ${safePath}`);
+  return JSON.parse(await readFile(actual, 'utf8'));
+}
+
+async function readWorkspaceMemoryPath(root, relativePath) {
+  const safePath = safeWorkspaceRelativePath(relativePath, 'memoryPath');
+  const realRoot = await realpath(root);
+  const absolute = path.resolve(realRoot, safePath);
+  const actual = await realpath(absolute);
+  if (!isInside(realRoot, actual)) throw new Error(`memoryPath escapes workspace root: ${safePath}`);
+  const info = await stat(actual);
+  if (!info.isFile()) throw new Error(`memoryPath is not a file: ${safePath}`);
+  if (info.size > 64 * 1024) throw new Error(`memoryPath exceeds 64 KiB: ${safePath}`);
+  const text = await readFile(actual, 'utf8');
+  return {
+    text,
+    locator: `workspace://${safePath}`,
+    lineCount: text ? text.split(/\r\n|\r|\n/u).length : 0,
+    byteSize: info.size,
+    updatedAt: info.mtime.toISOString()
+  };
+}
+
+function deterministicMemoryId(locator, text) {
+  return `mem_${createHash('sha256').update(`${locator}\0${text}`).digest('hex').slice(0, 16)}`;
+}
+
+async function memoryProposalRecordsFromConfig(config, { root, workspaceId, generatedAt }) {
+  const normalized = normalizeMemoryPathsConfig(config);
+  const records = [];
+  for (const entry of normalized.memoryPaths) {
+    const source = await readWorkspaceMemoryPath(root, entry.path);
+    const { text, locator } = source;
+    records.push(evaluateMemoryWrite({
+      id: deterministicMemoryId(locator, text),
+      workspaceId,
+      kind: entry.kind,
+      text,
+      source: locator,
+      sourceTrust: entry.sourceTrust,
+      dataClass: entry.dataClass,
+      metadata: {
+        sourceLocator: locator,
+        sourceHash: hash(text),
+        sourceRole: entry.sourceRole,
+        sourceLineCount: source.lineCount,
+        sourceByteSize: source.byteSize,
+        sourceUpdatedAt: source.updatedAt,
+        proposalSource: 'memoryPaths'
+      },
+      now: generatedAt
+    }));
+  }
+  return records;
+}
+
+export async function buildMemoryProposalPreflightFromConfig({
+  root = process.cwd(),
+  workspaceId = 'ws_local',
+  memoryConfig,
+  configRef = 'workspace://oaf.memory.json',
+  commandConfigPath = 'oaf.memory.json',
+  generatedAt = new Date().toISOString()
+} = {}) {
+  const config = normalizeMemoryPathsConfig(memoryConfig);
+  const records = await memoryProposalRecordsFromConfig(config, { root, workspaceId, generatedAt });
+  const report = buildMemoryProposalsReport({
+    records,
+    workspaceId,
+    generatedAt,
+    targetDirectory: 'memory/proposals',
+    dryRun: true,
+    localFilesWritten: 0
+  });
+  return summarizeMemoryProposalReport(report, {
+    configRef,
+    command: memoryProposalCommand(commandConfigPath)
+  });
+}
+
+export async function buildMemoryProposalPreflightFromFile({
+  root = process.cwd(),
+  workspaceId = 'ws_local',
+  configPath = 'oaf.memory.json',
+  generatedAt = new Date().toISOString()
+} = {}) {
+  const relativeConfigPath = safeWorkspaceRelativePath(configPath, 'memory config');
+  const config = await loadWorkspaceJson(root, relativeConfigPath);
+  return buildMemoryProposalPreflightFromConfig({
+    root,
+    workspaceId,
+    memoryConfig: config,
+    configRef: `workspace://${relativeConfigPath}`,
+    commandConfigPath: relativeConfigPath,
+    generatedAt
+  });
 }
 
 function normalizeChangedLocator(value) {
