@@ -40,7 +40,8 @@ test('local handoff guide documents read-only Codex Cursor and Claude paths', ()
   assert.match(guide, /harness setup plan --client cursor --server oaf --dry-run --format json/);
   assert.match(guide, /harness setup plan --client claude-code --server oaf --dry-run --format json/);
   assert.match(guide, /git add -f context-packs\/\.\.\./);
-  assert.match(guide, /does not write context-pack files, mutate harness configs/);
+  assert.match(guide, /writes context-pack files only when you click \*\*Pin locally\*\*/);
+  assert.match(guide, /does not mutate harness configs/);
   assert.match(guide, /externalAdaptersEnabled/);
   assert.match(guide, /does not yet provide production authentication/);
 });

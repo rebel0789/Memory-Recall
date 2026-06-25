@@ -142,6 +142,14 @@ slice.
   and it omits raw markdown, source bodies, launch prompts, credentials,
   provider URLs, absolute paths, model calls, network calls, external adapters,
   active memory, and write tools.
+- `GET /api/context/pack/receive?workspaceId=ws_local` exposes the same
+  schema-validated receiver report through the authenticated loopback Control
+  API for the currently pinned pack. The browser can show and copy the receiver
+  packet after a verified pin without accepting objective, step, root,
+  output-file, stdio, or rebuild inputs. The report remains read-only: no memory
+  activation, harness config mutation, model call, network call, raw source
+  body, markdown body, provider URL, credential, absolute path, or external
+  adapter is included.
 - After a pin, `npm --silent run oaf -- mcp resources --read-only --stdio` automatically
   discovers the current pinned use plan and registry status from
   `context-packs/current.json` and `context-packs/registry.json`. This is the
@@ -153,6 +161,12 @@ slice.
   reads that exported use plan through the read-only MCP resource catalog. The
   path is restricted to `context-packs/*.use.json`; absolute paths, traversal,
   backslashes, symlink parents, and non-file targets fail closed.
+- Direct in-process context-pack use plans are schema-validated before becoming
+  read-only MCP resources, and resource safety scanning rejects common private
+  path and credential forms across macOS, Linux, Windows, bearer-style tokens,
+  hosted API keys, and cloud access-key sentinels. Unknown `mcp resources --uri`
+  CLI errors report only a URI fingerprint rather than echoing caller-supplied
+  private path or secret text.
 - `npm run oaf -- mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json`
   exposes the same sanitized registry verification report through the read-only
   MCP resource catalog. It adds no MCP tools and keeps `tools/list` empty.

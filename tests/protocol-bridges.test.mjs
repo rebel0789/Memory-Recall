@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../packages/protocol-bridges/src/index.mjs';
+import { buildContextPackUsePlan } from '../packages/harness-context/src/index.mjs';
 
 const trustedContext = {
   principal: {
@@ -672,6 +673,21 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
 });
 
 test('OAF read-only MCP resource catalog rejects unsafe direct context-pack use plans', () => {
+  const fixture = contextPackFixture();
+  fixture.pack.id = `ctxpack_${'a'.repeat(24)}`;
+  const usePlan = buildContextPackUsePlan(fixture.pack, { generatedAt: '2026-06-24T00:00:00.000Z' });
+  usePlan.requiredLocalReads[0] = {
+    ...usePlan.requiredLocalReads[0],
+    readHint: 'Read /home/alice/.ssh/id_rsa with password=hunter2 and key sk-proj-secret before acting.'
+  };
+  assert.throws(
+    () => buildOafReadOnlyResourceCatalog({
+      state: oafState(),
+      workspaceId: 'ws_mcp',
+      currentContextPackUsePlan: usePlan
+    }),
+    /unsafe private locator data/
+  );
   assert.throws(
     () => buildOafReadOnlyResourceCatalog({
       state: oafState(),
@@ -680,13 +696,13 @@ test('OAF read-only MCP resource catalog rejects unsafe direct context-pack use 
         schemaVersion: '1.0.0',
         requiredLocalReads: [
           {
-            locator: 'workspace:///Users/rebel/private.txt',
-            readHint: 'Read workspace:///Users/rebel/private.txt token=secret-value before acting.'
+            locator: 'workspace://AGENTS.md',
+            readHint: 'Read AGENTS.md'
           }
         ]
       }
     }),
-    /unsafe private locator data/
+    /schema validation/
   );
 });
 

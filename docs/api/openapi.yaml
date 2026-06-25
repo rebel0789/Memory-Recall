@@ -271,6 +271,22 @@ paths:
         '400': { $ref: '#/components/responses/BoundaryError' }
         '401': { $ref: '#/components/responses/BoundaryError' }
         '403': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack/receive:
+    get:
+      operationId: getContextPackReceiveReport
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Read-only receiver packet for the currently pinned local context pack.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPackReceiveReportResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
   /api/context/pack/memory-preflight:
     post:
       operationId: preflightContextPackMemory
@@ -777,6 +793,48 @@ components:
             sourceContentIncluded: { const: false }
             privateContentIncluded: { const: false }
             absoluteFilesystemLocationsIncluded: { const: false }
+    ContextPackReceiveReportResponse:
+      type: object
+      additionalProperties: true
+      required: [schemaVersion, command, generatedAt, workspaceId, targetHarness, state, registry, usePlan, receiverPacket, mcp, setup, commands, checks, safeguards, reportFingerprint]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        command: { const: context receive }
+        generatedAt: { type: string, format: date-time }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        targetHarness: { enum: [codex, claude-code, cursor, generic] }
+        state: { enum: [ready, review, blocked] }
+        registry: { type: object, additionalProperties: true }
+        usePlan: { type: object, additionalProperties: true }
+        receiverPacket: { type: object, additionalProperties: true }
+        mcp: { type: object, additionalProperties: true }
+        setup: { type: object, additionalProperties: true }
+        commands: { type: object, additionalProperties: true }
+        checks: { type: object, additionalProperties: true }
+        safeguards:
+          type: object
+          additionalProperties: true
+          required: [readOnly, canonicalStateMutated, localFilesWritten, homeConfigMutated, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, activeMemoryCreated, rawSourceBodiesIncluded, markdownBodyIncluded, sourceContentIncluded, objectiveTextIncluded, stepTextIncluded, credentialsIncluded, providerUrlsIncluded, absoluteFilesystemLocationsIncluded, hiddenReasoningIncluded]
+          properties:
+            readOnly: { const: true }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            homeConfigMutated: { const: false }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            rawSourceBodiesIncluded: { const: false }
+            markdownBodyIncluded: { const: false }
+            sourceContentIncluded: { const: false }
+            objectiveTextIncluded: { const: false }
+            stepTextIncluded: { const: false }
+            credentialsIncluded: { const: false }
+            providerUrlsIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
+            hiddenReasoningIncluded: { const: false }
+        reportFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
     ContextPackMemoryPreflightRequest:
       type: object
       additionalProperties: false

@@ -25,6 +25,16 @@ test('release readiness artifacts are generated and checked in without drift', a
   assert.equal(result.summary.humanApprovalRequired, true);
 });
 
+test('repository manifest excludes local ignored handoff and browser artifacts', async () => {
+  const manifest = JSON.parse(await readFile('REPOSITORY_MANIFEST.json', 'utf8'));
+  const paths = manifest.files.map((file) => file.path);
+
+  assert.equal(paths.some((filePath) => filePath.startsWith('.playwright-cli/')), false);
+  assert.equal(paths.some((filePath) => filePath.startsWith('context-packs/')), false);
+  assert.equal(manifest.exclusions.includes('.playwright-cli/**'), true);
+  assert.equal(manifest.exclusions.includes('context-packs/**'), true);
+});
+
 test('release readiness SBOM and provenance preserve disabled adapters and local defaults', async () => {
   const artifacts = await buildReleaseReadinessArtifacts(process.cwd());
   const sbom = JSON.parse(artifacts.files['1.0-SBOM.json']);

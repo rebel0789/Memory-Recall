@@ -17,6 +17,7 @@ import {
   buildHarnessSetupUiModel,
   buildMemoryReviewModel,
   buildPinnedHandoffStatusModel,
+  canReceivePinnedHandoff,
   classifyDashboardState,
   contextDecisionView,
   copyCommand,
@@ -29,6 +30,7 @@ import {
   resolveRoute,
   runDetailLink,
   safeEventSummary,
+  selectContextPackPinPayload,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -56,12 +58,45 @@ test('web shell exposes stable path routes with legacy query compatibility',()=>
   assert.equal(ROUTES.some(route=>route.id==='content'),true);
 });
 
+test('context pack pin uses the reviewed build payload instead of a stale form payload',()=>{
+  const reviewed={
+    workspaceId:'ws_local',
+    targetHarness:'codex',
+    from:'codex,cursor',
+    objective:'Reviewed objective',
+    step:'Reviewed step',
+    tokenBudget:2048,
+    userSelectedFiles:['docs/usage/local-agent-handoff.md'],
+    changedLocators:['apps/web/app.js','services/control-api/src/server.mjs']
+  };
+  const staleForm={
+    workspaceId:'ws_local',
+    targetHarness:'codex',
+    from:'codex',
+    objective:'Default objective after render',
+    step:'select useful local handoff context',
+    tokenBudget:4096,
+    userSelectedFiles:[],
+    changedLocators:[]
+  };
+  const payload=selectContextPackPinPayload({reviewedPayload:reviewed,formPayload:staleForm});
+  assert.deepEqual(payload.changedLocators,['apps/web/app.js','services/control-api/src/server.mjs']);
+  assert.deepEqual(payload.userSelectedFiles,['docs/usage/local-agent-handoff.md']);
+  assert.equal(payload.from,'codex,cursor');
+  assert.equal(payload.objective,'Reviewed objective');
+  const fallback=selectContextPackPinPayload({formPayload:staleForm});
+  assert.deepEqual(fallback.changedLocators,[]);
+  assert.equal(fallback.objective,'Default objective after render');
+});
+
 test('context pack user flow exposes artifact actions and safe harness commands',async()=>{
   assert.deepEqual(parseSelectedFiles('docs/handoff.md\n docs/handoff.md,notes/context.md '),['docs/handoff.md','notes/context.md']);
   const app=await readFile('apps/web/app.js','utf8');
   assert.match(app,/Build context pack/);
   assert.match(app,/data-action="copy-pack"/);
   assert.match(app,/data-action="copy-launch-prompt"/);
+  assert.match(app,/data-action="receive-pinned-handoff"/);
+  assert.match(app,/data-action="copy-receiver-packet"/);
   assert.match(app,/data-action="copy-command"/);
   assert.match(app,/function copyCommand/);
   assert.match(app,/async function writeClipboardText/);
@@ -69,6 +104,12 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Current handoff status/);
   assert.match(app,/Test local handoff/);
   assert.match(app,/context handoff --read-only/);
+  assert.match(app,/\/api\/context\/pack\/receive\?workspaceId=/);
+  assert.match(app,/Receiver packet ready/);
+  assert.match(app,/Review blockers/);
+  assert.match(app,/Copy receiver packet/);
+  assert.match(app,/reviewedPayload:contextPackReviewedPayload/);
+  assert.match(app,/selectContextPackPinPayload\(\{reviewedPayload:contextPackResult\?\.reviewedPayload/);
   assert.match(app,/data-action="download-pack"/);
   assert.match(app,/data-action="detect-git-changes"/);
   assert.match(app,/data-action="preview-context-sources"/);
@@ -101,7 +142,8 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/\['codex','Codex'\]/);
   assert.match(app,/\['claude-code','Claude Code'\]/);
   assert.match(app,/\['cursor','Cursor'\]/);
-  assert.match(app,/index===0\?' checked':''/);
+  assert.match(app,/contextPackSourceFamilyControls\(formDraft\.sourceFamilies\)/);
+  assert.match(app,/selected\.has\(id\)/);
   assert.equal(app.includes('name="sourceFamilies" value="all"'),false);
   assert.equal(app.includes('name="sourceFamilies" value="generic"'),false);
   assert.match(app,/from:sourceFamilies\.join\(','\)/);
@@ -163,12 +205,15 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(contextPackPayloadSource,/payload:\{workspaceId:workspaceId\(\),targetHarness,from:sourceFamilies\.join\(','\),objective,step,tokenBudget,userSelectedFiles,changedLocators\}/);
   const submitContextPackSource=app.slice(app.indexOf('async function submitContextPack'),app.indexOf('async function runContextPackMemoryPreflight'));
   assert.match(submitContextPackSource,/const \{payload,memoryConfig\}=contextPackPayloadFromForm\(form\)/);
+  assert.match(submitContextPackSource,/contextPackReviewedPayload=selectContextPackPinPayload\(\{formPayload:payload\}\)/);
   assert.match(submitContextPackSource,/api\('\/api\/context\/pack'/);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memoryConfig/s);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memorySourceFiles/s);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*(?:checklist|preflight|externalAdaptersEnabled|setupPreview)/s);
   const pinContextPackSource=app.slice(app.indexOf('async function pinCurrentContextPack'),app.indexOf('async function submitSourceGraph'));
-  assert.match(pinContextPackSource,/const \{payload,memoryConfig\}=contextPackPayloadFromForm\(form\)/);
+  assert.match(pinContextPackSource,/formSnapshot=contextPackPayloadFromForm\(form\)/);
+  assert.match(pinContextPackSource,/reviewedPayload:contextPackResult\?\.reviewedPayload \?\? contextPackReviewedPayload/);
+  assert.doesNotMatch(pinContextPackSource,/const \{payload,memoryConfig\}=contextPackPayloadFromForm\(form\)/);
   assert.match(pinContextPackSource,/api\('\/api\/context\/pack\/pin'/);
   assert.deepEqual(normalizeMemorySourceFiles('notes/memory.md\nnotes/memory.md\n../secret.md\n/private/path.txt\nnode_modules/pkg.md\nhttps://bad.example/memory'),['notes/memory.md']);
   const model=buildContextPackUiModel({
@@ -432,6 +477,7 @@ test('pinned handoff status model gates receive commands by registry verificatio
   assert.equal(ready.targetLabel,'Codex');
   assert.equal(ready.primaryCommand.label,'Receive pinned pack');
   assert.equal(ready.primaryCommand.command,'npm run oaf -- context receive --read-only --root . --target codex --format json');
+  assert.equal(canReceivePinnedHandoff(ready.state),true);
   assert.equal(ready.commands.some((item)=>item.label==='Receive pinned pack'),true);
   assert.equal(ready.commands.some((item)=>item.label==='Read pinned use plan'),true);
   assert.equal(ready.facts.some(([key,value])=>key==='Use plan'&&value==='available'),true);
@@ -448,6 +494,7 @@ test('pinned handoff status model gates receive commands by registry verificatio
   assert.equal(stale.state,'review');
   assert.equal(stale.statusLabel,'stale');
   assert.equal(stale.primaryCommand,null);
+  assert.equal(canReceivePinnedHandoff(stale.state),true);
   assert.equal(stale.commands.some((item)=>item.label==='Receive pinned pack'),true);
   assert.equal(stale.commands.some((item)=>item.label==='Read pinned use plan'),false);
   assert.equal(stale.facts.some(([key,value])=>key==='Use plan'&&value==='withheld'),true);
@@ -456,6 +503,8 @@ test('pinned handoff status model gates receive commands by registry verificatio
   assert.equal(missing.state,'none');
   assert.equal(missing.statusLabel,'not pinned');
   assert.equal(missing.primaryCommand,null);
+  assert.equal(canReceivePinnedHandoff(missing.state),false);
+  assert.equal(canReceivePinnedHandoff('blocked'),false);
   assert.equal(missing.commands.some((item)=>item.label==='Read pinned use plan'),false);
 });
 

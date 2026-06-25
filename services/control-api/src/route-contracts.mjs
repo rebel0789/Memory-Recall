@@ -1,5 +1,6 @@
 import harnessContextPreviewSchema from '../../../packages/protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import contextPackRegistryStatusSchema from '../../../packages/protocol/schemas/context-pack-registry-status.schema.json' with { type: 'json' };
+import contextPackReceiveReportSchema from '../../../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };
 import sourceGraphPreviewSchema from '../../../packages/protocol/schemas/source-graph-preview.schema.json' with { type: 'json' };
 
 const id = (prefix) => `^${prefix}_[A-Za-z0-9._:-]{1,120}$`;
@@ -1363,6 +1364,22 @@ export function createApiRouteContracts(limits = {}) {
       bodyRequired: false,
       streams: false,
       responses: { 200: contextPackRegistryStatusSchema }
+    },
+    {
+      method: 'GET',
+      path: '/api/context/pack/receive',
+      operationId: 'getContextPackReceiveReport',
+      security: { authenticated: true, action: 'context.compile', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      bodyRequired: false,
+      streams: false,
+      responses: { 200: contextPackReceiveReportSchema }
     },
     {
       method: 'POST',

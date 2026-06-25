@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { validateJsonSchema } from '../../protocol/src/schema-validator.mjs';
+import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 
 export const PROTOCOL_BRIDGES_VERSION = '0.1.0';
 export const MCP_BRIDGE_PROTOCOL_VERSION = '2025-06-18';
@@ -16,7 +18,7 @@ export class ProtocolBridgeError extends Error {
 const JSONRPC = '2.0';
 const AUTHORITY_KEYS = /(^|\.)(trustedContext|principal|membership|role|owner|isOwner|grant|grantToken|token|authorization|cookie|externalWritesEnabled)($|\.)/i;
 const PRIVATE_KEYS = /(^|\.)(raw|prompt|body|output|secret|token|cookie|authorization|localPath|providerUrl|hiddenReasoning|sql)/i;
-const UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE = /(?:\/Users(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|https?:\/\/|file:|(?:^|[/:])\.\.(?:\/|$)|oaf_session|oaf_ses_|sk-proj|OPENAI_API_KEY|authorization|cookie|token\s*[=:]|secret\s*[=:]|api[_-]?key\s*[=:])/iu;
+const UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE = /(?:\/Users(?:\/|$)|\/home\/[A-Za-z0-9._-]+(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|[A-Za-z]:\\|https?:\/\/|file:|(?:^|[/:])\.\.(?:\/|$)|oaf_session|oaf_ses_|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|authorization|cookie|(?:Bearer|Basic|Digest|Token)\s+[A-Za-z0-9._~+/=-]{8,}|(?:token|secret|password|api[_-]?key)\s*[=:]|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,})/iu;
 const MAX_RESULT_BYTES = 64 * 1024;
 const MAX_JSONRPC_ID_BYTES = 64;
 const MAX_JSONRPC_METHOD_BYTES = 128;
@@ -75,6 +77,10 @@ function assertSafeResult(value) {
 }
 
 export function assertSafeContextPackUsePlanForResource(value) {
+  const result = validateJsonSchema(contextPackUsePlanSchema, value);
+  if (!result.valid) {
+    throw new ProtocolBridgeError('mcp_invalid_context_pack_use_plan', 'context-pack use plan failed schema validation');
+  }
   const blocked = scanStrings(value, UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE);
   if (blocked) {
     throw new ProtocolBridgeError('mcp_unsafe_context_pack_use_plan', 'context-pack use plan contains unsafe private locator data');

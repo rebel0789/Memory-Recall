@@ -98,10 +98,11 @@ active memory, write harness config, or enable external adapters.
 If the repository already has an explicitly pinned CLI handoff, the Context Pack
 page also shows **Pinned handoff status** by reading
 `context-packs/registry.json` and `context-packs/current.json` through the
-loopback API. Verified pins expose a read-only receive command and MCP use-plan
-read command; stale or review pins withhold the use-plan resource until the
-registry verifies again. Registry verification also redacts unsafe persisted
-source locators before status output, so poisoned local metadata cannot surface
+loopback API. Verified pins expose a browser **Receive pinned pack** action,
+copyable receiver packet, read-only receive command, and MCP use-plan read
+command; stale or review pins withhold the use-plan resource until the registry
+verifies again. Registry verification also redacts unsafe persisted source
+locators before status output, so poisoned local metadata cannot surface
 provider URLs, session-token strings, or absolute user paths as trusted status.
 
 For a pinned local pack that another harness can consume without retyping the

@@ -8,7 +8,7 @@ import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { buildContextPack, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, pinContextPackArtifacts, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, pinContextPackArtifacts, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
@@ -415,6 +415,14 @@ export function createControlApiServer({
         return verifyContextPackRegistry({
           root: sourceGraphRoot,
           workspaceId: context.workspaceId,
+          clock
+        });
+      case 'getContextPackReceiveReport':
+        return buildContextPackReceiveReport({
+          root: sourceGraphRoot,
+          workspaceId: context.workspaceId,
+          trustedContext: createMcpTrustedContext(context),
+          generatedAt: clock(),
           clock
         });
       case 'preflightContextPackMemory':
@@ -1048,6 +1056,7 @@ function routeResourceType(contract) {
     case 'buildContextPack':
     case 'pinContextPack':
     case 'getContextPackRegistryStatus':
+    case 'getContextPackReceiveReport':
     case 'preflightContextPackMemory':
     case 'previewContextSources':
     case 'detectGitChanges':

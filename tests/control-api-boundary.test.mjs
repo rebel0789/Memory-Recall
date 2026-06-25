@@ -633,8 +633,26 @@ test('context pack pin route is protected and writes only fixed local artifacts'
   const pinnedUsePlan = JSON.parse(await readFile(path.join(sourceGraphRoot, 'context-packs', 'CONTEXT_PACK.use.json'), 'utf8'));
   assert.match(pinnedMarkdown, /# Context Pack/);
   assert.equal(pinnedUsePlan.contextPack.fingerprint, response.body.pack.contextPackFingerprint);
+  const receiveDenied = await request(api.base, '/api/context/pack/receive?workspaceId=ws_local');
+  assert.equal(receiveDenied.status, 401);
+  assert.equal(receiveDenied.body.error.code, 'authentication_required');
+  const received = await request(api.base, '/api/context/pack/receive?workspaceId=ws_local', {
+    headers: { cookie: api.auth.cookie }
+  });
+  assert.equal(received.status, 200, received.text);
+  assert.equal(received.body.command, 'context receive');
+  assert.equal(received.body.state, 'ready');
+  assert.equal(received.body.receiverPacket.state, 'ready');
+  assert.equal(received.body.receiverPacket.proof.toolsExposed, 0);
+  assert.equal(received.body.receiverPacket.readPlan.requiredReads.some((item) => item.locator === 'workspace://src/web.ts'), true);
+  assert.equal(received.body.safeguards.readOnly, true);
+  assert.equal(received.body.safeguards.localFilesWritten, 0);
+  assert.equal(received.body.safeguards.externalWritesEnabled, false);
+  assert.equal(received.body.safeguards.networkCalls, 0);
+  assert.equal(received.body.safeguards.modelCalls, 0);
   for (const forbidden of ['NOECHO_PIN_OBJ', 'NOECHO_PIN_STEP', 'API PIN AGENTS RAW BODY', 'API PIN SELECTED RAW BODY', 'apiPinRawBody', sourceGraphRoot, '/Users/rebel']) {
     assert.equal(response.text.includes(forbidden), false, forbidden);
+    assert.equal(received.text.includes(forbidden), false, forbidden);
   }
   assert.equal(api.store.updates, 0);
   assert.equal(api.calls.workflow, 0);

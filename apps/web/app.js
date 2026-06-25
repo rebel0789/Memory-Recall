@@ -29,8 +29,11 @@ let contextPackError=null;
 let contextPackMemoryConfig=null;
 let contextPackMemoryPreflightError=null;
 let contextPackPinError=null;
+let contextPackReviewedPayload=null;
 let pinnedHandoffStatus=null;
 let pinnedHandoffError=null;
+let pinnedHandoffReceiveReport=null;
+let pinnedHandoffReceiveError=null;
 let contextSourcePreviewResult=null;
 let contextSourcePreviewError=null;
 let sourceGraphResult=null;
@@ -760,9 +763,11 @@ function render() {
   root.querySelectorAll('[data-action=preview-context-sources]').forEach(button=>button.addEventListener('click',previewContextSources));
   root.querySelectorAll('[data-action=detect-git-changes]').forEach(button=>button.addEventListener('click',detectContextPackGitChanges));
   root.querySelectorAll('[data-action=refresh-pinned-handoff]').forEach(button=>button.addEventListener('click',refreshPinnedHandoff));
+  root.querySelectorAll('[data-action=receive-pinned-handoff]').forEach(button=>button.addEventListener('click',receivePinnedHandoff));
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
   root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
+  root.querySelectorAll('[data-action=copy-receiver-packet]').forEach(button=>button.addEventListener('click',copyPinnedReceiverPacket));
   root.querySelectorAll('[data-action=copy-command]').forEach(button=>button.addEventListener('click',copyCommand));
   root.querySelectorAll('[data-action=download-pack]').forEach(button=>button.addEventListener('click',downloadContextPack));
   root.querySelectorAll('[data-action=download-use-plan]').forEach(button=>button.addEventListener('click',downloadContextPackUsePlan));
@@ -867,6 +872,10 @@ export function buildPinnedHandoffStatusModel(report=null,error=null) {
       ['Artifact issues', String(artifactProblem)]
     ]
   };
+}
+
+export function canReceivePinnedHandoff(state) {
+  return state === 'ready' || state === 'review';
 }
 
 function pinnedHandoffCommands(targetHarness='codex',includeUsePlan=false) {
@@ -997,17 +1006,41 @@ function renderContextPack() {
   const memoryPreflightErrorPanel=contextPackMemoryPreflightError?renderApiErrorPanel('Memory preflight failed',contextPackMemoryPreflightError):'';
   const sourcePreviewPanel=contextSourcePreviewError?renderApiErrorPanel('Source preview failed',contextSourcePreviewError):contextSourcePreviewResult?renderContextSourcePreview(contextSourcePreviewResult):'';
   const resultPanel=pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.');
-  return `${contextPackFirstRunGuide()}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Inputs to review</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;CONTEXT.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs"></textarea><small>Add reviewed workspace-relative files, or use git detection below.</small></label><label class="field"><span>Memory preflight sources (optional)</span><textarea name="memorySourceFiles" maxlength="4000" placeholder="notes/memory.md&#10;docs/decisions.md"></textarea><small>Add only reviewed workspace-relative files. The browser keeps paths as config and can run read-only local preflight after the pack is built.</small></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect current git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Review boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, reviewed changed-file locators, and optional memory proposal file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy commands, download artifacts, run read-only memory preflight, preview setup, or explicitly pin reviewed local artifacts</dd></div><div><dt>Server writes</dt><dd>only the Pin locally action writes fixed context-packs artifacts</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${memoryPreflightErrorPanel}${pinErrorPanel}${errorPanel}${resultPanel}${renderPinnedHandoffPanel(pinnedHandoffStatus,pinnedHandoffError)}`;
+  const formDraft=contextPackFormDraft();
+  return `${contextPackFirstRunGuide()}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Inputs to review</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness">${contextPackTargetOptions(formDraft.targetHarness)}</select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="${esc(formDraft.tokenBudget)}" required></label></div>${contextPackSourceFamilyControls(formDraft.sourceFamilies)}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">${esc(formDraft.objective)}</textarea></label><label class="field"><span>Step</span><input name="step" value="${esc(formDraft.step)}" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;CONTEXT.md">${esc(formDraft.userSelectedFiles)}</textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs">${esc(formDraft.changedLocators)}</textarea><small>Add reviewed workspace-relative files, or use git detection below.</small></label><label class="field"><span>Memory preflight sources (optional)</span><textarea name="memorySourceFiles" maxlength="4000" placeholder="notes/memory.md&#10;docs/decisions.md">${esc(formDraft.memorySourceFiles)}</textarea><small>Add only reviewed workspace-relative files. The browser keeps paths as config and can run read-only local preflight after the pack is built.</small></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect current git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Review boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, reviewed changed-file locators, and optional memory proposal file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy commands, download artifacts, run read-only memory preflight, preview setup, or explicitly pin reviewed local artifacts</dd></div><div><dt>Server writes</dt><dd>only the Pin locally action writes fixed context-packs artifacts</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${memoryPreflightErrorPanel}${pinErrorPanel}${errorPanel}${resultPanel}${renderPinnedHandoffPanel(pinnedHandoffStatus,pinnedHandoffError,pinnedHandoffReceiveReport,pinnedHandoffReceiveError)}`;
 }
 
 function contextPackFirstRunGuide() {
   return `<section class="surface context-pack-guide first-handoff-guide" aria-label="Create a first local handoff"><div><p class="eyebrow">Create a first local handoff</p><h2>Prepare this repository for the next coding agent.</h2><p>Use this when another local agent will continue the work. OAF selects safe locators, changed-file impact, and proof commands without sending source bodies, writing server state, calling models, using the network, or enabling adapters.</p></div><ol class="guide-steps"><li><strong>1</strong><span>Choose the target harness</span></li><li><strong>2</strong><span>Review sources and changed files</span></li><li><strong>3</strong><span>Build the handoff checklist</span></li><li><strong>4</strong><span>Run read-only proof</span></li></ol></section>`;
 }
 
-function renderPinnedHandoffPanel(report,error=null) {
+function renderPinnedHandoffPanel(report,error=null,receiveReport=null,receiveError=null) {
   const model=buildPinnedHandoffStatusModel(report,error);
   const primary=model.primaryCommand ? `<hr><div class="section-heading"><h2>Consume in ${esc(model.targetLabel)}</h2><span>read-only</span></div>${contextPackCommandList([model.primaryCommand])}` : '';
-  return `<section class="work-grid pinned-handoff" aria-label="Pinned handoff status"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.title)}</h2>${statusChip(model.state,model.statusLabel,'Pinned handoff status')}</div><p>${esc(model.copy)}</p><dl class="facts facts-wide"><div><dt>Entry</dt><dd>${esc(model.currentEntryId ?? 'none')}</dd></div><div><dt>Context pack</dt><dd>${esc(model.contextPackFingerprint)}</dd></div><div><dt>Use plan</dt><dd>${esc(model.usePlanFingerprint)}</dd></div>${model.facts.map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>${primary}<div class="action-row"><button class="button secondary" data-action="refresh-pinned-handoff" type="button">Check pinned handoff</button></div></div><aside class="inspector"><div class="section-heading"><h2>Receive boundary</h2><span>read-only</span></div><p class="muted">This panel reads the local registry status only. It does not create memory, write harness config, call models, use network access, or enable adapters.</p>${contextPackCommandList(model.commands)}</aside></section>`;
+  const receiveButton=canReceivePinnedHandoff(model.state) ? '<button class="button primary" data-action="receive-pinned-handoff" type="button">Receive pinned pack</button>' : '';
+  return `<section class="work-grid pinned-handoff" aria-label="Pinned handoff status"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.title)}</h2>${statusChip(model.state,model.statusLabel,'Pinned handoff status')}</div><p>${esc(model.copy)}</p><dl class="facts facts-wide"><div><dt>Entry</dt><dd>${esc(model.currentEntryId ?? 'none')}</dd></div><div><dt>Context pack</dt><dd>${esc(model.contextPackFingerprint)}</dd></div><div><dt>Use plan</dt><dd>${esc(model.usePlanFingerprint)}</dd></div>${model.facts.map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>${primary}<div class="action-row">${receiveButton}<button class="button secondary" data-action="refresh-pinned-handoff" type="button">Check pinned handoff</button></div></div><aside class="inspector"><div class="section-heading"><h2>Receive boundary</h2><span>read-only</span></div><p class="muted">This panel reads the local registry status only. It does not create memory, write harness config, call models, use network access, or enable adapters.</p>${contextPackCommandList(model.commands)}</aside></section>${renderPinnedReceivePacketPanel(receiveReport,receiveError)}`;
+}
+
+function renderPinnedReceivePacketPanel(report=null,error=null) {
+  if(error)return renderApiErrorPanel('Receive pinned pack failed',error);
+  if(!report?.receiverPacket)return '';
+  const packet=report.receiverPacket;
+  const packetTitle=packet.state === 'ready' ? 'Receiver packet ready' : 'Receiver packet needs review';
+  const reads=packet.readPlan?.requiredReads ?? [];
+  const actions=packet.nextActions ?? [];
+  const reviewBlockers=contextPackSourceCheckReview(report.registry?.sourceChecks);
+  return `<section class="work-grid receiver-packet" aria-label="Pinned receiver packet"><div class="surface surface-primary"><div class="section-heading"><h2>${packetTitle}</h2>${statusChip(packet.state,packet.state,'Receiver packet state')}</div><p>${esc(packet.summary)}</p><dl class="facts facts-wide"><div><dt>Target</dt><dd>${esc(packet.targetHarness)}</dd></div><div><dt>Required reads</dt><dd>${Number(packet.readPlan?.requiredReadCount ?? 0)}</dd></div><div><dt>Included reads</dt><dd>${Number(packet.readPlan?.includedReadCount ?? 0)}</dd></div><div><dt>Tools exposed</dt><dd>${Number(packet.proof?.toolsExposed ?? 0)}</dd></div><div><dt>External writes</dt><dd>${packet.proof?.externalWritesEnabled?'enabled':'disabled'}</dd></div><div><dt>Report</dt><dd>${esc(shortFingerprint(report.reportFingerprint))}</dd></div></dl><div class="action-row"><button class="button primary" data-action="copy-receiver-packet" type="button">Copy receiver packet</button></div></div><aside class="inspector">${reviewBlockers}<div class="section-heading"><h2>Read first</h2><span>${reads.length} shown</span></div>${reads.length?`<ol class="locator-list compact-list">${reads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.contentHash?'hash verified':'hash unavailable'} · ${esc((item.reasonCodes??[]).slice(0,2).join(', ')||'review')}</small></li>`).join('')}</ol>`:'<p class="muted">No verified read plan is available yet.</p>'}<hr><div class="section-heading"><h2>Next actions</h2><span>read-only</span></div>${contextPackCommandList(actions.slice(0,4).map((item)=>({label:item.label,command:item.command})))}</aside></section>`;
+}
+
+function contextPackSourceCheckReview(sourceChecks=null) {
+  const stale=Array.isArray(sourceChecks?.staleLocators) ? sourceChecks.staleLocators : [];
+  const unavailable=Array.isArray(sourceChecks?.unavailableLocators) ? sourceChecks.unavailableLocators : [];
+  const blockers=[
+    ...stale.map((locator)=>({locator,reason:'hash changed'})),
+    ...unavailable.map((locator)=>({locator,reason:'hash unavailable'}))
+  ];
+  if(!blockers.length)return '';
+  return `<div class="section-heading"><h2>Review blockers</h2><span>${blockers.length}</span></div><ol class="locator-list compact-list">${blockers.slice(0,8).map((item)=>`<li><strong>${esc(item.reason)}</strong><code>${esc(item.locator)}</code><small>Rebuild or re-pin after manual review.</small></li>`).join('')}</ol><hr>`;
 }
 
 function renderContextPackResult(pack,markdown) {
@@ -1537,8 +1570,37 @@ const CONTEXT_PACK_SOURCE_FAMILIES=[
   ['cursor','Cursor']
 ];
 
-function contextPackSourceFamilyControls() {
-  return `<fieldset class="source-family-field"><legend>Source families</legend><div class="source-family-options">${CONTEXT_PACK_SOURCE_FAMILIES.map(([id,label],index)=>`<label><input type="checkbox" name="sourceFamilies" value="${esc(id)}"${index===0?' checked':''}><span>${esc(label)}</span></label>`).join('')}</div></fieldset>`;
+const DEFAULT_CONTEXT_PACK_OBJECTIVE='Prepare the next coding agent to continue Open Agent Fabric safely';
+const DEFAULT_CONTEXT_PACK_STEP='select useful local handoff context';
+
+function contextPackTargetOptions(selectedTarget='codex') {
+  return [
+    ['codex','Codex'],
+    ['claude-code','Claude Code'],
+    ['cursor','Cursor'],
+    ['generic','Generic agent']
+  ].map(([id,label])=>`<option value="${esc(id)}"${id===selectedTarget?' selected':''}>${esc(label)}</option>`).join('');
+}
+
+function contextPackFormDraft() {
+  const payload=selectContextPackPinPayload({reviewedPayload:contextPackResult?.reviewedPayload ?? contextPackReviewedPayload});
+  const memoryConfig=normalizeMemoryWorkspaceConfig(contextPackResult?.memoryConfig ?? contextPackMemoryConfig);
+  const sourceFamilies=String(payload?.from ?? 'codex').split(',').map((item)=>item.trim()).filter(Boolean);
+  return {
+    targetHarness:String(payload?.targetHarness ?? 'codex'),
+    tokenBudget:String(Number(payload?.tokenBudget ?? 4096)),
+    sourceFamilies:sourceFamilies.length ? sourceFamilies : ['codex'],
+    objective:String(payload?.objective ?? DEFAULT_CONTEXT_PACK_OBJECTIVE),
+    step:String(payload?.step ?? DEFAULT_CONTEXT_PACK_STEP),
+    userSelectedFiles:(payload?.userSelectedFiles ?? []).join('\n'),
+    changedLocators:(payload?.changedLocators ?? []).map((locator)=>String(locator).replace(/^workspace:\/\//u,'')).join('\n'),
+    memorySourceFiles:memoryConfig.memoryPaths.map((item)=>item.path).join('\n')
+  };
+}
+
+function contextPackSourceFamilyControls(selectedFamilies=['codex']) {
+  const selected=new Set((Array.isArray(selectedFamilies)?selectedFamilies:['codex']).map(String));
+  return `<fieldset class="source-family-field"><legend>Source families</legend><div class="source-family-options">${CONTEXT_PACK_SOURCE_FAMILIES.map(([id,label],index)=>`<label><input type="checkbox" name="sourceFamilies" value="${esc(id)}"${selected.has(id)||(!selected.size&&index===0)?' checked':''}><span>${esc(label)}</span></label>`).join('')}</div></fieldset>`;
 }
 
 function contextPackSelectedSourceFamilies(form) {
@@ -2038,6 +2100,24 @@ function contextPackPayloadFromForm(form) {
   };
 }
 
+function cloneContextPackPayload(payload) {
+  if(!payload || typeof payload!=='object')return null;
+  return {
+    workspaceId:String(payload.workspaceId ?? workspaceId()),
+    targetHarness:String(payload.targetHarness ?? 'generic'),
+    from:String(payload.from ?? 'codex'),
+    objective:String(payload.objective ?? ''),
+    step:String(payload.step ?? ''),
+    tokenBudget:Number(payload.tokenBudget ?? 4096),
+    userSelectedFiles:Array.isArray(payload.userSelectedFiles) ? payload.userSelectedFiles.map(String) : [],
+    changedLocators:Array.isArray(payload.changedLocators) ? payload.changedLocators.map(String) : []
+  };
+}
+
+export function selectContextPackPinPayload({reviewedPayload=null,formPayload=null} = {}) {
+  return cloneContextPackPayload(reviewedPayload) ?? cloneContextPackPayload(formPayload);
+}
+
 async function submitContextPack(event){
   event.preventDefault();
   const form=event.currentTarget;
@@ -2051,7 +2131,8 @@ async function submitContextPack(event){
     const started=globalThis.performance?.now?.() ?? Date.now();
     const result=await api('/api/context/pack',{method:'POST',body:JSON.stringify(payload)});
     const finished=globalThis.performance?.now?.() ?? Date.now();
-    contextPackResult={...result,observedDurationMs:Math.max(0,Math.round(finished-started)),memoryConfig:contextPackMemoryConfig};
+    contextPackReviewedPayload=selectContextPackPinPayload({formPayload:payload});
+    contextPackResult={...result,observedDurationMs:Math.max(0,Math.round(finished-started)),memoryConfig:contextPackMemoryConfig,reviewedPayload:contextPackReviewedPayload};
     contextPackError=null;
     contextPackPinError=null;
     contextPackMemoryPreflightError=null;
@@ -2171,10 +2252,38 @@ async function refreshPinnedHandoff(event) {
   document.querySelector('#live-status').textContent='Checking pinned local handoff.';
   try {
     await loadPinnedHandoffStatus();
+    pinnedHandoffReceiveReport=null;
+    pinnedHandoffReceiveError=null;
     document.querySelector('#live-status').textContent='Pinned handoff status checked.';
     render();
   } catch (error) {
     pinnedHandoffError=error.message;
+    pinnedHandoffReceiveReport=null;
+    pinnedHandoffReceiveError=null;
+    document.querySelector('#live-status').textContent=error.message;
+    render();
+  } finally {
+    if(button.isConnected){
+      button.disabled=false;
+      button.textContent=previous;
+    }
+  }
+}
+
+async function receivePinnedHandoff(event) {
+  const button=event.currentTarget;
+  const previous=button.textContent;
+  button.disabled=true;
+  button.textContent='Receiving...';
+  document.querySelector('#live-status').textContent='Reading pinned receiver packet.';
+  try {
+    pinnedHandoffReceiveReport=await api(`/api/context/pack/receive?workspaceId=${encodeURIComponent(workspaceId())}`);
+    pinnedHandoffReceiveError=null;
+    document.querySelector('#live-status').textContent=`Pinned receiver packet ${pinnedHandoffReceiveReport.state}.`;
+    render();
+  } catch (error) {
+    pinnedHandoffReceiveReport=null;
+    pinnedHandoffReceiveError=error;
     document.querySelector('#live-status').textContent=error.message;
     render();
   } finally {
@@ -2193,17 +2302,26 @@ async function pinCurrentContextPack(event) {
     return;
   }
   const previous=button.textContent;
-  const {payload,memoryConfig}=contextPackPayloadFromForm(form);
+  const formSnapshot=contextPackPayloadFromForm(form);
+  const payload=selectContextPackPinPayload({reviewedPayload:contextPackResult?.reviewedPayload ?? contextPackReviewedPayload,formPayload:formSnapshot.payload});
+  const memoryConfig=contextPackResult?.memoryConfig ?? formSnapshot.memoryConfig;
+  if(!payload){
+    document.querySelector('#live-status').textContent='Build a context pack before pinning.';
+    return;
+  }
   button.disabled=true;
   button.textContent='Pinning...';
   document.querySelector('#live-status').textContent='Pinning reviewed local handoff.';
   try{
     const result=await api('/api/context/pack/pin',{method:'POST',body:JSON.stringify(payload)});
-    contextPackResult={...result,observedDurationMs:contextPackResult?.observedDurationMs,memoryConfig,memoryProposalPreflight:contextPackResult?.memoryProposalPreflight};
+    contextPackReviewedPayload=payload;
+    contextPackResult={...result,observedDurationMs:contextPackResult?.observedDurationMs,memoryConfig,memoryProposalPreflight:contextPackResult?.memoryProposalPreflight,reviewedPayload:payload};
     contextPackMemoryConfig=memoryConfig;
     contextPackPinError=null;
     pinnedHandoffStatus=result.registryStatus;
     pinnedHandoffError=null;
+    pinnedHandoffReceiveReport=null;
+    pinnedHandoffReceiveError=null;
     document.querySelector('#live-status').textContent=`Pinned local handoff: ${result.pin?.current?.status ?? 'verified'}.`;
     render();
   }catch(error){
@@ -2342,6 +2460,22 @@ async function copyContextPackLaunchPrompt(event){
     button.textContent='Copied';
   }catch(error){
     document.querySelector('#live-status').textContent='Copy failed. Select the launch prompt from the markdown.';
+  }finally{
+    setTimeout(()=>{ button.textContent=previous; },1200);
+  }
+}
+
+async function copyPinnedReceiverPacket(event){
+  const packet=pinnedHandoffReceiveReport?.receiverPacket ?? null;
+  if(!packet)return;
+  const button=event.currentTarget;
+  const previous=button.textContent;
+  try{
+    await writeClipboardText(JSON.stringify(packet,null,2));
+    document.querySelector('#live-status').textContent='Receiver packet copied.';
+    button.textContent='Copied';
+  }catch(error){
+    document.querySelector('#live-status').textContent='Copy failed. Use the read-only receive command instead.';
   }finally{
     setTimeout(()=>{ button.textContent=previous; },1200);
   }

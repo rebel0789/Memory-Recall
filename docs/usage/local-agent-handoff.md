@@ -62,16 +62,19 @@ agent session.
 8. Start with **Practical handoff**: copy the Markdown or launch prompt, copy
    or download `oaf.memory.json` only if you entered memory proposal files, then
    copy and run **Test local handoff** for reproducible read-only CLI/MCP proof.
-9. Review **Use this pack**, **First-use readiness**, selected locators,
+9. For durable reuse, click **Pin locally**, then **Receive pinned pack**. The
+   browser reads the pinned registry/use-plan and shows a copyable receiver
+   packet without rebuilding the pack or accepting objective/step text.
+10. Review **Use this pack**, **First-use readiness**, selected locators,
    omissions, changed-file coverage, and proof commands when you need deeper
    trace detail.
-10. Use **Preview setup** when you want a generated Codex, Cursor, or Claude
+11. Use **Preview setup** when you want a generated Codex, Cursor, or Claude
    Code MCP config snippet. The snippet is a manual-copy template only; OAF
    does not write harness config files.
 
-The browser path does not write context-pack files, mutate harness configs,
-call models, use network access, enable external adapters, or create active
-memory.
+The browser path writes context-pack files only when you click **Pin locally**.
+It does not mutate harness configs, call models, use network access, enable
+external adapters, or create active memory.
 
 ## CLI Path
 
