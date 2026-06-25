@@ -506,6 +506,18 @@ async function inspectChangedLocator({ root, rootReal, locator, maxBytes }) {
   if (isControlCharacterBuffer(bodyBuffer)) return changedLocatorUnavailable('binary');
 
   const redactions = redact(bodyBuffer.toString('utf8'));
+  if (redactions.secretCount || redactions.localPathCount) {
+    return {
+      contentHash: null,
+      contentByteSize: 0,
+      contentTokenCount: 0,
+      reasonCodes: [
+        'content_hash_withheld_redacted_content',
+        'redacted_before_hash',
+        ...redactions.reasonCodes
+      ].filter(Boolean)
+    };
+  }
   const measuredText = redactions.redacted;
   return {
     contentHash: hash(measuredText),
@@ -1286,8 +1298,12 @@ function buildContextPackUtility({ selected, sourceGraph, preview, requestedInpu
   for (const locator of sourceGraph.impact.changedLocators) {
     const selectedMatch = selected.find((item) => stripLineRange(item.locator) === locator);
     const metadata = changedLocatorMetadata.get(locator) ?? changedLocatorUnavailable('content_hash_unavailable');
-    const contentHash = selectedMatch?.contentHash ?? metadata.contentHash ?? null;
-    const hashReasonCodes = contentHash && selectedMatch?.contentHash
+    const metadataWithheld = metadata.reasonCodes.includes('content_hash_withheld_redacted_content')
+      || metadata.reasonCodes.includes('redacted_before_hash');
+    const contentHash = metadataWithheld ? null : selectedMatch?.contentHash ?? metadata.contentHash ?? null;
+    const hashReasonCodes = metadataWithheld
+      ? metadata.reasonCodes
+      : contentHash && selectedMatch?.contentHash
       ? ['content_hash_verified']
       : metadata.reasonCodes;
     const represented = representedChangedLocators.has(locator);

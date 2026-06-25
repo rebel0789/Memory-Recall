@@ -178,7 +178,11 @@
   "$defs": {
     "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "nullableFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
-    "locator": { "type": "string", "pattern": "^(workspace|user-selected)://[^\\s]{1,512}$" },
+    "locator": {
+      "type": "string",
+      "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
+      "maxLength": 640
+    },
     "coverage": {
       "type": "object",
       "additionalProperties": false,

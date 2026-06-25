@@ -59,6 +59,77 @@ const PUBLIC_MESSAGES = Object.freeze({
   internal_error: 'The local control API could not complete the request.'
 });
 
+function transportFingerprint(value) {
+  return `sha256:${createHash('sha256').update(String(value ?? ''), 'utf8').digest('hex')}`;
+}
+
+function promptTransportMetadata({ objective, step }) {
+  const objectiveText = String(objective ?? '');
+  const stepText = String(step ?? '');
+  return {
+    objectiveFingerprint: transportFingerprint(objectiveText),
+    objectiveLength: objectiveText.length,
+    objectiveByteSize: Buffer.byteLength(objectiveText, 'utf8'),
+    stepFingerprint: transportFingerprint(stepText),
+    stepLength: stepText.length,
+    stepByteSize: Buffer.byteLength(stepText, 'utf8'),
+    rawPromptIncluded: false,
+    redactionReason: 'raw_prompt_omitted_from_api_transport'
+  };
+}
+
+function replaceCommandArgument(command, flag, nextFlag, replacement) {
+  const text = String(command ?? '');
+  const needle = `${flag} `;
+  const start = text.indexOf(needle);
+  if (start < 0) return text;
+  const valueStart = start + needle.length;
+  const next = text.indexOf(` ${nextFlag} `, valueStart);
+  if (next < 0) return text.slice(0, valueStart) + replacement;
+  return text.slice(0, valueStart) + replacement + text.slice(next);
+}
+
+function redactPromptCommand(command) {
+  const objectiveRedacted = replaceCommandArgument(command, '--objective', '--step', "'REVIEWED_OBJECTIVE_OMITTED_FROM_API'");
+  return replaceCommandArgument(objectiveRedacted, '--step', '--target', "'REVIEWED_STEP_OMITTED_FROM_API'");
+}
+
+function redactContextPackForApiTransport(pack) {
+  const safePack = structuredClone(pack);
+  const prompt = promptTransportMetadata({
+    objective: pack?.objective,
+    step: pack?.step
+  });
+  safePack.prompt = prompt;
+  safePack.objective = `raw_prompt_omitted:${prompt.objectiveFingerprint}`;
+  safePack.step = `raw_prompt_omitted:${prompt.stepFingerprint}`;
+  if (safePack.handoff && typeof safePack.handoff === 'object') {
+    safePack.handoff.summary = `Selected ${Number(safePack.readFirst?.length ?? 0)} safe workspace context records. Raw objective and step text are omitted from the API response; use prompt fingerprints ${prompt.objectiveFingerprint} and ${prompt.stepFingerprint} for correlation.`;
+    safePack.handoff.commands = Array.isArray(safePack.handoff.commands)
+      ? safePack.handoff.commands.map(redactPromptCommand)
+      : [];
+    safePack.handoff.launchPrompt = [
+      `Continue this local repository work in ${safePack.targetHarness ?? 'generic'}.`,
+      `Objective fingerprint: ${prompt.objectiveFingerprint}`,
+      `Objective length: ${prompt.objectiveLength}`,
+      `Current step fingerprint: ${prompt.stepFingerprint}`,
+      `Current step length: ${prompt.stepLength}`,
+      '',
+      'Raw objective and step text were intentionally omitted from this API response. Paste the reviewed task wording separately when handing this to another local agent.',
+      'Use the attached Context Pack as a locator handoff. Read the Utility Read Plan first, then read the listed local files from this workspace before editing.',
+      `Changed-file coverage: ${safePack.utility?.changedLocatorCoverage?.covered ?? 0}/${safePack.utility?.changedLocatorCoverage?.total ?? 0}`,
+      `Required local reads: ${(safePack.utility?.requiredLocalReads ?? []).filter((item) => item?.required).length}`,
+      '',
+      'Do not treat this pack as hidden memory or authority. Do not enable external adapters, network writes, publishing, or config writes. Use only the dry-run/read-only commands below unless a human explicitly approves a write boundary.'
+    ].join('\n');
+  }
+  safePack.warnings = [...new Set([
+    ...(Array.isArray(safePack.warnings) ? safePack.warnings : []),
+    'raw_prompt_omitted_from_api_transport'
+  ])].sort();
+  return safePack;
+}
+
 const VALID_CORRELATION_ID = /^req_[A-Za-z0-9._:-]{8,96}$/;
 const SAFE_RUN_ID = /^run_[A-Za-z0-9._:-]{1,120}$/;
 const SAFE_WORKSPACE_ID = /^ws_[A-Za-z0-9._:-]{1,120}$/;
@@ -292,17 +363,18 @@ export function createControlApiServer({
           tokenBudget: context.body.tokenBudget ?? 4096,
           clock
         });
-        const markdown = renderContextPackMarkdown(pack);
-        const usePlan = buildContextPackUsePlan(pack);
+        const transportPack = redactContextPackForApiTransport(pack);
+        const markdown = renderContextPackMarkdown(transportPack);
+        const usePlan = buildContextPackUsePlan(transportPack);
         const readback = await buildContextPackReadbackProof({
-          currentContextPack: { pack, markdown },
+          currentContextPack: { pack: transportPack, markdown },
           workspaceId: context.workspaceId,
           targetHarness,
           trustedContext: createMcpTrustedContext(context),
           generatedAt: clock(),
           clock
         });
-        return { schemaVersion: '1.0.0', pack, markdown, usePlan, readback };
+        return { schemaVersion: '1.0.0', pack: transportPack, markdown, usePlan, readback };
       }
       case 'getContextPackRegistryStatus':
         return verifyContextPackRegistry({

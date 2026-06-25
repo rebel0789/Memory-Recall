@@ -207,7 +207,7 @@ test('context pack use plan writes and serves through read-only MCP',()=>{
   const poisoned=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--context-pack-use','context-packs/POISON.use.json','--uri','oaf://workspace/ws_local/context-pack/use-plan/current','--format','json'],{encoding:'utf8',env});
   assert.equal(poisoned.status,2);
   assert.equal(poisoned.stdout,'');
-  assert.match(poisoned.stderr,/unsafe private locator data/);
+  assert.match(poisoned.stderr,/failed schema validation|must match/);
   for(const forbidden of ['workspace:///Users/rebel/private.txt','token=secret-value','/Users/rebel','private.txt']){
     assert.equal(poisoned.stdout.includes(forbidden),false,forbidden);
     assert.equal(poisoned.stderr.includes(forbidden),false,forbidden);
@@ -325,7 +325,7 @@ test('context receive reads pinned Codex context pack without writes or private 
   mkdirSync(path.join(root,'notes'),{recursive:true});
   mkdirSync(path.join(root,'src'),{recursive:true});
   writeFileSync(path.join(root,'AGENTS.md'),'RECEIVE CLI AGENTS RAW BODY should stay hidden. OPENAI_API_KEY=secret-value https://provider.example/private');
-  writeFileSync(path.join(root,'notes','handoff.md'),'RECEIVE CLI SELECTED RAW BODY token=secret-value should stay hidden.');
+  writeFileSync(path.join(root,'notes','handoff.md'),'RECEIVE CLI SELECTED RAW BODY should stay hidden.');
   writeFileSync(path.join(root,'src','auth.ts'),"export function approveTokenResetReceiveCli(){ return 'RECEIVE CLI SOURCE RAW BODY'; }\n");
   const env={...process.env,HOME:home,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z',OAF_COMMIT_SHA:'1234567890abcdef1234567890abcdef12345678'};
   const objective='Receive CLI private objective should not leak';

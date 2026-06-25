@@ -133,7 +133,8 @@ function oafState() {
         status: 'proposed',
         decision: 'review',
         confidence: 0.7,
-        evidenceIds: ['ev_mcp'],
+        evidenceIds: ['ev_mcp', '/Users/rebel/private.txt', 'OPENAI_API_KEY=abc123', 'token=secret-value'],
+        supersedes: 'mem_/Users/rebel/old.txt',
         createdAt: '2026-06-24T00:00:00.000Z',
         text: 'private memory text'
       },
@@ -598,11 +599,15 @@ test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped reso
   assert.equal(handoffPayload.data.memoryProposalSummary.safeguards.sourceContentVisible, false);
   assert.equal(handoffPayload.data.memoryProposalSummary.safeguards.localLocationsVisible, false);
   assert.equal(handoffPayload.data.memoryProposalSummary.safeguards.activeMemoryCreated, 0);
+  assert.deepEqual(handoffPayload.data.memoryProposalSummary.proposed[0].evidenceIds, ['ev_mcp']);
+  assert.equal(handoffPayload.data.memoryProposalSummary.proposed[0].supersedes, null);
   const handoffText = JSON.stringify(handoffPayload);
   assert.equal(handoffText.includes('raw prompt body'), false);
   assert.equal(handoffText.includes('private model result'), false);
   assert.equal(handoffText.includes('private memory text'), false);
   assert.equal(handoffText.includes('/Users/rebel'), false);
+  assert.equal(handoffText.includes('OPENAI_API_KEY'), false);
+  assert.equal(handoffText.includes('token=secret-value'), false);
   assert.equal(handoffText.includes('run_other'), false);
   assert.equal(JSON.stringify(state), before);
 });

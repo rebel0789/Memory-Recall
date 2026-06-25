@@ -167,7 +167,7 @@
     "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "locator": {
       "type": "string",
-      "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$",
+      "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
       "maxLength": 640
     },
     "stringList": {
@@ -428,12 +428,12 @@
     },
     "readLocator": {
       "type": "string",
-      "pattern": "^(workspace|user-selected)://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+(?:#L[0-9]+-L[0-9]+)?$",
+      "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
       "maxLength": 640
     },
     "userSelectedLocator": {
       "type": "string",
-      "pattern": "^user-selected://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+$",
+      "pattern": "^user-selected://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$",
       "maxLength": 640
     },
     "sourceGraph": {
@@ -545,7 +545,7 @@
     },
     "sourceGraphLocator": {
       "type": "string",
-      "pattern": "^workspace://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+(?:#L[0-9]+-L[0-9]+)?$",
+      "pattern": "^workspace://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
       "maxLength": 640
     },
     "sourceGraphSafeguards": {

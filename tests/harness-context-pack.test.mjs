@@ -410,6 +410,44 @@ test('context pack keeps non-graph changed files in review without overclaiming 
   assert.equal(pack.handoff.launchPrompt.includes('Changed-file coverage: 0/1'), true);
 });
 
+test('context pack withholds changed-file hash proof after redaction', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Review redacted changed files before handoff.');
+  await writeFile(path.join(root, 'src', 'auth.ts'), [
+    'export function changedSecretLikeValue() {',
+    "  return 'token=DO_NOT_ECHO_CHANGED_SECRET';",
+    '}'
+  ].join('\n'));
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    changedLocators: ['src/auth.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare handoff with redacted changed file',
+    step: 'prove redacted hash proof is withheld',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack with redacted changed file');
+  assert.equal(pack.utility.status, 'review');
+  const changedRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://src/auth.ts' && item.role === 'changed_locator');
+  assert(changedRead);
+  assert.equal(changedRead.required, true);
+  assert.equal(changedRead.contentHash, null);
+  assert.equal(changedRead.reasonCodes.includes('content_hash_verified'), false);
+  assert.equal(changedRead.reasonCodes.includes('content_hash_withheld_redacted_content'), true);
+  assert.equal(changedRead.reasonCodes.includes('redacted_before_hash'), true);
+  assert.equal(pack.utility.changedSourceBudget.measuredLocatorCount, 0);
+  const markdown = renderContextPackMarkdown(pack);
+  assert.match(markdown, /content_hash_withheld_redacted_content/);
+  assert.equal(JSON.stringify(pack).includes('DO_NOT_ECHO_CHANGED_SECRET'), false);
+  assert.equal(markdown.includes('DO_NOT_ECHO_CHANGED_SECRET'), false);
+});
+
 test('context pack hashes large changed text files without embedding source bodies', async () => {
   const root = await workspace();
   await mkdir(path.join(root, 'src'), { recursive: true });
@@ -503,6 +541,36 @@ test('context pack rejects unsafe changed locators before building a handoff', a
     }),
     /changed_context_locator_invalid/
   );
+});
+
+test('context pack schemas reject unsafe workspace locators', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Schema locator proof.');
+  await writeFile(path.join(root, 'src', 'auth.ts'), 'export const safeLocator = true;\n');
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    changedLocators: ['src/auth.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare schema locator proof',
+    step: 'reject unsafe protocol locators',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+  const usePlan = buildContextPackUsePlan(pack);
+
+  for (const locator of ['workspace://../secret.txt', 'workspace:///Users/rebel/private.txt', 'user-selected://.git/config', 'workspace://node_modules/pkg/index.js']) {
+    const mutatedPack = structuredClone(pack);
+    mutatedPack.requestedInputs.changedLocators = [locator];
+    assert.throws(() => assertJsonSchema(contextPackSchema, mutatedPack, `unsafe context pack locator ${locator}`), /must match/);
+
+    const mutatedUsePlan = structuredClone(usePlan);
+    mutatedUsePlan.requestedInputs.changedLocators = [locator];
+    assert.throws(() => assertJsonSchema(contextPackUsePlanSchema, mutatedUsePlan, `unsafe use plan locator ${locator}`), /must match/);
+  }
 });
 
 test('context pack rejects secret-like or absolute-path handoff fields before rendering markdown', async () => {

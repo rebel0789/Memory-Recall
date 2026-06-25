@@ -279,8 +279,8 @@ test('context pack route is protected and does not mutate run state', async (t) 
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
     body: JSON.stringify({
       workspaceId: 'ws_local',
-      objective: 'prepare handoff',
-      step: 'select useful context',
+      objective: 'NOECHO_OBJ handoff',
+      step: 'NOECHO_STEP context',
       targetHarness: 'codex',
       from: 'codex',
       userSelectedFiles: ['CONTEXT.md'],
@@ -309,10 +309,18 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.match(changedRead.contentHash, /^sha256:[a-f0-9]{64}$/);
   assert.equal(changedRead.reasonCodes.includes('content_hash_verified'), true);
   assert(response.body.pack.handoff.launchPrompt.includes('Changed-file coverage: 1/1'));
+  assert.equal(response.body.pack.objective.startsWith('raw_prompt_omitted:sha256:'), true);
+  assert.equal(response.body.pack.step.startsWith('raw_prompt_omitted:sha256:'), true);
+  assert.equal(response.body.pack.prompt.rawPromptIncluded, false);
+  assert.match(response.body.pack.prompt.objectiveFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.match(response.body.pack.prompt.stepFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert(response.body.pack.handoff.commands.some((item) => item.includes("--changed 'src/web.ts'")));
+  assert(response.body.pack.handoff.commands.some((item) => item.includes('REVIEWED_OBJECTIVE_OMITTED_FROM_API')));
   assert.equal(response.body.markdown.includes('## Change Impact'), true);
   assert.equal(response.body.markdown.includes('## Utility Read Plan'), true);
   assert.equal(/<objective>|<step>/u.test(response.body.markdown), false);
+  assert.equal(response.text.includes('NOECHO_OBJ'), false);
+  assert.equal(response.text.includes('NOECHO_STEP'), false);
   assert.equal(response.text.includes('/Users/'), false);
   assert.equal(response.body.pack.safeguards.externalWritesEnabled, false);
   assert.equal(response.body.pack.safeguards.externalAdaptersEnabled, 0);

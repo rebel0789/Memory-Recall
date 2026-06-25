@@ -258,6 +258,17 @@ function safeId(value) {
   return typeof value === 'string' && /^[A-Za-z0-9._:@/-]{1,160}$/.test(value) ? value : null;
 }
 
+function safeReferenceId(value) {
+  if (typeof value !== 'string') return null;
+  if (unsafeLocatorText(value)) return null;
+  if (/(?:secret|token|api[_-]?key|password|credential)/iu.test(value)) return null;
+  return /^[A-Za-z0-9._:-]{1,160}$/u.test(value) ? value : null;
+}
+
+function safeMemoryLabel(value, fallback) {
+  return typeof value === 'string' && /^[a-z][a-z0-9_-]{0,63}$/u.test(value) ? value : fallback;
+}
+
 function validateWorkspaceId(value) {
   if (typeof value === 'string' && /^ws_[A-Za-z0-9._:-]{1,120}$/.test(value)) return value;
   throw new ProtocolBridgeError('mcp_invalid_params', 'workspaceId must be a safe OAF workspace id');
@@ -342,13 +353,13 @@ function summarizeContextManifest(manifest) {
 
 function summarizeMemory(record) {
   return {
-    id: safeId(record?.id) ?? 'mem_unknown',
-    kind: typeof record?.kind === 'string' ? record.kind : 'unknown',
-    status: typeof record?.status === 'string' ? record.status : 'unknown',
-    decision: typeof record?.decision === 'string' ? record.decision : null,
+    id: safeReferenceId(record?.id) ?? 'mem_unknown',
+    kind: safeMemoryLabel(record?.kind, 'unknown'),
+    status: safeMemoryLabel(record?.status, 'unknown'),
+    decision: safeMemoryLabel(record?.decision, null),
     confidence: Number.isFinite(record?.confidence) ? record.confidence : null,
-    evidenceIds: items(record?.evidenceIds).filter((id) => typeof id === 'string').slice(0, 12),
-    supersedes: typeof record?.supersedes === 'string' ? record.supersedes : null,
+    evidenceIds: items(record?.evidenceIds).map(safeReferenceId).filter(Boolean).slice(0, 12),
+    supersedes: safeReferenceId(record?.supersedes),
     createdAt: typeof record?.createdAt === 'string' ? record.createdAt : null,
     updatedAt: typeof record?.updatedAt === 'string' ? record.updatedAt : null,
     recordFingerprint: fingerprintFor({
