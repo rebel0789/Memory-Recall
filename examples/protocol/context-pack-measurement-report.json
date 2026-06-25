@@ -29,6 +29,15 @@
     "deliveredUnitCount": 720,
     "deliveredUnitRatio": 0.3,
     "observedDeliveryReductionRatio": 0.7,
+    "changedSourceBudget": {
+      "locatorCount": 1,
+      "measuredLocatorCount": 1,
+      "contentByteCount": 6400,
+      "contentTokenCount": 1600,
+      "contentTokenCountIncluded": 0,
+      "observedAvoidanceRatio": 1,
+      "sourceContentIncluded": false
+    },
     "changedLocatorCoverage": {
       "total": 1,
       "covered": 1,

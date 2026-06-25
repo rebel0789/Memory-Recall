@@ -127,8 +127,31 @@
         "deliveredUnitCount": { "$ref": "#/$defs/count" },
         "deliveredUnitRatio": { "type": "number", "minimum": 0, "maximum": 1000 },
         "observedDeliveryReductionRatio": { "$ref": "#/$defs/ratio" },
+        "changedSourceBudget": { "$ref": "#/$defs/changedSourceBudget" },
         "changedLocatorCoverage": { "$ref": "#/$defs/coverage" },
         "graphHintCoverage": { "$ref": "#/$defs/coverage" }
+      }
+    },
+    "changedSourceBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locatorCount",
+        "measuredLocatorCount",
+        "contentByteCount",
+        "contentTokenCount",
+        "contentTokenCountIncluded",
+        "observedAvoidanceRatio",
+        "sourceContentIncluded"
+      ],
+      "properties": {
+        "locatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "measuredLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "contentByteCount": { "$ref": "#/$defs/byteSize" },
+        "contentTokenCount": { "$ref": "#/$defs/count" },
+        "contentTokenCountIncluded": { "const": 0 },
+        "observedAvoidanceRatio": { "$ref": "#/$defs/ratio" },
+        "sourceContentIncluded": { "const": false }
       }
     },
     "localRead": {

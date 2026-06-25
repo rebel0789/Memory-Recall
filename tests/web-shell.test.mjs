@@ -140,6 +140,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
       changedLocatorCoverage:{total:1,covered:1,ratio:1,status:'covered'},
       graphHintCoverage:{total:2,covered:1,ratio:0.5,status:'partial'},
       sourceSelection:{candidateTokenCount:1000,selectedTokenCount:250,selectedTokenRatio:0.25,estimatedReductionRatio:0.75},
+      changedSourceBudget:{locatorCount:1,measuredLocatorCount:1,contentByteCount:3200,contentTokenCount:800,contentTokenCountIncluded:0,observedAvoidanceRatio:1,sourceContentIncluded:false},
       delivery:{representation:'locator-handoff',sourceContentsIncluded:false}
     },
     handoff:{
@@ -183,6 +184,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.deepEqual(model.proof,{
     tokenSaved:'92%',
     selectedTokenRatio:'25%',
+    changedSourceAvoidedLabel:'800 tokens (100%)',
     deliveredTokens:'80',
     observedDurationLabel:'34 ms',
     readbackDurationLabel:'3 ms',
@@ -234,6 +236,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.deepEqual(model.utility.topReads.map((item)=>item.locator),['workspace://AGENTS.md','workspace://apps/web/app.js']);
   assert.equal(model.utility.changedCoverageLabel,'1/1');
   assert.equal(model.utility.changedHashVerifiedLabel,'0/1');
+  assert.equal(model.utility.changedSourceBudgetLabel,'1/1 files, 800 tokens');
   assert.equal(model.utility.topReads[1].contentHash,'');
   assert.equal(model.utility.sourceReduction,'75%');
   assert.deepEqual(model.sourceFamilies,['codex','cursor']);

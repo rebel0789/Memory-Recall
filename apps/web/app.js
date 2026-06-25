@@ -949,6 +949,12 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
   const candidateTokens=Number(pack?.preview?.candidateTokenCount ?? 0);
   const selectedTokens=Number(pack?.preview?.selectedTokenCount ?? 0);
   const deliveredTokens=Number(pack?.delivery?.deliveredTokenCount ?? 0);
+  const changedSourceBudget=pack?.utility?.changedSourceBudget ?? {};
+  const changedSourceTokenCount=Number(changedSourceBudget.contentTokenCount ?? 0);
+  const changedSourceAvoidanceRatio=Number(changedSourceBudget.observedAvoidanceRatio ?? 0);
+  const changedSourceAvoidedLabel=changedSourceTokenCount > 0
+    ? `${changedSourceTokenCount} tokens (${boundedPercent(changedSourceAvoidanceRatio)}%)`
+    : 'not measured';
   const sourceFamilies=contextPackSourceFamilies(pack);
   const observedDurationMs=Number(meta?.observedDurationMs);
   const observedDurationLabel=Number.isFinite(observedDurationMs) ? `${Math.max(0,Math.round(observedDurationMs))} ms` : 'not measured';
@@ -1002,6 +1008,7 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     proof:{
       tokenSaved:deliveryReductionLabel,
       selectedTokenRatio:selectedTokenRatioLabel,
+      changedSourceAvoidedLabel,
       deliveredTokens:String(deliveredTokens),
       observedDurationLabel,
       readbackDurationLabel,
@@ -1027,6 +1034,7 @@ function buildContextPackUtilityUiModel(utility) {
   const changed=utility?.changedLocatorCoverage ?? {};
   const graph=utility?.graphHintCoverage ?? {};
   const source=utility?.sourceSelection ?? {};
+  const changedSource=utility?.changedSourceBudget ?? {};
   return {
     status:String(utility?.status ?? 'review'),
     requiredReadCount:requiredReads.filter((item)=>item?.required===true).length,
@@ -1036,6 +1044,7 @@ function buildContextPackUtilityUiModel(utility) {
     graphCoverageLabel:`${Number(graph.covered??0)}/${Number(graph.total??0)}`,
     sourceSelectionRatio:`${boundedPercent(source.selectedTokenRatio)}%`,
     sourceReduction:`${boundedPercent(source.estimatedReductionRatio)}%`,
+    changedSourceBudgetLabel:`${Number(changedSource.measuredLocatorCount??0)}/${Number(changedSource.locatorCount??0)} files, ${Number(changedSource.contentTokenCount??0)} tokens`,
     topReads:requiredReads.slice(0,5).map((item)=>({
       locator:String(item.locator ?? ''),
       role:String(item.role ?? 'selected_context'),
@@ -1391,7 +1400,7 @@ function contextPackIntakeReview(review) {
 }
 
 function contextPackUtilityPanel(utility) {
-  return `<dl class="facts compact-facts"><div><dt>Changed files</dt><dd>${esc(utility.changedCoverageLabel)} (${esc(utility.changedCoveragePercent)})</dd></div><div><dt>Hash verified</dt><dd>${esc(utility.changedHashVerifiedLabel)}</dd></div><div><dt>Required reads</dt><dd>${Number(utility.requiredReadCount)}</dd></div><div><dt>Graph hints</dt><dd>${esc(utility.graphCoverageLabel)}</dd></div><div><dt>Source kept</dt><dd>${esc(utility.sourceSelectionRatio)}</dd></div><div><dt>Source reduction</dt><dd>${esc(utility.sourceReduction)}</dd></div></dl>${utility.topReads.length?`<ol class="locator-list compact-list">${utility.topReads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.required?'required':'optional'} · ${item.contentHash?'hash':'hash unavailable'}</small></li>`).join('')}</ol>`:'<p class="muted">No required local reads recorded.</p>'}`;
+  return `<dl class="facts compact-facts"><div><dt>Changed files</dt><dd>${esc(utility.changedCoverageLabel)} (${esc(utility.changedCoveragePercent)})</dd></div><div><dt>Hash verified</dt><dd>${esc(utility.changedHashVerifiedLabel)}</dd></div><div><dt>Changed source</dt><dd>${esc(utility.changedSourceBudgetLabel)}</dd></div><div><dt>Required reads</dt><dd>${Number(utility.requiredReadCount)}</dd></div><div><dt>Graph hints</dt><dd>${esc(utility.graphCoverageLabel)}</dd></div><div><dt>Source kept</dt><dd>${esc(utility.sourceSelectionRatio)}</dd></div><div><dt>Source reduction</dt><dd>${esc(utility.sourceReduction)}</dd></div></dl>${utility.topReads.length?`<ol class="locator-list compact-list">${utility.topReads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.required?'required':'optional'} · ${item.contentHash?'hash':'hash unavailable'}</small></li>`).join('')}</ol>`:'<p class="muted">No required local reads recorded.</p>'}`;
 }
 
 function contextPackImpactBriefPanel(brief) {
@@ -1424,6 +1433,7 @@ function contextPackProofLedger(proof) {
   return [
     ledgerItem(proof.tokenSaved,'Locator handoff reduction','Estimate vs candidate source tokens'),
     ledgerItem(proof.selectedTokenRatio,'Source kept','Estimate vs candidate source tokens'),
+    ledgerItem(proof.changedSourceAvoidedLabel,'Changed source avoided','Raw changed-file body tokens kept out'),
     ledgerItem(proof.observedDurationLabel,'Browser request time','Observed around local API call'),
     ledgerItem(proof.readbackDurationLabel,'MCP summary read','Single in-process read'),
     ledgerItem(proof.rawBodiesLabel,'Raw bodies','Schema safeguard'),

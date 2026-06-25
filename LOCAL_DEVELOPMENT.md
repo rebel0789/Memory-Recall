@@ -74,7 +74,9 @@ The page also reads existing pinned handoff status through
 `GET /api/context/pack/registry/status?workspaceId=ws_local`. This status card
 is read-only: it shows whether the local registry/current pointer is verified,
 stale, tampered, or missing, and it only offers the MCP use-plan read command
-when the current pinned entry verifies.
+when the current pinned entry verifies. Unsafe persisted source locators in a
+hand-edited registry are redacted before CLI, API, or MCP status output and move
+the pinned entry back to review.
 
 The result starts with a **Use this pack** brief before the raw Markdown:
 changed-file coverage, affected symbols, required local reads, hash proof,
@@ -160,6 +162,11 @@ npm --silent run oaf -- measure context-pack \
   --changed apps/web/app.js \
   --format json
 ```
+
+This report includes aggregate changed-source byte/token counts and an
+avoidance ratio for raw changed-file bodies that stayed out of the handoff. The
+counts are local estimates for proof and comparison, not provider billing-token
+or production latency claims.
 
 Explicit local write:
 

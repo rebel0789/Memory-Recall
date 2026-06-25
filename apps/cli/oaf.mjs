@@ -1095,6 +1095,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
       deliveredUnitCount: Number(delivery.deliveredTokenCount ?? 0),
       deliveredUnitRatio: Number(delivery.deliveredTokenRatio ?? 0),
       observedDeliveryReductionRatio: Number(delivery.observedTokenReductionRatio ?? 0),
+      changedSourceBudget: pack.utility.changedSourceBudget,
       changedLocatorCoverage: pack.utility.changedLocatorCoverage,
       graphHintCoverage: pack.utility.graphHintCoverage
     },
@@ -1448,6 +1449,7 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
       deliveredUnitCount: Number(delivery.deliveredTokenCount ?? 0),
       deliveredUnitRatio: Number(delivery.deliveredTokenRatio ?? 0),
       observedDeliveryReductionRatio: Number(delivery.observedTokenReductionRatio ?? 0),
+      changedSourceBudget: pack.utility.changedSourceBudget,
       changedLocatorCoverage: pack.utility.changedLocatorCoverage,
       graphHintCoverage: pack.utility.graphHintCoverage
     },

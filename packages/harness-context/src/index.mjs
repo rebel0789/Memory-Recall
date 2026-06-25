@@ -50,6 +50,8 @@ const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:B
 const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)+/gu;
 const LOCAL_USER_ROOT = /\/Users\/[A-Za-z0-9._-]+(?=$|[\s"'`,;).])/gu;
 const HANDOFF_ABSOLUTE_PATH = /(?:\/home\/[A-Za-z0-9._-]+(?:\/[^\s"'`,;).]+)+|[A-Za-z]:\\[^\s"'`,;]+(?:\\[^\s"'`,;]+)+)/gu;
+const UNSAFE_PERSISTED_LOCATOR = /(?:https?:|file:|\/Users(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|oaf_session|oaf_ses_|sk-proj|OPENAI_API_KEY|authorization|cookie|token\s*[=:]|secret\s*[=:]|api[_-]?key\s*[=:])/iu;
+const REDACTED_UNSAFE_SOURCE_LOCATOR = 'workspace://context-packs/redacted-unsafe-source-locator';
 const execFileAsync = promisify(execFile);
 const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
 
@@ -267,6 +269,8 @@ function normalizeChangedLocators(values) {
 function changedLocatorUnavailable(reason) {
   return {
     contentHash: null,
+    contentByteSize: 0,
+    contentTokenCount: 0,
     reasonCodes: ['content_hash_unavailable', reason].filter(Boolean)
   };
 }
@@ -308,8 +312,11 @@ async function inspectChangedLocator({ root, rootReal, locator, maxBytes }) {
   if (isControlCharacterBuffer(bodyBuffer)) return changedLocatorUnavailable('binary');
 
   const redactions = redact(bodyBuffer.toString('utf8'));
+  const measuredText = redactions.redacted;
   return {
-    contentHash: hash(redactions.redacted),
+    contentHash: hash(measuredText),
+    contentByteSize: Buffer.byteLength(measuredText, 'utf8'),
+    contentTokenCount: estimateTokens(measuredText),
     reasonCodes: [
       'content_hash_verified',
       redactions.secretCount || redactions.localPathCount ? 'redacted_before_hash' : null,
@@ -1126,6 +1133,10 @@ function buildContextPackUtility({ selected, sourceGraph, preview, requestedInpu
   const selectedTokenCount = Number(preview.metrics.selectedTokenCount ?? 0);
   const selectedTokenRatio = candidateTokenCount ? Number((selectedTokenCount / candidateTokenCount).toFixed(6)) : 0;
   const changedCoverage = coverageRatio(changedLocators.length, changedCovered);
+  const changedMetadata = changedLocators.map((locator) => changedLocatorMetadata.get(locator) ?? changedLocatorUnavailable('content_hash_unavailable'));
+  const measuredChangedMetadata = changedMetadata.filter((metadata) => typeof metadata.contentHash === 'string' && metadata.contentHash.startsWith('sha256:'));
+  const changedContentByteCount = measuredChangedMetadata.reduce((sum, metadata) => sum + Number(metadata.contentByteSize ?? 0), 0);
+  const changedContentTokenCount = measuredChangedMetadata.reduce((sum, metadata) => sum + Number(metadata.contentTokenCount ?? 0), 0);
   const requiredHashesMissing = reads.some((item) => item.required && item.contentHash === null);
   return {
     status: changedCoverage.status === 'partial' || reads.filter((item) => item.required).length === 0 || requiredHashesMissing ? 'review' : 'ready',
@@ -1137,6 +1148,15 @@ function buildContextPackUtility({ selected, sourceGraph, preview, requestedInpu
       selectedTokenCount,
       selectedTokenRatio,
       estimatedReductionRatio: candidateTokenCount ? Number(Math.max(0, 1 - selectedTokenCount / candidateTokenCount).toFixed(6)) : 0
+    },
+    changedSourceBudget: {
+      locatorCount: changedLocators.length,
+      measuredLocatorCount: measuredChangedMetadata.length,
+      contentByteCount: changedContentByteCount,
+      contentTokenCount: changedContentTokenCount,
+      contentTokenCountIncluded: 0,
+      observedAvoidanceRatio: changedContentTokenCount ? 1 : 0,
+      sourceContentIncluded: false
     },
     delivery: {
       representation: 'locator-handoff',
@@ -1521,6 +1541,8 @@ export function renderContextPackMarkdown(pack) {
     `Delivered handoff tokens: ${pack.delivery.deliveredTokenCount}`,
     `Delivered token ratio: ${pack.delivery.deliveredTokenRatio}`,
     `Observed token reduction: ${pack.delivery.observedTokenReductionRatio}`,
+    `Changed source body tokens measured: ${pack.utility.changedSourceBudget?.contentTokenCount ?? 0}`,
+    `Changed source body tokens included: ${pack.utility.changedSourceBudget?.contentTokenCountIncluded ?? 0}`,
     `Embedded source-content tokens: ${pack.delivery.sourceContentTokenCountIncluded}`,
     ''
   ] : [];
@@ -2266,6 +2288,17 @@ function sourceRelativePath(locator) {
   }
 }
 
+function safeRegistrySourceLocator(locator) {
+  if (typeof locator !== 'string' || UNSAFE_PERSISTED_LOCATOR.test(locator)) return null;
+  const relativePath = sourceRelativePath(locator);
+  if (!relativePath) return null;
+  const scheme = locator.startsWith('user-selected://') ? 'user-selected' : 'workspace';
+  return {
+    locator: `${scheme}://${relativePath}`,
+    relativePath
+  };
+}
+
 async function readRegistryWorkspaceFile(rootReal, relativePath) {
   await assertRegistryNoSymlinkAncestors(rootReal, relativePath);
   const absolute = path.resolve(rootReal, relativePath);
@@ -2334,26 +2367,26 @@ async function verifyRegistryArtifact(rootReal, artifact) {
 }
 
 async function verifyRegistrySourceRead(rootReal, item) {
-  const relativePath = sourceRelativePath(item?.locator);
-  if (!relativePath || !item?.contentHash) {
+  const safeLocator = safeRegistrySourceLocator(item?.locator);
+  if (!safeLocator || !item?.contentHash) {
     return {
-      locator: item?.locator ?? null,
+      locator: safeLocator?.locator ?? REDACTED_UNSAFE_SOURCE_LOCATOR,
       role: item?.role ?? null,
       expectedHash: item?.contentHash ?? null,
       actualHash: null,
       status: 'unavailable',
-      reasonCodes: ['source_hash_unavailable']
+      reasonCodes: [safeLocator ? 'source_hash_unavailable' : 'source_locator_unsafe']
     };
   }
   const metadata = await inspectChangedLocator({
     root: rootReal,
     rootReal,
-    locator: `workspace://${relativePath}`,
+    locator: `workspace://${safeLocator.relativePath}`,
     maxBytes: DEFAULT_CHANGED_HASH_MAX_BYTES
   });
   if (!metadata.contentHash) {
     return {
-      locator: item.locator,
+      locator: safeLocator.locator,
       role: item.role,
       expectedHash: item.contentHash,
       actualHash: null,
@@ -2363,7 +2396,7 @@ async function verifyRegistrySourceRead(rootReal, item) {
   }
   const status = metadata.contentHash === item.contentHash ? 'verified' : 'stale';
   return {
-    locator: item.locator,
+    locator: safeLocator.locator,
     role: item.role,
     expectedHash: item.contentHash,
     actualHash: metadata.contentHash,
@@ -2450,6 +2483,9 @@ export async function verifyContextPackRegistry({
   }
   const entries = [];
   for (const entry of registry?.entries ?? []) entries.push(await verifyRegistryEntry(rootReal, entry));
+  if (entries.some((entry) => entry.sourceChecks.unavailableLocators.includes(REDACTED_UNSAFE_SOURCE_LOCATOR))) {
+    warnings.push('context_pack_registry_unsafe_locator_redacted');
+  }
   const currentEntryId = currentPointer?.entryId ?? registry?.currentEntryId ?? null;
   const current = entries.find((entry) => entry.id === currentEntryId) ?? null;
   const currentStatus = registryFingerprintStatus === 'tampered' || pointerFingerprintStatus === 'tampered'

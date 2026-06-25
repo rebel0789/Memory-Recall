@@ -84,6 +84,19 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert(pack.sourceGraph.results.some((item) => item.locator === 'workspace://src/authWorkflow.ts#L1-L3'));
   assert.equal(pack.utility.status, 'ready');
   assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
+  assert.deepEqual(pack.utility.changedSourceBudget, {
+    locatorCount: 1,
+    measuredLocatorCount: 1,
+    contentByteCount: Buffer.byteLength([
+      'export function approveTokenResetWorkflow() {',
+      "  return 'GRAPH RAW BODY SENTINEL';",
+      '}'
+    ].join('\n'), 'utf8'),
+    contentTokenCount: 21,
+    contentTokenCountIncluded: 0,
+    observedAvoidanceRatio: 1,
+    sourceContentIncluded: false
+  });
   const changedRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'workspace://src/authWorkflow.ts' && item.role === 'changed_locator');
   assert(changedRead);
   assert.equal(changedRead.required, true);
@@ -112,6 +125,8 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /Source families: codex, claude-code, cursor/);
   assert.match(markdown, /workspace:\/\/AGENTS\.md/);
   assert.match(markdown, /## Delivery Budget/);
+  assert.match(markdown, /Changed source body tokens measured: 21/);
+  assert.match(markdown, /Changed source body tokens included: 0/);
   assert.match(markdown, /## Launch Prompt/);
   assert.match(markdown, /## Utility Read Plan/);
   assert.match(markdown, /Content Hash/);
@@ -268,6 +283,54 @@ test('context pack registry verifies pinned artifacts without exposing private c
   assert.equal(mismatched.currentPointer.fingerprintStatus, 'tampered');
   assert.equal(mismatched.current.status, 'tampered');
   assert.equal(mismatched.warnings.includes('context_pack_current_pointer_registry_mismatch'), true);
+});
+
+test('context pack registry redacts unsafe persisted source locators before status output', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'context-packs'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Registry poisoned locator test.');
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare poisoned registry locator proof',
+    step: 'verify registry status redaction',
+    clock: fixedClock
+  });
+  const usePlan = buildContextPackUsePlan(pack, { generatedAt: fixedClock() });
+  const markdown = renderContextPackMarkdown(pack);
+  const usePlanText = JSON.stringify(usePlan, null, 2);
+  const entry = buildContextPackRegistryEntry({ pack, usePlan, markdown, usePlanContent: usePlanText });
+  const poisonedEntry = {
+    ...entry,
+    requiredLocalReads: [
+      {
+        ...entry.requiredLocalReads[0],
+        locator: 'workspace://tmp/https://api.openai.com/v1/oaf_session=oaf_ses_abc/sk-proj-secret/Users/rebel/private',
+        contentHash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      }
+    ]
+  };
+  const registry = buildContextPackRegistry({ entry: poisonedEntry, updatedAt: fixedClock() });
+  const pointer = buildContextPackCurrentPointer({ registry, entry: poisonedEntry, updatedAt: fixedClock() });
+
+  await writeFile(path.join(root, 'context-packs', 'CONTEXT_PACK.md'), markdown);
+  await writeFile(path.join(root, 'context-packs', 'CONTEXT_PACK.use.json'), usePlanText);
+  await writeFile(path.join(root, 'context-packs', 'registry.json'), JSON.stringify(registry, null, 2));
+  await writeFile(path.join(root, 'context-packs', 'current.json'), JSON.stringify(pointer, null, 2));
+
+  const status = await verifyContextPackRegistry({ root, workspaceId: 'ws_local', clock: fixedClock });
+  const encoded = JSON.stringify(status);
+  assert.equal(status.registry.fingerprintStatus, 'verified');
+  assert.equal(status.currentPointer.fingerprintStatus, 'verified');
+  assert.equal(status.current.status, 'review');
+  assert.equal(status.entries[0].sourceChecks.unavailable, 1);
+  assert.deepEqual(status.entries[0].sourceChecks.unavailableLocators, ['workspace://context-packs/redacted-unsafe-source-locator']);
+  assert.equal(status.warnings.includes('context_pack_registry_unsafe_locator_redacted'), true);
+  for (const forbidden of ['https://api.openai.com', 'oaf_session', 'oaf_ses_', 'sk-proj', '/Users/rebel']) {
+    assert.equal(encoded.includes(forbidden), false, forbidden);
+  }
 });
 
 test('context pack keeps missing changed locators in review with unavailable hash proof', async () => {

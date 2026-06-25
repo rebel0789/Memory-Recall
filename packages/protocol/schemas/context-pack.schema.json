@@ -328,6 +328,7 @@
         },
         "changedLocatorCoverage": { "$ref": "#/$defs/coverageRatio" },
         "graphHintCoverage": { "$ref": "#/$defs/coverageRatio" },
+        "changedSourceBudget": { "$ref": "#/$defs/changedSourceBudget" },
         "sourceSelection": {
           "type": "object",
           "additionalProperties": false,
@@ -348,6 +349,28 @@
             "sourceContentsIncluded": { "const": false }
           }
         }
+      }
+    },
+    "changedSourceBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locatorCount",
+        "measuredLocatorCount",
+        "contentByteCount",
+        "contentTokenCount",
+        "contentTokenCountIncluded",
+        "observedAvoidanceRatio",
+        "sourceContentIncluded"
+      ],
+      "properties": {
+        "locatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "measuredLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "contentByteCount": { "type": "integer", "minimum": 0, "maximum": 2000000 },
+        "contentTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "contentTokenCountIncluded": { "const": 0 },
+        "observedAvoidanceRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sourceContentIncluded": { "const": false }
       }
     },
     "requiredLocalRead": {

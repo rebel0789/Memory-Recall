@@ -91,7 +91,9 @@ page also shows **Pinned handoff status** by reading
 `context-packs/registry.json` and `context-packs/current.json` through the
 loopback API. Verified pins expose a read-only receive command and MCP use-plan
 read command; stale or review pins withhold the use-plan resource until the
-registry verifies again.
+registry verifies again. Registry verification also redacts unsafe persisted
+source locators before status output, so poisoned local metadata cannot surface
+provider URLs, session-token strings, or absolute user paths as trusted status.
 
 For a pinned local pack that another harness can consume without retyping the
 objective, write and pin first, then receive the pinned artifact:
@@ -118,6 +120,11 @@ For a compact diff-aware impact brief with the same read-only MCP proof:
 ```bash
 npm --silent run oaf -- measure context-pack --read-only --from codex --root . --objective "Prepare handoff" --step "impact brief" --target codex --changed apps/web/app.js --format json
 ```
+
+The measurement report includes selected/delivered handoff token estimates,
+observed local build/readback timings, and aggregate changed-file body tokens
+kept out of the handoff. It does not claim provider billing tokens, production
+latency, raw source inclusion, model calls, network calls, or external writes.
 
 The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.
 
