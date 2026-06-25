@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "loop run",
+  "id": "looprun_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_loop",
+  "runId": "run_loop_demo",
+  "createdAt": "2026-06-26T00:00:00.000Z",
+  "loopPlanId": "loopplan_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "loopPlanFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "blocked",
+  "stopReason": "blocked_needs_human",
+  "controller": {
+    "maxIterations": 3,
+    "timeoutMs": 1800000,
+    "terminalStopReasons": [
+      "completed",
+      "validation_failed",
+      "blocked_needs_human",
+      "unrelated_changes"
+    ]
+  },
+  "durable": {
+    "enabled": true,
+    "workflowId": "workflow:oaf:loop-run",
+    "workflowRunId": "run_loop_demo_workflow",
+    "status": "waiting_approval",
+    "resumed": false,
+    "historyEventCount": 5
+  },
+  "iterations": [],
+  "tokenBudget": {
+    "perIterationEstimatedDeliveryTokens": 123,
+    "aggregatedEstimatedDeliveryTokens": 0,
+    "sourceBodyTokensExcluded": 456,
+    "basis": "context-pack-measurement"
+  },
+  "schedule": {
+    "enabled": true,
+    "kind": "triage",
+    "cadence": "manual",
+    "nextRunAt": "2026-06-26T01:00:00.000Z",
+    "humanApprovalThresholdTokens": 1000
+  },
+  "runLog": {
+    "eventCount": 3,
+    "eventTypes": [
+      "loop.run_started",
+      "approval.requested",
+      "loop.run_stopped"
+    ]
+  },
+  "safeguards": {
+    "boundedIterations": true,
+    "timeoutEnforced": true,
+    "humanApprovalGateEnforced": true,
+    "externalWritesEnabled": false,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "autoMerge": false
+  },
+  "runFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

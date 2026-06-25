@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "loop run",
+  "id": "looprun_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_loop",
+  "runId": "run_loop_demo",
+  "createdAt": "2026-06-26T00:00:00.000Z",
+  "loopPlanId": "loopplan_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "loopPlanFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "completed",
+  "stopReason": "completed",
+  "controller": {
+    "maxIterations": 3,
+    "timeoutMs": 1800000,
+    "terminalStopReasons": ["completed"]
+  },
+  "durable": {
+    "enabled": false,
+    "workflowId": null,
+    "workflowRunId": null,
+    "status": "not_configured",
+    "resumed": false,
+    "historyEventCount": 0
+  },
+  "iterations": [],
+  "tokenBudget": {
+    "perIterationEstimatedDeliveryTokens": 0,
+    "aggregatedEstimatedDeliveryTokens": 0,
+    "sourceBodyTokensExcluded": 0,
+    "basis": "unestimated"
+  },
+  "schedule": {
+    "enabled": false,
+    "kind": "manual",
+    "cadence": "none",
+    "nextRunAt": null,
+    "humanApprovalThresholdTokens": 0
+  },
+  "runLog": {
+    "eventCount": 2,
+    "eventTypes": ["loop.run_started", "loop.run_stopped"]
+  },
+  "safeguards": {
+    "boundedIterations": true,
+    "timeoutEnforced": true,
+    "humanApprovalGateEnforced": false,
+    "externalWritesEnabled": false,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "autoMerge": true
+  },
+  "runFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

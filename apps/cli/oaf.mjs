@@ -21,6 +21,7 @@ import {
   pinContextPackArtifacts,
   recordLoopObservation,
   renderContextPackMarkdown,
+  runLoop,
   runLoopVerification,
   scanHarnessContext,
   verifyContextPackRegistry
@@ -122,7 +123,9 @@ async function loopCommand(values) {
     if (subcommand === 'plan') return await loopPlanCommand(rest);
     if (subcommand === 'observe') return await loopObserveCommand(rest);
     if (subcommand === 'verify') return await loopVerifyCommand(rest);
-    console.error('loop requires plan, observe, or verify');
+    if (subcommand === 'run') return await loopRunCommand(rest);
+    if (subcommand === 'schedule') return await loopScheduleCommand(rest);
+    console.error('loop requires plan, observe, verify, run, or schedule');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -275,6 +278,106 @@ async function loopVerifyCommand(values) {
     clock: fixedNow
   });
   console.log(JSON.stringify({ ...report, ledgerEvents: events }, null, 2));
+}
+
+async function loopRunCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('loop run requires --read-only for this CLI checkpoint');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--merge')) {
+    console.error('loop run does not merge or write reports in this CLI checkpoint');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--max-iterations', '--timeout-ms', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', '--human-approval-required', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`loop run unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('loop run only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const planPath = option(values, '--plan');
+  if (!planPath) {
+    console.error('loop run requires --plan <loop-plan.json>');
+    process.exitCode = 2;
+    return;
+  }
+  const loopPlan = await loadWorkspaceJson(root, safeWorkspaceRelativePath(planPath, 'loop plan'), null);
+  if (!loopPlan) throw new Error(`loop plan not found: ${planPath}`);
+  const report = await runLoop({
+    loopPlan,
+    runId: option(values, '--run-id') ?? 'run_loop',
+    worktreePath: option(values, '--worktree') ?? root,
+    maxIterations: numericOption(values, '--max-iterations', loopPlan.maxIterations),
+    timeoutMs: numericOption(values, '--timeout-ms', loopPlan.timeoutSeconds * 1000),
+    humanApprovalRequired: values.includes('--human-approval-required'),
+    clock: fixedNow
+  });
+  console.log(JSON.stringify(report, null, 2));
+}
+
+async function loopScheduleCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('loop schedule requires --read-only for this CLI checkpoint');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--merge')) {
+    console.error('loop schedule emits an opt-in prompt report only in this CLI checkpoint');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--plan', '--run-id', '--kind', '--cadence', '--next-run-at', '--human-approval-threshold-tokens', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`loop schedule unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('loop schedule only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const planPath = option(values, '--plan');
+  if (!planPath) {
+    console.error('loop schedule requires --plan <loop-plan.json>');
+    process.exitCode = 2;
+    return;
+  }
+  const loopPlan = await loadWorkspaceJson(root, safeWorkspaceRelativePath(planPath, 'loop plan'), null);
+  if (!loopPlan) throw new Error(`loop plan not found: ${planPath}`);
+  const kind = option(values, '--kind') ?? 'triage';
+  if (!['triage', 'pr-babysitter', 'ci-sweeper'].includes(kind)) {
+    console.error('loop schedule --kind must be triage, pr-babysitter, or ci-sweeper');
+    process.exitCode = 2;
+    return;
+  }
+  const report = await runLoop({
+    loopPlan,
+    runId: option(values, '--run-id') ?? 'run_loop_schedule',
+    humanApprovalRequired: true,
+    schedule: {
+      enabled: true,
+      kind,
+      cadence: option(values, '--cadence') ?? 'manual',
+      nextRunAt: option(values, '--next-run-at'),
+      humanApprovalThresholdTokens: numericOption(values, '--human-approval-threshold-tokens', 0)
+    },
+    clock: fixedNow
+  });
+  console.log(JSON.stringify(report, null, 2));
 }
 
 async function measureContextPackCommand(values) {
@@ -2079,6 +2182,13 @@ function option(values, name) {
   return index >= 0 ? values[index + 1] : null;
 }
 
+function numericOption(values, name, fallback) {
+  const value = option(values, name);
+  if (value === null) return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
 function unsupportedFlags(values, allowed, valueOptions = new Set()) {
   const output = [];
   for (let index = 0; index < values.length; index += 1) {
@@ -2188,6 +2298,8 @@ Usage:
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --read-only --root . --plan loop-plan.json --format json
   oaf loop verify --read-only --root . --plan loop-plan.json --worktree ../isolated-worktree --format json
+  oaf loop run --read-only --root . --plan loop-plan.json --worktree ../isolated-worktree --format json
+  oaf loop schedule --read-only --root . --plan loop-plan.json --kind triage --cadence manual --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json

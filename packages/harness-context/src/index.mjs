@@ -20,6 +20,7 @@ import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-
 import harnessContextSourceSchema from '../../protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
 import loopObservationSchema from '../../protocol/schemas/loop-observation.schema.json' with { type: 'json' };
 import loopPlanSchema from '../../protocol/schemas/loop-plan.schema.json' with { type: 'json' };
+import loopRunSchema from '../../protocol/schemas/loop-run.schema.json' with { type: 'json' };
 import {
   buildMemoryProposalsReport,
   evaluateMemoryWrite,
@@ -45,6 +46,7 @@ export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
 export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
 export const LOOP_PLAN_VERSION = '0.1.0';
+export const LOOP_RUN_WORKFLOW_ID = 'workflow:oaf:loop-run';
 
 const DEFAULT_MAX_BYTES = 65_536;
 const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
@@ -2571,6 +2573,281 @@ export async function runLoopVerification({
   report.reportFingerprint = hashJson({ ...report, reportFingerprint: null });
   await emit('loop.verification_reported', { reportFingerprint: report.reportFingerprint, stopReason: report.stopReason });
   assertJsonSchema(loopVerificationReportSchema, report, 'loop verification report');
+  return report;
+}
+
+export function createLoopRunWorkflowDefinition({
+  approvalRequired = false,
+  scheduleDelayMs = 0
+} = {}) {
+  const handler = (id) => ({ id: `handler:oaf:loop-run:${id}`, version: '1.0.0' });
+  const step = (id, riskClass = 'read-only') => ({
+    id,
+    kind: 'deterministic',
+    handler: handler(id),
+    timeoutMs: 1000,
+    retry: { maxAttempts: 1 },
+    approval: { required: false },
+    idempotency: { required: false },
+    riskClass,
+    inputSchema: {},
+    outputSchema: {}
+  });
+  const steps = [
+    step('intent'),
+    step('context')
+  ];
+  if (scheduleDelayMs > 0) {
+    steps.push({
+      id: 'schedule',
+      kind: 'timer',
+      timer: { delayMs: Math.max(1, Math.min(86_400_000, Math.trunc(scheduleDelayMs))) },
+      timeoutMs: 1000,
+      retry: { maxAttempts: 1 },
+      approval: { required: false },
+      idempotency: { required: false },
+      riskClass: 'read-only',
+      inputSchema: {},
+      outputSchema: {}
+    });
+  }
+  if (approvalRequired) {
+    steps.push({
+      id: 'approval',
+      kind: 'approval',
+      timeoutMs: 1000,
+      retry: { maxAttempts: 1 },
+      approval: { required: true, operationFingerprint: 'sha256:loop-run-human-approval', expiresInMs: 3_600_000 },
+      idempotency: { required: false },
+      riskClass: 'consequential-write',
+      inputSchema: {},
+      outputSchema: {}
+    });
+  }
+  steps.push(
+    step('action', approvalRequired ? 'consequential-write' : 'read-only'),
+    step('observation'),
+    step('adjustment'),
+    step('stop')
+  );
+  return {
+    schemaVersion: '1.0.0',
+    id: LOOP_RUN_WORKFLOW_ID,
+    version: '1.0.0',
+    name: 'Loop Workbench run',
+    description: 'Bounded local Loop Workbench run controller.',
+    steps
+  };
+}
+
+function normalizedTerminalStopReasons(reasons) {
+  const allowed = new Set([
+    'completed',
+    'validation_failed',
+    'blocked_needs_human',
+    'unsafe_action_required',
+    'unrelated_changes',
+    'out_of_scope'
+  ]);
+  const selected = Array.isArray(reasons) && reasons.length ? reasons : ['completed', 'validation_failed', 'blocked_needs_human', 'unsafe_action_required', 'unrelated_changes', 'out_of_scope'];
+  return [...new Set(selected.filter((reason) => allowed.has(reason)))].slice(0, 8);
+}
+
+async function advanceDurableLoopWorkflow({
+  durableRuntime,
+  loopPlan,
+  runId,
+  workflowTicks,
+  workerId,
+  humanApprovalRequired,
+  scheduleDelayMs
+}) {
+  if (!durableRuntime) {
+    return {
+      enabled: false,
+      workflowId: null,
+      workflowRunId: null,
+      status: 'not_configured',
+      resumed: false,
+      historyEventCount: 0,
+      eventTypes: []
+    };
+  }
+  const definition = createLoopRunWorkflowDefinition({ approvalRequired: humanApprovalRequired, scheduleDelayMs });
+  await durableRuntime.registerWorkflow(definition);
+  const workflowRunId = `${runId}_workflow`;
+  await durableRuntime.start({
+    workspaceId: loopPlan.workspaceId,
+    workflowId: definition.id,
+    workflowVersion: definition.version,
+    runId: workflowRunId,
+    input: {
+      loopPlanId: loopPlan.id,
+      loopPlanFingerprint: loopPlan.loopPlanFingerprint
+    },
+    idempotencyKey: `loop-run:${loopPlan.id}:${runId}`
+  });
+  for (let tick = 0; tick < workflowTicks; tick += 1) {
+    const result = await durableRuntime.tick({ workerId });
+    if (!result.claimed) break;
+  }
+  const [run, history] = await Promise.all([
+    durableRuntime.get({ workspaceId: loopPlan.workspaceId, runId: workflowRunId }),
+    durableRuntime.history({ workspaceId: loopPlan.workspaceId, runId: workflowRunId })
+  ]);
+  const eventTypes = history.events.map((event) => event.type);
+  return {
+    enabled: true,
+    workflowId: definition.id,
+    workflowRunId,
+    status: run?.status ?? 'missing',
+    resumed: eventTypes.includes('run.resumed'),
+    historyEventCount: history.events.length,
+    eventTypes
+  };
+}
+
+export async function runLoop({
+  loopPlan,
+  runId = 'run_loop',
+  worktreePath = process.cwd(),
+  maxIterations = loopPlan?.maxIterations,
+  timeoutMs = Math.max(0, Number(loopPlan?.timeoutSeconds ?? 0) * 1000),
+  terminalStopReasons = null,
+  humanApprovalRequired = false,
+  schedule = null,
+  durableRuntime = null,
+  workflowTicks = 0,
+  workerId = 'worker_loop',
+  verificationRunner = async (input) => runLoopVerification(input),
+  clock = () => new Date().toISOString()
+} = {}) {
+  assertJsonSchema(loopPlanSchema, loopPlan, 'loop run plan');
+  const createdAt = clock();
+  const boundedMaxIterations = Number.isInteger(maxIterations) ? Math.max(1, Math.min(20, maxIterations)) : loopPlan.maxIterations;
+  const boundedTimeoutMs = Number.isFinite(timeoutMs) ? Math.max(0, Math.min(86_400_000, Math.trunc(timeoutMs))) : Math.max(0, loopPlan.timeoutSeconds * 1000);
+  const terminalReasons = normalizedTerminalStopReasons(terminalStopReasons);
+  const scheduleEnabled = Boolean(schedule);
+  const scheduleDelayMs = schedule?.delayMs ? Math.max(1, Math.min(86_400_000, Math.trunc(Number(schedule.delayMs)))) : 0;
+  const approvalGate = humanApprovalRequired === true || loopPlan.approvalRequired === true;
+  const durable = await advanceDurableLoopWorkflow({
+    durableRuntime,
+    loopPlan,
+    runId,
+    workflowTicks,
+    workerId,
+    humanApprovalRequired: approvalGate,
+    scheduleDelayMs
+  });
+  const perIterationTokens = loopPlan.contextBudget.estimatedDeliveryTokens;
+  const iterations = [];
+  let status = 'blocked';
+  let stopReason = 'max_iterations';
+  const deadline = Date.parse(createdAt) + boundedTimeoutMs;
+
+  if (Date.parse(clock()) >= deadline) {
+    stopReason = 'timeout';
+  } else if (approvalGate) {
+    stopReason = 'blocked_needs_human';
+  } else {
+    for (let index = 1; index <= boundedMaxIterations; index += 1) {
+      if (Date.parse(clock()) >= deadline) {
+        stopReason = 'timeout';
+        break;
+      }
+      const verification = await verificationRunner({
+        loopPlan,
+        runId: `${runId}_iter_${index}`,
+        worktreePath,
+        replayMode: false,
+        clock
+      });
+      const iterationStopReason = verification.stopReason ?? (verification.status === 'proposed' ? 'completed' : 'validation_failed');
+      iterations.push({
+        index,
+        status: verification.status,
+        stopReason: iterationStopReason,
+        verificationReportId: verification.id ?? null,
+        estimatedDeliveryTokens: perIterationTokens
+      });
+      if (terminalReasons.includes(iterationStopReason)) {
+        stopReason = iterationStopReason;
+        status = iterationStopReason === 'completed' ? 'completed' : 'blocked';
+        break;
+      }
+      if (index === boundedMaxIterations) stopReason = 'max_iterations';
+    }
+  }
+
+  if (stopReason === 'completed') status = 'completed';
+  const runLogEventTypes = [
+    'loop.run_started',
+    ...durable.eventTypes,
+    ...iterations.map((iteration) => `loop.iteration_${iteration.index}_${iteration.stopReason}`),
+    'loop.run_stopped'
+  ];
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'loop run',
+    id: 'looprun_000000000000000000000000',
+    workspaceId: loopPlan.workspaceId,
+    runId,
+    createdAt,
+    loopPlanId: loopPlan.id,
+    loopPlanFingerprint: loopPlan.loopPlanFingerprint,
+    status,
+    stopReason,
+    controller: {
+      maxIterations: boundedMaxIterations,
+      timeoutMs: boundedTimeoutMs,
+      terminalStopReasons: terminalReasons
+    },
+    durable: {
+      enabled: durable.enabled,
+      workflowId: durable.workflowId,
+      workflowRunId: durable.workflowRunId,
+      status: durable.status,
+      resumed: durable.resumed,
+      historyEventCount: durable.historyEventCount
+    },
+    iterations,
+    tokenBudget: {
+      perIterationEstimatedDeliveryTokens: perIterationTokens,
+      aggregatedEstimatedDeliveryTokens: perIterationTokens * iterations.length,
+      sourceBodyTokensExcluded: loopPlan.contextBudget.sourceBodyTokensExcluded,
+      basis: loopPlan.contextBudget.basis
+    },
+    schedule: {
+      enabled: scheduleEnabled,
+      kind: schedule?.kind ?? 'manual',
+      cadence: schedule?.cadence ?? 'none',
+      nextRunAt: schedule?.nextRunAt ?? null,
+      humanApprovalThresholdTokens: Math.max(0, Math.trunc(Number(schedule?.humanApprovalThresholdTokens ?? 0)))
+    },
+    runLog: {
+      eventCount: runLogEventTypes.length,
+      eventTypes: runLogEventTypes
+    },
+    safeguards: {
+      boundedIterations: true,
+      timeoutEnforced: true,
+      humanApprovalGateEnforced: approvalGate,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      autoMerge: false
+    },
+    runFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.id = `looprun_${idDigest(stableStringify({
+    workspaceId: report.workspaceId,
+    runId,
+    loopPlanFingerprint: report.loopPlanFingerprint,
+    iterations: report.iterations,
+    stopReason: report.stopReason
+  }))}`;
+  report.runFingerprint = hashJson({ ...report, runFingerprint: null });
+  assertJsonSchema(loopRunSchema, report, 'loop run');
   return report;
 }
 

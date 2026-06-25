@@ -85,8 +85,11 @@ the whole product is done.
    worktree, injected implementer, plan-limited checker commands, unrelated-diff
    blocking, replay side-effect proof, flight-recorder events, and a blocked or
    proposed human-reviewed proposal. No auto-merge.
-4. **Slice 4 — Scheduling / automation.** Loops that prompt you on a cadence
-   (triage, PR babysitter, CI sweeper) over the durable workflow runtime.
+4. **Slice 4 — Scheduling / automation.** A bounded loop-run projection over the
+   durable workflow runtime: max iterations, timeout stop reasons, contextBudget
+   aggregation, durable history/resume proof, human approval gates, and opt-in
+   schedule prompt reports for triage, PR babysitter, and CI sweeper. No
+   background daemon.
 5. **Slice 5 — Loop Workbench UI.** The `/loop-workbench` route, last.
 
 Two skills layer across all slices: an **Action-stage efficiency skill** (reuse
@@ -106,7 +109,8 @@ skill** (interrogate the objective before work begins).
 
 ## What is not claimed
 
-Proof summaries, reusable loop templates, scheduling automation, the web UI, and
-any autonomous executor are **specified and planned, not shipped**. The shipped
-native primitives are the Loop Plan generator, sanitized observation capture, and
-maker/checker verification report.
+Proof summaries, reusable loop templates, the web UI, and any autonomous
+executor are **specified and planned, not shipped**. The shipped native
+primitives are the Loop Plan generator, sanitized observation capture,
+maker/checker verification report, and bounded loop-run projection with opt-in
+schedule prompt reports.

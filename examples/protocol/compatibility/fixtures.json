@@ -942,6 +942,18 @@
       "schema": "packages/protocol/schemas/loop-verification-report.schema.json",
       "instance": "examples/protocol/compatibility/invalid/loop-verification-auto-merge.json",
       "expectedValid": false
+    },
+    {
+      "id": "loop-run-current-valid",
+      "schema": "packages/protocol/schemas/loop-run.schema.json",
+      "instance": "examples/protocol/loop-run.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-run-auto-merge-invalid",
+      "schema": "packages/protocol/schemas/loop-run.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-run-auto-merge.json",
+      "expectedValid": false
     }
   ]
 }
