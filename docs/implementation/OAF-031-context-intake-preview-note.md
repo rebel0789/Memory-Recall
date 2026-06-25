@@ -102,6 +102,9 @@ slice.
 - `npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context/latest --format json`
   reads one resource as a schema-validated JSON envelope. `--stdio` accepts
   local JSON-RPC messages on stdin and writes JSON-RPC responses to stdout.
+  Stdio input is bounded by total bytes, line bytes, and message count; batch
+  arrays are rejected, and request metadata failures are reported with redacted
+  fixed messages.
 - `npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --uri oaf://workspace/ws_local/context-pack/current --format json`
   exposes an opt-in current context-pack summary resource for harnesses. The
   resource carries safe locators, hashes, omission counts, source-selection
@@ -163,7 +166,8 @@ slice.
   `oaf://workspace/ws_local/context-pack/current`, asserts `tools/list` returns
   no tools, and returns an observed local measurement report with duration,
   response size, resource size, selected/candidate source units, and
-  delivered-handoff units. These measurements describe one local invocation only
+  delivered-handoff units. The child bridge is bounded by runtime and
+  stdout/stderr byte caps. These measurements describe one local invocation only
   and are not production latency or external benchmark claims.
 - `npm run oaf -- measure context-pack --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/web/app.js --format json`
   wraps the same local pack build and stdio MCP readback into a

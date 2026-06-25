@@ -100,7 +100,9 @@ OAF-028 adds `mcp-bridge-request.schema.json` for the local MCP bridge request
 surface. It validates JSON-RPC-shaped method names and rejects top-level
 authority injection. Runtime bridge code still performs trusted-context, grant,
 replay, disconnect, and private-payload checks because remote protocol payloads
-are not authority.
+are not authority. Request ids, methods, resource URIs, tool names, result
+envelopes, and local stdio transport buffers are bounded; method/resource/tool
+and id errors are redacted instead of echoing caller-provided metadata.
 
 `mcp-readonly-resource.schema.json` defines the sanitized JSON envelope for
 OAF-owned read-only MCP resources. These resources expose status, context

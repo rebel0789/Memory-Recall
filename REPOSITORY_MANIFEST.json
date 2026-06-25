@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-25T06:42:35.936Z",
+  "generatedAt": "2026-06-25T06:56:08.091Z",
   "fileCount": 807,
-  "totalBytes": 4000430,
+  "totalBytes": 4017901,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -572,8 +572,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 84852,
-      "sha256": "df21f3da223d5cf96ab9a69bc8b9d569c5441476ab0fa0ff3bf6dfdb461eeac3"
+      "bytes": 89514,
+      "sha256": "25a42aaadae86e4d17a918c10198bc8b6aa03df6cd59aeeb2018231189b6def2"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -902,8 +902,8 @@
     },
     {
       "path": "docs/architecture/protocol-bridges.md",
-      "bytes": 6645,
-      "sha256": "f88660c665c00ac347156d59c3ce80a0463200b0feedeb32b7c386f175035374"
+      "bytes": 6861,
+      "sha256": "5699ae4d664fa9ef7ac22501eab223adb2303b1f53462e3af5180daa81b17f7a"
     },
     {
       "path": "docs/architecture/sequence-flows.md",
@@ -1032,8 +1032,8 @@
     },
     {
       "path": "docs/implementation/OAF-028-protocol-bridges-note.md",
-      "bytes": 1378,
-      "sha256": "5c8ed373237712dde742dc8f7aaa586c7a3243b969a3e90b76619d4313b9dd56"
+      "bytes": 1583,
+      "sha256": "373187c01c20b11b597c6d90991b3be26cb42916a2d3af9b7ceac83bfde82c66"
     },
     {
       "path": "docs/implementation/OAF-029-operations-backup-rollback-note.md",
@@ -1042,8 +1042,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 19500,
-      "sha256": "5036c52d07f026fe0f335e00f3f7c6258089a68a1ef0fd5b0810c96d15f9ba21"
+      "bytes": 19746,
+      "sha256": "3311b1e2ea488c431cc4c9233024cb01b9b6800bb3121ae623a6ecf0caebf961"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1153,7 +1153,7 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "6b2cb1361ee676cf32fddba178a5d5d92b1e5fa8a2b4f909cec3aaafd1223bbd"
+      "sha256": "dc7b0c0a4ac38008c4454d823f2c5fbde4b67de73cc4de14682a6787948c4545"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
@@ -2208,7 +2208,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "3f75b0926c02a4991d17eba24853f6195658a224733b0d4a727455d7ae1752fe"
+      "sha256": "ff6a8f6278c8e59702a656211e021d9e1aff139a7f68183781c73b92cb829409"
     },
     {
       "path": "LICENSE",
@@ -2402,8 +2402,8 @@
     },
     {
       "path": "packages/protocol-bridges/src/index.mjs",
-      "bytes": 48487,
-      "sha256": "2e962305df093111cb9ab834f28074c70b9252d96b5e8a805ac915bd45bc0a38"
+      "bytes": 50145,
+      "sha256": "b69ae90a30d8fcb927d75832d7bdb49c7654c06e14a1472c39f0a58c80df5871"
     },
     {
       "path": "packages/protocol/AGENTS.md",
@@ -2417,8 +2417,8 @@
     },
     {
       "path": "packages/protocol/README.md",
-      "bytes": 9299,
-      "sha256": "94d44b777049e38a10ff290eb3e502f4cf45c748ad7d0f4027387067991eb2c1"
+      "bytes": 9506,
+      "sha256": "bfb6a6046077c2b3d79a454aba16db92bb95233c51814301c7c25b0e146ede2a"
     },
     {
       "path": "packages/protocol/schemas/adapter-conformance-fixture.schema.json",
@@ -3202,8 +3202,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 45094,
-      "sha256": "0fbc0d677a650afd0be6ddc9c10fc8126a5803a2f3cd6e50c9e2c612251769f3"
+      "bytes": 45605,
+      "sha256": "9c5b4ba5f28489170457784f3ab0959c3707287b52b246b5359ca54045b04c8d"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3707,8 +3707,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 93800,
-      "sha256": "10e3cf0662f2d6a22c07810ff896296b54b609ac1045ff68015265b42c743244"
+      "bytes": 99825,
+      "sha256": "2ff6d1585d3a92b202820ea533d9a4ef91fdd056403ac365dfbfd9883d5c1408"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -3882,8 +3882,8 @@
     },
     {
       "path": "tests/protocol-bridges.test.mjs",
-      "bytes": 28149,
-      "sha256": "f0fa8c88b060c7bd3ccdea5148f186e1abe7e54721c61c4bcb6907ccc313181d"
+      "bytes": 31890,
+      "sha256": "2a6538d8d668f6a72195bddd5385ea76cccfc51bdcacc43b3a42a75ee31772bf"
     },
     {
       "path": "tests/protocol-schema-validator.test.mjs",

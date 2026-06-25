@@ -18,8 +18,13 @@ const AUTHORITY_KEYS = /(^|\.)(trustedContext|principal|membership|role|owner|is
 const PRIVATE_KEYS = /(^|\.)(raw|prompt|body|output|secret|token|cookie|authorization|localPath|providerUrl|hiddenReasoning|sql)/i;
 const UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE = /(?:\/Users(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|https?:\/\/|file:|(?:^|[/:])\.\.(?:\/|$)|oaf_session|oaf_ses_|sk-proj|OPENAI_API_KEY|authorization|cookie|token\s*[=:]|secret\s*[=:]|api[_-]?key\s*[=:])/iu;
 const MAX_RESULT_BYTES = 64 * 1024;
+const MAX_JSONRPC_ID_BYTES = 64;
+const MAX_JSONRPC_METHOD_BYTES = 128;
+const MAX_JSONRPC_RESOURCE_URI_BYTES = 512;
+const MAX_JSONRPC_TOOL_NAME_BYTES = 512;
 const MAX_CONTEXT_PACK_ITEMS = 2;
 const MAX_CONTEXT_PACK_BULK_ITEMS = 1;
+const MCP_METHODS = new Set(['initialize', 'ping', 'tools/list', 'tools/call', 'resources/list', 'resources/read']);
 
 function hash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -56,13 +61,13 @@ function scanStrings(value, pattern, prefix = '') {
 function assertNoCallerAuthority(params) {
   const blocked = scanKeys(params, AUTHORITY_KEYS);
   if (blocked) {
-    throw new ProtocolBridgeError('mcp_authority_injection', `caller supplied authority field ${blocked}`);
+    throw new ProtocolBridgeError('mcp_authority_injection', 'caller supplied authority field');
   }
 }
 
 function assertSafeResult(value) {
   const blocked = scanKeys(value, PRIVATE_KEYS);
-  if (blocked) throw new ProtocolBridgeError('mcp_private_payload', `bridge result included private field ${blocked}`);
+  if (blocked) throw new ProtocolBridgeError('mcp_private_payload', 'bridge result included private field');
   if (Buffer.byteLength(JSON.stringify(value), 'utf8') > MAX_RESULT_BYTES) {
     throw new ProtocolBridgeError('mcp_output_too_large', 'bridge result exceeded output limit');
   }
@@ -115,17 +120,58 @@ function errorToJsonRpc(id, error) {
   return jsonRpcError(id, -32000, 'Internal bridge error', { code: 'mcp_internal_error' });
 }
 
+function stringByteLength(value) {
+  return Buffer.byteLength(value, 'utf8');
+}
+
+function assertBoundedString(value, { code = 'mcp_invalid_params', message, maxBytes }) {
+  if (typeof value !== 'string' || !value) throw new ProtocolBridgeError(code, message);
+  if (stringByteLength(value) > maxBytes) throw new ProtocolBridgeError(code, message);
+  return value;
+}
+
 function validateMessage(message) {
   if (!isPlainObject(message) || message.jsonrpc !== JSONRPC || message.method === undefined) {
     throw new ProtocolBridgeError('mcp_invalid_request', 'MCP bridge request must be a JSON-RPC 2.0 object');
   }
-  if (!['string', 'number'].includes(typeof message.id)) {
+  assertBoundedString(message.method, {
+    code: 'mcp_invalid_request',
+    message: 'MCP bridge request method is invalid',
+    maxBytes: MAX_JSONRPC_METHOD_BYTES
+  });
+  if (typeof message.id === 'string') {
+    if (!message.id || stringByteLength(message.id) > MAX_JSONRPC_ID_BYTES) {
+      throw new ProtocolBridgeError('mcp_invalid_request', 'MCP bridge request id exceeds limit');
+    }
+  } else if (typeof message.id === 'number') {
+    if (!Number.isSafeInteger(message.id)) {
+      throw new ProtocolBridgeError('mcp_invalid_request', 'MCP bridge request id is invalid');
+    }
+  } else {
     throw new ProtocolBridgeError('mcp_invalid_request', 'MCP bridge request id is required');
   }
   if (message.params !== undefined && !isPlainObject(message.params)) {
     throw new ProtocolBridgeError('mcp_invalid_params', 'MCP bridge params must be an object');
   }
   return message;
+}
+
+function resourceUriParam(params) {
+  return assertBoundedString(params.uri, {
+    message: 'MCP resource URI is invalid',
+    maxBytes: MAX_JSONRPC_RESOURCE_URI_BYTES
+  });
+}
+
+function toolNameParam(params) {
+  return assertBoundedString(params.name, {
+    message: 'MCP tool name is invalid',
+    maxBytes: MAX_JSONRPC_TOOL_NAME_BYTES
+  });
+}
+
+function eventMethod(method) {
+  return MCP_METHODS.has(method) ? method : 'unsupported';
 }
 
 function publicTool(tool) {
@@ -970,8 +1016,9 @@ export function createMcpBridge({
 
   async function handleToolCall(message, params) {
     const context = requireIdentity();
-    const tool = toolsByName.get(params.name);
-    if (!tool) throw new ProtocolBridgeError('mcp_method_not_found', `unknown MCP tool ${params.name}`);
+    const name = toolNameParam(params);
+    const tool = toolsByName.get(name);
+    if (!tool) throw new ProtocolBridgeError('mcp_method_not_found', 'unknown MCP tool');
     if (replayMode && tool.sideEffectClass !== 'read-only') {
       throw new ProtocolBridgeError('mcp_replay_side_effect_denied', 'replay mode permits read-only MCP tools only');
     }
@@ -1031,26 +1078,27 @@ export function createMcpBridge({
       if (message.method === 'ping') return jsonRpcResult(message.id, {});
       if (message.method === 'tools/list') {
         requireIdentity();
-        return jsonRpcResult(message.id, { tools: [...toolsByName.values()].map(publicTool) });
+        return jsonRpcResult(message.id, assertSafeResult({ tools: [...toolsByName.values()].map(publicTool) }));
       }
       if (message.method === 'resources/list') {
         requireIdentity();
-        return jsonRpcResult(message.id, { resources: [...resourcesByUri.values()].map(publicResource) });
+        return jsonRpcResult(message.id, assertSafeResult({ resources: [...resourcesByUri.values()].map(publicResource) }));
       }
       if (message.method === 'resources/read') {
         requireIdentity();
-        const resource = resourcesByUri.get(params.uri);
-        if (!resource) throw new ProtocolBridgeError('mcp_method_not_found', `unknown MCP resource ${params.uri}`);
+        const uri = resourceUriParam(params);
+        const resource = resourcesByUri.get(uri);
+        if (!resource) throw new ProtocolBridgeError('mcp_method_not_found', 'unknown MCP resource');
         const contents = await resource.read({ trustedContext, replayMode });
         return jsonRpcResult(message.id, assertSafeResult({ contents }));
       }
       if (message.method === 'tools/call') return jsonRpcResult(message.id, await handleToolCall(message, params));
-      throw new ProtocolBridgeError('mcp_method_not_found', `unsupported MCP method ${message.method}`);
+      throw new ProtocolBridgeError('mcp_method_not_found', 'unsupported MCP method');
     } catch (error) {
       if (state.disconnected && !(error instanceof ProtocolBridgeError)) {
         error = new ProtocolBridgeError('mcp_disconnected', 'MCP bridge connection disconnected during request');
       }
-      await emit({ type: 'mcp.request.failed', method: message?.method ?? 'unknown', errorCode: error.code ?? 'mcp_internal_error' });
+      await emit({ type: 'mcp.request.failed', method: eventMethod(message?.method), errorCode: error.code ?? 'mcp_internal_error' });
       return errorToJsonRpc(requestId, error);
     }
   }

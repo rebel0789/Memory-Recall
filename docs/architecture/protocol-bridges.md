@@ -30,7 +30,10 @@ exposes sanitized resources for workspace status, the latest context manifest,
 the latest run, memory proposals, and the latest handoff/artifact summary. The
 stdio mode reads JSON-RPC messages from stdin and writes JSON-RPC responses to
 stdout; it does not bind a socket, start a public listener, expose write tools,
-or grant client-supplied authority.
+or grant client-supplied authority. The local stdio wrapper caps stdin, line
+size, message count, child runtime, and child stdout/stderr; JSON-RPC batch
+arrays are rejected, and unsupported method/resource/tool/id failures use fixed
+redacted messages.
 
 When launched with `--context-pack --objective ... --step ...`, the same
 read-only composition also exposes

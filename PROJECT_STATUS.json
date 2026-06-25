@@ -228,6 +228,7 @@
         "Read-only MCP context-pack use-plan resources load only schema-validated context-packs/*.use.json files, reject arbitrary paths, and refuse unsafe direct use-plan data containing private local paths, provider URLs, session/token markers, or secret-like strings before serving the complete required-read plan",
         "Read-only MCP context-pack registry resources expose schema-validated verification status for pinned local context-pack artifacts without exposing write tools or private content",
         "The standard read-only MCP stdio bridge uses npm --silent and automatically discovers pinned context-pack use-plan and registry resources from context-packs/current.json and context-packs/registry.json; tampered pins withhold the use-plan resource while still exposing registry status for review",
+        "The local MCP stdio bridge caps stdin bytes, JSON-RPC line bytes, message count, child runtime, and child stdout/stderr; rejects JSON-RPC batch arrays; and redacts unsupported method, unknown resource, unknown tool, and oversized id failures",
         "The authenticated loopback Control API exposes read-only context-pack registry verification at GET /api/context/pack/registry/status without mutating canonical state",
         "Control API context-pack builds include an in-process read-only MCP resource readback proof for the freshly built pack, including fingerprint match, byte size, zero exposed tools, and no markdown body",
         "Local MCP context-pack smoke report proves the stdio resources/list, tools/list, and resources/read path with observed one-run duration, byte sizes, selected/candidate source units, and delivered-handoff units",
@@ -715,6 +716,7 @@
       "limitations": [
         "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio composition using npm --silent for harness setup previews; no HTTP, SSE, hosted bridge, or network listener is started",
         "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, opt-in current context packs, auto-discovered pinned context-pack use plans, and pinned context-pack registry verification; they do not expose write tools, source bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
+        "The stdio bridge enforces bounded stdin, JSON-RPC line size, message count, child runtime, child stdout/stderr, JSON-RPC id, method, resource URI, and tool name limits; JSON-RPC batch arrays are rejected and request-metadata failures are redacted",
         "MCP context-pack smoke and measurement reports are observed local single-invocation measurements only; delivery-budget metrics distinguish locator-handoff cost from source-body selection cost but are not production latency benchmarks, provider billing-token claims, or external tool comparisons",
         "Requires OAF trusted context and server-side exact grants; remote protocol clients do not inherit local authority",
         "A2A, AG-UI, ACP, and CCCC remain pending until accepted use-case RFCs exist"

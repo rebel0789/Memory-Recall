@@ -19,7 +19,10 @@ Authority remains OAF-owned:
   operation, side-effect class, and expiry;
 - replay mode rejects side-effecting tools before invocation;
 - disconnect aborts in-flight calls and rejects later requests;
-- malformed messages and private result payloads fail closed.
+- malformed messages and private result payloads fail closed;
+- JSON-RPC ids, methods, resource URIs, tool names, result envelopes, and
+  stdio transport buffers are bounded, and untrusted request metadata is not
+  echoed in method/resource/tool/id failure messages.
 
 Protocol compatibility adds `mcp-bridge-request.schema.json`, a valid
 `tools/call` example, and an invalid top-level grant-token fixture.

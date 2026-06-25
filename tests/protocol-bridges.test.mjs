@@ -451,6 +451,91 @@ test('MCP bridge rejects malformed messages and private result payloads', async 
   assert.equal(privatePayload.error.data.code, 'mcp_private_payload');
 });
 
+test('MCP bridge redacts untrusted request metadata in errors and events', async () => {
+  const events = [];
+  const bridge = createMcpBridge({
+    trustedContext,
+    tools: [readTool()],
+    resources: [resource()],
+    eventSink: async (event) => events.push(event)
+  });
+  const unknownResource = await bridge.handle({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'resources/read',
+    params: { uri: 'oaf://workspace/ws_mcp/runs//Users/rebel/private?token=secret-value' }
+  });
+  assert.equal(unknownResource.error.data.code, 'mcp_method_not_found');
+  assert.equal(unknownResource.error.message, 'unknown MCP resource');
+
+  const unknownTool = await bridge.handle({
+    jsonrpc: '2.0',
+    id: 2,
+    method: 'tools/call',
+    params: { name: 'oaf.secretTool./Users/rebel/token=secret-value', grantId: 'grant_missing', arguments: {} }
+  });
+  assert.equal(unknownTool.error.data.code, 'mcp_method_not_found');
+  assert.equal(unknownTool.error.message, 'unknown MCP tool');
+
+  const unsupported = await bridge.handle({
+    jsonrpc: '2.0',
+    id: 3,
+    method: 'unsupported./Users/rebel/token=secret-value',
+    params: {}
+  });
+  assert.equal(unsupported.error.data.code, 'mcp_method_not_found');
+  assert.equal(unsupported.error.message, 'unsupported MCP method');
+
+  const oversizedId = 'ID_SECRET_SENTINEL_'.repeat(16);
+  const invalidId = await bridge.handle({
+    jsonrpc: '2.0',
+    id: oversizedId,
+    method: 'resources/list'
+  });
+  assert.equal(invalidId.id, null);
+  assert.equal(invalidId.error.data.code, 'mcp_invalid_request');
+  assert.equal(invalidId.error.message, 'MCP bridge request id exceeds limit');
+
+  for (const response of [unknownResource, unknownTool, unsupported, invalidId]) {
+    const text = JSON.stringify(response);
+    assert.equal(text.includes('/Users/rebel'), false);
+    assert.equal(text.includes('secret-value'), false);
+    assert.equal(text.includes('ID_SECRET_SENTINEL'), false);
+    assert(Buffer.byteLength(text, 'utf8') < 512);
+  }
+  assert.deepEqual(events.map((event) => event.method), ['resources/read', 'tools/call', 'unsupported', 'resources/list']);
+  assert.equal(JSON.stringify(events).includes('/Users/rebel'), false);
+  assert.equal(JSON.stringify(events).includes('secret-value'), false);
+});
+
+test('MCP bridge bounds resource list and read envelopes', async () => {
+  const largeResource = {
+    uri: 'oaf://workspace/ws_mcp/large',
+    name: 'large',
+    description: 'large resource',
+    mimeType: 'application/json',
+    read: async () => [{ uri: 'oaf://workspace/ws_mcp/large', mimeType: 'application/json', text: 'LARGE_RESOURCE_SENTINEL_'.repeat(4096) }]
+  };
+  const largeRead = createMcpBridge({ trustedContext, resources: [largeResource] });
+  const read = await largeRead.handle({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/large' } });
+  assert.equal(read.error.data.code, 'mcp_output_too_large');
+  assert.equal(read.error.message, 'bridge result exceeded output limit');
+  assert.equal(JSON.stringify(read).includes('LARGE_RESOURCE_SENTINEL'), false);
+
+  const manyResources = Array.from({ length: 1400 }, (_, index) => ({
+    uri: `oaf://workspace/ws_mcp/large-${index}`,
+    name: `large-${index}`,
+    description: 'MANY_RESOURCES_SENTINEL',
+    mimeType: 'application/json',
+    read: async () => []
+  }));
+  const largeList = createMcpBridge({ trustedContext, resources: manyResources });
+  const listed = await largeList.handle({ jsonrpc: '2.0', id: 2, method: 'resources/list' });
+  assert.equal(listed.error.data.code, 'mcp_output_too_large');
+  assert.equal(listed.error.message, 'bridge result exceeded output limit');
+  assert.equal(JSON.stringify(listed).includes('MANY_RESOURCES_SENTINEL'), false);
+});
+
 test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped resources', async () => {
   const state = oafState();
   const before = JSON.stringify(state);

@@ -42,6 +42,12 @@ import {
 } from '../../packages/source-graph/src/index.mjs';
 
 const CLI_PATH = fileURLToPath(import.meta.url);
+const MCP_STDIO_MAX_STDIN_BYTES = boundedEnvInteger('OAF_MCP_STDIO_MAX_STDIN_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
+const MCP_STDIO_MAX_LINE_BYTES = boundedEnvInteger('OAF_MCP_STDIO_MAX_LINE_BYTES', 32 * 1024, { min: 1, max: 512 * 1024 });
+const MCP_STDIO_MAX_MESSAGES = boundedEnvInteger('OAF_MCP_STDIO_MAX_MESSAGES', 16, { min: 1, max: 64 });
+const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOUT_MS', 30_000, { min: 1, max: 60_000 });
+const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
+const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 
 const [command = 'help', ...args] = process.argv.slice(2);
 const commands = new Map([
@@ -917,7 +923,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   if (child.code !== 0) {
     throw new Error(`mcp context-pack smoke bridge failed with status ${child.code}`);
   }
-  const responses = child.stdout.trim().split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
+  const responses = parseJsonRpcResponseLines(child.stdout, { expectedCount: messages.length });
   const errors = responses.filter((response) => response.error);
   if (errors.length) {
     const code = errors[0].error?.data?.code ?? 'jsonrpc_error';
@@ -927,7 +933,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   const tools = responses.find((response) => response.id === 3)?.result?.tools ?? [];
   const read = responses.find((response) => response.id === 4)?.result?.contents?.[0];
   if (!read?.text) throw new Error('mcp context-pack smoke did not return a resource body');
-  const payload = JSON.parse(read.text);
+  const payload = parseSmokeResourcePayload(read.text);
   const candidateUnitCount = Number(payload.data?.preview?.candidateUnitCount ?? 0);
   const selectedUnitCount = Number(payload.data?.preview?.selectedUnitCount ?? 0);
   const selectedUnitRatio = Number(payload.data?.preview?.selectedUnitRatio ?? 0);
@@ -1626,7 +1632,20 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
   return report;
 }
 
-function runCliStdio(nodeArgs, input, { env = process.env } = {}) {
+function runCliStdio(
+  nodeArgs,
+  input,
+  {
+    env = process.env,
+    timeoutMs = MCP_STDIO_CHILD_TIMEOUT_MS,
+    maxStdoutBytes = MCP_STDIO_CHILD_MAX_STDOUT_BYTES,
+    maxStderrBytes = MCP_STDIO_CHILD_MAX_STDERR_BYTES
+  } = {}
+) {
+  const inputBytes = Buffer.byteLength(input, 'utf8');
+  if (inputBytes > MCP_STDIO_MAX_STDIN_BYTES) {
+    return Promise.reject(new Error(`mcp stdio child input exceeded ${MCP_STDIO_MAX_STDIN_BYTES} bytes`));
+  }
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, nodeArgs, {
       cwd: process.cwd(),
@@ -1635,10 +1654,51 @@ function runCliStdio(nodeArgs, input, { env = process.env } = {}) {
     });
     const stdout = [];
     const stderr = [];
-    child.stdout.on('data', (chunk) => stdout.push(Buffer.from(chunk)));
-    child.stderr.on('data', (chunk) => stderr.push(Buffer.from(chunk)));
-    child.on('error', reject);
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let settled = false;
+    let timer = null;
+    const cleanup = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    };
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (!child.killed) child.kill('SIGKILL');
+      reject(error);
+    };
+    const collect = (target, streamName, chunk) => {
+      const buffer = Buffer.from(chunk);
+      if (streamName === 'stdout') {
+        stdoutBytes += buffer.length;
+        if (stdoutBytes > maxStdoutBytes) {
+          fail(new Error(`mcp stdio child stdout exceeded ${maxStdoutBytes} bytes`));
+          return;
+        }
+      } else {
+        stderrBytes += buffer.length;
+        if (stderrBytes > maxStderrBytes) {
+          fail(new Error(`mcp stdio child stderr exceeded ${maxStderrBytes} bytes`));
+          return;
+        }
+      }
+      target.push(buffer);
+    };
+    timer = setTimeout(() => {
+      fail(new Error(`mcp stdio child timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    child.stdout.on('data', (chunk) => collect(stdout, 'stdout', chunk));
+    child.stderr.on('data', (chunk) => collect(stderr, 'stderr', chunk));
+    child.stdin.on('error', (error) => {
+      if (!settled) fail(error);
+    });
+    child.on('error', fail);
     child.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       resolve({
         code: code ?? 1,
         stdout: Buffer.concat(stdout).toString('utf8'),
@@ -1666,18 +1726,84 @@ async function mcpResourcesStdio({ resources, trustedContext }) {
 
 async function readStdinText() {
   const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
-  return Buffer.concat(chunks).toString('utf8');
+  let byteLength = 0;
+  for await (const chunk of process.stdin) {
+    const buffer = Buffer.from(chunk);
+    byteLength += buffer.length;
+    if (byteLength > MCP_STDIO_MAX_STDIN_BYTES) {
+      throw new Error(`mcp resources --stdio input exceeds ${MCP_STDIO_MAX_STDIN_BYTES} bytes`);
+    }
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks, byteLength).toString('utf8');
 }
 
 function parseJsonRpcMessages(input) {
   const trimmed = input.trim();
-  try {
-    const parsed = JSON.parse(trimmed);
-    return Array.isArray(parsed) ? parsed : [parsed];
-  } catch {
-    return trimmed.split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
+  const lines = trimmed.split(/\r?\n/u).filter((line) => line.trim());
+  if (lines.length > MCP_STDIO_MAX_MESSAGES) {
+    throw new Error(`mcp resources --stdio received too many JSON-RPC messages; max ${MCP_STDIO_MAX_MESSAGES}`);
   }
+  return lines.map((line, index) => {
+    const lineNumber = index + 1;
+    const lineBytes = Buffer.byteLength(line, 'utf8');
+    if (lineBytes > MCP_STDIO_MAX_LINE_BYTES) {
+      throw new Error(`mcp resources --stdio JSON-RPC line ${lineNumber} exceeds ${MCP_STDIO_MAX_LINE_BYTES} bytes`);
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(line);
+    } catch {
+      throw new Error(`mcp resources --stdio JSON-RPC line ${lineNumber} is not valid JSON`);
+    }
+    if (Array.isArray(parsed)) {
+      throw new Error('mcp resources --stdio JSON-RPC batches are not supported');
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error(`mcp resources --stdio JSON-RPC line ${lineNumber} must be an object`);
+    }
+    return parsed;
+  });
+}
+
+function parseJsonRpcResponseLines(output, { expectedCount }) {
+  if (Buffer.byteLength(output, 'utf8') > MCP_STDIO_CHILD_MAX_STDOUT_BYTES) {
+    throw new Error('mcp_stdio_response_over_limit');
+  }
+  const lines = output.trim().split(/\r?\n/u).filter(Boolean);
+  if (lines.length !== expectedCount) {
+    throw new Error('mcp_stdio_response_count_mismatch');
+  }
+  return lines.map((line, index) => {
+    try {
+      const parsed = JSON.parse(line);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('invalid');
+      }
+      return parsed;
+    } catch {
+      throw new Error(`mcp_stdio_invalid_response_${index + 1}`);
+    }
+  });
+}
+
+function parseSmokeResourcePayload(text) {
+  if (Buffer.byteLength(text, 'utf8') > 64 * 1024) {
+    throw new Error('mcp_stdio_resource_response_over_limit');
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error('mcp_stdio_invalid_resource_response');
+  }
+}
+
+function boundedEnvInteger(name, fallback, { min, max }) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < min || value > max) return fallback;
+  return value;
 }
 
 function localMcpTrustedContext(workspaceId) {
