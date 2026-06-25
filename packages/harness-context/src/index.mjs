@@ -18,6 +18,7 @@ import contextPackSchema from '../../protocol/schemas/context-pack.schema.json' 
 import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import harnessContextSourceSchema from '../../protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
+import loopPlanSchema from '../../protocol/schemas/loop-plan.schema.json' with { type: 'json' };
 import {
   buildMemoryProposalsReport,
   evaluateMemoryWrite,
@@ -40,6 +41,7 @@ export const HARNESS_CONTEXT_SCANNER_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
 export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
+export const LOOP_PLAN_VERSION = '0.1.0';
 
 const DEFAULT_MAX_BYTES = 65_536;
 const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
@@ -2019,6 +2021,214 @@ export function renderContextPackMarkdown(pack) {
     `Selection: ${pack.preview.resultFingerprint}`,
     ''
   ].join('\n');
+}
+
+function assertSafeLoopPlanField(value, fieldName) {
+  try {
+    assertSafeHandoffField(value, fieldName);
+  } catch (error) {
+    const wrapped = new Error(`loop_plan_${fieldName}_unsafe`);
+    wrapped.code = `loop_plan_${fieldName}_unsafe`;
+    wrapped.cause = error;
+    throw wrapped;
+  }
+  if (UNSAFE_PERSISTED_LOCATOR.test(String(value ?? ''))) {
+    const error = new Error(`loop_plan_${fieldName}_unsafe`);
+    error.code = `loop_plan_${fieldName}_unsafe`;
+    throw error;
+  }
+}
+
+function normalizeLoopPlanTexts(values, fieldName, maxItems = 16) {
+  const list = values === null || values === undefined || values === ''
+    ? []
+    : Array.isArray(values) ? values : [values];
+  if (list.length > maxItems) throw new Error(`loop_plan_${fieldName}_too_many`);
+  return [...new Set(list.map((value) => {
+    const text = String(value ?? '').replace(/\s+/gu, ' ').trim();
+    if (!text) return null;
+    assertSafeLoopPlanField(text, fieldName);
+    return text.slice(0, fieldName === 'validationCommand' ? 400 : 240);
+  }).filter(Boolean))].sort();
+}
+
+function nullableFingerprint(value) {
+  return typeof value === 'string' && /^sha256:[a-f0-9]{64}$/u.test(value) ? value : null;
+}
+
+function loopReadItem({ locator, role, required = true, contentHash = null, reasonCodes = [] }) {
+  return {
+    locator,
+    role,
+    required: required === true,
+    contentHash: nullableFingerprint(contentHash),
+    reasonCodes: [...new Set(reasonCodes.filter(Boolean))].sort().slice(0, 16)
+  };
+}
+
+function addLoopRead(reads, item) {
+  if (!item?.locator || !/^(workspace|user-selected):\/\/[^\r\n]{1,320}$/u.test(item.locator)) return;
+  if (UNSAFE_PERSISTED_LOCATOR.test(item.locator)) throw new Error('loop_plan_locator_unsafe');
+  const key = `${item.role}:${item.locator}`;
+  if (!reads.some((existing) => `${existing.role}:${existing.locator}` === key)) reads.push(item);
+}
+
+function normalizeLoopBudget(contextBudget = null) {
+  if (!contextBudget || contextBudget.basis !== 'context-pack-measurement') {
+    return {
+      estimatedDeliveryTokens: 0,
+      sourceBodyTokensExcluded: 0,
+      deliveryReductionRatio: 0,
+      basis: 'unestimated'
+    };
+  }
+  return {
+    estimatedDeliveryTokens: Math.max(0, Math.trunc(Number(contextBudget.estimatedDeliveryTokens ?? 0))),
+    sourceBodyTokensExcluded: Math.max(0, Math.trunc(Number(contextBudget.sourceBodyTokensExcluded ?? 0))),
+    deliveryReductionRatio: Math.max(0, Math.min(1, Number(contextBudget.deliveryReductionRatio ?? 0))),
+    basis: 'context-pack-measurement'
+  };
+}
+
+function loopRefId(value) {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return /^[A-Za-z0-9._:-]{1,120}$/u.test(text) ? text : null;
+}
+
+export function buildLoopPlan({
+  workspaceId = 'ws_local',
+  objective,
+  stopCondition,
+  nonGoals = [],
+  validationCommands = [],
+  changedLocators = [],
+  userSelectedFiles = [],
+  contextPack = null,
+  usePlan = null,
+  sourceGraph = null,
+  contextBudget = null,
+  riskClass = 'low',
+  maxIterations = 3,
+  timeoutSeconds = 1800,
+  clock = () => new Date().toISOString()
+} = {}) {
+  const createdAt = clock();
+  const normalizedObjective = String(objective ?? '').replace(/\s+/gu, ' ').trim();
+  const normalizedStopCondition = String(stopCondition ?? '').replace(/\s+/gu, ' ').trim();
+  if (!normalizedObjective) throw new Error('loop_plan_objective_required');
+  if (!normalizedStopCondition) throw new Error('loop_plan_stopCondition_required');
+  assertSafeLoopPlanField(normalizedObjective, 'objective');
+  assertSafeLoopPlanField(normalizedStopCondition, 'stopCondition');
+  for (const locator of Array.isArray(changedLocators) ? changedLocators : [changedLocators]) {
+    if (UNSAFE_PERSISTED_LOCATOR.test(String(locator ?? ''))) throw new Error('changed_context_locator_invalid');
+  }
+  const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
+  const normalizedUserSelectedFiles = normalizeUserSelectedFiles(userSelectedFiles);
+  const reads = [];
+
+  for (const locator of normalizedChangedLocators) {
+    addLoopRead(reads, loopReadItem({
+      locator,
+      role: 'changed_locator',
+      required: true,
+      reasonCodes: ['changed_locator_supplied', 'read_before_edit']
+    }));
+  }
+  for (const relativePath of normalizedUserSelectedFiles) {
+    addLoopRead(reads, loopReadItem({
+      locator: `user-selected://${relativePath}`,
+      role: 'explicit_user_selected',
+      required: true,
+      reasonCodes: ['explicit_user_file', 'read_before_handoff']
+    }));
+  }
+  for (const item of usePlan?.requiredLocalReads ?? contextPack?.utility?.requiredLocalReads ?? []) {
+    addLoopRead(reads, loopReadItem({
+      locator: item.locator,
+      role: ['selected_context', 'explicit_user_selected', 'changed_locator', 'source_graph_hint'].includes(item.role) ? item.role : 'selected_context',
+      required: item.required !== false,
+      contentHash: item.contentHash,
+      reasonCodes: item.reasonCodes?.length ? item.reasonCodes : ['selected_context']
+    }));
+  }
+  for (const item of sourceGraph?.results ?? []) {
+    addLoopRead(reads, loopReadItem({
+      locator: item.locator,
+      role: 'source_graph_hint',
+      required: false,
+      contentHash: item.contentHash,
+      reasonCodes: item.reasonCodes?.length ? item.reasonCodes : ['source_graph_hint']
+    }));
+  }
+
+  const plan = {
+    schemaVersion: '1.0.0',
+    command: 'loop plan',
+    id: 'loopplan_000000000000000000000000',
+    workspaceId: String(workspaceId ?? 'ws_local').trim(),
+    createdAt,
+    loopPlanFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
+    objective: normalizedObjective,
+    stopCondition: normalizedStopCondition,
+    nonGoals: normalizeLoopPlanTexts(nonGoals, 'nonGoal'),
+    riskClass: ['low', 'review', 'high'].includes(riskClass) ? riskClass : 'low',
+    sideEffectClass: 'read-only',
+    maxIterations: Number.isInteger(maxIterations) ? Math.max(1, Math.min(20, maxIterations)) : 3,
+    timeoutSeconds: Number.isInteger(timeoutSeconds) ? Math.max(1, Math.min(86400, timeoutSeconds)) : 1800,
+    approvalRequired: false,
+    sourceGraph: {
+      status: sourceGraph?.status === 'available' ? 'available' : 'unavailable',
+      sourceIndexFingerprint: nullableFingerprint(sourceGraph?.sourceIndexFingerprint),
+      graphFingerprint: nullableFingerprint(sourceGraph?.graphFingerprint),
+      changedLocators: normalizedChangedLocators
+    },
+    contextPack: {
+      contextPackId: loopRefId(contextPack?.id),
+      contextPackFingerprint: nullableFingerprint(contextPack?.fingerprint ?? contextPack?.contextPackFingerprint),
+      usePlanId: loopRefId(usePlan?.id),
+      usePlanFingerprint: nullableFingerprint(usePlan?.fingerprint ?? usePlan?.usePlanFingerprint)
+    },
+    requiredLocalReads: reads.slice(0, 80),
+    validationCommands: normalizeLoopPlanTexts(validationCommands, 'validationCommand'),
+    contextBudget: normalizeLoopBudget(contextBudget),
+    stopReasons: [
+      'completed',
+      'validation_failed',
+      'blocked_needs_human',
+      'unsafe_action_required',
+      'max_iterations',
+      'timeout',
+      'unrelated_changes',
+      'out_of_scope'
+    ],
+    rollback: 'Discard this loop plan; Slice 1 is read-only and mutates no workspace state.',
+    safeguards: {
+      readOnly: true,
+      commandsExecuted: 0,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceContentIncluded: false,
+      rawOutputIncluded: false,
+      hiddenReasoningIncluded: false
+    }
+  };
+  plan.id = `loopplan_${idDigest(stableStringify({
+    workspaceId: plan.workspaceId,
+    objective: plan.objective,
+    stopCondition: plan.stopCondition,
+    validationCommands: plan.validationCommands,
+    requiredLocalReads: plan.requiredLocalReads,
+    contextBudget: plan.contextBudget
+  }))}`;
+  plan.loopPlanFingerprint = hashJson({ ...plan, loopPlanFingerprint: null });
+  assertJsonSchema(loopPlanSchema, plan, 'loop plan');
+  return plan;
 }
 
 export async function buildContextPack({

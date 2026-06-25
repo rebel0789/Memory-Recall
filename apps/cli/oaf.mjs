@@ -14,6 +14,7 @@ import {
   buildContextPackUsePlan,
   buildHarnessContextPreview,
   buildHarnessSetupReport,
+  buildLoopPlan,
   buildMemoryProposalPreflightFromFile,
   detectGitChangedLocators,
   loadCurrentContextPackUsePlan,
@@ -72,6 +73,8 @@ if (commands.has(command)) {
   await mcpCommand(args);
 } else if (command === 'measure') {
   await measureCommand(args);
+} else if (command === 'loop') {
+  await loopCommand(args);
 } else if (command === 'harness') {
   await harnessCommand(args);
 } else if (['help', '--help', '-h'].includes(command)) {
@@ -109,6 +112,74 @@ async function measureCommand(values) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function loopCommand(values) {
+  const [subcommand, ...rest] = values;
+  try {
+    if (subcommand === 'plan') return await loopPlanCommand(rest);
+    console.error('loop requires plan');
+    process.exitCode = 2;
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function loopPlanCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('loop plan requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin')) {
+    console.error('loop plan is read-only and does not write or pin artifacts');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set([
+    '--root',
+    '--workspace-id',
+    '--workspace',
+    '--objective',
+    '--stop-condition',
+    '--non-goal',
+    '--validation',
+    '--changed-locator',
+    '--changed',
+    '--include-file',
+    '--format'
+  ]);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`loop plan unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('loop plan only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const objective = option(values, '--objective');
+  const stopCondition = option(values, '--stop-condition');
+  if (!objective || !stopCondition) {
+    console.error('loop plan requires --objective <text> and --stop-condition <text>');
+    process.exitCode = 2;
+    return;
+  }
+  const plan = buildLoopPlan({
+    workspaceId: option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local',
+    objective,
+    stopCondition,
+    nonGoals: options(values, '--non-goal'),
+    validationCommands: options(values, '--validation'),
+    changedLocators: [...options(values, '--changed'), ...options(values, '--changed-locator')],
+    userSelectedFiles: options(values, '--include-file'),
+    clock: fixedNow
+  });
+  console.log(JSON.stringify(plan, null, 2));
 }
 
 async function measureContextPackCommand(values) {
@@ -2019,6 +2090,7 @@ Usage:
   oaf context receive --read-only --root . --target codex --format json
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
+  oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json

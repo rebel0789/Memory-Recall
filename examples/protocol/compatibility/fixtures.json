@@ -906,6 +906,18 @@
       "schema": "packages/protocol/schemas/context-pack-use-plan.schema.json",
       "instance": "examples/protocol/compatibility/invalid/context-pack-use-plan-private-field.json",
       "expectedValid": false
+    },
+    {
+      "id": "loop-plan-current-valid",
+      "schema": "packages/protocol/schemas/loop-plan.schema.json",
+      "instance": "examples/protocol/loop-plan.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-plan-raw-body-invalid",
+      "schema": "packages/protocol/schemas/loop-plan.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
+      "expectedValid": false
     }
   ]
 }

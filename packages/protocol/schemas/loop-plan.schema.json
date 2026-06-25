@@ -1,0 +1,143 @@
+{
+  "$id": "https://open-agent-fabric.dev/schemas/loop-plan-1.0.json",
+  "title": "Loop plan",
+  "description": "Read-only Loop Workbench plan for a bounded local agent loop. It carries references, limits, validation commands, and measured context budget without source bodies or execution output.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "id",
+    "workspaceId",
+    "createdAt",
+    "loopPlanFingerprint",
+    "objective",
+    "stopCondition",
+    "nonGoals",
+    "riskClass",
+    "sideEffectClass",
+    "maxIterations",
+    "timeoutSeconds",
+    "approvalRequired",
+    "sourceGraph",
+    "contextPack",
+    "requiredLocalReads",
+    "validationCommands",
+    "contextBudget",
+    "stopReasons",
+    "rollback",
+    "safeguards"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "command": { "const": "loop plan" },
+    "id": { "type": "string", "pattern": "^loopplan_[a-f0-9]{24}$" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "loopPlanFingerprint": { "$ref": "#/$defs/hash" },
+    "objective": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "stopCondition": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "nonGoals": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 240 } },
+    "riskClass": { "enum": ["low", "review", "high"] },
+    "sideEffectClass": { "enum": ["read-only", "local-write", "external-write"] },
+    "maxIterations": { "type": "integer", "minimum": 1, "maximum": 20 },
+    "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+    "approvalRequired": { "type": "boolean" },
+    "sourceGraph": { "$ref": "#/$defs/sourceGraphRef" },
+    "contextPack": { "$ref": "#/$defs/contextPackRef" },
+    "requiredLocalReads": { "type": "array", "maxItems": 80, "uniqueItems": true, "items": { "$ref": "#/$defs/readItem" } },
+    "validationCommands": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 400 } },
+    "contextBudget": { "$ref": "#/$defs/contextBudget" },
+    "stopReasons": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 9,
+      "uniqueItems": true,
+      "items": { "enum": ["completed", "validation_failed", "blocked_missing_input", "blocked_needs_human", "unsafe_action_required", "max_iterations", "timeout", "unrelated_changes", "out_of_scope"] }
+    },
+    "rollback": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "safeguards": { "$ref": "#/$defs/safeguards" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "nullableHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "locator": { "type": "string", "pattern": "^(workspace|user-selected)://[^\\r\\n]{1,320}$" },
+    "readItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "role", "required", "contentHash", "reasonCodes"],
+      "properties": {
+        "locator": { "$ref": "#/$defs/locator" },
+        "role": { "enum": ["selected_context", "explicit_user_selected", "changed_locator", "source_graph_hint"] },
+        "required": { "type": "boolean" },
+        "contentHash": { "$ref": "#/$defs/nullableHash" },
+        "reasonCodes": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[a-z][a-z0-9_:-]*$" } }
+      }
+    },
+    "sourceGraphRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "sourceIndexFingerprint", "graphFingerprint", "changedLocators"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "sourceIndexFingerprint": { "$ref": "#/$defs/nullableHash" },
+        "graphFingerprint": { "$ref": "#/$defs/nullableHash" },
+        "changedLocators": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/locator" } }
+      }
+    },
+    "contextPackRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contextPackId", "contextPackFingerprint", "usePlanId", "usePlanFingerprint"],
+      "properties": {
+        "contextPackId": { "type": ["string", "null"], "maxLength": 120 },
+        "contextPackFingerprint": { "$ref": "#/$defs/nullableHash" },
+        "usePlanId": { "type": ["string", "null"], "maxLength": 120 },
+        "usePlanFingerprint": { "$ref": "#/$defs/nullableHash" }
+      }
+    },
+    "contextBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estimatedDeliveryTokens", "sourceBodyTokensExcluded", "deliveryReductionRatio", "basis"],
+      "properties": {
+        "estimatedDeliveryTokens": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "sourceBodyTokensExcluded": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "deliveryReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "basis": { "enum": ["context-pack-measurement", "unestimated"] }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "commandsExecuted",
+        "canonicalStateMutated",
+        "localFilesWritten",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "networkCalls",
+        "modelCalls",
+        "activeMemoryCreated",
+        "sourceContentIncluded",
+        "rawOutputIncluded",
+        "hiddenReasoningIncluded"
+      ],
+      "properties": {
+        "readOnly": { "const": true },
+        "commandsExecuted": { "const": 0 },
+        "canonicalStateMutated": { "const": false },
+        "localFilesWritten": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "sourceContentIncluded": { "const": false },
+        "rawOutputIncluded": { "const": false },
+        "hiddenReasoningIncluded": { "const": false }
+      }
+    }
+  }
+}

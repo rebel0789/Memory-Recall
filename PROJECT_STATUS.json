@@ -241,6 +241,26 @@
       ]
     },
     {
+      "id": "builder.loop-workbench",
+      "name": "Loop Workbench (Loop Plan generator)",
+      "status": "reference",
+      "evidence": [
+        "packages/protocol/schemas/loop-plan.schema.json",
+        "examples/protocol/loop-plan.json",
+        "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
+        "packages/harness-context/src/index.mjs",
+        "apps/cli/oaf.mjs",
+        "tests/harness-context-loop-plan.test.mjs",
+        "tests/cli.test.mjs",
+        "docs/product/loop-workbench.md"
+      ],
+      "limitations": [
+        "Read-only Loop Plan generator only.",
+        "Observation capture, proof summary, verifier, scheduling, UI, and executor are not implemented.",
+        "contextBudget is an estimate carried from a context-pack measurement; it does not claim provider billing tokens."
+      ]
+    },
+    {
       "id": "workflow.content-intelligence",
       "name": "Synthetic Content Intelligence vertical slice",
       "status": "reference",
@@ -863,8 +883,8 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 371,
-    "protocolFixturesExpected": 151,
+    "testsExpected": 374,
+    "protocolFixturesExpected": 153,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
