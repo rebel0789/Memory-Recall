@@ -123,6 +123,39 @@ async function measureContextPackCommand(values) {
     process.exitCode = 2;
     return;
   }
+  if (values.includes('--stdio') || values.includes('--dry-run')) {
+    console.error('measure context-pack uses --read-only only; --stdio and --dry-run are not accepted');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set([
+    '--root',
+    '--workspace',
+    '--from',
+    '--objective',
+    '--step',
+    '--target',
+    '--target-harness',
+    '--include-file',
+    '--changed',
+    '--changed-locator',
+    '--changed-from',
+    '--token-budget',
+    '--budget',
+    '--format'
+  ]);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', '--changed-from-git', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`measure context-pack unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const changedFrom = option(values, '--changed-from');
+  if (changedFrom !== null && changedFrom !== 'git') {
+    console.error('measure context-pack only supports --changed-from git');
+    process.exitCode = 2;
+    return;
+  }
   const format = option(values, '--format') ?? 'json';
   if (format !== 'json') {
     console.error('measure context-pack only supports --format json');
@@ -1075,7 +1108,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
     workspaceId,
     targetHarness: pack.targetHarness,
     state: pack.utility.status === 'ready' && smoke.checks.resourceRead && smoke.checks.noToolsExposed && smoke.checks.noMarkdownBody && setup.dryRun === true ? 'ready' : 'review',
-    commitSha: resolveCommitSha(),
+    commitSha: resolveCommitSha(root),
     measurementScope: 'single local context-pack build, MCP readback, and harness setup dry-run',
     launchPrompt: pack.handoff.launchPrompt,
     request: {
@@ -1280,7 +1313,7 @@ async function buildContextReceiveReport(values) {
     workspaceId,
     targetHarness,
     state,
-    commitSha: resolveCommitSha(),
+    commitSha: resolveCommitSha(root),
     measurementScope: 'single pinned context-pack registry/use-plan verification, MCP read-only resource proof, and harness setup status dry-run',
     registry: {
       registryExists: registryStatus.registry.exists,
@@ -1535,7 +1568,7 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
     generatedAt,
     workspaceId,
     targetHarness: pack.targetHarness,
-    commitSha: resolveCommitSha(),
+    commitSha: resolveCommitSha(root),
     measurementScope: 'single local context-pack build plus stdio readback',
     request: {
       objectiveFingerprint: fingerprintJson(objective),
@@ -2045,6 +2078,16 @@ function option(values, name) {
   return index >= 0 ? values[index + 1] : null;
 }
 
+function unsupportedFlags(values, allowed, valueOptions = new Set()) {
+  const output = [];
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value.startsWith('--') && !allowed.has(value)) output.push(value);
+    if (valueOptions.has(value) && index + 1 < values.length) index += 1;
+  }
+  return output;
+}
+
 function options(values, name) {
   const output = [];
   for (let index = 0; index < values.length; index += 1) {
@@ -2097,10 +2140,10 @@ function strictIntegerOption(values, name, fallback) {
   return parsed;
 }
 
-function resolveCommitSha() {
+function resolveCommitSha(root = process.cwd()) {
   if (/^[a-f0-9]{40}$/.test(process.env.OAF_COMMIT_SHA ?? '')) return process.env.OAF_COMMIT_SHA;
   try {
-    const value = execFileSync('git', ['rev-parse', 'HEAD'], {
+    const value = execFileSync('git', ['-C', path.resolve(root), 'rev-parse', 'HEAD'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore']
     }).trim();

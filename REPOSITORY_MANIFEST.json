@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-25T07:28:19.140Z",
-  "fileCount": 808,
-  "totalBytes": 4023336,
+  "generatedAt": "2026-06-25T07:37:56.769Z",
+  "fileCount": 809,
+  "totalBytes": 4030793,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -572,8 +572,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 89514,
-      "sha256": "25a42aaadae86e4d17a918c10198bc8b6aa03df6cd59aeeb2018231189b6def2"
+      "bytes": 90953,
+      "sha256": "e1a6f00f2963dfc87befe8ae9c5c4005e4dec91fed6cbc63202a28a34ef19c5e"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -1153,12 +1153,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "2d965053584748e671d13812a997cf78cda5dcedb7c5deddfa8f99456f7e5cec"
+      "sha256": "88c04d0d796143a9735449e9b963be544a69e348d294014cdcfd666ac3b4ce9e"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 1621,
-      "sha256": "eb9bd296ef0cf1746baf24a860bcd294f5ba2064e2736c868c41b44727d9130d"
+      "sha256": "ab3a6852f8b1a08d8d605f5ef836be280569064a7a6c58087eb08ed46e6156ef"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1168,7 +1168,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "5d8ea09ef0a010be88ff7725fa7ca026a758746039b3330a56b54f8af15ed997"
+      "sha256": "2cbeb88455c47a6be971d8a5c12a99feaece9d81abc7682b84f4184d94976e11"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -2208,7 +2208,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "96f45994e6b4b0ad1f3423d8b86a096743f6ad0c747c8e7eafd00744f0a971b3"
+      "sha256": "a0879f2640adf0fd476fc9e12a0971cb3424172bf07ad773a5f45aba8a54a1e5"
     },
     {
       "path": "LICENSE",
@@ -3203,7 +3203,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 45646,
-      "sha256": "0513aacd1a2878e87b3aad29f8ec87a0d3af2a72aecff214241221c1b4cef770"
+      "sha256": "768e75e31fb3e6aed41dd235cee8ca1eaaf75268af58e44558c924066f3a945c"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3709,6 +3709,11 @@
       "path": "tests/benchmark-truth-floor.test.mjs",
       "bytes": 13663,
       "sha256": "eda7b42e5a2b1f52e648e886cf0e403eec748b319f134d31a5bb8e9113b234b6"
+    },
+    {
+      "path": "tests/cli-measure-context-pack.test.mjs",
+      "bytes": 6018,
+      "sha256": "8bd5efb622f1173797d97edb28c019ef052385c8a60e27e9cb3cf31e3c69d6ca"
     },
     {
       "path": "tests/cli.test.mjs",
