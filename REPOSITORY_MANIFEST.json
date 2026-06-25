@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-25T14:38:06.778Z",
+  "generatedAt": "2026-06-25T15:02:48.361Z",
   "fileCount": 795,
-  "totalBytes": 5786941,
+  "totalBytes": 5789938,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -1065,12 +1065,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "1b8c6f1d10956bf6d9b25ba85e86e84a415f4a9b9f1f4275f09d03e145618131"
+      "sha256": "f786dc211ccaebbd27e25e4772b96470279d9893aa43d07082f7c22157c7e64c"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 1621,
-      "sha256": "cf583828f35dd7c95540ffed07c857b51ffe18e640d362b76d5e9362c1e427da"
+      "sha256": "8cbee7f7b860ccb9da0fa4b605a658d35eb7820476ba7bb89bd7eb87a35e3012"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1080,7 +1080,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "5bd88ba0c339b55326d767573cfca554f89f4e3090c8cd209c821c79ab84783c"
+      "sha256": "2411cd8a667a14cdc2a5174e72a280f4cfb13cf7ec2909df02f37f87d4a8a15a"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -2130,7 +2130,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "75a7f1b7ba1363fe0563ae8d75fa3cf333a725a7807f03ca6e70264de2fa785b"
+      "sha256": "63211897093dba0ce517132cd932cd88f3b3eb1be24dcfaa4f4fcdfc7b78883d"
     },
     {
       "path": "LICENSE",
@@ -2329,8 +2329,8 @@
     },
     {
       "path": "packages/protocol-bridges/src/index.mjs",
-      "bytes": 52298,
-      "sha256": "476c0612830d077bde1272610f9847a438302fc39f855efc04e8a52b3c17400a"
+      "bytes": 52778,
+      "sha256": "ff79c0bb85c615feb11537751d99e7731620efee2af235187c47b9c8c8d05950"
     },
     {
       "path": "packages/protocol/AGENTS.md",
@@ -3130,7 +3130,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 45746,
-      "sha256": "51a0d86e7c4632d472e10907f622c3a8053e9e01a483e4959cb9a47b5d27ac11"
+      "sha256": "3b9f3c3927a776f4882971cff6d8a07884ac0e7bef21ad5ad5bd8ebe89d3d96d"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3679,8 +3679,8 @@
     },
     {
       "path": "tests/context-selection.test.mjs",
-      "bytes": 12586,
-      "sha256": "620d5c22ea7f7fbcdbffc75fd80d5aea0e6bc6d3453d09ea8203efe20fc3461f"
+      "bytes": 13675,
+      "sha256": "b6cff42de44eeb761f97d99ec3db03dc4cb7da84c968344f11e96a19548a0d55"
     },
     {
       "path": "tests/control-api-auth.test.mjs",
@@ -3819,8 +3819,8 @@
     },
     {
       "path": "tests/protocol-bridges.test.mjs",
-      "bytes": 33784,
-      "sha256": "df66307297d97f6c0e841b599b6fe4f05071f62e82c3f4e687f36341624d0d6d"
+      "bytes": 35212,
+      "sha256": "02435ce9667e73acc357a793633751cb58074e88aa48003967dd024142811cc5"
     },
     {
       "path": "tests/protocol-schema-validator.test.mjs",

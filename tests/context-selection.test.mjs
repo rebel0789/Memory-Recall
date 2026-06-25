@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   CONTEXT_SELECTION_POLICY,
   compileContext,
@@ -13,8 +14,10 @@ import {
   validateContextSelectionPolicy
 } from '../packages/context-compiler/src/index.mjs';
 import { createPolicyService } from '../packages/policy/src/index.mjs';
+import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 
 const fixedNow = '2026-06-19T10:00:00.000Z';
+const contextManifestSchema = JSON.parse(readFileSync('packages/protocol/schemas/context-manifest.schema.json', 'utf8'));
 
 function request(overrides = {}) {
   return {
@@ -102,6 +105,19 @@ test('selection policy is strict, versioned, and deterministically fingerprinted
     () => validateContextSelectionPolicy({ ...CONTEXT_SELECTION_POLICY, untrustedWeight: 1 }),
     /unknown_field/
   );
+});
+
+test('compiled selection manifest remains schema compatible', () => {
+  const manifest = compileContext(request({ requiredIds: ['policy_auth'], requiredEntities: [], tokenBudget: 80 }), [
+    record({ id: 'policy_auth', kind: 'policy', text: 'Cite authentication evidence.', tokens: 8 }),
+    record({ id: 'evidence_auth', kind: 'observation', text: 'Session expiry caused the authentication failure.', tokens: 12 }),
+    record({ id: 'evidence_retry', kind: 'observation', text: 'Retry with a refreshed session resolved the failure.', tokens: 12 })
+  ]);
+
+  const validation = validateJsonSchema(contextManifestSchema, manifest);
+  assert.equal(validation.valid, true, JSON.stringify(validation.errors));
+  assert.equal(Number.isInteger(manifest.selected[0].order), true);
+  assert.equal(typeof manifest.selected[0].category, 'string');
 });
 
 test('required records are hard requirements and fail closed when unresolved or over budget', () => {

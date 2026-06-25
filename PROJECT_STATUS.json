@@ -863,7 +863,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 364,
+    "testsExpected": 367,
     "protocolFixturesExpected": 151,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

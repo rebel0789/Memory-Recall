@@ -1047,17 +1047,21 @@ export function createMcpBridge({
     if (grant.rawToken || grant.token || grant.grantToken) {
       throw new ProtocolBridgeError('mcp_grant_denied', 'raw grant token is not accepted by the bridge');
     }
+    if (grant.sideEffectClass !== 'read-only' && typeof grant.argumentsFingerprint !== 'string') {
+      throw new ProtocolBridgeError('mcp_grant_denied', 'side-effecting grants require exact arguments');
+    }
     state.grants.set(grant.grantId, { ...grant, consumed: false });
     return { grantId: grant.grantId, fingerprint: hash({ ...grant, consumed: undefined }) };
   }
 
-  function consumeGrant({ grantId, tool, context }) {
+  function consumeGrant({ grantId, tool, context, argumentsFingerprint }) {
     const grant = state.grants.get(grantId);
     if (!grant || grant.consumed) throw new ProtocolBridgeError('mcp_grant_denied', 'grant is missing or already consumed');
     if (grant.expiresAt && grant.expiresAt <= clock()) throw new ProtocolBridgeError('mcp_grant_denied', 'grant is expired');
     if (grant.workspaceId !== context.membership.workspaceId) throw new ProtocolBridgeError('mcp_grant_denied', 'grant workspace mismatch');
     if (grant.toolName !== tool.name || grant.operation !== tool.operation) throw new ProtocolBridgeError('mcp_grant_denied', 'grant operation mismatch');
     if (grant.sideEffectClass !== tool.sideEffectClass) throw new ProtocolBridgeError('mcp_grant_denied', 'grant side-effect mismatch');
+    if (grant.argumentsFingerprint && grant.argumentsFingerprint !== argumentsFingerprint) throw new ProtocolBridgeError('mcp_grant_denied', 'grant arguments mismatch');
     grant.consumed = true;
     return grant;
   }
@@ -1073,7 +1077,8 @@ export function createMcpBridge({
     const args = params.arguments ?? {};
     if (!isPlainObject(args)) throw new ProtocolBridgeError('mcp_invalid_params', 'tool arguments must be an object');
     assertNoCallerAuthority(args);
-    const grant = consumeGrant({ grantId: params.grantId, tool, context });
+    const argumentsFingerprint = hash(args);
+    const grant = consumeGrant({ grantId: params.grantId, tool, context, argumentsFingerprint });
     const controller = new AbortController();
     state.active.add(controller);
     try {
@@ -1097,7 +1102,7 @@ export function createMcpBridge({
           }
         }
       });
-      await emit({ type: 'mcp.tool.completed', method: message.method, toolName: tool.name, grantId: grant.grantId, inputFingerprint: hash(args) });
+      await emit({ type: 'mcp.tool.completed', method: message.method, toolName: tool.name, grantId: grant.grantId, inputFingerprint: argumentsFingerprint });
       return result;
     } finally {
       state.active.delete(controller);

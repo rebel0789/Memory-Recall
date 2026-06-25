@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../packages/protocol-bridges/src/index.mjs';
 import { buildContextPackUsePlan } from '../packages/harness-context/src/index.mjs';
 
@@ -322,6 +323,10 @@ function allowGrant(overrides = {}) {
   };
 }
 
+function argumentsFingerprint(value) {
+  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
 test('MCP bridge initializes and lists tools/resources only with trusted identity', async () => {
   const unauthenticated = createMcpBridge({ tools: [readTool()], resources: [resource()] });
   const denied = await unauthenticated.handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
@@ -378,6 +383,49 @@ test('MCP tool calls require exact server-side grants and reject caller authorit
   assert.equal(JSON.stringify(result).includes('grant_secret'), false);
 });
 
+test('MCP grant binds exact call arguments before handler invocation', async () => {
+  let called = false;
+  const bridge = createMcpBridge({
+    trustedContext,
+    tools: [readTool(async () => {
+      called = true;
+      return { content: [{ type: 'text', text: 'wrong' }] };
+    })],
+    clock: () => '2026-06-20T17:00:00Z'
+  });
+  bridge.registerGrant(allowGrant({
+    argumentsFingerprint: argumentsFingerprint({ runId: 'run_safe' })
+  }));
+
+  const result = await bridge.handle({
+    jsonrpc: '2.0',
+    id: 4,
+    method: 'tools/call',
+    params: { name: 'oaf.readRun', grantId: 'grant_read', arguments: { runId: 'run_changed' } }
+  });
+
+  assert.equal(result.error.data.code, 'mcp_grant_denied');
+  assert.equal(called, false);
+});
+
+test('MCP side-effecting grants require exact argument fingerprints', () => {
+  const bridge = createMcpBridge({
+    trustedContext,
+    tools: [writeTool()],
+    clock: () => '2026-06-20T17:00:00Z'
+  });
+
+  assert.throws(
+    () => bridge.registerGrant(allowGrant({
+      grantId: 'grant_write',
+      toolName: 'oaf.writeDraft',
+      operation: 'drafts.write',
+      sideEffectClass: 'reversible-write'
+    })),
+    (error) => error.code === 'mcp_grant_denied'
+  );
+});
+
 test('MCP bridge replay mode denies side-effecting tools before invocation', async () => {
   let called = false;
   const tool = writeTool();
@@ -395,7 +443,8 @@ test('MCP bridge replay mode denies side-effecting tools before invocation', asy
     grantId: 'grant_write',
     toolName: 'oaf.writeDraft',
     operation: 'drafts.write',
-    sideEffectClass: 'reversible-write'
+    sideEffectClass: 'reversible-write',
+    argumentsFingerprint: argumentsFingerprint({})
   }));
   const result = await bridge.handle({
     jsonrpc: '2.0',
