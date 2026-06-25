@@ -845,7 +845,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-06-24",
+    "asOf": "2026-06-25",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run bootstrap",
@@ -858,12 +858,13 @@
       "npm run workflow:durable:smoke",
       "npm run ops:smoke",
       "npm run release:readiness",
+      "npm run release:readiness:check",
       "npm run demo",
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 323,
-    "protocolFixturesExpected": 139,
+    "testsExpected": 346,
+    "protocolFixturesExpected": 150,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

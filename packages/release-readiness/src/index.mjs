@@ -91,7 +91,7 @@ async function collectAdapters(root) {
       enabledByDefault: entry.enabledByDefault === true,
       license: manifest?.licenseReview?.spdx ?? 'UNVERIFIED',
       upstreamCommit: manifest?.upstream?.commit ?? lock?.commit ?? 'UNPINNED',
-      archiveSha256: manifest?.upstream?.archiveSha256 ?? lock?.archiveSha256 ?? 'UNPINNED',
+      archiveSha256: manifest?.upstream?.archiveSha256 ?? manifest?.upstream?.checksum ?? lock?.archiveSha256 ?? 'UNPINNED',
       conformanceFixture: manifest?.conformance?.fixture ?? null
     });
   }
@@ -130,9 +130,11 @@ async function collectWorkflowEvidence(root, files) {
     taskCount: backlog.tasks?.length ?? 0,
     completedTasks: backlog.tasks?.filter((task) => task.status === 'completed').length ?? 0,
     expectedCounts: {
+      asOf: projectStatus.qualitySnapshot?.asOf ?? null,
       tests: projectStatus.qualitySnapshot?.testsExpected,
       protocol: projectStatus.qualitySnapshot?.protocolFixturesExpected,
-      evaluations: projectStatus.qualitySnapshot?.evaluationsExpected
+      evaluations: projectStatus.qualitySnapshot?.evaluationsExpected,
+      note: projectStatus.qualitySnapshot?.note ?? 'Command outputs and handoff verification are authoritative.'
     },
     requiredCommands: [
       'npm ci --ignore-scripts --no-audit --no-fund',
@@ -147,7 +149,8 @@ async function collectWorkflowEvidence(root, files) {
       'npm run tool:bounded:smoke',
       'npm run workflow:durable:smoke',
       'npm run verify:handoff',
-      'npm run release:readiness'
+      'npm run release:readiness',
+      'npm run release:readiness:check'
     ],
     commandCoverage: [...commands].sort(),
     externalAdapters: capabilities.get('adapters.external'),
@@ -276,9 +279,11 @@ ${table(['Area', 'Evidence'], [
   ['Network default', evidence.defaults.network],
   ['External writes', String(evidence.defaults.externalWrites)],
   ['Model mode', evidence.defaults.modelMode],
-  ['Expected tests', String(evidence.expectedCounts.tests)],
-  ['Expected protocol fixtures', String(evidence.expectedCounts.protocol)],
-  ['Expected evaluation assertions', String(evidence.expectedCounts.evaluations)]
+  ['Quality snapshot date', evidence.expectedCounts.asOf ?? 'not recorded'],
+  ['Recorded tests', String(evidence.expectedCounts.tests)],
+  ['Recorded protocol fixtures', String(evidence.expectedCounts.protocol)],
+  ['Recorded evaluation assertions', String(evidence.expectedCounts.evaluations)],
+  ['Quality snapshot note', evidence.expectedCounts.note]
 ])}
 
 ## Required Final Gates
@@ -424,7 +429,9 @@ function reproducibility(evidence) {
 - Optional Ollama, PostgreSQL, OTLP, and external adapter paths are explicit and not part of default CI.
 - Release signatures are intentionally not reproducible from this repository because private signing material is not stored here.
 
-## Current Expected Counts
+## Recorded Quality Snapshot
+
+${evidence.expectedCounts.note}
 
 ${table(['Gate', 'Expected Count'], [
   ['Tests', String(evidence.expectedCounts.tests)],

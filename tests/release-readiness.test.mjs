@@ -1,7 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readdir, readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { buildReleaseReadinessArtifacts, verifyReleaseReadinessArtifacts } from '../packages/release-readiness/src/index.mjs';
+
+async function countDeclaredNodeTests() {
+  const testFiles = (await readdir('tests')).filter((file) => file.endsWith('.test.mjs')).sort();
+  let total = 0;
+  for (const file of testFiles) {
+    const body = await readFile(path.join('tests', file), 'utf8');
+    total += body.match(/^test\s*\(/gm)?.length ?? 0;
+  }
+  return total;
+}
 
 test('release readiness artifacts are generated and checked in without drift', async () => {
   const result = await verifyReleaseReadinessArtifacts(process.cwd());
@@ -26,6 +38,35 @@ test('release readiness SBOM and provenance preserve disabled adapters and local
   assert.equal(provenance.sourcePolicy.finalProductPublicationRequiresHumanApproval, true);
   assert.equal(provenance.sourcePolicy.mergePerformedByThisTask, false);
   assert.equal(provenance.generatedFiles.includes('1.0-READINESS-REPORT.md'), true);
+});
+
+test('release readiness quality snapshot matches current release evidence', async () => {
+  const artifacts = await buildReleaseReadinessArtifacts(process.cwd());
+  const report = artifacts.files['1.0-READINESS-REPORT.md'];
+  const reproducibility = artifacts.files['1.0-REPRODUCIBILITY.md'];
+  const declaredTests = await countDeclaredNodeTests();
+  const protocolFixtures = JSON.parse(await readFile('examples/protocol/compatibility/fixtures.json', 'utf8')).fixtures.length;
+
+  assert.match(report, /\| Quality snapshot date \| 2026-06-25 \|/);
+  assert.match(report, new RegExp(`\\| Recorded tests \\| ${declaredTests} \\|`));
+  assert.match(report, new RegExp(`\\| Recorded protocol fixtures \\| ${protocolFixtures} \\|`));
+  assert.match(report, /\| Recorded evaluation assertions \| 144 \|/);
+  assert.match(report, /Counts are a dated snapshot; command results and HANDOFF_VERIFICATION\.json are authoritative\./);
+  assert.match(reproducibility, /## Recorded Quality Snapshot/);
+  assert.match(reproducibility, new RegExp(`\\| Tests \\| ${declaredTests} \\|`));
+  assert.match(reproducibility, new RegExp(`\\| Protocol fixtures \\| ${protocolFixtures} \\|`));
+});
+
+test('release readiness preserves package license and adapter checksum evidence', async () => {
+  const artifacts = await buildReleaseReadinessArtifacts(process.cwd());
+  const sbom = JSON.parse(artifacts.files['1.0-SBOM.json']);
+  const certification = artifacts.files['1.0-ADAPTER-CERTIFICATION.md'];
+  const packageLicenses = sbom.packages.map((pkg) => [pkg.path, pkg.license]);
+  const ecc = sbom.externalAdapters.find((adapter) => adapter.id === 'adapter:tool:ecc');
+
+  assert.equal(packageLicenses.every(([, license]) => license !== 'UNSPECIFIED'), true);
+  assert.equal(ecc.archiveSha256, 'sha256:c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0');
+  assert.match(certification, /adapter:tool:ecc \| experimental \| false \| MIT \| 34faa39bd3cd496a0aece0245f2b7e38b7923abc \| sha256:c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0/);
 });
 
 test('release reports answer the required north-star and security questions', async () => {

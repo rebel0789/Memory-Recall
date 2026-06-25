@@ -12,10 +12,18 @@ OAF_PORT=4311 npm run dev
 
 ## State is invalid
 
-The bootstrap file is `.local/state.json`. Back it up, then reset synthetic data:
+The bootstrap file is `.local/state.json`. Browser users should sign in to the
+local owner account and use **Reset demo**. The `/api/reset` route is protected
+by the browser session and CSRF checks, so unauthenticated `curl` requests are
+expected to fail.
+
+For a CLI-only reset, stop `npm run dev` if it is running, back up local state,
+then regenerate deterministic demo state:
 
 ```bash
-curl -X POST http://127.0.0.1:4310/api/reset
+mv .local/state.json ".local/state.json.bak.$(date +%s)"
+npm run bootstrap
+npm run demo
 ```
 
 ## A task is unclear

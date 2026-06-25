@@ -72,7 +72,14 @@ npm run verify:handoff
 npm run dev
 ```
 
-Open <http://127.0.0.1:4310>.
+Open <http://127.0.0.1:4310>. If the browser asks for local owner setup or
+sign-in, complete that before running dashboard actions. CLI-only setup is also
+available without putting a password on the command line:
+
+```bash
+printf '%s\n' 'correct horse battery staple' | \
+  npm run auth:bootstrap -- --username owner --display-name "Local Owner" --password-stdin
+```
 
 First practical path: open **Context Pack**, keep the target as Codex or choose
 your local harness, click **Preview sources**, use **Detect git changes** or add
@@ -211,7 +218,7 @@ npm run oaf -- context preview --from codex --root . --objective "Prepare handof
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
-npm run oaf -- context receive --read-only --root . --target codex --format json
+npm run oaf -- context receive --read-only --root . --target codex --format json  # after --write --pin
 npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
 npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json

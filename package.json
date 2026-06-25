@@ -32,6 +32,7 @@
     "native:smoke": "node scripts/native-smoke.mjs",
     "ops:smoke": "node scripts/operations-smoke.mjs",
     "release:readiness": "node scripts/release-readiness.mjs",
+    "release:readiness:check": "node scripts/release-readiness-check.mjs",
     "tool:bounded:smoke": "node scripts/tool-bounded-smoke.mjs",
     "workflow:durable:smoke": "node scripts/workflow-durable-smoke.mjs",
     "workflow:worker": "node scripts/workflow-worker.mjs",

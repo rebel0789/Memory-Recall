@@ -109,8 +109,8 @@
       "path": "packages/operations/package.json",
       "name": "@open-agent-fabric/operations",
       "version": "0.1.0",
-      "license": "UNSPECIFIED",
-      "private": false,
+      "license": "Apache-2.0",
+      "private": true,
       "dependencyCount": 0,
       "devDependencyCount": 0
     },
@@ -127,7 +127,7 @@
       "path": "packages/protocol-bridges/package.json",
       "name": "@open-agent-fabric/protocol-bridges",
       "version": "0.1.0",
-      "license": "UNSPECIFIED",
+      "license": "Apache-2.0",
       "private": true,
       "dependencyCount": 0,
       "devDependencyCount": 0
@@ -244,7 +244,7 @@
       "path": "providers/native/context-manifest-local/package.json",
       "name": "@open-agent-fabric/provider-native-context-manifest-local",
       "version": "0.2.0-dev",
-      "license": "UNSPECIFIED",
+      "license": "Apache-2.0",
       "private": true,
       "dependencyCount": 0,
       "devDependencyCount": 0
@@ -253,7 +253,7 @@
       "path": "providers/native/identity-local/package.json",
       "name": "@open-agent-fabric/identity-local",
       "version": "0.1.0",
-      "license": "UNSPECIFIED",
+      "license": "Apache-2.0",
       "private": true,
       "dependencyCount": 0,
       "devDependencyCount": 0
@@ -289,7 +289,7 @@
       "path": "providers/native/policy-deterministic/package.json",
       "name": "@open-agent-fabric/policy-deterministic",
       "version": "0.1.0",
-      "license": "UNSPECIFIED",
+      "license": "Apache-2.0",
       "private": true,
       "dependencyCount": 0,
       "devDependencyCount": 0
@@ -307,7 +307,7 @@
       "path": "providers/native/workflow-durable-sqlite/package.json",
       "name": "@open-agent-fabric/native-workflow-durable-sqlite",
       "version": "0.2.0-dev",
-      "license": "UNSPECIFIED",
+      "license": "Apache-2.0",
       "private": true,
       "dependencyCount": 0,
       "devDependencyCount": 0
@@ -432,7 +432,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -442,7 +442,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -452,7 +452,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -462,7 +462,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -472,7 +472,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -482,7 +482,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -492,7 +492,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -502,7 +502,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -512,7 +512,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -522,7 +522,7 @@
       "enabledByDefault": false,
       "license": "MIT",
       "upstreamCommit": "34faa39bd3cd496a0aece0245f2b7e38b7923abc",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "sha256:c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -532,7 +532,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     },
     {
@@ -542,7 +542,7 @@
       "enabledByDefault": false,
       "license": "UNVERIFIED",
       "upstreamCommit": "UNPINNED",
-      "archiveSha256": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
       "conformanceFixture": "fixtures/conformance.json"
     }
   ],
