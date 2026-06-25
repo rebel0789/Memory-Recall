@@ -157,8 +157,8 @@ async function measureContextPackCommand(values) {
     return;
   }
   const format = option(values, '--format') ?? 'json';
-  if (format !== 'json') {
-    console.error('measure context-pack only supports --format json');
+  if (!['json','summary'].includes(format)) {
+    console.error('measure context-pack only supports --format json or summary');
     process.exitCode = 2;
     return;
   }
@@ -170,7 +170,7 @@ async function measureContextPackCommand(values) {
     return;
   }
   const report = await buildContextPackMeasurementReport(values, { objective, step });
-  console.log(JSON.stringify(report, null, 2));
+  console.log(format === 'summary' ? renderContextPackMeasurementSummary(report) : JSON.stringify(report, null, 2));
 }
 
 async function memoryProfileCommand(values) {
@@ -1674,6 +1674,72 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
   return report;
 }
 
+function ratioPercent(value) {
+  const numeric = Number(value ?? 0);
+  if (!Number.isFinite(numeric)) return '0.00%';
+  return `${(numeric * 100).toFixed(2)}%`;
+}
+
+function passFail(value) {
+  return value === true ? 'pass' : 'review';
+}
+
+function deliveryBudgetStatus(report) {
+  const ratio = Number(report.contextPack.deliveredUnitRatio ?? 0);
+  if (!Number.isFinite(ratio)) return 'review';
+  if (ratio > 1) return `above candidate estimate by ${ratioPercent(ratio - 1)}`;
+  return 'within candidate estimate';
+}
+
+function renderContextPackMeasurementSummary(report) {
+  const changed = report.contextPack.changedSourceBudget;
+  return [
+    '# Context Pack Measurement',
+    '',
+    `Target harness: ${report.targetHarness}`,
+    `Commit: ${report.commitSha ?? 'unavailable'}`,
+    `Report fingerprint: ${report.reportFingerprint}`,
+    '',
+    '## Selection and Delivery',
+    `Candidate units: ${Number(report.contextPack.candidateUnitCount)}`,
+    `Selected units: ${Number(report.contextPack.selectedUnitCount)} (${ratioPercent(report.contextPack.selectedUnitRatio)} selected)`,
+    `Source selection reduction: ${ratioPercent(report.contextPack.estimatedSelectionReductionRatio)}`,
+    `Delivered handoff units: ${Number(report.contextPack.deliveredUnitCount)} (${ratioPercent(report.contextPack.deliveredUnitRatio)} of candidate units)`,
+    `Observed delivery reduction: ${ratioPercent(report.contextPack.observedDeliveryReductionRatio)}`,
+    `Delivery budget status: ${deliveryBudgetStatus(report)}`,
+    '',
+    '## Changed Source Bodies',
+    `Changed locators measured: ${Number(changed.measuredLocatorCount)} / ${Number(changed.locatorCount)}`,
+    `Changed source tokens scanned: ${Number(changed.contentTokenCount)}`,
+    `Changed source tokens included: ${Number(changed.contentTokenCountIncluded)}`,
+    `Changed source body avoidance: ${ratioPercent(changed.observedAvoidanceRatio)}`,
+    `Changed locator coverage: ${report.contextPack.changedLocatorCoverage.status}`,
+    '',
+    '## MCP Readback',
+    `Transport: ${report.mcpReadback.transport}`,
+    `Resource URI: ${report.mcpReadback.resourceUri}`,
+    `Readback duration: ${Number(report.mcpReadback.durationMs)} ms`,
+    `Resource bytes: ${Number(report.mcpReadback.resourceByteSize)}`,
+    `Tools exposed: ${Number(report.mcpReadback.toolsExposed)}`,
+    `Fingerprint match: ${passFail(report.checks.contextPackFingerprintMatchesMcp)}`,
+    '',
+    '## Local Timing',
+    `Context pack build: ${Number(report.timings.contextPackBuildMs)} ms`,
+    `MCP readback: ${Number(report.timings.mcpReadbackMs)} ms`,
+    `Total observed: ${Number(report.timings.totalObservedMs)} ms`,
+    '',
+    '## Safeguards',
+    `Read-only: ${passFail(report.safeguards.readOnly)}`,
+    `Local files written: ${Number(report.safeguards.localFilesWritten)}`,
+    `Network calls: ${Number(report.safeguards.networkCalls)}`,
+    `Model calls: ${Number(report.safeguards.modelCalls)}`,
+    `External writes enabled: ${report.safeguards.externalWritesEnabled === true ? 'yes' : 'no'}`,
+    `External adapters enabled: ${Number(report.safeguards.externalAdaptersEnabled)}`,
+    `Raw source bodies included: ${report.safeguards.sourceContentIncluded === true ? 'yes' : 'no'}`,
+    `Production benchmark claimed: ${report.safeguards.productionBenchmarkClaimed === true ? 'yes' : 'no'}`
+  ].join('\n');
+}
+
 function runCliStdio(
   nodeArgs,
   input,
@@ -2194,6 +2260,7 @@ Usage:
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
+  oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --records memory-export.json --root . --dry-run --format json

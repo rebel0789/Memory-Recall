@@ -101,6 +101,9 @@ npm --silent run oaf -- measure context-pack \
   --format json
 ```
 
+Use `--format summary` when you want a compact operator report with the same
+read-only measurement, MCP readback, timing, and safeguard fields.
+
 Use `--changed path/to/file.ts` when you want to avoid git detection or review
 exact paths manually.
 

@@ -62,7 +62,7 @@ test('measure context-pack fails closed for writing, ambiguous, and unsupported 
     },
     {
       args: [...baseArgs(root).slice(0, -2), '--format', 'markdown'],
-      stderr: /only supports --format json/
+      stderr: /only supports --format json or summary/
     },
     {
       args: ['--read-only', '--root', root, '--from', 'codex', '--step', 'measure context impact', '--format', 'json'],
@@ -88,6 +88,40 @@ test('measure context-pack fails closed for writing, ambiguous, and unsupported 
     assert.match(result.stderr, item.stderr);
     assert.equal(result.stdout, '');
   }
+});
+
+test('measure context-pack summary renders operator proof without raw bodies or paths', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-measure-summary-'));
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  writeFileSync(path.join(root, 'AGENTS.md'), 'Summary measurement instructions. SUMMARY AGENTS RAW BODY should stay hidden.');
+  writeFileSync(path.join(root, 'src', 'auth.ts'), [
+    'export function summaryMeasureSymbol() {',
+    "  return 'SUMMARY MEASURE RAW BODY';",
+    '}'
+  ].join('\n'));
+
+  const env = { ...process.env, OAF_FIXED_NOW: '2026-06-25T00:00:00.000Z', OAF_COMMIT_SHA: 'summary-test-sha' };
+  const args = [...baseArgs(root).slice(0, -2), '--changed', 'src/auth.ts', '--format', 'summary'];
+  const result = runMeasure(args, { env });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^# Context Pack Measurement/m);
+  assert.match(result.stdout, /Target harness: codex/);
+  assert.match(result.stdout, /Observed delivery reduction:/);
+  assert.match(result.stdout, /Delivery budget status:/);
+  assert.match(result.stdout, /Changed source tokens included: 0/);
+  assert.match(result.stdout, /MCP Readback/);
+  assert.match(result.stdout, /Fingerprint match: pass/);
+  assert.match(result.stdout, /Network calls: 0/);
+  assert.match(result.stdout, /Model calls: 0/);
+  assert.match(result.stdout, /Local files written: 0/);
+  assert.match(result.stdout, /Raw source bodies included: no/);
+  assert.equal(result.stdout.includes('SUMMARY MEASURE RAW BODY'), false);
+  assert.equal(result.stdout.includes('SUMMARY AGENTS RAW BODY'), false);
+  assert.equal(result.stdout.includes(root), false);
+  assert.equal(result.stdout.includes('/Users/'), false);
+  assert.equal(result.stdout.includes('Private measurement objective'), false);
+  assert.equal(existsSync(path.join(root, 'context-packs')), false);
 });
 
 test('measure context-pack records read-only git changed-file detection against the measured root', () => {

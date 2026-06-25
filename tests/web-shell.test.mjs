@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import {
   ROUTES,
   SHELL_STATES,
+  buildApiErrorUiModel,
   buildContextSourcePreviewUiModel,
   buildContextPackUiModel,
   buildCurrentHandoffStatusModel,
@@ -575,6 +576,38 @@ test('web shell classifies loading, setup, empty, partial, stale, success, denie
   assert.equal(classifyDashboardState({metrics:{runs:1},runs:[{id:'run_1'}],approvals:[],latestManifest:null}).kind,'partial');
   assert.equal(classifyDashboardState({metrics:{runs:1},runs:[{id:'run_1'}],approvals:[],latestManifest:{id:'ctx_1'},stale:true}).kind,'stale');
   assert.equal(classifyDashboardState({metrics:{runs:1},runs:[{id:'run_1'}],approvals:[],latestManifest:{id:'ctx_1'}}).kind,'success');
+});
+
+test('web shell maps API validation issues to bounded recovery copy',()=>{
+  const model=buildApiErrorUiModel({
+    message:'The request did not match the API contract.',
+    status:400,
+    code:'request_validation_failed',
+    correlationId:'req_client-00000000-0000-4000-8000-000000000001',
+    issues:[
+      {path:'$.body.changedLocators',code:'max_items'},
+      {path:'$.body.client',code:'enum'},
+      {path:'$.body.objective',code:'context_pack_objective_secret_like'}
+    ]
+  });
+  assert.equal(model.message,'The request did not match the API contract.');
+  assert.equal(model.correlationId,'req_client-00000000-0000-4000-8000-000000000001');
+  assert.deepEqual(model.issues.map((issue)=>issue.label),['Changed files','Client','Objective']);
+  assert.match(model.issues[0].detail,/workspace-relative paths/);
+  assert.match(model.issues[2].detail,/Do not include secrets/);
+});
+
+test('web shell redacts unsafe issue tokens before rendering recovery copy',()=>{
+  const model=buildApiErrorUiModel({
+    message:'Request failed.',
+    correlationId:'/Users/rebel/private-token',
+    issues:[{path:'/Users/rebel/.config/token',code:'secret=value'}]
+  });
+  assert.equal(model.correlationId,'');
+  assert.equal(model.issues[0].path,'$.body');
+  assert.equal(model.issues[0].code,'validation_failed');
+  assert.equal(JSON.stringify(model).includes('/Users/rebel'),false);
+  assert.equal(JSON.stringify(model).includes('secret=value'),false);
 });
 
 test('status labels include text and do not rely on color alone',()=>{

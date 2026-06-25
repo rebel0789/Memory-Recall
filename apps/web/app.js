@@ -69,6 +69,52 @@ export function shellStatusLabel({ network='deny', externalWrites=false, modelMo
   return parts.join(' · ');
 }
 
+const API_ISSUE_HINTS = new Map([
+  ['$.body.changedLocators',['Changed files','Use workspace-relative paths under this repository, one per line. Keep the list bounded and review it before building.']],
+  ['$.body.userSelectedFiles',['Explicit files','Use workspace-relative paths under this repository. Do not paste file bodies, absolute paths, credentials, or provider URLs.']],
+  ['$.body.client',['Client','Choose a supported local harness client from the menu.']],
+  ['$.body.objective',['Objective','Use a plain task summary. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
+  ['$.body.step',['Step','Use a short current-step label. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
+  ['$.body.tokenBudget',['Token budget','Use a positive number within the field limit.']],
+  ['$.body.targetHarness',['Target','Choose Codex, Claude Code, Cursor, or Generic agent.']],
+  ['$.body.from',['Source families','Use supported source families only, such as codex, cursor, or claude-code.']],
+  ['$.body.workspaceId',['Workspace','Use the current local workspace.']]
+]);
+
+function safeErrorToken(value,fallback,maxLength=120) {
+  const text=String(value ?? '').trim();
+  if(!text)return fallback;
+  if(/(?:\/Users|\/private|\/var\/folders|https?:|file:|token|secret|api[_-]?key|authorization|cookie)/iu.test(text))return fallback;
+  const normalized=text.replace(/[^\w$.[\]:-]/gu,'_').slice(0,maxLength);
+  if(/(?:\/Users|\/private|\/var\/folders|https?:|file:|token|secret|api[_-]?key|authorization|cookie)/iu.test(normalized))return fallback;
+  return normalized;
+}
+
+function apiIssueHint(path,code) {
+  const direct=API_ISSUE_HINTS.get(path);
+  if(direct)return { label:direct[0], detail:direct[1] };
+  if(path.startsWith('$.body.'))return { label:titleize(path.slice('$.body.'.length)), detail:'Review this field and use only supported local values.' };
+  return { label:'Request field', detail:'Review the highlighted request field and retry with supported local values.' };
+}
+
+export function buildApiErrorUiModel(errorLike) {
+  const error=typeof errorLike==='object' && errorLike ? errorLike : { message:String(errorLike ?? 'Request failed.') };
+  const message=String(error.message ?? 'Request failed.');
+  const issues=Array.isArray(error.issues) ? error.issues.slice(0,5).map((issue)=>{
+    const path=safeErrorToken(issue?.path,'$.body');
+    const code=safeErrorToken(issue?.code,'validation_failed',64);
+    return { path, code, ...apiIssueHint(path,code) };
+  }) : [];
+  const correlationId=safeErrorToken(error.correlationId,'',96);
+  return {
+    message,
+    status:Number.isFinite(Number(error.status)) ? Number(error.status) : null,
+    code:safeErrorToken(error.code,'',64),
+    correlationId,
+    issues
+  };
+}
+
 export const WORKFLOW_STEPS = [
   { id:'collect', label:'Collect', detail:'Read bounded local or caller-supplied sources.' },
   { id:'normalize', label:'Normalize', detail:'Create observation records and retrieval eligibility.' },
@@ -653,6 +699,8 @@ async function api(path, options = {}) {
     const error = new Error(message);
     error.status = response.status;
     error.code = code;
+    error.correlationId = payload?.error?.correlationId ?? response.headers.get('x-correlation-id') ?? null;
+    error.issues = Array.isArray(payload?.error?.issues) ? payload.error.issues : [];
     throw error;
   }
   return payload ?? response.json();
@@ -936,8 +984,8 @@ function renderContext() {
 function renderContextPack() {
   const pack=contextPackResult?.pack ?? null;
   const markdown=contextPackResult?.markdown ?? '';
-  const errorPanel=contextPackError?statePanel('error','Context pack failed',contextPackError,false):'';
-  const sourcePreviewPanel=contextSourcePreviewError?statePanel('error','Source preview failed',contextSourcePreviewError,false):contextSourcePreviewResult?renderContextSourcePreview(contextSourcePreviewResult):'';
+  const errorPanel=contextPackError?renderApiErrorPanel('Context pack failed',contextPackError):'';
+  const sourcePreviewPanel=contextSourcePreviewError?renderApiErrorPanel('Source preview failed',contextSourcePreviewError):contextSourcePreviewResult?renderContextSourcePreview(contextSourcePreviewResult):'';
   return `${renderPinnedHandoffPanel(pinnedHandoffStatus,pinnedHandoffError)}<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Choose sources</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;CONTEXT.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs">apps/web/app.js</textarea></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, and reviewed changed-file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy commands, download artifacts, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
 }
 
@@ -1568,7 +1616,7 @@ export function parseSelectedFiles(value) {
 }
 
 function renderSourceGraph() {
-  const errorPanel=sourceGraphError?statePanel('error','Source graph preview failed',sourceGraphError,false):'';
+  const errorPanel=sourceGraphError?renderApiErrorPanel('Source graph preview failed',sourceGraphError):'';
   return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Preview source graph</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="context pack buildContextPackUiModel" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="buildContextPackUiModel" placeholder="runAuthWorkflow" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="apps/web/app.js" placeholder="src/auth.ts" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview graph</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No graph preview yet','Run a source graph preview to inspect symbols, calls, and likely diff impact.')}`;
 }
 
@@ -1624,7 +1672,7 @@ function renderContentLab() {
 }
 
 function renderAgentsTools() {
-  const errorPanel=harnessSetupError?statePanel('error','Harness setup preview failed',harnessSetupError,false):'';
+  const errorPanel=harnessSetupError?renderApiErrorPanel('Harness setup preview failed',harnessSetupError):'';
   const selectedClient=harnessSetupResult?.client ?? 'codex';
   const handoff=currentHandoffStatus();
   return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Native baselines</h2><span>Conformance anchors</span></div><div class="table-wrap"><table><thead><tr><th>Surface</th><th>Status</th><th>Boundary</th></tr></thead><tbody>${[['Model gateway','reference','deterministic default'],['Workflow runtime','reference','embedded + durable SQLite'],['Tool broker','reference','one-use local grants'],['External adapters','disabled','12 contracts, 0 enabled']].map(row=>`<tr><td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td></tr>`).join('')}</tbody></table></div></div><aside class="inspector"><h2>Tool policy</h2><p>Policy, grants, filesystem, loopback egress, and secret references remain independently brokered.</p></aside></section>${renderHandoffStatusPanel(handoff,'agents')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Harness setup preview</h2><span>Dry run only</span></div><form id="harness-setup-form" class="stacked-form"><label class="field"><span>Client</span><select name="client">${harnessSetupClientsForUi().map(([id,label])=>`<option value="${esc(id)}"${id===selectedClient?' selected':''}>${esc(label)}</option>`).join('')}</select></label><div class="action-row"><button class="button primary" type="submit">Preview setup</button><span class="muted">No home config writes. OAF server only.</span></div></form></div><aside class="inspector"><h2>Setup boundary</h2><dl class="facts"><div><dt>API body</dt><dd>workspace and client only</dd></div><div><dt>Server</dt><dd>oaf</dd></div><div><dt>Mode</dt><dd>plan-only dry run</dd></div><div><dt>Bridge</dt><dd>read-only MCP resources</dd></div></dl></aside></section>${errorPanel}${harnessSetupResult?renderHarnessSetupResult(harnessSetupResult):statePanel('empty','No setup preview yet','Choose a local harness client to see the redacted MCP setup plan.')}`;
@@ -1647,7 +1695,16 @@ function renderSettings() {
 function metric(value,label,copy){return `<div class="metric"><strong>${Number(value??0)}</strong><span>${label}</span><small>${copy}</small></div>`}
 function statusChip(kind,label,description){return `<span class="status-chip status-${esc(kind)}"><strong>${esc(label)}</strong><small>${esc(description)}</small></span>`}
 function localBoundary(){return `<dl class="facts"><div><dt>Residency</dt><dd>Local-only</dd></div><div><dt>Network</dt><dd>Denied by default</dd></div><div><dt>Writes</dt><dd>External writes disabled</dd></div><div><dt>Model</dt><dd>Deterministic offline default</dd></div></dl>`}
-function statePanel(kind,heading,copy,button=false){return `<section class="state-panel state-${esc(kind)}" aria-live="${kind==='loading'?'polite':'off'}"><h2>${esc(heading)}</h2><p>${esc(copy)}</p>${button?'<div class="action-row"><button class="button primary" data-action="run" type="button">Run local demo</button><button class="button secondary" data-action="reset" type="button">Reset demo</button></div>':''}</section>`}
+function renderApiErrorPanel(heading,error) {
+  const model=buildApiErrorUiModel(error);
+  return statePanel('error',heading,model.message,false,renderApiErrorRecovery(model));
+}
+function renderApiErrorRecovery(model) {
+  const issues=model.issues.length ? `<div class="issue-recovery"><h3>Fix this field</h3><ul>${model.issues.map((issue)=>`<li><strong>${esc(issue.label)}</strong><span>${esc(issue.detail)}</span><code>${esc(issue.path)} · ${esc(issue.code)}</code></li>`).join('')}</ul></div>` : '';
+  const correlation=model.correlationId ? `<p class="error-correlation">Correlation <code>${esc(model.correlationId)}</code></p>` : '';
+  return `${issues}${correlation}`;
+}
+function statePanel(kind,heading,copy,button=false,extra=''){return `<section class="state-panel state-${esc(kind)}" aria-live="${kind==='loading'?'polite':'off'}"><h2>${esc(heading)}</h2><p>${esc(copy)}</p>${extra}${button?'<div class="action-row"><button class="button primary" data-action="run" type="button">Run local demo</button><button class="button secondary" data-action="reset" type="button">Reset demo</button></div>':''}</section>`}
 function deniedState(){return authPanel('login','Sign in with the local owner account for this workspace.')}
 function authPanel(mode,copy){
   const isBootstrap=mode==='bootstrap';
@@ -1836,7 +1893,7 @@ async function submitContextPack(event){
     render();
   }catch(error){
     document.querySelector('#live-status').textContent=error.message;
-    contextPackError=error.message;
+    contextPackError=error;
     render();
   }finally{
     button.disabled=false;
@@ -1866,7 +1923,7 @@ async function previewContextSources(event){
     document.querySelector('#live-status').textContent='Harness source preview ready.';
     render();
   }catch(error){
-    contextSourcePreviewError=error.message;
+    contextSourcePreviewError=error;
     if(status)status.textContent=error.message;
     document.querySelector('#live-status').textContent=error.message;
     render();
@@ -1965,7 +2022,7 @@ async function submitSourceGraph(event){
     render();
   }catch(error){
     document.querySelector('#live-status').textContent=error.message;
-    sourceGraphError=error.message;
+    sourceGraphError=error;
     render();
   }finally{
     button.disabled=false;
@@ -1986,7 +2043,7 @@ async function previewContextPackSetup(event){
     render();
   }catch(error){
     document.querySelector('#live-status').textContent=error.message;
-    harnessSetupError=error.message;
+    harnessSetupError=error;
     render();
   }finally{
     button.disabled=false;
@@ -2010,7 +2067,7 @@ async function submitHarnessSetupPlan(event){
     render();
   }catch(error){
     document.querySelector('#live-status').textContent=error.message;
-    harnessSetupError=error.message;
+    harnessSetupError=error;
     render();
   }finally{
     button.disabled=false;

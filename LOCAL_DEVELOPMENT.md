@@ -174,7 +174,8 @@ npm --silent run oaf -- measure context-pack \
 This report includes aggregate changed-source byte/token counts and an
 avoidance ratio for raw changed-file bodies that stayed out of the handoff. The
 counts are local estimates for proof and comparison, not provider billing-token
-or production latency claims.
+or production latency claims. Use `--format summary` instead of `--format json`
+when you want the same validated report rendered as a compact terminal brief.
 
 Explicit local write:
 

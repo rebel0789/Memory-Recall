@@ -131,6 +131,9 @@ For a compact diff-aware impact brief with the same read-only MCP proof:
 npm --silent run oaf -- measure context-pack --read-only --from codex --root . --objective "Prepare handoff" --step "impact brief" --target codex --changed apps/web/app.js --format json
 ```
 
+Use `--format summary` for a compact operator-facing stdout report over the
+same validated measurement object.
+
 The measurement report includes selected/delivered handoff token estimates,
 observed local build/readback timings, and aggregate changed-file body tokens
 kept out of the handoff. It does not claim provider billing tokens, production
