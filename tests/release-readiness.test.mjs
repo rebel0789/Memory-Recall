@@ -58,8 +58,9 @@ test('release readiness quality snapshot matches current release evidence', asyn
   const reproducibility = artifacts.files['1.0-REPRODUCIBILITY.md'];
   const declaredTests = await countDeclaredNodeTests();
   const protocolFixtures = JSON.parse(await readFile('examples/protocol/compatibility/fixtures.json', 'utf8')).fixtures.length;
+  const projectStatus = JSON.parse(await readFile('PROJECT_STATUS.json', 'utf8'));
 
-  assert.match(report, /\| Quality snapshot date \| 2026-06-25 \|/);
+  assert.match(report, new RegExp(`\\| Quality snapshot date \\| ${projectStatus.qualitySnapshot.asOf} \\|`));
   assert.match(report, new RegExp(`\\| Recorded tests \\| ${declaredTests} \\|`));
   assert.match(report, new RegExp(`\\| Recorded protocol fixtures \\| ${protocolFixtures} \\|`));
   assert.match(report, /\| Recorded evaluation assertions \| 144 \|/);

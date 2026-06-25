@@ -242,25 +242,30 @@
     },
     {
       "id": "builder.loop-workbench",
-      "name": "Loop Workbench (Plan and observation primitives)",
+      "name": "Loop Workbench (Plan, observation, and verification primitives)",
       "status": "reference",
       "evidence": [
         "packages/protocol/schemas/loop-plan.schema.json",
         "packages/protocol/schemas/loop-observation.schema.json",
+        "packages/protocol/schemas/loop-verification-report.schema.json",
         "examples/protocol/loop-plan.json",
         "examples/protocol/loop-observation.json",
+        "examples/protocol/loop-verification-report.json",
         "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
         "examples/protocol/compatibility/invalid/loop-observation-raw-output.json",
+        "examples/protocol/compatibility/invalid/loop-verification-auto-merge.json",
         "packages/harness-context/src/index.mjs",
         "apps/cli/oaf.mjs",
         "tests/harness-context-loop-plan.test.mjs",
         "tests/harness-context-loop-observation.test.mjs",
+        "tests/harness-context-loop-verification.test.mjs",
         "tests/cli.test.mjs",
         "docs/product/loop-workbench.md"
       ],
       "limitations": [
-        "Read-only Loop Plan generator and sanitized observation capture only.",
-        "Proof summary, verifier, scheduling, UI, and executor are not implemented.",
+        "Read-only Loop Plan generator, sanitized observation capture, and maker/checker verification report only.",
+        "The verifier uses an isolated worktree, injected implementer, plan-limited checker commands, unrelated-diff blocking, replay side-effect disabling, and no auto-merge.",
+        "Proof summary, scheduling, UI, and autonomous executor are not implemented.",
         "contextBudget is an estimate carried from a context-pack measurement; it does not claim provider billing tokens."
       ]
     },
@@ -869,7 +874,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-06-25",
+    "asOf": "2026-06-26",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run bootstrap",
@@ -887,8 +892,8 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 376,
-    "protocolFixturesExpected": 155,
+    "testsExpected": 378,
+    "protocolFixturesExpected": 157,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

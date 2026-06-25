@@ -21,6 +21,7 @@ import {
   pinContextPackArtifacts,
   recordLoopObservation,
   renderContextPackMarkdown,
+  runLoopVerification,
   scanHarnessContext,
   verifyContextPackRegistry
 } from '../../packages/harness-context/src/index.mjs';
@@ -120,7 +121,8 @@ async function loopCommand(values) {
   try {
     if (subcommand === 'plan') return await loopPlanCommand(rest);
     if (subcommand === 'observe') return await loopObserveCommand(rest);
-    console.error('loop requires plan or observe');
+    if (subcommand === 'verify') return await loopVerifyCommand(rest);
+    console.error('loop requires plan, observe, or verify');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -226,6 +228,53 @@ async function loopObserveCommand(values) {
     clock: fixedNow
   });
   console.log(JSON.stringify({ ...observation, ledgerEvents: events }, null, 2));
+}
+
+async function loopVerifyCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('loop verify requires --read-only for this CLI checkpoint');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--merge')) {
+    console.error('loop verify does not merge or write reports in this CLI checkpoint');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', '--replay', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`loop verify unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('loop verify only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const planPath = option(values, '--plan');
+  const worktreePath = option(values, '--worktree') ?? root;
+  if (!planPath) {
+    console.error('loop verify requires --plan <loop-plan.json>');
+    process.exitCode = 2;
+    return;
+  }
+  const loopPlan = await loadWorkspaceJson(root, safeWorkspaceRelativePath(planPath, 'loop plan'), null);
+  if (!loopPlan) throw new Error(`loop plan not found: ${planPath}`);
+  const events = [];
+  const report = await runLoopVerification({
+    loopPlan,
+    runId: option(values, '--run-id') ?? 'run_loop_verification',
+    worktreePath,
+    replayMode: values.includes('--replay'),
+    implementer: async () => {},
+    appendEvent: async (event) => events.push(event),
+    clock: fixedNow
+  });
+  console.log(JSON.stringify({ ...report, ledgerEvents: events }, null, 2));
 }
 
 async function measureContextPackCommand(values) {
@@ -2138,6 +2187,7 @@ Usage:
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --read-only --root . --plan loop-plan.json --format json
+  oaf loop verify --read-only --root . --plan loop-plan.json --worktree ../isolated-worktree --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json

@@ -34,6 +34,8 @@ import {
   createMcpBridge
 } from '../../protocol-bridges/src/index.mjs';
 import contextPackReceiveReportSchema from '../../protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };
+import loopVerificationReportSchema from '../../protocol/schemas/loop-verification-report.schema.json' with { type: 'json' };
+import { createReplayPlan } from '../../replay/src/index.mjs';
 
 export const CONTEXT_PACK_VERSION = '0.1.0';
 export const CONTEXT_PACK_USE_PLAN_VERSION = '0.1.0';
@@ -2384,6 +2386,192 @@ export async function recordLoopObservation({
   await appendEvent(event);
   assertJsonSchema(loopObservationSchema, observation, 'loop observation');
   return observation;
+}
+
+async function gitChangedWorkspaceLocators(worktreePath) {
+  const gitEnv = {
+    ...process.env,
+    GIT_OPTIONAL_LOCKS: '0',
+    GIT_TERMINAL_PROMPT: '0'
+  };
+  const options = {
+    encoding: 'utf8',
+    timeout: GIT_STATUS_TIMEOUT_MS,
+    maxBuffer: GIT_STATUS_MAX_BUFFER,
+    env: gitEnv
+  };
+  const [tracked, untracked] = await Promise.all([
+    execFileAsync('git', ['-C', worktreePath, 'diff', '--name-only'], options),
+    execFileAsync('git', ['-C', worktreePath, 'ls-files', '--others', '--exclude-standard'], options)
+  ]);
+  const paths = `${tracked.stdout}\n${untracked.stdout}`;
+  return [...new Set(paths.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean))]
+    .map((relativePath) => `workspace://${normalizeUserSelectedFilePath(relativePath)}`)
+    .sort();
+}
+
+function verificationEvent({ report, type, sequence, occurredAt, payload = {} }) {
+  const safePayload = {
+    verificationReportId: report.id,
+    loopPlanId: report.loopPlanId,
+    loopPlanFingerprint: report.loopPlanFingerprint,
+    status: report.status,
+    ...payload
+  };
+  return {
+    schemaVersion: '1.0.0',
+    id: `evt_loop_${idDigest(stableStringify({ reportId: report.id, type, sequence, safePayload }))}`,
+    workspaceId: report.workspaceId,
+    runId: report.runId,
+    type,
+    actorId: 'system',
+    sequence,
+    occurredAt,
+    correlationId: `corr_${report.id}`,
+    causationId: report.loopPlanId,
+    dataClass: 'workspace-private',
+    producerVersion: LOOP_PLAN_VERSION,
+    payload: safePayload
+  };
+}
+
+function replayEvidence({ workspaceId, runId, reason }) {
+  const replay = createReplayPlan({
+    workspaceId,
+    sourceRunId: runId,
+    mode: 'shadow',
+    reason,
+    sideEffects: 'disabled'
+  });
+  return {
+    sideEffects: replay.sideEffects,
+    approvalsReusable: replay.approvalsReusable,
+    planFingerprint: replay.fingerprint
+  };
+}
+
+export async function runLoopVerification({
+  loopPlan,
+  runId = 'run_loop_verification',
+  worktreePath,
+  implementer = async () => {},
+  commandRunner = defaultValidationCommandRunner,
+  appendEvent = async () => {},
+  replayMode = false,
+  clock = () => new Date().toISOString()
+} = {}) {
+  assertJsonSchema(loopPlanSchema, loopPlan, 'loop verification plan');
+  if (!worktreePath || typeof worktreePath !== 'string') throw new Error('loop_verification_worktree_required');
+  const createdAt = clock();
+  const allowedLocators = [...new Set(loopPlan.sourceGraph.changedLocators ?? [])].sort();
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'loop verify',
+    id: 'loopverify_000000000000000000000000',
+    workspaceId: loopPlan.workspaceId,
+    runId,
+    createdAt,
+    loopPlanId: loopPlan.id,
+    loopPlanFingerprint: loopPlan.loopPlanFingerprint,
+    status: 'blocked',
+    stopReason: replayMode ? 'blocked_needs_human' : 'completed',
+    worktree: {
+      mode: 'isolated',
+      pathFingerprint: hash(path.resolve(worktreePath))
+    },
+    implementer: {
+      status: replayMode ? 'skipped_replay' : 'completed',
+      changedLocators: []
+    },
+    checker: {
+      status: replayMode ? 'skipped_replay' : 'failed',
+      observation: null
+    },
+    scope: {
+      status: replayMode ? 'skipped_replay' : 'passed',
+      allowedLocators,
+      changedLocators: [],
+      unrelatedLocators: []
+    },
+    proposal: {
+      status: 'blocked',
+      autoMerge: false,
+      approvalRequired: true,
+      approvalsReused: false,
+      reasonCodes: []
+    },
+    replay: replayEvidence({ workspaceId: loopPlan.workspaceId, runId, reason: 'loop verification shadow replay disables side effects' }),
+    flightRecorder: {
+      eventCount: 0,
+      eventTypes: []
+    },
+    safeguards: {
+      isolatedWorktreeOnly: true,
+      mainBranchWritten: false,
+      autoMerge: false,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      replaySideEffectsDisabled: replayMode === true
+    },
+    reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.id = `loopverify_${idDigest(stableStringify({
+    workspaceId: report.workspaceId,
+    runId,
+    loopPlanFingerprint: report.loopPlanFingerprint,
+    worktreePath: report.worktree.pathFingerprint,
+    replayMode
+  }))}`;
+
+  const events = [];
+  let sequence = 0;
+  const emit = async (type, payload = {}) => {
+    const event = verificationEvent({ report, type, sequence: sequence++, occurredAt: clock(), payload });
+    events.push(event);
+    await appendEvent(event);
+  };
+
+  if (!replayMode) {
+    await implementer({ worktreePath, loopPlan });
+    const changedLocators = await gitChangedWorkspaceLocators(worktreePath);
+    report.implementer.changedLocators = changedLocators;
+    await emit('loop.implementer_completed', { changedLocators });
+    const observation = await recordLoopObservation({
+      loopPlan,
+      runId,
+      cwd: worktreePath,
+      commandRunner,
+      appendEvent: async () => {},
+      eventSequence: sequence,
+      clock
+    });
+    report.checker.observation = observation;
+    report.checker.status = observation.status === 'passed' ? 'passed' : 'failed';
+    await emit('loop.checker_completed', { observationId: observation.id, checkerStatus: report.checker.status });
+    report.scope.changedLocators = changedLocators;
+    report.scope.unrelatedLocators = changedLocators.filter((locator) => !allowedLocators.includes(locator));
+    report.scope.status = report.scope.unrelatedLocators.length ? 'blocked' : 'passed';
+    const checkerPassed = report.checker.status === 'passed';
+    report.status = checkerPassed && report.scope.status === 'passed' ? 'proposed' : 'blocked';
+    report.stopReason = !checkerPassed ? 'validation_failed' : report.scope.status === 'blocked' ? 'unrelated_changes' : 'completed';
+  }
+
+  report.proposal.status = report.status === 'proposed' ? 'proposed' : 'blocked';
+  report.proposal.reasonCodes = [
+    report.checker.status === 'passed' ? 'checker_passed' : report.checker.status === 'skipped_replay' ? 'checker_skipped_replay' : 'checker_failed',
+    report.scope.status === 'passed' ? 'scope_passed' : report.scope.status === 'skipped_replay' ? 'scope_skipped_replay' : 'unrelated_changes',
+    'human_approval_required',
+    'auto_merge_disabled'
+  ];
+  report.flightRecorder = {
+    eventCount: events.length + 1,
+    eventTypes: [...events.map((event) => event.type), 'loop.verification_reported']
+  };
+  report.reportFingerprint = hashJson({ ...report, reportFingerprint: null });
+  await emit('loop.verification_reported', { reportFingerprint: report.reportFingerprint, stopReason: report.stopReason });
+  assertJsonSchema(loopVerificationReportSchema, report, 'loop verification report');
+  return report;
 }
 
 export async function buildContextPack({

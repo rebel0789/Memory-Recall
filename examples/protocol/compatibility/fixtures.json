@@ -930,6 +930,18 @@
       "schema": "packages/protocol/schemas/loop-observation.schema.json",
       "instance": "examples/protocol/compatibility/invalid/loop-observation-raw-output.json",
       "expectedValid": false
+    },
+    {
+      "id": "loop-verification-report-current-valid",
+      "schema": "packages/protocol/schemas/loop-verification-report.schema.json",
+      "instance": "examples/protocol/loop-verification-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-verification-auto-merge-invalid",
+      "schema": "packages/protocol/schemas/loop-verification-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-verification-auto-merge.json",
+      "expectedValid": false
     }
   ]
 }

@@ -63,7 +63,11 @@ policy gates before anything merges. Agent runs are trees, not log lines — the
 flight recorder records the parent run, sub-agent handoffs, tool calls, policy
 decisions, and outcomes required to replay and compare.
 
-This is a later slice. It is named here so the first slice is designed to feed it.
+The shipped primitive is a schema-validated verification report: an injected
+implementer changes an isolated worktree, a checker runs only the Loop Plan's
+validation commands, unrelated diffs block the proposal, replay mode disables
+side effects, and auto-merge stays off. This is not yet a scheduler or autonomous
+executor.
 
 ## Delivery slices
 
@@ -77,8 +81,10 @@ the whole product is done.
 2. **Slice 2 — Sanitized observation capture.** Record validation results and
    loop events to the event ledger, redacted and bounded to the Loop Plan's own
    validation commands.
-3. **Slice 3 — Maker/checker verifier.** Implementer + verifier sub-agents under
-   the flight recorder; shadow run, compare, learning proposal.
+3. **Slice 3 — Maker/checker verifier.** A schema-backed report from an isolated
+   worktree, injected implementer, plan-limited checker commands, unrelated-diff
+   blocking, replay side-effect proof, flight-recorder events, and a blocked or
+   proposed human-reviewed proposal. No auto-merge.
 4. **Slice 4 — Scheduling / automation.** Loops that prompt you on a cadence
    (triage, PR babysitter, CI sweeper) over the durable workflow runtime.
 5. **Slice 5 — Loop Workbench UI.** The `/loop-workbench` route, last.
@@ -100,7 +106,7 @@ skill** (interrogate the objective before work begins).
 
 ## What is not claimed
 
-Proof summaries, reusable loop templates, the maker/checker verifier, scheduling
-automation, the web UI, and any autonomous executor are **specified and planned,
-not shipped**. The shipped native primitives are the Loop Plan generator and
-sanitized observation capture.
+Proof summaries, reusable loop templates, scheduling automation, the web UI, and
+any autonomous executor are **specified and planned, not shipped**. The shipped
+native primitives are the Loop Plan generator, sanitized observation capture, and
+maker/checker verification report.

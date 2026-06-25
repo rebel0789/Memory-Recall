@@ -1,0 +1,136 @@
+{
+  "$id": "https://open-agent-fabric.dev/schemas/loop-verification-report-1.0.json",
+  "title": "Loop verification report",
+  "description": "Maker/checker report for one bounded Loop Workbench iteration in an isolated worktree.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "id",
+    "workspaceId",
+    "runId",
+    "createdAt",
+    "loopPlanId",
+    "loopPlanFingerprint",
+    "status",
+    "stopReason",
+    "worktree",
+    "implementer",
+    "checker",
+    "scope",
+    "proposal",
+    "replay",
+    "flightRecorder",
+    "safeguards",
+    "reportFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "command": { "const": "loop verify" },
+    "id": { "type": "string", "pattern": "^loopverify_[a-f0-9]{24}$" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+    "runId": { "type": "string", "pattern": "^run_[A-Za-z0-9._:-]{1,120}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "loopPlanId": { "type": "string", "pattern": "^loopplan_[a-f0-9]{24}$" },
+    "loopPlanFingerprint": { "$ref": "#/$defs/hash" },
+    "status": { "enum": ["proposed", "blocked"] },
+    "stopReason": { "enum": ["completed", "validation_failed", "blocked_needs_human", "unrelated_changes"] },
+    "worktree": { "$ref": "#/$defs/worktree" },
+    "implementer": { "$ref": "#/$defs/implementer" },
+    "checker": { "$ref": "#/$defs/checker" },
+    "scope": { "$ref": "#/$defs/scope" },
+    "proposal": { "$ref": "#/$defs/proposal" },
+    "replay": { "$ref": "#/$defs/replay" },
+    "flightRecorder": { "$ref": "#/$defs/flightRecorder" },
+    "safeguards": { "$ref": "#/$defs/safeguards" },
+    "reportFingerprint": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "locator": { "type": "string", "pattern": "^workspace://[^\\r\\n]{1,320}$" },
+    "worktree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "pathFingerprint"],
+      "properties": {
+        "mode": { "const": "isolated" },
+        "pathFingerprint": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "implementer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "changedLocators"],
+      "properties": {
+        "status": { "enum": ["completed", "skipped_replay"] },
+        "changedLocators": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/locator" } }
+      }
+    },
+    "checker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "observation"],
+      "properties": {
+        "status": { "enum": ["passed", "failed", "skipped_replay"] },
+        "observation": { "type": ["object", "null"] }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "allowedLocators", "changedLocators", "unrelatedLocators"],
+      "properties": {
+        "status": { "enum": ["passed", "blocked", "skipped_replay"] },
+        "allowedLocators": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/locator" } },
+        "changedLocators": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/locator" } },
+        "unrelatedLocators": { "type": "array", "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/locator" } }
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "autoMerge", "approvalRequired", "approvalsReused", "reasonCodes"],
+      "properties": {
+        "status": { "enum": ["proposed", "blocked"] },
+        "autoMerge": { "const": false },
+        "approvalRequired": { "const": true },
+        "approvalsReused": { "const": false },
+        "reasonCodes": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[a-z][a-z0-9_:-]*$" } }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sideEffects", "approvalsReusable", "planFingerprint"],
+      "properties": {
+        "sideEffects": { "const": "disabled" },
+        "approvalsReusable": { "const": false },
+        "planFingerprint": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "flightRecorder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventCount", "eventTypes"],
+      "properties": {
+        "eventCount": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "eventTypes": { "type": "array", "maxItems": 64, "items": { "type": "string", "minLength": 1, "maxLength": 96 } }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isolatedWorktreeOnly", "mainBranchWritten", "autoMerge", "externalWritesEnabled", "networkCalls", "modelCalls", "replaySideEffectsDisabled"],
+      "properties": {
+        "isolatedWorktreeOnly": { "const": true },
+        "mainBranchWritten": { "const": false },
+        "autoMerge": { "const": false },
+        "externalWritesEnabled": { "const": false },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "replaySideEffectsDisabled": { "type": "boolean" }
+      }
+    }
+  }
+}
