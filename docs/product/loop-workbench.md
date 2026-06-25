@@ -75,7 +75,8 @@ the whole product is done.
    Graph hints, and Context Pack / use-plan references. No executor, no command
    execution, no observation capture, no UI. Carries a `contextBudget`.
 2. **Slice 2 — Sanitized observation capture.** Record validation results and
-   loop events to the event ledger, redacted and read-only.
+   loop events to the event ledger, redacted and bounded to the Loop Plan's own
+   validation commands.
 3. **Slice 3 — Maker/checker verifier.** Implementer + verifier sub-agents under
    the flight recorder; shadow run, compare, learning proposal.
 4. **Slice 4 — Scheduling / automation.** Loops that prompt you on a cadence
@@ -99,7 +100,7 @@ skill** (interrogate the objective before work begins).
 
 ## What is not claimed
 
-Observation capture, proof summaries, reusable loop templates, the maker/checker
-verifier, scheduling automation, the web UI, and any autonomous executor are
-**specified and planned, not shipped**. Slice 1 delivers only the Loop Plan
-primitive.
+Proof summaries, reusable loop templates, the maker/checker verifier, scheduling
+automation, the web UI, and any autonomous executor are **specified and planned,
+not shipped**. The shipped native primitives are the Loop Plan generator and
+sanitized observation capture.

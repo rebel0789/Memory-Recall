@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "loop observe",
+  "id": "loopobs_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_loop",
+  "runId": "run_loop",
+  "createdAt": "2026-06-26T00:00:01.000Z",
+  "loopPlanId": "loopplan_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "loopPlanFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "passed",
+  "commands": [
+    {
+      "command": "node --test tests/web-shell.test.mjs",
+      "exitCode": 0,
+      "durationMs": 7,
+      "passed": true,
+      "outputSummary": "ok",
+      "outputHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "outputTruncated": false
+    }
+  ],
+  "events": [
+    {
+      "id": "evt_loop_aaaaaaaaaaaaaaaaaaaaaaaa",
+      "type": "loop.observation_recorded",
+      "sequence": 0
+    }
+  ],
+  "safeguards": {
+    "commandsLimitedToPlan": true,
+    "rawOutputIncluded": false,
+    "outputSummaryMaxChars": 320,
+    "localFilesWrittenOutsideLedger": 0,
+    "networkCallsDeclared": 0,
+    "modelCalls": 0,
+    "externalWritesEnabled": false,
+    "activeMemoryCreated": 0
+  },
+  "observationFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

@@ -18,6 +18,7 @@ import contextPackSchema from '../../protocol/schemas/context-pack.schema.json' 
 import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import harnessContextSourceSchema from '../../protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
+import loopObservationSchema from '../../protocol/schemas/loop-observation.schema.json' with { type: 'json' };
 import loopPlanSchema from '../../protocol/schemas/loop-plan.schema.json' with { type: 'json' };
 import {
   buildMemoryProposalsReport,
@@ -2229,6 +2230,160 @@ export function buildLoopPlan({
   plan.loopPlanFingerprint = hashJson({ ...plan, loopPlanFingerprint: null });
   assertJsonSchema(loopPlanSchema, plan, 'loop plan');
   return plan;
+}
+
+function splitCommand(command) {
+  const parts = [];
+  const pattern = /"([^"]*)"|'([^']*)'|[^\s]+/gu;
+  for (const match of String(command ?? '').matchAll(pattern)) parts.push(match[1] ?? match[2] ?? match[0]);
+  if (!parts.length) throw new Error('loop_observation_command_empty');
+  return parts;
+}
+
+async function defaultValidationCommandRunner(command, { cwd = process.cwd(), timeoutMs = 60_000 } = {}) {
+  const [file, ...args] = splitCommand(command);
+  const started = Date.now();
+  try {
+    const result = await execFileAsync(file, args, {
+      cwd,
+      timeout: timeoutMs,
+      maxBuffer: 128 * 1024,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0'
+      }
+    });
+    return {
+      exitCode: 0,
+      stdout: result.stdout ?? '',
+      stderr: result.stderr ?? '',
+      durationMs: Date.now() - started
+    };
+  } catch (error) {
+    return {
+      exitCode: Number.isInteger(error.code) ? error.code : 1,
+      stdout: error.stdout ?? '',
+      stderr: error.stderr ?? error.message ?? '',
+      durationMs: Date.now() - started
+    };
+  }
+}
+
+function summarizeCommandOutput({ stdout = '', stderr = '' }) {
+  const redactions = redact(`${stdout}\n${stderr}`.trim());
+  const redacted = redactions.redacted.replace(/\s+/gu, ' ').trim();
+  return {
+    summary: redacted.slice(0, 320),
+    hash: hash(redacted),
+    truncated: redacted.length > 320
+  };
+}
+
+function loopObservationEvent({ observation, sequence, occurredAt }) {
+  const payload = {
+    observationId: observation.id,
+    loopPlanId: observation.loopPlanId,
+    loopPlanFingerprint: observation.loopPlanFingerprint,
+    status: observation.status,
+    commandCount: observation.commands.length,
+    commandExitCodes: observation.commands.map((item) => item.exitCode),
+    commandOutputHashes: observation.commands.map((item) => item.outputHash),
+    observationFingerprint: observation.observationFingerprint
+  };
+  return {
+    schemaVersion: '1.0.0',
+    id: `evt_loop_${idDigest(stableStringify({ observationId: observation.id, sequence, payload }))}`,
+    workspaceId: observation.workspaceId,
+    runId: observation.runId,
+    type: 'loop.observation_recorded',
+    actorId: 'system',
+    sequence,
+    occurredAt,
+    correlationId: `corr_${observation.id}`,
+    causationId: observation.loopPlanId,
+    dataClass: 'workspace-private',
+    producerVersion: LOOP_PLAN_VERSION,
+    payload
+  };
+}
+
+export async function recordLoopObservation({
+  loopPlan,
+  runId = 'run_loop_observation',
+  validationCommands = null,
+  cwd = process.cwd(),
+  commandRunner = defaultValidationCommandRunner,
+  appendEvent = async () => {},
+  eventSequence = 0,
+  clock = () => new Date().toISOString()
+} = {}) {
+  assertJsonSchema(loopPlanSchema, loopPlan, 'loop observation plan');
+  const planCommands = loopPlan.validationCommands ?? [];
+  const commands = validationCommands === null || validationCommands === undefined ? planCommands : validationCommands;
+  const normalizedCommands = normalizeLoopPlanTexts(commands, 'validationCommand');
+  for (const command of normalizedCommands) {
+    if (!planCommands.includes(command)) throw new Error('loop_observation_command_not_in_plan');
+  }
+  if (!normalizedCommands.length) throw new Error('loop_observation_commands_required');
+
+  const createdAt = clock();
+  const results = [];
+  for (const command of normalizedCommands) {
+    const result = await commandRunner(command, {
+      cwd,
+      timeoutMs: Math.min(Number(loopPlan.timeoutSeconds ?? 1800) * 1000, 600_000)
+    });
+    const output = summarizeCommandOutput(result);
+    const exitCode = Number.isInteger(result.exitCode) ? Math.max(0, Math.min(255, result.exitCode)) : 1;
+    results.push({
+      command,
+      exitCode,
+      durationMs: Math.max(0, Math.min(600_000, Math.trunc(Number(result.durationMs ?? 0)))),
+      passed: exitCode === 0,
+      outputSummary: output.summary,
+      outputHash: output.hash,
+      outputTruncated: output.truncated
+    });
+  }
+
+  const observation = {
+    schemaVersion: '1.0.0',
+    command: 'loop observe',
+    id: 'loopobs_000000000000000000000000',
+    workspaceId: loopPlan.workspaceId,
+    runId,
+    createdAt,
+    loopPlanId: loopPlan.id,
+    loopPlanFingerprint: loopPlan.loopPlanFingerprint,
+    status: results.every((item) => item.passed) ? 'passed' : 'failed',
+    commands: results,
+    events: [],
+    safeguards: {
+      commandsLimitedToPlan: true,
+      rawOutputIncluded: false,
+      outputSummaryMaxChars: 320,
+      localFilesWrittenOutsideLedger: 0,
+      networkCallsDeclared: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      activeMemoryCreated: 0
+    },
+    observationFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  observation.id = `loopobs_${idDigest(stableStringify({
+    workspaceId: observation.workspaceId,
+    runId,
+    loopPlanFingerprint: observation.loopPlanFingerprint,
+    commands: observation.commands
+  }))}`;
+  observation.observationFingerprint = hashJson({ ...observation, observationFingerprint: null });
+  const event = loopObservationEvent({ observation, sequence: eventSequence, occurredAt: createdAt });
+  observation.events = [{ id: event.id, type: event.type, sequence: event.sequence }];
+  observation.observationFingerprint = hashJson({ ...observation, observationFingerprint: null });
+  event.payload.observationFingerprint = observation.observationFingerprint;
+  await appendEvent(event);
+  assertJsonSchema(loopObservationSchema, observation, 'loop observation');
+  return observation;
 }
 
 export async function buildContextPack({

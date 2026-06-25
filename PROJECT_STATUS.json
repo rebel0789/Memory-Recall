@@ -242,21 +242,25 @@
     },
     {
       "id": "builder.loop-workbench",
-      "name": "Loop Workbench (Loop Plan generator)",
+      "name": "Loop Workbench (Plan and observation primitives)",
       "status": "reference",
       "evidence": [
         "packages/protocol/schemas/loop-plan.schema.json",
+        "packages/protocol/schemas/loop-observation.schema.json",
         "examples/protocol/loop-plan.json",
+        "examples/protocol/loop-observation.json",
         "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
+        "examples/protocol/compatibility/invalid/loop-observation-raw-output.json",
         "packages/harness-context/src/index.mjs",
         "apps/cli/oaf.mjs",
         "tests/harness-context-loop-plan.test.mjs",
+        "tests/harness-context-loop-observation.test.mjs",
         "tests/cli.test.mjs",
         "docs/product/loop-workbench.md"
       ],
       "limitations": [
-        "Read-only Loop Plan generator only.",
-        "Observation capture, proof summary, verifier, scheduling, UI, and executor are not implemented.",
+        "Read-only Loop Plan generator and sanitized observation capture only.",
+        "Proof summary, verifier, scheduling, UI, and executor are not implemented.",
         "contextBudget is an estimate carried from a context-pack measurement; it does not claim provider billing tokens."
       ]
     },
@@ -883,8 +887,8 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 374,
-    "protocolFixturesExpected": 153,
+    "testsExpected": 376,
+    "protocolFixturesExpected": 155,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

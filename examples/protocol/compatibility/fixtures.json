@@ -918,6 +918,18 @@
       "schema": "packages/protocol/schemas/loop-plan.schema.json",
       "instance": "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
       "expectedValid": false
+    },
+    {
+      "id": "loop-observation-current-valid",
+      "schema": "packages/protocol/schemas/loop-observation.schema.json",
+      "instance": "examples/protocol/loop-observation.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-observation-raw-output-invalid",
+      "schema": "packages/protocol/schemas/loop-observation.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-observation-raw-output.json",
+      "expectedValid": false
     }
   ]
 }

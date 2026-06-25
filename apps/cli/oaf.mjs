@@ -19,6 +19,7 @@ import {
   detectGitChangedLocators,
   loadCurrentContextPackUsePlan,
   pinContextPackArtifacts,
+  recordLoopObservation,
   renderContextPackMarkdown,
   scanHarnessContext,
   verifyContextPackRegistry
@@ -118,7 +119,8 @@ async function loopCommand(values) {
   const [subcommand, ...rest] = values;
   try {
     if (subcommand === 'plan') return await loopPlanCommand(rest);
-    console.error('loop requires plan');
+    if (subcommand === 'observe') return await loopObserveCommand(rest);
+    console.error('loop requires plan or observe');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -180,6 +182,50 @@ async function loopPlanCommand(values) {
     clock: fixedNow
   });
   console.log(JSON.stringify(plan, null, 2));
+}
+
+async function loopObserveCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('loop observe requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin')) {
+    console.error('loop observe records only sanitized in-memory ledger events in this CLI mode');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--plan', '--run-id', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`loop observe unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('loop observe only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const planPath = option(values, '--plan');
+  if (!planPath) {
+    console.error('loop observe requires --plan <loop-plan.json>');
+    process.exitCode = 2;
+    return;
+  }
+  const loopPlan = await loadWorkspaceJson(root, safeWorkspaceRelativePath(planPath, 'loop plan'), null);
+  if (!loopPlan) throw new Error(`loop plan not found: ${planPath}`);
+  const events = [];
+  const observation = await recordLoopObservation({
+    loopPlan,
+    runId: option(values, '--run-id') ?? 'run_loop_observation',
+    cwd: root,
+    appendEvent: async (event) => events.push(event),
+    clock: fixedNow
+  });
+  console.log(JSON.stringify({ ...observation, ledgerEvents: events }, null, 2));
 }
 
 async function measureContextPackCommand(values) {
@@ -2091,6 +2137,7 @@ Usage:
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
+  oaf loop observe --read-only --root . --plan loop-plan.json --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
