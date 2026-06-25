@@ -586,6 +586,13 @@ export function buildHarnessSetupUiModel(report = null) {
     operationKind:safeText(operation?.op ?? 'none'),
     command:report ? `npm run oaf -- harness setup plan --client ${safeText(report.client)} --server oaf --dry-run --format json` : 'npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json',
     bridgeCommand:report?.desiredServer ? [report.desiredServer.command,...report.desiredServer.args].join(' ') : 'npm --silent run oaf -- mcp resources --read-only --stdio',
+    manualConfigSnippet:report?.manualConfigSnippet ? {
+      format:safeText(report.manualConfigSnippet.format),
+      configRef:safeText(report.manualConfigSnippet.configRef),
+      applyMode:safeText(report.manualConfigSnippet.applyMode),
+      content:String(report.manualConfigSnippet.content ?? ''),
+      warning:safeText(report.manualConfigSnippet.warning)
+    } : null,
     fingerprint:safeText(report?.planFingerprint ?? 'not generated'),
     safeguards:[
       ['Dry run', report?.dryRun === true ? 'true' : 'not run'],
@@ -1629,7 +1636,8 @@ function renderHarnessSetupResult(report) {
     {label:'CLI preview',command:model.command},
     {label:'Read-only bridge',command:model.bridgeCommand}
   ];
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.client)} setup plan</h2><span>${esc(shortFingerprint(model.fingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Config</dt><dd>${esc(model.configRef)}</dd></div><div><dt>Config status</dt><dd>${esc(model.configStatus)}</dd></div><div><dt>OAF server</dt><dd>${esc(model.serverStatus)}</dd></div><div><dt>Operation</dt><dd>${esc(model.operation)}</dd></div></dl>${contextPackCommandList(commands)}</div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>redacted</span></div><dl class="facts compact-facts">${model.safeguards.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><hr><p class="muted">This preview does not print raw config bodies, credentials, provider URLs, absolute local paths, or hidden reasoning.</p></aside></section>`;
+  const snippet=model.manualConfigSnippet ? `<hr><div class="section-heading"><h2>Manual config</h2><span>${esc(model.manualConfigSnippet.format)}</span></div><p class="muted">${esc(model.manualConfigSnippet.warning)}</p><dl class="facts compact-facts"><div><dt>Config ref</dt><dd>${esc(model.manualConfigSnippet.configRef)}</dd></div><div><dt>Apply mode</dt><dd>${esc(model.manualConfigSnippet.applyMode)}</dd></div></dl><pre class="code-block"><code>${esc(model.manualConfigSnippet.content)}</code></pre>` : '';
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.client)} setup plan</h2><span>${esc(shortFingerprint(model.fingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Config</dt><dd>${esc(model.configRef)}</dd></div><div><dt>Config status</dt><dd>${esc(model.configStatus)}</dd></div><div><dt>OAF server</dt><dd>${esc(model.serverStatus)}</dd></div><div><dt>Operation</dt><dd>${esc(model.operation)}</dd></div></dl>${contextPackCommandList(commands)}${snippet}</div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>redacted</span></div><dl class="facts compact-facts">${model.safeguards.map(([label,value])=>`<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><hr><p class="muted">This preview does not print raw config bodies, credentials, provider URLs, absolute local paths, or hidden reasoning.</p></aside></section>`;
 }
 
 function renderSettings() {

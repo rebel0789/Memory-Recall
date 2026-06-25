@@ -254,9 +254,17 @@
       "environmentKeys": [],
       "resourceMode": "read-only",
       "externalWrites": false
+    },
+    "manualConfigSnippet": {
+      "format": "toml",
+      "configRef": "home://.codex/config.toml",
+      "applyMode": "manual-copy",
+      "content": "[mcp_servers.oaf]\ncommand = \"npm\"\nargs = [\"--silent\", \"run\", \"oaf\", \"--\", \"mcp\", \"resources\", \"--read-only\", \"--stdio\"]",
+      "warning": "Preview only. Review and paste manually; OAF does not write home config files."
     }
   },
   "commands": {
+    "createPinnedContextPack": "npm run oaf -- context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json",
     "checkRegistry": "npm --silent run oaf -- context registry status --read-only --root . --workspace ws_local --format json",
     "readUsePlan": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
     "readRegistry": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/registry/current --format json",

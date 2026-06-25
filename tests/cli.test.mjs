@@ -6,7 +6,7 @@ test('context scan dry-run reports sanitized harness sources',()=>{const root=mk
 test('context scan rejects non-dry-run mode',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-harness-'));writeFileSync(path.join(root,'AGENTS.md'),'Run npm run ci.');const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','scan','--from','codex','--root',root],{encoding:'utf8'});assert.equal(result.status,2);assert.match(result.stderr,/--dry-run is required/)});
 test('context preview dry-run reports sanitized compiler decisions',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-harness-preview-'));writeFileSync(path.join(root,'AGENTS.md'),'Context preview CLI should select this manifest guidance. token=secret-value. See /Users/rebel/private.txt');const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','preview','--from','codex','--root',root,'--objective','context preview manifest','--step','select manifest guidance','--token-budget','80','--dry-run'],{encoding:'utf8'});assert.equal(result.status,0);const preview=JSON.parse(result.stdout);assert.equal(preview.safeguards.persisted,false);assert.equal(preview.safeguards.modelCalls,0);assert.equal(preview.safeguards.externalAdaptersEnabled,0);assert.equal(preview.manifest.selected.every(item=>!Object.hasOwn(item,'text')),true);assert(!result.stdout.includes('Context preview CLI should select'));assert(!result.stdout.includes('secret-value'));assert(!result.stdout.includes('/Users/rebel/private.txt'))});
 test('context preview rejects non-dry-run mode',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-harness-preview-'));writeFileSync(path.join(root,'AGENTS.md'),'Run npm run ci.');const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','preview','--from','codex','--root',root,'--objective','ci','--step','select'],{encoding:'utf8'});assert.equal(result.status,2);assert.match(result.stderr,/context preview --dry-run is required/)});
-test('context pack dry-run emits markdown handoff without raw source bodies',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-pack-'));mkdirSync(path.join(root,'src'),{recursive:true});writeFileSync(path.join(root,'AGENTS.md'),'CLI PACK RAW BODY should not be copied into the handoff.');writeFileSync(path.join(root,'src','auth.ts'),['export function changedAuthSymbol() {',"  return 'CLI CHANGED RAW BODY';",'}'].join('\n'));const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','pack','--from','codex','--root',root,'--objective','handoff next agent changed auth symbol','--step','select useful context','--target','codex','--changed','src/auth.ts','--token-budget','80','--dry-run','--format','markdown'],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/# Context Pack/);assert.match(result.stdout,/Target harness: codex/);assert.match(result.stdout,/workspace:\/\/AGENTS\.md/);assert.match(result.stdout,/## Launch Prompt/);assert.match(result.stdout,/## Utility Read Plan/);assert.match(result.stdout,/Changed locator coverage: 1\/1/);assert.match(result.stdout,/Content Hash/);assert.match(result.stdout,/content_hash_verified/);assert.match(result.stdout,/sha256:[a-f0-9]{64}/);assert.match(result.stdout,/Complete command set: \d+ commands in structured pack data/);assert.match(result.stdout,/npm run doctor/);assert.match(result.stdout,/npm run oaf -- context registry status --read-only --format json/);assert.match(result.stdout,/npm run ci/);assert.doesNotMatch(result.stdout,/npm run oaf -- context pack --from/);assert.doesNotMatch(result.stdout,/<objective>|<step>/);assert.match(result.stdout,/## Change Impact/);assert.match(result.stdout,/workspace:\/\/src\/auth\.ts/);assert.match(result.stdout,/changedAuthSymbol/);assert.doesNotMatch(result.stdout,/CLI PACK RAW BODY/);assert.doesNotMatch(result.stdout,/CLI CHANGED RAW BODY/)});
+test('context pack dry-run emits markdown handoff without raw source bodies',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-pack-'));mkdirSync(path.join(root,'src'),{recursive:true});writeFileSync(path.join(root,'AGENTS.md'),'CLI PACK RAW BODY should not be copied into the handoff.');writeFileSync(path.join(root,'src','auth.ts'),['export function changedAuthSymbol() {',"  return 'CLI CHANGED RAW BODY';",'}'].join('\n'));const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','pack','--from','codex','--root',root,'--objective','handoff next agent changed auth symbol','--step','select useful context','--target','codex','--changed','src/auth.ts','--token-budget','80','--dry-run','--format','markdown'],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/# Context Pack/);assert.match(result.stdout,/Target harness: codex/);assert.match(result.stdout,/workspace:\/\/AGENTS\.md/);assert.match(result.stdout,/## Launch Prompt/);assert.match(result.stdout,/## Utility Read Plan/);assert.match(result.stdout,/Changed locator coverage: 1\/1/);assert.match(result.stdout,/Content Hash/);assert.match(result.stdout,/content_hash_verified/);assert.match(result.stdout,/sha256:[a-f0-9]{64}/);assert.match(result.stdout,/Complete command set: \d+ commands in structured pack data/);assert.match(result.stdout,/npm run doctor/);assert.match(result.stdout,/npm run oaf -- context registry status --read-only --format json/);assert.match(result.stdout,/npm run ci/);assert.match(result.stdout,/## Bridge Commands/);assert.match(result.stdout,/npm run oaf -- context pack --from 'codex'.*--write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);assert.match(result.stdout,/npm run oaf -- context receive --read-only --root \. --target codex --format json/);assert.match(result.stdout,/npm --silent run oaf -- mcp resources --read-only --stdio/);assert.match(result.stdout,/context-pack\/registry\/current/);assert.match(result.stdout,/context-pack\/use-plan\/current/);assert.match(result.stdout,/harness setup plan --client codex --server oaf --dry-run --format json/);assert.doesNotMatch(result.stdout,/<objective>|<step>/);assert.match(result.stdout,/## Change Impact/);assert.match(result.stdout,/workspace:\/\/src\/auth\.ts/);assert.match(result.stdout,/changedAuthSymbol/);assert.doesNotMatch(result.stdout,/CLI PACK RAW BODY/);assert.doesNotMatch(result.stdout,/CLI CHANGED RAW BODY/)});
 test('context pack can opt into read-only local git changed-file detection',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-pack-git-'));mkdirSync(path.join(root,'src'),{recursive:true});mkdirSync(path.join(root,'secrets'),{recursive:true});const git=spawnSync('git',['init'],{cwd:root,encoding:'utf8'});if(git.status!==0)return;writeFileSync(path.join(root,'AGENTS.md'),'Git detection should keep raw AGENTS body hidden.');writeFileSync(path.join(root,'src','auth.ts'),['export function gitDetectedChangedAuthSymbol() {',"  return 'GIT DETECTED RAW BODY';",'}'].join('\n'));writeFileSync(path.join(root,'.env'),'OAF_GIT_SECRET=secret-value');writeFileSync(path.join(root,'secrets','token.ts'),'export const token = "secret";');const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','pack','--from','codex','--root',root,'--objective','git detected changed auth symbol','--step','detect changed locators','--target','codex','--changed-from-git','--token-budget','4096','--dry-run','--format','json'],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.changedLocatorDetection.status,'available');assert.equal(report.changedLocatorDetection.safeguards.readOnly,true);assert.equal(report.changedLocatorDetection.safeguards.networkCalls,0);assert.equal(report.changedLocatorDetection.safeguards.modelCalls,0);assert.equal(report.changedLocatorDetection.safeguards.externalWritesEnabled,false);assert.equal(report.changedLocatorDetection.changedLocators.includes('workspace://src/auth.ts'),true);assert.equal(report.changedLocatorDetection.changedLocators.some(locator=>locator.includes('.env')||locator.includes('secrets/')),false);assert.equal(report.pack.sourceGraph.impact.changedLocators.includes('workspace://src/auth.ts'),true);assert.equal(report.pack.sourceGraph.impact.representedChangedLocators.includes('workspace://src/auth.ts'),true);assert.equal(report.pack.utility.status,'review');assert.equal(report.pack.utility.changedLocatorCoverage.total,report.changedLocatorDetection.changedLocators.length);assert.equal(report.pack.utility.changedLocatorCoverage.covered,report.pack.sourceGraph.impact.representedChangedLocators.length);assert.equal(report.pack.utility.changedLocatorCoverage.status,'partial');const changedRead=report.pack.utility.requiredLocalReads.find(item=>item.locator==='workspace://src/auth.ts'&&item.role==='changed_locator');assert(changedRead);assert.equal(changedRead.represented,true);assert.match(changedRead.contentHash,/^sha256:[a-f0-9]{64}$/);assert.equal(changedRead.reasonCodes.includes('source_graph_changed_locator_matched'),true);assert.equal(changedRead.reasonCodes.includes('content_hash_verified'),true);const governanceRead=report.pack.utility.requiredLocalReads.find(item=>item.locator==='workspace://AGENTS.md'&&item.role==='changed_locator');assert(governanceRead);assert.equal(governanceRead.represented,false);assert.equal(governanceRead.reasonCodes.includes('source_graph_changed_locator_unmatched'),true);assert(!result.stdout.includes('GIT DETECTED RAW BODY'));assert(!result.stdout.includes('secret-value'));assert(!result.stdout.includes(root));assert(!result.stdout.includes('/Users/'));});
 test('context pack rejects unsafe changed locators',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-pack-unsafe-'));writeFileSync(path.join(root,'AGENTS.md'),'token=secret-value /Users/rebel/private.txt');const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','pack','--from','codex','--root',root,'--objective','unsafe changed locator','--step','reject path escape','--target','codex','--changed','workspace://../secret.ts','--dry-run','--format','json'],{encoding:'utf8'});assert.equal(result.status,2);assert.match(result.stderr,/changed_context_locator_invalid/);assert.equal(result.stdout,'');assert(!result.stderr.includes(root));assert(!result.stderr.includes('/Users/rebel/private.txt'));assert(!result.stderr.includes('secret-value'))});
 test('context pack rejects unsafe objective and step text before echoing handoff fields',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-pack-unsafe-fields-'));writeFileSync(path.join(root,'AGENTS.md'),'Do not echo unsafe handoff fields.');const secret=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','pack','--from','codex','--root',root,'--objective','prepare token=secret-value','--step','select context','--target','codex','--dry-run','--format','markdown'],{encoding:'utf8'});assert.equal(secret.status,2);assert.match(secret.stderr,/context_pack_objective_unsafe/);assert.equal(secret.stdout,'');assert(!secret.stderr.includes('secret-value'));const pathLeak=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','pack','--from','codex','--root',root,'--objective','prepare handoff','--step','read /Users/rebel/private.txt','--target','codex','--dry-run','--format','json'],{encoding:'utf8'});assert.equal(pathLeak.status,2);assert.match(pathLeak.stderr,/context_pack_step_unsafe/);assert.equal(pathLeak.stdout,'');assert(!pathLeak.stderr.includes('/Users/rebel/private.txt'));});
@@ -46,6 +46,10 @@ test('context handoff read-only report proves Codex-ready MCP bridge without wri
   assert.equal(report.mcp.setup.client,'codex');
   assert.equal(report.mcp.setup.desiredServer.command,'npm');
   assert.deepEqual(report.mcp.setup.desiredServer.args,['--silent','run','oaf','--','mcp','resources','--read-only','--stdio']);
+  assert.equal(report.mcp.setup.manualConfigSnippet.format,'toml');
+  assert.equal(report.mcp.setup.manualConfigSnippet.applyMode,'manual-copy');
+  assert.match(report.mcp.setup.manualConfigSnippet.content,/\[mcp_servers\.oaf\]/);
+  assert.match(report.mcp.setup.manualConfigSnippet.content,/--read-only/);
   assert.equal(report.mcp.smoke.toolsExposed,0);
   assert.equal(report.mcp.smoke.contextPackFingerprint,report.contextPack.contextPackFingerprint);
   assert.match(report.commands.startMcpBridge,/npm --silent run oaf -- mcp resources --read-only --context-pack/);
@@ -322,6 +326,9 @@ test('context receive reads pinned Codex context pack without writes or private 
   assert.equal(report.setup.dryRun,true);
   assert.equal(report.setup.client,'codex');
   assert.deepEqual(report.setup.desiredServer.args,['--silent','run','oaf','--','mcp','resources','--read-only','--stdio']);
+  assert.equal(report.setup.manualConfigSnippet.format,'toml');
+  assert.match(report.setup.manualConfigSnippet.content,/\[mcp_servers\.oaf\]/);
+  assert.match(report.commands.createPinnedContextPack,/context pack --from codex --root \. --objective '<reviewed-objective>' --step '<reviewed-step>' --target codex --write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);
   assert.equal(report.checks.registryFingerprintVerified,true);
   assert.equal(report.checks.currentPointerVerified,true);
   assert.equal(report.checks.currentEntryVerified,true);
@@ -367,6 +374,12 @@ test('context receive reads pinned Codex context pack without writes or private 
   assert.equal(missingReport.receiverPacket.readPlan.requiredReadCount,0);
   assert.deepEqual(missingReport.receiverPacket.readPlan.requiredReads,[]);
   assert.equal(missingReport.receiverPacket.nextActions.some(item=>item.label==='Read pinned use plan'),false);
+  const missingCreate=missingReport.receiverPacket.nextActions.find(item=>item.label==='Create pinned context pack');
+  assert(missingCreate);
+  assert.equal(missingCreate.required,true);
+  assert.equal(missingCreate.reasonCode,'create_pinned_context_pack');
+  assert.equal(missingCreate.command,missingReport.commands.createPinnedContextPack);
+  assert.match(missingCreate.command,/--objective '<reviewed-objective>' --step '<reviewed-step>'/);
   assert.equal(missingReport.mcp.toolsExposed,0);
   assert.equal(missing.stdout.includes(missingRoot),false);
   const staleRoot=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-receive-stale-'));
@@ -389,6 +402,10 @@ test('context receive reads pinned Codex context pack without writes or private 
   assert.equal(staleReport.receiverPacket.proof.usePlanLoaded,false);
   assert.deepEqual(staleReport.receiverPacket.readPlan.requiredReads,[]);
   assert.equal(staleReport.receiverPacket.nextActions.some(item=>item.label==='Read pinned use plan'),false);
+  const staleCreate=staleReport.receiverPacket.nextActions.find(item=>item.label==='Create pinned context pack');
+  assert(staleCreate);
+  assert.equal(staleCreate.required,true);
+  assert.equal(staleCreate.command,staleReport.commands.createPinnedContextPack);
   assert.equal(staleReport.checks.usePlanLoaded,false);
   assert.equal(staleReport.mcp.resourceUris.includes('oaf://workspace/ws_local/context-pack/use-plan/current'),false);
   assert.equal(staleReport.mcp.resourceUris.includes('oaf://workspace/ws_local/context-pack/registry/current'),true);
@@ -595,6 +612,13 @@ test('harness setup status reports absent home config without writes or path lea
   assert.equal(report.config.exists,false);
   assert.equal(report.status.config,'absent');
   assert.equal(report.status.server,'absent');
+  assert.equal(report.manualConfigSnippet.format,'toml');
+  assert.equal(report.manualConfigSnippet.configRef,'home://.codex/config.toml');
+  assert.equal(report.manualConfigSnippet.applyMode,'manual-copy');
+  assert.match(report.manualConfigSnippet.content,/\[mcp_servers\.oaf\]/);
+  assert.match(report.manualConfigSnippet.content,/command = "npm"/);
+  assert.match(report.manualConfigSnippet.content,/--read-only/);
+  assert.match(report.manualConfigSnippet.warning,/OAF does not write home config files/);
   assert.equal(report.diff.operations.length,0);
   assert.equal(report.safeguards.localFilesWritten,0);
   assert.equal(report.safeguards.homeConfigMutated,false);
@@ -627,6 +651,12 @@ test('harness setup plan emits deterministic redacted diff for cursor',()=>{
   assert.deepEqual(report.diff.operations,[{op:'add',target:'mcpServers.oaf',before:'absent',after:'read-only-oaf-mcp-stdio',summary:'add oaf with read-only OAF MCP stdio resource bridge'}]);
   assert.equal(report.desiredServer.command,'npm');
   assert.deepEqual(report.desiredServer.args,['--silent','run','oaf','--','mcp','resources','--read-only','--stdio']);
+  assert.equal(report.manualConfigSnippet.format,'json');
+  assert.equal(report.manualConfigSnippet.configRef,'home://.cursor/mcp.json');
+  const snippet=JSON.parse(report.manualConfigSnippet.content);
+  assert.equal(snippet.mcpServers.oaf.command,'npm');
+  assert.deepEqual(snippet.mcpServers.oaf.args,['--silent','run','oaf','--','mcp','resources','--read-only','--stdio']);
+  assert.deepEqual(Object.keys(snippet.mcpServers),['oaf']);
   assert.equal(report.safeguards.localFilesWritten,0);
   assert.equal(report.safeguards.externalAdaptersEnabled,0);
   assert.equal(report.safeguards.externalWritesEnabled,false);
@@ -637,8 +667,15 @@ test('harness setup plan emits deterministic redacted diff for cursor',()=>{
   assert(!combined.includes('secret-value'));
   assert(!combined.includes('OPENAI_API_KEY'));
   assert(!combined.includes('/Users/rebel/private-tool'));
+  assert(!combined.includes('other'));
   assert(!combined.includes(home));
   assert.doesNotMatch(combined,/supermemory|graphify|serena|npx|uvx|curl/i);
+  const claude=spawnSync(process.execPath,['apps/cli/oaf.mjs','harness','setup','plan','--client','claude-code','--server','oaf','--home',home,'--dry-run','--format','json'],{encoding:'utf8',env});
+  assert.equal(claude.status,0,claude.stderr);
+  const claudeReport=JSON.parse(claude.stdout);
+  assert.equal(claudeReport.manualConfigSnippet.format,'json');
+  assert.equal(claudeReport.manualConfigSnippet.configRef,'home://.claude/mcp.json');
+  assert.equal(JSON.parse(claudeReport.manualConfigSnippet.content).mcpServers.oaf.command,'npm');
 });
 
 test('harness setup status parses installed codex toml jsonc and yaml configs',()=>{

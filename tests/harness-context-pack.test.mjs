@@ -142,7 +142,13 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /npm run doctor/);
   assert.match(markdown, /npm run oaf -- context registry status --read-only --format json/);
   assert.match(markdown, /npm run ci/);
-  assert.doesNotMatch(markdown, /npm run oaf -- context pack --from/);
+  assert.match(markdown, /## Bridge Commands/);
+  assert.match(markdown, /npm run oaf -- context pack --from 'codex,claude-code,cursor'.*--write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);
+  assert.match(markdown, /npm run oaf -- context receive --read-only --root \. --target codex --format json/);
+  assert.match(markdown, /npm --silent run oaf -- mcp resources --read-only --stdio/);
+  assert.match(markdown, /context-pack\/registry\/current/);
+  assert.match(markdown, /context-pack\/use-plan\/current/);
+  assert.match(markdown, /harness setup plan --client codex --server oaf --dry-run --format json/);
   assert.doesNotMatch(markdown, /<objective>|<step>/);
   assert(!markdown.includes('PACK RAW BODY'));
   assert(!JSON.stringify(pack.omissions).includes('Claude-only note'));

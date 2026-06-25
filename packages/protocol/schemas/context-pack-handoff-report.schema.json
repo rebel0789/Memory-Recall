@@ -228,13 +228,14 @@
         "setup": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["dryRun", "client", "configRef", "serverStatus", "desiredServer"],
+          "required": ["dryRun", "client", "configRef", "serverStatus", "desiredServer", "manualConfigSnippet"],
           "properties": {
             "dryRun": { "const": true },
             "client": { "enum": ["codex", "cursor", "claude-code", "opencode", "aider"] },
             "configRef": { "type": "string", "pattern": "^home://[A-Za-z0-9._/-]{1,160}$" },
             "serverStatus": { "enum": ["absent", "installed", "drifted"] },
-            "desiredServer": { "$ref": "#/$defs/desiredServer" }
+            "desiredServer": { "$ref": "#/$defs/desiredServer" },
+            "manualConfigSnippet": { "$ref": "#/$defs/manualConfigSnippet" }
           }
         },
         "smoke": {
@@ -261,6 +262,23 @@
             "contextPackFingerprint": { "$ref": "#/$defs/hash" }
           }
         }
+      }
+    },
+    "manualConfigSnippet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "configRef", "applyMode", "content", "warning"],
+      "properties": {
+        "format": { "enum": ["json", "jsonc", "toml", "yaml"] },
+        "configRef": { "type": "string", "pattern": "^home://[A-Za-z0-9._/-]{1,160}$" },
+        "applyMode": { "const": "manual-copy" },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^(?![\\s\\S]*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\\s\\S]*$"
+        },
+        "warning": { "type": "string", "minLength": 1, "maxLength": 200 }
       }
     },
     "commands": {

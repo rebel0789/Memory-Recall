@@ -1210,6 +1210,18 @@ function markdownVerificationCommands(commands) {
   ].filter(Boolean);
 }
 
+function markdownBridgeCommands(commands) {
+  const candidates = Array.isArray(commands) ? commands.filter((command) => typeof command === 'string' && command.trim()) : [];
+  return [
+    candidates.find((command) => command.includes('context pack') && command.includes('--write --pin')),
+    candidates.find((command) => command.includes('context receive --read-only')),
+    candidates.find((command) => command === 'npm --silent run oaf -- mcp resources --read-only --stdio'),
+    candidates.find((command) => command.includes('mcp resources --read-only') && command.includes('context-pack/registry/current')),
+    candidates.find((command) => command.includes('mcp resources --read-only') && command.includes('context-pack/use-plan/current')),
+    candidates.find((command) => command.includes('harness setup plan') && command.includes('--dry-run'))
+  ].filter(Boolean);
+}
+
 function launchPromptForPack({ targetHarness, objective, step, utility }) {
   return [
     `Continue this local repository work in ${targetHarness}.`,
@@ -1525,13 +1537,15 @@ export function renderContextPackMarkdown(pack) {
   const optionalLocalReadCount = Math.max(0, (pack.utility.requiredLocalReads ?? []).length - requiredLocalReads.length);
   const requiredReadRows = limitedRows(requiredLocalReads, MARKDOWN_REQUIRED_READ_LIMIT).map((item) => `| ${markdownEscape(item.locator)} | ${markdownEscape(item.role)} | ${item.required ? 'yes' : 'no'} | ${item.represented ? 'yes' : 'no'} | ${markdownEscape(item.contentHash ?? 'unavailable')} | ${markdownEscape(item.reasonCodes.join(', '))} |`).join('\n');
   const verificationCommands = markdownVerificationCommands(pack.handoff.commands);
+  const bridgeCommands = markdownBridgeCommands(pack.handoff.commands);
   const selectedOmitted = markdownOmittedLine(omittedCount(pack.readFirst, MARKDOWN_SELECTED_LIMIT), 'read-first locator rows');
   const requiredOmitted = markdownOmittedLine(omittedCount(requiredLocalReads, MARKDOWN_REQUIRED_READ_LIMIT), 'required utility-read rows');
   const excludedOmitted = markdownOmittedLine(omittedCount(pack.excluded, MARKDOWN_BULK_LIMIT), 'excluded-context rows');
   const omissionRefsOmitted = markdownOmittedLine(omittedCount(pack.omissions.refs, MARKDOWN_BULK_LIMIT), 'omission-ref rows');
   const sourceGraphOmitted = markdownOmittedLine(omittedCount(pack.sourceGraph.results, MARKDOWN_BULK_LIMIT), 'source-graph hint rows');
   const affectedSymbolsOmitted = markdownOmittedLine(omittedCount(pack.sourceGraph.impact.affectedSymbols, MARKDOWN_BULK_LIMIT), 'affected-symbol rows');
-  const commandOmitted = markdownOmittedLine(omittedCount(pack.handoff.commands, verificationCommands.length), 'verification commands');
+  const markdownCommandCount = new Set([...verificationCommands, ...bridgeCommands]).size;
+  const commandOmitted = markdownOmittedLine(omittedCount(pack.handoff.commands, markdownCommandCount), 'handoff commands');
   const deliveryLines = pack.delivery ? [
     '## Delivery Budget',
     '',
@@ -1661,6 +1675,11 @@ export function renderContextPackMarkdown(pack) {
     '',
     `Complete command set: ${pack.handoff.commands.length} commands in structured pack data.`,
     bulletList(verificationCommands),
+    '',
+    '## Bridge Commands',
+    '',
+    'Use these only after reviewing the pack and deciding to persist a local handoff under context-packs/.',
+    bulletList(bridgeCommands),
     commandOmitted,
     '',
     '## Fingerprints',
@@ -2782,6 +2801,11 @@ export async function buildHarnessSetupReport({
       server: serverState
     },
     desiredServer: desiredHarnessServerSummary(normalizedServer),
+    manualConfigSnippet: harnessManualConfigSnippet({
+      client: normalizedClient,
+      server: normalizedServer,
+      configRef: config.configRef
+    }),
     diff: {
       redacted: true,
       operations,
@@ -2878,6 +2902,36 @@ function desiredHarnessServerSummary(server) {
     environmentKeys: [],
     resourceMode: 'read-only',
     externalWrites: false
+  };
+}
+
+function harnessManualConfigSnippet({ client, server, configRef }) {
+  const desired = desiredHarnessServerSummary(server);
+  const serverConfig = {
+    command: desired.command,
+    args: desired.args
+  };
+  let content;
+  if (client.format === 'toml') {
+    const args = desired.args.map((item) => `"${item}"`).join(', ');
+    content = `[mcp_servers.${server}]\ncommand = "${desired.command}"\nargs = [${args}]`;
+  } else if (client.format === 'yaml') {
+    content = [
+      'mcpServers:',
+      `  ${server}:`,
+      `    command: ${desired.command}`,
+      '    args:',
+      ...desired.args.map((item) => `      - ${item}`)
+    ].join('\n');
+  } else {
+    content = JSON.stringify({ mcpServers: { [server]: serverConfig } }, null, 2);
+  }
+  return {
+    format: client.format,
+    configRef,
+    applyMode: 'manual-copy',
+    content,
+    warning: 'Preview only. Review and paste manually; OAF does not write home config files.'
   };
 }
 

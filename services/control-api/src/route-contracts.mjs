@@ -665,10 +665,27 @@ export function createApiRouteContracts(limits = {}) {
     }
   };
   const contextGraphPreviewResponse = sourceGraphPreviewSchema;
+  const manualConfigSnippet = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['format', 'configRef', 'applyMode', 'content', 'warning'],
+    properties: {
+      format: { enum: ['json', 'jsonc', 'toml', 'yaml'] },
+      configRef: { type: 'string', pattern: '^home://[A-Za-z0-9._/-]{1,240}$', maxLength: 256 },
+      applyMode: { const: 'manual-copy' },
+      content: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 4000,
+        pattern: '^(?![\\s\\S]*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\\s\\S]*$'
+      },
+      warning: boundedString(200)
+    }
+  };
   const harnessSetupPlanResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'config', 'status', 'desiredServer', 'diff', 'safeguards', 'planFingerprint'],
+    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'config', 'status', 'desiredServer', 'manualConfigSnippet', 'diff', 'safeguards', 'planFingerprint'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       plannerVersion: boundedString(32),
@@ -717,6 +734,7 @@ export function createApiRouteContracts(limits = {}) {
           externalWrites: { const: false }
         }
       },
+      manualConfigSnippet,
       diff: {
         type: 'object',
         additionalProperties: false,

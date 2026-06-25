@@ -136,6 +136,8 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .command-list strong{font-size:12px;color:var(--slate);text-transform:uppercase;letter-spacing:.08em}
 .command-list code{display:block;white-space:pre-wrap}
 .command-copy{min-width:44px;min-height:44px;padding:8px 12px;font-size:12px}
+.code-block{margin:var(--space-10,10px) 0 0;border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-3);padding:var(--space-12);overflow:auto;white-space:pre-wrap}
+.code-block code{white-space:pre-wrap;overflow-wrap:anywhere}
 .readiness-panel{display:grid;gap:var(--space-10,10px)}
 .readiness-panel p{margin:0;color:var(--slate)}
 .readiness-list{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-8)}

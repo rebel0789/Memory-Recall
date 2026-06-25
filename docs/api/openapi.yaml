@@ -879,7 +879,7 @@ components:
     HarnessSetupPlanResponse:
       type: object
       additionalProperties: false
-      required: [schemaVersion, plannerVersion, command, dryRun, generatedAt, client, clientLabel, server, config, status, desiredServer, diff, safeguards, planFingerprint]
+      required: [schemaVersion, plannerVersion, command, dryRun, generatedAt, client, clientLabel, server, config, status, desiredServer, manualConfigSnippet, diff, safeguards, planFingerprint]
       properties:
         schemaVersion: { const: '1.0.0' }
         plannerVersion: { type: string, maxLength: 32 }
@@ -923,6 +923,20 @@ components:
               maxItems: 0
             resourceMode: { const: read-only }
             externalWrites: { const: false }
+        manualConfigSnippet:
+          type: object
+          additionalProperties: false
+          required: [format, configRef, applyMode, content, warning]
+          properties:
+            format: { enum: [json, jsonc, toml, yaml] }
+            configRef: { type: string, pattern: '^home://[A-Za-z0-9._/-]{1,240}$', maxLength: 256 }
+            applyMode: { const: manual-copy }
+            content:
+              type: string
+              minLength: 1
+              maxLength: 4000
+              pattern: '^(?![\s\S]*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\s\S]*$'
+            warning: { type: string, minLength: 1, maxLength: 200 }
         diff:
           type: object
           additionalProperties: false

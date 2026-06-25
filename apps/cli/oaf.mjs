@@ -1154,7 +1154,8 @@ async function buildContextHandoffReport(values, { objective, step }) {
         client: setup.client,
         configRef: setup.config.ref,
         serverStatus: setup.status.server,
-        desiredServer: setup.desiredServer
+        desiredServer: setup.desiredServer,
+        manualConfigSnippet: setup.manualConfigSnippet
       },
       smoke: {
         durationMs: smoke.measurements.durationMs,
@@ -1300,6 +1301,7 @@ async function buildContextReceiveReport(values) {
     reasonCodes: item.reasonCodes
   }));
   const commands = {
+    createPinnedContextPack: `npm run oaf -- context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target ${targetHarness} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
     checkRegistry: `npm --silent run oaf -- context registry status --read-only --root . --workspace ${workspaceId} --format json`,
     readUsePlan: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --uri ${usePlanResourceUri} --format json`,
     readRegistry: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --uri ${registryResourceUri} --format json`,
@@ -1392,7 +1394,8 @@ async function buildContextReceiveReport(values) {
       client: setup.client,
       configRef: setup.config.ref,
       serverStatus: setup.status.server,
-      desiredServer: setup.desiredServer
+      desiredServer: setup.desiredServer,
+      manualConfigSnippet: setup.manualConfigSnippet
     },
     commands,
     checks,
@@ -1449,6 +1452,12 @@ function buildContextReceiverPacket({ state, targetHarness, registryStatus, curr
       reasonCode: 'verify_pinned_registry',
       required: true
     },
+    ...(state === 'ready' ? [] : [{
+      label: 'Create pinned context pack',
+      command: commands.createPinnedContextPack,
+      reasonCode: 'create_pinned_context_pack',
+      required: true
+    }]),
     ...(state === 'ready' ? [{
       label: 'Read pinned use plan',
       command: commands.readUsePlan,

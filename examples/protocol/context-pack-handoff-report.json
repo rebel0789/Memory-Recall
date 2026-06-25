@@ -96,6 +96,13 @@
         "environmentKeys": [],
         "resourceMode": "read-only",
         "externalWrites": false
+      },
+      "manualConfigSnippet": {
+        "format": "toml",
+        "configRef": "home://.codex/config.toml",
+        "applyMode": "manual-copy",
+        "content": "[mcp_servers.oaf]\ncommand = \"npm\"\nargs = [\"--silent\", \"run\", \"oaf\", \"--\", \"mcp\", \"resources\", \"--read-only\", \"--stdio\"]",
+        "warning": "Preview only. Review and paste manually; OAF does not write home config files."
       }
     },
     "smoke": {

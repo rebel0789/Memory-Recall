@@ -58,6 +58,9 @@ agent session.
    omissions, changed-file coverage, and proof commands.
 8. Use **Copy markdown** for a manual paste, or copy and run the impact and
    handoff terminal commands for reproducible read-only preflight proof.
+9. Use **Preview setup** when you want a generated Codex, Cursor, or Claude
+   Code MCP config snippet. The snippet is a manual-copy template only; OAF
+   does not write harness config files.
 
 The browser path does not write context-pack files, mutate harness configs,
 call models, use network access, enable external adapters, or create active
@@ -129,6 +132,12 @@ npm run oaf -- context receive \
 does not rebuild the pack, accept task text, write files, expose raw Markdown
 bodies, or enable MCP write tools.
 
+If `context receive` reports `blocked` or `review`, use its
+`Create pinned context pack` next action as a template. Replace
+`<reviewed-objective>` and `<reviewed-step>` with text you are comfortable
+persisting in the local Markdown artifact, review the generated pack, then run
+`context receive --read-only` again.
+
 Generated files under `context-packs/` are ignored by default because their
 Markdown can include visible objective and step text. Use
 `git add -f context-packs/...` only after reviewing the artifact and deciding
@@ -168,7 +177,15 @@ npm run oaf -- harness setup plan --client claude-code --server oaf --dry-run --
 
 These setup commands are dry-run previews. They report redacted config
 operations but do not edit `.codex`, `.cursor`, Claude Code, or other home
-configuration files.
+configuration files. Each report also includes a generated
+`manualConfigSnippet` for the selected harness. It is derived from OAF's fixed
+read-only MCP command, not from your existing config body.
+
+Generated Context Pack Markdown now includes **Bridge Commands** for pinning a
+local artifact, receiving it, starting the read-only MCP bridge, reading the
+registry and use-plan resources, and previewing harness setup. Treat the pin
+command as an explicit local write to `context-packs/`; the receive and MCP
+commands remain read-only.
 
 ## What To Check Before Trusting A Pack
 
