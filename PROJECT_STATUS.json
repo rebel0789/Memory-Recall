@@ -242,7 +242,7 @@
     },
     {
       "id": "builder.loop-workbench",
-      "name": "Loop Workbench (Plan, observation, verification, run, and UI primitives)",
+      "name": "Loop Workbench (Plan, observation, verification, run, UI, and skill primitives)",
       "status": "reference",
       "evidence": [
         "packages/protocol/schemas/loop-plan.schema.json",
@@ -263,12 +263,17 @@
         "services/control-api/src/server.mjs",
         "services/control-api/src/route-contracts.mjs",
         "docs/api/openapi.yaml",
+        "skills/loop-action-efficiency/manifest.json",
+        "skills/loop-action-efficiency/SKILL.md",
+        "skills/loop-intent-clarification/manifest.json",
+        "skills/loop-intent-clarification/SKILL.md",
         "tests/harness-context-loop-plan.test.mjs",
         "tests/harness-context-loop-observation.test.mjs",
         "tests/harness-context-loop-verification.test.mjs",
         "tests/harness-context-loop-run.test.mjs",
         "tests/cli.test.mjs",
         "tests/control-api-boundary.test.mjs",
+        "tests/skill-catalog.test.mjs",
         "tests/web-shell.test.mjs",
         "docs/product/loop-workbench.md"
       ],
@@ -277,6 +282,7 @@
         "The verifier uses an isolated worktree, injected implementer, plan-limited checker commands, unrelated-diff blocking, replay side-effect disabling, and no auto-merge.",
         "The run controller bounds iterations/timeouts, projects durable workflow history, aggregates contextBudget estimates, and supports opt-in schedule prompt reports; it is not a background daemon.",
         "The web route is a dependency-free read surface over the local Control API model; it does not add a production frontend framework.",
+        "Loop Workbench skills are read-only instruction folders; they do not execute tools, grant authority, or create an autonomous skill runtime.",
         "Proof summary and autonomous executor are not implemented.",
         "contextBudget is an estimate carried from a context-pack measurement; it does not claim provider billing tokens."
       ]
@@ -904,7 +910,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 382,
+    "testsExpected": 384,
     "protocolFixturesExpected": 159,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

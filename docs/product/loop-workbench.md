@@ -94,9 +94,10 @@ the whole product is done.
    web shell views over plan, runs, observations, verification, token budget,
    stop reasons, and trace, backed by the local Control API read model.
 
-Two skills layer across all slices: an **Action-stage efficiency skill** (reuse
-before generate; smallest change that works) and an **Intent-stage clarification
-skill** (interrogate the objective before work begins).
+Two small instruction skills layer across all slices:
+`skill:loop-action-efficiency` for reuse-before-generate action work and
+`skill:loop-intent-clarification` for interrogating the objective before work
+begins. Both are read-only skill folders; they do not grant authority.
 
 ## Hard boundaries (apply to every slice until explicitly lifted)
 
@@ -115,4 +116,5 @@ Proof summaries, reusable loop templates, and any autonomous executor are
 **specified and planned, not shipped**. The shipped native primitives are the
 Loop Plan generator, sanitized observation capture, maker/checker verification
 report, bounded loop-run projection with opt-in schedule prompt reports, and the
-`/loop-workbench` read surface.
+`/loop-workbench` read surface. The shipped Loop Workbench skills are
+instruction-only procedures, not a runtime skill execution engine.
