@@ -5,9 +5,10 @@
 1. `ASSIGN_TO_AGENT.md`
 2. `AGENTS.md`
 3. `PROJECT_STATUS.json`
-4. `npm run status` and `npm run task -- <OAF-ID>`
-5. `docs/implementation/AGENT_EXECUTION_PLAYBOOK.md`
-6. task-specific files printed by the command
+4. `npm run status`
+5. `npm run task -- <OAF-ID>` only when status names a next task
+6. `docs/implementation/AGENT_EXECUTION_PLAYBOOK.md`
+7. task-specific files printed by the command, when a task exists
 
 ## For product and design
 
@@ -17,6 +18,14 @@
 - `docs/product/prd.md` — detailed requirements
 - `docs/product/content-intelligence.md` — flagship vertical
 - `docs/ux/` — information architecture, flows, components, screens, copy, wireframes, accessibility, QA
+
+## For using OAF today
+
+- `docs/usage/local-agent-handoff.md` — browser and CLI path for handing the
+  current repository to Codex, Cursor, Claude Code, or a generic local agent
+  with read-only context-pack proof.
+- `LOCAL_DEVELOPMENT.md` — local bootstrap, dashboard routes, context-pack
+  commands, read-only MCP resources, and harness setup previews.
 
 ## For architecture
 

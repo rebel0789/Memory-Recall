@@ -14,7 +14,6 @@ npm run bootstrap
 npm run doctor
 npm run verify:handoff
 npm run status
-npm run task -- <OAF-ID>
 ```
 
 Open <http://127.0.0.1:4310> after `npm run dev`.
@@ -32,7 +31,12 @@ Read, in order:
 
 ## Current task
 
-Use `npm run status` and `npm run task -- <OAF-ID>` to identify the current checked-in task. Keep native providers as conformance baselines. Do not expand into migration orchestration, UI work, or external adapters unless the active task explicitly requires it.
+Use `npm run status` to identify the current checked-in task. Run
+`npm run task -- <OAF-ID>` only when status names a next task. When status says
+the checked-in backlog is complete, do not invent a task; use the current
+release-readiness and usage docs as the active boundary. Keep native providers
+as conformance baselines. Do not expand into migration orchestration, UI work,
+or external adapters unless the active task explicitly requires it.
 
 ## Product differentiator
 

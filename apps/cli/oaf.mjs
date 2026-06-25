@@ -2168,7 +2168,7 @@ function help() {
 Usage:
   oaf doctor
   oaf status
-  oaf task OAF-004
+  oaf task <OAF-ID>
   oaf demo [objective]
   oaf serve
   oaf check
@@ -2201,5 +2201,6 @@ Usage:
   oaf harness setup uninstall --client cursor --server oaf --dry-run --format json
   oaf version
 
+Run oaf task only when npm run status names a next task.
 The default bootstrap is local-only and enables no external writes.`);
 }

@@ -4,6 +4,7 @@ node_modules/
 coverage/
 .playwright-cli/
 output/playwright/
+context-packs/
 *.log
 *.zip
 .DS_Store

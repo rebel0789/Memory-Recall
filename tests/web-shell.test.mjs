@@ -449,7 +449,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(ready.ready,true);
   assert.equal(ready.title,'Ready for local handoff');
   assert.equal(ready.gates.find((gate)=>gate.id==='setup-preview').status,'pending');
-  assert.equal(ready.nextAction,'Use Copy markdown now, or run Test local handoff for CLI and MCP proof. For durable CLI reuse, run the CLI Pin locally command, then Receive pinned pack.');
+  assert.equal(ready.nextAction,'Use Copy markdown now, or copy and run Test local handoff for CLI and MCP proof. For durable CLI reuse, copy and run Pin locally, then Receive pinned pack.');
   const handoffStatus=buildCurrentHandoffStatusModel({
     contextPackResult:{
       pack:{...safePack,objective:'Prepare safe Codex handoff',step:'select useful context'},
@@ -480,7 +480,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   });
   assert.equal(setupReady.ready,true);
   assert.equal(setupReady.gates.find((gate)=>gate.id==='setup-preview').status,'pass');
-  assert.equal(setupReady.nextAction,'Use Copy markdown, Test local handoff, or the CLI Pin locally then Receive pinned pack commands for durable CLI reuse.');
+  assert.equal(setupReady.nextAction,'Use Copy markdown, or copy and run Test local handoff, Pin locally, then Receive pinned pack commands for durable CLI reuse.');
   const setupUnsafe=buildFirstUseReadinessModel({
     pack:safePack,
     markdown:'# Context Pack\n',

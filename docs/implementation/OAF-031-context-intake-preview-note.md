@@ -11,7 +11,7 @@ slice.
 - `npm run oaf -- context preview --from <codex|claude|cursor|all> --root . --objective "..." --step "..." --dry-run`
   converts accepted scan records into temporary Context Compiler candidates,
   runs deterministic selection, and returns a sanitized preview report.
-- `npm run oaf -- context pack --from codex --root . --objective "..." --step "..." --target codex --include-file docs/context.md --changed apps/web/app.js --changed-from-git --dry-run --format markdown`
+- `npm run oaf -- context pack --from codex --root . --objective "..." --step "..." --target codex --include-file CONTEXT.md --changed apps/web/app.js --changed-from-git --dry-run --format markdown`
   builds a schema-validated Markdown handoff for Codex, Claude Code, Cursor, or
   a generic agent from selected safe locators. The browser defaults to the Codex
   source family and requires explicit checkbox selection before scanning
@@ -188,8 +188,9 @@ slice.
 - The browser now treats the latest built context pack as the current local
   handoff for the session. Context Pack, Fabric Map, and Agents & Tools render
   the same status, selected/omitted/readback counts, disabled-write safeguards,
-  and a **Test local handoff** command that runs `context handoff --read-only`
-  without installing harness config or enabling external adapters.
+  and a **Test local handoff** terminal command that users copy and run as
+  `context handoff --read-only` without installing harness config or enabling
+  external adapters.
 - The browser context-pack result now surfaces the same proof boundary in plain
   UI terms: estimated local handoff reduction, estimated source kept, observed
   local request time, raw-body exclusion, model-call count, and external-write

@@ -84,8 +84,8 @@ printf '%s\n' 'correct horse battery staple' | \
 First practical path: open **Context Pack**, keep the target as Codex or choose
 your local harness, click **Preview sources**, use **Detect git changes** or add
 changed files manually, build the pack, check **First-use readiness** and the
-top-level **Use this pack** brief, then use **Copy markdown**, **Copy impact
-command**, or **Test local handoff** for a single read-only CLI/MCP preflight
+top-level **Use this pack** brief, then copy Markdown or copy and run the
+impact and handoff terminal commands for a single read-only CLI/MCP preflight
 before handing work to the next local coding-agent session. The brief shows
 changed-file coverage, required reads, hash proof, affected symbols, and proof
 commands without source bodies. Fabric Map and Agents & Tools show the same
@@ -136,6 +136,9 @@ observed local build/readback timings, and aggregate changed-file body tokens
 kept out of the handoff. It does not claim provider billing tokens, production
 latency, raw source inclusion, model calls, network calls, or external writes.
 
+For the full copy-paste operator path across the browser, CLI, Codex, Cursor,
+and Claude Code, read `docs/usage/local-agent-handoff.md`.
+
 The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.
 
 ## Give this repository to a coding agent
@@ -143,8 +146,9 @@ The offline bootstrap installs no runtime npm dependencies. The optional Ollama 
 Tell the agent:
 
 ```text
-Read ASSIGN_TO_AGENT.md and AGENTS.md. Run `npm run verify:handoff`, then `npm run status` and `npm run task -- <OAF-ID>`.
-Complete one task only, keep npm run ci green, and report using the required handoff template.
+Read ASSIGN_TO_AGENT.md and AGENTS.md. Run `npm run verify:handoff`, then `npm run status`.
+If status names a next OAF task, run `npm run task -- <OAF-ID>` and complete that task only. If status says the backlog is complete, do not invent a task.
+Keep npm run ci green, and report using the required handoff template for task work.
 ```
 
 The operating path is:
@@ -157,7 +161,7 @@ The operating path is:
 6. `docs/START_HERE.md`
 7. `docs/adr/0012-build-the-brain-adapt-the-organs.md`
 8. `docs/implementation/AGENT_EXECUTION_PLAYBOOK.md`
-9. `npm run task -- <OAF-ID>`
+9. `npm run task -- <OAF-ID>` only when `npm run status` names a next task
 
 ## Product thesis
 
@@ -208,14 +212,14 @@ See `REPOSITORY_MAP.md` for ownership and dependency boundaries.
 
 ```bash
 npm run status                 # implemented, reference, planned, disabled
-npm run task -- <OAF-ID>       # current issue-sized assignment bundle
+npm run task -- <OAF-ID>       # only when status names a next task
 npm run doctor                 # environment and local safety checks
 npm run protocol:validate      # v1 valid, invalid, and compatibility fixtures
 npm run native:smoke           # native memory, artifacts, Agent Pack, model
 npm run demo                   # complete synthetic workflow
 npm run oaf -- context scan --from codex --root . --dry-run
 npm run oaf -- context preview --from codex --root . --objective "Prepare handoff" --step "select harness context" --dry-run
-npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file docs/context.md --changed apps/web/app.js --dry-run --format markdown
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file CONTEXT.md --changed apps/web/app.js --dry-run --format markdown
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
 npm run oaf -- context receive --read-only --root . --target codex --format json  # after --write --pin
@@ -246,4 +250,4 @@ Read:
 
 ## Status
 
-Development kit: **0.2.0-dev**. Run `npm run status` for the next checked-in task and `npm run task -- <OAF-ID>` for its assignment bundle.
+Development kit: **0.2.0-dev**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.

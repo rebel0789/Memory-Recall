@@ -59,16 +59,21 @@ selection budget: source tokens estimate the underlying records that were
 scanned or selected, while delivery tokens estimate the locator-only handoff
 that is actually given to another agent.
 
+For a copy-paste operator guide that explains when to use the browser path,
+CLI preflight, pinned artifact path, and Codex/Cursor/Claude Code setup
+previews, read `docs/usage/local-agent-handoff.md`.
+
 In the browser, use **Build context pack** as the primary local handoff flow.
 The source-family checkboxes default to Codex so cross-harness project files are
 not scanned unless you select them.
 The result can be copied to the clipboard or downloaded as Markdown from the
 client. After a pack is built, the Context Pack, Fabric Map, and Agents & Tools
 screens share a current-handoff status card; its **Test local handoff** command
-runs the read-only Codex preflight below and still performs no server, home
-config, network, model, adapter, or external-write side effects. The browser
-path does not write files on the server; use the explicit CLI write mode below
-when you want a checked workspace file.
+copies the read-only Codex preflight below so you can run it in a terminal. It
+still performs no server, home config, network, model, adapter, or
+external-write side effects from the browser. The browser path does not write
+files on the server; use the explicit CLI write mode below when you want a
+checked workspace file.
 
 The page also reads existing pinned handoff status through
 `GET /api/context/pack/registry/status?workspaceId=ws_local`. This status card
@@ -96,7 +101,7 @@ npm run oaf -- context pack \
   --objective "Prepare handoff" \
   --step "select next agent context" \
   --target codex \
-  --include-file docs/context.md \
+  --include-file CONTEXT.md \
   --changed apps/web/app.js \
   --dry-run \
   --format markdown
@@ -189,6 +194,11 @@ This does not import harness chat history, create active memory, call a model,
 persist a graph database, enable external adapters, or enable external writes.
 Selected files are proposal-only `user-selected://` locators and must stay under
 the workspace root.
+
+Generated context-pack artifacts are ignored by default through
+`context-packs/` in `.gitignore` because they can contain visible objective and
+step text. Use `git add -f context-packs/...` only when you intentionally want
+to share a reviewed local handoff artifact.
 
 ## Read-only MCP resources
 
