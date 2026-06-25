@@ -51,6 +51,7 @@
     "requestedInputs": { "$ref": "#/$defs/requestedInputs" },
     "objective": { "type": "string", "minLength": 1, "maxLength": 2000 },
     "step": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "prompt": { "$ref": "#/$defs/promptMetadata" },
     "scannerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
     "compilerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
     "preview": {
@@ -97,6 +98,7 @@
     "omissions": { "$ref": "#/$defs/omissions" },
     "memoryPlan": { "$ref": "#/$defs/memoryPlan" },
     "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
+    "repository": { "$ref": "#/$defs/repositoryIdentity" },
     "utility": { "$ref": "#/$defs/utilityReport" },
     "warnings": { "$ref": "#/$defs/stringList" },
     "handoff": {
@@ -165,6 +167,58 @@
   },
   "$defs": {
     "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "promptMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objectiveFingerprint",
+        "objectiveLength",
+        "objectiveByteSize",
+        "stepFingerprint",
+        "stepLength",
+        "stepByteSize",
+        "rawPromptIncluded",
+        "redactionReason"
+      ],
+      "properties": {
+        "objectiveFingerprint": { "$ref": "#/$defs/hash" },
+        "objectiveLength": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "objectiveByteSize": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "stepFingerprint": { "$ref": "#/$defs/hash" },
+        "stepLength": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "stepByteSize": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "rawPromptIncluded": { "const": false },
+        "redactionReason": { "const": "raw_prompt_omitted_from_api_transport" }
+      }
+    },
+    "repositoryIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "generatedAt", "branch", "commitSha", "dirtyCount", "gitStatusAvailable", "source", "reason", "warnings", "safeguards"],
+      "properties": {
+        "provider": { "const": "git" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "branch": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9._/@-]{1,160}$" },
+        "commitSha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+        "dirtyCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "gitStatusAvailable": { "type": "boolean" },
+        "source": { "enum": ["git-status-porcelain", "unavailable"] },
+        "reason": { "enum": [null, "not_git_repository", "git_unavailable", "git_status_failed", "git_status_timeout"] },
+        "warnings": { "$ref": "#/$defs/reasonCodes" },
+        "safeguards": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["localOnly", "diffBodiesIncluded", "changedPathsIncluded", "absoluteFilesystemLocationsIncluded", "remoteUrlsIncluded"],
+          "properties": {
+            "localOnly": { "const": true },
+            "diffBodiesIncluded": { "const": false },
+            "changedPathsIncluded": { "const": false },
+            "absoluteFilesystemLocationsIncluded": { "const": false },
+            "remoteUrlsIncluded": { "const": false }
+          }
+        }
+      }
+    },
     "locator": {
       "type": "string",
       "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -9,6 +10,7 @@ import {
   buildContextPackRegistry,
   buildContextPackRegistryEntry,
   buildContextPackUsePlan,
+  pinContextPackArtifacts,
   renderContextPackMarkdown,
   verifyContextPackRegistry
 } from '../packages/harness-context/src/index.mjs';
@@ -214,6 +216,44 @@ test('context pack use plan exposes complete local reads without private handoff
   }
 });
 
+test('context pack records sanitized repository identity without paths or diffs', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Repository identity proof.');
+  await writeFile(path.join(root, 'src', 'auth.ts'), 'export const committedIdentity = true;\n');
+  if (spawnSync('git', ['init'], { cwd: root, encoding: 'utf8' }).status !== 0) return;
+  spawnSync('git', ['add', 'AGENTS.md', 'src/auth.ts'], { cwd: root, encoding: 'utf8' });
+  const commit = spawnSync('git', ['-c', 'user.name=OAF Test', '-c', 'user.email=oaf@example.test', 'commit', '-m', 'initial'], { cwd: root, encoding: 'utf8' });
+  if (commit.status !== 0) return;
+  await writeFile(path.join(root, 'src', 'auth.ts'), 'export const committedIdentity = false;\n');
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    changedLocators: ['src/auth.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare repository identity handoff',
+    step: 'record branch and sha without diffs',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+  const usePlan = buildContextPackUsePlan(pack);
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack repository identity');
+  assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context pack use plan repository identity');
+  assert.equal(pack.repository.provider, 'git');
+  assert.equal(pack.repository.gitStatusAvailable, true);
+  assert.match(pack.repository.commitSha, /^[a-f0-9]{40}$/);
+  assert.equal(typeof pack.repository.branch, 'string');
+  assert(pack.repository.dirtyCount >= 1);
+  assert.deepEqual(usePlan.repository, pack.repository);
+  const serialized = JSON.stringify({ repository: pack.repository, usePlanRepository: usePlan.repository });
+  for (const forbidden of [root, '/Users/rebel', 'src/auth.ts', 'committedIdentity = false']) {
+    assert.equal(serialized.includes(forbidden), false, forbidden);
+  }
+});
+
 test('context pack registry verifies pinned artifacts without exposing private content', async () => {
   const root = await workspace();
   await mkdir(path.join(root, 'context-packs'), { recursive: true });
@@ -289,6 +329,49 @@ test('context pack registry verifies pinned artifacts without exposing private c
   assert.equal(mismatched.currentPointer.fingerprintStatus, 'tampered');
   assert.equal(mismatched.current.status, 'tampered');
   assert.equal(mismatched.warnings.includes('context_pack_current_pointer_registry_mismatch'), true);
+});
+
+test('context pack pin writes fixed local artifacts and verifies registry', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'notes'), { recursive: true });
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'PIN RAW AGENTS BODY should stay hidden.');
+  await writeFile(path.join(root, 'notes', 'handoff.md'), 'PIN RAW SELECTED BODY should stay hidden.');
+  await writeFile(path.join(root, 'src', 'auth.ts'), 'export const pinRawBody = true;\n');
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    userSelectedFiles: ['notes/handoff.md'],
+    changedLocators: ['src/auth.ts'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Pin private objective should not leak',
+    step: 'pin fixed local artifacts',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+  const markdown = renderContextPackMarkdown(pack);
+  const usePlan = buildContextPackUsePlan(pack);
+  const result = await pinContextPackArtifacts({ root, workspaceId: 'ws_local', pack, markdown, usePlan, clock: fixedClock });
+
+  assert.equal(result.pinned, true);
+  assert.equal(result.localFilesWritten, 4);
+  assert.equal(result.registryStatus.current.status, 'verified');
+  assert.deepEqual(result.artifacts.map((item) => item.locator).sort(), [
+    'workspace://context-packs/CONTEXT_PACK.md',
+    'workspace://context-packs/CONTEXT_PACK.use.json',
+    'workspace://context-packs/current.json',
+    'workspace://context-packs/registry.json'
+  ].sort());
+  const pinnedMarkdown = await readFile(path.join(root, 'context-packs', 'CONTEXT_PACK.md'), 'utf8');
+  const pinnedUsePlan = JSON.parse(await readFile(path.join(root, 'context-packs', 'CONTEXT_PACK.use.json'), 'utf8'));
+  assert.match(pinnedMarkdown, /# Context Pack/);
+  assert.equal(pinnedUsePlan.contextPack.fingerprint, pack.contextPackFingerprint);
+  const serialized = JSON.stringify(result);
+  for (const forbidden of ['PIN RAW AGENTS BODY', 'PIN RAW SELECTED BODY', 'pinRawBody', root, '/Users/rebel']) {
+    assert.equal(serialized.includes(forbidden), false, forbidden);
+  }
 });
 
 test('context pack registry redacts unsafe persisted source locators before status output', async () => {

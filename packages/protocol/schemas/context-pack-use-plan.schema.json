@@ -54,6 +54,7 @@
         "kind": { "const": "context-pack-use-plan" }
       }
     },
+    "repository": { "$ref": "#/$defs/repositoryIdentity" },
     "requestedInputs": {
       "type": "object",
       "additionalProperties": false,
@@ -178,6 +179,34 @@
   "$defs": {
     "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "nullableFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "repositoryIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "generatedAt", "branch", "commitSha", "dirtyCount", "gitStatusAvailable", "source", "reason", "warnings", "safeguards"],
+      "properties": {
+        "provider": { "const": "git" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "branch": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9._/@-]{1,160}$" },
+        "commitSha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+        "dirtyCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "gitStatusAvailable": { "type": "boolean" },
+        "source": { "enum": ["git-status-porcelain", "unavailable"] },
+        "reason": { "enum": [null, "not_git_repository", "git_unavailable", "git_status_failed", "git_status_timeout"] },
+        "warnings": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 128 } },
+        "safeguards": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["localOnly", "diffBodiesIncluded", "changedPathsIncluded", "absoluteFilesystemLocationsIncluded", "remoteUrlsIncluded"],
+          "properties": {
+            "localOnly": { "const": true },
+            "diffBodiesIncluded": { "const": false },
+            "changedPathsIncluded": { "const": false },
+            "absoluteFilesystemLocationsIncluded": { "const": false },
+            "remoteUrlsIncluded": { "const": false }
+          }
+        }
+      }
+    },
     "locator": {
       "type": "string",
       "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",

@@ -8,7 +8,7 @@ import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { buildContextPack, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, pinContextPackArtifacts, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
@@ -375,6 +375,41 @@ export function createControlApiServer({
           clock
         });
         return { schemaVersion: '1.0.0', pack: transportPack, markdown, usePlan, readback };
+      }
+      case 'pinContextPack': {
+        const targetHarness = context.body.targetHarness ?? 'generic';
+        const pack = await buildContextPack({
+          root: sourceGraphRoot,
+          harnesses: normalizeHarnesses(context.body.from ?? 'all'),
+          userSelectedFiles: context.body.userSelectedFiles ?? [],
+          changedLocators: context.body.changedLocators ?? [],
+          workspaceId: context.workspaceId,
+          targetHarness,
+          objective: context.body.objective,
+          step: context.body.step,
+          tokenBudget: context.body.tokenBudget ?? 4096,
+          clock
+        });
+        const transportPack = redactContextPackForApiTransport(pack);
+        const markdown = renderContextPackMarkdown(transportPack);
+        const usePlan = buildContextPackUsePlan(transportPack);
+        const pin = await pinContextPackArtifacts({
+          root: sourceGraphRoot,
+          workspaceId: context.workspaceId,
+          pack: transportPack,
+          markdown,
+          usePlan,
+          clock
+        });
+        const readback = await buildContextPackReadbackProof({
+          currentContextPack: { pack: transportPack, markdown },
+          workspaceId: context.workspaceId,
+          targetHarness,
+          trustedContext: createMcpTrustedContext(context),
+          generatedAt: clock(),
+          clock
+        });
+        return { schemaVersion: '1.0.0', pack: transportPack, markdown, usePlan, pin, registryStatus: pin.registryStatus, readback };
       }
       case 'getContextPackRegistryStatus':
         return verifyContextPackRegistry({
@@ -1011,6 +1046,7 @@ function routeResourceType(contract) {
       return 'run';
     case 'compileContext':
     case 'buildContextPack':
+    case 'pinContextPack':
     case 'getContextPackRegistryStatus':
     case 'preflightContextPackMemory':
     case 'previewContextSources':

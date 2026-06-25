@@ -558,6 +558,88 @@ test('context pack registry status route is protected read-only and sanitized', 
   assert.equal(api.calls.compile, 0);
 });
 
+test('context pack pin route is protected and writes only fixed local artifacts', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-context-pack-pin-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'notes'), { recursive: true });
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(path.join(sourceGraphRoot, 'AGENTS.md'), 'API PIN AGENTS RAW BODY should stay hidden.');
+  await writeFile(path.join(sourceGraphRoot, 'notes', 'handoff.md'), 'API PIN SELECTED RAW BODY should stay hidden.');
+  await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const apiPinRawBody = true;\n');
+  const api = await startServer(t, { sourceGraphRoot });
+
+  const body = {
+    workspaceId: 'ws_local',
+    objective: 'NOECHO_PIN_OBJ handoff',
+    step: 'NOECHO_PIN_STEP context',
+    targetHarness: 'codex',
+    from: 'codex',
+    userSelectedFiles: ['notes/handoff.md'],
+    changedLocators: ['src/web.ts'],
+    tokenBudget: 256
+  };
+
+  const denied = await request(api.base, '/api/context/pack/pin', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify(body)
+  });
+  assert.equal(denied.status, 401);
+  assert.equal(denied.body.error.code, 'authentication_required');
+
+  const csrfDenied = await request(api.base, '/api/context/pack/pin', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie },
+    body: JSON.stringify(body)
+  });
+  assert.equal(csrfDenied.status, 403);
+  assert.equal(csrfDenied.body.error.code, 'csrf_failed');
+
+  const rejectedRoot = await request(api.base, '/api/context/pack/pin', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ ...body, root: sourceGraphRoot })
+  });
+  assert.equal(rejectedRoot.status, 400);
+  assert.equal(rejectedRoot.body.error.code, 'request_validation_failed');
+  assert.equal(rejectedRoot.text.includes(sourceGraphRoot), false);
+
+  const response = await request(api.base, '/api/context/pack/pin', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify(body)
+  });
+  assert.equal(response.status, 200, response.text);
+  assert.equal(response.body.schemaVersion, '1.0.0');
+  assert.equal(response.body.pin.pinned, true);
+  assert.equal(response.body.pin.localFilesWritten, 4);
+  assert.equal(response.body.pin.registryStatus.current.status, 'verified');
+  assert.equal(response.body.registryStatus.current.status, 'verified');
+  assert.deepEqual(response.body.pin.artifacts.map((item) => item.locator).sort(), [
+    'workspace://context-packs/CONTEXT_PACK.md',
+    'workspace://context-packs/CONTEXT_PACK.use.json',
+    'workspace://context-packs/current.json',
+    'workspace://context-packs/registry.json'
+  ].sort());
+  assert.equal(response.body.pack.objective.startsWith('raw_prompt_omitted:sha256:'), true);
+  assert.equal(response.body.pack.prompt.rawPromptIncluded, false);
+  assert.equal(response.body.usePlan.safeguards.objectiveTextIncluded, false);
+  assert.equal(response.body.pin.safeguards.localFilesWritten, 4);
+  assert.equal(response.body.pin.safeguards.externalWritesEnabled, false);
+  assert.equal(response.body.pin.safeguards.externalAdaptersEnabled, 0);
+  assert.equal(response.body.pin.safeguards.networkCalls, 0);
+  assert.equal(response.body.pin.safeguards.modelCalls, 0);
+  const pinnedMarkdown = await readFile(path.join(sourceGraphRoot, 'context-packs', 'CONTEXT_PACK.md'), 'utf8');
+  const pinnedUsePlan = JSON.parse(await readFile(path.join(sourceGraphRoot, 'context-packs', 'CONTEXT_PACK.use.json'), 'utf8'));
+  assert.match(pinnedMarkdown, /# Context Pack/);
+  assert.equal(pinnedUsePlan.contextPack.fingerprint, response.body.pack.contextPackFingerprint);
+  for (const forbidden of ['NOECHO_PIN_OBJ', 'NOECHO_PIN_STEP', 'API PIN AGENTS RAW BODY', 'API PIN SELECTED RAW BODY', 'apiPinRawBody', sourceGraphRoot, '/Users/rebel']) {
+    assert.equal(response.text.includes(forbidden), false, forbidden);
+  }
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+});
+
 test('git changed-locator detection route is opt-in protected and read-only', async (t) => {
   const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-git-changes-'));
   t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));

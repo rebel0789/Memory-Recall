@@ -234,6 +234,27 @@ paths:
         '403': { $ref: '#/components/responses/BoundaryError' }
         '413': { $ref: '#/components/responses/BoundaryError' }
         '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack/pin:
+    post:
+      operationId: pinContextPack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextPackRequest' }
+      responses:
+        '200':
+          description: Writes the reviewed context pack to fixed local artifacts and verifies the registry.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPackPinResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
   /api/context/pack/registry/status:
     get:
       operationId: getContextPackRegistryStatus
@@ -684,6 +705,39 @@ components:
             requiredLocalReads: { type: array, maxItems: 64, items: { type: object, additionalProperties: true } }
             safeguards: { type: object, additionalProperties: true }
             usePlanFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        readback: { type: object, additionalProperties: true }
+    ContextPackPinResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, pack, markdown, usePlan, pin, registryStatus, readback]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        pack: { type: object, additionalProperties: true }
+        markdown: { type: string, minLength: 1, maxLength: 200000 }
+        usePlan: { type: object, additionalProperties: true }
+        pin:
+          type: object
+          additionalProperties: true
+          required: [schemaVersion, command, pinned, workspaceId, generatedAt, targetHarness, artifacts, registryEntry, registry, current, localFilesWritten, registryStatus, safeguards]
+          properties:
+            schemaVersion: { const: '1.0.0' }
+            command: { const: context pack pin }
+            pinned: { const: true }
+            workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+            generatedAt: { type: string, format: date-time }
+            targetHarness: { enum: [codex, claude-code, cursor, generic] }
+            artifacts:
+              type: array
+              minItems: 4
+              maxItems: 4
+              items: { type: object, additionalProperties: true }
+            registryEntry: { type: object, additionalProperties: true }
+            registry: { type: object, additionalProperties: true }
+            current: { type: object, additionalProperties: true }
+            localFilesWritten: { const: 4 }
+            registryStatus: { $ref: '#/components/schemas/ContextPackRegistryStatusResponse' }
+            safeguards: { type: object, additionalProperties: true }
+        registryStatus: { $ref: '#/components/schemas/ContextPackRegistryStatusResponse' }
         readback: { type: object, additionalProperties: true }
     ContextPackRegistryStatusResponse:
       type: object

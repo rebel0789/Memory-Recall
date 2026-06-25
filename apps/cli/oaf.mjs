@@ -9,16 +9,14 @@ import { compileContext } from '../../packages/context-compiler/src/index.mjs';
 import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/evaluation-lab/src/index.mjs';
 import {
   buildContextPack,
-  buildContextPackCurrentPointer,
   buildContextPackImpactBrief,
-  buildContextPackRegistry,
-  buildContextPackRegistryEntry,
   buildContextPackUsePlan,
   buildHarnessContextPreview,
   buildHarnessSetupReport,
   buildMemoryProposalPreflightFromFile,
   detectGitChangedLocators,
   loadCurrentContextPackUsePlan,
+  pinContextPackArtifacts,
   renderContextPackMarkdown,
   scanHarnessContext,
   verifyContextPackRegistry
@@ -423,29 +421,9 @@ async function contextPackCommand(values) {
     if (write) {
       const out = option(values, '--out') ?? 'context-packs/CONTEXT_PACK.md';
       const useOut = option(values, '--use-out') ?? (values.includes('--pin') ? defaultUsePlanPathFor(out) : null);
-      await writeWorkspaceFile(root, `workspace://${out}`, markdown);
       const usePlanContent = JSON.stringify(usePlan, null, 2);
-      if (useOut) await writeWorkspaceFile(root, `workspace://${useOut}`, usePlanContent);
       if (values.includes('--pin')) {
-        const registryEntry = buildContextPackRegistryEntry({
-          pack,
-          usePlan,
-          markdown,
-          markdownPath: out,
-          usePlanContent,
-          usePlanPath: useOut,
-          createdAt: fixedNow()
-        });
-        const existingRegistry = await readOptionalContextPackRegistry(root);
-        const registry = buildContextPackRegistry({
-          existingRegistry,
-          entry: registryEntry,
-          workspaceId,
-          updatedAt: fixedNow()
-        });
-        const current = buildContextPackCurrentPointer({ registry, entry: registryEntry, updatedAt: fixedNow() });
-        await writeWorkspaceFile(root, 'workspace://context-packs/registry.json', JSON.stringify(registry, null, 2));
-        await writeWorkspaceFile(root, 'workspace://context-packs/current.json', JSON.stringify(current, null, 2));
+        const pin = await pinContextPackArtifacts({ root, workspaceId, pack, markdown, usePlan, markdownPath: out, usePlanPath: useOut, clock: fixedNow });
         const report = {
           schemaVersion: '1.0.0',
           usePlan,
@@ -453,14 +431,10 @@ async function contextPackCommand(values) {
           usePlanTarget: { locator: `workspace://${useOut}`, contentType: 'application/json' },
           registryTarget: { locator: 'workspace://context-packs/registry.json', contentType: 'application/json' },
           currentTarget: { locator: 'workspace://context-packs/current.json', contentType: 'application/json' },
-          registryEntry,
-          registry: {
-            currentEntryId: registry.currentEntryId,
-            entryCount: registry.entries.length,
-            registryFingerprint: registry.registryFingerprint
-          },
+          registryEntry: pin.registryEntry,
+          registry: pin.registry,
           changedLocatorDetection,
-          localFilesWritten: 4,
+          localFilesWritten: pin.localFilesWritten,
           safeguards: {
             externalWritesEnabled: false,
             externalAdaptersEnabled: 0,
@@ -470,6 +444,8 @@ async function contextPackCommand(values) {
         console.log(JSON.stringify(report, null, 2));
         return;
       }
+      await writeWorkspaceFile(root, `workspace://${out}`, markdown);
+      if (useOut) await writeWorkspaceFile(root, `workspace://${useOut}`, usePlanContent);
       const report = {
         schemaVersion: '1.0.0',
         pack,
@@ -606,14 +582,6 @@ function defaultUsePlanPathFor(markdownPath) {
     return value.replace(/\.md$/u, '.use.json');
   }
   return 'context-packs/CONTEXT_PACK.use.json';
-}
-
-async function readOptionalContextPackRegistry(root) {
-  try {
-    return JSON.parse(await readFile(path.resolve(root, 'context-packs', 'registry.json'), 'utf8'));
-  } catch {
-    return null;
-  }
 }
 
 async function contextGraphPreviewCommand(values) {

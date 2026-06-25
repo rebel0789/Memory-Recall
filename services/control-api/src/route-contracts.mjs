@@ -168,6 +168,7 @@ export function createApiRouteContracts(limits = {}) {
     startRun: Math.min(limits.bodyBytes ?? 1_000_000, 32 * 1024),
     compileContext: Math.min(limits.bodyBytes ?? 1_000_000, 256 * 1024),
     buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    pinContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     preflightContextPackMemory: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     previewContextSources: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     detectGitChanges: Math.min(limits.bodyBytes ?? 1_000_000, 1024),
@@ -764,6 +765,139 @@ export function createApiRouteContracts(limits = {}) {
       readback: contextPackReadbackProof
     }
   };
+  const contextPackPinReport = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'command', 'pinned', 'workspaceId', 'generatedAt', 'targetHarness', 'artifacts', 'registryEntry', 'registry', 'current', 'localFilesWritten', 'registryStatus', 'safeguards'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      command: { const: 'context pack pin' },
+      pinned: { const: true },
+      workspaceId,
+      generatedAt: { type: 'string', format: 'date-time' },
+      targetHarness: { enum: ['codex', 'claude-code', 'cursor', 'generic'] },
+      artifacts: {
+        type: 'array',
+        minItems: 4,
+        maxItems: 4,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['role', 'locator', 'contentType', 'contentHash', 'byteSize'],
+          properties: {
+            role: { enum: ['agent-handoff', 'use-plan', 'registry', 'current-pointer'] },
+            locator: {
+              enum: [
+                'workspace://context-packs/CONTEXT_PACK.md',
+                'workspace://context-packs/CONTEXT_PACK.use.json',
+                'workspace://context-packs/registry.json',
+                'workspace://context-packs/current.json'
+              ]
+            },
+            contentType: { enum: ['text/markdown', 'application/json'] },
+            contentHash: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+            byteSize: { type: 'integer', minimum: 1, maximum: 1000000 }
+          }
+        }
+      },
+      registryEntry: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['schemaVersion', 'registryVersion', 'id', 'workspaceId', 'createdAt', 'targetHarness', 'contextPack', 'usePlan', 'artifacts', 'contextPackFingerprint', 'usePlanFingerprint'],
+        properties: {
+          schemaVersion: { const: '1.0.0' },
+          registryVersion: boundedString(32),
+          id: { type: 'string', pattern: id('ctxpin'), maxLength: 128 },
+          workspaceId,
+          createdAt: { type: 'string', format: 'date-time' },
+          targetHarness: { enum: ['codex', 'claude-code', 'cursor', 'generic'] },
+          contextPack: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['id', 'fingerprint'],
+            properties: {
+              id: { type: 'string', pattern: id('ctxpack'), maxLength: 128 },
+              fingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+            }
+          },
+          usePlan: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['id', 'fingerprint', 'resourceUri'],
+            properties: {
+              id: { type: 'string', pattern: id('ctxuse'), maxLength: 128 },
+              fingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+              resourceUri: { type: 'string', maxLength: 240 }
+            }
+          },
+          artifacts: {
+            type: 'array',
+            minItems: 2,
+            maxItems: 2,
+            items: { type: 'object', additionalProperties: true }
+          },
+          contextPackFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+          usePlanFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+        }
+      },
+      registry: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['currentEntryId', 'entryCount', 'registryFingerprint'],
+        properties: {
+          currentEntryId: { type: 'string', pattern: id('ctxpin'), maxLength: 128 },
+          entryCount: { type: 'integer', minimum: 1, maximum: 50 },
+          registryFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+        }
+      },
+      current: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['entryId', 'pointerFingerprint', 'status'],
+        properties: {
+          entryId: { type: 'string', pattern: id('ctxpin'), maxLength: 128 },
+          pointerFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 },
+          status: { enum: ['verified', 'stale', 'tampered', 'review', 'missing'] }
+        }
+      },
+      localFilesWritten: { const: 4 },
+      registryStatus: contextPackRegistryStatusSchema,
+      safeguards: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['canonicalStateMutated', 'localFilesWritten', 'externalWritesEnabled', 'externalAdaptersEnabled', 'networkCalls', 'modelCalls', 'activeMemoryCreated', 'sourceSnapshotsWritten', 'markdownContentIncludedInResponse', 'sourceContentIncluded', 'privateContentIncluded', 'absoluteFilesystemLocationsIncluded'],
+        properties: {
+          canonicalStateMutated: { const: false },
+          localFilesWritten: { const: 4 },
+          externalWritesEnabled: { const: false },
+          externalAdaptersEnabled: { const: 0 },
+          networkCalls: { const: 0 },
+          modelCalls: { const: 0 },
+          activeMemoryCreated: { const: 0 },
+          sourceSnapshotsWritten: { const: 0 },
+          markdownContentIncludedInResponse: { const: false },
+          sourceContentIncluded: { const: false },
+          privateContentIncluded: { const: false },
+          absoluteFilesystemLocationsIncluded: { const: false }
+        }
+      }
+    }
+  };
+  const contextPackPinResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'pack', 'markdown', 'usePlan', 'pin', 'registryStatus', 'readback'],
+    $defs: contextPackRegistryStatusSchema.$defs ?? {},
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      pack: contextPackResponse.properties.pack,
+      markdown: contextPackResponse.properties.markdown,
+      usePlan: contextPackUsePlan,
+      pin: contextPackPinReport,
+      registryStatus: contextPackRegistryStatusSchema,
+      readback: contextPackReadbackProof
+    }
+  };
   const contextGraphPreviewResponse = sourceGraphPreviewSchema;
   const manualConfigSnippet = {
     type: 'object',
@@ -1197,6 +1331,22 @@ export function createApiRouteContracts(limits = {}) {
       bodyRequired: true,
       streams: false,
       responses: { 200: contextPackResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/context/pack/pin',
+      operationId: 'pinContextPack',
+      security: { authenticated: true, action: 'context.compile', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: contextPackRequest,
+      maxBodyBytes: routeBodyBytes.pinContextPack,
+      allowsBody: true,
+      bodyRequired: true,
+      streams: false,
+      responses: { 200: contextPackPinResponse }
     },
     {
       method: 'GET',

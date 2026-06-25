@@ -47,6 +47,10 @@ const MARKDOWN_REQUIRED_READ_LIMIT = 16;
 const MARKDOWN_BULK_LIMIT = 2;
 const GIT_STATUS_TIMEOUT_MS = 2_000;
 const GIT_STATUS_MAX_BUFFER = 256 * 1024;
+const CONTEXT_PACK_MARKDOWN_PATH = 'context-packs/CONTEXT_PACK.md';
+const CONTEXT_PACK_USE_PLAN_PATH = 'context-packs/CONTEXT_PACK.use.json';
+const CONTEXT_PACK_REGISTRY_PATH = 'context-packs/registry.json';
+const CONTEXT_PACK_CURRENT_PATH = 'context-packs/current.json';
 const SUPPORTED_HARNESSES = new Set(['codex', 'claude-code', 'cursor']);
 const SUPPORTED_TARGET_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
 const FORBIDDEN_USER_SELECTED_ROOTS = new Set(['.git', '.local', 'node_modules']);
@@ -577,6 +581,118 @@ function gitChangeDetectionReport(report) {
     ...report,
     reportFingerprint: gitChangeDetectionFingerprint(report)
   };
+}
+
+function repositoryIdentitySafeguards() {
+  return {
+    localOnly: true,
+    diffBodiesIncluded: false,
+    changedPathsIncluded: false,
+    absoluteFilesystemLocationsIncluded: false,
+    remoteUrlsIncluded: false
+  };
+}
+
+function safeGitBranchName(value) {
+  const text = String(value ?? '').trim();
+  if (!text || text === 'HEAD') return null;
+  return /^[A-Za-z0-9._/@-]{1,160}$/u.test(text) ? text : null;
+}
+
+function repositoryIdentityUnavailable({ generatedAt, reason, commitSha = null, branch = null, dirtyCount = 0, warnings = [] }) {
+  return {
+    provider: 'git',
+    generatedAt,
+    branch,
+    commitSha,
+    dirtyCount,
+    gitStatusAvailable: false,
+    source: 'unavailable',
+    reason,
+    warnings: [...new Set(warnings)].sort(),
+    safeguards: repositoryIdentitySafeguards()
+  };
+}
+
+export async function inspectRepositoryIdentity({
+  root = process.cwd(),
+  clock = () => new Date().toISOString()
+} = {}) {
+  const generatedAt = clock();
+  const resolvedRoot = path.resolve(root);
+  let commitSha = null;
+  let branch = null;
+  const warnings = [];
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', resolvedRoot, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+      timeout: GIT_STATUS_TIMEOUT_MS,
+      maxBuffer: GIT_STATUS_MAX_BUFFER,
+      env: {
+        ...process.env,
+        GIT_OPTIONAL_LOCKS: '0',
+        GIT_TERMINAL_PROMPT: '0'
+      }
+    });
+    const value = String(stdout ?? '').trim();
+    commitSha = /^[a-f0-9]{40}$/u.test(value) ? value : null;
+  } catch (error) {
+    return repositoryIdentityUnavailable({ generatedAt, reason: safeGitErrorReason(error) });
+  }
+
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', resolvedRoot, 'rev-parse', '--abbrev-ref', 'HEAD'], {
+      encoding: 'utf8',
+      timeout: GIT_STATUS_TIMEOUT_MS,
+      maxBuffer: GIT_STATUS_MAX_BUFFER,
+      env: {
+        ...process.env,
+        GIT_OPTIONAL_LOCKS: '0',
+        GIT_TERMINAL_PROMPT: '0'
+      }
+    });
+    branch = safeGitBranchName(stdout);
+    if (!branch) warnings.push('git_branch_unavailable_or_detached');
+  } catch {
+    warnings.push('git_branch_unavailable');
+  }
+
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['--no-optional-locks', '-C', resolvedRoot, 'status', '--porcelain=v1', '-z', '--untracked-files=all', '--ignore-submodules=all'],
+      {
+        encoding: 'utf8',
+        timeout: GIT_STATUS_TIMEOUT_MS,
+        maxBuffer: GIT_STATUS_MAX_BUFFER,
+        env: {
+          ...process.env,
+          GIT_OPTIONAL_LOCKS: '0',
+          GIT_TERMINAL_PROMPT: '0'
+        }
+      }
+    );
+    return {
+      provider: 'git',
+      generatedAt,
+      branch,
+      commitSha,
+      dirtyCount: parseGitStatusPorcelainZ(stdout).length,
+      gitStatusAvailable: true,
+      source: 'git-status-porcelain',
+      reason: null,
+      warnings: [...new Set(warnings)].sort(),
+      safeguards: repositoryIdentitySafeguards()
+    };
+  } catch (error) {
+    return repositoryIdentityUnavailable({
+      generatedAt,
+      reason: safeGitErrorReason(error),
+      commitSha,
+      branch,
+      warnings
+    });
+  }
 }
 
 function gitChangedUnavailableReport({ workspaceId, generatedAt, reason, warnings = [] }) {
@@ -1953,6 +2069,7 @@ export async function buildContextPack({
     changedLocators: sourceGraph.impact.changedLocators,
     maxBytes
   });
+  const repository = await inspectRepositoryIdentity({ root, clock });
   const omissions = buildOmissions({ excluded, sourceGraph, targetHarness: normalizedTarget });
   const utility = buildContextPackUtility({ selected, sourceGraph, preview, requestedInputs, changedLocatorMetadata });
   const handoffCommands = contextPackCommands({
@@ -1975,6 +2092,7 @@ export async function buildContextPack({
       previewFingerprint: preview.previewFingerprint,
       sourceGraphFingerprint: sourceGraph.graphFingerprint,
       sourceGraphQueryFingerprint: sourceGraph.queryFingerprint,
+      repository,
       requestedInputs
     }))}`,
     workspaceId,
@@ -2006,6 +2124,7 @@ export async function buildContextPack({
     omissions,
     memoryPlan: preview.memoryPlan,
     sourceGraph,
+    repository,
     utility,
     warnings: [...new Set([...packWarnings(preview), ...sourceGraph.warnings])].sort(),
     handoff: {
@@ -2236,6 +2355,10 @@ export function buildContextPackUsePlan(pack, {
       uri: resourceUri,
       kind: 'context-pack-use-plan'
     },
+    repository: pack?.repository ?? repositoryIdentityUnavailable({
+      generatedAt,
+      reason: 'git_status_failed'
+    }),
     requestedInputs: {
       sourceHarnesses: pack?.requestedInputs?.sourceHarnesses ?? [],
       userSelectedLocators: pack?.requestedInputs?.userSelectedLocators ?? [],
@@ -2498,6 +2621,125 @@ export function buildContextPackCurrentPointer({
   };
   pointer.pointerFingerprint = currentPointerFingerprint(pointer);
   return pointer;
+}
+
+async function readOptionalContextPackRegistry(rootReal) {
+  try {
+    return JSON.parse((await readRegistryWorkspaceFile(rootReal, CONTEXT_PACK_REGISTRY_PATH)).text);
+  } catch {
+    return null;
+  }
+}
+
+async function writeRegistryWorkspaceFile(rootReal, relativePath, content) {
+  const normalizedPath = registryRelativePath(`workspace://${relativePath}`);
+  if (!normalizedPath) throw new Error('registry_artifact_locator_invalid');
+  await assertRegistryNoSymlinkAncestors(rootReal, normalizedPath);
+  const absolute = path.resolve(rootReal, normalizedPath);
+  if (!isInside(rootReal, absolute)) throw new Error('registry_target_escape');
+  const parent = path.dirname(absolute);
+  await mkdir(parent, { recursive: true });
+  const parentReal = await realpath(parent);
+  if (!isInside(rootReal, parentReal)) throw new Error('registry_parent_escape');
+  const entry = await lstat(absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (entry?.isSymbolicLink()) throw new Error('registry_target_symlink');
+  if (entry && !entry.isFile()) throw new Error('registry_target_not_file');
+  await writeFile(absolute, String(content ?? ''), 'utf8');
+}
+
+export async function pinContextPackArtifacts({
+  root = process.cwd(),
+  workspaceId = 'ws_local',
+  pack,
+  markdown,
+  usePlan,
+  markdownPath = CONTEXT_PACK_MARKDOWN_PATH,
+  usePlanPath = CONTEXT_PACK_USE_PLAN_PATH,
+  clock = () => new Date().toISOString()
+} = {}) {
+  assertJsonSchema(contextPackSchema, pack, 'context pack pin pack');
+  assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context pack pin use plan');
+  const rootReal = await realpath(root);
+  const generatedAt = clock();
+  const normalizedMarkdownPath = registryRelativePath(`workspace://${markdownPath}`);
+  const normalizedUsePlanPath = registryRelativePath(`workspace://${usePlanPath}`);
+  if (!normalizedMarkdownPath || !normalizedUsePlanPath) throw new Error('registry_artifact_locator_invalid');
+  const markdownText = String(markdown ?? '');
+  const usePlanContent = JSON.stringify(usePlan, null, 2);
+  const entry = buildContextPackRegistryEntry({
+    pack,
+    usePlan,
+    markdown: markdownText,
+    markdownPath: normalizedMarkdownPath,
+    usePlanContent,
+    usePlanPath: normalizedUsePlanPath,
+    createdAt: generatedAt
+  });
+  const existingRegistry = await readOptionalContextPackRegistry(rootReal);
+  const registry = buildContextPackRegistry({
+    existingRegistry,
+    entry,
+    workspaceId,
+    updatedAt: generatedAt
+  });
+  const current = buildContextPackCurrentPointer({ registry, entry, updatedAt: generatedAt });
+  const registryContent = JSON.stringify(registry, null, 2);
+  const currentContent = JSON.stringify(current, null, 2);
+
+  await writeRegistryWorkspaceFile(rootReal, normalizedMarkdownPath, markdownText);
+  await writeRegistryWorkspaceFile(rootReal, normalizedUsePlanPath, usePlanContent);
+  await writeRegistryWorkspaceFile(rootReal, CONTEXT_PACK_REGISTRY_PATH, registryContent);
+  await writeRegistryWorkspaceFile(rootReal, CONTEXT_PACK_CURRENT_PATH, currentContent);
+
+  const registryStatus = await verifyContextPackRegistry({ root, workspaceId, clock });
+  return {
+    schemaVersion: '1.0.0',
+    command: 'context pack pin',
+    pinned: true,
+    workspaceId,
+    generatedAt,
+    targetHarness: usePlan.targetHarness,
+    artifacts: [
+      { role: 'agent-handoff', locator: `workspace://${normalizedMarkdownPath}`, contentType: 'text/markdown', contentHash: entry.artifacts[0].contentHash, byteSize: entry.artifacts[0].byteSize },
+      { role: 'use-plan', locator: `workspace://${normalizedUsePlanPath}`, contentType: 'application/json', contentHash: entry.artifacts[1].contentHash, byteSize: entry.artifacts[1].byteSize },
+      { role: 'registry', locator: `workspace://${CONTEXT_PACK_REGISTRY_PATH}`, contentType: 'application/json', contentHash: artifactHash(registryContent), byteSize: Buffer.byteLength(registryContent, 'utf8') },
+      { role: 'current-pointer', locator: `workspace://${CONTEXT_PACK_CURRENT_PATH}`, contentType: 'application/json', contentHash: artifactHash(currentContent), byteSize: Buffer.byteLength(currentContent, 'utf8') }
+    ],
+    registryEntry: {
+      ...entry,
+      contextPackFingerprint: entry.contextPack.fingerprint,
+      usePlanFingerprint: entry.usePlan.fingerprint
+    },
+    registry: {
+      currentEntryId: registry.currentEntryId,
+      entryCount: registry.entries.length,
+      registryFingerprint: registry.registryFingerprint
+    },
+    current: {
+      entryId: current.entryId,
+      pointerFingerprint: current.pointerFingerprint,
+      status: registryStatus.current.status
+    },
+    localFilesWritten: 4,
+    registryStatus,
+    safeguards: {
+      canonicalStateMutated: false,
+      localFilesWritten: 4,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      markdownContentIncludedInResponse: false,
+      sourceContentIncluded: false,
+      privateContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
 }
 
 function registryRelativePath(locator) {

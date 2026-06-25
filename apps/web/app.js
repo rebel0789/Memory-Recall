@@ -28,6 +28,7 @@ let contextPackResult=null;
 let contextPackError=null;
 let contextPackMemoryConfig=null;
 let contextPackMemoryPreflightError=null;
+let contextPackPinError=null;
 let pinnedHandoffStatus=null;
 let pinnedHandoffError=null;
 let contextSourcePreviewResult=null;
@@ -768,6 +769,7 @@ function render() {
   root.querySelectorAll('[data-action=copy-memory-config]').forEach(button=>button.addEventListener('click',copyContextPackMemoryConfig));
   root.querySelectorAll('[data-action=download-memory-config]').forEach(button=>button.addEventListener('click',downloadContextPackMemoryConfig));
   root.querySelectorAll('[data-action=run-memory-preflight]').forEach(button=>button.addEventListener('click',runContextPackMemoryPreflight));
+  root.querySelectorAll('[data-action=pin-context-pack]').forEach(button=>button.addEventListener('click',pinCurrentContextPack));
   root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
   root.querySelectorAll('[data-action=copy-launch-prompt]').forEach(button=>button.addEventListener('click',copyContextPackLaunchPrompt));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
@@ -991,10 +993,11 @@ function renderContextPack() {
   const pack=contextPackResult?.pack ?? null;
   const markdown=contextPackResult?.markdown ?? '';
   const errorPanel=contextPackError?renderApiErrorPanel('Context pack failed',contextPackError):'';
+  const pinErrorPanel=contextPackPinError?renderApiErrorPanel('Pin locally failed',contextPackPinError):'';
   const memoryPreflightErrorPanel=contextPackMemoryPreflightError?renderApiErrorPanel('Memory preflight failed',contextPackMemoryPreflightError):'';
   const sourcePreviewPanel=contextSourcePreviewError?renderApiErrorPanel('Source preview failed',contextSourcePreviewError):contextSourcePreviewResult?renderContextSourcePreview(contextSourcePreviewResult):'';
   const resultPanel=pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.');
-  return `${contextPackFirstRunGuide()}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Inputs to review</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;CONTEXT.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs"></textarea><small>Add reviewed workspace-relative files, or use git detection below.</small></label><label class="field"><span>Memory preflight sources (optional)</span><textarea name="memorySourceFiles" maxlength="4000" placeholder="notes/memory.md&#10;docs/decisions.md"></textarea><small>Add only reviewed workspace-relative files. The browser keeps paths as config and can run read-only local preflight after the pack is built.</small></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect current git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Review boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, reviewed changed-file locators, and optional memory proposal file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy commands, download artifacts, run read-only memory preflight, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${memoryPreflightErrorPanel}${errorPanel}${resultPanel}${renderPinnedHandoffPanel(pinnedHandoffStatus,pinnedHandoffError)}`;
+  return `${contextPackFirstRunGuide()}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Inputs to review</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;CONTEXT.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs"></textarea><small>Add reviewed workspace-relative files, or use git detection below.</small></label><label class="field"><span>Memory preflight sources (optional)</span><textarea name="memorySourceFiles" maxlength="4000" placeholder="notes/memory.md&#10;docs/decisions.md"></textarea><small>Add only reviewed workspace-relative files. The browser keeps paths as config and can run read-only local preflight after the pack is built.</small></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect current git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Review boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, reviewed changed-file locators, and optional memory proposal file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy commands, download artifacts, run read-only memory preflight, preview setup, or explicitly pin reviewed local artifacts</dd></div><div><dt>Server writes</dt><dd>only the Pin locally action writes fixed context-packs artifacts</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${memoryPreflightErrorPanel}${pinErrorPanel}${errorPanel}${resultPanel}${renderPinnedHandoffPanel(pinnedHandoffStatus,pinnedHandoffError)}`;
 }
 
 function contextPackFirstRunGuide() {
@@ -1015,7 +1018,20 @@ function renderContextPackResult(pack,markdown) {
   const memoryPreflight=contextPackResult?.memoryProposalPreflight ?? null;
   const memoryActions=model.memoryConfig.configured?`<button class="button secondary" data-action="copy-memory-config" type="button">Copy memory config</button><button class="button secondary" data-action="download-memory-config" type="button">Download memory config</button><button class="button secondary" data-action="run-memory-preflight" type="button">Run memory preflight</button>`:'';
   const artifactHeading=readiness.ready?'Handoff ready':'Handoff needs review';
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${contextPackLaunchPath(model,readiness,memoryPreflight)}${contextPackOperatorBrief(model,readiness)}${renderHandoffStatusPanel(handoff,'context-pack')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${artifactHeading}</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button>${memoryActions}<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}${model.memoryConfig.configured?`<hr><div class="section-heading"><h2>Memory preflight</h2><span>${model.memoryConfig.pathCount} files</span></div>${contextPackMemoryConfigPanel(model.memoryConfig,memoryPreflight)}`:''}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${contextPackLaunchPath(model,readiness,memoryPreflight)}${contextPackOperatorBrief(model,readiness)}${renderHandoffStatusPanel(handoff,'context-pack')}${contextPackPinSummary(contextPackResult?.pin)}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${artifactHeading}</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="pin-context-pack" type="button">Pin locally</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button>${memoryActions}<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}${model.memoryConfig.configured?`<hr><div class="section-heading"><h2>Memory preflight</h2><span>${model.memoryConfig.pathCount} files</span></div>${contextPackMemoryConfigPanel(model.memoryConfig,memoryPreflight)}`:''}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Repository</h2><span>${esc(pack.repository?.gitStatusAvailable?'git':'unavailable')}</span></div>${contextPackRepositoryPanel(pack.repository)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+}
+
+function contextPackPinSummary(pin=null) {
+  if(!pin?.pinned)return '';
+  const status=pin.current?.status ?? pin.registryStatus?.current?.status ?? 'review';
+  return `<section class="work-grid pinned-local-proof" aria-label="Pinned local handoff proof"><div class="surface surface-primary"><div class="section-heading"><h2>Pinned locally</h2>${statusChip(status,status,'Pinned local handoff')}</div><p>The reviewed pack was written to fixed local context-pack artifacts and immediately verified through the registry.</p><dl class="facts facts-wide"><div><dt>Files written</dt><dd>${Number(pin.localFilesWritten ?? 0)}</dd></div><div><dt>Entry</dt><dd>${esc(pin.registryEntry?.id ?? 'unavailable')}</dd></div><div><dt>Registry</dt><dd>${esc(shortFingerprint(pin.registry?.registryFingerprint ?? ''))}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></div><aside class="inspector"><div class="section-heading"><h2>Written artifacts</h2><span>fixed paths</span></div><ol class="locator-list compact-list">${(pin.artifacts ?? []).map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${esc(shortFingerprint(item.contentHash ?? ''))}</small></li>`).join('')}</ol></aside></section>`;
+}
+
+function contextPackRepositoryPanel(repository=null) {
+  const commit=repository?.commitSha ? String(repository.commitSha).slice(0,12) : 'unavailable';
+  const branch=repository?.branch ?? 'unavailable';
+  const status=repository?.gitStatusAvailable ? `${Number(repository.dirtyCount ?? 0)} changed entries` : `unavailable${repository?.reason?`: ${repository.reason}`:''}`;
+  return `<dl class="facts compact-facts"><div><dt>Branch</dt><dd>${esc(branch)}</dd></div><div><dt>Commit</dt><dd>${esc(commit)}</dd></div><div><dt>Status</dt><dd>${esc(status)}</dd></div><div><dt>Paths</dt><dd>not included</dd></div><div><dt>Diffs</dt><dd>not included</dd></div></dl>`;
 }
 
 function renderHandoffStatusPanel(status,scope='default') {
@@ -1337,11 +1353,11 @@ export function buildCurrentHandoffStatusModel({contextPackResult:result=null,se
     && zeroCount(setupResult?.safeguards?.networkCalls)
     && setupResult?.safeguards?.rawConfigBodyIncluded === false;
   return {
-    state:readiness.ready ? 'generated-in-browser' : 'review-required',
-    statusLabel:readiness.ready ? 'ready' : 'review',
-    title:readiness.ready ? 'Current handoff ready' : 'Current handoff needs review',
-    copy:readiness.copy,
-    nextAction:readiness.nextAction,
+    state:result?.pin?.pinned ? 'pinned-locally' : readiness.ready ? 'generated-in-browser' : 'review-required',
+    statusLabel:result?.pin?.pinned ? 'pinned' : readiness.ready ? 'ready' : 'review',
+    title:result?.pin?.pinned ? 'Current handoff pinned' : readiness.ready ? 'Current handoff ready' : 'Current handoff needs review',
+    copy:result?.pin?.pinned ? 'The current handoff is pinned to fixed local context-pack artifacts and verified by the registry.' : readiness.copy,
+    nextAction:result?.pin?.pinned ? 'Receive pinned pack' : readiness.nextAction,
     actionLabel:readiness.ready ? 'Open handoff' : 'Review handoff',
     actionRoute:'/context-pack',
     targetHarness:ui.targetHarness,
@@ -1354,7 +1370,7 @@ export function buildCurrentHandoffStatusModel({contextPackResult:result=null,se
     setupStatus:setupPreviewed ? setupSafe ? 'safe preview' : 'review required' : 'not previewed',
     preflightCommand:contextPackPreflightCommand(pack,{memoryConfig:result?.memoryConfig}),
     safeguards:{
-      serverWrites:false,
+      serverWrites:Boolean(result?.pin?.pinned),
       configWrites:false,
       externalWritesEnabled:false,
       externalAdaptersEnabled:0,
@@ -1565,7 +1581,7 @@ function contextPackLaunchPath(model,readiness,memoryPreflight=null) {
   const setupAction=setupPreviewed
     ? '<p class="muted">Setup preview already passed for this browser session.</p>'
     : `<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button>`;
-  return `<section class="surface handoff-use-path" aria-label="Practical handoff path"><div class="handoff-use-path-head"><div><p class="eyebrow">Practical handoff</p><h2>Use this in another local agent session.</h2><p>Copy the locator pack first, keep optional memory proposal files explicit, then run the read-only proof command before relying on it.</p></div><dl class="facts compact-facts"><div><dt>Target</dt><dd>${esc(model.targetHarness)}</dd></div><div><dt>Status</dt><dd>${readiness.ready?'ready':'review required'}</dd></div><div><dt>Writes</dt><dd>browser copy/download only</dd></div></dl></div><ol class="use-path-grid"><li><span>1</span><strong>Give the agent context</strong><p>Paste the markdown or launch prompt into the next local harness session.</p><div class="action-row"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button></div></li><li><span>2</span><strong>Add memory only by choice</strong>${memoryControls}</li><li><span>3</span><strong>Prove the handoff locally</strong><p>Run this read-only preflight. It writes no context-pack files, harness config, memory, or external state.</p>${preflight?contextPackCommandList([preflight]):'<p class="muted">No preflight command available.</p>'}</li><li><span>4</span><strong>Connect MCP manually</strong><p>Preview the config snippet when the target harness should read OAF resources.</p>${setupAction}</li></ol></section>`;
+  return `<section class="surface handoff-use-path" aria-label="Practical handoff path"><div class="handoff-use-path-head"><div><p class="eyebrow">Practical handoff</p><h2>Use this in another local agent session.</h2><p>Copy the locator pack first, keep optional memory proposal files explicit, then pin the reviewed artifacts when another local agent should receive them later.</p></div><dl class="facts compact-facts"><div><dt>Target</dt><dd>${esc(model.targetHarness)}</dd></div><div><dt>Status</dt><dd>${readiness.ready?'ready':'review required'}</dd></div><div><dt>Writes</dt><dd>explicit local pin only</dd></div></dl></div><ol class="use-path-grid"><li><span>1</span><strong>Give the agent context</strong><p>Paste the markdown or launch prompt into the next local harness session.</p><div class="action-row"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button></div></li><li><span>2</span><strong>Add memory only by choice</strong>${memoryControls}</li><li><span>3</span><strong>Pin durable artifacts</strong><p>Write the reviewed pack to fixed local context-pack files and verify the registry immediately.</p><div class="action-row"><button class="button secondary" data-action="pin-context-pack" type="button">Pin locally</button></div></li><li><span>4</span><strong>Connect MCP manually</strong><p>Preview the config snippet when the target harness should read OAF resources.</p>${setupAction}${preflight?contextPackCommandList([preflight]):''}</li></ol></section>`;
 }
 
 function contextPackOperatorBrief(model,readiness={ready:false}) {
@@ -1585,7 +1601,7 @@ function contextPackOperatorBrief(model,readiness={ready:false}) {
   const symbols=brief.affectedSymbols.length
     ? brief.affectedSymbols.slice(0,3).map((item)=>esc(item.name)).join(', ')
     : 'no affected symbols reported';
-  return `<section class="handoff-brief" aria-label="Handoff operator brief"><div class="handoff-brief-head"><div><p class="eyebrow">Use this pack</p><h2>${esc(title)}</h2></div><span>${esc(stateLabel)} · ${esc(model.targetHarness)} · ${esc(model.fingerprintShort)}</span></div><div class="handoff-brief-grid"><article><h3>Changed</h3><dl class="facts compact-facts"><div><dt>Coverage</dt><dd>${esc(brief.changedCoverageLabel)} (${esc(brief.changedCoveragePercent)})</dd></div><div><dt>Symbols</dt><dd>${Number(brief.affectedSymbolCount)} affected</dd></div><div><dt>Top impact</dt><dd>${symbols}</dd></div><div><dt>Hash proof</dt><dd>${Number(brief.changedHashVerifiedCount)} changed files</dd></div></dl></article><article><h3>Read first</h3>${reads}<p class="muted">Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief. This page does not write files; the copied Pin locally command writes explicit local context-packs artifacts, and Receive pinned pack only reads the pinned local artifacts.</p></article><article><h3>Pin and receive</h3>${commandList}</article></div></section>`;
+  return `<section class="handoff-brief" aria-label="Handoff operator brief"><div class="handoff-brief-head"><div><p class="eyebrow">Use this pack</p><h2>${esc(title)}</h2></div><span>${esc(stateLabel)} · ${esc(model.targetHarness)} · ${esc(model.fingerprintShort)}</span></div><div class="handoff-brief-grid"><article><h3>Changed</h3><dl class="facts compact-facts"><div><dt>Coverage</dt><dd>${esc(brief.changedCoverageLabel)} (${esc(brief.changedCoveragePercent)})</dd></div><div><dt>Symbols</dt><dd>${Number(brief.affectedSymbolCount)} affected</dd></div><div><dt>Top impact</dt><dd>${symbols}</dd></div><div><dt>Hash proof</dt><dd>${Number(brief.changedHashVerifiedCount)} changed files</dd></div></dl></article><article><h3>Read first</h3>${reads}<p class="muted">Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief. Pin locally is the only browser-triggered write here, and it writes fixed context-packs artifacts before Receive pinned pack reads them.</p></article><article><h3>Pin and receive</h3>${commandList}</article></div></section>`;
 }
 
 function contextPackProofLedger(proof) {
@@ -2006,10 +2022,7 @@ async function submitAuthForm(event){
   }
 }
 
-async function submitContextPack(event){
-  event.preventDefault();
-  const form=event.currentTarget;
-  const button=form.querySelector('button[type=submit]');
+function contextPackPayloadFromForm(form) {
   const data=new FormData(form);
   const targetHarness=String(data.get('targetHarness') ?? 'generic');
   const objective=String(data.get('objective') ?? '').trim();
@@ -2018,16 +2031,29 @@ async function submitContextPack(event){
   const sourceFamilies=contextPackSelectedSourceFamilies(form);
   const userSelectedFiles=parseSelectedFiles(data.get('userSelectedFiles'));
   const changedLocators=parseSelectedFiles(data.get('changedLocators'));
-  contextPackMemoryConfig=buildMemoryWorkspaceConfig(data.get('memorySourceFiles'));
+  const memoryConfig=buildMemoryWorkspaceConfig(data.get('memorySourceFiles'));
+  return {
+    memoryConfig,
+    payload:{workspaceId:workspaceId(),targetHarness,from:sourceFamilies.join(','),objective,step,tokenBudget,userSelectedFiles,changedLocators}
+  };
+}
+
+async function submitContextPack(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector('button[type=submit]');
+  const {payload,memoryConfig}=contextPackPayloadFromForm(form);
+  contextPackMemoryConfig=memoryConfig;
   button.disabled=true;
   button.textContent='Building...';
   document.querySelector('#live-status').textContent='Building local context pack.';
   try{
     const started=globalThis.performance?.now?.() ?? Date.now();
-    const result=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,from:sourceFamilies.join(','),objective,step,tokenBudget,userSelectedFiles,changedLocators})});
+    const result=await api('/api/context/pack',{method:'POST',body:JSON.stringify(payload)});
     const finished=globalThis.performance?.now?.() ?? Date.now();
     contextPackResult={...result,observedDurationMs:Math.max(0,Math.round(finished-started)),memoryConfig:contextPackMemoryConfig};
     contextPackError=null;
+    contextPackPinError=null;
     contextPackMemoryPreflightError=null;
     document.querySelector('#live-status').textContent='Context pack built.';
     render();
@@ -2152,6 +2178,39 @@ async function refreshPinnedHandoff(event) {
     document.querySelector('#live-status').textContent=error.message;
     render();
   } finally {
+    if(button.isConnected){
+      button.disabled=false;
+      button.textContent=previous;
+    }
+  }
+}
+
+async function pinCurrentContextPack(event) {
+  const button=event.currentTarget;
+  const form=document.querySelector('#context-pack-form');
+  if(!form || !contextPackResult?.pack){
+    document.querySelector('#live-status').textContent='Build a context pack before pinning.';
+    return;
+  }
+  const previous=button.textContent;
+  const {payload,memoryConfig}=contextPackPayloadFromForm(form);
+  button.disabled=true;
+  button.textContent='Pinning...';
+  document.querySelector('#live-status').textContent='Pinning reviewed local handoff.';
+  try{
+    const result=await api('/api/context/pack/pin',{method:'POST',body:JSON.stringify(payload)});
+    contextPackResult={...result,observedDurationMs:contextPackResult?.observedDurationMs,memoryConfig,memoryProposalPreflight:contextPackResult?.memoryProposalPreflight};
+    contextPackMemoryConfig=memoryConfig;
+    contextPackPinError=null;
+    pinnedHandoffStatus=result.registryStatus;
+    pinnedHandoffError=null;
+    document.querySelector('#live-status').textContent=`Pinned local handoff: ${result.pin?.current?.status ?? 'verified'}.`;
+    render();
+  }catch(error){
+    contextPackPinError=error;
+    document.querySelector('#live-status').textContent=error.message;
+    render();
+  }finally{
     if(button.isConnected){
       button.disabled=false;
       button.textContent=previous;

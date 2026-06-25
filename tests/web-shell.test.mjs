@@ -127,16 +127,22 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Copy the locator pack first/);
   assert.match(app,/Give the agent context/);
   assert.match(app,/Add memory only by choice/);
-  assert.match(app,/Prove the handoff locally/);
+  assert.match(app,/Pin durable artifacts/);
   assert.match(app,/Connect MCP manually/);
-  assert.match(app,/browser copy\/download only/);
-  assert.match(app,/writes no context-pack files, harness config, memory, or external state/);
+  assert.match(app,/explicit local pin only/);
+  assert.match(app,/only the Pin locally action writes fixed context-packs artifacts/);
+  assert.match(app,/data-action="pin-context-pack"/);
+  assert.match(app,/async function pinCurrentContextPack/);
+  assert.match(app,/api\('\/api\/context\/pack\/pin'/);
+  assert.match(app,/Pinned locally/);
+  assert.match(app,/Written artifacts/);
+  assert.match(app,/Repository/);
   assert.match(app,/Use this pack/);
   assert.match(app,/artifactHeading=readiness\.ready\?'Handoff ready':'Handoff needs review'/);
   assert.match(app,/Changed files, reads, and proof commands are ready/);
   assert.match(app,/Review changed files, reads, and proof commands before handoff/);
   assert.match(app,/Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief/);
-  assert.match(app,/This page does not write files; the copied Pin locally command writes explicit local context-packs artifacts, and Receive pinned pack only reads the pinned local artifacts/);
+  assert.match(app,/Pin locally is the only browser-triggered write here, and it writes fixed context-packs artifacts before Receive pinned pack reads them/);
   assert.match(app,/Pin and receive/);
   assert.match(app,/setupPreviewed/);
   assert.match(app,/Setup preview already passed for this browser session/);
@@ -152,12 +158,18 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Readback proof/);
   assert.match(app,/MCP summary read/);
   assert.match(app,/mcp resources --read-only --uri oaf:\/\/workspace\/ws_local\/handoff\/latest/);
+  const contextPackPayloadSource=app.slice(app.indexOf('function contextPackPayloadFromForm'),app.indexOf('async function submitContextPack'));
+  assert.match(contextPackPayloadSource,/memoryConfig=buildMemoryWorkspaceConfig\(data\.get\('memorySourceFiles'\)\)/);
+  assert.match(contextPackPayloadSource,/payload:\{workspaceId:workspaceId\(\),targetHarness,from:sourceFamilies\.join\(','\),objective,step,tokenBudget,userSelectedFiles,changedLocators\}/);
   const submitContextPackSource=app.slice(app.indexOf('async function submitContextPack'),app.indexOf('async function runContextPackMemoryPreflight'));
-  assert.match(submitContextPackSource,/contextPackMemoryConfig=buildMemoryWorkspaceConfig\(data\.get\('memorySourceFiles'\)\)/);
+  assert.match(submitContextPackSource,/const \{payload,memoryConfig\}=contextPackPayloadFromForm\(form\)/);
   assert.match(submitContextPackSource,/api\('\/api\/context\/pack'/);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memoryConfig/s);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memorySourceFiles/s);
   assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*(?:checklist|preflight|externalAdaptersEnabled|setupPreview)/s);
+  const pinContextPackSource=app.slice(app.indexOf('async function pinCurrentContextPack'),app.indexOf('async function submitSourceGraph'));
+  assert.match(pinContextPackSource,/const \{payload,memoryConfig\}=contextPackPayloadFromForm\(form\)/);
+  assert.match(pinContextPackSource,/api\('\/api\/context\/pack\/pin'/);
   assert.deepEqual(normalizeMemorySourceFiles('notes/memory.md\nnotes/memory.md\n../secret.md\n/private/path.txt\nnode_modules/pkg.md\nhttps://bad.example/memory'),['notes/memory.md']);
   const model=buildContextPackUiModel({
     createdAt:'2026-06-24T00:00:00.000Z',
