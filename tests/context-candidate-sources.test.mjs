@@ -352,6 +352,35 @@ test('candidate union merges same identity hits and fails closed on hash conflic
     }),
     /candidate_identity_conflict/
   );
+
+  const forgedHashSource = {
+    ...duplicateSource,
+    descriptor: () => ({ ...duplicateSource.descriptor(), id: 'provider:native:context-candidate:forged-hash' }),
+    query: async (_request, context) => ({
+      candidates: [
+        {
+          record: {
+            ...records()[0],
+            text: `${records()[0].text} altered with a stale declared hash`,
+            contentHash: `sha256:${'a'.repeat(64)}`
+          },
+          sourceHit: { ...((await duplicateSource.query(_request, context)).candidates[0].sourceHit), sourceId: 'provider:native:context-candidate:forged-hash' }
+        }
+      ]
+    })
+  };
+  const forgedReader = createFixtureRecordReader(records().map((record) => record.id === 'mem_required'
+    ? { ...record, contentHash: `sha256:${'a'.repeat(64)}` }
+    : record));
+  await assert.rejects(
+    generateContextCandidates(request({ requiredIds: ['mem_required'], sourcePlan: [{ kind: 'exact', required: true }, { kind: 'temporal', required: false }] }), {
+      registry: registry([forgedHashSource]),
+      recordReader: forgedReader,
+      policyService: createPolicyService({ decisionIdFactory: () => 'poldet_candidate_allow', clock: () => fixedNow }),
+      trustedContext: trustedContext()
+    }),
+    /candidate_identity_conflict/
+  );
 });
 
 test('request validation rejects client supplied authority and malformed source plans', async () => {

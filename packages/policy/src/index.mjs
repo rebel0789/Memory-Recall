@@ -463,6 +463,7 @@ function evaluateCapability({ capability, manifest, principal, environment, regi
     sideEffectClass: capability.sideEffectClass,
     filesystem,
     network: capability.network ?? [],
+    secretReferences: capability.secretReferences ?? [],
     dataClasses: capability.dataClasses ?? [],
     sandbox: capability.sandbox ?? 'none',
     limits: capability.limits ?? {}
@@ -638,6 +639,7 @@ function sanitizeCapability(capability) {
       consequence: item.consequence,
       locality: item.locality
     })),
+    secretReferences: (capability.secretReferences ?? []).map((item) => safeString(item, 128)),
     dataClasses: capability.dataClasses,
     sandbox: capability.sandbox,
     limits: Object.fromEntries(Object.entries(capability.limits).filter(([key]) => LIMIT_KEYS.has(key)))

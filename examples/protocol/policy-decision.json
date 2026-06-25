@@ -2,19 +2,36 @@
   "schemaVersion": "1.0.0",
   "decisionId": "poldet_example",
   "outcome": "allow",
-  "action": "run.execute",
-  "principalType": "user",
-  "actorId": "usr_owner",
+  "action": "tool.invoke",
+  "principalType": "agent",
+  "actorId": "usr_agent",
   "workspaceId": "ws_local",
   "resource": {
-    "type": "run",
-    "id": "run_local",
+    "type": "tool",
+    "id": "tool:fixture-read",
     "dataClass": "workspace-private"
   },
-  "role": "owner",
+  "role": "builder",
   "reasonCodes": [],
-  "matchedRules": ["action:run.execute", "role:owner"],
-  "effectiveCapability": null,
+  "matchedRules": ["action:tool.invoke", "role:builder", "tool:tool:fixture-read:read"],
+  "effectiveCapability": {
+    "toolId": "tool:fixture-read",
+    "operation": "read",
+    "sideEffectClass": "read-only",
+    "filesystem": {
+      "read": ["workspace:project/src"],
+      "write": []
+    },
+    "network": [],
+    "secretReferences": [],
+    "dataClasses": ["workspace-private"],
+    "sandbox": "read-only",
+    "limits": {
+      "runtimeMs": 500,
+      "outputBytes": 1024,
+      "costUnits": 0
+    }
+  },
   "policyVersion": "1.0.0",
   "policyFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "evaluatedAt": "2026-06-19T10:00:00.000Z",

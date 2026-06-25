@@ -14,6 +14,9 @@ These schemas document trusted service-to-service contracts. They do not expose
 a public policy-evaluation route. Control API handlers build policy inputs after
 authentication and current membership resolution; clients cannot supply roles,
 environment authority, registry rules, or executable policy text.
+Effective capabilities carry the narrowed filesystem, loopback network,
+secret-reference, data-class, sandbox, and budget scopes that runtime brokers
+must enforce.
 
 ## Context candidate-source schemas
 

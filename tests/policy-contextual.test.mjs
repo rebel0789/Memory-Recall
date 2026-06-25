@@ -210,6 +210,8 @@ test('permitted read-only tool operation returns bounded effective capability', 
   assert.equal(decision.outcome, 'allow');
   assert.deepEqual(decision.effectiveCapability.filesystem.read, ['workspace:project/src']);
   assert.deepEqual(decision.effectiveCapability.filesystem.write, []);
+  assert.deepEqual(decision.effectiveCapability.network, toolRequest().capabilityRequest.network);
+  assert.deepEqual(decision.effectiveCapability.secretReferences, []);
   assert.deepEqual(decision.effectiveCapability.limits, { runtimeMs: 500, outputBytes: 1024, costUnits: 0 });
 });
 

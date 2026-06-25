@@ -178,8 +178,12 @@ function queryFingerprintFor(request, planEntry) {
 }
 
 function recordFingerprint(record) {
-  const explicit = record.contentHash ?? record.fingerprint ?? record.metadata?.contentHash ?? record.metadata?.fingerprint;
-  if (typeof explicit === 'string' && /^sha256:[a-f0-9]{64}$/.test(explicit)) return explicit;
+  const metadata = record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+    ? { ...record.metadata }
+    : {};
+  delete metadata.contentHash;
+  delete metadata.fingerprint;
+  delete metadata.retrieval;
   return hashRef(stableStringify({
     id: record.id,
     version: record.version ?? null,
@@ -187,7 +191,8 @@ function recordFingerprint(record) {
     text: record.text,
     tags: record.tags ?? [],
     relations: record.relations ?? [],
-    updatedAt: record.updatedAt ?? null
+    updatedAt: record.updatedAt ?? null,
+    metadata
   }));
 }
 

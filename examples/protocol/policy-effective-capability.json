@@ -16,6 +16,7 @@
       "locality": "loopback"
     }
   ],
+  "secretReferences": [],
   "dataClasses": ["workspace-private"],
   "sandbox": "read-only",
   "limits": {

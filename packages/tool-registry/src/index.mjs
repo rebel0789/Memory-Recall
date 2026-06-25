@@ -439,6 +439,21 @@ function operationCapability({ tool, operationName, requestedCapability = null, 
   };
 }
 
+function effectiveOperationForRuntime(operation, effectiveCapability = null) {
+  return {
+    ...operation,
+    filesystem: effectiveCapability?.filesystem ?? operation.filesystem,
+    network: effectiveCapability?.network ?? operation.network,
+    secretReferences: effectiveCapability?.secretReferences ?? operation.secretReferences,
+    dataClasses: effectiveCapability?.dataClasses ?? operation.dataClasses,
+    sandbox: effectiveCapability?.sandbox ?? operation.sandbox,
+    limits: {
+      ...operation.limits,
+      ...(effectiveCapability?.limits ?? {})
+    }
+  };
+}
+
 function assertTrustedContext(request) {
   if (!request.trustedContext) throw toolError('tool_trusted_context_required', 'trusted invocation context is required');
   const { principal, membership, environment } = request.trustedContext;
@@ -1078,11 +1093,11 @@ export class ToolRegistry {
       const timeoutMs = Math.max(1, Math.min(operation.limits.runtimeMs ?? DEFAULT_LIMITS.runtimeMs, request.timeoutMs ?? operation.limits.runtimeMs ?? DEFAULT_LIMITS.runtimeMs));
       const outputLimit = Math.max(1, Math.min(operation.limits.outputBytes ?? DEFAULT_LIMITS.outputBytes, request.outputLimitBytes ?? operation.limits.outputBytes ?? DEFAULT_LIMITS.outputBytes));
       const run = async (signal) => {
-        const filesystem = policy.effectiveCapability?.filesystem ?? operation.filesystem;
+        const effectiveOperation = effectiveOperationForRuntime(operation, policy.effectiveCapability);
         const brokers = {
-          filesystem: new WorkspaceFilesystemBroker({ root: this.#workspaceRoot, readScopes: filesystem.read ?? [], writeScopes: filesystem.write ?? [], signal, isActive: () => active }),
-          egress: new LoopbackEgressBroker({ operation, signal, isActive: () => active }),
-          secrets: new SecretReferenceBroker({ operation, resolver: request.secretResolver ?? this.#secretResolver, signal, isActive: () => active })
+          filesystem: new WorkspaceFilesystemBroker({ root: this.#workspaceRoot, readScopes: effectiveOperation.filesystem.read ?? [], writeScopes: effectiveOperation.filesystem.write ?? [], signal, isActive: () => active }),
+          egress: new LoopbackEgressBroker({ operation: effectiveOperation, signal, isActive: () => active }),
+          secrets: new SecretReferenceBroker({ operation: effectiveOperation, resolver: request.secretResolver ?? this.#secretResolver, signal, isActive: () => active })
         };
         try {
           const output = await handler({

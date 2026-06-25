@@ -31,7 +31,38 @@
       "items": { "enum": ["missing_identity", "missing_workspace", "unknown_action", "unsupported_role", "membership_required", "workspace_mismatch", "resource_denied", "tool_not_registered", "operation_not_declared", "capability_exceeds_manifest", "filesystem_read_denied", "filesystem_write_denied", "network_denied", "secret_scope_denied", "data_class_denied", "sandbox_denied", "budget_exceeded", "approval_required", "approval_invalid", "approval_expired", "approval_scope_mismatch", "idempotency_required", "external_writes_disabled", "policy_configuration_invalid"] }
     },
     "matchedRules": { "type": "array", "maxItems": 8, "items": { "type": "string", "maxLength": 160 } },
-    "effectiveCapability": { "type": ["object", "null"], "additionalProperties": false },
+    "effectiveCapability": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["toolId", "operation", "sideEffectClass", "filesystem", "network", "secretReferences", "dataClasses", "sandbox", "limits"],
+      "properties": {
+        "toolId": { "type": "string", "maxLength": 128 },
+        "operation": { "type": "string", "maxLength": 80 },
+        "sideEffectClass": { "enum": ["read-only", "reversible-write", "consequential-write"] },
+        "filesystem": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["read", "write"],
+          "properties": {
+            "read": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 256 } },
+            "write": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 256 } }
+          }
+        },
+        "network": { "type": "array", "maxItems": 16, "items": { "type": "object", "additionalProperties": true } },
+        "secretReferences": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "pattern": "^secret:[A-Za-z0-9_.:-]{1,120}$", "maxLength": 128 } },
+        "dataClasses": { "type": "array", "maxItems": 4, "items": { "enum": ["public", "workspace-private", "confidential", "secret"] } },
+        "sandbox": { "type": "string", "maxLength": 80 },
+        "limits": { "type": "object", "additionalProperties": false, "properties": {
+          "runtimeMs": { "type": "integer", "minimum": 0 },
+          "memoryBytes": { "type": "integer", "minimum": 0 },
+          "outputBytes": { "type": "integer", "minimum": 0 },
+          "inputBytes": { "type": "integer", "minimum": 0 },
+          "invocationCount": { "type": "integer", "minimum": 0 },
+          "costUnits": { "type": "number", "minimum": 0 },
+          "retryCount": { "type": "integer", "minimum": 0 }
+        } }
+      }
+    },
     "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
     "policyFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "evaluatedAt": { "type": "string", "format": "date-time" },

@@ -4,7 +4,7 @@
   "title": "Policy Effective Capability",
   "type": "object",
   "additionalProperties": false,
-  "required": ["toolId", "operation", "sideEffectClass", "filesystem", "network", "dataClasses", "sandbox", "limits"],
+  "required": ["toolId", "operation", "sideEffectClass", "filesystem", "network", "secretReferences", "dataClasses", "sandbox", "limits"],
   "properties": {
     "toolId": { "type": "string", "maxLength": 128 },
     "operation": { "type": "string", "maxLength": 80 },
@@ -19,6 +19,7 @@
       }
     },
     "network": { "type": "array", "maxItems": 16, "items": { "type": "object", "additionalProperties": true } },
+    "secretReferences": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "pattern": "^secret:[A-Za-z0-9_.:-]{1,120}$", "maxLength": 128 } },
     "dataClasses": { "type": "array", "maxItems": 4, "items": { "enum": ["public", "workspace-private", "confidential", "secret"] } },
     "sandbox": { "type": "string", "maxLength": 80 },
     "limits": { "type": "object", "additionalProperties": false, "properties": {

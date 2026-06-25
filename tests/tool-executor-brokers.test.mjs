@@ -125,6 +125,39 @@ test('egress broker denies external hosts and allows only exact bounded loopback
   assert.equal(userinfo.error.code, 'tool_network_denied');
 });
 
+test('egress broker enforces narrowed effective capability from policy grant', async (t) => {
+  const server = createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    res.end('loopback ok');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => server.close());
+  const { port } = server.address();
+  const registry = ToolRegistry.createForTests({ tools: ['tool:loopback-read'], loopbackPort: port, clock: () => fixedNow });
+  const baseCapability = {
+    toolId: 'tool:loopback-read',
+    operation: 'fetchText',
+    sideEffectClass: 'read-only',
+    filesystem: { read: [], write: [] },
+    network: [],
+    secretReferences: [],
+    dataClasses: ['workspace-private'],
+    sandbox: 'brokered-loopback-http',
+    limits: { runtimeMs: 1000, inputBytes: 1024, outputBytes: 4096, costUnits: 0 }
+  };
+
+  const denied = await registry.execute(invocation({
+    requestId: 'toolreq_broker_narrow_egress',
+    toolId: 'tool:loopback-read',
+    operation: 'fetchText',
+    input: { url: `http://127.0.0.1:${port}/status`, method: 'GET' },
+    requestedCapability: baseCapability
+  }));
+
+  assert.equal(denied.status, 'failed');
+  assert.equal(denied.error.code, 'tool_network_denied');
+});
+
 test('secret broker resolves declared references only after grant consumption and blocks leakage', async () => {
   const events = [];
   const registry = ToolRegistry.createForTests({
@@ -146,4 +179,34 @@ test('secret broker resolves declared references only after grant consumption an
   assert.equal(undeclared.error.code, 'tool_secret_denied');
   const raw = await registry.execute(invocation({ toolId: 'tool:secret-fixture', operation: 'hashSecret', input: { secretValues: ['test-secret-value'] } }));
   assert.equal(raw.error.code, 'tool_request_invalid');
+});
+
+test('secret broker enforces narrowed effective capability from policy grant', async () => {
+  const registry = ToolRegistry.createForTests({
+    tools: ['tool:secret-fixture'],
+    secretResolver: {
+      resolve: async (reference) => reference === 'secret:fixture.read' ? 'test-secret-value' : null
+    },
+    clock: () => fixedNow
+  });
+  const denied = await registry.execute(invocation({
+    requestId: 'toolreq_broker_narrow_secret',
+    toolId: 'tool:secret-fixture',
+    operation: 'hashSecret',
+    input: { secretReferences: ['secret:fixture.read'] },
+    requestedCapability: {
+      toolId: 'tool:secret-fixture',
+      operation: 'hashSecret',
+      sideEffectClass: 'read-only',
+      filesystem: { read: [], write: [] },
+      network: [],
+      secretReferences: [],
+      dataClasses: ['workspace-private'],
+      sandbox: 'brokered-secret-reference',
+      limits: { runtimeMs: 1000, inputBytes: 1024, outputBytes: 2048, costUnits: 0 }
+    }
+  }));
+
+  assert.equal(denied.status, 'failed');
+  assert.equal(denied.error.code, 'tool_secret_denied');
 });
