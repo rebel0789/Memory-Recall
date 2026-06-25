@@ -26,6 +26,7 @@ let shellState={kind:'loading',message:'Loading local workspace state.'};
 let activeRunDetail=null;
 let contextPackResult=null;
 let contextPackError=null;
+let contextPackMemoryConfig=null;
 let pinnedHandoffStatus=null;
 let pinnedHandoffError=null;
 let contextSourcePreviewResult=null;
@@ -762,6 +763,8 @@ function render() {
   root.querySelectorAll('[data-action=copy-command]').forEach(button=>button.addEventListener('click',copyCommand));
   root.querySelectorAll('[data-action=download-pack]').forEach(button=>button.addEventListener('click',downloadContextPack));
   root.querySelectorAll('[data-action=download-use-plan]').forEach(button=>button.addEventListener('click',downloadContextPackUsePlan));
+  root.querySelectorAll('[data-action=copy-memory-config]').forEach(button=>button.addEventListener('click',copyContextPackMemoryConfig));
+  root.querySelectorAll('[data-action=download-memory-config]').forEach(button=>button.addEventListener('click',downloadContextPackMemoryConfig));
   root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
   root.querySelectorAll('[data-action=copy-launch-prompt]').forEach(button=>button.addEventListener('click',copyContextPackLaunchPrompt));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
@@ -986,7 +989,7 @@ function renderContextPack() {
   const markdown=contextPackResult?.markdown ?? '';
   const errorPanel=contextPackError?renderApiErrorPanel('Context pack failed',contextPackError):'';
   const sourcePreviewPanel=contextSourcePreviewError?renderApiErrorPanel('Source preview failed',contextSourcePreviewError):contextSourcePreviewResult?renderContextSourcePreview(contextSourcePreviewResult):'';
-  return `${renderPinnedHandoffPanel(pinnedHandoffStatus,pinnedHandoffError)}<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Choose sources</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;CONTEXT.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs">apps/web/app.js</textarea></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, and reviewed changed-file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy commands, download artifacts, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
+  return `${renderPinnedHandoffPanel(pinnedHandoffStatus,pinnedHandoffError)}<section class="surface context-pack-guide" aria-label="Guided context pack builder"><div class="section-heading"><h2>Repo to agent handoff</h2><span>No server-side writes</span></div><ol class="guide-steps"><li><strong>1</strong><span>Choose sources</span></li><li><strong>2</strong><span>Name changed files</span></li><li><strong>3</strong><span>Inspect omissions and impact</span></li><li><strong>4</strong><span>Use it in your harness</span></li></ol></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Build context pack</h2><span>Current local repository</span></div><form id="context-pack-form" class="stacked-form"><div class="field-grid"><label class="field"><span>Target</span><select name="targetHarness"><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="generic">Generic agent</option></select></label><label class="field"><span>Token budget</span><input name="tokenBudget" type="number" min="1" max="100000" value="4096" required></label></div>${contextPackSourceFamilyControls()}<label class="field"><span>Objective</span><textarea name="objective" required maxlength="2000">Prepare the next coding agent to continue Open Agent Fabric safely</textarea></label><label class="field"><span>Step</span><input name="step" value="select useful local handoff context" required maxlength="256"></label><label class="field"><span>Explicit relative files</span><textarea name="userSelectedFiles" maxlength="4000" placeholder="notes/handoff.md&#10;CONTEXT.md"></textarea></label><label class="field"><span>Changed relative files</span><textarea name="changedLocators" maxlength="4000" placeholder="apps/web/app.js&#10;services/control-api/src/server.mjs">apps/web/app.js</textarea></label><label class="field"><span>Memory proposal source files</span><textarea name="memorySourceFiles" maxlength="4000" placeholder="notes/memory.md&#10;docs/decisions.md"></textarea></label><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="preview-context-sources" type="button">Preview sources</button><span class="muted" data-source-preview-status>Dry-run selected source families before building.</span></div><div class="action-row context-pack-detect-row"><button class="button secondary" data-action="detect-git-changes" type="button">Detect git changes</button><span class="muted" data-git-change-status>Read-only local git status. Review before building.</span></div><div class="action-row"><button class="button primary" type="submit">Build context pack</button><span class="muted">Dry run. Locators, hashes, and impact metadata only.</span></div></form></div><aside class="inspector"><h2>Pack boundary</h2><dl class="facts"><div><dt>Input</dt><dd>Selected harness project files, explicit relative files, reviewed changed-file locators, and optional memory proposal file locators</dd></div><div><dt>Output</dt><dd>Markdown locator handoff with omission and impact hints</dd></div><div><dt>Browser</dt><dd>copy commands, download artifacts, or preview setup only</dd></div><div><dt>Server writes</dt><dd>none from this page</dd></div></dl>${localBoundary()}</aside></section>${sourcePreviewPanel}${errorPanel}${pack?renderContextPackResult(pack,markdown):statePanel('empty','No context pack yet','Build a context pack to get a concrete next-agent handoff for this repository.')}`;
 }
 
 function renderPinnedHandoffPanel(report,error=null) {
@@ -1000,7 +1003,8 @@ function renderContextPackResult(pack,markdown) {
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
   const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult});
   const handoff=buildCurrentHandoffStatusModel({contextPackResult,setupResult});
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${contextPackOperatorBrief(model,readiness)}${renderHandoffStatusPanel(handoff,'context-pack')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button><button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  const memoryActions=model.memoryConfig.configured?`<button class="button secondary" data-action="copy-memory-config" type="button">Copy memory config</button><button class="button secondary" data-action="download-memory-config" type="button">Download memory config</button>`:'';
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${contextPackOperatorBrief(model,readiness)}${renderHandoffStatusPanel(handoff,'context-pack')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button>${memoryActions}<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}${model.memoryConfig.configured?`<hr><div class="section-heading"><h2>Memory preflight</h2><span>${model.memoryConfig.pathCount} files</span></div>${contextPackMemoryConfigPanel(model.memoryConfig)}`:''}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 function renderHandoffStatusPanel(status,scope='default') {
@@ -1029,6 +1033,7 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
   const readbackResourceBytesLabel=Number.isFinite(readbackResourceBytes) ? `${Math.max(0,Math.round(readbackResourceBytes))} bytes` : 'not measured';
   const readbackFingerprintLabel=readback?.checks?.contextPackFingerprintMatches===true?'match':'check';
   const usePlan=meta?.usePlan ?? null;
+  const memoryConfig=normalizeMemoryWorkspaceConfig(meta?.memoryConfig ?? contextPackMemoryConfig);
   const hasCandidateTokenBaseline=candidateTokens > 0;
   const selectedTokenRatioLabel=hasCandidateTokenBaseline ? `${Math.round(selectedTokens / candidateTokens * 100)}%` : 'not measured';
   const deliveredTokenRatioLabel=hasCandidateTokenBaseline ? `${Math.round(deliveredTokens / candidateTokens * 100)}%` : 'not measured';
@@ -1048,6 +1053,13 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     usePlanBytes:new Blob([JSON.stringify(usePlan ?? {},null,2)]).size,
     usePlanReadCount:Array.isArray(usePlan?.requiredLocalReads) ? usePlan.requiredLocalReads.length : Number(pack?.utility?.requiredLocalReads?.length ?? 0),
     usePlanDownloadName:contextPackUsePlanDownloadName(pack),
+    memoryConfig:{
+      configured:memoryConfig.memoryPaths.length > 0,
+      pathCount:memoryConfig.memoryPaths.length,
+      downloadName:memoryConfigDownloadName(),
+      json:memoryConfigJson(memoryConfig),
+      commandFlag:memoryConfig.memoryPaths.length ? ' --memory-config oaf.memory.json' : ''
+    },
     selectedLocators:Array.isArray(pack?.readFirst) ? pack.readFirst.length : 0,
     omittedRefs:Number(pack?.omissions?.excludedCount ?? 0),
     selectedTokens,
@@ -1087,7 +1099,7 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
       externalWritesLabel:pack?.safeguards?.externalWritesEnabled===false?'disabled':pack?.safeguards?.externalWritesEnabled===true?'enabled':'check',
       activeMemoryLabel:safeguardCountLabel(pack?.safeguards?.activeMemoryCreated)
     },
-    commands:contextPackHarnessCommands(pack,usePlan)
+    commands:contextPackHarnessCommands(pack,usePlan,{memoryConfig})
   };
 }
 
@@ -1254,7 +1266,7 @@ export function buildCurrentHandoffStatusModel({contextPackResult:result=null,se
       }
     };
   }
-  const meta={observedDurationMs:result?.observedDurationMs,readback:result?.readback,usePlan:result?.usePlan};
+  const meta={observedDurationMs:result?.observedDurationMs,readback:result?.readback,usePlan:result?.usePlan,memoryConfig:result?.memoryConfig};
   const ui=buildContextPackUiModel(pack,markdown,meta);
   const readiness=buildFirstUseReadinessModel({pack,markdown,readback:result?.readback,setupResult});
   const setupPreviewed=Boolean(setupResult);
@@ -1280,7 +1292,7 @@ export function buildCurrentHandoffStatusModel({contextPackResult:result=null,se
     deliveryReductionPercent:ui.deliveryReductionPercent,
     readbackStatus:ui.proof.readbackFingerprintLabel,
     setupStatus:setupPreviewed ? setupSafe ? 'safe preview' : 'review required' : 'not previewed',
-    preflightCommand:contextPackPreflightCommand(pack),
+    preflightCommand:contextPackPreflightCommand(pack,{memoryConfig:result?.memoryConfig}),
     safeguards:{
       serverWrites:false,
       configWrites:false,
@@ -1303,13 +1315,13 @@ function zeroCount(value) {
   return Number.isFinite(number) && number === 0;
 }
 
-function contextPackHarnessCommands(pack,usePlan=null) {
+function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
   const packCommands=Array.isArray(pack?.handoff?.commands) ? pack.handoff.commands.filter((command)=>typeof command==='string'&&command.trim()) : [];
   if(packCommands.length){
     const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
     insertContextPackReceiveCommand(commands,pack);
     const generated=[
-      {label:'Test local handoff',command:contextPackPreflightCommand(pack)},
+      {label:'Test local handoff',command:contextPackPreflightCommand(pack,{memoryConfig})},
       {label:'Copy impact command',command:contextPackImpactCommand(pack)},
       ...contextPackGeneratedUsePlanCommands(pack,usePlan)
     ].filter((item)=>item.command);
@@ -1331,7 +1343,7 @@ function contextPackHarnessCommands(pack,usePlan=null) {
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
   const setupClient=contextPackSetupClient(pack);
   return [
-    { label:'Test local handoff', command:contextPackPreflightCommand(pack) },
+    { label:'Test local handoff', command:contextPackPreflightCommand(pack,{memoryConfig}) },
     { label:'Copy impact command', command:contextPackImpactCommand(pack) },
     { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
@@ -1372,7 +1384,7 @@ function contextPackImpactCommand(pack) {
   return `npm --silent run oaf -- measure context-pack --read-only --root . --from ${from} --objective ${objective} --step ${step} --target ${target}${selected}${changed} --format json`;
 }
 
-function contextPackPreflightCommand(pack) {
+function contextPackPreflightCommand(pack,{memoryConfig=null}={}) {
   if(!pack)return '';
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
@@ -1383,7 +1395,8 @@ function contextPackPreflightCommand(pack) {
     .map((item)=>` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u,''))}`)
     .join('');
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
-  return `npm --silent run oaf -- context handoff --read-only --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --format json`;
+  const memoryFlag=normalizeMemoryWorkspaceConfig(memoryConfig).memoryPaths.length ? ' --memory-config oaf.memory.json' : '';
+  return `npm --silent run oaf -- context handoff --read-only --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed}${memoryFlag} --format json`;
 }
 
 function contextPackReceiveCommand(pack) {
@@ -1461,6 +1474,10 @@ function contextPackSelectedSourceFamilies(form) {
 
 function contextPackIntakeReview(review) {
   return `<dl class="facts compact-facts intake-review"><div><dt>Accepted</dt><dd>${Number(review.acceptedCount??0)}</dd></div><div><dt>Excluded</dt><dd>${Number(review.excludedCount??0)}</dd></div><div><dt>Omitted</dt><dd>${Number(review.omittedCount??0)}</dd></div><div><dt>Would propose</dt><dd>${Number(review.proposedCount??0)}</dd></div><div><dt>Quarantine</dt><dd>${Number(review.quarantinedCount??0)}</dd></div><div><dt>Active memory</dt><dd>${Number(review.activeMemoryCreated??0)}</dd></div></dl>`;
+}
+
+function contextPackMemoryConfigPanel(config) {
+  return `<dl class="facts compact-facts"><div><dt>Config</dt><dd>${esc(config.downloadName)}</dd></div><div><dt>Reviewed files</dt><dd>${Number(config.pathCount)}</dd></div><div><dt>CLI flag</dt><dd><code>${esc(config.commandFlag.trim())}</code></dd></div><div><dt>Server writes</dt><dd>none</dd></div><div><dt>Raw bodies</dt><dd>excluded from browser state and handoff summary</dd></div></dl><p class="muted">Copy or download the config, place it at the repository root as ${esc(config.downloadName)}, then run Test local handoff. The CLI reads those files locally and reports proposal or quarantine counts without creating active memory.</p>`;
 }
 
 function contextPackUtilityPanel(utility) {
@@ -1613,6 +1630,49 @@ function ledgerItem(value,label,copy){return `<div><strong>${esc(value)}</strong
 
 export function parseSelectedFiles(value) {
   return [...new Set(String(value??'').split(/[,\n]/u).map((item)=>item.trim()).filter(Boolean))];
+}
+
+function isSafeWorkspaceRelativePath(value) {
+  const relativePath=String(value??'').trim();
+  return Boolean(relativePath)
+    && !relativePath.startsWith('/')
+    && !relativePath.includes('..')
+    && !relativePath.includes('\\')
+    && !/^[a-z]+:/iu.test(relativePath)
+    && !/(^|\/)(?:\.git|\.local|node_modules)(?:\/|$)/u.test(relativePath)
+    && /^[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(relativePath);
+}
+
+export function normalizeMemorySourceFiles(value) {
+  const items=Array.isArray(value) ? value : parseSelectedFiles(value);
+  return [...new Set(items.map((item)=>String(item??'').trim()).filter(isSafeWorkspaceRelativePath))].slice(0,32);
+}
+
+export function buildMemoryWorkspaceConfig(value) {
+  const memoryPaths=normalizeMemorySourceFiles(value).map((relativePath)=>({path:relativePath,kind:'episode'}));
+  return { schemaVersion:'1.0.0', memoryPaths };
+}
+
+const MEMORY_CONFIG_KINDS=new Set(['fact','preference','decision','episode','procedure','constraint']);
+
+function safeMemoryKind(value) {
+  const kind=String(value??'episode');
+  return MEMORY_CONFIG_KINDS.has(kind) ? kind : 'episode';
+}
+
+function normalizeMemoryWorkspaceConfig(value) {
+  const memoryPaths=Array.isArray(value?.memoryPaths)
+    ? value.memoryPaths.map((entry)=>typeof entry==='string'?{path:entry}:entry).filter((entry)=>isSafeWorkspaceRelativePath(entry?.path)).slice(0,32)
+    : [];
+  return { schemaVersion:'1.0.0', memoryPaths:memoryPaths.map((entry)=>({path:String(entry.path),kind:safeMemoryKind(entry.kind)})) };
+}
+
+function memoryConfigJson(config) {
+  return `${JSON.stringify(normalizeMemoryWorkspaceConfig(config),null,2)}\n`;
+}
+
+function memoryConfigDownloadName() {
+  return 'oaf.memory.json';
 }
 
 function renderSourceGraph() {
@@ -1880,6 +1940,7 @@ async function submitContextPack(event){
   const sourceFamilies=contextPackSelectedSourceFamilies(form);
   const userSelectedFiles=parseSelectedFiles(data.get('userSelectedFiles'));
   const changedLocators=parseSelectedFiles(data.get('changedLocators'));
+  contextPackMemoryConfig=buildMemoryWorkspaceConfig(data.get('memorySourceFiles'));
   button.disabled=true;
   button.textContent='Building...';
   document.querySelector('#live-status').textContent='Building local context pack.';
@@ -1887,7 +1948,7 @@ async function submitContextPack(event){
     const started=globalThis.performance?.now?.() ?? Date.now();
     const result=await api('/api/context/pack',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),targetHarness,from:sourceFamilies.join(','),objective,step,tokenBudget,userSelectedFiles,changedLocators})});
     const finished=globalThis.performance?.now?.() ?? Date.now();
-    contextPackResult={...result,observedDurationMs:Math.max(0,Math.round(finished-started))};
+    contextPackResult={...result,observedDurationMs:Math.max(0,Math.round(finished-started)),memoryConfig:contextPackMemoryConfig};
     contextPackError=null;
     document.querySelector('#live-status').textContent='Context pack built.';
     render();
@@ -2122,6 +2183,26 @@ async function copyContextPackLaunchPrompt(event){
   }
 }
 
+function currentContextPackMemoryConfig() {
+  return normalizeMemoryWorkspaceConfig(contextPackResult?.memoryConfig ?? contextPackMemoryConfig);
+}
+
+async function copyContextPackMemoryConfig(event){
+  const config=currentContextPackMemoryConfig();
+  if(!config.memoryPaths.length)return;
+  const button=event.currentTarget;
+  const previous=button.textContent;
+  try{
+    await writeClipboardText(memoryConfigJson(config));
+    document.querySelector('#live-status').textContent='Memory config copied.';
+    button.textContent='Copied';
+  }catch(error){
+    document.querySelector('#live-status').textContent='Copy failed. Download the memory config instead.';
+  }finally{
+    setTimeout(()=>{ button.textContent=previous; },1200);
+  }
+}
+
 export async function writeClipboardText(text) {
   if(globalThis.navigator?.clipboard?.writeText){
     await navigator.clipboard.writeText(text);
@@ -2189,6 +2270,22 @@ function downloadContextPackUsePlan(event){
   URL.revokeObjectURL(url);
   document.querySelector('#live-status').textContent='Context pack use-plan download started.';
   event.currentTarget.textContent='Download use plan';
+}
+
+function downloadContextPackMemoryConfig(event){
+  const config=currentContextPackMemoryConfig();
+  if(!config.memoryPaths.length)return;
+  const blob=new Blob([memoryConfigJson(config)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=memoryConfigDownloadName();
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  document.querySelector('#live-status').textContent='Memory config download started.';
+  event.currentTarget.textContent='Download memory config';
 }
 
 async function showRun(event){

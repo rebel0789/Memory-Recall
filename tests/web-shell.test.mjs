@@ -5,6 +5,7 @@ import {
   ROUTES,
   SHELL_STATES,
   buildApiErrorUiModel,
+  buildMemoryWorkspaceConfig,
   buildContextSourcePreviewUiModel,
   buildContextPackUiModel,
   buildCurrentHandoffStatusModel,
@@ -22,6 +23,7 @@ import {
   contextRecordLink,
   legacyViewPath,
   navItems,
+  normalizeMemorySourceFiles,
   parseSelectedFiles,
   harnessSetupClientsForUi,
   resolveRoute,
@@ -77,6 +79,15 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/name="changedLocators"/);
   assert.match(app,/>apps\/web\/app\.js<\/textarea>/);
   assert.match(app,/name="sourceFamilies"/);
+  assert.match(app,/name="memorySourceFiles"/);
+  assert.match(app,/Memory proposal source files/);
+  assert.match(app,/data-action="copy-memory-config"/);
+  assert.match(app,/data-action="download-memory-config"/);
+  assert.match(app,/function contextPackMemoryConfigPanel/);
+  assert.match(app,/async function copyContextPackMemoryConfig/);
+  assert.match(app,/function downloadContextPackMemoryConfig/);
+  assert.match(app,/oaf\.memory\.json/);
+  assert.match(app,/Memory preflight/);
   assert.match(app,/\['codex','Codex'\]/);
   assert.match(app,/\['claude-code','Claude Code'\]/);
   assert.match(app,/\['cursor','Cursor'\]/);
@@ -119,6 +130,12 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Readback proof/);
   assert.match(app,/MCP summary read/);
   assert.match(app,/mcp resources --read-only --uri oaf:\/\/workspace\/ws_local\/handoff\/latest/);
+  const submitContextPackSource=app.slice(app.indexOf('async function submitContextPack'),app.indexOf('async function previewContextSources'));
+  assert.match(submitContextPackSource,/contextPackMemoryConfig=buildMemoryWorkspaceConfig\(data\.get\('memorySourceFiles'\)\)/);
+  assert.match(submitContextPackSource,/api\('\/api\/context\/pack'/);
+  assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memoryConfig/s);
+  assert.doesNotMatch(submitContextPackSource,/body:JSON\.stringify\(\{[^}]*memorySourceFiles/s);
+  assert.deepEqual(normalizeMemorySourceFiles('notes/memory.md\nnotes/memory.md\n../secret.md\n/private/path.txt\nnode_modules/pkg.md\nhttps://bad.example/memory'),['notes/memory.md']);
   const model=buildContextPackUiModel({
     createdAt:'2026-06-24T00:00:00.000Z',
     targetHarness:'codex',
@@ -166,6 +183,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     contextPackFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
   },'# Context Pack',{
     observedDurationMs:34.4,
+    memoryConfig:buildMemoryWorkspaceConfig('notes/memory.md\n/private/path.txt\n../bad.md\nhttps://bad.example/private\nnode_modules/pkg.md'),
     readback:{
       transport:'in-process',
       measurementScope:'single local in-process bridge read',
@@ -247,6 +265,12 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.downloadName,'open-agent-fabric-context-pack-codex-2026-06-24.md');
   assert.equal(model.usePlanDownloadName,'open-agent-fabric-context-pack-use-plan-codex-2026-06-24.json');
   assert.equal(model.usePlanReadCount,2);
+  assert.equal(model.memoryConfig.configured,true);
+  assert.equal(model.memoryConfig.pathCount,1);
+  assert.equal(model.memoryConfig.downloadName,'oaf.memory.json');
+  assert.match(model.memoryConfig.commandFlag,/--memory-config oaf\.memory\.json/);
+  assert.match(model.memoryConfig.json,/"path": "notes\/memory\.md"/);
+  assert.doesNotMatch(model.memoryConfig.json,/private|secret|https?:|node_modules|\.\./);
   const noBaselineModel=buildContextPackUiModel({
     targetHarness:'codex',
     sourceHarnesses:['codex'],
@@ -264,6 +288,9 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(noBaselineModel.deliveredTokenRatio,'not measured');
   assert.equal(noBaselineModel.deliveryReductionPercent,'not measured');
   assert.equal(noBaselineModel.proof.tokenSaved,'not measured');
+  assert.equal(noBaselineModel.memoryConfig.configured,false);
+  assert.equal(noBaselineModel.memoryConfig.pathCount,0);
+  assert.doesNotMatch(noBaselineModel.commands.find((item)=>item.label==='Test local handoff')?.command ?? '',/--memory-config/);
   assert.match(model.commands[1].command,/--from 'codex,cursor'/);
   assert.match(model.commands[1].command,/--target codex --changed 'apps\/web\/app\.js' --dry-run --format markdown/);
   assert.doesNotMatch(model.commands[1].command,/--from all/);
@@ -284,7 +311,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   const preflightCommand=model.commands.find((item)=>item.label==='Test local handoff')?.command ?? '';
   assert.match(preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
   assert.match(preflightCommand,/--from 'codex,cursor'/);
-  assert.match(preflightCommand,/--target codex --changed 'apps\/web\/app\.js' --format json/);
+  assert.match(preflightCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format json/);
   assert.doesNotMatch(preflightCommand,/--write|--pin|--out|install/);
   const impactCommand=model.commands.find((item)=>item.label==='Copy impact command')?.command ?? '';
   assert.match(impactCommand,/^npm --silent run oaf -- measure context-pack --read-only /);
@@ -456,7 +483,8 @@ test('first-use readiness proves local handoff gates before recommending use',()
       pack:{...safePack,objective:'Prepare safe Codex handoff',step:'select useful context'},
       markdown:'# Context Pack\n',
       readback:safeReadback,
-      usePlan:{requiredLocalReads:[{locator:'workspace://AGENTS.md'}]}
+      usePlan:{requiredLocalReads:[{locator:'workspace://AGENTS.md'}]},
+      memoryConfig:buildMemoryWorkspaceConfig('notes/memory.md')
     }
   });
   assert.equal(handoffStatus.state,'generated-in-browser');
@@ -468,6 +496,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(handoffStatus.safeguards.externalWritesEnabled,false);
   assert.equal(handoffStatus.safeguards.externalAdaptersEnabled,0);
   assert.match(handoffStatus.preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(handoffStatus.preflightCommand,/--memory-config oaf\.memory\.json --format json/);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--write|--pin|--out|install/);
   const emptyHandoffStatus=buildCurrentHandoffStatusModel();
   assert.equal(emptyHandoffStatus.state,'none');

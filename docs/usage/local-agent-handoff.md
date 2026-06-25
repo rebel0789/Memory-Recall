@@ -53,12 +53,15 @@ agent session.
    Code or Cursor project files.
 4. Click **Preview sources**.
 5. Click **Detect git changes**, or enter changed relative paths manually.
-6. Click **Build context pack**.
-7. Review **Use this pack**, **First-use readiness**, selected locators,
+6. Optionally enter reviewed workspace-relative files under **Memory proposal
+   source files**. The browser can copy or download `oaf.memory.json`; it does
+   not send those paths to the context-pack API or read memory bodies.
+7. Click **Build context pack**.
+8. Review **Use this pack**, **First-use readiness**, selected locators,
    omissions, changed-file coverage, and proof commands.
-8. Use **Copy markdown** for a manual paste, or copy and run the impact and
+9. Use **Copy markdown** for a manual paste, or copy and run the impact and
    handoff terminal commands for reproducible read-only preflight proof.
-9. Use **Preview setup** when you want a generated Codex, Cursor, or Claude
+10. Use **Preview setup** when you want a generated Codex, Cursor, or Claude
    Code MCP config snippet. The snippet is a manual-copy template only; OAF
    does not write harness config files.
 

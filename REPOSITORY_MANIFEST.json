@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-25T08:43:59.738Z",
+  "generatedAt": "2026-06-25T08:55:59.247Z",
   "fileCount": 812,
-  "totalBytes": 4094299,
+  "totalBytes": 4102440,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -582,8 +582,8 @@
     },
     {
       "path": "apps/web/app.js",
-      "bytes": 161823,
-      "sha256": "a5e6f35e1502eb32245e91b29e9dee6208768a01000fbc6d75a7a14b0b0ec535"
+      "bytes": 167459,
+      "sha256": "e262e6ff15a2eed236522503c8a82574d3768d0d04de1a74670c66075d5ac52d"
     },
     {
       "path": "apps/web/favicon.svg",
@@ -1292,8 +1292,8 @@
     },
     {
       "path": "docs/usage/local-agent-handoff.md",
-      "bytes": 8546,
-      "sha256": "92ada298457d7eea940588e2efa1736a2647cf56088fcec3fcf07db6e347bb97"
+      "bytes": 8775,
+      "sha256": "e929fabb69391de814a54480d1329869ca2edb934828d2bbc044a0a0a6dd747b"
     },
     {
       "path": "docs/ux/accessibility.md",
@@ -2218,7 +2218,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "27aeb471f0b42e20772a1979d452a2897fcaba95ba9c47566f3a6ee0ecb8981e"
+      "sha256": "a3af875ad6b85ad81fa24e30816ea3b1a2dff9813e573cf84b7c4afce7f6735c"
     },
     {
       "path": "LICENSE",
@@ -3967,8 +3967,8 @@
     },
     {
       "path": "tests/web-shell.test.mjs",
-      "bytes": 46913,
-      "sha256": "fc26e029b8e230753751c82110968e4ae78a61c1b955ff93f0674ad5732db02e"
+      "bytes": 49189,
+      "sha256": "39cf963800faa432acfa7a47c138483bd2a64ece8960f427e6922b119b73b819"
     },
     {
       "path": "tests/workflow-durable-crash.test.mjs",
