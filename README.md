@@ -105,9 +105,12 @@ npm run oaf -- context receive --read-only --root . --target codex --format json
 
 `context receive` reads `context-packs/current.json`, the pinned use-plan, and
 the registry only. It returns `ready`, `review`, or `blocked` with hashes,
-required local reads, MCP zero-tool proof, and harness status; it does not
-rebuild the pack, accept objective/step text, write files, or expose raw source
-or Markdown bodies.
+required local reads, a compact `receiverPacket`, MCP zero-tool proof, and
+harness status; it does not rebuild the pack, accept objective/step text, write
+files, or expose raw source or Markdown bodies. Direct
+`--context-pack-use context-packs/*.use.json` MCP reads are also rejected before
+resource exposure if the use-plan contains unsafe local paths, provider URLs,
+session/token markers, or secret-like strings.
 
 For a single CLI preflight before handing work to Codex:
 

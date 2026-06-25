@@ -131,8 +131,10 @@ external adapters.
 for consuming an explicitly pinned local context pack. It verifies the registry,
 current pointer, current use-plan, read-only MCP resource surface, and dry-run
 harness status without rebuilding the pack or requiring objective/step text.
-It reports only statuses, counts, safe locators, and fingerprints; it does not
-include raw markdown, source bodies, launch prompts, provider URLs, credentials,
+It also carries an optional compact `receiverPacket` for agent first-use. The
+report and packet include only statuses, counts, safe locators, and
+fingerprints; they do not include raw markdown, source bodies, launch prompts,
+provider URLs, credentials,
 absolute filesystem paths, model calls, network calls, writes, or adapters.
 
 ## Benchmark truth-floor schemas

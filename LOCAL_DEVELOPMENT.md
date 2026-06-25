@@ -144,10 +144,13 @@ npm run oaf -- context receive \
 
 `context receive` consumes only the pinned `context-packs/current.json`,
 registry, and schema-validated use-plan. It returns `ready`, `review`, or
-`blocked` with required read locators, content hashes, MCP read-only resource
-proof, zero-tool proof, and harness status. It rejects rebuild inputs such as
-`--objective`, `--step`, `--from`, `--changed`, and `--include-file`, and it
-does not accept write, pin, home, config, or stdio overrides.
+`blocked` with a compact `receiverPacket`, required read locators, content
+hashes, MCP read-only resource proof, zero-tool proof, and harness status. It
+rejects rebuild inputs such as `--objective`, `--step`, `--from`, `--changed`,
+and `--include-file`, and it does not accept write, pin, home, config, or stdio
+overrides. Direct `--context-pack-use context-packs/*.use.json` MCP reads are
+rejected before resource exposure when the use-plan contains unsafe local paths,
+provider URLs, session/token markers, or secret-like strings.
 
 Impact brief:
 

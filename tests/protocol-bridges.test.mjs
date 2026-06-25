@@ -571,6 +571,25 @@ test('OAF read-only MCP resource catalog can expose an opt-in current context-pa
   assert.equal(JSON.stringify(state), before);
 });
 
+test('OAF read-only MCP resource catalog rejects unsafe direct context-pack use plans', () => {
+  assert.throws(
+    () => buildOafReadOnlyResourceCatalog({
+      state: oafState(),
+      workspaceId: 'ws_mcp',
+      currentContextPackUsePlan: {
+        schemaVersion: '1.0.0',
+        requiredLocalReads: [
+          {
+            locator: 'workspace:///Users/rebel/private.txt',
+            readHint: 'Read workspace:///Users/rebel/private.txt token=secret-value before acting.'
+          }
+        ]
+      }
+    }),
+    /unsafe private locator data/
+  );
+});
+
 test('OAF read-only MCP context-pack resource stays bounded for larger sanitized packs', async () => {
   const fixture = contextPackFixture();
   const hash = `sha256:${'b'.repeat(64)}`;

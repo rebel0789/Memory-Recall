@@ -366,6 +366,9 @@ test('pinned handoff status model gates receive commands by registry verificatio
   const ready=buildPinnedHandoffStatusModel(verifiedReport);
   assert.equal(ready.state,'ready');
   assert.equal(ready.statusLabel,'verified');
+  assert.equal(ready.targetLabel,'Codex');
+  assert.equal(ready.primaryCommand.label,'Receive pinned pack');
+  assert.equal(ready.primaryCommand.command,'npm run oaf -- context receive --read-only --root . --target codex --format json');
   assert.equal(ready.commands.some((item)=>item.label==='Receive pinned pack'),true);
   assert.equal(ready.commands.some((item)=>item.label==='Read pinned use plan'),true);
   assert.equal(ready.facts.some(([key,value])=>key==='Use plan'&&value==='available'),true);
@@ -381,6 +384,7 @@ test('pinned handoff status model gates receive commands by registry verificatio
   const stale=buildPinnedHandoffStatusModel(staleReport);
   assert.equal(stale.state,'review');
   assert.equal(stale.statusLabel,'stale');
+  assert.equal(stale.primaryCommand,null);
   assert.equal(stale.commands.some((item)=>item.label==='Receive pinned pack'),true);
   assert.equal(stale.commands.some((item)=>item.label==='Read pinned use plan'),false);
   assert.equal(stale.facts.some(([key,value])=>key==='Use plan'&&value==='withheld'),true);
@@ -388,6 +392,7 @@ test('pinned handoff status model gates receive commands by registry verificatio
   const missing=buildPinnedHandoffStatusModel({registry:{exists:false},currentPointer:{exists:false},current:{entryId:null,status:'missing'},entries:[]});
   assert.equal(missing.state,'none');
   assert.equal(missing.statusLabel,'not pinned');
+  assert.equal(missing.primaryCommand,null);
   assert.equal(missing.commands.some((item)=>item.label==='Read pinned use plan'),false);
 });
 

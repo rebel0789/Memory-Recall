@@ -16,6 +16,7 @@ export class ProtocolBridgeError extends Error {
 const JSONRPC = '2.0';
 const AUTHORITY_KEYS = /(^|\.)(trustedContext|principal|membership|role|owner|isOwner|grant|grantToken|token|authorization|cookie|externalWritesEnabled)($|\.)/i;
 const PRIVATE_KEYS = /(^|\.)(raw|prompt|body|output|secret|token|cookie|authorization|localPath|providerUrl|hiddenReasoning|sql)/i;
+const UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE = /(?:\/Users(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|https?:\/\/|file:|(?:^|[/:])\.\.(?:\/|$)|oaf_session|oaf_ses_|sk-proj|OPENAI_API_KEY|authorization|cookie|token\s*[=:]|secret\s*[=:]|api[_-]?key\s*[=:])/iu;
 const MAX_RESULT_BYTES = 64 * 1024;
 const MAX_CONTEXT_PACK_ITEMS = 2;
 const MAX_CONTEXT_PACK_BULK_ITEMS = 1;
@@ -40,6 +41,18 @@ function scanKeys(value, pattern, prefix = '') {
   return null;
 }
 
+function scanStrings(value, pattern, prefix = '') {
+  if (typeof value === 'string') return pattern.test(value) ? prefix || 'value' : null;
+  if (!isPlainObject(value) && !Array.isArray(value)) return null;
+  const entries = Array.isArray(value) ? value.entries() : Object.entries(value);
+  for (const [key, child] of entries) {
+    const childPath = prefix ? `${prefix}.${key}` : String(key);
+    const found = scanStrings(child, pattern, childPath);
+    if (found) return found;
+  }
+  return null;
+}
+
 function assertNoCallerAuthority(params) {
   const blocked = scanKeys(params, AUTHORITY_KEYS);
   if (blocked) {
@@ -52,6 +65,14 @@ function assertSafeResult(value) {
   if (blocked) throw new ProtocolBridgeError('mcp_private_payload', `bridge result included private field ${blocked}`);
   if (Buffer.byteLength(JSON.stringify(value), 'utf8') > MAX_RESULT_BYTES) {
     throw new ProtocolBridgeError('mcp_output_too_large', 'bridge result exceeded output limit');
+  }
+  return value;
+}
+
+export function assertSafeContextPackUsePlanForResource(value) {
+  const blocked = scanStrings(value, UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE);
+  if (blocked) {
+    throw new ProtocolBridgeError('mcp_unsafe_context_pack_use_plan', 'context-pack use plan contains unsafe private locator data');
   }
   return value;
 }
@@ -620,6 +641,9 @@ export function buildOafReadOnlyResourceCatalog({
   const scoped = workspaceScopedState(state, safeWorkspaceId);
   const base = `oaf://workspace/${safeWorkspaceId}`;
   const contextPackSummary = summarizeContextPack(currentContextPack);
+  const safeContextPackUsePlan = isPlainObject(currentContextPackUsePlan)
+    ? assertSafeContextPackUsePlanForResource(currentContextPackUsePlan)
+    : null;
   const buildData = () => {
     const latestRun = scoped.runs.at(-1) ?? null;
     const manifest = latestContextManifest(scoped);
@@ -741,13 +765,13 @@ export function buildOafReadOnlyResourceCatalog({
       data: contextPackSummary
     })));
   }
-  if (isPlainObject(currentContextPackUsePlan)) {
+  if (isPlainObject(safeContextPackUsePlan)) {
     resources.push(jsonResource(`${base}/context-pack/use-plan/current`, 'Current context pack use plan', 'Sanitized complete local read plan for an explicitly exported context pack.', () => createResourcePayload({
       resourceKind: 'context-pack-use-plan',
       workspaceId: safeWorkspaceId,
       generatedAt,
       provenanceSource: 'local-context-pack-use-plan',
-      data: currentContextPackUsePlan
+      data: safeContextPackUsePlan
     })));
   }
   if (isPlainObject(currentContextPackRegistryStatus)) {

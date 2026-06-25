@@ -611,6 +611,10 @@ export function harnessSetupClientsForUi() {
   ];
 }
 
+function harnessClientLabel(client) {
+  return harnessSetupClientsForUi().find(([id])=>id===client)?.[1] ?? titleize(client);
+}
+
 function workspaceId() {
   return new URL(globalThis.location?.href ?? 'http://127.0.0.1/').searchParams.get('workspaceId') ?? 'ws_local';
 }
@@ -745,6 +749,8 @@ export function buildPinnedHandoffStatusModel(report=null,error=null) {
       contextPackFingerprint:'unavailable',
       usePlanFingerprint:'unavailable',
       sourceChecks:null,
+      targetLabel:'Codex',
+      primaryCommand:null,
       commands:pinnedHandoffCommands('codex',false),
       facts:[['Registry','error'],['Current pointer','error'],['Use plan','not loaded']]
     };
@@ -786,6 +792,8 @@ export function buildPinnedHandoffStatusModel(report=null,error=null) {
     contextPackFingerprint:currentEntry?.contextPack?.fingerprint ? shortFingerprint(currentEntry.contextPack.fingerprint) : 'unavailable',
     usePlanFingerprint:currentEntry?.usePlan?.fingerprint ? shortFingerprint(currentEntry.usePlan.fingerprint) : 'unavailable',
     sourceChecks,
+    targetLabel:harnessClientLabel(targetHarness),
+    primaryCommand:verified ? {label:'Receive pinned pack',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`} : null,
     commands:pinnedHandoffCommands(targetHarness,verified),
     facts:[
       ['Registry', registryExists ? report.registry.fingerprintStatus : 'missing'],
@@ -928,7 +936,8 @@ function renderContextPack() {
 
 function renderPinnedHandoffPanel(report,error=null) {
   const model=buildPinnedHandoffStatusModel(report,error);
-  return `<section class="work-grid pinned-handoff" aria-label="Pinned handoff status"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.title)}</h2>${statusChip(model.state,model.statusLabel,'Pinned handoff status')}</div><p>${esc(model.copy)}</p><dl class="facts facts-wide"><div><dt>Entry</dt><dd>${esc(model.currentEntryId ?? 'none')}</dd></div><div><dt>Context pack</dt><dd>${esc(model.contextPackFingerprint)}</dd></div><div><dt>Use plan</dt><dd>${esc(model.usePlanFingerprint)}</dd></div>${model.facts.map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl><div class="action-row"><button class="button secondary" data-action="refresh-pinned-handoff" type="button">Check pinned handoff</button></div></div><aside class="inspector"><div class="section-heading"><h2>Receive boundary</h2><span>read-only</span></div><p class="muted">This panel reads the local registry status only. It does not create memory, write harness config, call models, use network access, or enable adapters.</p>${contextPackCommandList(model.commands)}</aside></section>`;
+  const primary=model.primaryCommand ? `<hr><div class="section-heading"><h2>Consume in ${esc(model.targetLabel)}</h2><span>read-only</span></div>${contextPackCommandList([model.primaryCommand])}` : '';
+  return `<section class="work-grid pinned-handoff" aria-label="Pinned handoff status"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(model.title)}</h2>${statusChip(model.state,model.statusLabel,'Pinned handoff status')}</div><p>${esc(model.copy)}</p><dl class="facts facts-wide"><div><dt>Entry</dt><dd>${esc(model.currentEntryId ?? 'none')}</dd></div><div><dt>Context pack</dt><dd>${esc(model.contextPackFingerprint)}</dd></div><div><dt>Use plan</dt><dd>${esc(model.usePlanFingerprint)}</dd></div>${model.facts.map(([key,value])=>`<div><dt>${esc(key)}</dt><dd>${esc(value)}</dd></div>`).join('')}</dl>${primary}<div class="action-row"><button class="button secondary" data-action="refresh-pinned-handoff" type="button">Check pinned handoff</button></div></div><aside class="inspector"><div class="section-heading"><h2>Receive boundary</h2><span>read-only</span></div><p class="muted">This panel reads the local registry status only. It does not create memory, write harness config, call models, use network access, or enable adapters.</p>${contextPackCommandList(model.commands)}</aside></section>`;
 }
 
 function renderContextPackResult(pack,markdown) {

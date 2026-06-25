@@ -125,6 +125,104 @@
       "remoteEndpointDetailsIncluded": false
     }
   },
+  "receiverPacket": {
+    "packetVersion": "oaf-context-receiver-packet-1.0.0",
+    "state": "ready",
+    "targetHarness": "codex",
+    "summary": "Pinned codex context pack verified. Read the listed local locators before editing; this packet excludes raw source, markdown, prompts, credentials, provider URLs, local paths, and hidden reasoning.",
+    "reviewNeeded": false,
+    "fingerprints": {
+      "registry": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "currentPointer": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "contextPack": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "usePlan": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    },
+    "proof": {
+      "registryFingerprintVerified": true,
+      "currentPointerVerified": true,
+      "currentEntryVerified": true,
+      "targetMatches": true,
+      "usePlanLoaded": true,
+      "usePlanResourceRead": true,
+      "registryResourceRead": true,
+      "toolsExposed": 0,
+      "externalWritesEnabled": false,
+      "externalAdaptersEnabled": 0,
+      "sourceContentIncluded": false,
+      "markdownBodyIncluded": false,
+      "rawSourceBodiesIncluded": false
+    },
+    "readPlan": {
+      "requiredReadCount": 3,
+      "includedReadCount": 3,
+      "omittedReadCount": 0,
+      "coverage": {
+        "changedLocators": { "total": 1, "covered": 1, "ratio": 1, "status": "covered" },
+        "graphHints": { "total": 4, "covered": 3, "ratio": 0.75, "status": "partial" }
+      },
+      "sourceSelection": {
+        "candidateUnitCount": 2400,
+        "selectedUnitCount": 960,
+        "selectedUnitRatio": 0.4,
+        "estimatedReductionRatio": 0.6
+      },
+      "delivery": {
+        "deliveredUnitCount": 720,
+        "observedReductionRatio": 0.7,
+        "sourceContentIncluded": false
+      },
+      "requiredReads": [
+        {
+          "locator": "workspace://AGENTS.md",
+          "role": "selected_context",
+          "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+          "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex.",
+          "reasonCodes": ["explicit_requirement", "selected_context", "token_efficient"]
+        },
+        {
+          "locator": "user-selected://notes/handoff.md",
+          "role": "explicit_user_selected",
+          "contentHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "readHint": "Read user-selected://notes/handoff.md from the local workspace because it was explicitly included for this handoff.",
+          "reasonCodes": ["content_hash_verified", "explicit_user_file", "read_before_handoff"]
+        },
+        {
+          "locator": "workspace://src/auth.ts",
+          "role": "changed_locator",
+          "contentHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+          "readHint": "Read workspace://src/auth.ts from the local workspace before editing or reviewing this changed file.",
+          "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"]
+        }
+      ]
+    },
+    "nextActions": [
+      {
+        "label": "Check pinned registry",
+        "command": "npm --silent run oaf -- context registry status --read-only --root . --workspace ws_local --format json",
+        "reasonCode": "verify_pinned_registry",
+        "required": true
+      },
+      {
+        "label": "Read pinned use plan",
+        "command": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
+        "reasonCode": "read_required_local_locators",
+        "required": true
+      },
+      {
+        "label": "Preview harness MCP setup",
+        "command": "npm --silent run oaf -- harness setup status --client codex --server oaf --dry-run --format json",
+        "reasonCode": "confirm_read_only_bridge_config",
+        "required": true
+      },
+      {
+        "label": "Start read-only MCP bridge",
+        "command": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --stdio",
+        "reasonCode": "serve_sanitized_resources_only",
+        "required": false
+      }
+    ],
+    "warnings": []
+  },
   "mcp": {
     "mode": "read-only",
     "resourcesListed": 7,
