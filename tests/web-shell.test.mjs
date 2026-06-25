@@ -128,6 +128,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/browser copy\/download only/);
   assert.match(app,/writes no context-pack files, harness config, memory, or external state/);
   assert.match(app,/Use this pack/);
+  assert.match(app,/artifactHeading=readiness\.ready\?'Handoff ready':'Handoff needs review'/);
   assert.match(app,/Changed files, reads, and proof commands are ready/);
   assert.match(app,/Review changed files, reads, and proof commands before handoff/);
   assert.match(app,/Raw source bodies, markdown bodies, local paths, model calls, network calls, and adapters stay out of this brief/);
@@ -495,6 +496,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(ready.ready,true);
   assert.equal(ready.title,'Ready for local handoff');
   assert.equal(ready.gates.find((gate)=>gate.id==='adapters').status,'pass');
+  assert.equal(ready.gates.find((gate)=>gate.id==='utility').detail,'Utility read plan is present; no changed locators require source-graph coverage.');
   assert.equal(ready.gates.find((gate)=>gate.id==='setup-preview').status,'pending');
   assert.equal(ready.nextAction,'Use Copy markdown now, or copy and run Test local handoff for CLI and MCP proof. For durable CLI reuse, copy and run Pin locally, then Receive pinned pack.');
   const handoffStatus=buildCurrentHandoffStatusModel({
@@ -502,8 +504,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
       pack:{...safePack,objective:'Prepare safe Codex handoff',step:'select useful context'},
       markdown:'# Context Pack\n',
       readback:safeReadback,
-      usePlan:{requiredLocalReads:[{locator:'workspace://AGENTS.md'}]},
-      memoryConfig:buildMemoryWorkspaceConfig('notes/memory.md')
+      usePlan:{requiredLocalReads:[{locator:'workspace://AGENTS.md'}]}
     }
   });
   assert.equal(handoffStatus.state,'generated-in-browser');
@@ -515,8 +516,40 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(handoffStatus.safeguards.externalWritesEnabled,false);
   assert.equal(handoffStatus.safeguards.externalAdaptersEnabled,0);
   assert.match(handoffStatus.preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
-  assert.match(handoffStatus.preflightCommand,/--memory-config oaf\.memory\.json --format json/);
+  assert.doesNotMatch(handoffStatus.preflightCommand,/--memory-config/);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--write|--pin|--out|install/);
+  const memoryPendingStatus=buildCurrentHandoffStatusModel({
+    contextPackResult:{
+      pack:{...safePack,objective:'Prepare safe Codex handoff',step:'select useful context'},
+      markdown:'# Context Pack\n',
+      readback:safeReadback,
+      usePlan:{requiredLocalReads:[{locator:'workspace://AGENTS.md'}]},
+      memoryConfig:buildMemoryWorkspaceConfig('notes/memory.md')
+    }
+  });
+  assert.equal(memoryPendingStatus.state,'review-required');
+  assert.equal(memoryPendingStatus.statusLabel,'review');
+  assert.match(memoryPendingStatus.nextAction,/Memory import/);
+  assert.match(memoryPendingStatus.preflightCommand,/--memory-config oaf\.memory\.json --format json/);
+  const memoryPending=buildFirstUseReadinessModel({
+    pack:safePack,
+    markdown:'# Context Pack\n',
+    readback:safeReadback,
+    memoryConfig:buildMemoryWorkspaceConfig('notes/memory.md')
+  });
+  const memoryPendingGate=memoryPending.gates.find((gate)=>gate.id==='memory');
+  assert.equal(memoryPending.ready,false);
+  assert.equal(memoryPendingGate.status,'failed');
+  assert.match(memoryPendingGate.detail,/Copy or download oaf\.memory\.json and run Test local handoff/);
+  const memoryReady=buildFirstUseReadinessModel({
+    pack:safePack,
+    markdown:'# Context Pack\n',
+    readback:safeReadback,
+    memoryConfig:buildMemoryWorkspaceConfig('notes/memory.md'),
+    memoryPreflight:{state:'ready',configured:true,safeguards:{activeMemoryCreated:0},summary:{reviewItemCount:0}}
+  });
+  assert.equal(memoryReady.ready,true);
+  assert.equal(memoryReady.gates.find((gate)=>gate.id==='memory').status,'pass');
   const emptyHandoffStatus=buildCurrentHandoffStatusModel();
   assert.equal(emptyHandoffStatus.state,'none');
   assert.equal(emptyHandoffStatus.nextAction,'Build context pack');
@@ -538,6 +571,29 @@ test('first-use readiness proves local handoff gates before recommending use',()
   });
   assert.equal(setupUnsafe.ready,false);
   assert.equal(setupUnsafe.gates.find((gate)=>gate.id==='setup-preview').blocking,true);
+  const docsReview=buildFirstUseReadinessModel({
+    pack:{
+      ...safePack,
+      utility:{
+        status:'review',
+        changedLocatorCoverage:{total:2,covered:1,ratio:.5,status:'partial'},
+        requiredLocalReads:[
+          {locator:'workspace://AGENTS.md',role:'selected_context',required:true,represented:true,contentHash:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'},
+          {locator:'workspace://apps/web/app.js',role:'changed_locator',required:true,represented:true,contentHash:'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'},
+          {locator:'workspace://README.md',role:'changed_locator',required:true,represented:false,contentHash:'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'}
+        ],
+        graphHintCoverage:{total:0,covered:0,ratio:0,status:'not_applicable'},
+        sourceSelection:{candidateTokenCount:10,selectedTokenCount:10,selectedTokenRatio:1,estimatedReductionRatio:0},
+        delivery:{representation:'locator-handoff',sourceContentsIncluded:false}
+      }
+    },
+    markdown:'# Context Pack\n',
+    readback:safeReadback
+  });
+  const docsGate=docsReview.gates.find((gate)=>gate.id==='utility');
+  assert.equal(docsReview.ready,false);
+  assert.equal(docsGate.status,'failed');
+  assert.equal(docsGate.detail,'1/2 changed locators represented by source-graph evidence; 2/2 have hash proof. Read unrepresented docs, config, or unsupported files manually before handoff.');
   const unsafe=buildFirstUseReadinessModel({
     pack:{
       ...safePack,

@@ -1006,10 +1006,11 @@ function renderPinnedHandoffPanel(report,error=null) {
 function renderContextPackResult(pack,markdown) {
   const model=buildContextPackUiModel(pack,markdown,{observedDurationMs:contextPackResult?.observedDurationMs,readback:contextPackResult?.readback,usePlan:contextPackResult?.usePlan});
   const setupResult=harnessSetupResult?.client===model.setupClient?harnessSetupResult:null;
-  const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult});
+  const readiness=buildFirstUseReadinessModel({pack,markdown,readback:contextPackResult?.readback,setupResult,memoryConfig:contextPackResult?.memoryConfig,memoryPreflight:contextPackResult?.memoryProposalPreflight});
   const handoff=buildCurrentHandoffStatusModel({contextPackResult,setupResult});
   const memoryActions=model.memoryConfig.configured?`<button class="button secondary" data-action="copy-memory-config" type="button">Copy memory config</button><button class="button secondary" data-action="download-memory-config" type="button">Download memory config</button>`:'';
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${contextPackLaunchPath(model,readiness)}${contextPackOperatorBrief(model,readiness)}${renderHandoffStatusPanel(handoff,'context-pack')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Handoff ready</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button>${memoryActions}<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}${model.memoryConfig.configured?`<hr><div class="section-heading"><h2>Memory preflight</h2><span>${model.memoryConfig.pathCount} files</span></div>${contextPackMemoryConfigPanel(model.memoryConfig)}`:''}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  const artifactHeading=readiness.ready?'Handoff ready':'Handoff needs review';
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${contextPackLaunchPath(model,readiness)}${contextPackOperatorBrief(model,readiness)}${renderHandoffStatusPanel(handoff,'context-pack')}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${artifactHeading}</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button>${memoryActions}<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}${model.memoryConfig.configured?`<hr><div class="section-heading"><h2>Memory preflight</h2><span>${model.memoryConfig.pathCount} files</span></div>${contextPackMemoryConfigPanel(model.memoryConfig)}`:''}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
 }
 
 function renderHandoffStatusPanel(status,scope='default') {
@@ -1191,7 +1192,7 @@ function buildContextPackIntakeReview(pack) {
   };
 }
 
-export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null,setupResult=null} = {}) {
+export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null,setupResult=null,memoryConfig=null,memoryPreflight=null} = {}) {
   const selectedLocators=Array.isArray(pack?.readFirst) ? pack.readFirst.length : 0;
   const markdownReady=String(markdown??'').trim().length > 0;
   const hasPack=Boolean(pack?.contextPackFingerprint);
@@ -1202,10 +1203,9 @@ export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null
   const noSideEffects=pack?.safeguards?.externalWritesEnabled === false && zeroCount(pack?.safeguards?.networkCalls) && zeroCount(pack?.safeguards?.modelCalls);
   const noExternalAdapters=zeroCount(pack?.safeguards?.externalAdaptersEnabled);
   const noActiveMemory=zeroCount(pack?.safeguards?.activeMemoryCreated);
+  const memoryState=contextPackMemoryReadinessState({memoryConfig,memoryPreflight,noActiveMemory});
   const utilityReady=pack?.utility?.status === 'ready';
-  const utilityDetail=utilityReady
-    ? `${Number(pack?.utility?.changedLocatorCoverage?.covered ?? 0)}/${Number(pack?.utility?.changedLocatorCoverage?.total ?? 0)} changed locators represented by source-graph evidence.`
-    : 'The pack must include a schema-backed utility read plan before handoff.';
+  const utilityDetail=contextPackUtilityReadinessDetail(pack);
   const setupPreviewed=Boolean(setupResult);
   const setupPreviewSafe=setupPreviewed
     && setupResult?.dryRun === true
@@ -1222,7 +1222,7 @@ export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null
     readinessGate('utility','Read plan',utilityReady,utilityDetail),
     readinessGate('side-effects','Side effects',noSideEffects,'Model calls, network calls, and external writes remain off.'),
     readinessGate('adapters','External adapters',noExternalAdapters,'External adapters remain disabled for this handoff.'),
-    readinessGate('memory','Memory import',noActiveMemory,'Harness context can propose memory, but creates no active memory.'),
+    readinessGate('memory','Memory import',memoryState.passed,memoryState.detail),
     readinessGate('setup-preview','Setup preview',setupPreviewed ? setupPreviewSafe : null,setupPreviewed ? 'Dry-run harness setup preview remains redacted.' : 'Optional: preview the read-only MCP setup plan before editing any harness config.',setupPreviewed)
   ];
   const blocking=gates.find((gate)=>gate.blocking);
@@ -1238,6 +1238,54 @@ export function buildFirstUseReadinessModel({pack=null,markdown='',readback=null
       ? (setupPreviewed ? 'Use Copy markdown, or copy and run Test local handoff, Pin locally, then Receive pinned pack commands for durable CLI reuse.' : 'Use Copy markdown now, or copy and run Test local handoff for CLI and MCP proof. For durable CLI reuse, copy and run Pin locally, then Receive pinned pack.')
       : `Fix: ${blocking.label}.`,
     gates
+  };
+}
+
+function contextPackUtilityReadinessDetail(pack) {
+  const utility=pack?.utility ?? {};
+  const coverage=utility.changedLocatorCoverage ?? {};
+  const total=Number(coverage.total ?? 0);
+  const covered=Number(coverage.covered ?? 0);
+  const requiredReads=Array.isArray(utility.requiredLocalReads) ? utility.requiredLocalReads.filter((item)=>item?.required===true) : [];
+  const changedReads=requiredReads.filter((item)=>item?.role==='changed_locator');
+  const changedReadBase=changedReads.length || total;
+  const hashVerified=changedReads.filter((item)=>typeof item?.contentHash==='string'&&item.contentHash.startsWith('sha256:')).length;
+  const hashMissing=changedReads.filter((item)=>item?.contentHash==null).length;
+  if(utility.status==='ready'){
+    if(total>0)return `${covered}/${total} changed locators represented by source-graph evidence; ${hashVerified}/${changedReadBase} have hash proof.`;
+    return 'Utility read plan is present; no changed locators require source-graph coverage.';
+  }
+  if(total>0&&covered<total){
+    if(hashVerified>0)return `${covered}/${total} changed locators represented by source-graph evidence; ${hashVerified}/${changedReadBase} have hash proof. Read unrepresented docs, config, or unsupported files manually before handoff.`;
+    if(hashMissing>0)return `${covered}/${total} changed locators represented by source-graph evidence; ${hashMissing} changed locators are missing hash proof. Review paths before handoff.`;
+    return `${covered}/${total} changed locators represented by source-graph evidence. Review unrepresented changed files before handoff.`;
+  }
+  if(requiredReads.length===0)return 'The pack needs at least one required local read before handoff.';
+  return 'The pack must include a schema-backed utility read plan before handoff.';
+}
+
+function contextPackMemoryReadinessState({memoryConfig=null,memoryPreflight=null,noActiveMemory=true} = {}) {
+  const normalized=normalizeMemoryWorkspaceConfig(memoryConfig);
+  const configured=normalized.memoryPaths.length > 0 || memoryPreflight?.configured === true;
+  if(!noActiveMemory)return {
+    passed:false,
+    detail:'Active memory was created; browser handoff must remain proposal-only.'
+  };
+  if(!configured)return {
+    passed:true,
+    detail:'No memory source files were configured, and no active memory is created.'
+  };
+  if(memoryPreflight?.state === 'ready' && zeroCount(memoryPreflight?.safeguards?.activeMemoryCreated))return {
+    passed:true,
+    detail:'Read-only memory proposal preflight passed without creating active memory.'
+  };
+  if(memoryPreflight?.state === 'review')return {
+    passed:false,
+    detail:`Memory proposal preflight returned ${Number(memoryPreflight?.summary?.reviewItemCount ?? 0)} review items. Review proposals or quarantine before handoff.`
+  };
+  return {
+    passed:false,
+    detail:`${normalized.memoryPaths.length} memory source file${normalized.memoryPaths.length===1?' is':'s are'} configured. Copy or download ${memoryConfigDownloadName()} and run Test local handoff before treating memory proposals as reviewed.`
   };
 }
 
@@ -1275,7 +1323,7 @@ export function buildCurrentHandoffStatusModel({contextPackResult:result=null,se
   }
   const meta={observedDurationMs:result?.observedDurationMs,readback:result?.readback,usePlan:result?.usePlan,memoryConfig:result?.memoryConfig};
   const ui=buildContextPackUiModel(pack,markdown,meta);
-  const readiness=buildFirstUseReadinessModel({pack,markdown,readback:result?.readback,setupResult});
+  const readiness=buildFirstUseReadinessModel({pack,markdown,readback:result?.readback,setupResult,memoryConfig:result?.memoryConfig,memoryPreflight:result?.memoryProposalPreflight});
   const setupPreviewed=Boolean(setupResult);
   const setupSafe=setupPreviewed
     && setupResult?.dryRun === true
