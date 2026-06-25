@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import { spawnSync } from 'node:child_process';import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';import os from 'node:os';import path from 'node:path';import contextPackHandoffReportSchema from '../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };import contextPackMeasurementReportSchema from '../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };import contextPackReceiveReportSchema from '../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
-test('CLI help is local and documents core commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf task <OAF-ID>/);assert.match(result.stdout,/Run oaf task only when npm run status names a next task/);assert.match(result.stdout,/oaf context scan --from codex --root \. --dry-run/);assert.match(result.stdout,/oaf context preview --from codex --root \. --objective/);assert.match(result.stdout,/oaf context pack .*--changed src\/auth\.ts .*--changed-from-git/);assert.match(result.stdout,/oaf context handoff --read-only --from codex --root \./);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format json/);assert.match(result.stdout,/oaf context registry status --read-only --format json/);assert.match(result.stdout,/oaf context graph preview --root \. --query/);assert.match(result.stdout,/oaf measure context-pack --read-only --root \./);assert.match(result.stdout,/impact brief/);assert.match(result.stdout,/--format summary/);assert.match(result.stdout,/oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals\/benchmark-truth-floor\/cases.v1.json --format json/);assert.match(result.stdout,/oaf memory sgrep "context manifest"/);assert.match(result.stdout,/oaf mcp resources --read-only/);assert.match(result.stdout,/oaf mcp smoke context-pack/);assert.match(result.stdout,/oaf harness setup status --client codex --dry-run --format json/);assert.match(result.stdout,/oaf harness setup plan --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/oaf harness setup uninstall --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/no external writes/i)});
+test('CLI help is local and documents core commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf task <OAF-ID>/);assert.match(result.stdout,/Run oaf task only when npm run status names a next task/);assert.match(result.stdout,/oaf context scan --from codex --root \. --dry-run/);assert.match(result.stdout,/oaf context preview --from codex --root \. --objective/);assert.match(result.stdout,/oaf context pack .*--changed src\/auth\.ts .*--changed-from-git/);assert.match(result.stdout,/oaf context handoff --read-only --from codex --root \./);assert.match(result.stdout,/--memory-config oaf\.memory\.json/);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format json/);assert.match(result.stdout,/oaf context registry status --read-only --format json/);assert.match(result.stdout,/oaf context graph preview --root \. --query/);assert.match(result.stdout,/oaf measure context-pack --read-only --root \./);assert.match(result.stdout,/impact brief/);assert.match(result.stdout,/--format summary/);assert.match(result.stdout,/oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals\/benchmark-truth-floor\/cases.v1.json --format json/);assert.match(result.stdout,/oaf memory sgrep "context manifest"/);assert.match(result.stdout,/oaf mcp resources --read-only/);assert.match(result.stdout,/oaf mcp smoke context-pack/);assert.match(result.stdout,/oaf harness setup status --client codex --dry-run --format json/);assert.match(result.stdout,/oaf harness setup plan --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/oaf harness setup uninstall --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/no external writes/i)});
 test('CLI rejects unknown commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','wat'],{encoding:'utf8'});assert.equal(result.status,2);assert.match(result.stderr,/Unknown command/)});
 test('task command prints stop condition',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','task','OAF-004'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/Stop condition/)});
 test('context scan dry-run reports sanitized harness sources',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-harness-'));writeFileSync(path.join(root,'AGENTS.md'),'Run npm run ci. token=secret-value. See /Users/rebel/private.txt');const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','scan','--from','codex','--root',root,'--dry-run'],{encoding:'utf8'});assert.equal(result.status,0);const report=JSON.parse(result.stdout);assert.equal(report.summary.totalAccepted,1);assert.equal(report.summary.externalAdaptersEnabled,0);assert.equal(report.summary.externalWritesEnabled,false);assert(!result.stdout.includes('secret-value'));assert(!result.stdout.includes('/Users/rebel/private.txt'))});
@@ -42,6 +42,21 @@ test('context handoff read-only report proves Codex-ready MCP bridge without wri
   assert.equal(report.usePlan.requiredLocalReads.some(item=>item.locator==='workspace://src/auth.ts'),true);
   assert.equal(report.usePlan.markdownContentIncluded,false);
   assert.equal(report.usePlan.sourceContentIncluded,false);
+  assert.equal(report.memoryProposalPreflight.state,'not_configured');
+  assert.equal(report.memoryProposalPreflight.configured,false);
+  assert.equal(report.memoryProposalPreflight.configRef,null);
+  assert.match(report.memoryProposalPreflight.command,/memory proposals --from memoryPaths/);
+  assert.equal(report.memoryProposalPreflight.dryRun,true);
+  assert.equal(report.memoryProposalPreflight.summary.proposalCount,0);
+  assert.equal(report.memoryProposalPreflight.summary.reviewItemCount,0);
+  assert.equal(report.memoryProposalPreflight.diagnostics.sourceCount,0);
+  assert.equal(report.memoryProposalPreflight.reportFingerprint,null);
+  assert.equal(report.memoryProposalPreflight.safeguards.localFilesWritten,0);
+  assert.equal(report.memoryProposalPreflight.safeguards.activeMemoryCreated,0);
+  assert.equal(report.memoryProposalPreflight.safeguards.rawSourceBodiesIncluded,false);
+  assert.equal(report.memoryProposalPreflight.safeguards.proposalTextIncluded,false);
+  assert.equal(report.memoryProposalPreflight.safeguards.proposalMarkdownIncluded,false);
+  assert.equal(report.memoryProposalPreflight.safeguards.absoluteFilesystemLocationsIncluded,false);
   assert.equal(report.mcp.setup.dryRun,true);
   assert.equal(report.mcp.setup.client,'codex');
   assert.equal(report.mcp.setup.desiredServer.command,'npm');
@@ -82,6 +97,57 @@ test('context handoff read-only report proves Codex-ready MCP bridge without wri
   const writeMode=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','handoff','--read-only','--root',root,'--home',home,'--objective',objective,'--step',step,'--write','--format','json'],{encoding:'utf8',env});
   assert.equal(writeMode.status,2);
   assert.match(writeMode.stderr,/read-only/);
+});
+test('context handoff can preflight explicit memory paths without leaking or writing proposals',()=>{
+  const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-handoff-memory-'));
+  const home=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-handoff-memory-home-'));
+  mkdirSync(path.join(root,'notes'),{recursive:true});
+  writeFileSync(path.join(root,'AGENTS.md'),'Memory preflight AGENTS body stays hidden.');
+  writeFileSync(path.join(root,'notes','memory.md'),[
+    'HANDOFF MEMORY RAW BODY should stay hidden.',
+    'Remember this local preference from /Users/rebel/private.txt.',
+    'sk-'+'abcdefghijklmnopqrstuvwxyz123456'
+  ].join('\n'));
+  writeFileSync(path.join(root,'oaf.memory.json'),JSON.stringify({
+    schemaVersion:'1.0.0',
+    memoryPaths:[{path:'notes/memory.md',kind:'preference',sourceTrust:'unverified',dataClass:'workspace-private'}]
+  },null,2));
+  const env={...process.env,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z',OAF_COMMIT_SHA:'1234567890abcdef1234567890abcdef12345678'};
+  const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','handoff','--read-only','--from','codex','--root',root,'--home',home,'--objective','Prepare Codex memory handoff','--step','preflight memory proposals','--target','codex','--memory-config','oaf.memory.json','--format','json'],{encoding:'utf8',env});
+  assert.equal(result.status,0,result.stderr);
+  const report=JSON.parse(result.stdout);
+  assertJsonSchema(contextPackHandoffReportSchema,report,'context pack handoff memory preflight report');
+  assert.equal(report.state,'review');
+  assert.equal(report.memoryProposalPreflight.state,'review');
+  assert.equal(report.memoryProposalPreflight.configured,true);
+  assert.equal(report.memoryProposalPreflight.configRef,'workspace://oaf.memory.json');
+  assert.match(report.memoryProposalPreflight.command,/memory proposals --from memoryPaths/);
+  assert.match(report.memoryProposalPreflight.command,/--config 'oaf\.memory\.json'/);
+  assert.equal(report.memoryProposalPreflight.dryRun,true);
+  assert.equal(report.memoryProposalPreflight.summary.proposalCount,0);
+  assert.equal(report.memoryProposalPreflight.summary.quarantinedCount,1);
+  assert.equal(report.memoryProposalPreflight.summary.reviewItemCount,1);
+  assert.equal(report.memoryProposalPreflight.diagnostics.sourceCount,1);
+  assert.match(report.memoryProposalPreflight.reportFingerprint,/^sha256:[a-f0-9]{64}$/);
+  assert.equal(report.memoryProposalPreflight.safeguards.localFilesWritten,0);
+  assert.equal(report.memoryProposalPreflight.safeguards.networkCalls,0);
+  assert.equal(report.memoryProposalPreflight.safeguards.modelCalls,0);
+  assert.equal(report.memoryProposalPreflight.safeguards.activeMemoryCreated,0);
+  assert.equal(report.memoryProposalPreflight.safeguards.rawSourceBodiesIncluded,false);
+  assert.equal(report.memoryProposalPreflight.safeguards.proposalTextIncluded,false);
+  assert.equal(report.memoryProposalPreflight.safeguards.proposalMarkdownIncluded,false);
+  assert.equal(report.memoryProposalPreflight.safeguards.sourceContentIncluded,false);
+  assert.equal(report.memoryProposalPreflight.safeguards.credentialsIncluded,false);
+  assert.equal(report.memoryProposalPreflight.safeguards.absoluteFilesystemLocationsIncluded,false);
+  for(const forbidden of ['HANDOFF MEMORY RAW BODY','abcdefghijklmnopqrstuvwxyz123456','/Users/rebel/private.txt',root,home,'## Proposed Text','[redacted-secret]']){
+    assert.equal(result.stdout.includes(forbidden),false,forbidden);
+  }
+  assert.equal(existsSync(path.join(root,'memory','proposals')),false);
+  const absolute=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','handoff','--read-only','--from','codex','--root',root,'--home',home,'--objective','Prepare Codex memory handoff','--step','preflight memory proposals','--target','codex','--memory-config','/Users/rebel/oaf.memory.json','--format','json'],{encoding:'utf8',env});
+  assert.equal(absolute.status,2);
+  assert.equal(absolute.stdout,'');
+  assert.match(absolute.stderr,/memory config must be workspace-relative/);
+  assert.equal(absolute.stderr.includes('/Users/rebel'),false);
 });
 test('context pack write is explicit and limited to context-packs markdown',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-context-pack-write-'));writeFileSync(path.join(root,'AGENTS.md'),'Write mode still keeps body out of output.');const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','pack','--from','codex','--root',root,'--objective','write handoff','--step','select context','--target','generic','--write','--out','context-packs/CONTEXT_PACK.md','--format','json'],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.localFilesWritten,1);assert.equal(report.target.locator,'workspace://context-packs/CONTEXT_PACK.md');const markdown=readFileSync(path.join(root,'context-packs','CONTEXT_PACK.md'),'utf8');assert.match(markdown,/# Context Pack/);assert.doesNotMatch(markdown,/Write mode still keeps body/)});
 test('context pack use plan writes and serves through read-only MCP',()=>{

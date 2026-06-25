@@ -125,6 +125,12 @@ For a single CLI preflight before handing work to Codex:
 npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 ```
 
+Add `--memory-config oaf.memory.json` only when you want the report to preflight
+explicitly selected local memory source files. The handoff still stays read-only:
+it reports proposal/quarantine counts, warning codes, fingerprints, and a dry-run
+proposal command, but it does not write proposal files, activate memory, or expose
+memory text/source bodies.
+
 For a compact diff-aware impact brief with the same read-only MCP proof:
 
 ```bash

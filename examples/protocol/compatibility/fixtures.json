@@ -890,6 +890,12 @@
       "expectedValid": false
     },
     {
+      "id": "context-pack-handoff-report-memory-preflight-leak-invalid",
+      "schema": "packages/protocol/schemas/context-pack-handoff-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-handoff-report-memory-preflight-leak.json",
+      "expectedValid": false
+    },
+    {
       "id": "context-pack-receive-report-raw-body-invalid",
       "schema": "packages/protocol/schemas/context-pack-receive-report.schema.json",
       "instance": "examples/protocol/compatibility/invalid/context-pack-receive-report-raw-body.json",

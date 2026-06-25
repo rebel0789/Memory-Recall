@@ -28,6 +28,9 @@ npm --silent run oaf -- mcp resources --read-only --stdio
 
 exposes sanitized resources for workspace status, the latest context manifest,
 the latest run, memory proposals, and the latest handoff/artifact summary. The
+handoff summary embeds a memory-proposal queue summary with counts,
+fingerprints, and sanitized record metadata only; it does not expose memory text
+or create active memory.
 stdio mode reads JSON-RPC messages from stdin and writes JSON-RPC responses to
 stdout; it does not bind a socket, start a public listener, expose write tools,
 or grant client-supplied authority. The local stdio wrapper caps stdin, line

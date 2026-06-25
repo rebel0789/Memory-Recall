@@ -588,6 +588,16 @@ test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped reso
   assert.match(handoffPayload.resourceFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.equal(handoffPayload.safeguards.readOnly, true);
   assert.equal(handoffPayload.safeguards.canonicalStateMutated, false);
+  assert.equal(handoffPayload.data.memoryProposalSummary.state, 'review');
+  assert.equal(handoffPayload.data.memoryProposalSummary.proposedCount, 1);
+  assert.equal(handoffPayload.data.memoryProposalSummary.acceptedCount, 0);
+  assert.equal(handoffPayload.data.memoryProposalSummary.quarantinedCount, 0);
+  assert.match(handoffPayload.data.memoryProposalSummary.queueFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(handoffPayload.data.memoryProposalSummary.safeguards.readOnly, true);
+  assert.equal(handoffPayload.data.memoryProposalSummary.safeguards.memoryTextVisible, false);
+  assert.equal(handoffPayload.data.memoryProposalSummary.safeguards.sourceContentVisible, false);
+  assert.equal(handoffPayload.data.memoryProposalSummary.safeguards.localLocationsVisible, false);
+  assert.equal(handoffPayload.data.memoryProposalSummary.safeguards.activeMemoryCreated, 0);
   const handoffText = JSON.stringify(handoffPayload);
   assert.equal(handoffText.includes('raw prompt body'), false);
   assert.equal(handoffText.includes('private model result'), false);

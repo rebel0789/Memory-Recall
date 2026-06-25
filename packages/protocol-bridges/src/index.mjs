@@ -361,6 +361,31 @@ function summarizeMemory(record) {
   };
 }
 
+function summarizeMemoryProposalQueue(data) {
+  const proposed = data.proposedMemories.slice(-20).reverse().map(summarizeMemory);
+  const acceptedSummary = data.acceptedMemories.slice(-20).reverse().map(summarizeMemory);
+  return {
+    state: data.proposedMemories.length > 0 ? 'review' : 'ready',
+    proposedCount: data.proposedMemories.length,
+    acceptedCount: data.acceptedMemories.length,
+    quarantinedCount: data.proposedMemories.filter((memory) => memory?.status === 'quarantined').length,
+    pendingCount: data.proposedMemories.filter((memory) => ['pending', 'proposed'].includes(memory?.status)).length,
+    proposed,
+    acceptedSummary,
+    queueFingerprint: fingerprintFor({
+      proposed: proposed.map((item) => item.recordFingerprint),
+      accepted: acceptedSummary.map((item) => item.recordFingerprint)
+    }),
+    safeguards: {
+      readOnly: true,
+      memoryTextVisible: false,
+      sourceContentVisible: false,
+      localLocationsVisible: false,
+      activeMemoryCreated: 0
+    }
+  };
+}
+
 function summarizeApproval(approval) {
   return {
     id: safeId(approval?.id) ?? 'approval_unknown',
@@ -775,15 +800,20 @@ export function buildOafReadOnlyResourceCatalog({
     }),
     jsonResource(`${base}/memory/proposals`, 'Memory proposal summary', 'Proposal-only memory queue summary without memory text.', () => {
       const data = buildData();
+      const summary = summarizeMemoryProposalQueue(data);
       return createResourcePayload({
         resourceKind: 'memory-proposal-summary',
         workspaceId: safeWorkspaceId,
         generatedAt,
         data: {
-          proposedCount: data.proposedMemories.length,
-          acceptedCount: data.acceptedMemories.length,
-          proposed: data.proposedMemories.slice(-20).reverse().map(summarizeMemory),
-          acceptedSummary: data.acceptedMemories.slice(-20).reverse().map(summarizeMemory)
+          proposedCount: summary.proposedCount,
+          acceptedCount: summary.acceptedCount,
+          quarantinedCount: summary.quarantinedCount,
+          pendingCount: summary.pendingCount,
+          proposed: summary.proposed,
+          acceptedSummary: summary.acceptedSummary,
+          queueFingerprint: summary.queueFingerprint,
+          safeguards: summary.safeguards
         }
       });
     }),
@@ -796,6 +826,7 @@ export function buildOafReadOnlyResourceCatalog({
         data: {
           latestRun: summarizeRun(data.latestRun),
           latestContextManifest: summarizeContextManifest(data.manifest),
+          memoryProposalSummary: summarizeMemoryProposalQueue(data),
           pendingApprovals: data.pendingApprovals.slice(-20).reverse().map(summarizeApproval),
           artifacts: data.artifacts.slice(-20).reverse().map(summarizeArtifact)
         }

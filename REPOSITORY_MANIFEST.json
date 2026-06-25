@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-25T08:25:42.283Z",
-  "fileCount": 811,
-  "totalBytes": 4067360,
+  "generatedAt": "2026-06-25T08:43:59.738Z",
+  "fileCount": 812,
+  "totalBytes": 4094299,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -572,8 +572,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 95180,
-      "sha256": "2e124257fe6499cd57e108aeef3a9f762ab399dcc8b9716c5d4f38328e95a3d8"
+      "bytes": 100450,
+      "sha256": "9a2a3facedad3fd78d208077e63ca80fcc0a500ea520d6daa1814414ed640818"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -902,8 +902,8 @@
     },
     {
       "path": "docs/architecture/protocol-bridges.md",
-      "bytes": 6861,
-      "sha256": "5699ae4d664fa9ef7ac22501eab223adb2303b1f53462e3af5180daa81b17f7a"
+      "bytes": 7035,
+      "sha256": "b6fcfb3fbb6f7d8c286cd220e154c2bbc6d6a84b514cb70e906a4b7e0165478c"
     },
     {
       "path": "docs/architecture/sequence-flows.md",
@@ -1042,8 +1042,8 @@
     },
     {
       "path": "docs/implementation/OAF-031-context-intake-preview-note.md",
-      "bytes": 19769,
-      "sha256": "d6adb66b3167c8a199585160548a66c53f832b400594d17c70384ec2735208ee"
+      "bytes": 20000,
+      "sha256": "af0352a5385131cd662959b50ef1b0fd01c6a1181157457f1a12d67109662eea"
     },
     {
       "path": "docs/implementation/PARALLELIZATION.md",
@@ -1153,12 +1153,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "e3280dbe1bc2cee776cb1b4ad272e27cf1c354c574ec685c1ff7b1d1b1400c38"
+      "sha256": "b955ffbfd45ee4bc84314a1a370cffe686e112fd1e825563f8cd787be7a97bb5"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 1621,
-      "sha256": "96f7eeaf9edfbae6aef2f73d230e4da9c2a9a22d508792fd8dc5103231c178f3"
+      "sha256": "ef53c657d46065e3ae2da7dfb347c8dc55fd22f6042e8a18d0f1ea4992c376bd"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1168,7 +1168,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "440e1f54fefdc95d0ff80c3d7b7c1eb4a47eb3e795f596ac5721a6675827e652"
+      "sha256": "9701e81a19ef6c227302ce4f4f85f0beb05520c4fb199f511a729fc3568a0c81"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1292,8 +1292,8 @@
     },
     {
       "path": "docs/usage/local-agent-handoff.md",
-      "bytes": 8117,
-      "sha256": "9c29c20829678a95b293ff53cd4983234d5762b771d716547174b8d5026dd663"
+      "bytes": 8546,
+      "sha256": "92ada298457d7eea940588e2efa1736a2647cf56088fcec3fcf07db6e347bb97"
     },
     {
       "path": "docs/ux/accessibility.md",
@@ -1677,8 +1677,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 37601,
-      "sha256": "3cfd53a1f35738ab8ddcd2cea51abf2479318114bcc4c3057ca47b1262cd18ed"
+      "bytes": 37917,
+      "sha256": "5742517de5f26fa94c65f10485af8e836688d3df95396d7285bf4de3ed88c369"
     },
     {
       "path": "examples/protocol/compatibility/invalid-harness-context-source.json",
@@ -1719,6 +1719,11 @@
       "path": "examples/protocol/compatibility/invalid/candidate-source-request-authority-injection.json",
       "bytes": 658,
       "sha256": "ec11b869dc74eb3757a3f510c1a3bd8294c5af1c0c7b1e02d6ea6859ca919f5e"
+    },
+    {
+      "path": "examples/protocol/compatibility/invalid/context-pack-handoff-report-memory-preflight-leak.json",
+      "bytes": 6800,
+      "sha256": "48fa4e9ea3b4c5b2f04204348afb295e4b23870ecd0339c046baa244eab6402e"
     },
     {
       "path": "examples/protocol/compatibility/invalid/context-pack-handoff-report-raw-body.json",
@@ -1902,8 +1907,8 @@
     },
     {
       "path": "examples/protocol/context-pack-handoff-report.json",
-      "bytes": 6499,
-      "sha256": "2b6e3117fc8c00422fa2270b4749496693a7cffeda6fb39d13cd25e3353d2cfb"
+      "bytes": 7724,
+      "sha256": "bb3ddf9a917f4a47183443c291b409c52f6a0a2287736f405a2b8df0a2cb8168"
     },
     {
       "path": "examples/protocol/context-pack-measurement-report.json",
@@ -2213,7 +2218,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "e921d9fd2846c2ee39666a08d1d06a07bed665bfffad1f9f475cc2070a917375"
+      "sha256": "27aeb471f0b42e20772a1979d452a2897fcaba95ba9c47566f3a6ee0ecb8981e"
     },
     {
       "path": "LICENSE",
@@ -2222,8 +2227,8 @@
     },
     {
       "path": "LOCAL_DEVELOPMENT.md",
-      "bytes": 13381,
-      "sha256": "b91db90a18bd36a781b2cd609c85fcfc04f0aca53e96beab681aab669ebc176c"
+      "bytes": 13639,
+      "sha256": "4435c8d3582aaddb4b68dcde94d33564ee894f832942a2f03585d66fbb08fdb4"
     },
     {
       "path": "MAINTAINERS.md",
@@ -2407,8 +2412,8 @@
     },
     {
       "path": "packages/protocol-bridges/src/index.mjs",
-      "bytes": 50145,
-      "sha256": "b69ae90a30d8fcb927d75832d7bdb49c7654c06e14a1472c39f0a58c80df5871"
+      "bytes": 51387,
+      "sha256": "fb7beb37da0c28426d62378f3c6919ef6cfa5c1e8a5808d24df604323ee50605"
     },
     {
       "path": "packages/protocol/AGENTS.md",
@@ -2687,8 +2692,8 @@
     },
     {
       "path": "packages/protocol/schemas/context-pack-handoff-report.schema.json",
-      "bytes": 14753,
-      "sha256": "0e4ee130b38e7f89759cf0397ccf7a26e5de14c64fa376981fbbf7b703aa0b4b"
+      "bytes": 19166,
+      "sha256": "c27e0fd14a6c2341d3d93707a5e6241382909d2549a98d268a2a03b619f8b283"
     },
     {
       "path": "packages/protocol/schemas/context-pack-measurement-report.schema.json",
@@ -3208,7 +3213,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 45646,
-      "sha256": "4c1582fbd0ad854adbfe4841df05d8b9ed8152c33ca9bfc9bf1ab8d18da0ddf9"
+      "sha256": "99c0c3ff621219ff09c2549e298098d56bb37468b853d9cc2cae974d4fc3d17f"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3417,8 +3422,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 14648,
-      "sha256": "a6b9057257c5e1a6f1f3232bab7539de9e064a04f927649ea1f8c7677c9bdff6"
+      "bytes": 15004,
+      "sha256": "e1de2de8a2f60241ff57d499f052e6a632bcb091383d4e8ed48a9f0e45195fac"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3722,8 +3727,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 103414,
-      "sha256": "291b04fa49c5538a6ed4490478738419a6e7bbbf77b68ebb59aa17a9647e348c"
+      "bytes": 108762,
+      "sha256": "579aad61e4a2adb39ef822dc1955f4e96609f202c900177c6dda1bc9f61cd908"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -3897,8 +3902,8 @@
     },
     {
       "path": "tests/protocol-bridges.test.mjs",
-      "bytes": 31890,
-      "sha256": "2a6538d8d668f6a72195bddd5385ea76cccfc51bdcacc43b3a42a75ee31772bf"
+      "bytes": 32767,
+      "sha256": "8b7059457647b676e7a0707be42ae0cd1ef9642a89e9a26c000ebae2e5217cd8"
     },
     {
       "path": "tests/protocol-schema-validator.test.mjs",

@@ -87,6 +87,13 @@ The report returns a launch prompt, required local reads, use-plan fingerprint,
 MCP context-pack readback proof, harness setup dry-run status, and zero-tool
 MCP proof.
 
+If you want to review possible durable memories from files you selected, add a
+workspace-relative `--memory-config oaf.memory.json`. The config must name
+explicit `memoryPaths`; the handoff report only returns counts, warning codes,
+fingerprints, and the matching dry-run `memory proposals` command. It does not
+create proposal Markdown, activate memory, import harness transcripts, or include
+memory/source text in the report.
+
 For a smaller impact report:
 
 ```bash

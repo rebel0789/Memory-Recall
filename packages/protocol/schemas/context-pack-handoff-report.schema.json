@@ -36,6 +36,7 @@
     "request": { "$ref": "#/$defs/request" },
     "contextPack": { "$ref": "#/$defs/contextPack" },
     "usePlan": { "$ref": "#/$defs/usePlan" },
+    "memoryProposalPreflight": { "$ref": "#/$defs/memoryProposalPreflight" },
     "mcp": { "$ref": "#/$defs/mcp" },
     "commands": { "$ref": "#/$defs/commands" },
     "checks": { "$ref": "#/$defs/checks" },
@@ -198,6 +199,107 @@
         "truncatedRequiredReadCount": { "type": "integer", "minimum": 0, "maximum": 128 },
         "markdownContentIncluded": { "const": false },
         "sourceContentIncluded": { "const": false }
+      }
+    },
+    "memoryProposalPreflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "configured",
+        "configRef",
+        "command",
+        "dryRun",
+        "summary",
+        "diagnostics",
+        "reportFingerprint",
+        "safeguards"
+      ],
+      "properties": {
+        "state": { "enum": ["not_configured", "ready", "review"] },
+        "configured": { "type": "boolean" },
+        "configRef": {
+          "type": ["string", "null"],
+          "pattern": "^workspace://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "pattern": "^(?![\\s\\S]*(?:/Users|/private|/var/folders|OPENAI_API_KEY|authorization|cookie|secret=|token=|api[_-]?key=|curl|https?://))[\\s\\S]*memory proposals --from memoryPaths[\\s\\S]*--dry-run[\\s\\S]*$"
+        },
+        "dryRun": { "const": true },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["proposalCount", "quarantinedCount", "skippedCount", "reviewItemCount"],
+          "properties": {
+            "proposalCount": { "$ref": "#/$defs/count" },
+            "quarantinedCount": { "$ref": "#/$defs/count" },
+            "skippedCount": { "$ref": "#/$defs/count" },
+            "reviewItemCount": { "$ref": "#/$defs/count" }
+          }
+        },
+        "diagnostics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sourceCount", "memoryIndexCount", "staleSourceCount", "indexCliffRiskCount", "warningCodes"],
+          "properties": {
+            "sourceCount": { "$ref": "#/$defs/count" },
+            "memoryIndexCount": { "$ref": "#/$defs/count" },
+            "staleSourceCount": { "$ref": "#/$defs/count" },
+            "indexCliffRiskCount": { "$ref": "#/$defs/count" },
+            "warningCodes": {
+              "type": "array",
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/reasonCode" }
+            }
+          }
+        },
+        "reportFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "safeguards": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "dryRun",
+            "canonicalStateMutated",
+            "localFilesWritten",
+            "externalWritesEnabled",
+            "externalAdaptersEnabled",
+            "networkCalls",
+            "modelCalls",
+            "activeMemoryCreated",
+            "sourceSnapshotsWritten",
+            "rawSourceBodiesIncluded",
+            "proposalTextIncluded",
+            "proposalMarkdownIncluded",
+            "sourceContentIncluded",
+            "credentialsIncluded",
+            "providerUrlsIncluded",
+            "hiddenReasoningIncluded",
+            "absoluteFilesystemLocationsIncluded"
+          ],
+          "properties": {
+            "dryRun": { "const": true },
+            "canonicalStateMutated": { "const": false },
+            "localFilesWritten": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "externalWritesEnabled": { "const": false },
+            "externalAdaptersEnabled": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "networkCalls": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "modelCalls": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "activeMemoryCreated": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "sourceSnapshotsWritten": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "rawSourceBodiesIncluded": { "const": false },
+            "proposalTextIncluded": { "const": false },
+            "proposalMarkdownIncluded": { "const": false },
+            "sourceContentIncluded": { "const": false },
+            "credentialsIncluded": { "const": false },
+            "providerUrlsIncluded": { "const": false },
+            "hiddenReasoningIncluded": { "const": false },
+            "absoluteFilesystemLocationsIncluded": { "const": false }
+          }
+        }
       }
     },
     "desiredServer": {

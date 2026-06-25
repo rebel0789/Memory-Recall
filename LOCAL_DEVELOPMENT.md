@@ -126,6 +126,11 @@ use plan, read-only MCP context-pack readback, and dry-run setup preview. It
 does not write context-pack files, mutate harness config, expose MCP tools,
 call models, use network access, or enable adapters.
 
+Add `--memory-config oaf.memory.json` only for explicit local memory source
+preflight. The report returns proposal/quarantine counts, warning codes, and a
+dry-run command; it does not write proposal Markdown, activate memory, or include
+memory/source text.
+
 Pinned local handoff receive:
 
 ```bash

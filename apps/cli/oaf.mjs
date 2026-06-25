@@ -1079,6 +1079,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
   const usePlan = buildContextPackUsePlan(pack);
   assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context-pack handoff use plan');
   const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
+  const memoryProposalPreflight = await buildMemoryProposalPreflight(values, { root, workspaceId, generatedAt });
   const setupClient = contextHandoffSetupClient(targetHarness);
   const setup = await buildHarnessSetupReport({
     action: 'plan',
@@ -1107,7 +1108,14 @@ async function buildContextHandoffReport(values, { objective, step }) {
     generatedAt,
     workspaceId,
     targetHarness: pack.targetHarness,
-    state: pack.utility.status === 'ready' && smoke.checks.resourceRead && smoke.checks.noToolsExposed && smoke.checks.noMarkdownBody && setup.dryRun === true ? 'ready' : 'review',
+    state: pack.utility.status === 'ready' &&
+      smoke.checks.resourceRead &&
+      smoke.checks.noToolsExposed &&
+      smoke.checks.noMarkdownBody &&
+      setup.dryRun === true &&
+      memoryProposalPreflight.state !== 'review'
+      ? 'ready'
+      : 'review',
     commitSha: resolveCommitSha(root),
     measurementScope: 'single local context-pack build, MCP readback, and harness setup dry-run',
     launchPrompt: pack.handoff.launchPrompt,
@@ -1147,6 +1155,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
       markdownContentIncluded: usePlan.safeguards.markdownContentIncluded,
       sourceContentIncluded: usePlan.safeguards.sourceContentIncluded
     },
+    memoryProposalPreflight,
     mcp: {
       resourceUri: smoke.resourceUri,
       setup: {
@@ -1207,6 +1216,138 @@ async function buildContextHandoffReport(values, { objective, step }) {
   report.reportFingerprint = fingerprintJson({ ...report, reportFingerprint: null });
   assertJsonSchema(contextPackHandoffReportSchema, report, 'context-pack handoff report');
   return report;
+}
+
+function safeWorkspaceRelativePath(value, label) {
+  const relativePath = String(value ?? '').trim();
+  if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes('..') || relativePath.includes('\\') || /^[a-z]+:/iu.test(relativePath)) {
+    throw new Error(`${label} must be workspace-relative`);
+  }
+  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(relativePath)) throw new Error(`${label} contains unsupported characters`);
+  if (/(^|\/)(?:\.git|\.local|node_modules)(?:\/|$)/u.test(relativePath)) throw new Error(`${label} points to an unsupported workspace location`);
+  return relativePath;
+}
+
+function memoryProposalCommand(configPath = 'oaf.memory.json') {
+  return `npm --silent run oaf -- memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
+}
+
+function memoryPreflightSafeguards(report = null) {
+  return {
+    dryRun: true,
+    canonicalStateMutated: false,
+    localFilesWritten: 0,
+    externalWritesEnabled: false,
+    externalAdaptersEnabled: 0,
+    networkCalls: 0,
+    modelCalls: 0,
+    activeMemoryCreated: Number(report?.safeguards?.activeMemoryCreated ?? 0),
+    sourceSnapshotsWritten: 0,
+    rawSourceBodiesIncluded: false,
+    proposalTextIncluded: false,
+    proposalMarkdownIncluded: false,
+    sourceContentIncluded: false,
+    credentialsIncluded: false,
+    providerUrlsIncluded: false,
+    hiddenReasoningIncluded: false,
+    absoluteFilesystemLocationsIncluded: false
+  };
+}
+
+function summarizeMemoryProposalReport(report, { configRef, command }) {
+  const warnings = [...new Set(report.diagnostics?.warnings ?? [])].sort();
+  const proposalCount = Number(report.summary.proposalCount ?? 0);
+  const quarantinedCount = Number(report.summary.quarantinedCount ?? 0);
+  const reviewItemCount = proposalCount + quarantinedCount;
+  const review = reviewItemCount > 0 || warnings.length > 0;
+  return {
+    state: review ? 'review' : 'ready',
+    configured: true,
+    configRef,
+    command,
+    dryRun: report.dryRun === true,
+    summary: {
+      proposalCount,
+      quarantinedCount,
+      skippedCount: Number(report.summary.skippedCount ?? 0),
+      reviewItemCount
+    },
+    diagnostics: {
+      sourceCount: Number(report.diagnostics?.sourceCount ?? 0),
+      memoryIndexCount: Number(report.diagnostics?.memoryIndexCount ?? 0),
+      staleSourceCount: Number(report.diagnostics?.staleSourceCount ?? 0),
+      indexCliffRiskCount: Number(report.diagnostics?.indexCliffRiskCount ?? 0),
+      warningCodes: warnings
+    },
+    reportFingerprint: fingerprintJson({
+      id: report.id,
+      summary: report.summary,
+      diagnostics: {
+        sourceCount: report.diagnostics?.sourceCount ?? 0,
+        memoryIndexCount: report.diagnostics?.memoryIndexCount ?? 0,
+        staleSourceCount: report.diagnostics?.staleSourceCount ?? 0,
+        indexCliffRiskCount: report.diagnostics?.indexCliffRiskCount ?? 0,
+        warnings
+      },
+      safeguards: report.safeguards
+    }),
+    safeguards: memoryPreflightSafeguards(report)
+  };
+}
+
+async function buildMemoryProposalPreflight(values, { root, workspaceId, generatedAt }) {
+  const configuredPath = option(values, '--memory-config');
+  if (!configuredPath) {
+    return {
+      state: 'not_configured',
+      configured: false,
+      configRef: null,
+      command: memoryProposalCommand(),
+      dryRun: true,
+      summary: { proposalCount: 0, quarantinedCount: 0, skippedCount: 0, reviewItemCount: 0 },
+      diagnostics: { sourceCount: 0, memoryIndexCount: 0, staleSourceCount: 0, indexCliffRiskCount: 0, warningCodes: [] },
+      reportFingerprint: null,
+      safeguards: memoryPreflightSafeguards()
+    };
+  }
+  const relativeConfigPath = safeWorkspaceRelativePath(configuredPath, 'memory config');
+  const config = normalizeMemoryPathsConfig(await loadWorkspaceJson(root, relativeConfigPath, null));
+  const records = [];
+  for (const entry of config.memoryPaths) {
+    const source = await readWorkspaceMemoryPath(root, entry.path);
+    const { text, locator } = source;
+    records.push(evaluateMemoryWrite({
+      id: deterministicMemoryId(locator, text),
+      workspaceId,
+      kind: entry.kind,
+      text,
+      source: locator,
+      sourceTrust: entry.sourceTrust,
+      dataClass: entry.dataClass,
+      metadata: {
+        sourceLocator: locator,
+        sourceHash: `sha256:${createHash('sha256').update(text).digest('hex')}`,
+        sourceRole: entry.sourceRole,
+        sourceLineCount: source.lineCount,
+        sourceByteSize: source.byteSize,
+        sourceUpdatedAt: source.updatedAt,
+        proposalSource: 'memoryPaths'
+      },
+      now: generatedAt
+    }));
+  }
+  const report = buildMemoryProposalsReport({
+    records,
+    workspaceId,
+    generatedAt,
+    targetDirectory: 'memory/proposals',
+    dryRun: true,
+    localFilesWritten: 0
+  });
+  return summarizeMemoryProposalReport(report, {
+    configRef: `workspace://${relativeConfigPath}`,
+    command: memoryProposalCommand(relativeConfigPath)
+  });
 }
 
 async function buildContextReceiveReport(values) {
@@ -2255,7 +2396,7 @@ Usage:
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --changed-from-git --dry-run --format markdown
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
-  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
+  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --memory-config oaf.memory.json --format json
   oaf context receive --read-only --root . --target codex --format json
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json

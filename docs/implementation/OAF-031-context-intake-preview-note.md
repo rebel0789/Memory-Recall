@@ -183,8 +183,11 @@ slice.
   returns a schema-validated Codex handoff preflight report. It includes the
   launch prompt, required local reads, use-plan fingerprint, read-only MCP
   context-pack readback proof, `npm --silent` stdio bridge command, and dry-run
-  setup preview. It rejects write, pin, output-file, and stdio-server modes and
-  does not write context-pack artifacts or mutate harness config.
+  setup preview. With explicit `--memory-config oaf.memory.json`, it also
+  preflights selected `memoryPaths` as proposal/quarantine counts and warning
+  codes only. It rejects write, pin, output-file, and stdio-server modes and
+  does not write context-pack artifacts, create memory proposal Markdown,
+  activate memory, expose memory/source bodies, or mutate harness config.
 - The browser now treats the latest built context pack as the current local
   handoff for the session. Context Pack, Fabric Map, and Agents & Tools render
   the same status, selected/omitted/readback counts, disabled-write safeguards,

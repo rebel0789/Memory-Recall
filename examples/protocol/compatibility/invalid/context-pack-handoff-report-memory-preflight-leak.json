@@ -4,7 +4,7 @@
   "generatedAt": "2026-06-24T00:00:00.000Z",
   "workspaceId": "ws_local",
   "targetHarness": "codex",
-  "state": "ready",
+  "state": "review",
   "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "measurementScope": "single local context-pack build, MCP readback, and harness setup dry-run",
   "launchPrompt": "Continue this local repository work in codex.\nObjective: Ship safely\nCurrent step: handoff\n\nUse the attached Context Pack as a locator handoff.",
@@ -47,7 +47,7 @@
   "usePlan": {
     "resourceUri": "oaf://workspace/ws_local/context-pack/use-plan/current",
     "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-    "requiredReadCount": 3,
+    "requiredReadCount": 1,
     "requiredLocalReads": [
       {
         "locator": "workspace://AGENTS.md",
@@ -56,25 +56,7 @@
         "represented": true,
         "contentHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex.",
-        "reasonCodes": ["explicit_requirement", "selected_context", "token_efficient"]
-      },
-      {
-        "locator": "user-selected://notes/handoff.md",
-        "role": "explicit_user_selected",
-        "required": true,
-        "represented": true,
-        "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "readHint": "Read user-selected://notes/handoff.md from the local workspace because it was explicitly included for this handoff.",
-        "reasonCodes": ["content_hash_verified", "explicit_user_file", "read_before_handoff"]
-      },
-      {
-        "locator": "workspace://src/auth.ts",
-        "role": "changed_locator",
-        "required": true,
-        "represented": true,
-        "contentHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-        "readHint": "Read workspace://src/auth.ts from the local workspace before editing or reviewing this changed file.",
-        "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"]
+        "reasonCodes": ["explicit_requirement"]
       }
     ],
     "truncatedRequiredReadCount": 0,
@@ -82,25 +64,25 @@
     "sourceContentIncluded": false
   },
   "memoryProposalPreflight": {
-    "state": "not_configured",
-    "configured": false,
-    "configRef": null,
-    "command": "npm --silent run oaf -- memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json",
+    "state": "review",
+    "configured": true,
+    "configRef": "workspace://oaf.memory.json",
+    "command": "npm --silent run oaf -- memory proposals --from memoryPaths --config 'oaf.memory.json' --root . --dry-run --format json",
     "dryRun": true,
     "summary": {
-      "proposalCount": 0,
+      "proposalCount": 1,
       "quarantinedCount": 0,
       "skippedCount": 0,
-      "reviewItemCount": 0
+      "reviewItemCount": 1
     },
     "diagnostics": {
-      "sourceCount": 0,
+      "sourceCount": 1,
       "memoryIndexCount": 0,
       "staleSourceCount": 0,
       "indexCliffRiskCount": 0,
       "warningCodes": []
     },
-    "reportFingerprint": null,
+    "reportFingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
     "safeguards": {
       "dryRun": true,
       "canonicalStateMutated": false,
@@ -113,7 +95,7 @@
       "sourceSnapshotsWritten": 0,
       "rawSourceBodiesIncluded": false,
       "proposalTextIncluded": false,
-      "proposalMarkdownIncluded": false,
+      "proposalMarkdownIncluded": true,
       "sourceContentIncluded": false,
       "credentialsIncluded": false,
       "providerUrlsIncluded": false,
