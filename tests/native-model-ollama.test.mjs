@@ -26,6 +26,15 @@ test('Ollama provider reports health and normalizes generation', async () => {
   assert.ok(calls.every((call) => call.url.startsWith('http://127.0.0.1:11434/')));
 });
 
+test('Ollama provider enforces advertised output limit', async () => {
+  const fetchImpl = async () => new Response(JSON.stringify({ response: 'x'.repeat(2_000_001), done: true }), { status: 200 });
+  const provider = new OllamaModelProvider({ model: 'qwen-local', fetchImpl });
+  await assert.rejects(
+    provider.generate({ prompt: 'Return too much' }),
+    (error) => error.code === 'model_output_too_large'
+  );
+});
+
 test('Ollama health failure remains local and unavailable', async () => {
   const provider = new OllamaModelProvider({ model: 'missing', fetchImpl: async () => { throw new Error('connection refused'); } });
   const health = await provider.health();

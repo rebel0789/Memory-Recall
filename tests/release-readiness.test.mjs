@@ -31,8 +31,10 @@ test('repository manifest excludes local ignored handoff and browser artifacts',
 
   assert.equal(paths.some((filePath) => filePath.startsWith('.playwright-cli/')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('context-packs/')), false);
+  assert.equal(paths.some((filePath) => filePath.startsWith('graphify-out/')), false);
   assert.equal(manifest.exclusions.includes('.playwright-cli/**'), true);
   assert.equal(manifest.exclusions.includes('context-packs/**'), true);
+  assert.equal(manifest.exclusions.includes('graphify-out/**'), true);
 });
 
 test('release readiness SBOM and provenance preserve disabled adapters and local defaults', async () => {

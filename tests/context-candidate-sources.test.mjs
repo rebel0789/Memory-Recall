@@ -383,6 +383,59 @@ test('candidate union merges same identity hits and fails closed on hash conflic
   );
 });
 
+test('invalid optional source batches do not leak earlier candidates', async () => {
+  const batchSource = {
+    descriptor: () => ({
+      schemaVersion: '1.0.0',
+      id: 'provider:native:context-candidate:batch',
+      kind: 'temporal',
+      version: '1.0.0',
+      enabled: true,
+      methods: ['fixture']
+    }),
+    health: async () => ({ status: 'healthy' }),
+    query: async (_request, context) => ({
+      candidates: [
+        {
+          record: {
+            id: 'mem_batch',
+            version: 'v1',
+            kind: 'evidence',
+            workspaceId: 'ws_local',
+            text: 'Valid candidate that must be discarded with the bad batch.',
+            dataClass: 'workspace-private',
+            trustClass: 'observed',
+            source: 'fixture'
+          },
+          sourceHit: {
+            sourceId: 'provider:native:context-candidate:batch',
+            sourceKind: 'temporal',
+            sourceVersion: '1.0.0',
+            retrievalMethod: 'fixture',
+            localRank: 1,
+            localScore: 0.8,
+            reasonCodes: ['fixture_match'],
+            queryFingerprint: context.queryFingerprint,
+            accessDecisionRef: context.accessDecisionRef,
+            retrievedAt: fixedNow
+          }
+        },
+        { record: { kind: 'evidence', text: 'missing id' } }
+      ]
+    })
+  };
+
+  const result = await generateContextCandidates(request({ sourcePlan: [{ kind: 'lexical', required: false }, { kind: 'temporal', required: false }] }), {
+    registry: registry([batchSource]),
+    recordReader: createFixtureRecordReader(records()),
+    policyService: createPolicyService({ decisionIdFactory: () => 'poldet_candidate_allow', clock: () => fixedNow }),
+    trustedContext: trustedContext()
+  });
+
+  assert.equal(result.reports.find((report) => report.sourceKind === 'temporal').status, 'invalid_output');
+  assert.equal(result.candidates.some((candidate) => candidate.record.id === 'mem_batch'), false);
+});
+
 test('request validation rejects client supplied authority and malformed source plans', async () => {
   await assert.rejects(
     generateContextCandidates(request({ roles: ['owner'] }), {

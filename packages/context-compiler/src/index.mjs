@@ -608,6 +608,7 @@ async function mergeSourceOutput({ output, descriptor, request, planEntry, candi
   let candidateCount = 0;
   let deniedCount = 0;
   let totalBytes = 0;
+  const stagedMap = new Map();
   const seenHits = new Set();
   for (const item of output.candidates) {
     try {
@@ -622,12 +623,15 @@ async function mergeSourceOutput({ output, descriptor, request, planEntry, candi
       const hitKey = `${candidate.record.id}:${candidate.hit.sourceId}:${candidate.hit.retrievalMethod}:${candidate.hit.localRank}`;
       if (seenHits.has(hitKey)) continue;
       seenHits.add(hitKey);
-      upsertCandidate(candidateMap, candidate);
+      upsertCandidate(stagedMap, candidate);
       candidateCount += 1;
     } catch (error) {
       if (error?.code === 'candidate_identity_conflict') throw error;
       return sourceReport(request, planEntry, { descriptor, status: 'invalid_output', failureCode: 'invalid_candidate_output', deniedCount, accessDecisionRef, clock });
     }
+  }
+  for (const candidate of stagedMap.values()) {
+    for (const hit of candidate.hits) upsertCandidate(candidateMap, { schemaVersion: '1.0.0', record: candidate.record, hit });
   }
   return sourceReport(request, planEntry, { descriptor, status: 'succeeded', candidateCount, deniedCount, unresolvedCount: Number(output.unresolvedCount ?? 0), accessDecisionRef, clock });
 }

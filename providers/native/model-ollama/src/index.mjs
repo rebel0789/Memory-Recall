@@ -3,6 +3,7 @@ import { MODEL_GATEWAY_VERSION, MODEL_OUTPUT_SCHEMA_VERSION, PROMPT_ASSEMBLY_VER
 
 const PROVIDER_ID = 'provider:native:model:ollama';
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+const MAX_MODEL_BYTES = 2_000_000;
 
 function validateBaseUrl(value, allowNonLoopback) {
   const url = new URL(value);
@@ -41,8 +42,37 @@ async function withTimeout(fetchImpl, url, options, timeoutMs, parentSignal = nu
   }
 }
 
+function outputTooLarge(operation) {
+  const error = new Error(`${operation} exceeds 2 MB`);
+  error.code = 'model_output_too_large';
+  return error;
+}
+
+async function readResponseText(response, operation, maxBytes = MAX_MODEL_BYTES) {
+  if (!response.body?.getReader) {
+    const text = await response.text();
+    if (Buffer.byteLength(text, 'utf8') > maxBytes) throw outputTooLarge(operation);
+    return text;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw outputTooLarge(operation);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return `${text}${decoder.decode()}`;
+}
+
 async function readJsonResponse(response, operation) {
-  const text = await response.text();
+  const text = await readResponseText(response, operation);
   let value;
   try { value = text ? JSON.parse(text) : {}; } catch { throw new Error(`${operation} returned invalid JSON`); }
   if (!response.ok) {
@@ -98,8 +128,8 @@ export class OllamaModelProvider {
       },
       capabilityIds: ['model.generate.text', 'model.structured-output', 'model.local-loopback', 'model.safe-events', 'model.bounded-repair'],
       limits: {
-        maxInputBytes: 2_000_000,
-        maxOutputBytes: 2_000_000,
+        maxInputBytes: MAX_MODEL_BYTES,
+        maxOutputBytes: MAX_MODEL_BYTES,
         defaultTimeoutMs: this.timeoutMs,
         baseUrlPolicy: 'loopback-http-only',
         silentFallback: false
@@ -114,7 +144,7 @@ export class OllamaModelProvider {
 
   async generate({ prompt, system = null, format = null, options = {}, metadata = {}, signal = null }) {
     if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('prompt is required');
-    if (Buffer.byteLength(prompt, 'utf8') > 2_000_000) throw new Error('prompt exceeds 2 MB');
+    if (Buffer.byteLength(prompt, 'utf8') > MAX_MODEL_BYTES) throw new Error('prompt exceeds 2 MB');
     const body = {
       model: this.model,
       prompt,
@@ -131,6 +161,7 @@ export class OllamaModelProvider {
     }, this.timeoutMs, signal);
     const value = await readJsonResponse(response, 'Ollama generation');
     if (typeof value.response !== 'string') throw new Error('Ollama generation response is missing text');
+    if (Buffer.byteLength(value.response, 'utf8') > MAX_MODEL_BYTES) throw outputTooLarge('Ollama generation output');
     return {
       schemaVersion: '1.0.0',
       provider: PROVIDER_ID,

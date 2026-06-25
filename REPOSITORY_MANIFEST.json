@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-06-25T15:12:41.503Z",
-  "fileCount": 795,
-  "totalBytes": 5793673,
+  "generatedAt": "2026-06-25T16:23:27.566Z",
+  "fileCount": 792,
+  "totalBytes": 5742980,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -11,6 +11,7 @@
     "node_modules/**",
     "coverage/**",
     "context-packs/**",
+    "graphify-out/**",
     ".env",
     ".DS_Store",
     "*.zip",
@@ -89,8 +90,8 @@
     },
     {
       "path": ".gitignore",
-      "bytes": 139,
-      "sha256": "ccc8b438edf742f9af748603c1dd5fa806572c268ce5b9e237f0b83f5dfd1ee3"
+      "bytes": 153,
+      "sha256": "38f9b7d68fcbf339c24a1d93172156460609a5e3741b56f8c69dbf3867c0ae44"
     },
     {
       "path": ".npmrc",
@@ -1065,12 +1066,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "abf42573f6e0b58e4d8a4e6e0db9e792c88196fd53671e7ef9f3a9d694351cfd"
+      "sha256": "8ebae0f53b77e18e9702d3d8ce70a5a0565f844d1c5b162a71c94f5cdcff447b"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 1621,
-      "sha256": "8139ce574db7b05692723d14e9a1456405d6000c4dbc2a1ed01260974ca1ea7b"
+      "sha256": "ba4ce36e7e17b9ee051ee1dc986fedfe24b76053ebdcd54a364d69cb1bedc397"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1080,7 +1081,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "7009715d3bf86d7f1e367da673b0a024582f98e509744bc7157eb61ec97029f7"
+      "sha256": "50162f7a7cd14ea2d3b585612a556e108f45ab8b3b188e391f49c8b0ecd9488c"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1158,11 +1159,6 @@
       "sha256": "b47ae2ae033e103d9c157093b37e79a90cf006ad19a3c88ba2f1dd7a6b702934"
     },
     {
-      "path": "docs/superpowers/plans/2026-06-22-context-intake-harness-bridge.md",
-      "bytes": 30006,
-      "sha256": "02826a6b92d6093767c4620391a27d274ba29b1078d6bbfa30df2cae19a82490"
-    },
-    {
       "path": "docs/superpowers/plans/2026-06-23-context-preview-token-benchmark.md",
       "bytes": 2220,
       "sha256": "a84b0cc1a587a2256583bb42c08a6a8d23d6cc94834136a6d8ce8a26c97ee3e2"
@@ -1171,11 +1167,6 @@
       "path": "docs/superpowers/specs/2026-06-22-context-intake-harness-bridge-design.md",
       "bytes": 15330,
       "sha256": "808ba7734df7a3e84c1bbf4aac8d70f937a0a90de1bd605afd8ebdfaaa556841"
-    },
-    {
-      "path": "docs/superpowers/specs/2026-06-23-reference-tools-native-context-memory-master-plan.md",
-      "bytes": 20027,
-      "sha256": "2813337bb4e7dd5fe070661006ebe60ba8f25a0a88fa97b6c32504d4cbff1236"
     },
     {
       "path": "docs/testing/adversarial-catalog.md",
@@ -2130,7 +2121,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 974,
-      "sha256": "928f717b4ea1076f326fb515bc7506528a70c8cd8c32fa5d0db306d0eb9baf0b"
+      "sha256": "76549159ececf27eccd7bd906b9d46cd787cd1524a8c98c288c368649e3d6de1"
     },
     {
       "path": "LICENSE",
@@ -2156,11 +2147,6 @@
       "path": "NOTICE",
       "bytes": 168,
       "sha256": "d612f62888341d794bee5275fc430f0b8900fadf714a2cc417bf159f80be6442"
-    },
-    {
-      "path": "OAF_REFERENCE_GITHUB_REPOS.md",
-      "bytes": 4537,
-      "sha256": "7ff72d65a396fe6f8f8084627fd34c29125a9820b3965390d2cd7a9208fae35d"
     },
     {
       "path": "output/playwright/context-pack-memory-preflight.png",
@@ -2229,8 +2215,8 @@
     },
     {
       "path": "packages/context-compiler/src/index.mjs",
-      "bytes": 112326,
-      "sha256": "fd7e2b10b6267c2dbfcd29c6bc20c5d914a14048ef1b3f1d1b82d0690fa3de23"
+      "bytes": 112534,
+      "sha256": "432ec0d8f7054b1a81607336689f22bf4d443a33561cce7c4ad4b830f68d1923"
     },
     {
       "path": "packages/evaluation-lab/package.json",
@@ -3019,8 +3005,8 @@
     },
     {
       "path": "packages/release-readiness/src/index.mjs",
-      "bytes": 22700,
-      "sha256": "301f9cadb9355358ee009bb7af37419068c79c25c7ea164f833b9e0eae454ed6"
+      "bytes": 22716,
+      "sha256": "55e89d56375ac387e0cdeb44e36a0dbd13d3cf0e7bcb845e9cefc9488023811e"
     },
     {
       "path": "packages/replay/AGENTS.md",
@@ -3130,7 +3116,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 45746,
-      "sha256": "2e6edf08a7b456f34ccf4a83f273a1e0be03e204cb4e1affba01b1295c77dd49"
+      "sha256": "239b597fcc239b72fe6f1fe18225eab0d270712fb04de9a588918c0220249ab5"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3274,8 +3260,8 @@
     },
     {
       "path": "providers/native/model-ollama/src/index.mjs",
-      "bytes": 6369,
-      "sha256": "1717cadeaa281b708891866d9380be3f8902c6fdee8c51cf104b17d7d72585bf"
+      "bytes": 7430,
+      "sha256": "2f804710af85dd7f6512175f62063c2ffaf245d483e5d7c9f248dd62c052f052"
     },
     {
       "path": "providers/native/policy-deterministic/package.json",
@@ -3389,8 +3375,8 @@
     },
     {
       "path": "scripts/generate-manifest.mjs",
-      "bytes": 1657,
-      "sha256": "252cd3d2758f655b9fb682d4018ef7fb1890382c381d22e5326c1caaffe792f7"
+      "bytes": 1690,
+      "sha256": "d4bdb6b5d372a3cc598fa80f86df30272f9e2d9ec004ce7e60dc14510099ad06"
     },
     {
       "path": "scripts/native-smoke.mjs",
@@ -3659,8 +3645,8 @@
     },
     {
       "path": "tests/context-candidate-sources.test.mjs",
-      "bytes": 15947,
-      "sha256": "b7e98a05e1d8803e979664315f62bfc916a5f04339b5b918dbc57601a1b6b47d"
+      "bytes": 17912,
+      "sha256": "63ddbc7d3387d3527613cc0983ab18ae882ae5928c8c131782759f400cdc0d67"
     },
     {
       "path": "tests/context-compiler.test.mjs",
@@ -3774,8 +3760,8 @@
     },
     {
       "path": "tests/native-model-ollama.test.mjs",
-      "bytes": 2169,
-      "sha256": "942f7e7c413c2ff0d3bb19d84efe8509b343a2b7c4f2f10f8153bfbba2aa141c"
+      "bytes": 2591,
+      "sha256": "a3d4af6217faca3f09fb0f43b7460809f225f3c32c9b0944ed4011f20407cac4"
     },
     {
       "path": "tests/native-workflow-embedded.test.mjs",
@@ -3829,8 +3815,8 @@
     },
     {
       "path": "tests/release-readiness.test.mjs",
-      "bytes": 5672,
-      "sha256": "c1786b3c6c399c83e460ba5f0ea4bbc369c2e3745c5b80cc42e42be3a8f019d7"
+      "bytes": 5830,
+      "sha256": "4b5f501caded960a108c41b186255d475bf11f8e241492a9a141f6cc3f09d2b5"
     },
     {
       "path": "tests/replay.test.mjs",

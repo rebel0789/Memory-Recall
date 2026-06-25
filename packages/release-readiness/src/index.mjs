@@ -17,7 +17,7 @@ const releaseFiles = [
   '1.0-PROVENANCE.json'
 ];
 
-const excludedDirs = new Set(['.git', '.local', 'node_modules', 'coverage']);
+const excludedDirs = new Set(['.git', '.local', 'node_modules', 'coverage', 'graphify-out']);
 const binaryExtensions = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.zip']);
 
 async function readJson(root, relative) {

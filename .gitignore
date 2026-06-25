@@ -5,6 +5,7 @@ coverage/
 .playwright-cli/
 output/playwright/
 context-packs/
+graphify-out/
 *.log
 *.zip
 .DS_Store
