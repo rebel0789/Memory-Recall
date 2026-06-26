@@ -439,6 +439,22 @@ export function buildMemoryCockpitModel(cockpit = null) {
       providerBillingClaimed:Boolean(savings.savings?.providerBillingClaimed ?? false),
       basis:safeText(savings.savings?.basis ?? 'delivery-token-estimate')
     },
+    mcpStats:{
+      available:Boolean(cockpit?.mcpStats?.available),
+      callCount:Number(cockpit?.mcpStats?.callCount ?? 0),
+      deliveredTokens:Number(cockpit?.mcpStats?.deliveredTokens ?? 0),
+      baselineTokens:Number(cockpit?.mcpStats?.baselineTokens ?? 0),
+      tokensSaved:Number(cockpit?.mcpStats?.tokensSaved ?? 0),
+      tokenSavingPercent:Number(cockpit?.mcpStats?.tokenSavingPercent ?? 0),
+      providerBillingClaimed:Boolean(cockpit?.mcpStats?.providerBillingClaimed ?? false),
+      basis:safeText(cockpit?.mcpStats?.basis ?? 'estimated tokens over exact MCP JSON tool payload text'),
+      byTool:Array.isArray(cockpit?.mcpStats?.byTool) ? cockpit.mcpStats.byTool.map((item)=>({
+        toolName:safeText(item.toolName ?? 'unknown'),
+        callCount:Number(item.callCount ?? 0),
+        deliveredTokens:Number(item.deliveredTokens ?? 0),
+        tokensSaved:Number(item.tokensSaved ?? 0)
+      })).slice(0,8) : []
+    },
     facts:facts.map((fact)=>({
       id:safeText(fact.id ?? 'memfact_unknown'),
       text:memoryDisplayText(fact.text ?? ''),
@@ -2028,7 +2044,10 @@ export function renderMemoryCockpit(cockpit = null) {
   const queue=model.proposalQueue.length
     ? `<ol class="compact-list locator-list">${model.proposalQueue.map((item)=>`<li><strong>${esc(item.id)} · ${esc(item.status)}</strong><span>${esc(item.sourceLocator)} · attempts ${item.attempts}</span>${item.payload.length?`<dl class="summary-list">${item.payload.map((entry)=>`<div><dt>${esc(entry.key)}</dt><dd>${esc(entry.value)}</dd></div>`).join('')}</dl>`:''}</li>`).join('')}</ol>`
     : '<p class="muted">No queued extraction proposals for this workspace.</p>';
-  return `<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.savings.percent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>OAF compressed</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
+  const toolStats=model.mcpStats.byTool.length
+    ? `<ol class="compact-list locator-list">${model.mcpStats.byTool.map((item)=>`<li><strong>${esc(item.toolName)} · ${item.callCount}</strong><span>${item.deliveredTokens} delivered · ${item.tokensSaved} saved</span></li>`).join('')}</ol>`
+    : '<p class="muted">No MCP delivery calls recorded for this workspace yet.</p>';
+  return `<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.savings.percent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>OAF compressed</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>MCP delivery stats</h2><dl class="facts compact-facts"><div><dt>Available</dt><dd>${model.mcpStats.available?'yes':'no'}</dd></div><div><dt>Baseline</dt><dd>${model.mcpStats.baselineTokens}</dd></div><div><dt>Saving</dt><dd>${model.mcpStats.tokenSavingPercent}%</dd></div><div><dt>Basis</dt><dd>${esc(model.mcpStats.basis)}</dd></div></dl>${toolStats}<hr><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider and MCP delivery telemetry through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
 }
 
 function renderEvidence() {

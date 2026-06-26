@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { lstat, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
+import { appendFile, lstat, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { buildCompressedProfileContextReport, compileContext } from '../../packages/context-compiler/src/index.mjs';
+import { buildCompressedProfileContextReport, compileContext, estimateTokens } from '../../packages/context-compiler/src/index.mjs';
 import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/evaluation-lab/src/index.mjs';
 import {
   buildContextPack,
@@ -1649,8 +1649,9 @@ async function mcpCommand(values) {
     if (subcommand === 'resources') return await mcpResourcesCommand(rest);
     if (subcommand === 'server') return await mcpServerCommand(rest);
     if (subcommand === 'install') return await mcpInstallCommand(rest);
+    if (subcommand === 'stats') return await mcpStatsCommand(rest);
     if (subcommand === 'smoke') return await mcpSmokeCommand(rest);
-    console.error('mcp requires resources, server, install, or smoke');
+    console.error('mcp requires resources, server, install, stats, or smoke');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -1697,7 +1698,8 @@ async function mcpServerCommand(values) {
     workspaceId,
     generatedAt: fixedNow()
   });
-  const tools = buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt: fixedNow() });
+  const statsRecorder = await createMcpStatsRecorder({ values, root, workspaceId, generatedAt: fixedNow() });
+  const tools = buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt: fixedNow(), statsRecorder });
   await mcpResourcesStdio({
     resources,
     trustedContext: localMcpTrustedContext(workspaceId),
@@ -1707,7 +1709,45 @@ async function mcpServerCommand(values) {
   });
 }
 
-function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt }) {
+async function mcpStatsCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('mcp stats requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--apply') || values.includes('--out') || values.includes('--stdio')) {
+    console.error('mcp stats is read-only and only summarizes local MCP delivery telemetry');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('mcp stats only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const allowedFlags = new Set(['--read-only', '--root', '--workspace', '--workspace-id', '--stats', '--format']);
+  const valueFlags = new Set(['--root', '--workspace', '--workspace-id', '--stats', '--format']);
+  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
+  if (unsupported.length) {
+    console.error(`mcp stats unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const statsPath = await resolveWorkspaceStatsPath(root, option(values, '--stats') ?? '.local/mcp-stats.jsonl', 'mcp stats', { mustExist: false });
+  const entries = await readMcpStatsEntries(statsPath.absolute, { workspaceId });
+  const report = buildMcpStatsReport({
+    entries,
+    workspaceId,
+    generatedAt: fixedNow(),
+    statsRef: `workspace://${statsPath.relative}`
+  });
+  console.log(format === 'summary' ? renderMcpStatsSummary(report) : JSON.stringify(report, null, 2));
+}
+
+function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null }) {
   return [
     {
       name: 'memory.recall',
@@ -1724,12 +1764,16 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt }) {
           limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 }
         }
       },
-      handler: async ({ arguments: args }) => mcpToolJsonResult(await buildMcpMemoryRecallPayload({
-        values,
-        root,
-        workspaceId,
-        generatedAt,
-        args
+      handler: async ({ arguments: args }) => mcpToolJsonResult(await recordMcpToolPayload({
+        payload: await buildMcpMemoryRecallPayload({
+          values,
+          root,
+          workspaceId,
+          generatedAt,
+          args
+        }),
+        statsRecorder,
+        toolName: 'memory.recall'
       }))
     },
     {
@@ -1749,12 +1793,16 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt }) {
           limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 }
         }
       },
-      handler: async ({ arguments: args }) => mcpToolJsonResult(await buildMcpContextProfilePayload({
-        values,
-        root,
-        workspaceId,
-        generatedAt,
-        args
+      handler: async ({ arguments: args }) => mcpToolJsonResult(await recordMcpToolPayload({
+        payload: await buildMcpContextProfilePayload({
+          values,
+          root,
+          workspaceId,
+          generatedAt,
+          args
+        }),
+        statsRecorder,
+        toolName: 'context.profile'
       }))
     },
     {
@@ -2086,10 +2134,223 @@ function mcpBasePayload({ command, workspaceId, generatedAt, data }) {
       modelCalls: 0,
       activeMemoryCreated: 0,
       sourceSnapshotsWritten: 0,
+      deliveryStatsRecorded: false,
       privateContentIncluded: false,
       absoluteFilesystemLocationsIncluded: false
     }
   };
+}
+
+async function createMcpStatsRecorder({ values, root, workspaceId, generatedAt }) {
+  const statsPath = await resolveWorkspaceStatsPath(root, option(values, '--stats') ?? '.local/mcp-stats.jsonl', 'mcp server stats', { mustExist: false });
+  const sessionId = `mcpsess_${randomUUID().replaceAll('-', '').slice(0, 24)}`;
+  const totals = {
+    callCount: 0,
+    deliveredTokens: 0,
+    baselineTokens: 0,
+    tokensSaved: 0
+  };
+  return {
+    sessionId,
+    workspaceId,
+    statsRef: `workspace://${statsPath.relative}`,
+    generatedAt,
+    async record(entry) {
+      totals.callCount += 1;
+      totals.deliveredTokens += entry.deliveredTokens;
+      totals.baselineTokens += entry.baselineTokens;
+      totals.tokensSaved += entry.tokensSaved;
+      const record = {
+        schemaVersion: '1.0.0',
+        kind: 'mcp-delivery-token-estimate',
+        recordedAt: entry.recordedAt,
+        sessionId,
+        workspaceId,
+        toolName: entry.toolName,
+        requestFingerprint: entry.requestFingerprint,
+        deliveredTokens: entry.deliveredTokens,
+        baselineTokens: entry.baselineTokens,
+        tokensSaved: entry.tokensSaved,
+        factCount: entry.factCount,
+        selectedCount: entry.selectedCount,
+        providerBillingClaimed: false,
+        basis: 'estimated tokens over exact MCP JSON tool payload text'
+      };
+      await mkdir(path.dirname(statsPath.absolute), { recursive: true, mode: 0o700 });
+      await appendFile(statsPath.absolute, `${JSON.stringify(record)}\n`, { mode: 0o600 });
+      return {
+        ...totals,
+        sessionId,
+        statsRef: `workspace://${statsPath.relative}`,
+        tokenSavingPercent: totals.baselineTokens > 0 ? Math.round((totals.tokensSaved / totals.baselineTokens) * 100) : 0,
+        providerBillingClaimed: false
+      };
+    }
+  };
+}
+
+async function recordMcpToolPayload({ payload, statsRecorder, toolName }) {
+  if (!statsRecorder) return payload;
+  const baselineTokens = mcpStatsBaselineTokens(payload, toolName);
+  const requestFingerprint = mcpStatsRequestFingerprint(payload, toolName);
+  const factCount = Number(payload.data?.factCount ?? payload.data?.profile?.governedFactCount ?? 0);
+  const selectedCount = Number(payload.data?.selectedContext?.selectedCount ?? payload.data?.factCount ?? 0);
+  let finalPayload = payload;
+  let finalEntry = null;
+  let finalTotals = null;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const deliveredTokens = estimateTokens(JSON.stringify(finalPayload));
+    finalEntry = {
+      toolName,
+      recordedAt: payload.generatedAt,
+      requestFingerprint,
+      deliveredTokens,
+      baselineTokens,
+      tokensSaved: Math.max(0, baselineTokens - deliveredTokens),
+      factCount,
+      selectedCount
+    };
+    const previewTotals = {
+      callCount: statsRecorder ? 1 : 0,
+      deliveredTokens,
+      baselineTokens,
+      tokensSaved: finalEntry.tokensSaved,
+      sessionId: statsRecorder.sessionId,
+      statsRef: statsRecorder.statsRef,
+      tokenSavingPercent: baselineTokens > 0 ? Math.round((finalEntry.tokensSaved / baselineTokens) * 100) : 0,
+      providerBillingClaimed: false
+    };
+    finalPayload = decorateMcpPayloadWithDeliveryStats(payload, finalEntry, previewTotals);
+  }
+  finalTotals = await statsRecorder.record(finalEntry);
+  return decorateMcpPayloadWithDeliveryStats(payload, finalEntry, finalTotals);
+}
+
+function decorateMcpPayloadWithDeliveryStats(payload, entry, totals) {
+  return {
+    ...payload,
+    data: {
+      ...payload.data,
+      deliveryEstimate: {
+        toolName: entry.toolName,
+        deliveredTokens: entry.deliveredTokens,
+        baselineTokens: entry.baselineTokens,
+        tokensSaved: entry.tokensSaved,
+        providerBillingClaimed: false,
+        basis: 'estimated tokens over exact MCP JSON tool payload text',
+        requestFingerprint: entry.requestFingerprint
+      },
+      sessionStats: {
+        sessionId: totals.sessionId,
+        statsRef: totals.statsRef,
+        callCount: totals.callCount,
+        deliveredTokens: totals.deliveredTokens,
+        baselineTokens: totals.baselineTokens,
+        tokensSaved: totals.tokensSaved,
+        tokenSavingPercent: totals.tokenSavingPercent,
+        providerBillingClaimed: false
+      }
+    },
+    safeguards: {
+      ...payload.safeguards,
+      deliveryStatsRecorded: true
+    }
+  };
+}
+
+function mcpStatsBaselineTokens(payload, toolName) {
+  if (toolName === 'context.profile') return Math.max(0, Math.trunc(Number(payload.data?.contextBudget?.historyTokensAvailable ?? 0)));
+  return estimateTokens(JSON.stringify({
+    facts: payload.data?.facts ?? [],
+    proposalFacts: payload.data?.proposalFacts ?? []
+  }));
+}
+
+function mcpStatsRequestFingerprint(payload, toolName) {
+  if (toolName === 'context.profile') return payload.data?.objectiveFingerprint ?? fingerprintJson(toolName);
+  return fingerprintJson({ toolName, query: payload.data?.query ?? '', scope: payload.data?.scope ?? 'workspace' });
+}
+
+async function readMcpStatsEntries(statsPath, { workspaceId }) {
+  const info = await stat(statsPath).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!info?.isFile()) return [];
+  if (info.size > 2 * 1024 * 1024) throw new Error('mcp stats file exceeds 2 MiB');
+  const lines = (await readFile(statsPath, 'utf8')).split(/\r?\n/u).filter(Boolean);
+  return lines.map((line) => JSON.parse(line)).filter((entry) => entry.workspaceId === workspaceId && entry.kind === 'mcp-delivery-token-estimate');
+}
+
+function buildMcpStatsReport({ entries, workspaceId, generatedAt, statsRef }) {
+  const byTool = new Map();
+  for (const entry of entries) {
+    const key = entry.toolName;
+    const current = byTool.get(key) ?? { toolName: key, callCount: 0, deliveredTokens: 0, baselineTokens: 0, tokensSaved: 0 };
+    current.callCount += 1;
+    current.deliveredTokens += Math.max(0, Math.trunc(Number(entry.deliveredTokens ?? 0)));
+    current.baselineTokens += Math.max(0, Math.trunc(Number(entry.baselineTokens ?? 0)));
+    current.tokensSaved += Math.max(0, Math.trunc(Number(entry.tokensSaved ?? 0)));
+    byTool.set(key, current);
+  }
+  const summary = [...byTool.values()].reduce((total, item) => ({
+    callCount: total.callCount + item.callCount,
+    deliveredTokens: total.deliveredTokens + item.deliveredTokens,
+    baselineTokens: total.baselineTokens + item.baselineTokens,
+    tokensSaved: total.tokensSaved + item.tokensSaved
+  }), { callCount: 0, deliveredTokens: 0, baselineTokens: 0, tokensSaved: 0 });
+  const tokenSavingPercent = summary.baselineTokens > 0 ? Math.round((summary.tokensSaved / summary.baselineTokens) * 100) : 0;
+  return {
+    schemaVersion: '1.0.0',
+    command: 'mcp stats',
+    generatedAt,
+    workspaceId,
+    source: {
+      provider: 'local-jsonl',
+      statsRef
+    },
+    summary: {
+      ...summary,
+      tokenSavingPercent,
+      providerBillingClaimed: false,
+      basis: 'estimated tokens over exact MCP JSON tool payload text'
+    },
+    byTool: [...byTool.values()].sort((left, right) => left.toolName.localeCompare(right.toolName)).map((item) => ({
+      ...item,
+      tokenSavingPercent: item.baselineTokens > 0 ? Math.round((item.tokensSaved / item.baselineTokens) * 100) : 0
+    })),
+    recentCalls: entries.slice(-10).map((entry) => ({
+      recordedAt: entry.recordedAt,
+      sessionId: entry.sessionId,
+      toolName: entry.toolName,
+      requestFingerprint: entry.requestFingerprint,
+      deliveredTokens: Math.max(0, Math.trunc(Number(entry.deliveredTokens ?? 0))),
+      baselineTokens: Math.max(0, Math.trunc(Number(entry.baselineTokens ?? 0))),
+      tokensSaved: Math.max(0, Math.trunc(Number(entry.tokensSaved ?? 0)))
+    })),
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      providerBillingClaimed: false,
+      rawRequestTextIncluded: false
+    },
+    reportFingerprint: fingerprintJson({ workspaceId, statsRef, summary, byTool: [...byTool.keys()].sort() })
+  };
+}
+
+function renderMcpStatsSummary(report) {
+  return [
+    `MCP delivery calls: ${report.summary.callCount}`,
+    `Delivered tokens: ${report.summary.deliveredTokens}`,
+    `Baseline tokens: ${report.summary.baselineTokens}`,
+    `Saved tokens: ${report.summary.tokensSaved}`,
+    `Saving: ${report.summary.tokenSavingPercent}%`,
+    `Provider billing claimed: ${report.summary.providerBillingClaimed ? 'yes' : 'no'}`
+  ].join('\n');
 }
 
 function mcpToolJsonResult(payload) {
@@ -2120,8 +2381,8 @@ async function mcpInstallCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--format', '--dry-run', '--apply', '--confirm']);
-  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--format', '--confirm']);
+  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--stats', '--format', '--dry-run', '--apply', '--confirm']);
+  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--stats', '--format', '--confirm']);
   const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
   if (unsupported.length) {
     console.error(`mcp install unsupported option: ${unsupported[0]}`);
@@ -2132,6 +2393,7 @@ async function mcpInstallCommand(values) {
   const rootStat = await stat(root).catch(() => null);
   if (!rootStat?.isDirectory()) throw new Error('mcp install --root must point at a local workspace directory');
   const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'mcp install', { mustExist: false });
+  const statsPath = await resolveWorkspaceStatsPath(root, option(values, '--stats') ?? '.local/mcp-stats.jsonl', 'mcp install', { mustExist: false });
   const home = option(values, '--home') ?? process.env.HOME ?? process.cwd();
   const setup = await buildHarnessSetupReport({
     action: 'plan',
@@ -2142,8 +2404,8 @@ async function mcpInstallCommand(values) {
     bridgeMode: 'token-saver',
     generatedAt: fixedNow()
   });
-  const installPlan = await buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, home, configPath: option(values, '--config') ?? client.configPath });
-  const preview = buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, apply, applied: false, localFilesWritten: 0 });
+  const installPlan = await buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, statsPath, home, configPath: option(values, '--config') ?? client.configPath });
+  const preview = buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied: false, localFilesWritten: 0 });
   const confirm = option(values, '--confirm');
   if (apply && confirm !== preview.planFingerprint) {
     console.error('mcp install --apply requires --confirm <planFingerprint> from a dry-run preview');
@@ -2152,7 +2414,7 @@ async function mcpInstallCommand(values) {
   }
   if (apply) {
     await applyMcpInstallConfig({ home, client, configPath: option(values, '--config') ?? client.configPath, server: setup.server, desiredServer: installPlan.desiredServer });
-    console.log(JSON.stringify(buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, apply, applied: true, localFilesWritten: 1 }), null, 2));
+    console.log(JSON.stringify(buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied: true, localFilesWritten: 1 }), null, 2));
     return;
   }
   console.log(JSON.stringify(preview, null, 2));
@@ -2166,7 +2428,7 @@ function normalizeMcpInstallClient(value) {
   return client;
 }
 
-async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, home, configPath }) {
+async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, statsPath, home, configPath }) {
   const realRoot = await realpath(root);
   const desiredServer = {
     name: setup.server,
@@ -2181,6 +2443,8 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, ho
       realRoot,
       '--sqlite',
       sqlitePath.absolute,
+      '--stats',
+      statsPath.absolute,
       '--stdio'
     ],
     environmentKeys: [],
@@ -2280,7 +2544,7 @@ function arraysEqual(left, right) {
   return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
-function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, apply, applied, localFilesWritten }) {
+function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied, localFilesWritten }) {
   const reportBase = {
     schemaVersion: '1.0.0',
     command: 'mcp install',
@@ -2301,6 +2565,11 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, a
       provider: 'provider:native:memory:sqlite',
       sqlitePath: sqlitePath.absolute,
       sqliteRef: `workspace://${sqlitePath.relative}`
+    },
+    stats: {
+      provider: 'local-jsonl',
+      statsPath: statsPath.absolute,
+      statsRef: `workspace://${statsPath.relative}`
     },
     config: setup.config,
     status: installPlan.status,
@@ -3579,6 +3848,19 @@ async function resolveWorkspaceSqlitePath(root, sqlitePath, commandName, { mustE
   return { absolute, relative: toPosix(path.relative(realRoot, absolute)) };
 }
 
+async function resolveWorkspaceStatsPath(root, statsPath, commandName, { mustExist }) {
+  const requested = statsPath ?? '.local/mcp-stats.jsonl';
+  const realRoot = await realpath(root);
+  const absolute = path.isAbsolute(requested) ? path.resolve(requested) : path.resolve(realRoot, requested);
+  if (!isInside(realRoot, absolute)) throw new Error(`${commandName} --stats must stay inside --root`);
+  const existing = await stat(absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (mustExist && !existing?.isFile()) throw new Error(`${commandName} requires an existing stats file at --stats or .local/mcp-stats.jsonl`);
+  return { absolute, relative: toPosix(path.relative(realRoot, absolute)) };
+}
+
 async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, generatedAt, limit }) {
   const episodes = [];
   const remaining = () => Math.max(0, limit - episodes.reduce((sum, episode) => sum + episode.text.split(/\n/u).filter(Boolean).length, 0));
@@ -3970,6 +4252,7 @@ Usage:
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf mcp server --read-only --root . --stdio
+  oaf mcp stats --read-only --root . --format json
   oaf mcp install --client claude-code --dry-run --format json
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json

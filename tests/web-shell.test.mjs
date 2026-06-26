@@ -118,6 +118,20 @@ test('memory route renders real temporal fact fields and computed token number',
     provider: 'provider:native:memory:sqlite',
     facts,
     proposalQueue,
+    mcpStats: {
+      available: true,
+      callCount: 2,
+      deliveredTokens: 320,
+      baselineTokens: 900,
+      tokensSaved: 580,
+      tokenSavingPercent: 64,
+      providerBillingClaimed: false,
+      basis: 'estimated tokens over exact MCP JSON tool payload text',
+      byTool: [
+        { toolName: 'memory.recall', callCount: 1, deliveredTokens: 120, tokensSaved: 0 },
+        { toolName: 'context.profile', callCount: 1, deliveredTokens: 200, tokensSaved: 580 }
+      ]
+    },
     tokenBudget: profile.contextBudget,
     savings: {
       beforeDeliveryTokens: profile.contextBudget.historyTokensAvailable,
@@ -136,10 +150,15 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.equal(model.savings.beforeDeliveryTokens, profile.contextBudget.historyTokensAvailable);
   assert.equal(model.savings.afterDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
   assert.equal(model.savings.providerBillingClaimed, false);
+  assert.equal(model.mcpStats.callCount, 2);
+  assert.equal(model.mcpStats.deliveredTokens, 320);
   assert.match(html, new RegExp(`${model.tokenSavingPercent}% token saving`));
   assert.match(html, new RegExp(`<dt>Naive baseline</dt><dd>${profile.contextBudget.historyTokensAvailable}</dd>`));
   assert.match(html, new RegExp(`<dt>OAF compressed</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
   assert.match(html, /<dt>Provider billing<\/dt><dd>not claimed<\/dd>/);
+  assert.match(html, /<dt>MCP calls<\/dt><dd>2<\/dd>/);
+  assert.match(html, /<dt>MCP delivered<\/dt><dd>320<\/dd>/);
+  assert.match(html, /context\.profile/);
   assert.match(html, /memfact_web_memory/);
   assert.match(html, /memory-route/);
   assert.match(html, /Jun 26, 2026/);

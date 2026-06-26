@@ -388,7 +388,7 @@ function temporalFactChains(facts) {
   }));
 }
 
-async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt }) {
+async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt, mcpStatsPath = null }) {
   const [exported, facts, proposalQueue] = await Promise.all([
     provider.export({ workspaceId }),
     provider.listTemporalFacts({ workspaceId, limit: 100 }),
@@ -396,6 +396,7 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
   ]);
   const chains = temporalFactChains(facts);
   const profileRecords = [...exported.records, ...facts.map(factProfileRecord)];
+  const mcpStats = await buildMcpStatsSummaryFromFile({ statsPath: mcpStatsPath, workspaceId, generatedAt });
   const objective = 'Surface local bi-temporal memory and proposal-gated extraction state';
   const step = 'Render memory cockpit token budget';
   const profile = buildCompressedProfileContextReport({
@@ -430,6 +431,7 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
     provider: 'provider:native:memory:sqlite',
     facts: projectedFacts,
     proposalQueue,
+    mcpStats,
     tokenBudget: profile.contextBudget,
     savings: buildProfileSavingsSummary({
       profile,
@@ -468,6 +470,63 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
   };
 }
 
+async function buildMcpStatsSummaryFromFile({ statsPath, workspaceId, generatedAt }) {
+  const empty = {
+    schemaVersion: '1.0.0',
+    generatedAt,
+    available: false,
+    statsRef: 'workspace://.local/mcp-stats.jsonl',
+    callCount: 0,
+    deliveredTokens: 0,
+    baselineTokens: 0,
+    tokensSaved: 0,
+    tokenSavingPercent: 0,
+    providerBillingClaimed: false,
+    byTool: [],
+    basis: 'estimated tokens over exact MCP JSON tool payload text'
+  };
+  if (!statsPath) return empty;
+  const info = await stat(statsPath).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!info?.isFile()) return empty;
+  if (info.size > 2 * 1024 * 1024) return { ...empty, warning: 'mcp_stats_file_too_large' };
+  const byTool = new Map();
+  for (const line of (await readFile(statsPath, 'utf8')).split(/\r?\n/u).filter(Boolean)) {
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (entry?.workspaceId !== workspaceId || entry?.kind !== 'mcp-delivery-token-estimate') continue;
+    const key = String(entry.toolName ?? 'unknown');
+    const current = byTool.get(key) ?? { toolName: key, callCount: 0, deliveredTokens: 0, baselineTokens: 0, tokensSaved: 0 };
+    current.callCount += 1;
+    current.deliveredTokens += Math.max(0, Math.trunc(Number(entry.deliveredTokens ?? 0)));
+    current.baselineTokens += Math.max(0, Math.trunc(Number(entry.baselineTokens ?? 0)));
+    current.tokensSaved += Math.max(0, Math.trunc(Number(entry.tokensSaved ?? 0)));
+    byTool.set(key, current);
+  }
+  const totals = [...byTool.values()].reduce((sum, item) => ({
+    callCount: sum.callCount + item.callCount,
+    deliveredTokens: sum.deliveredTokens + item.deliveredTokens,
+    baselineTokens: sum.baselineTokens + item.baselineTokens,
+    tokensSaved: sum.tokensSaved + item.tokensSaved
+  }), { callCount: 0, deliveredTokens: 0, baselineTokens: 0, tokensSaved: 0 });
+  return {
+    ...empty,
+    available: totals.callCount > 0,
+    ...totals,
+    tokenSavingPercent: totals.baselineTokens > 0 ? Math.round((totals.tokensSaved / totals.baselineTokens) * 100) : 0,
+    byTool: [...byTool.values()].sort((left, right) => left.toolName.localeCompare(right.toolName)).map((item) => ({
+      ...item,
+      tokenSavingPercent: item.baselineTokens > 0 ? Math.round((item.tokensSaved / item.baselineTokens) * 100) : 0
+    }))
+  };
+}
+
 const VALID_CORRELATION_ID = /^req_[A-Za-z0-9._:-]{8,96}$/;
 const SAFE_RUN_ID = /^run_[A-Za-z0-9._:-]{1,120}$/;
 const SAFE_WORKSPACE_ID = /^ws_[A-Za-z0-9._:-]{1,120}$/;
@@ -495,6 +554,7 @@ export function createControlApiServer({
   harnessSetupHome = process.env.HOME ?? process.cwd(),
   memoryProvider = null,
   memoryDatabasePath = path.resolve(sourceGraphRoot, '.local/memory.sqlite'),
+  mcpStatsPath = path.resolve(sourceGraphRoot, '.local/mcp-stats.jsonl'),
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   policyService = null,
@@ -632,7 +692,7 @@ export function createControlApiServer({
         return withMemoryProvider(async (provider) => buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock(), memoryProvider: provider }));
       }
       case 'getMemoryCockpit':
-        return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock() }));
+        return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock(), mcpStatsPath }));
       case 'listRuns': {
         const state = await store.read();
         return { schemaVersion: '1.0.0', items: state.runs.filter((run) => run.workspaceId === context.workspaceId).slice().reverse() };

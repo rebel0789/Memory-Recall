@@ -903,7 +903,7 @@ export function createApiRouteContracts(limits = {}) {
   const memoryCockpitResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'facts', 'proposalQueue', 'tokenBudget', 'savings', 'profile', 'safeguards', 'reportFingerprint'],
+    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'facts', 'proposalQueue', 'mcpStats', 'tokenBudget', 'savings', 'profile', 'safeguards', 'reportFingerprint'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       workspaceId,
@@ -911,6 +911,21 @@ export function createApiRouteContracts(limits = {}) {
       provider: { const: 'provider:native:memory:sqlite' },
       facts: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } },
       proposalQueue: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } },
+      mcpStats: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['available', 'callCount', 'deliveredTokens', 'baselineTokens', 'tokensSaved', 'tokenSavingPercent', 'providerBillingClaimed', 'basis'],
+        properties: {
+          available: { type: 'boolean' },
+          callCount: { type: 'integer', minimum: 0, maximum: 1000000 },
+          deliveredTokens: { type: 'integer', minimum: 0, maximum: 100000000 },
+          baselineTokens: { type: 'integer', minimum: 0, maximum: 100000000 },
+          tokensSaved: { type: 'integer', minimum: 0, maximum: 100000000 },
+          tokenSavingPercent: { type: 'integer', minimum: 0, maximum: 100 },
+          providerBillingClaimed: { const: false },
+          basis: boundedString(160)
+        }
+      },
       tokenBudget: {
         type: 'object',
         additionalProperties: false,
