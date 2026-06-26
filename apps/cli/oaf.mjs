@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { appendFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { appendFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename as renameFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -1737,6 +1737,11 @@ async function buildSessionBenchmarkReport(values) {
   const calls = buildSessionBenchmarkCalls(item);
   const fullCalls = [];
   const deltaCalls = [];
+  const cursorStore = await createMcpCursorStore({ values: ['--cursors', '.local/mcp-cursors.json'], root: scratchRoot, workspaceId });
+  const cursorArgs = { client: 'bench-session', scope: 'workspace' };
+  const restartAfterCall = 3;
+  let persistedCursorReloaded = false;
+  let restartCallIndex = null;
   let cursor = null;
   let agentValue = null;
   let temporalFactCount = 0;
@@ -1753,6 +1758,11 @@ async function buildSessionBenchmarkReport(values) {
         predicate: item.predicate,
         currentTruthOnly: true
       };
+      if (call.index === restartAfterCall + 1) {
+        cursor = await cursorStore.get({ toolName: 'session.delta', args: cursorArgs });
+        persistedCursorReloaded = Boolean(cursor);
+        restartCallIndex = call.index;
+      }
       const profileArgs = {
         ...args,
         objective: item.question,
@@ -1780,9 +1790,11 @@ async function buildSessionBenchmarkReport(values) {
       const changes = mcpPayloadCurrentTruthChanges(deltaRecall);
       if (!cursor || changes.length > 0) agentValue = changes.at(-1)?.value ?? mcpPayloadCurrentTruthChanges(deltaRecall).at(-1)?.value ?? agentValue;
       cursor = mcpPayloadNextCursor(deltaRecall) ?? mcpPayloadNextCursor(deltaProfile) ?? call.at;
+      await cursorStore.set({ toolName: 'session.delta', args: cursorArgs, cursor });
       deltaCalls.push({
         index: call.index,
         mode: call.index === 1 ? 'full' : 'delta',
+        restart: call.index === restartCallIndex ? 'reloaded-persisted-cursor' : null,
         changed: call.changed,
         currentValue: call.currentValue,
         agentValue,
@@ -1817,11 +1829,20 @@ async function buildSessionBenchmarkReport(values) {
     source: {
       memoryProvider: 'provider:native:memory:sqlite',
       scratchStore: 'os-temp-sqlite',
+      cursorStore: cursorStore.cursorRef,
       temporalFactCount,
       proposalGated: true
     },
     fullResend,
     delta,
+    restart: {
+      afterCall: restartAfterCall,
+      restartCall: restartCallIndex,
+      cursorRef: cursorStore.cursorRef,
+      persistedCursorReloaded,
+      deliveredTokens: restartCallIndex ? deltaCalls.find((item) => item.index === restartCallIndex)?.deliveredTokens ?? 0 : 0,
+      correctnessAfterRestart: deltaCalls.filter((item) => item.index >= restartCallIndex).every((item) => item.correct === true)
+    },
     headline: {
       metric: 'session-current-truth-with-cursor-deltas',
       correctnessGatePassed: delta.correctnessPercent === 100,
@@ -1837,7 +1858,7 @@ async function buildSessionBenchmarkReport(values) {
     safeguards: {
       readOnly: true,
       workspaceFilesWritten: 0,
-      scratchFilesWritten: 1,
+      scratchFilesWritten: 2,
       proposalGated: true,
       activeMemoryCreated: temporalFactCount,
       hardDeleted: false,
@@ -2789,7 +2810,8 @@ async function mcpServerCommand(values) {
     generatedAt: fixedNow()
   });
   const statsRecorder = await createMcpStatsRecorder({ values, root, workspaceId, generatedAt: fixedNow() });
-  const tools = buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt: fixedNow(), statsRecorder });
+  const cursorStore = await createMcpCursorStore({ values, root, workspaceId });
+  const tools = buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt: fixedNow(), statsRecorder, cursorStore });
   await mcpResourcesStdio({
     resources,
     trustedContext: localMcpTrustedContext(workspaceId),
@@ -2879,7 +2901,7 @@ async function buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, ge
   };
 }
 
-function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null }) {
+function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null, cursorStore = null }) {
   return [
     {
       name: 'memory.recall',
@@ -2893,22 +2915,24 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         properties: {
           query: { type: 'string', minLength: 1, maxLength: 240 },
           scope: { type: 'string', maxLength: 64, default: 'workspace' },
+          client: { type: 'string', maxLength: 80, default: 'default' },
           limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 },
           since: { type: 'string', maxLength: 80 },
           verbose: { type: 'boolean', default: false }
         }
       },
-      handler: async ({ arguments: args }) => mcpToolJsonResult(await recordMcpToolPayload({
-        payload: await buildMcpMemoryRecallPayload({
+      handler: async ({ arguments: args }) => {
+        const argsWithCursor = await mcpArgsWithPersistedCursor({ cursorStore, toolName: 'memory.recall', args });
+        const payload = await buildMcpMemoryRecallPayload({
           values,
           root,
           workspaceId,
           generatedAt,
-          args
-        }),
-        statsRecorder,
-        toolName: 'memory.recall'
-      }))
+          args: argsWithCursor
+        });
+        await cursorStore?.set({ toolName: 'memory.recall', args: argsWithCursor, cursor: mcpPayloadNextCursor(payload) });
+        return mcpToolJsonResult(await recordMcpToolPayload({ payload, statsRecorder, toolName: 'memory.recall' }));
+      }
     },
     {
       name: 'context.profile',
@@ -2923,22 +2947,24 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           objective: { type: 'string', minLength: 1, maxLength: 500 },
           step: { type: 'string', maxLength: 500 },
           scope: { type: 'string', maxLength: 64, default: 'workspace' },
+          client: { type: 'string', maxLength: 80, default: 'default' },
           budget: { type: 'integer', minimum: 1, maximum: 100000, default: 4096 },
           limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
           since: { type: 'string', maxLength: 80 }
         }
       },
-      handler: async ({ arguments: args }) => mcpToolJsonResult(await recordMcpToolPayload({
-        payload: await buildMcpContextProfilePayload({
+      handler: async ({ arguments: args }) => {
+        const argsWithCursor = await mcpArgsWithPersistedCursor({ cursorStore, toolName: 'context.profile', args });
+        const payload = await buildMcpContextProfilePayload({
           values,
           root,
           workspaceId,
           generatedAt,
-          args
-        }),
-        statsRecorder,
-        toolName: 'context.profile'
-      }))
+          args: argsWithCursor
+        });
+        await cursorStore?.set({ toolName: 'context.profile', args: argsWithCursor, cursor: mcpPayloadNextCursor(payload) });
+        return mcpToolJsonResult(await recordMcpToolPayload({ payload, statsRecorder, toolName: 'context.profile' }));
+      }
     },
     {
       name: 'context.pack',
@@ -3353,6 +3379,69 @@ function mcpPayloadNextCursor(payload) {
 
 function mcpPayloadCurrentTruthChanges(payload) {
   return payload?.d ?? payload?.data?.facts ?? [];
+}
+
+async function mcpArgsWithPersistedCursor({ cursorStore, toolName, args }) {
+  if (!cursorStore || args?.since) return args;
+  const cursor = await cursorStore.get({ toolName, args });
+  return cursor ? { ...args, since: cursor } : args;
+}
+
+async function createMcpCursorStore({ values, root, workspaceId }) {
+  const cursorPath = await resolveWorkspaceCursorPath(root, option(values, '--cursors') ?? '.local/mcp-cursors.json', 'mcp cursor store', { mustExist: false });
+  return {
+    cursorRef: `workspace://${cursorPath.relative}`,
+    async get({ toolName, args }) {
+      const data = await readMcpCursorFile(cursorPath.absolute);
+      const cursor = data.cursors?.[mcpCursorStoreKey({ workspaceId, toolName, args })]?.cursor ?? null;
+      if (!cursor) return null;
+      try {
+        return mcpParseSinceCursor(cursor);
+      } catch {
+        return null;
+      }
+    },
+    async set({ toolName, args, cursor }) {
+      if (!cursor) return;
+      const next = mcpParseSinceCursor(cursor);
+      const key = mcpCursorStoreKey({ workspaceId, toolName, args });
+      const data = await readMcpCursorFile(cursorPath.absolute);
+      data.schemaVersion = '1.0.0';
+      data.kind = 'mcp-session-cursors';
+      data.workspaceId = workspaceId;
+      data.cursors ??= {};
+      data.cursors[key] = {
+        workspaceId,
+        toolName,
+        client: mcpCursorStoreClient(args),
+        scope: mcpSafeScope(args?.scope ?? 'workspace'),
+        cursor: next,
+        updatedAt: next
+      };
+      await mkdir(path.dirname(cursorPath.absolute), { recursive: true, mode: 0o700 });
+      const tmpPath = `${cursorPath.absolute}.${process.pid}.${randomUUID()}.tmp`;
+      await writeFile(tmpPath, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });
+      await renameFile(tmpPath, cursorPath.absolute);
+    }
+  };
+}
+
+async function readMcpCursorFile(cursorPath) {
+  const text = await readFile(cursorPath, 'utf8').catch((error) => {
+    if (error.code === 'ENOENT') return '';
+    throw error;
+  });
+  if (!text.trim()) return { schemaVersion: '1.0.0', kind: 'mcp-session-cursors', cursors: {} };
+  const parsed = JSON.parse(text);
+  return parsed && typeof parsed === 'object' ? parsed : { schemaVersion: '1.0.0', kind: 'mcp-session-cursors', cursors: {} };
+}
+
+function mcpCursorStoreKey({ workspaceId, toolName, args }) {
+  return [workspaceId, toolName, mcpCursorStoreClient(args), mcpSafeScope(args?.scope ?? 'workspace')].map((part) => mcpSanitizeString(part, 120)).join('|');
+}
+
+function mcpCursorStoreClient(args) {
+  return mcpSanitizeString(args?.client ?? 'default', 80);
 }
 
 function mcpCompactProvenanceRef(value) {
@@ -5172,6 +5261,19 @@ async function resolveWorkspaceStatsPath(root, statsPath, commandName, { mustExi
     throw error;
   });
   if (mustExist && !existing?.isFile()) throw new Error(`${commandName} requires an existing stats file at --stats or .local/mcp-stats.jsonl`);
+  return { absolute, relative: toPosix(path.relative(realRoot, absolute)) };
+}
+
+async function resolveWorkspaceCursorPath(root, cursorPath, commandName, { mustExist }) {
+  const requested = cursorPath ?? '.local/mcp-cursors.json';
+  const realRoot = await realpath(root);
+  const absolute = path.isAbsolute(requested) ? path.resolve(requested) : path.resolve(realRoot, requested);
+  if (!isInside(realRoot, absolute)) throw new Error(`${commandName} --cursors must stay inside --root`);
+  const existing = await stat(absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (mustExist && !existing?.isFile()) throw new Error(`${commandName} requires an existing cursor file at --cursors or .local/mcp-cursors.json`);
   return { absolute, relative: toPosix(path.relative(realRoot, absolute)) };
 }
 

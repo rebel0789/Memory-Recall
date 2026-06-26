@@ -678,6 +678,15 @@ test('bench session proves cursor delta delivery keeps current truth with fewer 
   assert(report.delta.calls.some((item)=>item.changed===true&&item.correct===true));
   assert(report.delta.calls.filter((item)=>item.changed===false&&item.mode==='delta').every((item)=>item.deliveredTokens<=30));
   assert(report.delta.calls.every((item)=>item.currentValue===item.agentValue));
+  assert.equal(report.restart.afterCall,3);
+  assert.equal(report.restart.persistedCursorReloaded,true);
+  assert.equal(report.restart.correctnessAfterRestart,true);
+  assert.match(report.restart.cursorRef,/workspace:\/\/\.local\/mcp-cursors\.json/);
+  const restartCall=report.delta.calls.find((item)=>item.restart==='reloaded-persisted-cursor');
+  assert(restartCall);
+  assert.equal(restartCall.mode,'delta');
+  assert.equal(restartCall.correct,true);
+  assert(restartCall.deliveredTokens<=30);
   assert.equal(report.safeguards.readOnly,true);
   assert.equal(report.safeguards.workspaceFilesWritten,0);
   assert.equal(report.safeguards.networkCalls,0);
@@ -758,9 +767,9 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
     JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
     JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
-    JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'mcp token saver ready', scope: 'workspace', limit: 5 } } }),
-    JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'mcp token saver ready', scope: 'workspace', limit: 5, verbose: true } } }),
-    JSON.stringify({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'context.profile', arguments: { objective: 'mcp token saver ready', step: 'serve coding agent context', budget: 256, limit: 10 } } })
+    JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'memory.recall', arguments: { client: 'compact-fixture', query: 'mcp token saver ready', scope: 'workspace', limit: 5 } } }),
+    JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'memory.recall', arguments: { client: 'verbose-fixture', query: 'mcp token saver ready', scope: 'workspace', limit: 5, verbose: true } } }),
+    JSON.stringify({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'context.profile', arguments: { client: 'profile-fixture', objective: 'mcp token saver ready', step: 'serve coding agent context', budget: 256, limit: 10 } } })
   ].join('\n');
   const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], { encoding: 'utf8', env, input });
   assert.equal(result.status, 0, result.stderr);
@@ -983,8 +992,8 @@ test('mcp server records delivery-token stats and stats command summarizes them'
   const input = [
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
     JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
-    JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'mcp stats delivery', limit: 5 } } }),
-    JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'context.profile', arguments: { objective: 'mcp stats delivery', step: 'summarize delivery savings', budget: 256, limit: 10 } } })
+    JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: { client: 'test-client', query: 'mcp stats delivery', limit: 5 } } }),
+    JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'context.profile', arguments: { client: 'test-client', objective: 'mcp stats delivery', step: 'summarize delivery savings', budget: 256, limit: 10 } } })
   ].join('\n');
   const env = { ...process.env, OAF_FIXED_NOW: '2026-06-26T12:00:00.000Z' };
   const served = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--sqlite', '.local/memory.sqlite', '--stats', '.local/mcp-stats.jsonl', '--stdio'], { encoding: 'utf8', env, input });
@@ -998,11 +1007,27 @@ test('mcp server records delivery-token stats and stats command summarizes them'
   assert(profile.data.deliveryEstimate.deliveredTokens > 0);
   assert.equal(profile.data.deliveryEstimate.providerBillingClaimed, false);
   assert.equal(profile.data.sessionStats.callCount, 2);
+  const cursorPath = path.join(root, '.local', 'mcp-cursors.json');
+  assert.equal(existsSync(cursorPath), true);
+  const cursorFile = JSON.parse(readFileSync(cursorPath, 'utf8'));
+  assert(Object.keys(cursorFile.cursors).some((key) => key.includes('memory.recall') && key.includes('test-client')));
+  const reconnectInput = [
+    JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+    JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
+    JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: { client: 'test-client', query: 'mcp stats delivery', limit: 5 } } })
+  ].join('\n');
+  const reconnectEnv = { ...process.env, OAF_FIXED_NOW: '2026-06-26T12:01:00.000Z' };
+  const reconnect = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--sqlite', '.local/memory.sqlite', '--stats', '.local/mcp-stats.jsonl', '--stdio'], { encoding: 'utf8', env: reconnectEnv, input: reconnectInput });
+  assert.equal(reconnect.status, 0, reconnect.stderr);
+  const reconnectResponses = reconnect.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
+  const reconnectRecall = JSON.parse(reconnectResponses[1].result.content[0].text);
+  assert.equal(reconnectRecall.data.cursor.previous, '2026-06-26T12:00:00.000Z');
+  assert.equal(reconnectRecall.data.activeFactCount, 0);
   const stats = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'stats', '--read-only', '--root', root, '--stats', '.local/mcp-stats.jsonl', '--format', 'json'], { encoding: 'utf8', env });
   assert.equal(stats.status, 0, stats.stderr);
   const report = JSON.parse(stats.stdout);
   assert.equal(report.command, 'mcp stats');
-  assert.equal(report.summary.callCount, 2);
+  assert.equal(report.summary.callCount, 3);
   assert(report.summary.deliveredTokens > 0);
   assert(report.summary.baselineTokens > 0);
   assert(report.summary.tokensSaved >= 0);
@@ -1024,7 +1049,7 @@ test('mcp server records delivery-token stats and stats command summarizes them'
   assert.equal(stats.stdout.includes('MCP_STATS_REALISTIC_RAW_BODY'), false);
   const summary = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'stats', '--read-only', '--root', root, '--stats', '.local/mcp-stats.jsonl', '--format', 'summary'], { encoding: 'utf8', env });
   assert.equal(summary.status, 0, summary.stderr);
-  assert.match(summary.stdout, /MCP delivery calls: 2/);
+  assert.match(summary.stdout, /MCP delivery calls: 3/);
   assert.match(summary.stdout, /Compression-path saving \(context\.profile\): \d+%/);
   assert.match(summary.stdout, /Recall compaction saving \(memory\.recall\): \d+%/);
   assert.match(summary.stdout, /Realistic context\.profile saving: \d+%/);
