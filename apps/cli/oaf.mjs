@@ -98,7 +98,10 @@ async function memoryCommand(values) {
     if (subcommand === 'proposals') return await memoryProposalsCommand(rest);
     if (subcommand === 'sgrep') return await memorySgrepCommand(rest);
     if (subcommand === 'fact') return await memoryFactCommand(rest);
-    console.error('memory requires profile, proposals, sgrep, or fact');
+    if (subcommand === 'search') return await memorySearchCommand(rest);
+    if (subcommand === 'path') return await memoryPathCommand(rest);
+    if (subcommand === 'explain') return await memoryExplainCommand(rest);
+    console.error('memory requires profile, proposals, sgrep, fact, search, path, or explain');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -616,6 +619,62 @@ async function memoryFactHistoryCommand(values) {
       generatedAt: fixedNow(),
       facts
     }, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+function memoryHybridQuery(values) {
+  return {
+    workspaceId: option(values, '--workspace') ?? 'ws_local',
+    scope: option(values, '--scope') ?? 'workspace'
+  };
+}
+
+async function memorySearchCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  const query = values.find((value, index) => index === 0 && !value.startsWith('--')) ?? option(values, '--query');
+  if (!query) throw new Error('memory search requires a query');
+  const provider = await openMemoryFactProvider(values, { readOnly: true });
+  try {
+    const report = await provider.searchTemporalMemory({
+      ...memoryHybridQuery(values),
+      query,
+      at: option(values, '--at') ?? fixedNow(),
+      limit: parseIntegerOption(values, '--limit', 10)
+    });
+    console.log(JSON.stringify(report, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+async function memoryPathCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  const provider = await openMemoryFactProvider(values, { readOnly: true });
+  try {
+    const report = await provider.getTemporalMemoryPath({
+      ...memoryHybridQuery(values),
+      from: requiredOption(values, '--from'),
+      to: requiredOption(values, '--to')
+    });
+    console.log(JSON.stringify(report, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+async function memoryExplainCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  const provider = await openMemoryFactProvider(values, { readOnly: true });
+  try {
+    const report = await provider.explainTemporalMemory({
+      ...memoryHybridQuery(values),
+      query: requiredOption(values, '--query'),
+      factId: requiredOption(values, '--fact'),
+      at: option(values, '--at') ?? fixedNow()
+    });
+    console.log(JSON.stringify(report, null, 2));
   } finally {
     provider.close();
   }
@@ -2404,6 +2463,9 @@ Usage:
   oaf memory fact add --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --object release-candidate --text "OAF release status is release-candidate." --source workspace://memory/status.md --proposal mpq_status --episode-id mep_status --episode-source workspace://memory/status.md --episode-summary "Reviewed status note." --format json
   oaf memory fact get --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --at 2026-06-26T00:00:00.000Z --format json
   oaf memory fact history --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --format json
+  oaf memory search "release" --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --format json
+  oaf memory path --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --from project:oaf --to temporal-memory --format json
+  oaf memory explain --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --query release --fact memfact_status --format json
   oaf mcp resources --read-only --workspace ws_local --format json
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --uri oaf://workspace/ws_local/context-pack/current --format json
   oaf mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json

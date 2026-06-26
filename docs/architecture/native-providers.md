@@ -77,8 +77,12 @@ tables with `validFrom`, `validUntil`, `supersededBy`, and episode provenance.
 `oaf memory fact add/get/history` writes and reads that temporal surface through
 the native provider. Fact writes require an applied proposal queue record; a
 contradicting fact supersedes the old row by closing its valid window and never
-hard-deletes it. The temporal fact table has its own FTS5 index, but hybrid
-fusion retrieval, vector search, and graph traversal remain later work.
+hard-deletes it. The temporal fact table has its own FTS5 index.
+`oaf memory search/path/explain` adds the first local hybrid retrieval surface:
+FTS5 matches seed the result set, entity edges add graph-neighbor facts,
+temporal ranking prefers recent valid facts, and scoped digests provide a compact
+graphify-style handoff summary. Semantic sqlite-vec ranking is reported as
+skipped when no local embedder is available; no network or model API is called.
 No network calls, model calls, external writes, Supermemory sync, FUSE/NFS
 mounts, API-key storage, or active-memory creation from ordinary file edits are
 enabled.

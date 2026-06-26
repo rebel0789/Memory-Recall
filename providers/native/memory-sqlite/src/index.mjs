@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { prefixedId, nowIso, assertPlainObject } from '../../../../packages/protocol/src/index.mjs';
+import { prefixedId, nowIso, assertPlainObject, stableStringify, sha256Hex } from '../../../../packages/protocol/src/index.mjs';
 
 const PROVIDER_ID = 'provider:native:memory:sqlite';
 const STATUSES = new Set(['observed', 'proposed', 'verified', 'active', 'rejected', 'superseded', 'retracted', 'expired', 'quarantined']);
@@ -226,6 +226,15 @@ function boundedJson(value, maximumBytes = 4096) {
   return Buffer.byteLength(json, 'utf8') > maximumBytes
     ? JSON.stringify({ message: 'error payload truncated', code: 'payload_too_large' })
     : json;
+}
+
+function byteLength(value) {
+  return Buffer.byteLength(typeof value === 'string' ? value : JSON.stringify(value), 'utf8');
+}
+
+function temporalRank(validFrom, at) {
+  const ageMs = Math.max(0, Date.parse(at) - Date.parse(validFrom));
+  return 1 / (1 + ageMs / 86_400_000);
 }
 
 function assertIsoTimestamp(value, name) {
@@ -500,7 +509,7 @@ export class SQLiteMemoryProvider {
   }
 
   async capabilities() {
-    return ['memory.put', 'memory.get', 'memory.search.lexical', 'memory.supersede', 'memory.forget', 'memory.export', 'memory.filesystemReports', 'memory.proposalQueue', 'memory.temporalFacts'];
+    return ['memory.put', 'memory.get', 'memory.search.lexical', 'memory.supersede', 'memory.forget', 'memory.export', 'memory.filesystemReports', 'memory.proposalQueue', 'memory.temporalFacts', 'memory.search.hybrid'];
   }
 
   #recordValues(record) {
@@ -883,6 +892,142 @@ export class SQLiteMemoryProvider {
       ORDER BY valid_from ASC, created_at ASC, id ASC
       LIMIT ?
     `).all(workspaceId, normalizedScope, subject, predicate, boundedLimit).map((row) => this.#temporalFactFromRow(row));
+  }
+
+  #validTemporalFactRows({ workspaceId, scope, at }) {
+    return this.database.prepare(`
+      SELECT *
+      FROM memory_facts
+      WHERE workspace_id = ?
+        AND scope = ?
+        AND status IN ('active', 'superseded')
+        AND valid_from <= ?
+        AND (valid_until IS NULL OR valid_until > ?)
+    `).all(workspaceId, scope, at, at);
+  }
+
+  #ftsTemporalMatches({ workspaceId, scope, query, at, limit }) {
+    const expression = ftsExpression(query);
+    if (!expression) return new Map();
+    const rows = this.database.prepare(`
+      SELECT m.id, bm25(memory_fact_fts) AS rank
+      FROM memory_fact_fts
+      JOIN memory_facts m ON m.id = memory_fact_fts.id AND m.workspace_id = memory_fact_fts.workspace_id
+      WHERE memory_fact_fts MATCH ?
+        AND m.workspace_id = ?
+        AND m.scope = ?
+        AND m.status IN ('active', 'superseded')
+        AND m.valid_from <= ?
+        AND (m.valid_until IS NULL OR m.valid_until > ?)
+      ORDER BY rank ASC, m.valid_from DESC, m.id ASC
+      LIMIT ?
+    `).all(expression, workspaceId, scope, at, at, limit);
+    return new Map(rows.map((row) => [row.id, 1 / (1 + Math.abs(Number(row.rank ?? 0)))]));
+  }
+
+  #relatedTemporalFactIds(rows, seedRows) {
+    const subjects = new Set(seedRows.map((row) => row.subject));
+    const objects = new Set(seedRows.map((row) => row.object));
+    return new Set(rows
+      .filter((row) => subjects.has(row.subject) || subjects.has(row.object) || objects.has(row.subject) || objects.has(row.object))
+      .map((row) => row.id));
+  }
+
+  async searchTemporalMemory({ workspaceId, scope = 'workspace', query = '', at = this.clock(), limit = 10 } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    const normalizedScope = normalizeTemporalScope(scope);
+    const boundedLimit = Math.max(1, Math.min(100, Number(limit) || 10));
+    const rows = this.#validTemporalFactRows({ workspaceId, scope: normalizedScope, at });
+    const ftsScores = this.#ftsTemporalMatches({ workspaceId, scope: normalizedScope, query, at, limit: Math.max(boundedLimit, 25) });
+    const seedRows = rows.filter((row) => ftsScores.has(row.id));
+    const relatedIds = this.#relatedTemporalFactIds(rows, seedRows);
+    const scored = rows
+      .map((row) => {
+        const fts5 = ftsScores.get(row.id) ?? 0;
+        const graph = fts5 > 0 ? 0.2 : (relatedIds.has(row.id) ? 0.4 : 0);
+        const temporal = temporalRank(row.valid_from, at);
+        const score = fts5 * 0.7 + graph * 0.2 + temporal * 0.1;
+        return { row, ranking: { score, signals: { fts5, graph, temporal, semantic: 0 } } };
+      })
+      .filter((item) => item.ranking.signals.fts5 > 0 || item.ranking.signals.graph > 0)
+      .sort((left, right) => right.ranking.score - left.ranking.score || right.row.valid_from.localeCompare(left.row.valid_from) || left.row.id.localeCompare(right.row.id))
+      .slice(0, boundedLimit);
+    const results = scored.map((item) => ({ fact: this.#temporalFactFromRow(item.row), ranking: item.ranking }));
+    const rawResultBytes = byteLength(results);
+    const digestPayload = {
+      query,
+      at,
+      resultIds: results.map((item) => item.fact.id),
+      edges: results.map((item) => [item.fact.subject, item.fact.predicate, item.fact.object])
+    };
+    const serializedDigest = stableStringify(digestPayload);
+    return {
+      schemaVersion: '1.0.0',
+      provider: PROVIDER_ID,
+      workspaceId,
+      scope: normalizedScope,
+      generatedAt: this.clock(),
+      query,
+      results,
+      signals: {
+        fts5: { status: ftsScores.size ? 'used' : 'empty', matchCount: ftsScores.size },
+        semantic: { status: 'skipped', reason: 'local_embedder_unavailable' },
+        graph: { status: seedRows.length ? 'used' : 'empty', relatedFactCount: relatedIds.size },
+        temporal: { status: 'used', at }
+      },
+      scopedDigest: {
+        digest: `sha256:${sha256Hex(serializedDigest)}`,
+        summary: digestPayload
+      },
+      measurements: {
+        rawResultBytes,
+        scopedDigestBytes: byteLength(serializedDigest)
+      }
+    };
+  }
+
+  async getTemporalMemoryPath({ workspaceId, scope = 'workspace', from, to } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    if (!from || !to) throw new Error('from and to are required');
+    const normalizedScope = normalizeTemporalScope(scope);
+    const rows = this.database.prepare(`
+      SELECT e.predicate, e.fact_id, source.name AS source_name, target.name AS target_name
+      FROM memory_edges e
+      JOIN memory_entities source ON source.id = e.source_entity_id
+      JOIN memory_entities target ON target.id = e.target_entity_id
+      WHERE e.workspace_id = ?
+        AND e.scope = ?
+        AND source.name = ?
+        AND target.name = ?
+      ORDER BY e.created_at ASC, e.fact_id ASC
+      LIMIT 10
+    `).all(workspaceId, normalizedScope, from, to);
+    return {
+      schemaVersion: '1.0.0',
+      provider: PROVIDER_ID,
+      workspaceId,
+      scope: normalizedScope,
+      path: rows.length ? [{ name: from }, { name: to }] : [],
+      edges: rows.map((row) => ({ from: row.source_name, predicate: row.predicate, to: row.target_name, factId: row.fact_id }))
+    };
+  }
+
+  async explainTemporalMemory({ workspaceId, scope = 'workspace', query = '', factId, at = this.clock() } = {}) {
+    if (!factId) throw new Error('factId is required');
+    const report = await this.searchTemporalMemory({ workspaceId, scope, query, at, limit: 100 });
+    const result = report.results.find((item) => item.fact.id === factId);
+    if (!result) throw new Error(`temporal fact not found in search result: ${factId}`);
+    return {
+      schemaVersion: '1.0.0',
+      provider: PROVIDER_ID,
+      workspaceId: report.workspaceId,
+      scope: report.scope,
+      query,
+      fact: result.fact,
+      ranking: result.ranking,
+      semantic: report.signals.semantic,
+      scopedDigest: report.scopedDigest
+    };
   }
 
   async enqueueProposal(input) {

@@ -806,12 +806,14 @@
         "examples/protocol/memory-proposal-queue-record.json",
         "examples/protocol/memory-temporal-fact.json",
         "tests/native-memory-sqlite.test.mjs",
+        "tests/native-memory-hybrid-retrieval.test.mjs",
         "tests/memory-filesystem-ux.test.mjs",
         "tests/cli.test.mjs"
       ],
       "limitations": [
         "Node 22 node:sqlite is experimental",
-        "Search is lexical FTS5 plus report projection; temporal facts add fact/entity/edge/episode tables with FTS5 fact indexing but no vector retrieval or graph search",
+        "Search is lexical FTS5 plus report projection; temporal facts add fact/entity/edge/episode tables with FTS5 fact indexing, hybrid FTS5 plus entity-edge graph expansion plus temporal ranking, and scoped digest summaries",
+        "Semantic sqlite-vec ranking is skipped when no local embedder is available; no hosted embedding service, network call, model API, or vector database is required",
         "Temporal fact writes require an applied proposal queue record and supersede contradictory facts by validUntil and supersededBy instead of hard deletion",
         "Filesystem memory files are generated reports only and are not authoritative",
         "No hosted memory provider, external sync, FUSE/NFS mount, API-key storage, or evented review service yet"
@@ -913,7 +915,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 393,
+    "testsExpected": 394,
     "protocolFixturesExpected": 160,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

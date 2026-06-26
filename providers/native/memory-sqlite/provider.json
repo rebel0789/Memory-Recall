@@ -16,13 +16,15 @@
     "memory.export",
     "memory.filesystemReports",
     "memory.proposalQueue",
-    "memory.temporalFacts"
+    "memory.temporalFacts",
+    "memory.search.hybrid"
   ],
   "limits": {
     "queryLimit": 100,
     "textBytes": 1000000,
     "search": "SQLite FTS5; no vector similarity",
     "temporalFacts": "Proposal-gated fact/entity/edge/episode tables with validFrom, validUntil, supersededBy, episode provenance, and FTS5 fact index",
+    "hybridRetrieval": "FTS5, entity-edge graph expansion, and temporal ranking; semantic sqlite-vec signal is skipped when no local embedder is available",
     "proposalQueue": "SQLite table with idempotent fingerprints, leases, retries, and poison records",
     "filesystemReports": "Generated workspace-local reports only; files are not canonical memory authority"
   },
@@ -31,6 +33,7 @@
   "notes": [
     "Uses Node 22 node:sqlite, which is experimental in Node 22.",
     "Permanent writes remain governed by memory-core before this provider is called.",
-    "Temporal fact writes require an applied proposal queue record and supersede contradictory facts instead of deleting them."
+    "Temporal fact writes require an applied proposal queue record and supersede contradictory facts instead of deleting them.",
+    "Hybrid retrieval is local-only and does not call network or model APIs; semantic ranking is disabled unless a future local embedder/sqlite-vec path is present."
   ]
 }
