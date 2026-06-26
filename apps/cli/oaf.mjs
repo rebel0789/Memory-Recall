@@ -1465,9 +1465,10 @@ async function contextProfileCommand(values) {
 async function benchmarkCommand(values) {
   if (values[0] === 'sufficiency') return await benchmarkSufficiencyCommand(values.slice(1));
   if (values[0] === 'temporal') return await benchmarkTemporalCommand(values.slice(1));
+  if (values[0] === 'session') return await benchmarkSessionCommand(values.slice(1));
 
   if (values[0] !== 'truth-floor') {
-    console.error('benchmark requires truth-floor, sufficiency, or temporal');
+    console.error('benchmark requires truth-floor, sufficiency, temporal, or session');
     process.exitCode = 2;
     return;
   }
@@ -1685,6 +1686,250 @@ async function buildTemporalBenchmarkReport(values) {
     reportFingerprint: null
   };
   return { ...report, reportFingerprint: stableJsonFingerprint(report) };
+}
+
+async function benchmarkSessionCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('bench session requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out')) {
+    console.error('bench session is read-only and does not write or pin workspace artifacts');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--workspace', '--workspace-id', '--budget', '--token-budget', '--limit', '--dataset', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`bench session unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('bench session only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const report = await buildSessionBenchmarkReport(values);
+    console.log(format === 'summary' ? renderSessionBenchmarkSummary(report) : JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function buildSessionBenchmarkReport(values) {
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('bench session --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 1024));
+  const recallLimit = parseIntegerOption(values, '--limit', 8);
+  const datasetPath = option(values, '--dataset') ?? 'evals/temporal/gold.v1.json';
+  const dataset = await loadTemporalDataset(datasetPath);
+  const item = dataset.cases[0];
+  const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-session-'));
+  const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
+  const sqliteValues = ['--sqlite', 'memory.sqlite'];
+  const calls = buildSessionBenchmarkCalls(item);
+  const fullCalls = [];
+  const deltaCalls = [];
+  let cursor = null;
+  let agentValue = null;
+  let temporalFactCount = 0;
+  try {
+    for (const call of calls) {
+      if (call.changed) {
+        await addTemporalBenchmarkFactAt({ sqlitePath: scratchSqlite, now: call.at, item, pointIndex: call.pointIndex, workspaceId });
+        temporalFactCount += 1;
+      }
+      const args = {
+        scope: 'workspace',
+        limit: recallLimit,
+        subject: item.subject,
+        predicate: item.predicate,
+        currentTruthOnly: true
+      };
+      const profileArgs = {
+        ...args,
+        objective: item.question,
+        step: 'Measure session cursor delta delivery',
+        budget: tokenBudget
+      };
+      const recallArgs = {
+        ...args,
+        query: item.question
+      };
+      const fullProfile = await buildMcpContextProfilePayload({ values: sqliteValues, root: scratchRoot, workspaceId, generatedAt: call.at, args: profileArgs });
+      const fullRecall = await buildMcpMemoryRecallPayload({ values: sqliteValues, root: scratchRoot, workspaceId, generatedAt: call.at, args: recallArgs });
+      const fullText = JSON.stringify([fullProfile, fullRecall]);
+      fullCalls.push({
+        index: call.index,
+        changed: call.changed,
+        currentValue: call.currentValue,
+        deliveredTokens: estimateTokens(fullText),
+        correct: fullText.includes(call.currentValue)
+      });
+
+      const deltaProfile = await buildMcpContextProfilePayload({ values: sqliteValues, root: scratchRoot, workspaceId, generatedAt: call.at, args: cursor ? { ...profileArgs, since: cursor } : profileArgs });
+      const deltaRecall = await buildMcpMemoryRecallPayload({ values: sqliteValues, root: scratchRoot, workspaceId, generatedAt: call.at, args: cursor ? { ...recallArgs, since: cursor } : recallArgs });
+      const deltaText = JSON.stringify([deltaProfile, deltaRecall]);
+      const changes = mcpPayloadCurrentTruthChanges(deltaRecall);
+      if (!cursor || changes.length > 0) agentValue = changes.at(-1)?.value ?? mcpPayloadCurrentTruthChanges(deltaRecall).at(-1)?.value ?? agentValue;
+      cursor = mcpPayloadNextCursor(deltaRecall) ?? mcpPayloadNextCursor(deltaProfile) ?? call.at;
+      deltaCalls.push({
+        index: call.index,
+        mode: call.index === 1 ? 'full' : 'delta',
+        changed: call.changed,
+        currentValue: call.currentValue,
+        agentValue,
+        deliveredTokens: estimateTokens(deltaText),
+        changeCount: changes.length,
+        correct: agentValue === call.currentValue,
+        cursor
+      });
+    }
+  } finally {
+    await rm(scratchRoot, { recursive: true, force: true }).catch(() => {});
+  }
+  const fullResend = summarizeSessionArm('full-resend-memory.recall+context.profile', fullCalls, tokenBudget);
+  const delta = summarizeSessionArm('cursor-delta-memory.recall+context.profile', deltaCalls, tokenBudget);
+  return {
+    schemaVersion: '1.0.0',
+    command: 'bench session',
+    generatedAt: fixedNow(),
+    workspaceId,
+    dataset: {
+      id: dataset.id,
+      version: dataset.version,
+      ref: datasetPath.startsWith('/') ? 'local-absolute-dataset' : `workspace://${toPosix(datasetPath)}`,
+      caseCount: dataset.cases.length,
+      sessionCaseId: item.id
+    },
+    budget: {
+      tokenBudget,
+      unit: 'estimated delivery tokens per call',
+      estimator: 'ceil(chars/4)'
+    },
+    source: {
+      memoryProvider: 'provider:native:memory:sqlite',
+      scratchStore: 'os-temp-sqlite',
+      temporalFactCount,
+      proposalGated: true
+    },
+    fullResend,
+    delta,
+    headline: {
+      metric: 'session-current-truth-with-cursor-deltas',
+      correctnessGatePassed: delta.correctnessPercent === 100,
+      deltaDeliveredTokens: delta.deliveredTokens,
+      fullResendDeliveredTokens: fullResend.deliveredTokens,
+      tokenReductionPercent: fullResend.deliveredTokens ? Math.round((1 - delta.deliveredTokens / fullResend.deliveredTokens) * 100) : 0
+    },
+    antiGaming: {
+      missingChangedFactFails: true,
+      agentMustEndCurrent: true,
+      noChangeMayOnlyReturnNoChanges: true
+    },
+    safeguards: {
+      readOnly: true,
+      workspaceFilesWritten: 0,
+      scratchFilesWritten: 1,
+      proposalGated: true,
+      activeMemoryCreated: temporalFactCount,
+      hardDeleted: false,
+      deterministicOffline: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      providerBillingClaimed: false
+    },
+    reportFingerprint: fingerprintJson({ datasetId: dataset.id, fullResend, delta })
+  };
+}
+
+function buildSessionBenchmarkCalls(item) {
+  const [first, second, third] = item.timeline;
+  return [
+    { index: 1, changed: true, pointIndex: 0, at: addIsoMilliseconds(first.at, 1000), currentValue: first.value },
+    { index: 2, changed: false, pointIndex: 0, at: addIsoMilliseconds(first.at, 2000), currentValue: first.value },
+    { index: 3, changed: true, pointIndex: 1, at: addIsoMilliseconds(second.at, 1000), currentValue: second.value },
+    { index: 4, changed: false, pointIndex: 1, at: addIsoMilliseconds(second.at, 2000), currentValue: second.value },
+    { index: 5, changed: true, pointIndex: 2, at: addIsoMilliseconds(third.at, 1000), currentValue: third.value },
+    { index: 6, changed: false, pointIndex: 2, at: addIsoMilliseconds(third.at, 2000), currentValue: third.value }
+  ];
+}
+
+function addIsoMilliseconds(value, milliseconds) {
+  return new Date(Date.parse(value) + milliseconds).toISOString();
+}
+
+async function addTemporalBenchmarkFactAt({ sqlitePath, now, item, pointIndex, workspaceId }) {
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  const provider = new SQLiteMemoryProvider({ filename: sqlitePath, clock: () => now });
+  try {
+    const point = item.timeline[pointIndex];
+    const proposalId = `mpq_${item.id}_session_${pointIndex + 1}`;
+    await provider.enqueueProposal({
+      id: proposalId,
+      workspaceId,
+      sourceLocator: `workspace://evals/temporal/${item.id}.md`,
+      sourceHash: `sha256:${createHash('sha256').update(`${item.id}:session:${pointIndex}:${point.value}`).digest('hex')}`,
+      payload: { kind: 'fact', subject: item.subject, predicate: item.predicate, object: point.value }
+    });
+    await provider.claimProposal({ workspaceId, workerId: 'session-bench', leaseUntil: '2999-01-01T00:00:00.000Z' });
+    await provider.recordProposalResult({ workspaceId, id: proposalId, workerId: 'session-bench', status: 'applied', result: { accepted: true } });
+    await provider.addTemporalFact({
+      id: `memfact_${item.id}_session_${pointIndex + 1}`,
+      workspaceId,
+      scope: 'workspace',
+      subject: item.subject,
+      predicate: item.predicate,
+      object: point.value,
+      text: `${item.predicate} current value ${point.value}.`,
+      source: `workspace://evals/temporal/${item.id}.md`,
+      proposalQueueId: proposalId,
+      validFrom: point.at,
+      episode: {
+        id: `mep_${item.id}_session_${pointIndex + 1}`,
+        sourceLocator: `workspace://evals/temporal/${item.id}.md`,
+        summary: `${item.predicate} changed to ${point.value}.`,
+        observedAt: point.at
+      }
+    });
+  } finally {
+    provider.close();
+  }
+}
+
+function summarizeSessionArm(name, calls, tokenBudget) {
+  const deliveredTokens = calls.reduce((total, item) => total + item.deliveredTokens, 0);
+  const correctCount = calls.filter((item) => item.correct).length;
+  return {
+    name,
+    tokenBudget,
+    callCount: calls.length,
+    correctCount,
+    correctnessPercent: Math.round((correctCount / calls.length) * 100),
+    deliveredTokens,
+    averageDeliveredTokens: Math.round(deliveredTokens / calls.length),
+    maxDeliveredTokensPerCall: Math.max(...calls.map((item) => item.deliveredTokens)),
+    calls
+  };
+}
+
+function renderSessionBenchmarkSummary(report) {
+  const curve = report.delta.calls.map((item) => `${item.index}:${item.deliveredTokens}`).join(' ');
+  return [
+    `Session benchmark: ${report.headline.correctnessGatePassed ? 'PASS' : 'FAIL'}`,
+    `Delta correctness: ${report.delta.correctnessPercent}%`,
+    `Full resend tokens: ${report.fullResend.deliveredTokens}`,
+    `Delta tokens: ${report.delta.deliveredTokens}`,
+    `Delta curve: ${curve}`
+  ].join('\n');
 }
 
 async function addTemporalBenchmarkFacts(provider, { item, workspaceId }) {
@@ -2649,6 +2894,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           query: { type: 'string', minLength: 1, maxLength: 240 },
           scope: { type: 'string', maxLength: 64, default: 'workspace' },
           limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 },
+          since: { type: 'string', maxLength: 80 },
           verbose: { type: 'boolean', default: false }
         }
       },
@@ -2678,7 +2924,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           step: { type: 'string', maxLength: 500 },
           scope: { type: 'string', maxLength: 64, default: 'workspace' },
           budget: { type: 'integer', minimum: 1, maximum: 100000, default: 4096 },
-          limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 }
+          limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+          since: { type: 'string', maxLength: 80 }
         }
       },
       handler: async ({ arguments: args }) => mcpToolJsonResult(await recordMcpToolPayload({
@@ -2726,6 +2973,7 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
   const limit = mcpBoundedInteger(args.limit, 8, { min: 1, max: 20 });
   const verbose = args.verbose === true;
   const currentTruthOnly = args.currentTruthOnly === true && !verbose;
+  const since = mcpParseSinceCursor(args.since);
   const subject = typeof args.subject === 'string' && args.subject.trim() ? mcpSanitizeString(args.subject, 128) : null;
   const predicate = typeof args.predicate === 'string' && args.predicate.trim() ? mcpSanitizeString(args.predicate, 128) : null;
   const provider = await openMcpReadOnlyMemoryProvider({ values, root, generatedAt });
@@ -2740,8 +2988,10 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
   try {
     const facts = await provider.getTemporalFacts({ workspaceId, scope, subject, predicate, query, at: generatedAt, limit });
     const activeFacts = facts.filter((fact) => fact.status === 'active' && !fact.supersededBy).slice(0, limit);
+    const changedActiveFacts = since ? activeFacts.filter((fact) => mcpFactChangedSince(fact, since)) : activeFacts;
     if (currentTruthOnly) {
-      const currentFacts = activeFacts.map(mcpSummarizeCurrentTruthFact);
+      const currentFacts = changedActiveFacts.map(mcpSummarizeCurrentTruthFact);
+      if (since) return mcpCursorDeltaPayload({ cursor: generatedAt, changes: currentFacts });
       return mcpBasePayload({
         command: 'memory.recall',
         workspaceId,
@@ -2754,18 +3004,19 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
           factCount: currentFacts.length,
           activeFactCount: currentFacts.length,
           proposalFactCount: 0,
-          facts: currentFacts
+          facts: currentFacts,
+          cursor: { previous: null, next: generatedAt }
         }
       });
     }
-    const proposalLimit = Math.max(0, limit - activeFacts.length);
+    const proposalLimit = Math.max(0, limit - changedActiveFacts.length);
     const proposalFacts = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
       .map(summarizeProposalQueueFact)
       .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, query))
       .slice(0, proposalLimit);
     const withChains = [];
     const verboseFacts = [];
-    for (const fact of activeFacts) {
+    for (const fact of changedActiveFacts) {
       const history = await provider.getTemporalFactHistory({
         workspaceId,
         scope,
@@ -2794,6 +3045,7 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
         activeFacts: withChains,
         facts: withChains,
         proposalFacts: servedProposalFacts,
+        cursor: { previous: since, next: generatedAt },
         recallBenchmark: {
           baselineTokens: estimateTokens(JSON.stringify({ activeFacts: verboseFacts, facts: verboseFacts, proposalFacts: verboseProposalFacts })),
           basis: 'verbose memory.recall fact payload before compact provenance'
@@ -2814,6 +3066,7 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
   const budget = mcpBoundedInteger(args.budget, 4096, { min: 1, max: 100000 });
   const limit = mcpBoundedInteger(args.limit, 50, { min: 1, max: 100 });
   const currentTruthOnly = args.currentTruthOnly === true;
+  const since = mcpParseSinceCursor(args.since);
   const subject = typeof args.subject === 'string' && args.subject.trim() ? mcpSanitizeString(args.subject, 128) : null;
   const predicate = typeof args.predicate === 'string' && args.predicate.trim() ? mcpSanitizeString(args.predicate, 128) : null;
   const provider = await openMcpReadOnlyMemoryProvider({ values, root, generatedAt });
@@ -2834,8 +3087,10 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
       if (currentTruthOnly) {
         const selected = facts
           .filter((fact) => fact.status === 'active' && !fact.supersededBy)
+          .filter((fact) => !since || mcpFactChangedSince(fact, since))
           .slice(0, limit)
           .map(mcpSummarizeCurrentTruthFact);
+        if (since) return mcpCursorDeltaPayload({ cursor: generatedAt, changes: selected });
         return mcpBasePayload({
           command: 'context.profile',
           workspaceId,
@@ -2855,7 +3110,8 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
               unit: 'estimated delivery tokens'
             },
             governedFactCount: selected.length,
-            proposalFactCount: 0
+            proposalFactCount: 0,
+            cursor: { previous: null, next: generatedAt }
           }
         });
       }
@@ -2865,7 +3121,7 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
         .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, objective))
         .slice(0, limit)
         .map(mcpProfileRecordFromProposal);
-      records.push(...exported.records, ...facts.map(mcpProfileRecordFromFact), ...proposalRecords);
+      records.push(...(since ? [] : exported.records), ...facts.filter((fact) => !since || mcpFactChangedSince(fact, since)).map(mcpProfileRecordFromFact), ...proposalRecords);
     } finally {
       provider.close();
     }
@@ -2880,7 +3136,7 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
     staticLimit: 8,
     dynamicLimit: 5
   });
-  return buildContextProfileDeliveryPayloadFromReport({
+  const payload = buildContextProfileDeliveryPayloadFromReport({
     report,
     workspaceId,
     generatedAt,
@@ -2890,6 +3146,8 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
     governedFactCount: records.length,
     proposalFactCount: records.filter((item) => item.metadata?.memoryLifecycle === 'proposal').length
   });
+  if (since) payload.data.cursor = { previous: since, next: generatedAt };
+  return payload;
 }
 
 async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, args }) {
@@ -3071,6 +3329,30 @@ function mcpSummarizeCurrentTruthFact(fact) {
     value: mcpSanitizeString(fact.object, 240),
     sourceRef: mcpCompactProvenanceRef(fact.proposalQueueId ?? fact.episode?.sourceLocator ?? fact.source ?? fact.id)
   };
+}
+
+function mcpParseSinceCursor(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const cursor = mcpSanitizeString(value, 80);
+  const parsed = Date.parse(cursor);
+  if (Number.isNaN(parsed)) throw new Error('mcp since cursor must be an ISO-8601 timestamp');
+  return new Date(parsed).toISOString();
+}
+
+function mcpFactChangedSince(fact, since) {
+  return Date.parse(fact.updatedAt ?? fact.validFrom ?? 0) > Date.parse(since);
+}
+
+function mcpCursorDeltaPayload({ cursor, changes }) {
+  return { c: cursor, d: changes };
+}
+
+function mcpPayloadNextCursor(payload) {
+  return payload?.c ?? payload?.data?.cursor?.next ?? null;
+}
+
+function mcpPayloadCurrentTruthChanges(payload) {
+  return payload?.d ?? payload?.data?.facts ?? [];
 }
 
 function mcpCompactProvenanceRef(value) {
@@ -5276,6 +5558,7 @@ Usage:
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf bench sufficiency --read-only --root . --format json
   oaf bench temporal --read-only --root . --format json
+  oaf bench session --read-only --root . --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
   oaf memory review --root . --sqlite .local/memory.sqlite --format json
