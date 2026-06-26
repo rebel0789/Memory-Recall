@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
 import {
   ContractViolation,
   SkillSourcePort,
@@ -263,8 +262,4 @@ export async function runEccConformanceFixture({ fixture, adapter = new EccSkill
     passed: results.every((result) => result.passed),
     cases: results
   };
-}
-
-export function reviewedProcedureIndexPath() {
-  return fileURLToPath(new URL('../reviewed-procedures.json', import.meta.url));
 }

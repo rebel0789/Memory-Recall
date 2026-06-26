@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export const OPERATIONS_VERSION = '0.1.0';
@@ -429,8 +429,4 @@ export async function restoreOperationsBackup({ source, stateDirectory, artifact
     artifactImport,
     externalWritesEnabled: false
   };
-}
-
-export async function removeOperationsBackupForTest(directory) {
-  await rm(directory, { recursive: true, force: true });
 }
