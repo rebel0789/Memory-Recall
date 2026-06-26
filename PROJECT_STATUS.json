@@ -792,6 +792,7 @@
       "limitations": [
         "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio compositions and the preview-confirm mcp install planner using npm --silent; no HTTP, SSE, hosted bridge, or network listener is started",
         "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, opt-in current context packs, auto-discovered pinned context-pack use plans, and pinned context-pack registry verification; they do not expose write tools, source bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
+        "MCP memory.recall serves active temporal facts first and pending proposal facts separately; the read-only bridge never approves proposals or activates memory",
         "The MCP token-saver install command writes only the selected local client MCP config entry after --apply plus a matching dry-run fingerprint; default dry-run prints exact config only, rejects --write, and does not print raw home config bodies or absolute paths",
         "The stdio bridge enforces bounded stdin, JSON-RPC line size, message count, child runtime, child stdout/stderr, JSON-RPC id, method, resource URI, and tool name limits; JSON-RPC batch arrays are rejected and request-metadata failures are redacted",
         "MCP context-pack smoke and measurement reports are observed local single-invocation measurements only; delivery-budget metrics distinguish locator-handoff cost from source-body selection cost but are not production latency benchmarks, provider billing-token claims, or external tool comparisons",
@@ -846,8 +847,9 @@
         "Node 22 node:sqlite is experimental",
         "Search is lexical FTS5 plus report projection; temporal facts add fact/entity/edge/episode tables with FTS5 fact indexing, hybrid FTS5 plus entity-edge graph expansion plus temporal ranking, and scoped digest summaries",
         "Semantic sqlite-vec ranking is skipped when no local embedder is available; no hosted embedding service, network call, model API, or vector database is required",
-        "Offline extraction is deterministic and heuristic; it enqueues proposal records only and never activates memory without the proposal gate",
-        "Temporal fact writes require an applied proposal queue record and supersede contradictory facts by validUntil and supersededBy instead of hard deletion",
+        "Offline extraction is deterministic and heuristic; it enqueues proposal records only and never activates memory without the explicit oaf memory review approve gate",
+        "Temporal fact writes require an applied proposal queue record; oaf memory review approve claims the selected proposal by id, marks it applied, and creates an active fact without hard-deleting the proposal",
+        "Contradictory temporal facts are superseded by validUntil and supersededBy instead of hard deletion",
         "Filesystem memory files are generated reports only and are not authoritative",
         "No hosted memory provider, external sync, FUSE/NFS mount, API-key storage, or evented review service yet"
       ]
@@ -950,7 +952,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 414,
+    "testsExpected": 415,
     "protocolFixturesExpected": 160,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

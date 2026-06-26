@@ -1171,6 +1171,48 @@ export class SQLiteMemoryProvider {
     }
   }
 
+  async claimProposalById({ workspaceId, id, workerId = 'worker', leaseUntil } = {}) {
+    if (!workspaceId || !id) throw new Error('workspaceId and id are required');
+    if (!workerId) throw new Error('workerId is required to claim proposal');
+    const now = this.clock();
+    const until = leaseUntil ?? new Date(Date.parse(now) + 60_000).toISOString();
+    this.database.exec('BEGIN IMMEDIATE');
+    try {
+      this.database.prepare(`
+        UPDATE memory_proposal_queue
+        SET status = 'poison',
+            lease_owner = NULL,
+            lease_until = NULL,
+            error_json = ?,
+            updated_at = ?
+        WHERE workspace_id = ?
+          AND status = 'claimed'
+          AND lease_until IS NOT NULL
+          AND lease_until <= ?
+          AND attempts >= max_attempts
+      `).run(boundedJson({ code: 'lease_expired_max_attempts', message: 'proposal lease expired after max attempts' }), now, workspaceId, now);
+      const current = rowToQueueRecord(this.database.prepare('SELECT * FROM memory_proposal_queue WHERE workspace_id = ? AND id = ?').get(workspaceId, id));
+      if (!current) throw new Error(`memory proposal queue record not found: ${id}`);
+      const expiredClaim = current.status === 'claimed' && current.leaseUntil && Date.parse(current.leaseUntil) <= Date.parse(now);
+      if (current.status !== 'pending' && !expiredClaim) throw new Error(`memory proposal is not pending: ${id}`);
+      if (current.attempts >= current.maxAttempts) throw new Error(`memory proposal exceeded max attempts: ${id}`);
+      this.database.prepare(`
+        UPDATE memory_proposal_queue
+        SET status = 'claimed',
+            attempts = attempts + 1,
+            lease_owner = ?,
+            lease_until = ?,
+            updated_at = ?
+        WHERE workspace_id = ? AND id = ?
+      `).run(workerId, until, now, workspaceId, id);
+      this.database.exec('COMMIT');
+      return rowToQueueRecord(this.database.prepare('SELECT * FROM memory_proposal_queue WHERE workspace_id = ? AND id = ?').get(workspaceId, id));
+    } catch (error) {
+      this.database.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
   async recordProposalResult({ workspaceId, id, workerId, status = 'applied', result = null, error = null, retry = false } = {}) {
     if (!workspaceId || !id) throw new Error('workspaceId and id are required');
     if (!workerId) throw new Error('workerId is required to record proposal results');

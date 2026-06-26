@@ -452,6 +452,7 @@ async function memoryCommand(values) {
   const [subcommand, ...rest] = values;
   try {
     if (subcommand === 'ingest') return await memoryIngestCommand(rest);
+    if (subcommand === 'review') return await memoryReviewCommand(rest);
     if (subcommand === 'profile') return await memoryProfileCommand(rest);
     if (subcommand === 'proposals') return await memoryProposalsCommand(rest);
     if (subcommand === 'sgrep') return await memorySgrepCommand(rest);
@@ -459,11 +460,190 @@ async function memoryCommand(values) {
     if (subcommand === 'search') return await memorySearchCommand(rest);
     if (subcommand === 'path') return await memoryPathCommand(rest);
     if (subcommand === 'explain') return await memoryExplainCommand(rest);
-    console.error('memory requires ingest, profile, proposals, sgrep, fact, search, path, or explain');
+    console.error('memory requires ingest, review, profile, proposals, sgrep, fact, search, path, or explain');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
+  }
+}
+
+async function memoryReviewCommand(values) {
+  const [action, ...rest] = values;
+  if (action === 'approve') return await memoryReviewApproveCommand(rest);
+  if (action === 'list') return await memoryReviewListCommand(rest);
+  if (action && !action.startsWith('--')) {
+    console.error('memory review requires list or approve');
+    process.exitCode = 2;
+    return;
+  }
+  return await memoryReviewListCommand(values);
+}
+
+async function openMemoryReviewProvider(values, { readOnly, commandName }) {
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error(`${commandName} --root must point at a local workspace directory`);
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', commandName, { mustExist: true });
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  return {
+    sqlitePath,
+    workspaceId,
+    provider: new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: fixedNow, migrate: false, readOnly })
+  };
+}
+
+async function memoryReviewListCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--scope', '--limit', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`memory review unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const generatedAt = fixedNow();
+  const scope = option(values, '--scope') ?? 'workspace';
+  const { sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: true, commandName: 'memory review' });
+  try {
+    const proposalFacts = (await provider.listProposalQueue({ workspaceId, limit: parseIntegerOption(values, '--limit', 100) }))
+      .map(summarizeProposalQueueFact)
+      .filter((item) => item && item.scope === scope);
+    const report = {
+      schemaVersion: '1.0.0',
+      command: 'memory review',
+      generatedAt,
+      workspaceId,
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: `workspace://${sqlitePath.relative}`
+      },
+      summary: {
+        pendingProposalCount: proposalFacts.length,
+        activeMemoryCreated: 0
+      },
+      proposalFacts,
+      safeguards: {
+        readOnly: true,
+        proposalGated: true,
+        canonicalStateMutated: false,
+        activeMemoryCreated: 0,
+        hardDeleted: false,
+        networkCalls: 0,
+        modelCalls: 0,
+        externalWritesEnabled: false,
+        rawSourceBodiesIncluded: false,
+        absoluteFilesystemLocationsIncluded: false
+      },
+      reportFingerprint: null
+    };
+    console.log(JSON.stringify({ ...report, reportFingerprint: stableJsonFingerprint(report) }, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+async function memoryReviewApproveCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  if (values.includes('--read-only') || values.includes('--dry-run')) {
+    console.error('memory review approve is the explicit write step; --read-only and --dry-run are not accepted');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--proposal', '--format']);
+  const unsupported = unsupportedFlags(values, valueOptions, valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`memory review approve unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const proposalId = option(values, '--proposal');
+  if (!/^mpq_[A-Za-z0-9._-]{1,128}$/u.test(proposalId ?? '')) throw new Error('memory review approve requires --proposal <mpq_id>');
+  const generatedAt = fixedNow();
+  const workerId = 'memory-review';
+  const leaseUntil = new Date(Date.parse(generatedAt) + 60_000).toISOString();
+  const { sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: false, commandName: 'memory review approve' });
+  try {
+    const claimed = await provider.claimProposalById({ workspaceId, id: proposalId, workerId, leaseUntil });
+    const proposal = summarizeProposalQueueFact(claimed);
+    if (!proposal) {
+      await provider.recordProposalResult({
+        workspaceId,
+        id: proposalId,
+        workerId,
+        status: 'poison',
+        error: { code: 'unsupported_proposal', message: 'memory review approve only supports fact proposals' }
+      });
+      throw new Error('memory review approve only supports fact proposals');
+    }
+    const appliedProposal = await provider.recordProposalResult({
+      workspaceId,
+      id: proposalId,
+      workerId,
+      status: 'applied',
+      result: { accepted: true, command: 'memory review approve', approvedAt: generatedAt }
+    });
+    const fact = await provider.addTemporalFact({
+      id: memoryFactIdFromProposalId(proposalId),
+      workspaceId,
+      scope: proposal.scope,
+      subject: proposal.subject,
+      predicate: proposal.predicate,
+      object: proposal.object,
+      text: proposal.text || factTriple(proposal.subject, proposal.predicate, proposal.object),
+      source: claimed.sourceLocator,
+      proposalQueueId: proposalId,
+      validFrom: claimed.payload.observedAt ?? generatedAt,
+      confidence: 0.75,
+      episode: {
+        id: claimed.payload.provenanceEpisodeId ?? memoryEpisodeIdFromProposalId(proposalId),
+        sourceLocator: claimed.sourceLocator,
+        summary: proposal.text || factTriple(proposal.subject, proposal.predicate, proposal.object),
+        observedAt: claimed.payload.observedAt ?? generatedAt
+      },
+      metadata: {
+        approvedBy: 'oaf memory review approve',
+        approvedAt: generatedAt,
+        sourceHash: claimed.sourceHash
+      }
+    });
+    const report = {
+      schemaVersion: '1.0.0',
+      command: 'memory review approve',
+      generatedAt,
+      workspaceId,
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: `workspace://${sqlitePath.relative}`
+      },
+      summary: {
+        pendingProposalCount: 0,
+        activeMemoryCreated: 1
+      },
+      proposal: {
+        id: appliedProposal.id,
+        status: appliedProposal.status,
+        result: appliedProposal.result
+      },
+      fact,
+      safeguards: {
+        readOnly: false,
+        proposalGated: true,
+        canonicalStateMutated: true,
+        activeMemoryCreated: 1,
+        hardDeleted: false,
+        networkCalls: 0,
+        modelCalls: 0,
+        externalWritesEnabled: false,
+        rawSourceBodiesIncluded: false,
+        absoluteFilesystemLocationsIncluded: false
+      },
+      reportFingerprint: null
+    };
+    console.log(JSON.stringify({ ...report, reportFingerprint: stableJsonFingerprint(report) }, null, 2));
+  } finally {
+    provider.close();
   }
 }
 
@@ -1886,10 +2066,11 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
   try {
     const facts = await provider.getTemporalFacts({ workspaceId, scope, query, at: generatedAt, limit });
     const activeFacts = facts.filter((fact) => fact.status === 'active' && !fact.supersededBy).slice(0, limit);
+    const proposalLimit = Math.max(0, limit - activeFacts.length);
     const proposalFacts = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
       .map(summarizeProposalQueueFact)
       .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, query))
-      .slice(0, limit);
+      .slice(0, proposalLimit);
     const withChains = [];
     const verboseFacts = [];
     for (const fact of activeFacts) {
@@ -1914,13 +2095,15 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
         query: mcpSanitizeString(query),
         scope,
         mode: verbose ? 'verbose' : 'compact',
-        factCount: withChains.length + proposalFacts.length,
+        trustOrder: ['active', 'proposal'],
+        factCount: withChains.length + servedProposalFacts.length,
         activeFactCount: withChains.length,
-        proposalFactCount: proposalFacts.length,
+        proposalFactCount: servedProposalFacts.length,
+        activeFacts: withChains,
         facts: withChains,
         proposalFacts: servedProposalFacts,
         recallBenchmark: {
-          baselineTokens: estimateTokens(JSON.stringify({ facts: verboseFacts, proposalFacts: verboseProposalFacts })),
+          baselineTokens: estimateTokens(JSON.stringify({ activeFacts: verboseFacts, facts: verboseFacts, proposalFacts: verboseProposalFacts })),
           basis: 'verbose memory.recall fact payload before compact provenance'
         }
       }
@@ -2335,6 +2518,7 @@ function mcpStatsBaselineTokens(payload, toolName) {
   if (toolName === 'context.profile') return Math.max(0, Math.trunc(Number(payload.data?.contextBudget?.historyTokensAvailable ?? 0)));
   if (toolName === 'memory.recall') {
     const compactFactsTokens = estimateTokens(JSON.stringify({
+      activeFacts: payload.data?.activeFacts ?? [],
       facts: payload.data?.facts ?? [],
       proposalFacts: payload.data?.proposalFacts ?? []
     }));
@@ -4166,6 +4350,14 @@ function deterministicMemoryId(locator, text) {
   return `mem_${createHash('sha256').update(`${locator}\0${text}`).digest('hex').slice(0, 16)}`;
 }
 
+function memoryFactIdFromProposalId(proposalId) {
+  return `memfact_${String(proposalId).replace(/^mpq_/u, '').slice(0, 128)}`;
+}
+
+function memoryEpisodeIdFromProposalId(proposalId) {
+  return `mep_${String(proposalId).replace(/^mpq_/u, '').slice(0, 128)}`;
+}
+
 function fixedNow() {
   return process.env.OAF_FIXED_NOW ?? new Date().toISOString();
 }
@@ -4325,6 +4517,8 @@ Usage:
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
+  oaf memory review --root . --sqlite .local/memory.sqlite --format json
+  oaf memory review approve --root . --sqlite .local/memory.sqlite --proposal mpq_status --format json
   oaf memory proposals --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
