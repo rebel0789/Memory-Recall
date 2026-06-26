@@ -12,6 +12,7 @@ export const AUTHZ_ACTIONS = Object.freeze([
   'run.read',
   'run.execute',
   'context.compile',
+  'memory.approve',
   'stream.read',
   'workspace.reset',
   'token.manage',
@@ -64,7 +65,7 @@ export const POLICY_SIDE_EFFECT_CLASSES = Object.freeze(['read-only', 'reversibl
 
 const ROLE_ACTIONS_OBJECT = Object.freeze({
   owner: Object.freeze([...AUTHZ_ACTIONS, 'tool.invoke']),
-  builder: Object.freeze(['workspace.read', 'dashboard.read', 'run.read', 'run.execute', 'context.compile', 'stream.read', 'tool.invoke']),
+  builder: Object.freeze(['workspace.read', 'dashboard.read', 'run.read', 'run.execute', 'context.compile', 'memory.approve', 'stream.read', 'tool.invoke']),
   operator: Object.freeze(['workspace.read', 'dashboard.read', 'run.read', 'run.execute', 'stream.read', 'tool.invoke']),
   auditor: Object.freeze(['workspace.read', 'dashboard.read', 'run.read', 'stream.read', 'audit.read', 'tool.invoke'])
 });

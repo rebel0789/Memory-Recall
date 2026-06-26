@@ -64,6 +64,14 @@ function deterministicId(prefix, value) {
   return `${prefix}_${stableHash(value).slice(0, 32)}`;
 }
 
+function factIdFromProposalId(id) {
+  return `memfact_${String(id).replace(/^mpq_/u, '').slice(0, 128)}`;
+}
+
+function episodeIdFromProposalId(id) {
+  return `mep_${String(id).replace(/^mpq_/u, '').slice(0, 128)}`;
+}
+
 function queueFingerprint({ workspaceId, sourceLocator, sourceHash, payload }) {
   return stableHash({ workspaceId, sourceLocator, sourceHash, payload });
 }
@@ -1072,6 +1080,74 @@ export class SQLiteMemoryProvider {
       }));
     }
     return queued;
+  }
+
+  async approveProposalFact({ workspaceId, id, workerId = 'memory-review', approvedAt } = {}) {
+    const now = approvedAt ?? this.clock();
+    const leaseUntil = new Date(Date.parse(now) + 60_000).toISOString();
+    const claimed = await this.claimProposalById({ workspaceId, id, workerId, leaseUntil });
+    const payload = claimed.payload ?? {};
+    if (payload.kind !== 'fact') {
+      await this.recordProposalResult({
+        workspaceId,
+        id,
+        workerId,
+        status: 'poison',
+        error: { code: 'unsupported_proposal', message: 'memory approve only supports fact proposals' }
+      });
+      throw new Error('memory approve only supports fact proposals');
+    }
+    const text = payload.text || `${payload.subject} ${payload.predicate} ${payload.object}`;
+    const proposal = await this.recordProposalResult({
+      workspaceId,
+      id,
+      workerId,
+      status: 'applied',
+      result: { accepted: true, command: 'memory approve', approvedAt: now }
+    });
+    const fact = await this.addTemporalFact({
+      id: factIdFromProposalId(id),
+      workspaceId,
+      scope: payload.scope ?? 'workspace',
+      subject: payload.subject,
+      predicate: payload.predicate,
+      object: payload.object,
+      text,
+      source: claimed.sourceLocator,
+      proposalQueueId: id,
+      validFrom: payload.observedAt ?? now,
+      confidence: 0.75,
+      episode: {
+        id: payload.provenanceEpisodeId ?? episodeIdFromProposalId(id),
+        sourceLocator: claimed.sourceLocator,
+        summary: text,
+        observedAt: payload.observedAt ?? now
+      },
+      metadata: {
+        approvedBy: 'oaf memory approve',
+        approvedAt: now,
+        sourceHash: claimed.sourceHash
+      }
+    });
+    return { proposal, fact };
+  }
+
+  async rejectProposal({ workspaceId, id, workerId = 'memory-review', rejectedAt, reason = 'rejected_by_user' } = {}) {
+    const now = rejectedAt ?? this.clock();
+    const claimed = await this.claimProposalById({
+      workspaceId,
+      id,
+      workerId,
+      leaseUntil: new Date(Date.parse(now) + 60_000).toISOString()
+    });
+    const proposal = await this.recordProposalResult({
+      workspaceId,
+      id,
+      workerId,
+      status: 'applied',
+      result: { accepted: false, command: 'memory reject', rejectedAt: now, reason }
+    });
+    return { proposal, rejected: claimed };
   }
 
   async enqueueProposal(input) {

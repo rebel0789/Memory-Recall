@@ -454,6 +454,8 @@ async function memoryCommand(values) {
   const [subcommand, ...rest] = values;
   try {
     if (subcommand === 'ingest') return await memoryIngestCommand(rest);
+    if (subcommand === 'approve') return await memoryApproveCommand(rest);
+    if (subcommand === 'reject') return await memoryRejectCommand(rest);
     if (subcommand === 'review') return await memoryReviewCommand(rest);
     if (subcommand === 'profile') return await memoryProfileCommand(rest);
     if (subcommand === 'proposals') return await memoryProposalsCommand(rest);
@@ -462,7 +464,7 @@ async function memoryCommand(values) {
     if (subcommand === 'search') return await memorySearchCommand(rest);
     if (subcommand === 'path') return await memoryPathCommand(rest);
     if (subcommand === 'explain') return await memoryExplainCommand(rest);
-    console.error('memory requires ingest, review, profile, proposals, sgrep, fact, search, path, or explain');
+    console.error('memory requires ingest, approve, reject, review, profile, proposals, sgrep, fact, search, path, or explain');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -547,72 +549,43 @@ async function memoryReviewListCommand(values) {
 }
 
 async function memoryReviewApproveCommand(values) {
+  return await memoryApproveCommand(values, { legacyReview: true });
+}
+
+async function memoryApproveCommand(values, { legacyReview = false } = {}) {
   if (!validateJsonFormat(values)) return;
   if (values.includes('--read-only') || values.includes('--dry-run')) {
-    console.error('memory review approve is the explicit write step; --read-only and --dry-run are not accepted');
+    console.error('memory approve is the explicit write step; --read-only and --dry-run are not accepted');
     process.exitCode = 2;
     return;
   }
-  const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--proposal', '--format']);
+  const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--proposal', '--all-from', '--format']);
   const unsupported = unsupportedFlags(values, valueOptions, valueOptions);
   if (unsupported.length > 0) {
-    console.error(`memory review approve unsupported option: ${unsupported[0]}`);
+    console.error(`memory approve unsupported option: ${unsupported[0]}`);
     process.exitCode = 2;
     return;
   }
-  const proposalId = option(values, '--proposal');
-  if (!/^mpq_[A-Za-z0-9._-]{1,128}$/u.test(proposalId ?? '')) throw new Error('memory review approve requires --proposal <mpq_id>');
+  const positionalId = values.find((value, index) => index === 0 && !value.startsWith('--'));
+  const proposalId = option(values, '--proposal') ?? positionalId;
+  const allFrom = option(values, '--all-from');
+  if (proposalId && allFrom) throw new Error('memory approve accepts either <id>/--proposal or --all-from <source>, not both');
+  if (!allFrom && !/^mpq_[A-Za-z0-9._-]{1,128}$/u.test(proposalId ?? '')) throw new Error('memory approve requires <mpq_id>, --proposal <mpq_id>, or --all-from <source>');
+  if (allFrom && !/^workspace:\/\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(allFrom)) throw new Error('memory approve --all-from requires a workspace:// source locator');
   const generatedAt = fixedNow();
   const workerId = 'memory-review';
-  const leaseUntil = new Date(Date.parse(generatedAt) + 60_000).toISOString();
-  const { sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: false, commandName: 'memory review approve' });
+  const command = legacyReview ? 'memory review approve' : 'memory approve';
+  const { sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: false, commandName: command });
   try {
-    const claimed = await provider.claimProposalById({ workspaceId, id: proposalId, workerId, leaseUntil });
-    const proposal = summarizeProposalQueueFact(claimed);
-    if (!proposal) {
-      await provider.recordProposalResult({
-        workspaceId,
-        id: proposalId,
-        workerId,
-        status: 'poison',
-        error: { code: 'unsupported_proposal', message: 'memory review approve only supports fact proposals' }
-      });
-      throw new Error('memory review approve only supports fact proposals');
-    }
-    const appliedProposal = await provider.recordProposalResult({
-      workspaceId,
-      id: proposalId,
-      workerId,
-      status: 'applied',
-      result: { accepted: true, command: 'memory review approve', approvedAt: generatedAt }
-    });
-    const fact = await provider.addTemporalFact({
-      id: memoryFactIdFromProposalId(proposalId),
-      workspaceId,
-      scope: proposal.scope,
-      subject: proposal.subject,
-      predicate: proposal.predicate,
-      object: proposal.object,
-      text: proposal.text || factTriple(proposal.subject, proposal.predicate, proposal.object),
-      source: claimed.sourceLocator,
-      proposalQueueId: proposalId,
-      validFrom: claimed.payload.observedAt ?? generatedAt,
-      confidence: 0.75,
-      episode: {
-        id: claimed.payload.provenanceEpisodeId ?? memoryEpisodeIdFromProposalId(proposalId),
-        sourceLocator: claimed.sourceLocator,
-        summary: proposal.text || factTriple(proposal.subject, proposal.predicate, proposal.object),
-        observedAt: claimed.payload.observedAt ?? generatedAt
-      },
-      metadata: {
-        approvedBy: 'oaf memory review approve',
-        approvedAt: generatedAt,
-        sourceHash: claimed.sourceHash
-      }
-    });
+    const pending = (await provider.listProposalQueue({ workspaceId, limit: 500 })).filter((item) => item.status === 'pending');
+    const targets = allFrom ? pending.filter((item) => item.sourceLocator === allFrom).map((item) => item.id) : [proposalId];
+    if (!targets.length) throw new Error(`memory approve found no pending proposals for ${allFrom}`);
+    const approved = [];
+    for (const id of targets) approved.push(await provider.approveProposalFact({ workspaceId, id, workerId, approvedAt: generatedAt }));
+    const facts = approved.map((item) => item.fact);
     const report = {
       schemaVersion: '1.0.0',
-      command: 'memory review approve',
+      command,
       generatedAt,
       workspaceId,
       source: {
@@ -621,19 +594,72 @@ async function memoryReviewApproveCommand(values) {
       },
       summary: {
         pendingProposalCount: 0,
-        activeMemoryCreated: 1
+        activeMemoryCreated: facts.length,
+        rejectedProposalCount: 0
       },
-      proposal: {
-        id: appliedProposal.id,
-        status: appliedProposal.status,
-        result: appliedProposal.result
-      },
-      fact,
+      proposal: approved.length === 1 ? approved[0].proposal : null,
+      fact: facts[0] ?? null,
+      facts,
       safeguards: {
         readOnly: false,
         proposalGated: true,
         canonicalStateMutated: true,
-        activeMemoryCreated: 1,
+        activeMemoryCreated: facts.length,
+        hardDeleted: false,
+        networkCalls: 0,
+        modelCalls: 0,
+        externalWritesEnabled: false,
+        rawSourceBodiesIncluded: false,
+        absoluteFilesystemLocationsIncluded: false
+      },
+      reportFingerprint: null
+    };
+    console.log(JSON.stringify({ ...report, reportFingerprint: stableJsonFingerprint(report) }, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+async function memoryRejectCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  if (values.includes('--read-only') || values.includes('--dry-run')) {
+    console.error('memory reject is the explicit write step; --read-only and --dry-run are not accepted');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--proposal', '--reason', '--format']);
+  const unsupported = unsupportedFlags(values, valueOptions, valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`memory reject unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const proposalId = option(values, '--proposal') ?? values.find((value, index) => index === 0 && !value.startsWith('--'));
+  if (!/^mpq_[A-Za-z0-9._-]{1,128}$/u.test(proposalId ?? '')) throw new Error('memory reject requires <mpq_id> or --proposal <mpq_id>');
+  const generatedAt = fixedNow();
+  const { sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: false, commandName: 'memory reject' });
+  try {
+    const rejected = await provider.rejectProposal({ workspaceId, id: proposalId, workerId: 'memory-review', rejectedAt: generatedAt, reason: option(values, '--reason') ?? 'rejected_by_user' });
+    const report = {
+      schemaVersion: '1.0.0',
+      command: 'memory reject',
+      generatedAt,
+      workspaceId,
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: `workspace://${sqlitePath.relative}`
+      },
+      summary: {
+        pendingProposalCount: 0,
+        activeMemoryCreated: 0,
+        rejectedProposalCount: 1
+      },
+      proposal: rejected.proposal,
+      safeguards: {
+        readOnly: false,
+        proposalGated: true,
+        canonicalStateMutated: true,
+        activeMemoryCreated: 0,
         hardDeleted: false,
         networkCalls: 0,
         modelCalls: 0,
@@ -3211,6 +3237,7 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
           factCount: currentFacts.length,
           activeFactCount: currentFacts.length,
           proposalFactCount: 0,
+          summary: { activeFactCount: currentFacts.length, proposalFactCount: 0, totalFactCount: currentFacts.length },
           facts: currentFacts,
           cursor: { previous: null, next: generatedAt }
         }
@@ -3249,6 +3276,11 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
         factCount: withChains.length + servedProposalFacts.length,
         activeFactCount: withChains.length,
         proposalFactCount: servedProposalFacts.length,
+        summary: {
+          activeFactCount: withChains.length,
+          proposalFactCount: servedProposalFacts.length,
+          totalFactCount: withChains.length + servedProposalFacts.length
+        },
         activeFacts: withChains,
         facts: withChains,
         proposalFacts: servedProposalFacts,
@@ -3318,17 +3350,19 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
             },
             governedFactCount: selected.length,
             proposalFactCount: 0,
+            summary: { activeFactCount: selected.length, proposalFactCount: 0, totalFactCount: selected.length },
             cursor: { previous: null, next: generatedAt }
           }
         });
       }
       const exported = await provider.export({ workspaceId });
+      const activeRecords = facts.filter((fact) => (!since || mcpFactChangedSince(fact, since))).map(mcpProfileRecordFromFact);
       const proposalRecords = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
         .map(summarizeProposalQueueFact)
         .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, objective))
         .slice(0, limit)
         .map(mcpProfileRecordFromProposal);
-      records.push(...(since ? [] : exported.records), ...facts.filter((fact) => !since || mcpFactChangedSince(fact, since)).map(mcpProfileRecordFromFact), ...proposalRecords);
+      records.push(...(since ? [] : exported.records), ...activeRecords, ...proposalRecords);
     } finally {
       provider.close();
     }
@@ -3362,10 +3396,16 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
     .map((record) => ({
       id: mcpSanitizeString(record.id, 120),
       text: mcpSanitizeString(record.text, 300),
-      sourceRef: mcpCompactProvenanceRef(record.source)
+      sourceRef: mcpCompactProvenanceRef(record.source),
+      trust: record.metadata?.memoryLifecycle === 'proposal' ? 'proposal' : 'active'
     }))
     .slice(0, 20);
   if (selectedFacts.length) payload.data.selectedFacts = selectedFacts;
+  payload.data.summary = {
+    activeFactCount: records.filter((item) => item.kind === 'fact' && item.metadata?.memoryLifecycle !== 'proposal').length,
+    proposalFactCount: records.filter((item) => item.kind === 'fact' && item.metadata?.memoryLifecycle === 'proposal').length,
+    totalFactCount: records.filter((item) => item.kind === 'fact').length
+  };
   if (since) payload.data.cursor = { previous: since, next: generatedAt };
   return payload;
 }
@@ -3420,7 +3460,7 @@ function mcpProfileRecordFromFact(fact) {
     workspaceId: fact.workspaceId,
     kind: 'fact',
     text: fact.text,
-    scope: 'workspace-private',
+    scope: fact.scope,
     dataClass: 'workspace-private',
     status: fact.status,
     source: fact.source,
@@ -5953,6 +5993,9 @@ Usage:
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
   oaf memory review --root . --sqlite .local/memory.sqlite --format json
+  oaf memory approve mpq_status --root . --sqlite .local/memory.sqlite --format json
+  oaf memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
+  oaf memory reject mpq_status --root . --sqlite .local/memory.sqlite --format json
   oaf memory review approve --root . --sqlite .local/memory.sqlite --proposal mpq_status --format json
   oaf memory proposals --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json

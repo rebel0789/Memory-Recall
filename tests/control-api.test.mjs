@@ -60,6 +60,13 @@ async function seedMemory(dataDir) {
       proposalQueueId: proposal.id,
       validFrom: '2026-06-26T10:00:00.000Z'
     });
+    await provider.enqueueProposal({
+      id: 'mpq_api_cockpit',
+      workspaceId: 'ws_local',
+      sourceLocator: 'workspace://docs/cockpit.md',
+      sourceHash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      payload: { kind: 'fact', scope: 'workspace', subject: 'memory-cockpit', predicate: 'approves', object: 'active-facts', text: 'memory-cockpit approves active-facts' }
+    });
   } finally {
     provider.close();
   }
@@ -148,7 +155,7 @@ test('memory cockpit route reads native SQLite facts proposals and token budget'
   assert.equal(body.facts[0].id, 'memfact_api_memory');
   assert.equal(body.facts[0].validity.validFrom, '2026-06-26T10:00:00.000Z');
   assert.equal(body.facts[0].provenance.episode.sourceLocator, 'workspace://docs/surface.md');
-  assert.equal(body.proposalQueue[0].id, 'mpq_api_memory');
+  assert(body.proposalQueue.some((item) => item.id === 'mpq_api_memory'));
   assert.equal(body.tokenBudget.measured, true);
   assert(body.tokenBudget.estimatedDeliveryTokens > 0);
   assert.equal(body.savings.command, 'measure savings');
@@ -161,6 +168,25 @@ test('memory cockpit route reads native SQLite facts proposals and token budget'
   assert.match(body.reportFingerprint, /^sha256:[a-f0-9]{64}$/);
 });
 
+test('memory cockpit approval endpoint promotes one pending proposal', async () => {
+  const auth = await login();
+  const response = await fetch(`${base}/api/memory/proposals/mpq_api_cockpit/approve`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', confirm: true })
+  });
+  const text = await response.text();
+  assert.equal(response.status, 201, text);
+  const body = JSON.parse(text);
+  assert.equal(body.command, 'memory approve');
+  assert.equal(body.summary.activeMemoryCreated, 1);
+  assert.equal(body.fact.id, 'memfact_api_cockpit');
+  const cockpit = await fetch(`${base}/api/memory/cockpit?workspaceId=ws_local`, { headers: { cookie: auth.cookie } });
+  const after = await cockpit.json();
+  assert(after.facts.some((fact) => fact.id === 'memfact_api_cockpit' && fact.status === 'active'));
+  assert.equal(after.summary.activeFactCount, 2);
+});
+
 test('loop workbench route wires compressed profile plan proposal and fact from native memory', async () => {
   const auth = await login();
   const response = await fetch(`${base}/api/loop/workbench?workspaceId=ws_local`, { headers: { cookie: auth.cookie } });
@@ -170,9 +196,9 @@ test('loop workbench route wires compressed profile plan proposal and fact from 
   assert.equal(body.memoryLoop.objective, 'Use native memory to complete a local feedback loop');
   assert(body.memoryLoop.compressedProfile.contextBudget.estimatedDeliveryTokens > 0);
   assert.equal(body.memoryLoop.loopPlan.contextBudget.estimatedDeliveryTokens, body.memoryLoop.compressedProfile.contextBudget.estimatedDeliveryTokens);
-  assert.equal(body.memoryLoop.extractionProposal.id, 'mpq_api_memory');
-  assert.equal(body.memoryLoop.memoryFact.id, 'memfact_api_memory');
-  assert.equal(body.memoryLoop.memoryFact.validity.validFrom, '2026-06-26T10:00:00.000Z');
+  assert.match(body.memoryLoop.extractionProposal.id, /^mpq_api_/);
+  assert.match(body.memoryLoop.memoryFact.id, /^memfact_api_/);
+  assert.equal(Number.isNaN(Date.parse(body.memoryLoop.memoryFact.validity.validFrom)), false);
   assert.equal(body.tokenBudget.aggregatedEstimatedDeliveryTokens, body.memoryLoop.loopPlan.contextBudget.estimatedDeliveryTokens);
   assert.equal(body.safeguards.networkCalls, 0);
 });

@@ -167,6 +167,32 @@ paths:
           description: Read-only native SQLite memory cockpit with temporal facts, proposal queue, and compressed profile token budget.
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/proposals/{proposalId}/approve:
+    post:
+      operationId: approveMemoryProposal
+      parameters:
+        - name: proposalId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^mpq_[A-Za-z0-9._-]{1,128}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [workspaceId, confirm]
+              properties:
+                workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+                confirm: { const: true }
+      responses:
+        '201':
+          description: Explicitly promotes one pending memory proposal to an active temporal fact.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
   /api/runs:
     get:
       operationId: listRuns

@@ -384,6 +384,11 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
     workspaceId,
     generatedAt,
     provider: 'provider:native:memory:sqlite',
+    summary: {
+      activeFactCount: projectedFacts.filter((fact) => fact.status === 'active').length,
+      pendingProposalCount: proposalQueue.filter((item) => item.status === 'pending').length,
+      proposalCount: proposalQueue.length
+    },
     facts: projectedFacts,
     proposalQueue,
     mcpStats,
@@ -410,6 +415,34 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
     ...report,
     reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}`
   };
+}
+
+async function approveMemoryProposal({ provider, workspaceId, proposalId, generatedAt }) {
+  const { proposal, fact } = await provider.approveProposalFact({ workspaceId, id: proposalId, workerId: 'memory-cockpit', approvedAt: generatedAt });
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'memory approve',
+    generatedAt,
+    workspaceId,
+    summary: {
+      activeMemoryCreated: 1,
+      rejectedProposalCount: 0
+    },
+    proposal,
+    fact,
+    safeguards: {
+      readOnly: false,
+      proposalGated: true,
+      canonicalStateMutated: true,
+      activeMemoryCreated: 1,
+      hardDeleted: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      rawSourceBodiesIncluded: false
+    }
+  };
+  return { ...report, reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}` };
 }
 
 async function buildMcpStatsSummaryFromFile({ statsPath, workspaceId, generatedAt }) {
@@ -635,6 +668,11 @@ export function createControlApiServer({
       }
       case 'getMemoryCockpit':
         return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock(), mcpStatsPath, root: sourceGraphRoot }));
+      case 'approveMemoryProposal':
+        return withMemoryProvider(
+          async (provider) => approveMemoryProposal({ provider, workspaceId: context.workspaceId, proposalId: context.params.proposalId, generatedAt: clock() }),
+          { readOnly: false }
+        );
       case 'listRuns': {
         const state = await store.read();
         return { schemaVersion: '1.0.0', items: state.runs.filter((run) => run.workspaceId === context.workspaceId).slice().reverse() };
@@ -959,12 +997,12 @@ export function createControlApiServer({
 
   return { server, close, contracts, activeStreamCount: () => streams.size };
 
-  async function withMemoryProvider(operation) {
+  async function withMemoryProvider(operation, { readOnly = true } = {}) {
     if (memoryProvider) return operation(memoryProvider);
     let provider;
     try {
       await stat(memoryDatabasePath);
-      provider = new SQLiteMemoryProvider({ filename: memoryDatabasePath, clock, migrate: false, readOnly: true });
+      provider = new SQLiteMemoryProvider({ filename: memoryDatabasePath, clock, migrate: false, readOnly });
     } catch {
       provider = new SQLiteMemoryProvider({ filename: ':memory:', clock });
     }
@@ -1426,6 +1464,8 @@ function routeResourceType(contract) {
     case 'detectGitChanges':
     case 'previewContextGraph':
       return 'context';
+    case 'approveMemoryProposal':
+      return 'memory';
     case 'planHarnessSetup':
       return 'workspace';
     case 'resetBootstrap':

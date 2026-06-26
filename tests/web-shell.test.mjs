@@ -102,7 +102,10 @@ test('memory route renders real temporal fact fields and computed token number',
   });
   const exported = await provider.export({ workspaceId: 'ws_local' });
   const facts = await provider.listTemporalFacts({ workspaceId: 'ws_local' });
-  const proposalQueue = await provider.listProposalQueue({ workspaceId: 'ws_local' });
+  const proposalQueue = [
+    ...(await provider.listProposalQueue({ workspaceId: 'ws_local' })),
+    { id: 'mpq_web_pending', status: 'pending', sourceLocator: 'workspace://docs/pending.md', sourceHash: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', attempts: 0, payload: { kind: 'fact', subject: 'memory-route', predicate: 'approves', object: 'pending' } }
+  ];
   const profile = buildCompressedProfileContextReport({
     records: [...exported.records, ...facts],
     workspaceId: 'ws_local',
@@ -116,6 +119,7 @@ test('memory route renders real temporal fact fields and computed token number',
     workspaceId: 'ws_local',
     generatedAt: '2026-06-26T10:00:00.000Z',
     provider: 'provider:native:memory:sqlite',
+    summary: { activeFactCount: 1, pendingProposalCount: 1 },
     facts,
     proposalQueue,
     mcpStats: {
@@ -152,7 +156,12 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.equal(model.savings.providerBillingClaimed, false);
   assert.equal(model.mcpStats.callCount, 2);
   assert.equal(model.mcpStats.deliveredTokens, 320);
+  assert.equal(model.summary.activeFactCount, 1);
+  assert.equal(model.summary.pendingProposalCount, 1);
   assert.match(html, new RegExp(`${model.tokenSavingPercent}% token saving`));
+  assert.match(html, /<dt>Active facts<\/dt><dd>1<\/dd>/);
+  assert.match(html, /<dt>Pending proposals<\/dt><dd>1<\/dd>/);
+  assert.match(html, /data-action="approve-memory-proposal"/);
   assert.match(html, new RegExp(`<dt>Naive baseline</dt><dd>${profile.contextBudget.historyTokensAvailable}</dd>`));
   assert.match(html, new RegExp(`<dt>OAF compressed</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
   assert.match(html, /<dt>Provider billing<\/dt><dd>not claimed<\/dd>/);

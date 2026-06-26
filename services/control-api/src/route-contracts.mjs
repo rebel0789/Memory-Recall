@@ -171,6 +171,7 @@ export function createApiRouteContracts(limits = {}) {
     buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     pinContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     preflightContextPackMemory: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    approveMemoryProposal: Math.min(limits.bodyBytes ?? 1_000_000, 2 * 1024),
     previewContextSources: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     detectGitChanges: Math.min(limits.bodyBytes ?? 1_000_000, 1024),
     previewContextGraph: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
@@ -903,12 +904,13 @@ export function createApiRouteContracts(limits = {}) {
   const memoryCockpitResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'facts', 'proposalQueue', 'mcpStats', 'tokenBudget', 'savings', 'profile', 'safeguards', 'reportFingerprint'],
+    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'summary', 'facts', 'proposalQueue', 'mcpStats', 'tokenBudget', 'savings', 'profile', 'safeguards', 'reportFingerprint'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       workspaceId,
       generatedAt: { type: 'string', format: 'date-time' },
       provider: { const: 'provider:native:memory:sqlite' },
+      summary: { type: 'object', additionalProperties: true },
       facts: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } },
       proposalQueue: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } },
       mcpStats: {
@@ -984,6 +986,31 @@ export function createApiRouteContracts(limits = {}) {
         }
       },
       profile: { type: 'object', additionalProperties: true },
+      safeguards: { type: 'object', additionalProperties: true },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
+  const memoryApprovalRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId', 'confirm'],
+    properties: {
+      workspaceId,
+      confirm: { const: true }
+    }
+  };
+  const memoryApprovalResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'command', 'generatedAt', 'workspaceId', 'summary', 'proposal', 'fact', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      command: { const: 'memory approve' },
+      generatedAt: { type: 'string', format: 'date-time' },
+      workspaceId,
+      summary: { type: 'object', additionalProperties: true },
+      proposal: { type: 'object', additionalProperties: true },
+      fact: { type: 'object', additionalProperties: true },
       safeguards: { type: 'object', additionalProperties: true },
       reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     }
@@ -1393,6 +1420,21 @@ export function createApiRouteContracts(limits = {}) {
       allowsBody: false,
       streams: false,
       responses: { 200: memoryCockpitResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/memory/proposals/{proposalId}/approve',
+      operationId: 'approveMemoryProposal',
+      security: { authenticated: true, action: 'memory.approve', workspace: 'body' },
+      pathParameters: { proposalId: { type: 'string', pattern: '^mpq_[A-Za-z0-9._-]{1,128}$', maxLength: 132 } },
+      query: { additionalProperties: false, properties: {}, required: [] },
+      headers: {},
+      requestMediaType: 'application/json',
+      requestBodySchema: memoryApprovalRequest,
+      maxBodyBytes: routeBodyBytes.approveMemoryProposal,
+      allowsBody: true,
+      streams: false,
+      responses: { 201: memoryApprovalResponse }
     },
     {
       method: 'GET',
