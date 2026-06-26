@@ -1797,7 +1797,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         properties: {
           query: { type: 'string', minLength: 1, maxLength: 240 },
           scope: { type: 'string', maxLength: 64, default: 'workspace' },
-          limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 }
+          limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 },
+          verbose: { type: 'boolean', default: false }
         }
       },
       handler: async ({ arguments: args }) => mcpToolJsonResult(await recordMcpToolPayload({
@@ -1872,6 +1873,7 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
   const query = mcpRequiredString(args.query, 'query', 240);
   const scope = mcpSafeScope(args.scope ?? 'workspace');
   const limit = mcpBoundedInteger(args.limit, 8, { min: 1, max: 20 });
+  const verbose = args.verbose === true;
   const provider = await openMcpReadOnlyMemoryProvider({ values, root, generatedAt });
   if (!provider) {
     return mcpBasePayload({
@@ -1889,6 +1891,7 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
       .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, query))
       .slice(0, limit);
     const withChains = [];
+    const verboseFacts = [];
     for (const fact of activeFacts) {
       const history = await provider.getTemporalFactHistory({
         workspaceId,
@@ -1897,8 +1900,11 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
         predicate: fact.predicate,
         limit: 20
       });
-      withChains.push(mcpSummarizeTemporalFact(fact, { history }));
+      withChains.push(mcpSummarizeTemporalFact(fact, { history, verbose }));
+      verboseFacts.push(mcpSummarizeTemporalFact(fact, { history, verbose: true }));
     }
+    const servedProposalFacts = proposalFacts.map((fact) => mcpSummarizeProposalFact(fact, { verbose }));
+    const verboseProposalFacts = proposalFacts.map((fact) => mcpSummarizeProposalFact(fact, { verbose: true }));
     return mcpBasePayload({
       command: 'memory.recall',
       workspaceId,
@@ -1907,11 +1913,16 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
         available: true,
         query: mcpSanitizeString(query),
         scope,
+        mode: verbose ? 'verbose' : 'compact',
         factCount: withChains.length + proposalFacts.length,
         activeFactCount: withChains.length,
         proposalFactCount: proposalFacts.length,
         facts: withChains,
-        proposalFacts
+        proposalFacts: servedProposalFacts,
+        recallBenchmark: {
+          baselineTokens: estimateTokens(JSON.stringify({ facts: verboseFacts, proposalFacts: verboseProposalFacts })),
+          basis: 'verbose memory.recall fact payload before compact provenance'
+        }
       }
     });
   } finally {
@@ -2071,8 +2082,30 @@ function proposalFactMatchesQuery(fact, query) {
   return tokens.some((token) => haystack.includes(token));
 }
 
-function mcpSummarizeTemporalFact(fact, { history }) {
-  return {
+function mcpSummarizeProposalFact(fact, { verbose = false } = {}) {
+  const base = {
+    id: fact.id,
+    workspaceId: fact.workspaceId,
+    status: fact.status,
+    scope: fact.scope,
+    subject: fact.subject,
+    predicate: fact.predicate,
+    object: fact.object,
+    text: fact.text
+  };
+  return verbose
+    ? { ...base, provenance: fact.provenance }
+    : {
+        ...base,
+        provenance: {
+          ref: mcpCompactProvenanceRef(fact.provenance?.episodeId ?? fact.id),
+          sourceRef: mcpCompactProvenanceRef(fact.provenance?.sourceLocator)
+        }
+      };
+}
+
+function mcpSummarizeTemporalFact(fact, { history, verbose = false }) {
+  const base = {
     id: mcpSanitizeString(fact.id, 120),
     subject: mcpSanitizeString(fact.subject, 160),
     predicate: mcpSanitizeString(fact.predicate, 120),
@@ -2085,6 +2118,24 @@ function mcpSummarizeTemporalFact(fact, { history }) {
       validUntil: fact.validUntil ?? null
     },
     supersededBy: fact.supersededBy ? mcpSanitizeString(fact.supersededBy, 120) : null,
+    supersessionChain: history.map((item) => ({
+      id: mcpSanitizeString(item.id, 120),
+      status: item.status,
+      current: item.id === fact.id
+    }))
+  };
+  if (!verbose) {
+    return {
+      ...base,
+      provenance: {
+        ref: mcpCompactProvenanceRef(fact.proposalQueueId ?? fact.episode?.id ?? fact.source),
+        proposalQueueId: fact.proposalQueueId ? mcpSanitizeString(fact.proposalQueueId, 120) : null,
+        episodeId: fact.episode?.id ? mcpSanitizeString(fact.episode.id, 120) : null
+      }
+    };
+  }
+  return {
+    ...base,
     supersessionChain: history.map((item) => ({
       id: mcpSanitizeString(item.id, 120),
       status: item.status,
@@ -2104,6 +2155,12 @@ function mcpSummarizeTemporalFact(fact, { history }) {
       } : null
     }
   };
+}
+
+function mcpCompactProvenanceRef(value) {
+  const raw = String(value ?? 'memory').replace(/^workspace:\/\//u, '');
+  const parts = raw.split('/').filter(Boolean);
+  return mcpSanitizeString(parts.length > 2 ? `${parts.at(-2)}/${parts.at(-1)}` : raw, 96);
 }
 
 function mcpRequiredString(value, name, maxLength) {
@@ -2207,7 +2264,6 @@ async function createMcpStatsRecorder({ values, root, workspaceId, generatedAt }
 
 async function recordMcpToolPayload({ payload, statsRecorder, toolName }) {
   if (!statsRecorder) return payload;
-  const baselineTokens = mcpStatsBaselineTokens(payload, toolName);
   const requestFingerprint = mcpStatsRequestFingerprint(payload, toolName);
   const factCount = Number(payload.data?.factCount ?? payload.data?.profile?.governedFactCount ?? 0);
   const selectedCount = Number(payload.data?.selectedContext?.selectedCount ?? payload.data?.factCount ?? 0);
@@ -2216,6 +2272,7 @@ async function recordMcpToolPayload({ payload, statsRecorder, toolName }) {
   let finalTotals = null;
   for (let pass = 0; pass < 2; pass += 1) {
     const deliveredTokens = estimateTokens(JSON.stringify(finalPayload));
+    const baselineTokens = mcpStatsBaselineTokens(finalPayload, toolName);
     finalEntry = {
       toolName,
       recordedAt: payload.generatedAt,
@@ -2276,6 +2333,14 @@ function decorateMcpPayloadWithDeliveryStats(payload, entry, totals) {
 
 function mcpStatsBaselineTokens(payload, toolName) {
   if (toolName === 'context.profile') return Math.max(0, Math.trunc(Number(payload.data?.contextBudget?.historyTokensAvailable ?? 0)));
+  if (toolName === 'memory.recall') {
+    const compactFactsTokens = estimateTokens(JSON.stringify({
+      facts: payload.data?.facts ?? [],
+      proposalFacts: payload.data?.proposalFacts ?? []
+    }));
+    const verboseFactsTokens = Math.max(0, Math.trunc(Number(payload.data?.recallBenchmark?.baselineTokens ?? compactFactsTokens)));
+    return estimateTokens(JSON.stringify(payload)) + Math.max(0, verboseFactsTokens - compactFactsTokens);
+  }
   return estimateTokens(JSON.stringify({
     facts: payload.data?.facts ?? [],
     proposalFacts: payload.data?.proposalFacts ?? []

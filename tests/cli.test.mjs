@@ -672,7 +672,8 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
     JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
     JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
     JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'mcp token saver ready', scope: 'workspace', limit: 5 } } }),
-    JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'context.profile', arguments: { objective: 'mcp token saver ready', step: 'serve coding agent context', budget: 256, limit: 10 } } })
+    JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'mcp token saver ready', scope: 'workspace', limit: 5, verbose: true } } }),
+    JSON.stringify({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'context.profile', arguments: { objective: 'mcp token saver ready', step: 'serve coding agent context', budget: 256, limit: 10 } } })
   ].join('\n');
   const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], { encoding: 'utf8', env, input });
   assert.equal(result.status, 0, result.stderr);
@@ -681,21 +682,28 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
   assert(!result.stdout.includes('token=secret-value'));
   assert(!result.stdout.includes('/Users/rebel'));
   const lines = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
-  assert.equal(lines.length, 4);
+  assert.equal(lines.length, 5);
   assert.equal(lines[0].result.protocolVersion, '2025-06-18');
   assert.deepEqual(lines[1].result.tools.map((tool) => tool.name).sort(), ['context.pack', 'context.profile', 'memory.recall']);
   const recall = JSON.parse(lines[2].result.content[0].text);
   assert.equal(recall.command, 'memory.recall');
   assert.equal(recall.data.available, true);
+  assert.equal(recall.data.mode, 'compact');
   assert.equal(recall.data.factCount, 1);
   assert.equal(recall.data.facts[0].id, 'memfact_mcp_ready');
   assert.equal(recall.data.facts[0].status, 'active');
   assert.equal(recall.data.facts[0].validityWindow.validFrom, '2026-06-26T10:00:00.000Z');
-  assert.equal(recall.data.facts[0].provenance.sourceLocator, 'workspace://docs/superpowers/plans/2026-06-26-mcp-token-saver.md');
-  assert(recall.data.facts[0].supersessionChain.some((item) => item.id === 'memfact_mcp_old' && item.status === 'superseded' && item.supersededBy === 'memfact_mcp_ready'));
+  assert.equal(recall.data.facts[0].provenance.ref, 'mpq_mcp_ready');
+  assert.equal(recall.data.facts[0].provenance.sourceLocator, undefined);
+  assert.equal(recall.data.facts[0].supersessionChain.some((item) => item.id === 'memfact_mcp_old' && item.status === 'superseded' && item.current === false), true);
+  assert(recall.data.recallBenchmark.baselineTokens > 0);
   assert.equal(recall.safeguards.networkCalls, 0);
   assert.equal(recall.safeguards.modelCalls, 0);
-  const profile = JSON.parse(lines[3].result.content[0].text);
+  const verboseRecall = JSON.parse(lines[3].result.content[0].text);
+  assert.equal(verboseRecall.data.mode, 'verbose');
+  assert.equal(verboseRecall.data.facts[0].provenance.sourceLocator, 'workspace://docs/superpowers/plans/2026-06-26-mcp-token-saver.md');
+  assert(verboseRecall.data.facts[0].supersessionChain.some((item) => item.id === 'memfact_mcp_old' && item.status === 'superseded' && item.supersededBy === 'memfact_mcp_ready'));
+  const profile = JSON.parse(lines[4].result.content[0].text);
   assert.equal(profile.command, 'context.profile');
   assert.equal(profile.data.contextBudget.estimatedDeliveryTokens, profile.data.selectedContext.budget.used);
   assert(profile.data.contextBudget.estimatedDeliveryTokens > 0);
@@ -913,6 +921,9 @@ test('mcp server records delivery-token stats and stats command summarizes them'
   assert(report.summary.tokensSaved >= 0);
   assert.equal(report.summary.providerBillingClaimed, false);
   assert.deepEqual(report.byTool.map((item) => item.toolName).sort(), ['context.profile', 'memory.recall']);
+  const recallStats = report.byTool.find((item) => item.toolName === 'memory.recall');
+  assert(recallStats.baselineTokens >= recallStats.deliveredTokens);
+  assert(recallStats.tokensSaved >= 0);
   assert.equal(report.realisticBenchmark.available, true);
   assert(report.realisticBenchmark.beforeDeliveryTokens > report.realisticBenchmark.afterDeliveryTokens);
   assert(report.realisticBenchmark.percent > 0);
