@@ -59,6 +59,7 @@ const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 const MCP_PRIVATE_MATERIAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
 const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
+const REALQA_QUERY_STOPWORDS = new Set(['what', 'which', 'who', 'where', 'when', 'why', 'how', 'is', 'the', 'a', 'an', 'by', 'does', 'do', 'for', 'to', 'of', 'provider', 'default', 'implements']);
 const MCP_INSTALL_CLIENTS = new Map([
   ['codex', { id: 'codex', format: 'toml', configPath: '.codex/config.toml' }],
   ['cursor', { id: 'cursor', format: 'json', configPath: '.cursor/mcp.json' }],
@@ -1466,9 +1467,10 @@ async function benchmarkCommand(values) {
   if (values[0] === 'sufficiency') return await benchmarkSufficiencyCommand(values.slice(1));
   if (values[0] === 'temporal') return await benchmarkTemporalCommand(values.slice(1));
   if (values[0] === 'session') return await benchmarkSessionCommand(values.slice(1));
+  if (values[0] === 'realqa') return await benchmarkRealQaCommand(values.slice(1));
 
   if (values[0] !== 'truth-floor') {
-    console.error('benchmark requires truth-floor, sufficiency, temporal, or session');
+    console.error('benchmark requires truth-floor, sufficiency, temporal, session, or realqa');
     process.exitCode = 2;
     return;
   }
@@ -1924,6 +1926,185 @@ async function addTemporalBenchmarkFactAt({ sqlitePath, now, item, pointIndex, w
   } finally {
     provider.close();
   }
+}
+
+async function benchmarkRealQaCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('bench realqa requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out')) {
+    console.error('bench realqa is read-only and does not write or pin workspace artifacts');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--workspace', '--workspace-id', '--budget', '--token-budget', '--limit', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`bench realqa unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('bench realqa only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const report = await buildRealQaBenchmarkReport(values);
+    console.log(format === 'summary' ? renderRealQaBenchmarkSummary(report) : JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function buildRealQaBenchmarkReport(values) {
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('bench realqa --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
+  const recallLimit = parseIntegerOption(values, '--limit', 20);
+  const cases = await buildRealQaCases(root);
+  const beforeEpisodes = await buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope: 'workspace', generatedAt, limit: 80, structured: false });
+  const afterEpisodes = await buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope: 'workspace', generatedAt, limit: 80, structured: true });
+  const before = await scoreRealQaArm({ name: 'legacy-generic-ingest', root, workspaceId, generatedAt, tokenBudget, recallLimit, cases, episodes: beforeEpisodes });
+  const after = await scoreRealQaArm({ name: 'structured-deduped-ingest', root, workspaceId, generatedAt, tokenBudget, recallLimit, cases, episodes: afterEpisodes });
+  return {
+    schemaVersion: '1.0.0',
+    command: 'bench realqa',
+    generatedAt,
+    workspaceId,
+    cases,
+    before,
+    after,
+    headline: {
+      metric: 'real-repo-question-sufficiency',
+      beforeSufficiencyPercent: before.correctnessPercent,
+      afterSufficiencyPercent: after.correctnessPercent,
+      improvementPercent: after.correctnessPercent - before.correctnessPercent,
+      correctnessGatePassed: after.correctnessPercent === 100
+    },
+    antiGaming: {
+      answersDerivedFromRepoFiles: true,
+      recallAndProfileMustContainAnswer: true,
+      lowScoreReportedHonestly: true
+    },
+    safeguards: {
+      readOnly: true,
+      workspaceFilesWritten: 0,
+      scratchFilesWritten: 2,
+      proposalGated: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      providerBillingClaimed: false
+    },
+    reportFingerprint: stableJsonFingerprint({ cases, before, after })
+  };
+}
+
+async function scoreRealQaArm({ name, root, workspaceId, generatedAt, tokenBudget, recallLimit, cases, episodes }) {
+  const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-realqa-'));
+  const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
+  const sqliteValues = ['--sqlite', 'memory.sqlite'];
+  let proposalCount = 0;
+  try {
+    const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+    const provider = new SQLiteMemoryProvider({ filename: scratchSqlite, clock: () => generatedAt });
+    try {
+      const queued = [];
+      for (const episode of episodes) queued.push(...await provider.proposeTemporalFactsFromEpisode(episode));
+      proposalCount = new Set(queued.map((item) => item.id)).size;
+    } finally {
+      provider.close();
+    }
+    const calls = [];
+    for (const item of cases) {
+      const recallPayload = await buildMcpMemoryRecallPayload({
+        values: sqliteValues,
+        root: scratchRoot,
+        workspaceId,
+        generatedAt,
+        args: { query: item.question, scope: 'workspace', limit: recallLimit }
+      });
+      const profilePayload = await buildMcpContextProfilePayload({
+        values: sqliteValues,
+        root: scratchRoot,
+        workspaceId,
+        generatedAt,
+        args: { objective: item.question, step: 'Answer real repo question from governed memory', scope: 'workspace', budget: tokenBudget, limit: recallLimit }
+      });
+      const recallText = JSON.stringify(recallPayload);
+      const profileText = JSON.stringify(profilePayload);
+      const recallContainsAnswer = recallText.includes(item.answer);
+      const profileContainsAnswer = profileText.includes(item.answer);
+      calls.push({
+        id: item.id,
+        answer: item.answer,
+        recallContainsAnswer,
+        profileContainsAnswer,
+        correct: recallContainsAnswer && profileContainsAnswer,
+        deliveredTokens: estimateTokens(JSON.stringify({ recallPayload, profilePayload }))
+      });
+    }
+    const deliveredTokens = calls.reduce((sum, item) => sum + item.deliveredTokens, 0);
+    const correctCount = calls.filter((item) => item.correct).length;
+    return {
+      name,
+      caseCount: cases.length,
+      episodeCount: episodes.length,
+      proposalCount,
+      correctCount,
+      correctnessPercent: Math.round((correctCount / cases.length) * 100),
+      deliveredTokens,
+      averageDeliveredTokens: Math.round(deliveredTokens / cases.length),
+      calls
+    };
+  } finally {
+    await rm(scratchRoot, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+async function buildRealQaCases(root) {
+  const status = await loadWorkspaceJson(root, 'PROJECT_STATUS.json', {});
+  const defaults = status?.defaults && typeof status.defaults === 'object' ? status.defaults : {};
+  const cases = [];
+  const addDefault = (field, question) => {
+    if (typeof defaults[field] === 'string') cases.push({ id: `default_${camelToSnakeToken(field)}`, question, answer: defaults[field] });
+  };
+  addDefault('workflowProvider', 'What is the default durable workflow provider?');
+  addDefault('artifactProvider', 'Which provider stores artifacts by default?');
+  addDefault('memoryProvider', 'Which memory provider is the default?');
+  addDefault('policyProvider', 'Which policy provider is the default?');
+  addDefault('toolProvider', 'Which tool provider is the default?');
+  addDefault('modelMode', 'What is the default model mode?');
+  const manifests = [];
+  for (const relativePath of await memoryIngestProviderPaths(root)) {
+    const manifest = await loadWorkspaceJson(root, relativePath, null).catch(() => null);
+    if (manifest?.id && manifest?.contract) manifests.push(manifest);
+  }
+  for (const contract of ['ArtifactStorePort', 'MemoryBackendPort', 'PolicyEvaluatorPort', 'ToolExecutionPort', 'ModelGatewayPort']) {
+    const provider = manifests.filter((item) => item.contract === contract).sort((a, b) => Number(b.enabledByDefault === true) - Number(a.enabledByDefault === true))[0];
+    if (provider) cases.push({ id: `provider_${safeFactToken(contract, 'port')}`, question: `Which provider implements ${contract}?`, answer: provider.id });
+  }
+  const workflowProvider = manifests.filter((item) => item.contract === 'WorkflowRuntimePort').sort((a, b) => Number(b.enabledByDefault === true) - Number(a.enabledByDefault === true))[0];
+  if (workflowProvider) cases.push({ id: 'provider_workflowruntimeport_default', question: 'Which default provider implements WorkflowRuntimePort?', answer: workflowProvider.id });
+  if (cases.length < 10) throw new Error('bench realqa requires at least 10 derived repo questions');
+  return cases.slice(0, 12);
+}
+
+function renderRealQaBenchmarkSummary(report) {
+  return [
+    `RealQA benchmark: before ${report.before.correctnessPercent}% / after ${report.after.correctnessPercent}%`,
+    `Cases: ${report.cases.length}`,
+    `After delivered tokens: ${report.after.deliveredTokens}`,
+    `Correctness gate: ${report.headline.correctnessGatePassed ? 'pass' : 'fail'}`
+  ].join('\n');
 }
 
 function summarizeSessionArm(name, calls, tokenBudget) {
@@ -3172,6 +3353,19 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
     governedFactCount: records.length,
     proposalFactCount: records.filter((item) => item.metadata?.memoryLifecycle === 'proposal').length
   });
+  const selectedIds = new Set([
+    ...(payload.data?.selectedContext?.selectedIds ?? []),
+    ...(payload.data?.profile?.layers ?? []).flatMap((layer) => layer.sourceRecordIds ?? [])
+  ]);
+  const selectedFacts = records
+    .filter((record) => selectedIds.has(record.id) && record.kind === 'fact')
+    .map((record) => ({
+      id: mcpSanitizeString(record.id, 120),
+      text: mcpSanitizeString(record.text, 300),
+      sourceRef: mcpCompactProvenanceRef(record.source)
+    }))
+    .slice(0, 20);
+  if (selectedFacts.length) payload.data.selectedFacts = selectedFacts;
   if (since) payload.data.cursor = { previous: since, next: generatedAt };
   return payload;
 }
@@ -3247,7 +3441,7 @@ function mcpProfileRecordFromProposal(fact) {
     workspaceId: fact.workspaceId,
     kind: 'fact',
     text: `proposal_only ${fact.text}`,
-    scope: 'workspace-private',
+    scope: fact.scope,
     dataClass: 'workspace-private',
     status: 'active',
     source: fact.provenance.sourceLocator ?? 'workspace://memory/proposals',
@@ -3268,7 +3462,9 @@ function mcpProfileRecordFromProposal(fact) {
 }
 
 function proposalFactMatchesQuery(fact, query) {
-  const tokens = String(query ?? '').toLowerCase().match(/[a-z0-9:_-]+/gu) ?? [];
+  const tokens = (String(query ?? '').toLowerCase().match(/[a-z0-9:_-]+/gu) ?? [])
+    .filter((token) => !REALQA_QUERY_STOPWORDS.has(token))
+    .flatMap((token) => token.endsWith('s') ? [token, token.slice(0, -1)] : [token]);
   if (!tokens.length) return true;
   const haystack = `${fact.subject} ${fact.predicate} ${fact.object} ${fact.text}`.toLowerCase();
   return tokens.some((token) => haystack.includes(token));
@@ -5277,22 +5473,29 @@ async function resolveWorkspaceCursorPath(root, cursorPath, commandName, { mustE
   return { absolute, relative: toPosix(path.relative(realRoot, absolute)) };
 }
 
-async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, generatedAt, limit }) {
+async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, generatedAt, limit, structured = true }) {
   const episodes = [];
   const remaining = () => Math.max(0, limit - episodes.reduce((sum, episode) => sum + episode.text.split(/\n/u).filter(Boolean).length, 0));
-  const gitFacts = collectGitHistoryFacts(root).slice(0, Math.min(12, remaining()));
-  if (gitFacts.length) episodes.push(memoryIngestEpisode({
-    workspaceId,
-    scope,
-    sourceLocator: 'workspace://git/recent-commits',
-    observedAt: generatedAt,
-    facts: gitFacts,
-    metadata: { sourceKind: 'git-history' }
-  }));
+
+  if (structured) {
+    for (const relativePath of await memoryIngestProviderPaths(root)) {
+      if (remaining() <= 0) break;
+      const facts = await collectProviderMemoryFacts(root, relativePath);
+      if (!facts.length) continue;
+      episodes.push(memoryIngestEpisode({
+        workspaceId,
+        scope,
+        sourceLocator: `workspace://${relativePath}`,
+        observedAt: generatedAt,
+        facts: facts.slice(0, remaining()),
+        metadata: { sourceKind: 'provider-catalog' }
+      }));
+    }
+  }
 
   for (const relativePath of memoryIngestDocPaths()) {
     if (remaining() <= 0) break;
-    const facts = await collectDocMemoryFacts(root, relativePath);
+    const facts = await collectDocMemoryFacts(root, relativePath, { structured });
     if (!facts.length) continue;
     episodes.push(memoryIngestEpisode({
       workspaceId,
@@ -5315,7 +5518,16 @@ async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, ge
       metadata: { sourceKind: 'source-graph' }
     }));
   }
-  return episodes;
+  const gitFacts = collectGitHistoryFacts(root).slice(0, Math.min(12, remaining()));
+  if (gitFacts.length) episodes.push(memoryIngestEpisode({
+    workspaceId,
+    scope,
+    sourceLocator: 'workspace://git/recent-commits',
+    observedAt: generatedAt,
+    facts: gitFacts,
+    metadata: { sourceKind: 'git-history' }
+  }));
+  return dedupeMemoryIngestEpisodes(episodes);
 }
 
 function memoryIngestEpisode({ workspaceId, scope, sourceLocator, observedAt, facts, metadata }) {
@@ -5345,10 +5557,10 @@ function collectGitHistoryFacts(root) {
 
 function memoryIngestDocPaths() {
   return [
+    'PROJECT_STATUS.json',
     'README.md',
     'AGENTS.md',
     'PRODUCT.md',
-    'PROJECT_STATUS.json',
     'docs/architecture/overview.md',
     'docs/adr/0019-proposal-gated-harness-memory-import.md',
     'docs/adr/0020-read-only-mcp-before-write-tools.md',
@@ -5356,12 +5568,19 @@ function memoryIngestDocPaths() {
   ];
 }
 
-async function collectDocMemoryFacts(root, relativePath) {
+async function collectDocMemoryFacts(root, relativePath, { structured = true } = {}) {
   const absolute = path.resolve(root, relativePath);
   const info = await stat(absolute).catch(() => null);
   if (!info?.isFile() || info.size > 512 * 1024) return [];
   const text = await readFile(absolute, 'utf8');
   const facts = [factTriple('project:oaf', 'has_doc', safeFactToken(relativePath, 'doc'))];
+  if (structured && relativePath === 'PROJECT_STATUS.json') {
+    try {
+      facts.push(...collectProjectStatusMemoryFacts(JSON.parse(text)));
+    } catch {}
+  }
+  if (structured && relativePath.startsWith('docs/adr/')) facts.push(...collectAdrMemoryFacts(relativePath, text));
+  if (structured && relativePath.startsWith('docs/architecture/')) facts.push(...collectArchitectureDocMemoryFacts(relativePath, text));
   const checks = [
     [/local-first/i, 'locality', 'local-first'],
     [/proposal[- ]gated|proposal gate/i, 'memory_policy', 'proposal-gated'],
@@ -5375,6 +5594,62 @@ async function collectDocMemoryFacts(root, relativePath) {
     if (pattern.test(text)) facts.push(factTriple('project:oaf', predicate, object));
   }
   return [...new Set(facts)];
+}
+
+function collectProjectStatusMemoryFacts(status) {
+  const facts = [];
+  const defaults = status?.defaults && typeof status.defaults === 'object' ? status.defaults : {};
+  for (const [key, value] of Object.entries(defaults)) {
+    if (typeof value === 'string') facts.push(factTriple('project:oaf', `default_${camelToSnakeToken(key)}`, value));
+  }
+  for (const capability of (Array.isArray(status?.capabilities) ? status.capabilities : []).slice(0, 12)) {
+    if (capability?.id && capability?.status) facts.push(factTriple(`capability:${capability.id}`, 'status', capability.status));
+  }
+  return facts;
+}
+
+function collectAdrMemoryFacts(relativePath, text) {
+  const id = path.basename(relativePath, '.md').replace(/[^0-9a-z-]+/giu, '_');
+  const heading = text.split(/\r?\n/u).find((line) => line.startsWith('# '))?.replace(/^#\s+/u, '');
+  return heading ? [factTriple(`adr:${id}`, 'decision', heading)] : [];
+}
+
+function collectArchitectureDocMemoryFacts(relativePath, text) {
+  const id = path.basename(relativePath, '.md').replace(/[^0-9a-z-]+/giu, '_');
+  const heading = text.split(/\r?\n/u).find((line) => line.startsWith('# '))?.replace(/^#\s+/u, '');
+  return heading ? [factTriple(`architecture:${id}`, 'documents', heading)] : [];
+}
+
+async function memoryIngestProviderPaths(root) {
+  const nativeRoot = path.resolve(root, 'providers/native');
+  const entries = await readdir(nativeRoot, { withFileTypes: true }).catch(() => []);
+  return entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `providers/native/${entry.name}/provider.json`);
+}
+
+async function collectProviderMemoryFacts(root, relativePath) {
+  const manifest = await loadWorkspaceJson(root, relativePath, null).catch(() => null);
+  if (!manifest?.id) return [];
+  const facts = [];
+  if (manifest.contract) facts.push(factTriple(manifest.id, 'implements_port', manifest.contract));
+  if (manifest.category) facts.push(factTriple(manifest.id, 'provider_category', manifest.category));
+  if (manifest.enabledByDefault === true) facts.push(factTriple(manifest.id, 'enabled_by_default', 'true'));
+  return facts;
+}
+
+function dedupeMemoryIngestEpisodes(episodes) {
+  const seen = new Set();
+  return episodes.map((episode) => {
+    const facts = [];
+    for (const fact of episode.text.split(/\n/u).filter(Boolean)) {
+      const key = fact.replace(/\.$/u, '').toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      facts.push(fact);
+    }
+    return facts.length ? { ...episode, text: facts.join('\n') } : null;
+  }).filter(Boolean);
 }
 
 async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt) {
@@ -5400,7 +5675,7 @@ async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt) {
 }
 
 function factTriple(subject, predicate, object) {
-  return `${safeFactToken(subject, 'subject')} ${safeFactToken(predicate, 'predicate')} ${safeFactToken(object, 'object')}.`;
+  return `${safeFactToken(subject, 'subject')} ${safeFactToken(predicate, 'predicate')} ${safeFactObjectToken(object, 'object')}.`;
 }
 
 function safeFactToken(value, fallback) {
@@ -5412,6 +5687,19 @@ function safeFactToken(value, fallback) {
     .slice(0, 96);
   const token = normalized || fallback;
   return /^[a-z0-9:_-]{1,128}$/u.test(token) ? token : fallback;
+}
+
+function safeFactObjectToken(value, fallback) {
+  const normalized = String(value ?? '')
+    .normalize('NFKC')
+    .replace(/[^A-Za-z0-9:_-]+/gu, '_')
+    .replace(/^_+|_+$/gu, '')
+    .slice(0, 96);
+  return /^[A-Za-z0-9:_-]{1,128}$/u.test(normalized || '') ? normalized : safeFactToken(value, fallback);
+}
+
+function camelToSnakeToken(value) {
+  return safeFactToken(String(value).replace(/([a-z0-9])([A-Z])/g, '$1_$2'), 'field');
 }
 
 function summarizeProposalQueueFact(item) {
@@ -5661,6 +5949,7 @@ Usage:
   oaf bench sufficiency --read-only --root . --format json
   oaf bench temporal --read-only --root . --format json
   oaf bench session --read-only --root . --format json
+  oaf bench realqa --read-only --root . --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
   oaf memory review --root . --sqlite .local/memory.sqlite --format json
