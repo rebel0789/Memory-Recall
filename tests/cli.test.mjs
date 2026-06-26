@@ -1,9 +1,75 @@
 import test from 'node:test';import assert from 'node:assert/strict';import { spawnSync } from 'node:child_process';import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';import os from 'node:os';import path from 'node:path';import contextPackHandoffReportSchema from '../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };import contextPackMeasurementReportSchema from '../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };import contextPackReceiveReportSchema from '../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 test('CLI help documents MCP token-saver server',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp server --read-only --root \. --stdio/)});
 test('CLI help documents MCP token-saver install',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp install --client claude-code --dry-run --format json/)});
-test('CLI help is local and documents core commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf task <OAF-ID>/);assert.match(result.stdout,/Run oaf task only when npm run status names a next task/);assert.match(result.stdout,/oaf demo memory-loop --root \. --format json/);assert.match(result.stdout,/oaf context scan --from codex --root \. --dry-run/);assert.match(result.stdout,/oaf context preview --from codex --root \. --objective/);assert.match(result.stdout,/oaf context pack .*--changed src\/auth\.ts .*--changed-from-git/);assert.match(result.stdout,/oaf context handoff --read-only --from codex --root \./);assert.match(result.stdout,/--memory-config oaf\.memory\.json/);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format json/);assert.match(result.stdout,/oaf context registry status --read-only --format json/);assert.match(result.stdout,/oaf context graph preview --root \. --query/);assert.match(result.stdout,/oaf loop plan --read-only --root \./);assert.match(result.stdout,/oaf loop observe --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf loop verify --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf measure context-pack --read-only --root \./);assert.match(result.stdout,/impact brief/);assert.match(result.stdout,/--format summary/);assert.match(result.stdout,/oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals\/benchmark-truth-floor\/cases.v1.json --format json/);assert.match(result.stdout,/oaf memory sgrep "context manifest"/);assert.match(result.stdout,/oaf memory fact add --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact get --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact history --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf mcp resources --read-only/);assert.match(result.stdout,/oaf mcp smoke context-pack/);assert.match(result.stdout,/oaf harness setup status --client codex --dry-run --format json/);assert.match(result.stdout,/oaf harness setup plan --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/oaf harness setup uninstall --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/no external writes/i)});
-test('demo memory-loop runs native profile plan observe proposal and fact flow',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','demo','memory-loop','--root','.','--format','json'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.command,'demo memory-loop');assert(report.compressedProfile.contextBudget.estimatedDeliveryTokens>0);assert.equal(report.loopPlan.contextBudget.estimatedDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert.equal(report.observation.status,'passed');assert.equal(report.extractionProposal.status,'applied');assert.equal(report.memoryFact.id,'memfact_demo_memory_loop');assert.equal(report.memoryFact.validity.validFrom,'2026-06-26T10:00:00.000Z');assert.deepEqual(report.remembered,['project:oaf memory_loop connected']);assert.deepEqual(report.superseded,[]);assert.equal(report.safeguards.localOnly,true);assert.equal(report.safeguards.networkCalls,0);assert.equal(report.safeguards.modelCalls,0)});
-test('demo memory-loop npm script prints token saving remembered and superseded facts',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync('npm',['run','demo:memory-loop'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/Memory loop token saving: \d+%/);assert.match(result.stdout,/Remembered: project:oaf memory_loop connected/);assert.match(result.stdout,/Superseded: memfact_demo_memory_loop_previous -> memfact_demo_memory_loop/);assert.match(result.stdout,/Observation: passed/);assert.equal(result.stdout.includes('network'),false)});
+test('CLI help is local and documents core commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf task <OAF-ID>/);assert.match(result.stdout,/Run oaf task only when npm run status names a next task/);assert.match(result.stdout,/oaf demo memory-loop --root \. --format json/);assert.match(result.stdout,/oaf context scan --from codex --root \. --dry-run/);assert.match(result.stdout,/oaf context preview --from codex --root \. --objective/);assert.match(result.stdout,/oaf context pack .*--changed src\/auth\.ts .*--changed-from-git/);assert.match(result.stdout,/oaf context handoff --read-only --from codex --root \./);assert.match(result.stdout,/--memory-config oaf\.memory\.json/);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format json/);assert.match(result.stdout,/oaf context registry status --read-only --format json/);assert.match(result.stdout,/oaf context graph preview --root \. --query/);assert.match(result.stdout,/oaf loop plan --read-only --root \./);assert.match(result.stdout,/oaf loop observe --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf loop verify --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf measure savings --read-only --root \./);assert.match(result.stdout,/oaf measure context-pack --read-only --root \./);assert.match(result.stdout,/impact brief/);assert.match(result.stdout,/--format summary/);assert.match(result.stdout,/oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals\/benchmark-truth-floor\/cases.v1.json --format json/);assert.match(result.stdout,/oaf memory sgrep "context manifest"/);assert.match(result.stdout,/oaf memory fact add --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact get --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact history --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf mcp resources --read-only/);assert.match(result.stdout,/oaf mcp smoke context-pack/);assert.match(result.stdout,/oaf harness setup status --client codex --dry-run --format json/);assert.match(result.stdout,/oaf harness setup plan --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/oaf harness setup uninstall --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/no external writes/i)});
+test('demo memory-loop runs native profile plan observe proposal and fact flow',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','demo','memory-loop','--root','.','--format','json'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.command,'demo memory-loop');assert(report.compressedProfile.contextBudget.estimatedDeliveryTokens>0);assert.equal(report.loopPlan.contextBudget.estimatedDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert.equal(report.savings.beforeDeliveryTokens,report.compressedProfile.contextBudget.historyTokensAvailable);assert.equal(report.savings.afterDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert(report.savings.percent>0);assert.equal(report.savings.savings.providerBillingClaimed,false);assert.equal(report.observation.status,'passed');assert.equal(report.extractionProposal.status,'applied');assert.equal(report.memoryFact.id,'memfact_demo_memory_loop');assert.equal(report.memoryFact.validity.validFrom,'2026-06-26T10:00:00.000Z');assert.deepEqual(report.remembered,['project:oaf memory_loop connected']);assert.deepEqual(report.superseded,[]);assert.equal(report.safeguards.localOnly,true);assert.equal(report.safeguards.networkCalls,0);assert.equal(report.safeguards.modelCalls,0)});
+test('demo memory-loop npm script prints token saving remembered and superseded facts',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync('npm',['run','demo:memory-loop'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/Memory loop token saving: \d+%/);assert.match(result.stdout,/Before\/after delivery tokens: \d+ -> \d+/);assert.match(result.stdout,/Remembered: project:oaf memory_loop connected/);assert.match(result.stdout,/Superseded: memfact_demo_memory_loop_previous -> memfact_demo_memory_loop/);assert.match(result.stdout,/Observation: passed/);assert.equal(result.stdout.includes('network'),false)});
+test('measure savings reports real SQLite before and after delivery tokens without writes', async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-measure-savings-'));
+  mkdirSync(path.join(root, '.local'), { recursive: true });
+  const sqlitePath = path.join(root, '.local', 'memory.sqlite');
+  const provider = new SQLiteMemoryProvider({ filename: sqlitePath, clock: () => '2026-06-26T10:00:00.000Z' });
+  await provider.put({
+    id: 'mem_savings_profile',
+    workspaceId: 'ws_local',
+    kind: 'decision',
+    text: `${Array(120).fill('measure-savings').join(' ')} SAVINGS_RAW_BODY should stay hidden.`,
+    source: 'workspace://docs/savings.md',
+    status: 'active',
+    confidence: 0.9,
+    authority: 0.9,
+    updatedAt: '2026-06-26T09:55:00.000Z'
+  });
+  await provider.enqueueProposal({
+    id: 'mpq_savings_fact',
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://docs/savings.md',
+    sourceHash: 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+    payload: { kind: 'fact', subject: 'project:oaf', predicate: 'measure_savings', object: 'ready' }
+  });
+  await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'savings-test', leaseUntil: '2026-06-26T10:05:00.000Z' });
+  await provider.recordProposalResult({ workspaceId: 'ws_local', id: 'mpq_savings_fact', workerId: 'savings-test', status: 'applied', result: { accepted: true } });
+  await provider.addTemporalFact({
+    id: 'memfact_savings_ready',
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'project:oaf',
+    predicate: 'measure_savings',
+    object: 'ready',
+    text: `${Array(80).fill('measure-savings-ready').join(' ')} temporal fact body should stay out.`,
+    source: 'workspace://docs/savings.md',
+    proposalQueueId: 'mpq_savings_fact',
+    validFrom: '2026-06-26T10:00:00.000Z'
+  });
+  provider.close();
+  const beforeMtime = statSync(sqlitePath).mtimeMs;
+  const env = { ...process.env, OAF_FIXED_NOW: '2026-06-26T10:00:00.000Z' };
+  const args = ['apps/cli/oaf.mjs', 'measure', 'savings', '--read-only', '--root', root, '--objective', 'measure savings ready', '--step', 'compare compressed profile', '--format', 'json'];
+  const result = spawnSync(process.execPath, args, { encoding: 'utf8', env });
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.command, 'measure savings');
+  assert.equal(report.measurementScope, 'single local compressed-profile delivery-token estimate');
+  assert.equal(report.source.provider, 'provider:native:memory:sqlite');
+  assert.equal(report.source.sqliteRef, 'workspace://.local/memory.sqlite');
+  assert(report.baseline.deliveryTokens > report.compressed.deliveryTokens);
+  assert.equal(report.beforeDeliveryTokens, report.baseline.deliveryTokens);
+  assert.equal(report.afterDeliveryTokens, report.compressed.deliveryTokens);
+  assert.equal(report.tokensSaved, report.baseline.deliveryTokens - report.compressed.deliveryTokens);
+  assert(report.savings.percent > 0);
+  assert.equal(report.savings.providerBillingClaimed, false);
+  assert.equal(report.safeguards.rawSourceBodiesIncluded, false);
+  assert.match(report.reportFingerprint, /^sha256:[a-f0-9]{64}$/);
+  assert.equal(statSync(sqlitePath).mtimeMs, beforeMtime);
+  for (const forbidden of ['SAVINGS_RAW_BODY', 'temporal fact body', root, '/Users/rebel']) assert.equal(result.stdout.includes(forbidden), false, forbidden);
+  const summary = spawnSync(process.execPath, [...args.slice(0, -1), 'summary'], { encoding: 'utf8', env });
+  assert.equal(summary.status, 0, summary.stderr);
+  assert.match(summary.stdout, /Token saving: \d+%/);
+  assert.match(summary.stdout, /Before delivery tokens: \d+/);
+  assert.match(summary.stdout, /After delivery tokens: \d+/);
+  assert.match(summary.stdout, /Basis: delivery-token estimate, not provider billing/);
+  assert.equal(summary.stdout.includes('SAVINGS_RAW_BODY'), false);
+});
 test('CLI help documents loop run and schedule',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf loop run --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf loop schedule --read-only --root \./)});
 test('CLI rejects unknown commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','wat'],{encoding:'utf8'});assert.equal(result.status,2);assert.match(result.stderr,/Unknown command/)});
 test('task command prints stop condition',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','task','OAF-004'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/Stop condition/)});

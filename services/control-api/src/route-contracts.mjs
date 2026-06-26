@@ -903,7 +903,7 @@ export function createApiRouteContracts(limits = {}) {
   const memoryCockpitResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'facts', 'proposalQueue', 'tokenBudget', 'profile', 'safeguards', 'reportFingerprint'],
+    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'facts', 'proposalQueue', 'tokenBudget', 'savings', 'profile', 'safeguards', 'reportFingerprint'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       workspaceId,
@@ -924,6 +924,48 @@ export function createApiRouteContracts(limits = {}) {
           historyTokensAvoided: { type: 'integer', minimum: 0, maximum: 1000000 },
           reductionRatio: { type: 'number', minimum: 0, maximum: 1 },
           measured: { const: true }
+        }
+      },
+      savings: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['schemaVersion', 'command', 'measurementScope', 'baseline', 'compressed', 'savings', 'beforeDeliveryTokens', 'afterDeliveryTokens', 'tokensSaved', 'percent', 'safeguards', 'reportFingerprint'],
+        properties: {
+          schemaVersion: { const: '1.0.0' },
+          command: { const: 'measure savings' },
+          measurementScope: { const: 'single local compressed-profile delivery-token estimate' },
+          baseline: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['deliveryTokens'],
+            properties: {
+              deliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 }
+            }
+          },
+          compressed: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['deliveryTokens'],
+            properties: {
+              deliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 }
+            }
+          },
+          savings: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['tokensSaved', 'percent', 'providerBillingClaimed'],
+            properties: {
+              tokensSaved: { type: 'integer', minimum: 0, maximum: 1000000 },
+              percent: { type: 'integer', minimum: 0, maximum: 100 },
+              providerBillingClaimed: { const: false }
+            }
+          },
+          beforeDeliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          afterDeliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          tokensSaved: { type: 'integer', minimum: 0, maximum: 1000000 },
+          percent: { type: 'integer', minimum: 0, maximum: 100 },
+          safeguards: { type: 'object', additionalProperties: true },
+          reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
         }
       },
       profile: { type: 'object', additionalProperties: true },

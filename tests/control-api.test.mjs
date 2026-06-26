@@ -151,6 +151,12 @@ test('memory cockpit route reads native SQLite facts proposals and token budget'
   assert.equal(body.proposalQueue[0].id, 'mpq_api_memory');
   assert.equal(body.tokenBudget.measured, true);
   assert(body.tokenBudget.estimatedDeliveryTokens > 0);
+  assert.equal(body.savings.command, 'measure savings');
+  assert.equal(body.savings.beforeDeliveryTokens, body.tokenBudget.historyTokensAvailable);
+  assert.equal(body.savings.afterDeliveryTokens, body.tokenBudget.estimatedDeliveryTokens);
+  assert.equal(body.savings.tokensSaved, Math.max(0, body.savings.beforeDeliveryTokens - body.savings.afterDeliveryTokens));
+  if (body.savings.beforeDeliveryTokens < body.savings.afterDeliveryTokens) assert.equal(body.savings.percent, 0);
+  assert.equal(body.savings.savings.providerBillingClaimed, false);
   assert.match(body.reportFingerprint, /^sha256:[a-f0-9]{64}$/);
 });
 

@@ -39,6 +39,7 @@ import contextPackHandoffReportSchema from '../../packages/protocol/schemas/cont
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
+import { sha256Hex, stableStringify } from '../../packages/protocol/src/fingerprint.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
@@ -185,8 +186,9 @@ async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt, inc
   });
   const exported = await provider.export({ workspaceId });
   const facts = await provider.listTemporalFacts({ workspaceId, limit: 100 });
+  const profileRecords = [...exported.records, ...facts.map(memoryLoopFactProfileRecord)];
   const profile = buildCompressedProfileContextReport({
-    records: [...exported.records, ...facts.map(memoryLoopFactProfileRecord)],
+    records: profileRecords,
     workspaceId,
     generatedAt,
     objective,
@@ -230,6 +232,20 @@ async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt, inc
       acceptedHistoryRecordCount: profile.profile.acceptedHistoryRecordCount,
       skippedHistoryRecordCount: profile.profile.skippedHistoryRecordCount
     },
+    savings: buildProfileSavingsSummary({
+      profile,
+      command: 'demo memory-loop savings',
+      workspaceId,
+      generatedAt,
+      objective,
+      step: 'Compress memory before planning the loop',
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: 'memory://demo-in-memory',
+        recordCount: profileRecords.length,
+        activeTemporalFactCount: facts.filter((item) => item.status === 'active').length
+      }
+    }),
     loopPlan: {
       id: loopPlan.id,
       contextBudget: loopPlan.contextBudget,
@@ -342,10 +358,85 @@ function loopBudgetFromProfile(contextBudget) {
   };
 }
 
+function buildProfileSavingsSummary({ profile, command, workspaceId, generatedAt, objective, step, source }) {
+  const beforeDeliveryTokens = Math.max(0, Math.trunc(Number(profile.contextBudget.historyTokensAvailable ?? 0)));
+  const afterDeliveryTokens = Math.max(0, Math.trunc(Number(profile.contextBudget.estimatedDeliveryTokens ?? 0)));
+  const tokensSaved = Math.max(0, beforeDeliveryTokens - afterDeliveryTokens);
+  const reductionRatio = beforeDeliveryTokens > 0 ? Number((tokensSaved / beforeDeliveryTokens).toFixed(6)) : 0;
+  const summary = {
+    schemaVersion: '1.0.0',
+    command,
+    generatedAt,
+    workspaceId,
+    measurementScope: 'single local compressed-profile delivery-token estimate',
+    objectiveFingerprint: stableJsonFingerprint(String(objective ?? '')),
+    stepFingerprint: stableJsonFingerprint(String(step ?? '')),
+    source,
+    baseline: {
+      label: 'naive full-context delivery estimate',
+      deliveryTokens: beforeDeliveryTokens,
+      basis: 'accepted history records before compressed profile selection'
+    },
+    compressed: {
+      label: 'OAF compressed profile delivery estimate',
+      deliveryTokens: afterDeliveryTokens,
+      profileTokens: Math.max(0, Math.trunc(Number(profile.contextBudget.profileTokens ?? 0))),
+      retrievedContextTokens: Math.max(0, Math.trunc(Number(profile.contextBudget.retrievedContextTokens ?? 0))),
+      selectedContextId: profile.manifest.id,
+      selectedCount: profile.manifest.selected.length,
+      excludedCount: profile.manifest.excluded.length
+    },
+    savings: {
+      tokensSaved,
+      reductionRatio,
+      percent: Math.round(reductionRatio * 100),
+      basis: 'delivery-token-estimate',
+      providerBillingClaimed: false
+    },
+    profile: {
+      id: profile.id,
+      acceptedHistoryRecordCount: profile.profile.acceptedHistoryRecordCount,
+      skippedHistoryRecordCount: profile.profile.skippedHistoryRecordCount,
+      bounded: profile.profile.bounded,
+      limits: profile.profile.limits,
+      contentHash: profile.profile.contentHash
+    },
+    safeguards: {
+      readOnly: true,
+      localOnly: true,
+      providerBillingClaimed: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      localFilesWritten: 0,
+      canonicalStateMutated: false,
+      activeMemoryCreated: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      rawSourceBodiesIncluded: false,
+      rawObjectiveIncluded: false,
+      rawStepIncluded: false
+    }
+  };
+  return {
+    ...summary,
+    beforeDeliveryTokens,
+    afterDeliveryTokens,
+    tokensSaved,
+    reductionRatio,
+    percent: summary.savings.percent,
+    reportFingerprint: stableJsonFingerprint(summary)
+  };
+}
+
+function stableJsonFingerprint(value) {
+  return `sha256:${sha256Hex(stableStringify(value))}`;
+}
+
 function renderMemoryLoopSummary(report) {
-  const tokenSaving = `${Math.round(Number(report.compressedProfile.contextBudget.reductionRatio ?? 0) * 100)}%`;
+  const tokenSaving = `${Math.round(Number(report.savings?.percent ?? Number(report.compressedProfile.contextBudget.reductionRatio ?? 0) * 100))}%`;
   return [
     `Memory loop token saving: ${tokenSaving}`,
+    `Before/after delivery tokens: ${Number(report.savings?.beforeDeliveryTokens ?? report.compressedProfile.contextBudget.historyTokensAvailable ?? 0)} -> ${Number(report.savings?.afterDeliveryTokens ?? report.compressedProfile.contextBudget.estimatedDeliveryTokens ?? 0)}`,
     `Remembered: ${report.remembered.join('; ') || 'none'}`,
     `Superseded: ${report.superseded.map((item) => `${item.id} -> ${item.supersededBy}`).join('; ') || 'none'}`,
     `Observation: ${report.observation.status}`,
@@ -374,8 +465,9 @@ async function memoryCommand(values) {
 async function measureCommand(values) {
   const [subcommand, ...rest] = values;
   try {
+    if (subcommand === 'savings') return await measureSavingsCommand(rest);
     if (subcommand === 'context-pack') return await measureContextPackCommand(rest);
-    console.error('measure requires context-pack');
+    console.error('measure requires savings or context-pack');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -696,6 +788,133 @@ async function measureContextPackCommand(values) {
   }
   const report = await buildContextPackMeasurementReport(values, { objective, step });
   console.log(format === 'summary' ? renderContextPackMeasurementSummary(report) : JSON.stringify(report, null, 2));
+}
+
+async function measureSavingsCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('measure savings requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out')) {
+    console.error('measure savings is read-only and does not write or pin artifacts');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--stdio') || values.includes('--dry-run')) {
+    console.error('measure savings uses --read-only only; --stdio and --dry-run are not accepted');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set([
+    '--root',
+    '--workspace',
+    '--workspace-id',
+    '--sqlite',
+    '--scope',
+    '--objective',
+    '--step',
+    '--token-budget',
+    '--budget',
+    '--limit',
+    '--static-limit',
+    '--dynamic-limit',
+    '--format'
+  ]);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`measure savings unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json','summary'].includes(format)) {
+    console.error('measure savings only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const objective = option(values, '--objective');
+  const step = option(values, '--step');
+  if (!objective || !step) {
+    console.error('measure savings requires --objective <text> and --step <text>');
+    process.exitCode = 2;
+    return;
+  }
+  const report = await buildSavingsMeasurementReport(values, { objective, step });
+  console.log(format === 'summary' ? renderSavingsMeasurementSummary(report) : JSON.stringify(report, null, 2));
+}
+
+async function buildSavingsMeasurementReport(values, { objective, step }) {
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('measure savings --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const scope = option(values, '--scope') ?? 'workspace';
+  const limit = parseIntegerOption(values, '--limit', 100);
+  const provider = await openReadOnlySqliteMemoryProvider({
+    values,
+    root,
+    generatedAt,
+    commandName: 'measure savings',
+    missingOk: false
+  });
+  try {
+    const [exported, facts] = await Promise.all([
+      provider.export({ workspaceId }),
+      provider.getTemporalFacts({ workspaceId, scope, query: objective, at: generatedAt, limit })
+    ]);
+    const profileRecords = [...exported.records, ...facts.map(mcpProfileRecordFromFact)];
+    const profile = buildCompressedProfileContextReport({
+      records: profileRecords,
+      workspaceId,
+      generatedAt,
+      objective,
+      step,
+      tokenBudget: parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096)),
+      staticLimit: parseIntegerOption(values, '--static-limit', 8),
+      dynamicLimit: parseIntegerOption(values, '--dynamic-limit', 5)
+    });
+    const sqliteRef = `workspace://${toPosix(option(values, '--sqlite') ?? '.local/memory.sqlite')}`;
+    const summary = buildProfileSavingsSummary({
+      profile,
+      command: 'measure savings',
+      workspaceId,
+      generatedAt,
+      objective,
+      step,
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef,
+        scope,
+        recordCount: profileRecords.length,
+        exportedRecordCount: exported.records.length,
+        activeTemporalFactCount: facts.length
+      }
+    });
+    const report = {
+      ...summary,
+      checks: {
+        baselineTokensPresent: summary.beforeDeliveryTokens > 0,
+        compressedTokensPresent: summary.afterDeliveryTokens > 0,
+        compressedNoLargerThanBaseline: summary.afterDeliveryTokens <= summary.beforeDeliveryTokens,
+        providerBillingNotClaimed: summary.savings.providerBillingClaimed === false
+      }
+    };
+    return { ...report, reportFingerprint: stableJsonFingerprint({ ...report, reportFingerprint: null }) };
+  } finally {
+    provider.close();
+  }
+}
+
+function renderSavingsMeasurementSummary(report) {
+  return [
+    `Token saving: ${report.savings.percent}%`,
+    `Before delivery tokens: ${report.baseline.deliveryTokens}`,
+    `After delivery tokens: ${report.compressed.deliveryTokens}`,
+    `Saved delivery tokens: ${report.savings.tokensSaved}`,
+    'Basis: delivery-token estimate, not provider billing'
+  ].join('\n');
 }
 
 async function memoryProfileCommand(values) {
@@ -1627,17 +1846,24 @@ async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, arg
 }
 
 async function openMcpReadOnlyMemoryProvider({ values, root, generatedAt }) {
+  return openReadOnlySqliteMemoryProvider({ values, root, generatedAt, commandName: 'mcp server', missingOk: true });
+}
+
+async function openReadOnlySqliteMemoryProvider({ values, root, generatedAt, commandName, missingOk }) {
   const sqlitePath = option(values, '--sqlite') ?? '.local/memory.sqlite';
   const realRoot = await realpath(root);
   const absolute = path.resolve(realRoot, sqlitePath);
   if (path.isAbsolute(sqlitePath) || !isInside(realRoot, absolute)) {
-    throw new Error('mcp server --sqlite must be a relative path inside --root');
+    throw new Error(`${commandName} --sqlite must be a relative path inside --root`);
   }
   const sqliteStat = await stat(absolute).catch((error) => {
     if (error.code === 'ENOENT') return null;
     throw error;
   });
-  if (!sqliteStat?.isFile()) return null;
+  if (!sqliteStat?.isFile()) {
+    if (missingOk) return null;
+    throw new Error(`${commandName} requires an existing SQLite database at --sqlite or .local/memory.sqlite; no database is created`);
+  }
   const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
   return new SQLiteMemoryProvider({ filename: absolute, clock: () => generatedAt, migrate: false, readOnly: true });
 }
@@ -3145,6 +3371,10 @@ function isInside(root, candidate) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
+function toPosix(value) {
+  return String(value).split(path.sep).join('/');
+}
+
 function deterministicMemoryId(locator, text) {
   return `mem_${createHash('sha256').update(`${locator}\0${text}`).digest('hex').slice(0, 16)}`;
 }
@@ -3301,6 +3531,8 @@ Usage:
   oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --execute-commands --format json
   oaf loop run --root . --plan loop-plan.json --worktree ../isolated-worktree --execute-commands --format json
   oaf loop schedule --read-only --root . --plan loop-plan.json --kind triage --cadence manual --format json
+  oaf measure savings --read-only --root . --objective "Ship safely" --step "measure savings" --format json
+  oaf measure savings --read-only --root . --objective "Ship safely" --step "measure savings" --format summary
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json

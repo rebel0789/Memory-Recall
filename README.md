@@ -46,6 +46,9 @@ This repository is an **agent-ready development kit**, not a claim that the full
   Claude Code, Cursor, and Codex, exposing `memory.recall`,
   `context.profile`, and `context.pack` over local stdio and writing exactly
   the `oaf` MCP server entry only after `--apply --confirm`;
+- read-only `oaf measure savings` before/after delivery-token estimate,
+  surfaced in the memory cockpit and memory-loop demo without claiming
+  provider billing tokens;
 - local MCP context-pack stdio smoke report with observed duration, response
   size, selected/candidate source units, and delivered-handoff unit counts for
   one explicit local invocation;

@@ -415,6 +415,7 @@ export function buildMemoryReviewModel({ memories = [] } = {}) {
 
 export function buildMemoryCockpitModel(cockpit = null) {
   const budget = cockpit?.tokenBudget ?? {};
+  const savings = cockpit?.savings ?? {};
   const facts = Array.isArray(cockpit?.facts) ? cockpit.facts : [];
   const proposalQueue = Array.isArray(cockpit?.proposalQueue) ? cockpit.proposalQueue : [];
   return {
@@ -429,6 +430,14 @@ export function buildMemoryCockpitModel(cockpit = null) {
       historyTokensAvailable:Number(budget.historyTokensAvailable ?? 0),
       profileTokens:Number(budget.profileTokens ?? 0),
       basis:safeText(budget.basis ?? 'not measured')
+    },
+    savings:{
+      beforeDeliveryTokens:Number(savings.beforeDeliveryTokens ?? savings.baseline?.deliveryTokens ?? budget.historyTokensAvailable ?? 0),
+      afterDeliveryTokens:Number(savings.afterDeliveryTokens ?? savings.compressed?.deliveryTokens ?? budget.estimatedDeliveryTokens ?? 0),
+      tokensSaved:Number(savings.tokensSaved ?? savings.savings?.tokensSaved ?? budget.historyTokensAvoided ?? 0),
+      percent:Math.round(Number(savings.percent ?? savings.savings?.percent ?? Number(budget.reductionRatio ?? 0) * 100)),
+      providerBillingClaimed:Boolean(savings.savings?.providerBillingClaimed ?? false),
+      basis:safeText(savings.savings?.basis ?? 'delivery-token-estimate')
     },
     facts:facts.map((fact)=>({
       id:safeText(fact.id ?? 'memfact_unknown'),
@@ -2019,7 +2028,7 @@ export function renderMemoryCockpit(cockpit = null) {
   const queue=model.proposalQueue.length
     ? `<ol class="compact-list locator-list">${model.proposalQueue.map((item)=>`<li><strong>${esc(item.id)} · ${esc(item.status)}</strong><span>${esc(item.sourceLocator)} · attempts ${item.attempts}</span>${item.payload.length?`<dl class="summary-list">${item.payload.map((entry)=>`<div><dt>${esc(entry.key)}</dt><dd>${esc(entry.value)}</dd></div>`).join('')}</dl>`:''}</li>`).join('')}</ol>`
     : '<p class="muted">No queued extraction proposals for this workspace.</p>';
-  return `<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.tokenSavingPercent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
+  return `<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.savings.percent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>OAF compressed</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
 }
 
 function renderEvidence() {

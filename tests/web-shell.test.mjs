@@ -119,6 +119,13 @@ test('memory route renders real temporal fact fields and computed token number',
     facts,
     proposalQueue,
     tokenBudget: profile.contextBudget,
+    savings: {
+      beforeDeliveryTokens: profile.contextBudget.historyTokensAvailable,
+      afterDeliveryTokens: profile.contextBudget.estimatedDeliveryTokens,
+      tokensSaved: profile.contextBudget.historyTokensAvoided,
+      percent: Math.round(profile.contextBudget.reductionRatio * 100),
+      savings: { providerBillingClaimed: false, basis: 'delivery-token-estimate' }
+    },
     profile: { id: profile.id },
     safeguards: { readOnly: true },
     reportFingerprint: profile.id.replace(/^ctxprofile_/, 'sha256:').padEnd(71, '0')
@@ -126,7 +133,13 @@ test('memory route renders real temporal fact fields and computed token number',
   const model = buildMemoryCockpitModel(cockpit);
   const html = renderMemoryCockpit(cockpit);
   assert.equal(model.tokenBudget.estimatedDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
+  assert.equal(model.savings.beforeDeliveryTokens, profile.contextBudget.historyTokensAvailable);
+  assert.equal(model.savings.afterDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
+  assert.equal(model.savings.providerBillingClaimed, false);
   assert.match(html, new RegExp(`${model.tokenSavingPercent}% token saving`));
+  assert.match(html, new RegExp(`<dt>Naive baseline</dt><dd>${profile.contextBudget.historyTokensAvailable}</dd>`));
+  assert.match(html, new RegExp(`<dt>OAF compressed</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
+  assert.match(html, /<dt>Provider billing<\/dt><dd>not claimed<\/dd>/);
   assert.match(html, /memfact_web_memory/);
   assert.match(html, /memory-route/);
   assert.match(html, /Jun 26, 2026/);

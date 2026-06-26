@@ -141,6 +141,68 @@ function loopBudgetFromProfile(contextBudget) {
   };
 }
 
+function buildProfileSavingsSummary({ profile, workspaceId, generatedAt, objective, step, source }) {
+  const beforeDeliveryTokens = Math.max(0, Math.trunc(Number(profile.contextBudget.historyTokensAvailable ?? 0)));
+  const afterDeliveryTokens = Math.max(0, Math.trunc(Number(profile.contextBudget.estimatedDeliveryTokens ?? 0)));
+  const tokensSaved = Math.max(0, beforeDeliveryTokens - afterDeliveryTokens);
+  const reductionRatio = beforeDeliveryTokens > 0 ? Number((tokensSaved / beforeDeliveryTokens).toFixed(6)) : 0;
+  const summary = {
+    schemaVersion: '1.0.0',
+    command: 'measure savings',
+    generatedAt,
+    workspaceId,
+    measurementScope: 'single local compressed-profile delivery-token estimate',
+    objectiveFingerprint: `sha256:${sha256Hex(stableStringify(String(objective ?? '')))}`,
+    stepFingerprint: `sha256:${sha256Hex(stableStringify(String(step ?? '')))}`,
+    source,
+    baseline: {
+      label: 'naive full-context delivery estimate',
+      deliveryTokens: beforeDeliveryTokens,
+      basis: 'accepted history records before compressed profile selection'
+    },
+    compressed: {
+      label: 'OAF compressed profile delivery estimate',
+      deliveryTokens: afterDeliveryTokens,
+      profileTokens: Math.max(0, Math.trunc(Number(profile.contextBudget.profileTokens ?? 0))),
+      retrievedContextTokens: Math.max(0, Math.trunc(Number(profile.contextBudget.retrievedContextTokens ?? 0))),
+      selectedContextId: profile.manifest.id,
+      selectedCount: profile.manifest.selected.length,
+      excludedCount: profile.manifest.excluded.length
+    },
+    savings: {
+      tokensSaved,
+      reductionRatio,
+      percent: Math.round(reductionRatio * 100),
+      basis: 'delivery-token-estimate',
+      providerBillingClaimed: false
+    },
+    safeguards: {
+      readOnly: true,
+      localOnly: true,
+      providerBillingClaimed: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      localFilesWritten: 0,
+      canonicalStateMutated: false,
+      activeMemoryCreated: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      rawSourceBodiesIncluded: false,
+      rawObjectiveIncluded: false,
+      rawStepIncluded: false
+    }
+  };
+  return {
+    ...summary,
+    beforeDeliveryTokens,
+    afterDeliveryTokens,
+    tokensSaved,
+    reductionRatio,
+    percent: summary.savings.percent,
+    reportFingerprint: `sha256:${sha256Hex(stableStringify(summary))}`
+  };
+}
+
 function proposalPayloadText(proposal) {
   const payload = proposal?.payload ?? {};
   return payload.text ?? [payload.subject, payload.predicate, payload.object].filter(Boolean).join(' ');
@@ -334,12 +396,14 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
   ]);
   const chains = temporalFactChains(facts);
   const profileRecords = [...exported.records, ...facts.map(factProfileRecord)];
+  const objective = 'Surface local bi-temporal memory and proposal-gated extraction state';
+  const step = 'Render memory cockpit token budget';
   const profile = buildCompressedProfileContextReport({
     records: profileRecords,
     workspaceId,
     generatedAt,
-    objective: 'Surface local bi-temporal memory and proposal-gated extraction state',
-    step: 'Render memory cockpit token budget',
+    objective,
+    step,
     tokenBudget: 4096
   });
   const projectedFacts = facts.map((fact) => ({
@@ -367,6 +431,20 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
     facts: projectedFacts,
     proposalQueue,
     tokenBudget: profile.contextBudget,
+    savings: buildProfileSavingsSummary({
+      profile,
+      workspaceId,
+      generatedAt,
+      objective,
+      step,
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: 'workspace://.local/memory.sqlite',
+        recordCount: profileRecords.length,
+        exportedRecordCount: exported.records.length,
+        activeTemporalFactCount: facts.filter((fact) => fact.status === 'active').length
+      }
+    }),
     profile: {
       id: profile.id,
       acceptedHistoryRecordCount: profile.profile.acceptedHistoryRecordCount,
