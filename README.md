@@ -91,6 +91,18 @@ contradicting temporal fact in SQLite memory, applies the proposal-gated update,
 and prints the measured token-saving percentage plus remembered and superseded
 facts.
 
+Add OAF to Claude Code in one confirmed command after preview, and cut
+re-sent-context delivery tokens locally:
+
+```bash
+npm run oaf -- mcp install --client claude-code --dry-run --format json
+```
+
+Run the printed `--apply --confirm <fingerprint>` command only after reviewing
+the preview. The installed MCP server is read-only and local stdio only; it does
+not import harness history, enable write tools, call cloud/model APIs, or claim
+provider billing-token savings.
+
 Open <http://127.0.0.1:4310>. If the browser asks for local owner setup or
 sign-in, complete that before running dashboard actions. CLI-only setup is also
 available without putting a password on the command line:
