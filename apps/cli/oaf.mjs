@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { appendFile, lstat, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
+import { appendFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -82,7 +83,7 @@ if (command === 'demo' && args[0] === 'memory-loop') {
   process.exitCode = await runNode(commands.get(command));
 } else if (command === 'context') {
   await contextCommand(args);
-} else if (command === 'benchmark') {
+} else if (command === 'benchmark' || command === 'bench') {
   await benchmarkCommand(args);
 } else if (command === 'memory') {
   await memoryCommand(args);
@@ -1462,8 +1463,10 @@ async function contextProfileCommand(values) {
 }
 
 async function benchmarkCommand(values) {
+  if (values[0] === 'sufficiency') return await benchmarkSufficiencyCommand(values.slice(1));
+
   if (values[0] !== 'truth-floor') {
-    console.error('benchmark requires truth-floor');
+    console.error('benchmark requires truth-floor or sufficiency');
     process.exitCode = 2;
     return;
   }
@@ -1502,6 +1505,368 @@ async function benchmarkCommand(values) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function benchmarkSufficiencyCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('bench sufficiency requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out')) {
+    console.error('bench sufficiency is read-only and does not write or pin workspace artifacts');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--workspace', '--workspace-id', '--budget', '--token-budget', '--limit', '--dataset', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`bench sufficiency unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('bench sufficiency only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const report = await buildSufficiencyBenchmarkReport(values);
+    console.log(format === 'summary' ? renderSufficiencyBenchmarkSummary(report) : JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function buildSufficiencyBenchmarkReport(values) {
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('bench sufficiency --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 1024));
+  const recallLimit = parseIntegerOption(values, '--limit', 8);
+  const datasetPath = option(values, '--dataset') ?? 'evals/sufficiency/gold.v1.json';
+  const dataset = await loadSufficiencyDataset(datasetPath);
+  const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-sufficiency-'));
+  const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
+  const sqliteValues = ['--sqlite', 'memory.sqlite'];
+  let scratchFilesWritten = 0;
+  let proposalCount = 0;
+  let episodeCount = 0;
+  const cases = [];
+  try {
+    const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+    const provider = new SQLiteMemoryProvider({ filename: scratchSqlite, clock: () => generatedAt });
+    try {
+      const episodes = await buildWorkspaceMemoryIngestEpisodes({
+        root,
+        workspaceId,
+        scope: 'workspace',
+        generatedAt,
+        limit: 80
+      });
+      episodeCount = episodes.length;
+      const queued = [];
+      for (const episode of episodes) queued.push(...await provider.proposeTemporalFactsFromEpisode(episode));
+      proposalCount = new Set(queued.map((item) => item.id)).size;
+      scratchFilesWritten = 1;
+    } finally {
+      provider.close();
+    }
+
+    for (const item of dataset.cases) {
+      const profilePayload = await buildMcpContextProfilePayload({
+        values: sqliteValues,
+        root: scratchRoot,
+        workspaceId,
+        generatedAt,
+        args: {
+          objective: item.question,
+          step: 'Measure whether governed memory contains the gold repo fact',
+          scope: 'workspace',
+          budget: tokenBudget,
+          limit: recallLimit
+        }
+      });
+      const recallPayload = await buildMcpMemoryRecallPayload({
+        values: sqliteValues,
+        root: scratchRoot,
+        workspaceId,
+        generatedAt,
+        args: {
+          query: item.question,
+          scope: 'workspace',
+          limit: recallLimit
+        }
+      });
+      const oafPayloadText = JSON.stringify({ contextProfile: profilePayload, memoryRecall: recallPayload });
+      const baseline = await buildKeywordSnippetBaseline({ root, question: item.question, tokenBudget });
+      cases.push({
+        id: item.id,
+        question: item.question,
+        goldAnswer: item.answer,
+        acceptedAnswerCount: sufficiencyNeedles(item).length,
+        oaf: {
+          sufficient: containsGoldFact(oafPayloadText, item),
+          deliveredTokens: estimateTokens(oafPayloadText),
+          contextProfileTokens: estimateTokens(JSON.stringify(profilePayload)),
+          memoryRecallTokens: estimateTokens(JSON.stringify(recallPayload)),
+          governedFactCount: Number(profilePayload.data?.profile?.governedFactCount ?? 0),
+          proposalFactCount: Number(recallPayload.data?.proposalFactCount ?? 0),
+          contextProfileProposalFactCount: Number(profilePayload.data?.profile?.proposalFactCount ?? 0),
+          selectedContextCount: Number(profilePayload.data?.selectedContext?.selectedCount ?? 0)
+        },
+        baseline: {
+          sufficient: containsGoldFact(baseline.text, item),
+          deliveredTokens: baseline.deliveredTokens,
+          snippetCount: baseline.snippetCount,
+          candidateFileCount: baseline.candidateFileCount,
+          evidenceLocators: baseline.evidenceLocators
+        }
+      });
+    }
+  } finally {
+    await rm(scratchRoot, { recursive: true, force: true }).catch(() => {});
+  }
+
+  const oaf = summarizeSufficiencyArm('context.profile+memory.recall', cases.map((item) => item.oaf), tokenBudget);
+  const baseline = {
+    ...summarizeSufficiencyArm('keyword-top-k-snippets', cases.map((item) => item.baseline), tokenBudget),
+    dumpRepo: false
+  };
+  const nearEmptyProfileSufficiencyPercent = sufficiencyPercent(dataset.cases.filter((item) => containsGoldFact(JSON.stringify({ contextProfile: { data: { selectedContext: [] } }, memoryRecall: { data: { facts: [], proposalFacts: [] } } }), item)).length, dataset.cases.length);
+  const headline = {
+    metric: 'sufficiency-per-thousand-delivery-tokens',
+    oafWins: oaf.deliveredTokens < baseline.deliveredTokens && oaf.sufficiencyPercent >= baseline.sufficiencyPercent,
+    rule: 'OAF wins only when it is both smaller and at least as sufficient as keyword top-k snippets at the same per-question budget',
+    oafSufficiencyPerThousandTokens: oaf.sufficiencyPerThousandTokens,
+    baselineSufficiencyPerThousandTokens: baseline.sufficiencyPerThousandTokens
+  };
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'bench sufficiency',
+    generatedAt,
+    workspaceId,
+    dataset: {
+      id: dataset.id,
+      version: dataset.version,
+      ref: datasetPath.startsWith('/') ? 'local-absolute-dataset' : `workspace://${toPosix(datasetPath)}`,
+      caseCount: dataset.cases.length
+    },
+    budget: {
+      tokenBudget,
+      unit: 'estimated delivery tokens per question',
+      estimator: 'ceil(chars/4)'
+    },
+    source: {
+      memoryProvider: 'provider:native:memory:sqlite',
+      scratchStore: 'os-temp-sqlite',
+      ingestEpisodes: episodeCount,
+      proposalCount,
+      proposalGated: true
+    },
+    oaf,
+    baseline,
+    headline,
+    antiGaming: {
+      nearEmptyProfileSufficiencyPercent,
+      realisticBaseline: true,
+      dumpRepoBaseline: false,
+      sameBudget: true,
+      goldFixtureExcludedFromBaseline: true
+    },
+    cases,
+    safeguards: {
+      readOnly: true,
+      workspaceFilesWritten: 0,
+      scratchFilesWritten,
+      proposalGated: true,
+      activeMemoryCreated: 0,
+      hardDeleted: false,
+      deterministicOffline: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      rawSourceBodiesIncluded: false,
+      rawMcpPayloadsIncluded: false,
+      providerBillingClaimed: false
+    },
+    reportFingerprint: null
+  };
+  return { ...report, reportFingerprint: stableJsonFingerprint(report) };
+}
+
+async function loadSufficiencyDataset(datasetPath) {
+  const parsed = JSON.parse(await readFile(datasetPath, 'utf8'));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('bench sufficiency dataset must be a JSON object');
+  if (typeof parsed.id !== 'string' || !parsed.id.trim()) throw new Error('bench sufficiency dataset requires id');
+  const cases = Array.isArray(parsed.cases) ? parsed.cases.map(normalizeSufficiencyCase) : [];
+  if (cases.length < 8 || cases.length > 12) throw new Error('bench sufficiency dataset requires 8-12 cases');
+  return { id: parsed.id, version: parsed.version ?? '1.0.0', cases };
+}
+
+function normalizeSufficiencyCase(item, index) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('bench sufficiency case must be an object');
+  const id = String(item.id ?? `case_${index + 1}`);
+  const question = String(item.question ?? '').trim();
+  const answer = String(item.answer ?? '').trim();
+  if (!/^[A-Za-z0-9._:-]{1,80}$/.test(id)) throw new Error(`bench sufficiency case has unsafe id: ${id}`);
+  if (!question || question.length > 240) throw new Error(`bench sufficiency case ${id} requires a short question`);
+  if (!answer || answer.length > 160) throw new Error(`bench sufficiency case ${id} requires an answer`);
+  const aliases = Array.isArray(item.aliases) ? item.aliases.map((value) => String(value).trim()).filter(Boolean).slice(0, 8) : [];
+  return { id, question, answer, aliases };
+}
+
+function sufficiencyNeedles(item) {
+  return [...new Set([item.answer, ...(item.aliases ?? [])].map(normalizeSufficiencyText).filter((value) => value.length >= 2))];
+}
+
+function containsGoldFact(text, item) {
+  const haystack = normalizeSufficiencyText(text);
+  return sufficiencyNeedles(item).some((needle) => haystack.includes(needle));
+}
+
+function normalizeSufficiencyText(value) {
+  return String(value ?? '').toLowerCase().replace(/\s+/gu, ' ').trim();
+}
+
+function summarizeSufficiencyArm(name, items, tokenBudget) {
+  const sufficientCount = items.filter((item) => item.sufficient).length;
+  const deliveredTokens = items.reduce((sum, item) => sum + Math.max(0, Math.trunc(Number(item.deliveredTokens ?? 0))), 0);
+  const maxDeliveredTokensPerCase = items.reduce((max, item) => Math.max(max, Math.max(0, Math.trunc(Number(item.deliveredTokens ?? 0)))), 0);
+  return {
+    name,
+    tokenBudget,
+    caseCount: items.length,
+    sufficientCount,
+    sufficiencyPercent: sufficiencyPercent(sufficientCount, items.length),
+    deliveredTokens,
+    averageDeliveredTokens: items.length ? Math.round(deliveredTokens / items.length) : 0,
+    maxDeliveredTokensPerCase,
+    sufficiencyPerThousandTokens: Number(((sufficientCount / Math.max(1, deliveredTokens)) * 1000).toFixed(3))
+  };
+}
+
+function sufficiencyPercent(count, total) {
+  return total > 0 ? Math.round((count / total) * 100) : 0;
+}
+
+async function buildKeywordSnippetBaseline({ root, question, tokenBudget }) {
+  const files = await listKeywordBaselineFiles(root);
+  const queryTokens = tokenizeSufficiencyQuery(question);
+  const snippets = [];
+  for (const relativePath of files) {
+    const absolute = path.resolve(root, relativePath);
+    const info = await stat(absolute).catch(() => null);
+    if (!info?.isFile() || info.size > 256 * 1024) continue;
+    const body = await readFile(absolute, 'utf8').catch(() => '');
+    if (!body) continue;
+    const lines = body.split(/\r\n|\r|\n/u);
+    const pathScore = scoreKeywordText(relativePath, queryTokens);
+    const matches = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const score = scoreKeywordText(lines[index], queryTokens);
+      if (score > 0) matches.push({ index, score: score + pathScore });
+    }
+    if (!matches.length && pathScore > 0) matches.push({ index: 0, score: pathScore });
+    for (const match of matches.sort((left, right) => right.score - left.score).slice(0, 3)) {
+      const start = Math.max(0, match.index - 2);
+      const end = Math.min(lines.length - 1, match.index + 2);
+      const text = lines.slice(start, end + 1).join('\n');
+      snippets.push({
+        locator: `workspace://${toPosix(relativePath)}`,
+        lineStart: start + 1,
+        lineEnd: end + 1,
+        score: match.score,
+        text
+      });
+    }
+  }
+  const deduped = [];
+  const seen = new Set();
+  for (const snippet of snippets.sort((left, right) => right.score - left.score || left.locator.localeCompare(right.locator))) {
+    const key = `${snippet.locator}:${snippet.lineStart}:${snippet.lineEnd}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(snippet);
+  }
+  const selected = [];
+  let deliveredTokens = 0;
+  const textParts = [];
+  for (const snippet of deduped) {
+    const raw = `${snippet.locator}:${snippet.lineStart}-${snippet.lineEnd}\n${snippet.text}`;
+    const remaining = Math.max(0, tokenBudget - deliveredTokens);
+    if (remaining <= 0) break;
+    const fitted = fitEstimatedTokens(raw, remaining);
+    const tokens = estimateTokens(fitted);
+    if (!fitted || tokens <= 0 || deliveredTokens + tokens > tokenBudget) continue;
+    selected.push(snippet);
+    textParts.push(fitted);
+    deliveredTokens += tokens;
+  }
+  return {
+    text: textParts.join('\n\n'),
+    deliveredTokens,
+    snippetCount: selected.length,
+    candidateFileCount: files.length,
+    evidenceLocators: selected.slice(0, 8).map((item) => ({
+      locator: item.locator,
+      lineStart: item.lineStart,
+      lineEnd: item.lineEnd
+    }))
+  };
+}
+
+async function listKeywordBaselineFiles(root) {
+  const output = [];
+  const excludedDirs = new Set(['.git', '.local', '.cache', '.claude', '.codex', 'node_modules', 'coverage', 'dist', 'build', 'context-packs', 'evals']);
+  const allowedExtensions = new Set(['.md', '.json', '.mjs', '.js', '.ts', '.tsx', '.yml', '.yaml', '.toml']);
+  async function walk(current, relative) {
+    if (output.length >= 400) return;
+    const entries = await readdir(current, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      if (output.length >= 400) break;
+      const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (!excludedDirs.has(entry.name)) await walk(path.join(current, entry.name), childRelative);
+      } else if (entry.isFile() && allowedExtensions.has(path.extname(entry.name).toLowerCase())) {
+        output.push(childRelative);
+      }
+    }
+  }
+  await walk(root, '');
+  return output;
+}
+
+function tokenizeSufficiencyQuery(value) {
+  const stopWords = new Set(['the','what','which','where','when','who','does','from','with','into','this','that','about','agent','agents','repo','repository','project','known','fact','file','command','policy','provider','native','local']);
+  return [...new Set(String(value ?? '').toLowerCase().match(/[a-z0-9:_-]{3,}/gu) ?? [])]
+    .filter((token) => !stopWords.has(token))
+    .slice(0, 24);
+}
+
+function scoreKeywordText(value, tokens) {
+  const text = String(value ?? '').toLowerCase();
+  return tokens.reduce((sum, token) => sum + (text.includes(token) ? 1 : 0), 0);
+}
+
+function fitEstimatedTokens(text, tokenBudget) {
+  if (tokenBudget <= 0) return '';
+  let output = String(text ?? '');
+  while (output && estimateTokens(output) > tokenBudget) output = output.slice(0, Math.floor(output.length * 0.8)).trimEnd();
+  return output;
+}
+
+function renderSufficiencyBenchmarkSummary(report) {
+  return [
+    `Sufficiency benchmark: OAF ${report.oaf.sufficiencyPercent}% / ${report.oaf.deliveredTokens} tokens; baseline ${report.baseline.sufficiencyPercent}% / ${report.baseline.deliveredTokens} tokens`,
+    `OAF wins: ${report.headline.oafWins ? 'yes' : 'no'}`,
+    `Near-empty profile sufficiency: ${report.antiGaming.nearEmptyProfileSufficiencyPercent}%`,
+    `Basis: estimated delivery tokens, same ${report.budget.tokenBudget}-token per-question budget`
+  ].join('\n');
 }
 
 async function contextScanCommand(values) {
@@ -4541,6 +4906,7 @@ Usage:
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
+  oaf bench sufficiency --read-only --root . --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
   oaf memory review --root . --sqlite .local/memory.sqlite --format json
