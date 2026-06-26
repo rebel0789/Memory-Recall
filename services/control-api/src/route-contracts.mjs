@@ -948,7 +948,7 @@ export function createApiRouteContracts(limits = {}) {
         properties: {
           schemaVersion: { const: '1.0.0' },
           command: { const: 'measure savings' },
-          measurementScope: { const: 'single local compressed-profile delivery-token estimate' },
+          measurementScope: { enum: ['single local compressed-profile delivery-token estimate', 'realistic local context.profile delivery-token benchmark'] },
           baseline: {
             type: 'object',
             additionalProperties: true,
@@ -970,15 +970,15 @@ export function createApiRouteContracts(limits = {}) {
             additionalProperties: true,
             required: ['tokensSaved', 'percent', 'providerBillingClaimed'],
             properties: {
-              tokensSaved: { type: 'integer', minimum: 0, maximum: 1000000 },
-              percent: { type: 'integer', minimum: 0, maximum: 100 },
+              tokensSaved: { type: 'integer', minimum: -100000000, maximum: 100000000 },
+              percent: { type: 'integer', minimum: -100000, maximum: 100 },
               providerBillingClaimed: { const: false }
             }
           },
           beforeDeliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
           afterDeliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
-          tokensSaved: { type: 'integer', minimum: 0, maximum: 1000000 },
-          percent: { type: 'integer', minimum: 0, maximum: 100 },
+          tokensSaved: { type: 'integer', minimum: -100000000, maximum: 100000000 },
+          percent: { type: 'integer', minimum: -100000, maximum: 100 },
           safeguards: { type: 'object', additionalProperties: true },
           reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
         }

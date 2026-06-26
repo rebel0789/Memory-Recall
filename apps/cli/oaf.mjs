@@ -12,13 +12,17 @@ import {
   buildContextPackImpactBrief,
   buildContextPackReceiveReport,
   buildContextPackUsePlan,
+  buildContextProfileDeliveryPayloadFromReport,
   buildHarnessContextPreview,
   buildHarnessSetupReport,
   buildLoopPlan,
   buildMemoryProposalPreflightFromFile,
+  buildRealisticContextProfileSavingsReport,
   detectGitChangedLocators,
   loadCurrentContextPackUsePlan,
   pinContextPackArtifacts,
+  REALISTIC_SAVINGS_OBJECTIVE,
+  REALISTIC_SAVINGS_STEP,
   recordLoopObservation,
   renderContextPackMarkdown,
   runLoop,
@@ -927,64 +931,54 @@ async function buildSavingsMeasurementReport(values, { objective, step }) {
   const generatedAt = fixedNow();
   const scope = option(values, '--scope') ?? 'workspace';
   const limit = parseIntegerOption(values, '--limit', 100);
-  const provider = await openReadOnlySqliteMemoryProvider({
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'measure savings', { mustExist: true });
+  const sqliteStat = await stat(sqlitePath.absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!sqliteStat?.isFile()) throw new Error('measure savings requires an existing SQLite database at --sqlite or .local/memory.sqlite; no database is created');
+  const deliveredPayload = await buildMcpContextProfilePayload({
     values,
     root,
+    workspaceId,
     generatedAt,
-    commandName: 'measure savings',
-    missingOk: false
+    args: {
+      objective,
+      step,
+      scope,
+      budget: parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096)),
+      limit
+    }
   });
-  try {
-    const [exported, facts] = await Promise.all([
-      provider.export({ workspaceId }),
-      provider.getTemporalFacts({ workspaceId, scope, query: objective, at: generatedAt, limit })
-    ]);
-    const profileRecords = [...exported.records, ...facts.map(mcpProfileRecordFromFact)];
-    const profile = buildCompressedProfileContextReport({
-      records: profileRecords,
-      workspaceId,
-      generatedAt,
-      objective,
-      step,
-      tokenBudget: parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096)),
-      staticLimit: parseIntegerOption(values, '--static-limit', 8),
-      dynamicLimit: parseIntegerOption(values, '--dynamic-limit', 5)
-    });
-    const sqliteRef = `workspace://${toPosix(option(values, '--sqlite') ?? '.local/memory.sqlite')}`;
-    const summary = buildProfileSavingsSummary({
-      profile,
-      command: 'measure savings',
-      workspaceId,
-      generatedAt,
-      objective,
-      step,
-      source: {
+  const report = await buildRealisticContextProfileSavingsReport({
+    root,
+    workspaceId,
+    generatedAt,
+    objective,
+    step,
+    deliveredPayload
+  });
+  const enriched = {
+    ...report,
+    source: {
+      ...report.source,
+      memory: {
         provider: 'provider:native:memory:sqlite',
-        sqliteRef,
-        scope,
-        recordCount: profileRecords.length,
-        exportedRecordCount: exported.records.length,
-        activeTemporalFactCount: facts.length
+        sqliteRef: `workspace://${sqlitePath.relative}`,
+        scope
       }
-    });
-    const report = {
-      ...summary,
-      checks: {
-        baselineTokensPresent: summary.beforeDeliveryTokens > 0,
-        compressedTokensPresent: summary.afterDeliveryTokens > 0,
-        compressedNoLargerThanBaseline: summary.afterDeliveryTokens <= summary.beforeDeliveryTokens,
-        providerBillingNotClaimed: summary.savings.providerBillingClaimed === false
-      }
-    };
-    return { ...report, reportFingerprint: stableJsonFingerprint({ ...report, reportFingerprint: null }) };
-  } finally {
-    provider.close();
-  }
+    },
+    compressed: {
+      ...report.compressed,
+      contextBudget: deliveredPayload.data.contextBudget
+    }
+  };
+  return { ...enriched, reportFingerprint: stableJsonFingerprint({ ...enriched, reportFingerprint: null }) };
 }
 
 function renderSavingsMeasurementSummary(report) {
   return [
-    `Token saving: ${report.savings.percent}%`,
+    `Realistic token saving: ${report.savings.percent}%`,
     `Before delivery tokens: ${report.baseline.deliveryTokens}`,
     `After delivery tokens: ${report.compressed.deliveryTokens}`,
     `Saved delivery tokens: ${report.savings.tokensSaved}`,
@@ -1726,8 +1720,8 @@ async function mcpStatsCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const allowedFlags = new Set(['--read-only', '--root', '--workspace', '--workspace-id', '--stats', '--format']);
-  const valueFlags = new Set(['--root', '--workspace', '--workspace-id', '--stats', '--format']);
+  const allowedFlags = new Set(['--read-only', '--root', '--workspace', '--workspace-id', '--sqlite', '--stats', '--format']);
+  const valueFlags = new Set(['--root', '--workspace', '--workspace-id', '--sqlite', '--stats', '--format']);
   const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
   if (unsupported.length) {
     console.error(`mcp stats unsupported option: ${unsupported[0]}`);
@@ -1736,15 +1730,57 @@ async function mcpStatsCommand(values) {
   }
   const root = path.resolve(option(values, '--root') ?? process.cwd());
   const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
   const statsPath = await resolveWorkspaceStatsPath(root, option(values, '--stats') ?? '.local/mcp-stats.jsonl', 'mcp stats', { mustExist: false });
   const entries = await readMcpStatsEntries(statsPath.absolute, { workspaceId });
+  const realisticBenchmark = await buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, generatedAt }).catch((error) => ({
+    available: false,
+    reason: mcpSanitizeString(error.message, 160)
+  }));
   const report = buildMcpStatsReport({
     entries,
     workspaceId,
-    generatedAt: fixedNow(),
-    statsRef: `workspace://${statsPath.relative}`
+    generatedAt,
+    statsRef: `workspace://${statsPath.relative}`,
+    realisticBenchmark
   });
   console.log(format === 'summary' ? renderMcpStatsSummary(report) : JSON.stringify(report, null, 2));
+}
+
+async function buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, generatedAt }) {
+  const deliveredPayload = await buildMcpContextProfilePayload({
+    values,
+    root,
+    workspaceId,
+    generatedAt,
+    args: {
+      objective: REALISTIC_SAVINGS_OBJECTIVE,
+      step: REALISTIC_SAVINGS_STEP,
+      scope: 'workspace',
+      budget: 4096,
+      limit: 50
+    }
+  });
+  const report = await buildRealisticContextProfileSavingsReport({
+    root,
+    workspaceId,
+    generatedAt,
+    objective: REALISTIC_SAVINGS_OBJECTIVE,
+    step: REALISTIC_SAVINGS_STEP,
+    deliveredPayload
+  });
+  return {
+    available: true,
+    beforeDeliveryTokens: report.beforeDeliveryTokens,
+    afterDeliveryTokens: report.afterDeliveryTokens,
+    tokensSaved: report.tokensSaved,
+    percent: report.percent,
+    basis: report.savings.basis,
+    providerBillingClaimed: false,
+    candidateFileCount: report.source.candidateFileCount,
+    historyCommitCount: report.source.historyCommitCount,
+    reportFingerprint: report.reportFingerprint
+  };
 }
 
 function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null }) {
@@ -1925,35 +1961,15 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
     staticLimit: 8,
     dynamicLimit: 5
   });
-  return mcpBasePayload({
-    command: 'context.profile',
+  return buildContextProfileDeliveryPayloadFromReport({
+    report,
     workspaceId,
     generatedAt,
-    data: {
-      available,
-      objectiveFingerprint: fingerprintJson(objective),
-      stepFingerprint: fingerprintJson(step),
-      profile: {
-        id: report.id,
-        layers: report.profile.layers,
-        staticRecordCount: report.profile.staticRecordCount,
-        dynamicRecordCount: report.profile.dynamicRecordCount,
-        acceptedHistoryRecordCount: report.profile.acceptedHistoryRecordCount,
-        skippedHistoryRecordCount: report.profile.skippedHistoryRecordCount,
-        governedFactCount: records.length,
-        proposalFactCount: records.filter((item) => item.metadata?.memoryLifecycle === 'proposal').length,
-        contentHash: report.profile.contentHash
-      },
-      contextBudget: report.contextBudget,
-      selectedContext: {
-        id: report.manifest.id,
-        selectedCount: report.manifest.selected.length,
-        excludedCount: report.manifest.excluded.length,
-        selectedIds: report.manifest.selected.map((item) => mcpSanitizeString(item.id, 120)).filter(Boolean),
-        budget: report.manifest.budget
-      },
-      tokenSavingPercent: Math.round(Number(report.contextBudget.reductionRatio ?? 0) * 100)
-    }
+    objective,
+    step,
+    available,
+    governedFactCount: records.length,
+    proposalFactCount: records.filter((item) => item.metadata?.memoryLifecycle === 'proposal').length
   });
 }
 
@@ -2282,7 +2298,7 @@ async function readMcpStatsEntries(statsPath, { workspaceId }) {
   return lines.map((line) => JSON.parse(line)).filter((entry) => entry.workspaceId === workspaceId && entry.kind === 'mcp-delivery-token-estimate');
 }
 
-function buildMcpStatsReport({ entries, workspaceId, generatedAt, statsRef }) {
+function buildMcpStatsReport({ entries, workspaceId, generatedAt, statsRef, realisticBenchmark = null }) {
   const byTool = new Map();
   for (const entry of entries) {
     const key = entry.toolName;
@@ -2319,6 +2335,7 @@ function buildMcpStatsReport({ entries, workspaceId, generatedAt, statsRef }) {
       ...item,
       tokenSavingPercent: item.baselineTokens > 0 ? Math.round((item.tokensSaved / item.baselineTokens) * 100) : 0
     })),
+    realisticBenchmark: realisticBenchmark ?? { available: false, reason: 'not_measured' },
     recentCalls: entries.slice(-10).map((entry) => ({
       recordedAt: entry.recordedAt,
       sessionId: entry.sessionId,
@@ -2338,17 +2355,24 @@ function buildMcpStatsReport({ entries, workspaceId, generatedAt, statsRef }) {
       providerBillingClaimed: false,
       rawRequestTextIncluded: false
     },
-    reportFingerprint: fingerprintJson({ workspaceId, statsRef, summary, byTool: [...byTool.keys()].sort() })
+    reportFingerprint: fingerprintJson({ workspaceId, statsRef, summary, realisticBenchmark, byTool: [...byTool.keys()].sort() })
   };
 }
 
 function renderMcpStatsSummary(report) {
+  const realistic = report.realisticBenchmark?.available
+    ? [
+        `Realistic context.profile saving: ${report.realisticBenchmark.percent}%`,
+        `Realistic before/after: ${report.realisticBenchmark.beforeDeliveryTokens} -> ${report.realisticBenchmark.afterDeliveryTokens}`
+      ]
+    : [`Realistic context.profile saving: unavailable`];
   return [
     `MCP delivery calls: ${report.summary.callCount}`,
     `Delivered tokens: ${report.summary.deliveredTokens}`,
     `Baseline tokens: ${report.summary.baselineTokens}`,
     `Saved tokens: ${report.summary.tokensSaved}`,
     `Saving: ${report.summary.tokenSavingPercent}%`,
+    ...realistic,
     `Provider billing claimed: ${report.summary.providerBillingClaimed ? 'yes' : 'no'}`
   ].join('\n');
 }

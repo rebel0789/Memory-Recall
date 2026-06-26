@@ -49,6 +49,8 @@ export const LOOP_PLAN_VERSION = '0.1.0';
 export const LOOP_RUN_WORKFLOW_ID = 'workflow:oaf:loop-run';
 export const OAF_MCP_RESOURCE_ARGS = Object.freeze(['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
 export const OAF_MCP_TOKEN_SAVER_ARGS = Object.freeze(['--silent', 'run', 'oaf', '--', 'mcp', 'server', '--read-only', '--root', '.', '--stdio']);
+export const REALISTIC_SAVINGS_OBJECTIVE = 'Prove MCP memory token savings on Open Agent Fabric coding-agent work';
+export const REALISTIC_SAVINGS_STEP = 'Compare context.profile delivery with naive candidate file and git history body resend';
 
 const DEFAULT_MAX_BYTES = 65_536;
 const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
@@ -91,6 +93,25 @@ const STATIC_PROJECT_SOURCES = Object.freeze({
   ]
 });
 
+const REALISTIC_SAVINGS_CANDIDATE_PATHS = Object.freeze([
+  'AGENTS.md',
+  'README.md',
+  'PRODUCT.md',
+  'PROJECT_STATUS.json',
+  'docs/superpowers/plans/2026-06-26-mcp-token-saver.md',
+  'docs/product/loop-workbench-build-plan.md',
+  'docs/architecture/overview.md',
+  'apps/cli/oaf.mjs',
+  'packages/harness-context/src/index.mjs',
+  'packages/context-compiler/src/index.mjs',
+  'providers/native/memory-sqlite/src/index.mjs',
+  'packages/protocol-bridges/src/index.mjs',
+  'services/control-api/src/server.mjs',
+  'apps/web/app.js',
+  'tests/cli.test.mjs',
+  'tests/web-shell.test.mjs'
+]);
+
 export const HARNESS_SETUP_CLIENTS = new Map([
   ['codex', { id: 'codex', label: 'Codex', format: 'toml', configPath: '.codex/config.toml' }],
   ['cursor', { id: 'cursor', label: 'Cursor', format: 'json', configPath: '.cursor/mcp.json' }],
@@ -114,6 +135,248 @@ function hash(value) {
 
 function hashJson(value) {
   return hash(stableStringify(value));
+}
+
+export function buildContextProfileDeliveryPayloadFromReport({
+  report,
+  workspaceId = 'ws_local',
+  generatedAt = new Date().toISOString(),
+  objective,
+  step,
+  available = true,
+  governedFactCount = 0,
+  proposalFactCount = 0
+} = {}) {
+  if (!report?.contextBudget || !report?.manifest || !report?.profile) throw new Error('context profile report is required');
+  return {
+    schemaVersion: '1.0.0',
+    command: 'context.profile',
+    workspaceId,
+    generatedAt,
+    data: {
+      available,
+      objectiveFingerprint: hashJson(String(objective ?? '')),
+      stepFingerprint: hashJson(String(step ?? '')),
+      profile: {
+        id: report.id,
+        layers: report.profile.layers,
+        staticRecordCount: report.profile.staticRecordCount,
+        dynamicRecordCount: report.profile.dynamicRecordCount,
+        acceptedHistoryRecordCount: report.profile.acceptedHistoryRecordCount,
+        skippedHistoryRecordCount: report.profile.skippedHistoryRecordCount,
+        governedFactCount,
+        proposalFactCount,
+        contentHash: report.profile.contentHash
+      },
+      contextBudget: report.contextBudget,
+      selectedContext: {
+        id: report.manifest.id,
+        selectedCount: report.manifest.selected.length,
+        excludedCount: report.manifest.excluded.length,
+        selectedIds: report.manifest.selected.map((item) => String(item.id ?? '').slice(0, 120)).filter(Boolean),
+        budget: report.manifest.budget
+      },
+      tokenSavingPercent: Math.round(Number(report.contextBudget.reductionRatio ?? 0) * 100)
+    },
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      deliveryStatsRecorded: false,
+      privateContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+}
+
+export async function buildRealisticContextProfileSavingsReport({
+  root = process.cwd(),
+  workspaceId = 'ws_local',
+  generatedAt = new Date().toISOString(),
+  objective,
+  step,
+  deliveredPayload,
+  maxFiles = 16,
+  maxFileBytes = DEFAULT_CHANGED_HASH_MAX_BYTES,
+  gitHistoryLimit = 20
+} = {}) {
+  if (!objective || !step) throw new Error('objective and step are required');
+  if (!deliveredPayload || typeof deliveredPayload !== 'object') throw new Error('delivered context.profile payload is required');
+  const baseline = await collectRealisticSavingsBaseline({ root, objective, step, maxFiles, maxFileBytes, gitHistoryLimit });
+  const afterDeliveryTokens = estimateTokens(JSON.stringify(deliveredPayload));
+  const beforeDeliveryTokens = baseline.deliveryTokens;
+  const tokensSaved = beforeDeliveryTokens - afterDeliveryTokens;
+  const reductionRatio = beforeDeliveryTokens > 0 ? Number((tokensSaved / beforeDeliveryTokens).toFixed(6)) : 0;
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'measure savings',
+    generatedAt,
+    workspaceId,
+    measurementScope: 'realistic local context.profile delivery-token benchmark',
+    objectiveFingerprint: hashJson(String(objective)),
+    stepFingerprint: hashJson(String(step)),
+    source: {
+      provider: 'real-workspace-candidate-bodies',
+      rootRef: 'workspace://.',
+      candidateFileCount: baseline.candidateFiles.length,
+      historyCommitCount: baseline.gitHistory.commitCount,
+      candidateBodyTokens: baseline.candidateBodyTokens,
+      historyBodyTokens: baseline.historyBodyTokens
+    },
+    baseline: {
+      label: 'naive full candidate file/history body delivery estimate',
+      deliveryTokens: beforeDeliveryTokens,
+      basis: 'bounded real workspace candidate file bodies plus recent git history bodies'
+    },
+    compressed: {
+      label: 'OAF context.profile MCP payload delivery estimate',
+      deliveryTokens: afterDeliveryTokens,
+      basis: 'estimated tokens over exact context.profile JSON payload text',
+      selectedContextId: deliveredPayload.data?.selectedContext?.id ?? null,
+      selectedCount: Number(deliveredPayload.data?.selectedContext?.selectedCount ?? 0),
+      excludedCount: Number(deliveredPayload.data?.selectedContext?.excludedCount ?? 0)
+    },
+    savings: {
+      tokensSaved,
+      reductionRatio,
+      percent: Math.round(reductionRatio * 100),
+      basis: 'delivery-token-estimate',
+      providerBillingClaimed: false
+    },
+    realisticBenchmark: {
+      candidateFiles: baseline.candidateFiles,
+      skippedFiles: baseline.skippedFiles,
+      gitHistory: baseline.gitHistory,
+      deliveredPayloadFingerprint: hash(JSON.stringify(deliveredPayload)),
+      deliveredPayloadTokens: afterDeliveryTokens
+    },
+    checks: {
+      baselineTokensPresent: beforeDeliveryTokens > 0,
+      deliveredTokensPresent: afterDeliveryTokens > 0,
+      savesTokens: tokensSaved > 0,
+      providerBillingNotClaimed: true
+    },
+    safeguards: {
+      readOnly: true,
+      localOnly: true,
+      providerBillingClaimed: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      localFilesWritten: 0,
+      canonicalStateMutated: false,
+      activeMemoryCreated: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      rawSourceBodiesIncluded: false,
+      rawGitHistoryIncluded: false,
+      rawObjectiveIncluded: false,
+      rawStepIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+  return {
+    ...report,
+    beforeDeliveryTokens,
+    afterDeliveryTokens,
+    tokensSaved,
+    reductionRatio,
+    percent: report.savings.percent,
+    reportFingerprint: hashJson(report)
+  };
+}
+
+async function collectRealisticSavingsBaseline({ root, objective, step, maxFiles, maxFileBytes, gitHistoryLimit }) {
+  const realRoot = await realpath(path.resolve(root));
+  const candidateFiles = [];
+  const skippedFiles = [];
+  const bodyParts = [`objective:\n${objective}`, `step:\n${step}`];
+  for (const relativePath of REALISTIC_SAVINGS_CANDIDATE_PATHS.slice(0, Math.max(1, maxFiles))) {
+    const normalized = safeWorkspaceRelativePath(relativePath, 'realistic savings candidate path');
+    const absolute = path.resolve(realRoot, normalized);
+    if (!isInside(realRoot, absolute)) {
+      skippedFiles.push({ locator: workspaceLocator(normalized), reason: 'escaped_root' });
+      continue;
+    }
+    const info = await stat(absolute).catch((error) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    });
+    if (!info?.isFile()) {
+      skippedFiles.push({ locator: workspaceLocator(normalized), reason: 'missing' });
+      continue;
+    }
+    if (info.size > maxFileBytes) {
+      skippedFiles.push({ locator: workspaceLocator(normalized), reason: 'over_size_limit', byteSize: info.size });
+      continue;
+    }
+    const text = await readFile(absolute, 'utf8');
+    const tokenCount = estimateTokens(text);
+    bodyParts.push(`file ${workspaceLocator(normalized)}:\n${text}`);
+    candidateFiles.push({
+      locator: workspaceLocator(normalized),
+      byteSize: Buffer.byteLength(text, 'utf8'),
+      tokenCount,
+      contentHash: hash(text)
+    });
+  }
+  const gitHistory = await collectRealisticSavingsGitHistory(realRoot, gitHistoryLimit);
+  if (gitHistory.body) bodyParts.push(`git history:\n${gitHistory.body}`);
+  const candidateBodyTokens = candidateFiles.reduce((sum, item) => sum + item.tokenCount, 0);
+  const historyBodyTokens = gitHistory.tokenCount;
+  return {
+    deliveryTokens: estimateTokens(bodyParts.join('\n\n')),
+    candidateBodyTokens,
+    historyBodyTokens,
+    candidateFiles,
+    skippedFiles,
+    gitHistory: {
+      available: gitHistory.available,
+      commitCount: gitHistory.commitCount,
+      byteSize: gitHistory.byteSize,
+      tokenCount: gitHistory.tokenCount,
+      contentHash: gitHistory.contentHash,
+      reason: gitHistory.reason
+    }
+  };
+}
+
+async function collectRealisticSavingsGitHistory(root, limit) {
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', root, 'log', `--max-count=${Math.max(1, Math.min(50, Number(limit) || 20))}`, '--pretty=format:%H%n%s%n%b%n---OAF-COMMIT---'], {
+      encoding: 'utf8',
+      timeout: GIT_STATUS_TIMEOUT_MS,
+      maxBuffer: GIT_STATUS_MAX_BUFFER,
+      env: {
+        ...process.env,
+        GIT_OPTIONAL_LOCKS: '0',
+        GIT_TERMINAL_PROMPT: '0'
+      }
+    });
+    const body = String(stdout ?? '').trim();
+    return {
+      available: true,
+      body,
+      commitCount: body ? body.split('---OAF-COMMIT---').filter((item) => item.trim()).length : 0,
+      byteSize: Buffer.byteLength(body, 'utf8'),
+      tokenCount: estimateTokens(body),
+      contentHash: body ? hash(body) : null,
+      reason: null
+    };
+  } catch (error) {
+    return {
+      available: false,
+      body: '',
+      commitCount: 0,
+      byteSize: 0,
+      tokenCount: 0,
+      contentHash: null,
+      reason: safeGitErrorReason(error)
+    };
+  }
 }
 
 function idDigest(value) {

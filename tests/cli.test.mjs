@@ -7,6 +7,17 @@ test('demo memory-loop npm script prints token saving remembered and superseded 
 test('measure savings reports real SQLite before and after delivery tokens without writes', async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-measure-savings-'));
   mkdirSync(path.join(root, '.local'), { recursive: true });
+  mkdirSync(path.join(root, 'docs', 'product'), { recursive: true });
+  mkdirSync(path.join(root, 'docs', 'superpowers', 'plans'), { recursive: true });
+  mkdirSync(path.join(root, 'apps', 'cli'), { recursive: true });
+  writeFileSync(path.join(root, 'AGENTS.md'), `${Array(500).fill('REALISTIC_BASELINE_RAW_BODY agent memory mcp context profile').join(' ')}`);
+  writeFileSync(path.join(root, 'README.md'), `${Array(450).fill('REALISTIC_BASELINE_RAW_BODY readme token saver workspace').join(' ')}`);
+  writeFileSync(path.join(root, 'docs', 'product', 'loop-workbench-build-plan.md'), `${Array(420).fill('REALISTIC_BASELINE_RAW_BODY loop workbench checkpoint protocol').join(' ')}`);
+  writeFileSync(path.join(root, 'docs', 'superpowers', 'plans', '2026-06-26-mcp-token-saver.md'), `${Array(420).fill('REALISTIC_BASELINE_RAW_BODY mcp token saver context profile benchmark').join(' ')}`);
+  writeFileSync(path.join(root, 'apps', 'cli', 'oaf.mjs'), `${Array(420).fill('REALISTIC_BASELINE_RAW_BODY cli memory recall context profile').join(' ')}`);
+  spawnSync('git', ['init'], { cwd: root, encoding: 'utf8' });
+  spawnSync('git', ['add', '.'], { cwd: root, encoding: 'utf8' });
+  spawnSync('git', ['-c', 'user.name=OAF Test', '-c', 'user.email=oaf@example.invalid', 'commit', '-m', 'realistic savings commit', '-m', `${Array(120).fill('REALISTIC_HISTORY_RAW_BODY').join(' ')}`], { cwd: root, encoding: 'utf8' });
   const sqlitePath = path.join(root, '.local', 'memory.sqlite');
   const provider = new SQLiteMemoryProvider({ filename: sqlitePath, clock: () => '2026-06-26T10:00:00.000Z' });
   await provider.put({
@@ -49,22 +60,32 @@ test('measure savings reports real SQLite before and after delivery tokens witho
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(result.stdout);
   assert.equal(report.command, 'measure savings');
-  assert.equal(report.measurementScope, 'single local compressed-profile delivery-token estimate');
-  assert.equal(report.source.provider, 'provider:native:memory:sqlite');
-  assert.equal(report.source.sqliteRef, 'workspace://.local/memory.sqlite');
+  assert.equal(report.measurementScope, 'realistic local context.profile delivery-token benchmark');
+  assert.equal(report.source.provider, 'real-workspace-candidate-bodies');
+  assert.equal(report.source.memory.provider, 'provider:native:memory:sqlite');
+  assert.equal(report.source.memory.sqliteRef, 'workspace://.local/memory.sqlite');
+  assert(report.source.candidateFileCount >= 5);
+  assert(report.source.candidateBodyTokens > 2000);
+  if (report.realisticBenchmark.gitHistory.available) {
+    assert(report.source.historyCommitCount >= 1);
+    assert(report.source.historyBodyTokens > 0);
+  }
   assert(report.baseline.deliveryTokens > report.compressed.deliveryTokens);
+  assert.equal(report.compressed.basis, 'estimated tokens over exact context.profile JSON payload text');
   assert.equal(report.beforeDeliveryTokens, report.baseline.deliveryTokens);
   assert.equal(report.afterDeliveryTokens, report.compressed.deliveryTokens);
   assert.equal(report.tokensSaved, report.baseline.deliveryTokens - report.compressed.deliveryTokens);
   assert(report.savings.percent > 0);
   assert.equal(report.savings.providerBillingClaimed, false);
   assert.equal(report.safeguards.rawSourceBodiesIncluded, false);
+  assert.equal(report.safeguards.rawGitHistoryIncluded, false);
+  assert.equal(report.realisticBenchmark.candidateFiles.some((item) => item.locator === 'workspace://AGENTS.md'), true);
   assert.match(report.reportFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.equal(statSync(sqlitePath).mtimeMs, beforeMtime);
-  for (const forbidden of ['SAVINGS_RAW_BODY', 'temporal fact body', root, '/Users/rebel']) assert.equal(result.stdout.includes(forbidden), false, forbidden);
+  for (const forbidden of ['SAVINGS_RAW_BODY', 'temporal fact body', 'REALISTIC_BASELINE_RAW_BODY', 'REALISTIC_HISTORY_RAW_BODY', root, '/Users/rebel']) assert.equal(result.stdout.includes(forbidden), false, forbidden);
   const summary = spawnSync(process.execPath, [...args.slice(0, -1), 'summary'], { encoding: 'utf8', env });
   assert.equal(summary.status, 0, summary.stderr);
-  assert.match(summary.stdout, /Token saving: \d+%/);
+  assert.match(summary.stdout, /Realistic token saving: \d+%/);
   assert.match(summary.stdout, /Before delivery tokens: \d+/);
   assert.match(summary.stdout, /After delivery tokens: \d+/);
   assert.match(summary.stdout, /Basis: delivery-token estimate, not provider billing/);
@@ -816,6 +837,12 @@ test('mcp install emits portable server config that works from another cwd', () 
 test('mcp server records delivery-token stats and stats command summarizes them', async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-stats-root-'));
   mkdirSync(path.join(root, '.local'), { recursive: true });
+  mkdirSync(path.join(root, 'docs', 'product'), { recursive: true });
+  mkdirSync(path.join(root, 'docs', 'superpowers', 'plans'), { recursive: true });
+  writeFileSync(path.join(root, 'AGENTS.md'), `${Array(320).fill('MCP_STATS_REALISTIC_RAW_BODY memory profile token saver').join(' ')}`);
+  writeFileSync(path.join(root, 'README.md'), `${Array(320).fill('MCP_STATS_REALISTIC_RAW_BODY workspace coding agent context').join(' ')}`);
+  writeFileSync(path.join(root, 'docs', 'product', 'loop-workbench-build-plan.md'), `${Array(320).fill('MCP_STATS_REALISTIC_RAW_BODY checkpoint benchmark').join(' ')}`);
+  writeFileSync(path.join(root, 'docs', 'superpowers', 'plans', '2026-06-26-mcp-token-saver.md'), `${Array(320).fill('MCP_STATS_REALISTIC_RAW_BODY context profile savings').join(' ')}`);
   const sqlitePath = path.join(root, '.local', 'memory.sqlite');
   const statsPath = path.join(root, '.local', 'mcp-stats.jsonl');
   const provider = new SQLiteMemoryProvider({ filename: sqlitePath, clock: () => '2026-06-26T12:00:00.000Z' });
@@ -886,11 +913,17 @@ test('mcp server records delivery-token stats and stats command summarizes them'
   assert(report.summary.tokensSaved >= 0);
   assert.equal(report.summary.providerBillingClaimed, false);
   assert.deepEqual(report.byTool.map((item) => item.toolName).sort(), ['context.profile', 'memory.recall']);
+  assert.equal(report.realisticBenchmark.available, true);
+  assert(report.realisticBenchmark.beforeDeliveryTokens > report.realisticBenchmark.afterDeliveryTokens);
+  assert(report.realisticBenchmark.percent > 0);
+  assert.equal(report.realisticBenchmark.providerBillingClaimed, false);
   assert.equal(report.safeguards.readOnly, true);
   assert.equal(report.safeguards.localFilesWritten, 0);
+  assert.equal(stats.stdout.includes('MCP_STATS_REALISTIC_RAW_BODY'), false);
   const summary = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'stats', '--read-only', '--root', root, '--stats', '.local/mcp-stats.jsonl', '--format', 'summary'], { encoding: 'utf8', env });
   assert.equal(summary.status, 0, summary.stderr);
   assert.match(summary.stdout, /MCP delivery calls: 2/);
+  assert.match(summary.stdout, /Realistic context\.profile saving: \d+%/);
 });
 test('mcp resources CLI lists, reads, and serves sanitized read-only resources over stdio',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-mcp-'));mkdirSync(path.join(root,'.local'),{recursive:true});writeFileSync(path.join(root,'PROJECT_STATUS.json'),JSON.stringify({release:'0.2.0-dev',phase:'local-test',nextTask:'OAF-031',defaults:{network:'deny',externalWrites:false,modelMode:'deterministic',dataResidency:'local-only',adapters:'disabled'}},null,2));writeFileSync(path.join(root,'.local','state.json'),JSON.stringify({schemaVersion:'1.0.0',runs:[{id:'run_cli_mcp',workspaceId:'ws_local',workflowId:'workflow:content-intelligence',objective:'Do not print this private objective.',status:'completed',residency:'local-only',createdAt:'2026-06-24T00:00:00.000Z',output:{text:'private model result'}}],events:[{id:'evt_cli_ctx',workspaceId:'ws_local',runId:'run_cli_mcp',sequence:1,type:'context.compiled',occurredAt:'2026-06-24T00:00:00.000Z',payload:{id:'ctx_cli',compilerVersion:'context-compiler@1.0.0',budget:{available:100,used:20},selected:[{id:'doc_cli',kind:'instruction',tokens:20,reasonCodes:['explicit_requirement'],source:'workspace://memory/old-private.md',text:'raw prompt body token=secret'}],excluded:[]}},{id:'evt_other',workspaceId:'ws_other',runId:'run_other',sequence:1,type:'run.started',occurredAt:'2026-06-24T00:00:00.000Z',payload:{text:'other workspace'}}],memories:[{id:'mem_cli_prop',workspaceId:'ws_local',kind:'decision',status:'proposed',decision:'review',confidence:0.6,text:'private memory text'}],approvals:[],artifacts:[]},null,2));const env={...process.env,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z'};const listed=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--format','json'],{encoding:'utf8',env});assert.equal(listed.status,0,listed.stderr);const listing=JSON.parse(listed.stdout);assert.equal(listing.mode,'read-only');assert.equal(listing.resources.length,5);assert(listing.resources.some(item=>item.uri==='oaf://workspace/ws_local/status'));assert.equal(listing.safeguards.externalWritesEnabled,false);const read=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--uri','oaf://workspace/ws_local/context/latest','--format','json'],{encoding:'utf8',env});assert.equal(read.status,0,read.stderr);const envelope=JSON.parse(read.stdout);const payload=JSON.parse(envelope.contents[0].text);assert.equal(payload.resourceKind,'context-manifest-summary');assert.equal(payload.data.contextManifest.selectedCount,1);assert.match(payload.resourceFingerprint,/^sha256:[a-f0-9]{64}$/);assert(!read.stdout.includes('raw prompt body'));assert(!read.stdout.includes('private objective'));assert(!read.stdout.includes('private model result'));assert(!read.stdout.includes('private memory text'));assert(!read.stdout.includes('/Users/rebel'));const stdioInput=['{"jsonrpc":"2.0","id":1,"method":"resources/list"}',JSON.stringify({jsonrpc:'2.0',id:2,method:'resources/read',params:{uri:'oaf://workspace/ws_local/status'}})].join('\n');const stdio=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--stdio'],{encoding:'utf8',env,input:stdioInput});assert.equal(stdio.status,0,stdio.stderr);const lines=stdio.stdout.trim().split(/\n/u).map(line=>JSON.parse(line));assert.equal(lines[0].result.resources.length,5);const statusPayload=JSON.parse(lines[1].result.contents[0].text);assert.equal(statusPayload.data.counts.runs,1);assert.equal(statusPayload.data.counts.proposedMemories,1);assert.equal(statusPayload.safeguards.canonicalStateMutated,false);});
 test('mcp resources CLI bounds stdio input without echoing raw request bytes',()=>{

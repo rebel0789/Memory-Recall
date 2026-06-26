@@ -9,7 +9,7 @@ import { FilesystemContextManifestRepository } from '../../../providers/native/c
 import { SQLiteMemoryProvider } from '../../../providers/native/memory-sqlite/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { buildCompressedProfileContextReport, compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildLoopPlan, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, pinContextPackArtifacts, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildContextProfileDeliveryPayloadFromReport, buildHarnessContextPreview, buildHarnessSetupReport, buildLoopPlan, buildMemoryProposalPreflightFromConfig, buildRealisticContextProfileSavingsReport, detectGitChangedLocators, pinContextPackArtifacts, REALISTIC_SAVINGS_OBJECTIVE, REALISTIC_SAVINGS_STEP, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
@@ -138,68 +138,6 @@ function loopBudgetFromProfile(contextBudget) {
     estimatedDeliveryTokens: Number(contextBudget?.estimatedDeliveryTokens ?? 0),
     sourceBodyTokensExcluded: Number(contextBudget?.historyTokensAvoided ?? 0),
     deliveryReductionRatio: Number(contextBudget?.reductionRatio ?? 0)
-  };
-}
-
-function buildProfileSavingsSummary({ profile, workspaceId, generatedAt, objective, step, source }) {
-  const beforeDeliveryTokens = Math.max(0, Math.trunc(Number(profile.contextBudget.historyTokensAvailable ?? 0)));
-  const afterDeliveryTokens = Math.max(0, Math.trunc(Number(profile.contextBudget.estimatedDeliveryTokens ?? 0)));
-  const tokensSaved = Math.max(0, beforeDeliveryTokens - afterDeliveryTokens);
-  const reductionRatio = beforeDeliveryTokens > 0 ? Number((tokensSaved / beforeDeliveryTokens).toFixed(6)) : 0;
-  const summary = {
-    schemaVersion: '1.0.0',
-    command: 'measure savings',
-    generatedAt,
-    workspaceId,
-    measurementScope: 'single local compressed-profile delivery-token estimate',
-    objectiveFingerprint: `sha256:${sha256Hex(stableStringify(String(objective ?? '')))}`,
-    stepFingerprint: `sha256:${sha256Hex(stableStringify(String(step ?? '')))}`,
-    source,
-    baseline: {
-      label: 'naive full-context delivery estimate',
-      deliveryTokens: beforeDeliveryTokens,
-      basis: 'accepted history records before compressed profile selection'
-    },
-    compressed: {
-      label: 'OAF compressed profile delivery estimate',
-      deliveryTokens: afterDeliveryTokens,
-      profileTokens: Math.max(0, Math.trunc(Number(profile.contextBudget.profileTokens ?? 0))),
-      retrievedContextTokens: Math.max(0, Math.trunc(Number(profile.contextBudget.retrievedContextTokens ?? 0))),
-      selectedContextId: profile.manifest.id,
-      selectedCount: profile.manifest.selected.length,
-      excludedCount: profile.manifest.excluded.length
-    },
-    savings: {
-      tokensSaved,
-      reductionRatio,
-      percent: Math.round(reductionRatio * 100),
-      basis: 'delivery-token-estimate',
-      providerBillingClaimed: false
-    },
-    safeguards: {
-      readOnly: true,
-      localOnly: true,
-      providerBillingClaimed: false,
-      networkCalls: 0,
-      modelCalls: 0,
-      localFilesWritten: 0,
-      canonicalStateMutated: false,
-      activeMemoryCreated: 0,
-      externalWritesEnabled: false,
-      externalAdaptersEnabled: 0,
-      rawSourceBodiesIncluded: false,
-      rawObjectiveIncluded: false,
-      rawStepIncluded: false
-    }
-  };
-  return {
-    ...summary,
-    beforeDeliveryTokens,
-    afterDeliveryTokens,
-    tokensSaved,
-    reductionRatio,
-    percent: summary.savings.percent,
-    reportFingerprint: `sha256:${sha256Hex(stableStringify(summary))}`
   };
 }
 
@@ -388,7 +326,7 @@ function temporalFactChains(facts) {
   }));
 }
 
-async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt, mcpStatsPath = null }) {
+async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt, mcpStatsPath = null, root = path.resolve(here, '../../..') }) {
   const [exported, facts, proposalQueue] = await Promise.all([
     provider.export({ workspaceId }),
     provider.listTemporalFacts({ workspaceId, limit: 100 }),
@@ -397,8 +335,8 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
   const chains = temporalFactChains(facts);
   const profileRecords = [...exported.records, ...facts.map(factProfileRecord)];
   const mcpStats = await buildMcpStatsSummaryFromFile({ statsPath: mcpStatsPath, workspaceId, generatedAt });
-  const objective = 'Surface local bi-temporal memory and proposal-gated extraction state';
-  const step = 'Render memory cockpit token budget';
+  const objective = REALISTIC_SAVINGS_OBJECTIVE;
+  const step = REALISTIC_SAVINGS_STEP;
   const profile = buildCompressedProfileContextReport({
     records: profileRecords,
     workspaceId,
@@ -406,6 +344,23 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
     objective,
     step,
     tokenBudget: 4096
+  });
+  const deliveredPayload = buildContextProfileDeliveryPayloadFromReport({
+    report: profile,
+    workspaceId,
+    generatedAt,
+    objective,
+    step,
+    governedFactCount: profileRecords.length,
+    proposalFactCount: 0
+  });
+  const savings = await buildRealisticContextProfileSavingsReport({
+    root,
+    workspaceId,
+    generatedAt,
+    objective,
+    step,
+    deliveredPayload
   });
   const projectedFacts = facts.map((fact) => ({
     ...fact,
@@ -433,20 +388,7 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
     proposalQueue,
     mcpStats,
     tokenBudget: profile.contextBudget,
-    savings: buildProfileSavingsSummary({
-      profile,
-      workspaceId,
-      generatedAt,
-      objective,
-      step,
-      source: {
-        provider: 'provider:native:memory:sqlite',
-        sqliteRef: 'workspace://.local/memory.sqlite',
-        recordCount: profileRecords.length,
-        exportedRecordCount: exported.records.length,
-        activeTemporalFactCount: facts.filter((fact) => fact.status === 'active').length
-      }
-    }),
+    savings,
     profile: {
       id: profile.id,
       acceptedHistoryRecordCount: profile.profile.acceptedHistoryRecordCount,
@@ -692,7 +634,7 @@ export function createControlApiServer({
         return withMemoryProvider(async (provider) => buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock(), memoryProvider: provider }));
       }
       case 'getMemoryCockpit':
-        return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock(), mcpStatsPath }));
+        return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock(), mcpStatsPath, root: sourceGraphRoot }));
       case 'listRuns': {
         const state = await store.read();
         return { schemaVersion: '1.0.0', items: state.runs.filter((run) => run.workspaceId === context.workspaceId).slice().reverse() };
