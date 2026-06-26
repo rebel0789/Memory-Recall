@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "memfact_status",
+  "workspaceId": "ws_local",
+  "scope": "workspace",
+  "subject": "project:oaf",
+  "predicate": "release_status",
+  "object": "release-candidate",
+  "text": "OAF release status is release-candidate.",
+  "status": "active",
+  "source": "workspace://memory/status.md",
+  "confidence": 0.95,
+  "validFrom": "2026-06-25T10:00:00.000Z",
+  "validUntil": null,
+  "supersededBy": null,
+  "episodeId": "mep_status",
+  "proposalQueueId": "mpq_status",
+  "createdAt": "2026-06-25T10:00:00.000Z",
+  "updatedAt": "2026-06-25T10:00:00.000Z",
+  "metadata": {},
+  "episode": {
+    "schemaVersion": "1.0.0",
+    "id": "mep_status",
+    "workspaceId": "ws_local",
+    "scope": "workspace",
+    "sourceLocator": "workspace://memory/status.md",
+    "summary": "Reviewed status note.",
+    "observedAt": "2026-06-25T09:55:00.000Z",
+    "createdAt": "2026-06-25T10:00:00.000Z",
+    "metadata": {}
+  }
+}

@@ -11,7 +11,10 @@ const DATA_CLASSES = new Set(['public', 'workspace-private', 'sensitive', 'secre
 const DECISIONS = new Set(['propose', 'review', 'allow', 'reject']);
 const QUEUE_STATUSES = new Set(['pending', 'claimed', 'applied', 'poison']);
 const MEMORY_KINDS = new Set(['fact', 'preference', 'decision', 'episode', 'procedure', 'constraint']);
+const TEMPORAL_MEMORY_SCOPES = new Set(['workspace', 'session', 'agent', 'user']);
 const QUEUE_ID_PATTERN = /^mpq_[A-Za-z0-9._-]{1,128}$/;
+const TEMPORAL_FACT_ID_PATTERN = /^memfact_[A-Za-z0-9._-]{1,128}$/;
+const TEMPORAL_EPISODE_ID_PATTERN = /^mep_[A-Za-z0-9._-]{1,128}$/;
 const FINGERPRINT_PATTERN = /^[a-f0-9]{64}$/;
 const SECRET_PATTERNS = [
   /sk-[A-Za-z0-9_-]{20,}/g,
@@ -54,6 +57,10 @@ function contentHash(record) {
 
 function stableHash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
+}
+
+function deterministicId(prefix, value) {
+  return `${prefix}_${stableHash(value).slice(0, 32)}`;
 }
 
 function queueFingerprint({ workspaceId, sourceLocator, sourceHash, payload }) {
@@ -221,6 +228,112 @@ function boundedJson(value, maximumBytes = 4096) {
     : json;
 }
 
+function assertIsoTimestamp(value, name) {
+  if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) throw new Error(`${name} must be an ISO-8601 timestamp`);
+  return value;
+}
+
+function normalizeTemporalScope(value = 'workspace') {
+  if (!TEMPORAL_MEMORY_SCOPES.has(value)) throw new Error(`unsupported temporal memory scope: ${value}`);
+  return value;
+}
+
+function normalizeTemporalText(value, name, maximumBytes = 1_000_000) {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`${name} is required`);
+  if (Buffer.byteLength(value, 'utf8') > maximumBytes) throw new Error(`${name} exceeds ${maximumBytes} bytes`);
+  return value;
+}
+
+function normalizeTemporalFactInput(input, clock) {
+  assertPlainObject(input, 'temporal memory fact');
+  const workspaceId = normalizeTemporalText(input.workspaceId, 'workspaceId', 512);
+  const scope = normalizeTemporalScope(input.scope);
+  const validFrom = assertIsoTimestamp(input.validFrom ?? clock(), 'validFrom');
+  const id = input.id ?? prefixedId('memfact');
+  if (!TEMPORAL_FACT_ID_PATTERN.test(id)) throw new Error('temporal fact id must be a safe memfact_ identifier');
+  if (input.validUntil !== undefined && input.validUntil !== null) assertIsoTimestamp(input.validUntil, 'validUntil');
+  return {
+    schemaVersion: '1.0.0',
+    id,
+    workspaceId,
+    scope,
+    subject: normalizeTemporalText(input.subject, 'subject', 512),
+    predicate: normalizeTemporalText(input.predicate, 'predicate', 256),
+    object: normalizeTemporalText(input.object, 'object'),
+    text: normalizeTemporalText(input.text, 'text'),
+    status: input.status ?? 'active',
+    source: assertWorkspaceLocator(input.source, 'source'),
+    confidence: clamp(input.confidence),
+    validFrom,
+    validUntil: input.validUntil ?? null,
+    supersededBy: input.supersededBy ?? null,
+    episodeId: input.episodeId ?? input.episode?.id ?? null,
+    proposalQueueId: input.proposalQueueId ?? input.proposalId ?? null,
+    createdAt: input.createdAt ?? clock(),
+    updatedAt: input.updatedAt ?? input.createdAt ?? clock(),
+    metadata: input.metadata && typeof input.metadata === 'object' && !Array.isArray(input.metadata) ? input.metadata : {},
+    episode: input.episode ?? null
+  };
+}
+
+function normalizeTemporalEpisodeInput(input, fact, clock) {
+  const episode = input ? assertPlainObject(input, 'temporal memory episode') : {};
+  const id = episode.id ?? fact.episodeId ?? prefixedId('mep');
+  if (!TEMPORAL_EPISODE_ID_PATTERN.test(id)) throw new Error('temporal episode id must be a safe mep_ identifier');
+  return {
+    schemaVersion: '1.0.0',
+    id,
+    workspaceId: fact.workspaceId,
+    scope: fact.scope,
+    sourceLocator: assertWorkspaceLocator(episode.sourceLocator ?? fact.source, 'episode sourceLocator'),
+    summary: normalizeTemporalText(episode.summary ?? fact.text, 'episode summary', 4096),
+    observedAt: assertIsoTimestamp(episode.observedAt ?? fact.validFrom, 'episode observedAt'),
+    createdAt: episode.createdAt ?? clock(),
+    metadata: episode.metadata && typeof episode.metadata === 'object' && !Array.isArray(episode.metadata) ? episode.metadata : {}
+  };
+}
+
+function rowToTemporalEpisode(row) {
+  if (!row) return null;
+  return {
+    schemaVersion: '1.0.0',
+    id: row.id,
+    workspaceId: row.workspace_id,
+    scope: row.scope,
+    sourceLocator: row.source_locator,
+    summary: row.summary,
+    observedAt: row.observed_at,
+    createdAt: row.created_at,
+    metadata: parseJson(row.metadata_json, {})
+  };
+}
+
+function rowToTemporalFact(row, episode = null) {
+  if (!row) return null;
+  return {
+    schemaVersion: '1.0.0',
+    id: row.id,
+    workspaceId: row.workspace_id,
+    scope: row.scope,
+    subject: row.subject,
+    predicate: row.predicate,
+    object: row.object,
+    text: row.text,
+    status: row.status,
+    source: row.source,
+    confidence: row.confidence,
+    validFrom: row.valid_from,
+    validUntil: row.valid_until,
+    supersededBy: row.superseded_by,
+    episodeId: row.episode_id,
+    proposalQueueId: row.proposal_queue_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    metadata: parseJson(row.metadata_json, {}),
+    episode
+  };
+}
+
 export class SQLiteMemoryProvider {
   constructor({ filename = ':memory:', clock = nowIso, migrate = true, readOnly = false } = {}) {
     this.filename = filename;
@@ -295,6 +408,75 @@ export class SQLiteMemoryProvider {
         tags,
         tokenize='unicode61 remove_diacritics 2'
       );
+      CREATE TABLE IF NOT EXISTS memory_episodes (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        source_locator TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        metadata_json TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_memory_episodes_workspace ON memory_episodes(workspace_id, scope, observed_at DESC);
+      CREATE TABLE IF NOT EXISTS memory_entities (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(workspace_id, scope, kind, name)
+      );
+      CREATE TABLE IF NOT EXISTS memory_facts (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        predicate TEXT NOT NULL,
+        object TEXT NOT NULL,
+        text TEXT NOT NULL,
+        status TEXT NOT NULL,
+        source TEXT NOT NULL,
+        confidence REAL NOT NULL,
+        valid_from TEXT NOT NULL,
+        valid_until TEXT,
+        superseded_by TEXT,
+        episode_id TEXT NOT NULL,
+        proposal_queue_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        metadata_json TEXT NOT NULL,
+        FOREIGN KEY(episode_id) REFERENCES memory_episodes(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_memory_facts_lookup ON memory_facts(workspace_id, scope, subject, predicate, valid_from, valid_until);
+      CREATE INDEX IF NOT EXISTS idx_memory_facts_superseded ON memory_facts(workspace_id, superseded_by);
+      CREATE INDEX IF NOT EXISTS idx_memory_facts_episode ON memory_facts(workspace_id, episode_id);
+      CREATE TABLE IF NOT EXISTS memory_edges (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        source_entity_id TEXT NOT NULL,
+        target_entity_id TEXT NOT NULL,
+        predicate TEXT NOT NULL,
+        fact_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(workspace_id, scope, fact_id),
+        FOREIGN KEY(source_entity_id) REFERENCES memory_entities(id),
+        FOREIGN KEY(target_entity_id) REFERENCES memory_entities(id),
+        FOREIGN KEY(fact_id) REFERENCES memory_facts(id)
+      );
+      CREATE VIRTUAL TABLE IF NOT EXISTS memory_fact_fts USING fts5(
+        id UNINDEXED,
+        workspace_id UNINDEXED,
+        scope UNINDEXED,
+        subject,
+        predicate,
+        object,
+        text,
+        tokenize='unicode61 remove_diacritics 2'
+      );
     `);
     this.#ensureColumn('memory_records', 'source_trust', "TEXT NOT NULL DEFAULT 'unverified'");
     this.#ensureColumn('memory_records', 'decision', "TEXT NOT NULL DEFAULT 'allow'");
@@ -318,7 +500,7 @@ export class SQLiteMemoryProvider {
   }
 
   async capabilities() {
-    return ['memory.put', 'memory.get', 'memory.search.lexical', 'memory.supersede', 'memory.forget', 'memory.export', 'memory.filesystemReports', 'memory.proposalQueue'];
+    return ['memory.put', 'memory.get', 'memory.search.lexical', 'memory.supersede', 'memory.forget', 'memory.export', 'memory.filesystemReports', 'memory.proposalQueue', 'memory.temporalFacts'];
   }
 
   #recordValues(record) {
@@ -490,6 +672,217 @@ export class SQLiteMemoryProvider {
     if (!workspaceId) throw new Error('workspaceId is required');
     const records = this.database.prepare('SELECT * FROM memory_records WHERE workspace_id = ? ORDER BY created_at ASC, id ASC').all(workspaceId).map(rowToRecord);
     return { schemaVersion: '1.0.0', provider: PROVIDER_ID, workspaceId, exportedAt: this.clock(), records };
+  }
+
+  #assertAppliedProposal({ workspaceId, proposalQueueId }) {
+    if (!proposalQueueId) throw new Error('proposal gate requires an applied memory proposal');
+    const row = this.database.prepare('SELECT status FROM memory_proposal_queue WHERE workspace_id = ? AND id = ?').get(workspaceId, proposalQueueId);
+    if (!row || row.status !== 'applied') throw new Error('proposal gate requires an applied memory proposal');
+  }
+
+  #upsertTemporalEpisode(episode) {
+    this.database.prepare(`
+      INSERT INTO memory_episodes (
+        id, workspace_id, scope, source_locator, summary, observed_at, created_at, metadata_json
+      ) VALUES (
+        :id, :workspace_id, :scope, :source_locator, :summary, :observed_at, :created_at, :metadata_json
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        workspace_id=excluded.workspace_id,
+        scope=excluded.scope,
+        source_locator=excluded.source_locator,
+        summary=excluded.summary,
+        observed_at=excluded.observed_at,
+        metadata_json=excluded.metadata_json
+    `).run({
+      id: episode.id,
+      workspace_id: episode.workspaceId,
+      scope: episode.scope,
+      source_locator: episode.sourceLocator,
+      summary: episode.summary,
+      observed_at: episode.observedAt,
+      created_at: episode.createdAt,
+      metadata_json: JSON.stringify(episode.metadata)
+    });
+  }
+
+  #upsertTemporalEntity({ workspaceId, scope, kind, name, now }) {
+    const id = deterministicId('ment', { workspaceId, scope, kind, name });
+    this.database.prepare(`
+      INSERT INTO memory_entities (id, workspace_id, scope, kind, name, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(workspace_id, scope, kind, name) DO UPDATE SET updated_at=excluded.updated_at
+    `).run(id, workspaceId, scope, kind, name, now, now);
+    return id;
+  }
+
+  #writeTemporalFact(fact) {
+    this.database.prepare(`
+      INSERT INTO memory_facts (
+        id, workspace_id, scope, subject, predicate, object, text, status, source,
+        confidence, valid_from, valid_until, superseded_by, episode_id, proposal_queue_id,
+        created_at, updated_at, metadata_json
+      ) VALUES (
+        :id, :workspace_id, :scope, :subject, :predicate, :object, :text, :status, :source,
+        :confidence, :valid_from, :valid_until, :superseded_by, :episode_id, :proposal_queue_id,
+        :created_at, :updated_at, :metadata_json
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        workspace_id=excluded.workspace_id,
+        scope=excluded.scope,
+        subject=excluded.subject,
+        predicate=excluded.predicate,
+        object=excluded.object,
+        text=excluded.text,
+        status=excluded.status,
+        source=excluded.source,
+        confidence=excluded.confidence,
+        valid_from=excluded.valid_from,
+        valid_until=excluded.valid_until,
+        superseded_by=excluded.superseded_by,
+        episode_id=excluded.episode_id,
+        proposal_queue_id=excluded.proposal_queue_id,
+        updated_at=excluded.updated_at,
+        metadata_json=excluded.metadata_json
+    `).run({
+      id: fact.id,
+      workspace_id: fact.workspaceId,
+      scope: fact.scope,
+      subject: fact.subject,
+      predicate: fact.predicate,
+      object: fact.object,
+      text: fact.text,
+      status: fact.status,
+      source: fact.source,
+      confidence: fact.confidence,
+      valid_from: fact.validFrom,
+      valid_until: fact.validUntil,
+      superseded_by: fact.supersededBy,
+      episode_id: fact.episodeId,
+      proposal_queue_id: fact.proposalQueueId,
+      created_at: fact.createdAt,
+      updated_at: fact.updatedAt,
+      metadata_json: JSON.stringify(fact.metadata)
+    });
+    this.database.prepare('DELETE FROM memory_fact_fts WHERE workspace_id = ? AND id = ?').run(fact.workspaceId, fact.id);
+    this.database.prepare('INSERT INTO memory_fact_fts(id, workspace_id, scope, subject, predicate, object, text) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(fact.id, fact.workspaceId, fact.scope, fact.subject, fact.predicate, fact.object, fact.text);
+  }
+
+  #temporalFactFromRow(row) {
+    if (!row) return null;
+    const episode = row.episode_id
+      ? rowToTemporalEpisode(this.database.prepare('SELECT * FROM memory_episodes WHERE workspace_id = ? AND id = ?').get(row.workspace_id, row.episode_id))
+      : null;
+    return rowToTemporalFact(row, episode);
+  }
+
+  async addTemporalFact(input) {
+    const normalized = normalizeTemporalFactInput(input, this.clock);
+    if (normalized.status !== 'active') throw new Error('temporal facts can only be added as active facts');
+    this.#assertAppliedProposal({ workspaceId: normalized.workspaceId, proposalQueueId: normalized.proposalQueueId });
+    const episode = normalizeTemporalEpisodeInput(normalized.episode, normalized, this.clock);
+    normalized.episodeId = episode.id;
+    const now = this.clock();
+    this.database.exec('BEGIN IMMEDIATE');
+    try {
+      this.#upsertTemporalEpisode(episode);
+      const subjectEntityId = this.#upsertTemporalEntity({ workspaceId: normalized.workspaceId, scope: normalized.scope, kind: 'subject', name: normalized.subject, now });
+      const objectEntityId = this.#upsertTemporalEntity({ workspaceId: normalized.workspaceId, scope: normalized.scope, kind: 'object', name: normalized.object, now });
+      this.database.prepare(`
+        UPDATE memory_facts
+        SET status = 'superseded',
+            valid_until = ?,
+            superseded_by = ?,
+            updated_at = ?
+        WHERE workspace_id = ?
+          AND scope = ?
+          AND subject = ?
+          AND predicate = ?
+          AND id <> ?
+          AND object <> ?
+          AND superseded_by IS NULL
+          AND (valid_until IS NULL OR valid_until > ?)
+      `).run(normalized.validFrom, normalized.id, now, normalized.workspaceId, normalized.scope, normalized.subject, normalized.predicate, normalized.id, normalized.object, normalized.validFrom);
+      this.#writeTemporalFact(normalized);
+      this.database.prepare(`
+        INSERT INTO memory_edges (id, workspace_id, scope, source_entity_id, target_entity_id, predicate, fact_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(workspace_id, scope, fact_id) DO UPDATE SET
+          source_entity_id=excluded.source_entity_id,
+          target_entity_id=excluded.target_entity_id,
+          predicate=excluded.predicate
+      `).run(
+        deterministicId('medge', { workspaceId: normalized.workspaceId, scope: normalized.scope, factId: normalized.id }),
+        normalized.workspaceId,
+        normalized.scope,
+        subjectEntityId,
+        objectEntityId,
+        normalized.predicate,
+        normalized.id,
+        now
+      );
+      this.database.exec('COMMIT');
+      return this.#temporalFactFromRow(this.database.prepare('SELECT * FROM memory_facts WHERE workspace_id = ? AND id = ?').get(normalized.workspaceId, normalized.id));
+    } catch (error) {
+      this.database.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  async getTemporalFacts({ workspaceId, scope = 'workspace', subject = null, predicate = null, at = this.clock(), query = '', limit = 20 } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    const normalizedScope = normalizeTemporalScope(scope);
+    const boundedLimit = Math.max(1, Math.min(100, Number(limit) || 20));
+    const conditions = [
+      'm.workspace_id = ?',
+      'm.scope = ?',
+      "m.status IN ('active', 'superseded')",
+      'm.valid_from <= ?',
+      '(m.valid_until IS NULL OR m.valid_until > ?)'
+    ];
+    const parameters = [workspaceId, normalizedScope, at, at];
+    if (subject) { conditions.push('m.subject = ?'); parameters.push(subject); }
+    if (predicate) { conditions.push('m.predicate = ?'); parameters.push(predicate); }
+    const expression = ftsExpression(query);
+    let rows;
+    if (expression) {
+      rows = this.database.prepare(`
+        SELECT m.*, bm25(memory_fact_fts) AS rank
+        FROM memory_fact_fts
+        JOIN memory_facts m ON m.id = memory_fact_fts.id AND m.workspace_id = memory_fact_fts.workspace_id
+        WHERE memory_fact_fts MATCH ?
+          AND ${conditions.join(' AND ')}
+        ORDER BY rank ASC, m.valid_from DESC, m.id ASC
+        LIMIT ?
+      `).all(expression, ...parameters, boundedLimit);
+    } else {
+      rows = this.database.prepare(`
+        SELECT m.*, 0 AS rank
+        FROM memory_facts m
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY m.valid_from DESC, m.id ASC
+        LIMIT ?
+      `).all(...parameters, boundedLimit);
+    }
+    return rows.map((row) => this.#temporalFactFromRow(row));
+  }
+
+  async getTemporalFactHistory({ workspaceId, scope = 'workspace', subject, predicate, limit = 50 } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    if (!subject || !predicate) throw new Error('subject and predicate are required');
+    const normalizedScope = normalizeTemporalScope(scope);
+    const boundedLimit = Math.max(1, Math.min(200, Number(limit) || 50));
+    return this.database.prepare(`
+      SELECT *
+      FROM memory_facts
+      WHERE workspace_id = ?
+        AND scope = ?
+        AND subject = ?
+        AND predicate = ?
+      ORDER BY valid_from ASC, created_at ASC, id ASC
+      LIMIT ?
+    `).all(workspaceId, normalizedScope, subject, predicate, boundedLimit).map((row) => this.#temporalFactFromRow(row));
   }
 
   async enqueueProposal(input) {

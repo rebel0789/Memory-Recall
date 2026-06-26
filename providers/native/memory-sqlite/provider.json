@@ -15,12 +15,14 @@
     "memory.forget",
     "memory.export",
     "memory.filesystemReports",
-    "memory.proposalQueue"
+    "memory.proposalQueue",
+    "memory.temporalFacts"
   ],
   "limits": {
     "queryLimit": 100,
     "textBytes": 1000000,
     "search": "SQLite FTS5; no vector similarity",
+    "temporalFacts": "Proposal-gated fact/entity/edge/episode tables with validFrom, validUntil, supersededBy, episode provenance, and FTS5 fact index",
     "proposalQueue": "SQLite table with idempotent fingerprints, leases, retries, and poison records",
     "filesystemReports": "Generated workspace-local reports only; files are not canonical memory authority"
   },
@@ -28,6 +30,7 @@
   "experimental": true,
   "notes": [
     "Uses Node 22 node:sqlite, which is experimental in Node 22.",
-    "Permanent writes remain governed by memory-core before this provider is called."
+    "Permanent writes remain governed by memory-core before this provider is called.",
+    "Temporal fact writes require an applied proposal queue record and supersede contradictory facts instead of deleting them."
   ]
 }

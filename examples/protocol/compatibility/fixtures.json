@@ -62,6 +62,12 @@
       "expectedValid": true
     },
     {
+      "id": "memory-temporal-fact-current-valid",
+      "schema": "packages/protocol/schemas/memory-temporal-fact.schema.json",
+      "instance": "examples/protocol/memory-temporal-fact.json",
+      "expectedValid": true
+    },
+    {
       "id": "artifact-record-current-valid",
       "schema": "packages/protocol/schemas/artifact-record.schema.json",
       "instance": "examples/protocol/artifact-record.json",

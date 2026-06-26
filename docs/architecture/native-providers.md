@@ -72,6 +72,13 @@ replacement for shell `grep`. It returns lifecycle state, evidence IDs, and
 context-manifest reason codes when an explicit manifest is supplied. The
 provider also includes a SQLite proposal queue with idempotent fingerprints,
 leases, retry-to-pending, and poison/error records for local reconciliation.
+Temporal facts are stored in separate `fact`, `entity`, `edge`, and `episode`
+tables with `validFrom`, `validUntil`, `supersededBy`, and episode provenance.
+`oaf memory fact add/get/history` writes and reads that temporal surface through
+the native provider. Fact writes require an applied proposal queue record; a
+contradicting fact supersedes the old row by closing its valid window and never
+hard-deletes it. The temporal fact table has its own FTS5 index, but hybrid
+fusion retrieval, vector search, and graph traversal remain later work.
 No network calls, model calls, external writes, Supermemory sync, FUSE/NFS
 mounts, API-key storage, or active-memory creation from ordinary file edits are
 enabled.

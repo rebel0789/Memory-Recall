@@ -97,7 +97,8 @@ async function memoryCommand(values) {
     if (subcommand === 'profile') return await memoryProfileCommand(rest);
     if (subcommand === 'proposals') return await memoryProposalsCommand(rest);
     if (subcommand === 'sgrep') return await memorySgrepCommand(rest);
-    console.error('memory requires profile, proposals, or sgrep');
+    if (subcommand === 'fact') return await memoryFactCommand(rest);
+    console.error('memory requires profile, proposals, sgrep, or fact');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -516,6 +517,108 @@ async function memorySgrepCommand(values) {
     manifest
   });
   console.log(JSON.stringify(report, null, 2));
+}
+
+async function memoryFactCommand(values) {
+  const [subcommand, ...rest] = values;
+  if (subcommand === 'add') return await memoryFactAddCommand(rest);
+  if (subcommand === 'get') return await memoryFactGetCommand(rest);
+  if (subcommand === 'history') return await memoryFactHistoryCommand(rest);
+  console.error('memory fact requires add, get, or history');
+  process.exitCode = 2;
+}
+
+async function openMemoryFactProvider(values, { readOnly }) {
+  const sqlitePath = option(values, '--sqlite');
+  if (!sqlitePath) throw new Error('memory fact requires --sqlite <path>');
+  try {
+    await stat(sqlitePath);
+  } catch {
+    throw new Error('memory fact requires an existing SQLite database');
+  }
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  return new SQLiteMemoryProvider({ filename: sqlitePath, clock: fixedNow, migrate: !readOnly, readOnly });
+}
+
+function requiredOption(values, name) {
+  const value = option(values, name);
+  if (!value) throw new Error(`memory fact requires ${name}`);
+  return value;
+}
+
+function memoryFactQuery(values) {
+  return {
+    workspaceId: option(values, '--workspace') ?? 'ws_local',
+    scope: option(values, '--scope') ?? 'workspace',
+    subject: requiredOption(values, '--subject'),
+    predicate: requiredOption(values, '--predicate')
+  };
+}
+
+async function memoryFactAddCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  const provider = await openMemoryFactProvider(values, { readOnly: false });
+  try {
+    const fact = await provider.addTemporalFact({
+      id: option(values, '--id') ?? undefined,
+      ...memoryFactQuery(values),
+      object: requiredOption(values, '--object'),
+      text: requiredOption(values, '--text'),
+      source: requiredOption(values, '--source'),
+      proposalQueueId: option(values, '--proposal'),
+      validFrom: option(values, '--valid-from') ?? fixedNow(),
+      confidence: numericOption(values, '--confidence', 0.5),
+      episode: {
+        id: option(values, '--episode-id') ?? undefined,
+        sourceLocator: option(values, '--episode-source') ?? requiredOption(values, '--source'),
+        summary: option(values, '--episode-summary') ?? requiredOption(values, '--text'),
+        observedAt: option(values, '--episode-observed-at') ?? option(values, '--valid-from') ?? fixedNow()
+      }
+    });
+    console.log(JSON.stringify(fact, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+async function memoryFactGetCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  const provider = await openMemoryFactProvider(values, { readOnly: true });
+  try {
+    const facts = await provider.getTemporalFacts({
+      ...memoryFactQuery(values),
+      at: option(values, '--at') ?? fixedNow(),
+      query: option(values, '--query') ?? '',
+      limit: parseIntegerOption(values, '--limit', 20)
+    });
+    console.log(JSON.stringify({
+      schemaVersion: '1.0.0',
+      workspaceId: option(values, '--workspace') ?? 'ws_local',
+      generatedAt: fixedNow(),
+      facts
+    }, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+async function memoryFactHistoryCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  const provider = await openMemoryFactProvider(values, { readOnly: true });
+  try {
+    const facts = await provider.getTemporalFactHistory({
+      ...memoryFactQuery(values),
+      limit: parseIntegerOption(values, '--limit', 50)
+    });
+    console.log(JSON.stringify({
+      schemaVersion: '1.0.0',
+      workspaceId: option(values, '--workspace') ?? 'ws_local',
+      generatedAt: fixedNow(),
+      facts
+    }, null, 2));
+  } finally {
+    provider.close();
+  }
 }
 
 async function contextCommand(values) {
@@ -2298,6 +2401,9 @@ Usage:
   oaf memory proposals --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
+  oaf memory fact add --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --object release-candidate --text "OAF release status is release-candidate." --source workspace://memory/status.md --proposal mpq_status --episode-id mep_status --episode-source workspace://memory/status.md --episode-summary "Reviewed status note." --format json
+  oaf memory fact get --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --at 2026-06-26T00:00:00.000Z --format json
+  oaf memory fact history --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --format json
   oaf mcp resources --read-only --workspace ws_local --format json
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --uri oaf://workspace/ws_local/context-pack/current --format json
   oaf mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json
