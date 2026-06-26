@@ -67,6 +67,13 @@ warnings, and markdown memory-index cap warnings. These diagnostics are
 review-only signals; they do not create active memory or change retrieval
 policy by themselves.
 
+`oaf context profile` builds a read-only compressed profile for context
+selection: static long-term memory plus dynamic recent memory are converted into
+bounded synthetic Context Compiler records, then selected under the normal token
+budget. Its `contextBudget` reports estimated delivery tokens, accepted-history
+tokens available, history tokens avoided, and the measured reduction ratio. It
+does not replay raw history, call a model, open the network, or create memory.
+
 `oaf memory sgrep` is a local source-grounded memory search command, not a
 replacement for shell `grep`. It returns lifecycle state, evidence IDs, and
 context-manifest reason codes when an explicit manifest is supplied. The

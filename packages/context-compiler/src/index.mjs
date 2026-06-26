@@ -152,6 +152,128 @@ export function hashRef(value) {
   return `sha256:${sha256(value)}`;
 }
 
+const COMPRESSED_PROFILE_REPORT_VERSION = '1.0.0';
+const PROFILE_ACCEPTED_STATUSES = new Set(['active', 'verified']);
+const PROFILE_STATIC_KINDS = new Set(['fact', 'preference', 'decision', 'procedure', 'constraint']);
+const PROFILE_DYNAMIC_KINDS = new Set(['episode', 'fact', 'decision', 'procedure']);
+const PROFILE_SECRET_MATERIAL = /(?:sk-[A-Za-z0-9_-]{20,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|\b[A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)\s*=|\b(?:token|secret|password|authorization|api[_-]?key|database_url|db_url|connection_string)\s*=)/iu;
+const PROFILE_LOCAL_PATH_MATERIAL = /(?:^|[\s('"`])\/(?:Users|private|tmp|var\/folders|var\/tmp|Volumes)\/|file:\/\/\/|workspace:\/\/\/|[A-Za-z]:\\/u;
+
+function profileReportId(value) {
+  return `ctxprofile_${sha256(stableStringify(value)).slice(0, 16)}`;
+}
+
+function deterministicContextId(value) {
+  return `ctx_${sha256(stableStringify(value)).slice(0, 32)}`;
+}
+
+function profileSafeToken(value, fallbackPrefix = 'profile_redacted') {
+  const text = String(value ?? '').trim();
+  if (/^[A-Za-z0-9._:@-]{1,128}$/u.test(text) && !hasUnsafeProfileMaterial(text)) return text;
+  return `${fallbackPrefix}_${sha256(text).slice(0, 16)}`;
+}
+
+function hasUnsafeProfileMaterial(value) {
+  const text = String(value ?? '');
+  return PROFILE_SECRET_MATERIAL.test(text) || PROFILE_LOCAL_PATH_MATERIAL.test(text);
+}
+
+function redactProfileText(value, { maxLength = 96 } = {}) {
+  let text = String(value ?? '');
+  text = text.replace(PROFILE_SECRET_MATERIAL, '[redacted-secret]');
+  text = text.replace(PROFILE_LOCAL_PATH_MATERIAL, (match) => match.startsWith(' ') ? ' [redacted-local-path]' : '[redacted-local-path]');
+  const normalized = text.normalize('NFKC').replace(/\s+/gu, ' ').trim();
+  if (!normalized) return '[empty]';
+  return normalized.length > maxLength ? `${normalized.slice(0, Math.max(0, maxLength - 1)).trim()}...` : normalized;
+}
+
+function acceptedProfileRecord(record, workspaceId) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return false;
+  if ((record.workspaceId ?? workspaceId) !== workspaceId) return false;
+  if (!PROFILE_ACCEPTED_STATUSES.has(record.status)) return false;
+  if (record.dataClass === 'secret') return false;
+  if (hasUnsafeProfileMaterial(record.text) && String(record.text ?? '').includes('=')) return false;
+  return typeof record.text === 'string' && record.text.trim().length > 0;
+}
+
+function historyTokenCount(records) {
+  return records.reduce((sum, record) => {
+    const tokens = Number.isInteger(record.tokens) && record.tokens > 0 ? record.tokens : estimateTokens(record.text);
+    return sum + tokens;
+  }, 0);
+}
+
+function recordTimestamp(record) {
+  const parsed = Date.parse(record.updatedAt ?? record.createdAt ?? record.observedAt ?? '');
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sortStaticProfileRecords(left, right) {
+  return Number(right.authority ?? 0) - Number(left.authority ?? 0) ||
+    Number(right.confidence ?? 0) - Number(left.confidence ?? 0) ||
+    recordTimestamp(right) - recordTimestamp(left) ||
+    String(left.id ?? '').localeCompare(String(right.id ?? ''));
+}
+
+function sortDynamicProfileRecords(left, right) {
+  return recordTimestamp(right) - recordTimestamp(left) ||
+    Number(right.confidence ?? 0) - Number(left.confidence ?? 0) ||
+    String(left.id ?? '').localeCompare(String(right.id ?? ''));
+}
+
+function collectProfileEntities(records) {
+  const values = new Set(['memory:profile']);
+  for (const record of records) {
+    for (const value of [...(Array.isArray(record.tags) ? record.tags : []), ...(Array.isArray(record.relations) ? record.relations : [])]) {
+      values.add(profileSafeToken(value, 'entity_redacted'));
+    }
+  }
+  return [...values].sort().slice(0, 16);
+}
+
+function profileLayerText(layer, records, { maxLineLength }) {
+  const title = layer === 'static' ? 'Static long-term memory profile' : 'Dynamic recent memory profile';
+  const lines = [`${title}:`];
+  if (!records.length) lines.push('- no accepted records');
+  for (const record of records) {
+    const kind = profileSafeToken(record.kind ?? 'memory', 'kind_redacted');
+    const id = profileSafeToken(record.id ?? 'memory', 'mem_redacted');
+    lines.push(`- ${kind} ${id}: ${redactProfileText(record.text, { maxLength: maxLineLength })}`);
+  }
+  return lines.join('\n');
+}
+
+function syntheticProfileRecord({ layer, records, workspaceId, generatedAt, maxLineLength }) {
+  const text = profileLayerText(layer, records, { maxLineLength });
+  const entities = collectProfileEntities(records);
+  return {
+    id: `mem_profile_${layer}`,
+    version: `v1:${sha256(stableStringify({ layer, ids: records.map((record) => record.id), text })).slice(0, 12)}`,
+    kind: 'fact',
+    workspaceId,
+    text,
+    tags: entities,
+    relations: entities,
+    scope: 'workspace-private',
+    dataClass: 'workspace-private',
+    trustClass: 'verified',
+    status: 'active',
+    source: 'native-memory-profile',
+    tokens: estimateTokens(text),
+    confidence: records.length ? Math.max(...records.map((record) => Number(record.confidence ?? 0.5))) : 0.5,
+    authority: records.length ? Math.max(...records.map((record) => Number(record.authority ?? 0.5))) : 0.5,
+    updatedAt: generatedAt,
+    metadata: {
+      profileLayer: layer,
+      sourceRecordIds: records.map((record) => profileSafeToken(record.id ?? 'memory', 'mem_redacted')),
+      contextAssembly: {
+        tier: 'full',
+        reasonCodes: ['compressed_profile']
+      }
+    }
+  };
+}
+
 function safeNow(clock) {
   const value = typeof clock === 'function' ? clock() : nowIso();
   return value instanceof Date ? value.toISOString() : String(value);
@@ -2403,6 +2525,134 @@ async function withTimeout(callback, { timeoutMs, parentSignal = null }) {
     clearTimeout(timer);
     if (parentSignal) parentSignal.removeEventListener('abort', onAbort);
   }
+}
+
+export function buildCompressedProfileContextReport({
+  records,
+  retrievedRecords = [],
+  workspaceId = 'ws_local',
+  generatedAt = '1970-01-01T00:00:00.000Z',
+  objective,
+  step,
+  actorId = 'usr_profile',
+  taskId = 'task_memory_profile',
+  tokenBudget = 4096,
+  staticLimit = 8,
+  dynamicLimit = 5,
+  maxLineLength = 96
+} = {}) {
+  if (!Array.isArray(records)) throw new Error('records must be an array');
+  if (!Array.isArray(retrievedRecords)) throw new Error('retrievedRecords must be an array');
+  if (!objective || !step) throw new Error('objective and step are required');
+  const boundedTokenBudget = requirePositiveInteger(Number(tokenBudget), 'context profile tokenBudget', 100000);
+  const boundedStaticLimit = requirePositiveInteger(Number(staticLimit), 'context profile staticLimit', 50);
+  const boundedDynamicLimit = requirePositiveInteger(Number(dynamicLimit), 'context profile dynamicLimit', 50);
+  const boundedLineLength = requirePositiveInteger(Number(maxLineLength), 'context profile maxLineLength', 512);
+  requireIsoTimestamp(generatedAt, 'context profile generatedAt');
+
+  const accepted = records.filter((record) => acceptedProfileRecord(record, workspaceId));
+  const staticRecords = accepted
+    .filter((record) => PROFILE_STATIC_KINDS.has(record.kind))
+    .sort(sortStaticProfileRecords)
+    .slice(0, boundedStaticLimit);
+  const staticIds = new Set(staticRecords.map((record) => record.id));
+  const dynamicRecords = accepted
+    .filter((record) => PROFILE_DYNAMIC_KINDS.has(record.kind) && !staticIds.has(record.id))
+    .sort(sortDynamicProfileRecords)
+    .slice(0, boundedDynamicLimit);
+  const profileRecords = [
+    syntheticProfileRecord({ layer: 'static', records: staticRecords, workspaceId, generatedAt, maxLineLength: boundedLineLength }),
+    syntheticProfileRecord({ layer: 'dynamic', records: dynamicRecords, workspaceId, generatedAt, maxLineLength: boundedLineLength })
+  ];
+  const requestId = `ctxreq_profile_${sha256(stableStringify({ workspaceId, objective, step, generatedAt })).slice(0, 16)}`;
+  const request = {
+    schemaVersion: '1.0.0',
+    id: requestId,
+    requestId,
+    correlationId: `corr_profile_${sha256(`${requestId}:correlation`).slice(0, 16)}`,
+    workspaceId,
+    actorId,
+    taskId,
+    objective,
+    step,
+    requiredIds: profileRecords.map((record) => record.id),
+    requiredEntities: ['memory:profile'],
+    allowedScopes: ['workspace-private', 'public'],
+    allowedDataClasses: ['workspace-private', 'public'],
+    allowedTrustClasses: ['verified', 'trusted', 'observed'],
+    tokenBudget: boundedTokenBudget,
+    now: generatedAt,
+    trustedTimestamp: generatedAt
+  };
+  const manifest = compileContext(request, [...profileRecords, ...retrievedRecords]);
+  manifest.id = deterministicContextId({ requestId, selected: manifest.selected.map((item) => item.id), budget: manifest.budget });
+  manifest.createdAt = generatedAt;
+  const profileTokens = profileRecords.reduce((sum, record) => sum + record.tokens, 0);
+  const historyTokensAvailable = historyTokenCount(accepted);
+  const estimatedDeliveryTokens = manifest.budget.used;
+  const historyTokensAvoided = Math.max(0, historyTokensAvailable - estimatedDeliveryTokens);
+  const reductionRatio = historyTokensAvailable > 0 ? Number((historyTokensAvoided / historyTokensAvailable).toFixed(6)) : 0;
+  const reportBase = {
+    schemaVersion: '1.0.0',
+    reportVersion: COMPRESSED_PROFILE_REPORT_VERSION,
+    workspaceId,
+    generatedAt,
+    profile: {
+      layers: profileRecords.map((record) => ({
+        layer: record.metadata.profileLayer,
+        id: record.id,
+        tokens: record.tokens,
+        recordCount: record.metadata.sourceRecordIds.length,
+        sourceRecordIds: record.metadata.sourceRecordIds
+      })),
+      staticRecordCount: staticRecords.length,
+      dynamicRecordCount: dynamicRecords.length,
+      acceptedHistoryRecordCount: accepted.length,
+      skippedHistoryRecordCount: records.length - accepted.length,
+      bounded: true,
+      limits: {
+        staticRecords: boundedStaticLimit,
+        dynamicRecords: boundedDynamicLimit,
+        maxLineLength: boundedLineLength
+      },
+      profileTokens,
+      contentHash: hashRef(stableStringify(profileRecords.map((record) => ({ id: record.id, version: record.version, text: record.text }))))
+    },
+    contextBudget: {
+      basis: 'accepted-history-token-estimate-vs-compiled-profile-context',
+      estimatedDeliveryTokens,
+      profileTokens,
+      retrievedContextTokens: Math.max(0, estimatedDeliveryTokens - profileTokens),
+      historyTokensAvailable,
+      historyTokensAvoided,
+      reductionRatio,
+      measured: true
+    },
+    manifest,
+    safeguards: {
+      readOnly: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      sourceSnapshotsWritten: 0,
+      activeMemoryCreated: 0,
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      rawHistoryReplayIncluded: false
+    }
+  };
+  return deepFreeze({
+    id: profileReportId({
+      workspaceId,
+      generatedAt,
+      objectiveFingerprint: hashRef(objective),
+      stepFingerprint: hashRef(step),
+      profile: reportBase.profile,
+      contextBudget: reportBase.contextBudget,
+      selected: manifest.selected.map((item) => item.id)
+    }),
+    ...reportBase
+  });
 }
 
 export function compileContext(request,inputRecords) {

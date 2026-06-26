@@ -72,6 +72,13 @@ governance, working state, decisions, preferences, evidence, procedures,
 episodes, artifacts, negative evidence, examples, and other context. The
 selector stops at the smallest sufficient set instead of filling the window.
 
+`oaf context profile` uses the same selector for compressed memory injection.
+Accepted active memory records are summarized into bounded static and dynamic
+profile candidates, then selected under the normal context budget. The emitted
+`contextBudget` reports local token estimates for delivered profile context
+versus accepted memory history avoided; it is measurement evidence, not a
+provider billing claim.
+
 ## Pipeline
 
 1. **Authorize and normalize.** Remove inaccessible, malformed, quarantined, expired, retracted, and superseded candidates before ranking.

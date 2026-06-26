@@ -5,7 +5,7 @@ import { lstat, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promi
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { compileContext } from '../../packages/context-compiler/src/index.mjs';
+import { buildCompressedProfileContextReport, compileContext } from '../../packages/context-compiler/src/index.mjs';
 import { createBenchmarkDataset, runBenchmarkTruthFloor } from '../../packages/evaluation-lab/src/index.mjs';
 import {
   buildContextPack,
@@ -681,6 +681,7 @@ async function memoryExplainCommand(values) {
 }
 
 async function contextCommand(values) {
+  if (values[0] === 'profile') return contextProfileCommand(values.slice(1));
   if (values[0] === 'scan') return contextScanCommand(values.slice(1));
   if (values[0] === 'preview') return contextPreviewCommand(values.slice(1));
   if (values[0] === 'pack') return contextPackCommand(values.slice(1));
@@ -697,13 +698,37 @@ async function contextCommand(values) {
   const requestPath = option(values, '--request');
   const recordsPath = option(values, '--records');
   if (!requestPath || !recordsPath) {
-    console.error('context requires --request <json> and --records <json>, context scan --from <harness> --dry-run, context preview --from <harness> --dry-run, context pack --dry-run, context handoff --read-only, context receive --read-only, or context graph preview --dry-run');
+    console.error('context requires --request <json> and --records <json>, context profile --records <json>, context scan --from <harness> --dry-run, context preview --from <harness> --dry-run, context pack --dry-run, context handoff --read-only, context receive --read-only, or context graph preview --dry-run');
     process.exitCode = 2;
     return;
   }
   const request = JSON.parse(await readFile(requestPath, 'utf8'));
   const records = JSON.parse(await readFile(recordsPath, 'utf8'));
   console.log(JSON.stringify(compileContext(request, records), null, 2));
+}
+
+async function contextProfileCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  const records = await loadMemoryRecords(values);
+  if (!records) return;
+  const objective = option(values, '--objective');
+  const step = option(values, '--step');
+  if (!objective || !step) {
+    console.error('context profile requires --objective <text> and --step <text>');
+    process.exitCode = 2;
+    return;
+  }
+  const report = buildCompressedProfileContextReport({
+    records,
+    workspaceId: option(values, '--workspace') ?? 'ws_local',
+    generatedAt: fixedNow(),
+    objective,
+    step,
+    tokenBudget: parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096)),
+    staticLimit: parseIntegerOption(values, '--static-limit', 8),
+    dynamicLimit: parseIntegerOption(values, '--dynamic-limit', 5)
+  });
+  console.log(JSON.stringify(report, null, 2));
 }
 
 async function benchmarkCommand(values) {
@@ -2439,6 +2464,7 @@ Usage:
   oaf eval
   oaf manifest
   oaf context --request request.json --records records.json
+  oaf context profile --records memory-export.json --objective "Ship safely" --step "select compact memory" --token-budget 4096 --format json
   oaf context scan --from codex --root . --dry-run
   oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --changed-from-git --dry-run --format markdown
