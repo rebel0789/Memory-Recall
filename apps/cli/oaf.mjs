@@ -453,6 +453,7 @@ function renderMemoryLoopSummary(report) {
 async function memoryCommand(values) {
   const [subcommand, ...rest] = values;
   try {
+    if (subcommand === 'remember') return await memoryRememberCommand(rest);
     if (subcommand === 'ingest') return await memoryIngestCommand(rest);
     if (subcommand === 'approve') return await memoryApproveCommand(rest);
     if (subcommand === 'reject') return await memoryRejectCommand(rest);
@@ -464,7 +465,7 @@ async function memoryCommand(values) {
     if (subcommand === 'search') return await memorySearchCommand(rest);
     if (subcommand === 'path') return await memoryPathCommand(rest);
     if (subcommand === 'explain') return await memoryExplainCommand(rest);
-    console.error('memory requires ingest, approve, reject, review, profile, proposals, sgrep, fact, search, path, or explain');
+    console.error('memory requires remember, ingest, approve, reject, review, profile, proposals, sgrep, fact, search, path, or explain');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -605,6 +606,125 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
         proposalGated: true,
         canonicalStateMutated: true,
         activeMemoryCreated: facts.length,
+        hardDeleted: false,
+        networkCalls: 0,
+        modelCalls: 0,
+        externalWritesEnabled: false,
+        rawSourceBodiesIncluded: false,
+        absoluteFilesystemLocationsIncluded: false
+      },
+      reportFingerprint: null
+    };
+    console.log(JSON.stringify({ ...report, reportFingerprint: stableJsonFingerprint(report) }, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+async function memoryRememberCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  if (values.includes('--read-only') || values.includes('--dry-run')) {
+    console.error('memory remember is an explicit governed write; --read-only and --dry-run are not accepted');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set([
+    '--root',
+    '--sqlite',
+    '--workspace',
+    '--workspace-id',
+    '--scope',
+    '--subject',
+    '--predicate',
+    '--object',
+    '--source',
+    '--supersedes-subject',
+    '--supersedes-predicate',
+    '--format'
+  ]);
+  const unsupported = unsupportedFlags(values, valueOptions, valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`memory remember unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('memory remember --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const scope = option(values, '--scope') ?? 'workspace';
+  const subject = option(values, '--subject');
+  const predicate = option(values, '--predicate');
+  const object = option(values, '--object');
+  const source = option(values, '--source');
+  if (!subject || !predicate || !object) throw new Error('memory remember requires --subject, --predicate, and --object');
+  if (!/^workspace:\/\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(source ?? '')) throw new Error('memory remember requires --source workspace://...');
+  if (!['workspace', 'session', 'agent', 'user'].includes(scope)) throw new Error('memory remember --scope must be workspace, session, agent, or user');
+  const supersedesSubject = option(values, '--supersedes-subject') ?? subject;
+  const supersedesPredicate = option(values, '--supersedes-predicate') ?? predicate;
+  if (supersedesSubject !== subject || supersedesPredicate !== predicate) {
+    throw new Error('memory remember can only supersede the same subject and predicate as the new fact');
+  }
+  const generatedAt = fixedNow();
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'memory remember', { mustExist: false });
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  const provider = new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: () => generatedAt });
+  const text = `${subject} ${predicate} ${object}`;
+  const sourceHash = `sha256:${sha256Hex(stableStringify({ subject, predicate, object, source }))}`;
+  const proposalId = `mpq_${sha256Hex(stableStringify({ workspaceId, scope, subject, predicate, object, sourceHash })).slice(0, 32)}`;
+  const episodeId = `mep_${sha256Hex(stableStringify({ workspaceId, source, sourceHash, text })).slice(0, 32)}`;
+  try {
+    const queued = await provider.enqueueProposal({
+      id: proposalId,
+      workspaceId,
+      sourceLocator: source,
+      sourceHash,
+      payload: {
+        kind: 'fact',
+        scope,
+        subject,
+        predicate,
+        object,
+        text,
+        observedAt: generatedAt,
+        subjectEntity: subject,
+        objectEntity: object,
+        provenanceEpisodeId: episodeId,
+        provenanceSourceLocator: source,
+        provenanceSourceHash: sourceHash
+      }
+    });
+    const approved = await provider.approveProposalFact({
+      workspaceId,
+      id: queued.id,
+      workerId: 'memory-remember',
+      approvedAt: generatedAt
+    });
+    const history = await provider.getTemporalFactHistory({ workspaceId, scope, subject, predicate, limit: 50 });
+    const supersededFacts = history.filter((item) => item.supersededBy === approved.fact.id);
+    const report = {
+      schemaVersion: '1.0.0',
+      command: 'memory remember',
+      generatedAt,
+      workspaceId,
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: `workspace://${sqlitePath.relative}`,
+        sourceLocator: source
+      },
+      summary: {
+        activeMemoryCreated: 1,
+        supersededFactCount: supersededFacts.length,
+        pendingProposalCount: 0
+      },
+      proposal: approved.proposal,
+      fact: approved.fact,
+      supersededFacts,
+      safeguards: {
+        readOnly: false,
+        proposalGated: true,
+        canonicalStateMutated: true,
+        activeMemoryCreated: 1,
         hardDeleted: false,
         networkCalls: 0,
         modelCalls: 0,
@@ -3246,7 +3366,8 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
     const proposalLimit = Math.max(0, limit - changedActiveFacts.length);
     const proposalFacts = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
       .map(summarizeProposalQueueFact)
-      .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, query))
+      .filter((item) => item && item.scope === scope && proposalFactMatchesTemporalFilter(item, { subject, predicate }) && proposalFactMatchesQuery(item, query))
+      .filter((item) => !proposalFactShadowedByActiveFacts(item, activeFacts))
       .slice(0, proposalLimit);
     const withChains = [];
     const verboseFacts = [];
@@ -3359,7 +3480,8 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
       const activeRecords = facts.filter((fact) => (!since || mcpFactChangedSince(fact, since))).map(mcpProfileRecordFromFact);
       const proposalRecords = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
         .map(summarizeProposalQueueFact)
-        .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, objective))
+        .filter((item) => item && item.scope === scope && proposalFactMatchesTemporalFilter(item, { subject, predicate }) && proposalFactMatchesQuery(item, objective))
+        .filter((item) => !proposalFactShadowedByActiveFacts(item, facts.filter((fact) => fact.status === 'active' && !fact.supersededBy)))
         .slice(0, limit)
         .map(mcpProfileRecordFromProposal);
       records.push(...(since ? [] : exported.records), ...activeRecords, ...proposalRecords);
@@ -3508,6 +3630,16 @@ function proposalFactMatchesQuery(fact, query) {
   if (!tokens.length) return true;
   const haystack = `${fact.subject} ${fact.predicate} ${fact.object} ${fact.text}`.toLowerCase();
   return tokens.some((token) => haystack.includes(token));
+}
+
+function proposalFactMatchesTemporalFilter(fact, { subject, predicate }) {
+  if (subject && fact.subject !== subject) return false;
+  if (predicate && fact.predicate !== predicate) return false;
+  return true;
+}
+
+function proposalFactShadowedByActiveFacts(fact, activeFacts) {
+  return activeFacts.some((active) => active.subject === fact.subject && active.predicate === fact.predicate);
 }
 
 function mcpSummarizeProposalFact(fact, { verbose = false } = {}) {
@@ -5516,6 +5648,7 @@ async function resolveWorkspaceCursorPath(root, cursorPath, commandName, { mustE
 async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, generatedAt, limit, structured = true }) {
   const episodes = [];
   const remaining = () => Math.max(0, limit - episodes.reduce((sum, episode) => sum + episode.text.split(/\n/u).filter(Boolean).length, 0));
+  const projectSubject = await memoryIngestProjectSubject(root);
 
   if (structured) {
     for (const relativePath of await memoryIngestProviderPaths(root)) {
@@ -5533,9 +5666,9 @@ async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, ge
     }
   }
 
-  for (const relativePath of memoryIngestDocPaths()) {
+  for (const relativePath of await memoryIngestDocPaths(root)) {
     if (remaining() <= 0) break;
-    const facts = await collectDocMemoryFacts(root, relativePath, { structured });
+    const facts = await collectDocMemoryFacts(root, relativePath, { structured, projectSubject });
     if (!facts.length) continue;
     episodes.push(memoryIngestEpisode({
       workspaceId,
@@ -5548,7 +5681,7 @@ async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, ge
   }
 
   if (remaining() > 0) {
-    const graphFacts = await collectSourceGraphMemoryFacts(root, workspaceId, generatedAt);
+    const graphFacts = await collectSourceGraphMemoryFacts(root, workspaceId, generatedAt, projectSubject);
     if (graphFacts.length) episodes.push(memoryIngestEpisode({
       workspaceId,
       scope,
@@ -5558,7 +5691,7 @@ async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, ge
       metadata: { sourceKind: 'source-graph' }
     }));
   }
-  const gitFacts = collectGitHistoryFacts(root).slice(0, Math.min(12, remaining()));
+  const gitFacts = collectGitHistoryFacts(root, projectSubject).slice(0, Math.min(12, remaining()));
   if (gitFacts.length) episodes.push(memoryIngestEpisode({
     workspaceId,
     scope,
@@ -5581,7 +5714,7 @@ function memoryIngestEpisode({ workspaceId, scope, sourceLocator, observedAt, fa
   };
 }
 
-function collectGitHistoryFacts(root) {
+function collectGitHistoryFacts(root, projectSubject) {
   try {
     return execFileSync('git', ['-C', root, 'log', '--max-count=12', '--pretty=%s'], {
       encoding: 'utf8',
@@ -5589,14 +5722,21 @@ function collectGitHistoryFacts(root) {
     }).split(/\r?\n/u)
       .map((subject) => safeFactToken(subject, 'commit'))
       .filter(Boolean)
-      .map((subject) => factTriple('project:oaf', 'recent_commit', subject));
+      .map((subject) => factTriple(projectSubject, 'recent_commit', subject));
   } catch {
     return [];
   }
 }
 
-function memoryIngestDocPaths() {
-  return [
+async function memoryIngestProjectSubject(root) {
+  const packageJson = await loadWorkspaceJson(root, 'package.json', null).catch(() => null);
+  const name = typeof packageJson?.name === 'string' && packageJson.name.trim() ? packageJson.name : path.basename(root);
+  return `project:${safeFactToken(name, 'workspace')}`;
+}
+
+async function memoryIngestDocPaths(root) {
+  const paths = new Set([
+    'DECISIONS.md',
     'PROJECT_STATUS.json',
     'README.md',
     'AGENTS.md',
@@ -5605,20 +5745,43 @@ function memoryIngestDocPaths() {
     'docs/adr/0019-proposal-gated-harness-memory-import.md',
     'docs/adr/0020-read-only-mcp-before-write-tools.md',
     'docs/adr/0021-native-source-graph-before-codebase-memory-adapter.md'
-  ];
+  ]);
+  for (const relativePath of await collectWorkspaceMarkdownPaths(root, 'docs', 80)) paths.add(relativePath);
+  return [...paths];
 }
 
-async function collectDocMemoryFacts(root, relativePath, { structured = true } = {}) {
+async function collectWorkspaceMarkdownPaths(root, relativeDir, limit) {
+  const output = [];
+  async function visit(dir) {
+    if (output.length >= limit) return;
+    const absolute = path.resolve(root, dir);
+    const entries = await readdir(absolute, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+      if (output.length >= limit) break;
+      const relativePath = toPosix(path.join(dir, entry.name));
+      if (entry.isDirectory()) {
+        if (!['node_modules', '.git', 'dist', 'build', '.next'].includes(entry.name)) await visit(relativePath);
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        output.push(relativePath);
+      }
+    }
+  }
+  await visit(relativeDir);
+  return output;
+}
+
+async function collectDocMemoryFacts(root, relativePath, { structured = true, projectSubject = 'project:workspace' } = {}) {
   const absolute = path.resolve(root, relativePath);
   const info = await stat(absolute).catch(() => null);
   if (!info?.isFile() || info.size > 512 * 1024) return [];
   const text = await readFile(absolute, 'utf8');
-  const facts = [factTriple('project:oaf', 'has_doc', safeFactToken(relativePath, 'doc'))];
+  const facts = [factTriple(projectSubject, 'has_doc', safeFactToken(relativePath, 'doc'))];
   if (structured && relativePath === 'PROJECT_STATUS.json') {
     try {
-      facts.push(...collectProjectStatusMemoryFacts(JSON.parse(text)));
+      facts.push(...collectProjectStatusMemoryFacts(JSON.parse(text), projectSubject));
     } catch {}
   }
+  if (structured) facts.push(...collectDecisionDocMemoryFacts(text));
   if (structured && relativePath.startsWith('docs/adr/')) facts.push(...collectAdrMemoryFacts(relativePath, text));
   if (structured && relativePath.startsWith('docs/architecture/')) facts.push(...collectArchitectureDocMemoryFacts(relativePath, text));
   const checks = [
@@ -5631,21 +5794,53 @@ async function collectDocMemoryFacts(root, relativePath, { structured = true } =
     [/SQLite|FTS5/i, 'memory_store', 'sqlite-fts5']
   ];
   for (const [pattern, predicate, object] of checks) {
-    if (pattern.test(text)) facts.push(factTriple('project:oaf', predicate, object));
+    if (pattern.test(text)) facts.push(factTriple(projectSubject, predicate, object));
   }
   return [...new Set(facts)];
 }
 
-function collectProjectStatusMemoryFacts(status) {
+function collectProjectStatusMemoryFacts(status, projectSubject) {
   const facts = [];
   const defaults = status?.defaults && typeof status.defaults === 'object' ? status.defaults : {};
   for (const [key, value] of Object.entries(defaults)) {
-    if (typeof value === 'string') facts.push(factTriple('project:oaf', `default_${camelToSnakeToken(key)}`, value));
+    if (typeof value === 'string') facts.push(factTriple(projectSubject, `default_${camelToSnakeToken(key)}`, value));
   }
   for (const capability of (Array.isArray(status?.capabilities) ? status.capabilities : []).slice(0, 12)) {
     if (capability?.id && capability?.status) facts.push(factTriple(`capability:${capability.id}`, 'status', capability.status));
   }
   return facts;
+}
+
+function collectDecisionDocMemoryFacts(text) {
+  const facts = [];
+  for (const line of String(text ?? '').split(/\r?\n/u).map((item) => item.trim()).filter(Boolean).slice(0, 400)) {
+    const explicit = line.match(/\b(?:Decision|Fact):\s*([A-Za-z0-9:_-]+)\s+([A-Za-z0-9:_-]+)\s+(.+)$/iu);
+    if (explicit) {
+      const object = cleanDecisionObject(explicit[3]);
+      if (object) facts.push(decisionFactSentence(explicit[1], explicit[2], object));
+      continue;
+    }
+    const now = line.match(/\b([A-Za-z0-9:_-]+)\s+([A-Za-z0-9:_-]+)\s+(?:is\s+)?now\s+(.+)$/iu);
+    if (now) {
+      const object = cleanDecisionObject(now[3]);
+      if (object) facts.push(decisionFactSentence(now[1], now[2], object));
+    }
+  }
+  return facts;
+}
+
+function cleanDecisionObject(value) {
+  const object = String(value ?? '')
+    .replace(/\s+(?:and\s+)?(?:supersedes|replaces|overrides)\s+.+$/iu, '')
+    .replace(/[.;:,]+$/u, '')
+    .trim()
+    .slice(0, 240);
+  if (!object || MCP_PRIVATE_MATERIAL.test(object)) return null;
+  return object;
+}
+
+function decisionFactSentence(subject, predicate, object) {
+  return `Decision: ${safeFactToken(subject, 'subject')} ${safeFactToken(predicate, 'predicate')} ${object}.`;
 }
 
 function collectAdrMemoryFacts(relativePath, text) {
@@ -5692,7 +5887,7 @@ function dedupeMemoryIngestEpisodes(episodes) {
   }).filter(Boolean);
 }
 
-async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt) {
+async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt, projectSubject) {
   const preview = await buildSourceGraphPreview({
     root,
     workspaceId,
@@ -5703,13 +5898,13 @@ async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt) {
   });
   const summary = preview.graph?.summary ?? {};
   const facts = [
-    factTriple('project:oaf', 'source_graph_files', `files_${Math.max(0, Number(summary.fileCount ?? 0))}`),
-    factTriple('project:oaf', 'source_graph_modules', `modules_${Math.max(0, Number(summary.moduleCount ?? 0))}`),
-    factTriple('project:oaf', 'source_graph_symbols', `symbols_${Math.max(0, Number(summary.symbolCount ?? 0))}`)
+    factTriple(projectSubject, 'source_graph_files', `files_${Math.max(0, Number(summary.fileCount ?? 0))}`),
+    factTriple(projectSubject, 'source_graph_modules', `modules_${Math.max(0, Number(summary.moduleCount ?? 0))}`),
+    factTriple(projectSubject, 'source_graph_symbols', `symbols_${Math.max(0, Number(summary.symbolCount ?? 0))}`)
   ];
   for (const hotspot of (summary.hotspots ?? []).slice(0, 5)) {
     const label = safeFactToken(hotspot.label ?? hotspot.name ?? hotspot.id, 'hotspot');
-    if (label) facts.push(factTriple('project:oaf', 'source_graph_hub', label));
+    if (label) facts.push(factTriple(projectSubject, 'source_graph_hub', label));
   }
   return facts;
 }
@@ -5991,6 +6186,7 @@ Usage:
   oaf bench session --read-only --root . --format json
   oaf bench realqa --read-only --root . --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
+  oaf memory remember --root . --sqlite .local/memory.sqlite --subject auth --predicate token_expiry --object "15 minutes" --supersedes-subject auth --supersedes-predicate token_expiry --source workspace://DECISIONS.md --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
   oaf memory review --root . --sqlite .local/memory.sqlite --format json
   oaf memory approve mpq_status --root . --sqlite .local/memory.sqlite --format json

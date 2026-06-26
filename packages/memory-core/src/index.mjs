@@ -135,6 +135,16 @@ function normalizeExtractionToken(value, name) {
   return text;
 }
 
+function normalizeExtractionObjectText(value) {
+  const text = String(value ?? '')
+    .trim()
+    .replace(/[.;:,]+$/u, '')
+    .trim();
+  if (!text || text.length > 240) throw new Error('object is required');
+  if (!/^[A-Za-z0-9][A-Za-z0-9:_./ -]{0,239}$/u.test(text)) throw new Error('object must be safe extraction text');
+  return text;
+}
+
 function extractionSentences(text) {
   return String(text ?? '')
     .split(/[.\n]/u)
@@ -161,11 +171,25 @@ export function extractTemporalFactProposalsFromEpisode(input) {
   });
   const sourceHash = `sha256:${sha256Hex(text)}`;
   const proposals = extractionSentences(text).map((sentence) => {
-    const [subjectRaw, predicateRaw, objectRaw, ...rest] = sentence.split(/\s+/u);
-    if (rest.length || !subjectRaw || !predicateRaw || !objectRaw || hasSecret(sentence)) return null;
+    if (hasSecret(sentence)) return null;
+    let subjectRaw;
+    let predicateRaw;
+    let objectRaw;
+    const decision = sentence.match(/^(?:Decision|Fact):\s*([A-Za-z0-9:_-]+)\s+([A-Za-z0-9:_-]+)\s+(.+)$/iu);
+    if (decision) {
+      subjectRaw = decision[1];
+      predicateRaw = decision[2];
+      objectRaw = decision[3].replace(/\s+(?:and\s+)?(?:supersedes|replaces|overrides)\s+.+$/iu, '');
+    } else {
+      const [subjectToken, predicateToken, objectToken, ...rest] = sentence.split(/\s+/u);
+      if (rest.length || !subjectToken || !predicateToken || !objectToken) return null;
+      subjectRaw = subjectToken;
+      predicateRaw = predicateToken;
+      objectRaw = objectToken;
+    }
     const subject = normalizeExtractionToken(subjectRaw, 'subject');
     const predicate = normalizeExtractionToken(predicateRaw, 'predicate');
-    const object = normalizeExtractionToken(objectRaw, 'object');
+    const object = decision ? normalizeExtractionObjectText(objectRaw) : normalizeExtractionToken(objectRaw, 'object');
     const payload = {
       kind: 'fact',
       scope,
