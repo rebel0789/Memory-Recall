@@ -51,6 +51,8 @@ const MCP_STDIO_MAX_MESSAGES = boundedEnvInteger('OAF_MCP_STDIO_MAX_MESSAGES', 1
 const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOUT_MS', 30_000, { min: 1, max: 60_000 });
 const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
+const MCP_PRIVATE_MATERIAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
+const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
 
 const [command = 'help', ...args] = process.argv.slice(2);
 const commands = new Map([
@@ -1346,13 +1348,407 @@ async function mcpCommand(values) {
   const [subcommand, ...rest] = values;
   try {
     if (subcommand === 'resources') return await mcpResourcesCommand(rest);
+    if (subcommand === 'server') return await mcpServerCommand(rest);
     if (subcommand === 'smoke') return await mcpSmokeCommand(rest);
-    console.error('mcp requires resources or smoke');
+    console.error('mcp requires resources, server, or smoke');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function mcpServerCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('mcp server requires --read-only; MCP write tools are not exposed by this command');
+    process.exitCode = 2;
+    return;
+  }
+  if (!values.includes('--stdio')) {
+    console.error('mcp server requires --stdio');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--apply')) {
+    console.error('mcp server is read-only and does not write context packs, config, memory, or output files');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('mcp server only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
+    schemaVersion: '1.0.0',
+    runs: [],
+    events: [],
+    memories: [],
+    approvals: [],
+    artifacts: []
+  });
+  const projectStatus = await loadWorkspaceJson(root, option(values, '--project-status') ?? 'PROJECT_STATUS.json', {});
+  const resources = buildOafReadOnlyResourceCatalog({
+    state,
+    projectStatus,
+    workspaceId,
+    generatedAt: fixedNow()
+  });
+  const tools = buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt: fixedNow() });
+  await mcpResourcesStdio({
+    resources,
+    trustedContext: localMcpTrustedContext(workspaceId),
+    tools,
+    allowReadOnlyToolsWithoutGrant: true,
+    commandLabel: 'mcp server'
+  });
+}
+
+function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt }) {
+  return [
+    {
+      name: 'memory.recall',
+      description: 'Recall governed active bi-temporal memory facts for a query and scope.',
+      operation: 'memory.recall',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['query'],
+        properties: {
+          query: { type: 'string', minLength: 1, maxLength: 240 },
+          scope: { type: 'string', maxLength: 64, default: 'workspace' },
+          limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 }
+        }
+      },
+      handler: async ({ arguments: args }) => mcpToolJsonResult(await buildMcpMemoryRecallPayload({
+        values,
+        root,
+        workspaceId,
+        generatedAt,
+        args
+      }))
+    },
+    {
+      name: 'context.profile',
+      description: 'Compile a compressed profile from governed local memory for an objective.',
+      operation: 'context.profile',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['objective'],
+        properties: {
+          objective: { type: 'string', minLength: 1, maxLength: 500 },
+          step: { type: 'string', maxLength: 500 },
+          scope: { type: 'string', maxLength: 64, default: 'workspace' },
+          budget: { type: 'integer', minimum: 1, maximum: 100000, default: 4096 },
+          limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 }
+        }
+      },
+      handler: async ({ arguments: args }) => mcpToolJsonResult(await buildMcpContextProfilePayload({
+        values,
+        root,
+        workspaceId,
+        generatedAt,
+        args
+      }))
+    },
+    {
+      name: 'context.pack',
+      description: 'Return the existing sanitized context-pack handoff summary.',
+      operation: 'context.pack',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['objective', 'step'],
+        properties: {
+          objective: { type: 'string', minLength: 1, maxLength: 500 },
+          step: { type: 'string', minLength: 1, maxLength: 500 },
+          from: { type: 'string', maxLength: 80, default: 'all' },
+          target: { type: 'string', maxLength: 80, default: 'generic' },
+          budget: { type: 'integer', minimum: 1, maximum: 100000, default: 4096 }
+        }
+      },
+      handler: async ({ arguments: args }) => mcpToolTextResult(await buildMcpContextPackToolText({
+        root,
+        workspaceId,
+        generatedAt,
+        args
+      }))
+    }
+  ];
+}
+
+async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generatedAt, args }) {
+  const query = mcpRequiredString(args.query, 'query', 240);
+  const scope = mcpSafeScope(args.scope ?? 'workspace');
+  const limit = mcpBoundedInteger(args.limit, 8, { min: 1, max: 20 });
+  const provider = await openMcpReadOnlyMemoryProvider({ values, root, generatedAt });
+  if (!provider) {
+    return mcpBasePayload({
+      command: 'memory.recall',
+      workspaceId,
+      generatedAt,
+      data: { available: false, query: mcpSanitizeString(query), scope, facts: [] }
+    });
+  }
+  try {
+    const facts = await provider.getTemporalFacts({ workspaceId, scope, query, at: generatedAt, limit });
+    const activeFacts = facts.filter((fact) => fact.status === 'active' && !fact.supersededBy).slice(0, limit);
+    const withChains = [];
+    for (const fact of activeFacts) {
+      const history = await provider.getTemporalFactHistory({
+        workspaceId,
+        scope,
+        subject: fact.subject,
+        predicate: fact.predicate,
+        limit: 20
+      });
+      withChains.push(mcpSummarizeTemporalFact(fact, { history }));
+    }
+    return mcpBasePayload({
+      command: 'memory.recall',
+      workspaceId,
+      generatedAt,
+      data: {
+        available: true,
+        query: mcpSanitizeString(query),
+        scope,
+        factCount: withChains.length,
+        facts: withChains
+      }
+    });
+  } finally {
+    provider.close();
+  }
+}
+
+async function buildMcpContextProfilePayload({ values, root, workspaceId, generatedAt, args }) {
+  const objective = mcpRequiredString(args.objective, 'objective', 500);
+  const step = typeof args.step === 'string' && args.step.trim()
+    ? mcpSanitizeString(args.step, 500)
+    : 'Select compressed memory context for the objective';
+  const scope = mcpSafeScope(args.scope ?? 'workspace');
+  const budget = mcpBoundedInteger(args.budget, 4096, { min: 1, max: 100000 });
+  const limit = mcpBoundedInteger(args.limit, 50, { min: 1, max: 100 });
+  const provider = await openMcpReadOnlyMemoryProvider({ values, root, generatedAt });
+  const records = [];
+  let available = false;
+  if (provider) {
+    try {
+      available = true;
+      const exported = await provider.export({ workspaceId });
+      const facts = await provider.getTemporalFacts({
+        workspaceId,
+        scope,
+        query: objective,
+        at: generatedAt,
+        limit
+      });
+      records.push(...exported.records, ...facts.map(mcpProfileRecordFromFact));
+    } finally {
+      provider.close();
+    }
+  }
+  const report = buildCompressedProfileContextReport({
+    records,
+    workspaceId,
+    generatedAt,
+    objective: mcpSanitizeString(objective, 500),
+    step,
+    tokenBudget: budget,
+    staticLimit: 8,
+    dynamicLimit: 5
+  });
+  return mcpBasePayload({
+    command: 'context.profile',
+    workspaceId,
+    generatedAt,
+    data: {
+      available,
+      objectiveFingerprint: fingerprintJson(objective),
+      stepFingerprint: fingerprintJson(step),
+      profile: {
+        id: report.id,
+        layers: report.profile.layers,
+        staticRecordCount: report.profile.staticRecordCount,
+        dynamicRecordCount: report.profile.dynamicRecordCount,
+        acceptedHistoryRecordCount: report.profile.acceptedHistoryRecordCount,
+        skippedHistoryRecordCount: report.profile.skippedHistoryRecordCount,
+        contentHash: report.profile.contentHash
+      },
+      contextBudget: report.contextBudget,
+      selectedContext: {
+        id: report.manifest.id,
+        selectedCount: report.manifest.selected.length,
+        excludedCount: report.manifest.excluded.length,
+        selectedIds: report.manifest.selected.map((item) => mcpSanitizeString(item.id, 120)).filter(Boolean),
+        budget: report.manifest.budget
+      },
+      tokenSavingPercent: Math.round(Number(report.contextBudget.reductionRatio ?? 0) * 100)
+    }
+  });
+}
+
+async function buildMcpContextPackToolText({ root, workspaceId, generatedAt, args }) {
+  const objective = mcpRequiredString(args.objective, 'objective', 500);
+  const step = mcpRequiredString(args.step, 'step', 500);
+  const toolValues = [
+    '--context-pack',
+    '--objective', objective,
+    '--step', step,
+    '--from', mcpSanitizeString(args.from ?? 'all', 80),
+    '--target', mcpSanitizeString(args.target ?? 'generic', 80),
+    '--token-budget', String(mcpBoundedInteger(args.budget, 4096, { min: 1, max: 100000 }))
+  ];
+  const currentContextPack = await buildMcpContextPackResource(toolValues, { root, workspaceId });
+  const resources = buildOafReadOnlyResourceCatalog({
+    state: {},
+    projectStatus: {},
+    currentContextPack,
+    workspaceId,
+    generatedAt
+  });
+  const resource = resources.find((item) => item.uri === `oaf://workspace/${workspaceId}/context-pack/current`);
+  if (!resource) throw new Error('context.pack summary resource was not produced');
+  const contents = await resource.read({ trustedContext: localMcpTrustedContext(workspaceId), replayMode: false });
+  return contents[0].text;
+}
+
+async function openMcpReadOnlyMemoryProvider({ values, root, generatedAt }) {
+  const sqlitePath = option(values, '--sqlite') ?? '.local/memory.sqlite';
+  const realRoot = await realpath(root);
+  const absolute = path.resolve(realRoot, sqlitePath);
+  if (path.isAbsolute(sqlitePath) || !isInside(realRoot, absolute)) {
+    throw new Error('mcp server --sqlite must be a relative path inside --root');
+  }
+  const sqliteStat = await stat(absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!sqliteStat?.isFile()) return null;
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  return new SQLiteMemoryProvider({ filename: absolute, clock: () => generatedAt, migrate: false, readOnly: true });
+}
+
+function mcpProfileRecordFromFact(fact) {
+  return {
+    id: `mem_${fact.id}`,
+    workspaceId: fact.workspaceId,
+    kind: 'fact',
+    text: fact.text,
+    scope: 'workspace-private',
+    dataClass: 'workspace-private',
+    status: fact.status,
+    source: fact.source,
+    sourceTrust: 'verified',
+    trustClass: 'verified',
+    confidence: fact.confidence,
+    authority: fact.confidence,
+    tags: [fact.subject, fact.predicate, fact.object].filter(Boolean),
+    relations: [fact.subject, fact.object].filter(Boolean),
+    updatedAt: fact.updatedAt,
+    observedAt: fact.validFrom
+  };
+}
+
+function mcpSummarizeTemporalFact(fact, { history }) {
+  return {
+    id: mcpSanitizeString(fact.id, 120),
+    subject: mcpSanitizeString(fact.subject, 160),
+    predicate: mcpSanitizeString(fact.predicate, 120),
+    object: mcpSanitizeString(fact.object, 240),
+    text: mcpSanitizeString(fact.text, 600),
+    status: fact.status,
+    confidence: Number(fact.confidence ?? 0),
+    validityWindow: {
+      validFrom: fact.validFrom,
+      validUntil: fact.validUntil ?? null
+    },
+    supersededBy: fact.supersededBy ? mcpSanitizeString(fact.supersededBy, 120) : null,
+    supersessionChain: history.map((item) => ({
+      id: mcpSanitizeString(item.id, 120),
+      status: item.status,
+      current: item.id === fact.id,
+      validFrom: item.validFrom,
+      validUntil: item.validUntil ?? null,
+      supersededBy: item.supersededBy ? mcpSanitizeString(item.supersededBy, 120) : null
+    })),
+    provenance: {
+      sourceLocator: mcpSafeLocator(fact.source),
+      proposalQueueId: fact.proposalQueueId ? mcpSanitizeString(fact.proposalQueueId, 120) : null,
+      episode: fact.episode ? {
+        id: mcpSanitizeString(fact.episode.id, 120),
+        sourceLocator: mcpSafeLocator(fact.episode.sourceLocator),
+        summary: mcpSanitizeString(fact.episode.summary, 300),
+        observedAt: fact.episode.observedAt
+      } : null
+    }
+  };
+}
+
+function mcpRequiredString(value, name, maxLength) {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`mcp tool requires ${name}`);
+  return mcpSanitizeString(value, maxLength);
+}
+
+function mcpSafeScope(value) {
+  const scope = mcpSanitizeString(value, 64);
+  if (!/^[A-Za-z0-9._:-]+$/u.test(scope)) throw new Error('mcp tool scope is invalid');
+  return scope;
+}
+
+function mcpBoundedInteger(value, fallback, { min, max }) {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isInteger(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function mcpSanitizeString(value, maxLength = 240) {
+  const text = String(value ?? '').replace(MCP_PRIVATE_MATERIAL_GLOBAL, '[redacted]').normalize('NFKC').replace(/\s+/gu, ' ').trim();
+  return text.slice(0, maxLength);
+}
+
+function mcpSafeLocator(value) {
+  const raw = String(value ?? '');
+  if (!raw) return null;
+  if (MCP_PRIVATE_MATERIAL.test(raw) || raw.startsWith('file:')) return fingerprintJson(raw);
+  return mcpSanitizeString(raw, 240);
+}
+
+function mcpBasePayload({ command, workspaceId, generatedAt, data }) {
+  return {
+    schemaVersion: '1.0.0',
+    command,
+    workspaceId,
+    generatedAt,
+    data,
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      privateContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+}
+
+function mcpToolJsonResult(payload) {
+  return mcpToolTextResult(JSON.stringify(payload));
+}
+
+function mcpToolTextResult(text) {
+  if (MCP_PRIVATE_MATERIAL.test(text)) throw new Error('mcp tool output contains private material');
+  return { content: [{ type: 'text', text }] };
 }
 
 async function mcpSmokeCommand(values) {
@@ -2279,15 +2675,21 @@ function runCliStdio(
   });
 }
 
-async function mcpResourcesStdio({ resources, trustedContext }) {
+async function mcpResourcesStdio({
+  resources,
+  trustedContext,
+  tools = [],
+  allowReadOnlyToolsWithoutGrant = false,
+  commandLabel = 'mcp resources'
+}) {
   const input = await readStdinText();
   if (!input.trim()) {
-    console.error('mcp resources --stdio requires JSON-RPC input on stdin');
+    console.error(`${commandLabel} --stdio requires JSON-RPC input on stdin`);
     process.exitCode = 2;
     return;
   }
-  const bridge = createMcpBridge({ trustedContext, resources, tools: [] });
-  const messages = parseJsonRpcMessages(input);
+  const bridge = createMcpBridge({ trustedContext, resources, tools, allowReadOnlyToolsWithoutGrant });
+  const messages = parseJsonRpcMessages(input, { commandLabel });
   for (const message of messages) {
     const response = await bridge.handle(message);
     console.log(JSON.stringify(response));
@@ -2308,29 +2710,29 @@ async function readStdinText() {
   return Buffer.concat(chunks, byteLength).toString('utf8');
 }
 
-function parseJsonRpcMessages(input) {
+function parseJsonRpcMessages(input, { commandLabel = 'mcp resources' } = {}) {
   const trimmed = input.trim();
   const lines = trimmed.split(/\r?\n/u).filter((line) => line.trim());
   if (lines.length > MCP_STDIO_MAX_MESSAGES) {
-    throw new Error(`mcp resources --stdio received too many JSON-RPC messages; max ${MCP_STDIO_MAX_MESSAGES}`);
+    throw new Error(`${commandLabel} --stdio received too many JSON-RPC messages; max ${MCP_STDIO_MAX_MESSAGES}`);
   }
   return lines.map((line, index) => {
     const lineNumber = index + 1;
     const lineBytes = Buffer.byteLength(line, 'utf8');
     if (lineBytes > MCP_STDIO_MAX_LINE_BYTES) {
-      throw new Error(`mcp resources --stdio JSON-RPC line ${lineNumber} exceeds ${MCP_STDIO_MAX_LINE_BYTES} bytes`);
+      throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} exceeds ${MCP_STDIO_MAX_LINE_BYTES} bytes`);
     }
     let parsed;
     try {
       parsed = JSON.parse(line);
     } catch {
-      throw new Error(`mcp resources --stdio JSON-RPC line ${lineNumber} is not valid JSON`);
+      throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} is not valid JSON`);
     }
     if (Array.isArray(parsed)) {
-      throw new Error('mcp resources --stdio JSON-RPC batches are not supported');
+      throw new Error(`${commandLabel} --stdio JSON-RPC batches are not supported`);
     }
     if (!parsed || typeof parsed !== 'object') {
-      throw new Error(`mcp resources --stdio JSON-RPC line ${lineNumber} must be an object`);
+      throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} must be an object`);
     }
     return parsed;
   });
@@ -2754,6 +3156,7 @@ Usage:
   oaf mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
+  oaf mcp server --read-only --root . --stdio
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json
   oaf harness setup uninstall --client cursor --server oaf --dry-run --format json

@@ -55,6 +55,20 @@ local measurement report. The report records observed duration, byte counts,
 selected/candidate source units, and delivered-handoff units for that one
 invocation only; it is not a hosted benchmark or performance claim.
 
+For coding-agent clients that need parameterized local context, the CLI also
+offers a read-only stdio server:
+
+```bash
+npm --silent run oaf -- mcp server --read-only --root . --stdio
+```
+
+It exposes `memory.recall`, `context.profile`, and `context.pack` as read-only
+MCP tools. These tools read the local SQLite memory provider and existing
+context compiler/context-pack helpers; they do not expose write tools, create
+active memory, call a model, use network access, reveal raw source bodies,
+print credentials, or reveal absolute filesystem locations. Side-effecting MCP
+tools still require the existing exact server-side grant path.
+
 For a harness that needs a stable artifact, `context pack --write --use-out`
 can also write a schema-validated use plan under
 `context-packs/*.use.json`. The use plan is separate from the markdown pack:
