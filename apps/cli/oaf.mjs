@@ -447,6 +447,7 @@ function renderMemoryLoopSummary(report) {
 async function memoryCommand(values) {
   const [subcommand, ...rest] = values;
   try {
+    if (subcommand === 'ingest') return await memoryIngestCommand(rest);
     if (subcommand === 'profile') return await memoryProfileCommand(rest);
     if (subcommand === 'proposals') return await memoryProposalsCommand(rest);
     if (subcommand === 'sgrep') return await memorySgrepCommand(rest);
@@ -454,11 +455,85 @@ async function memoryCommand(values) {
     if (subcommand === 'search') return await memorySearchCommand(rest);
     if (subcommand === 'path') return await memoryPathCommand(rest);
     if (subcommand === 'explain') return await memoryExplainCommand(rest);
-    console.error('memory requires profile, proposals, sgrep, fact, search, path, or explain');
+    console.error('memory requires ingest, profile, proposals, sgrep, fact, search, path, or explain');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
+  }
+}
+
+async function memoryIngestCommand(values) {
+  if (!validateJsonFormat(values)) return;
+  if (values.includes('--read-only') || values.includes('--dry-run')) {
+    console.error('memory ingest writes proposal queue records only; --read-only and --dry-run are not accepted');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--scope', '--limit', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(valueOptions), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`memory ingest unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('memory ingest --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'memory ingest', { mustExist: false });
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  const provider = new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: () => generatedAt });
+  try {
+    const episodes = await buildWorkspaceMemoryIngestEpisodes({
+      root,
+      workspaceId,
+      scope: option(values, '--scope') ?? 'workspace',
+      generatedAt,
+      limit: parseIntegerOption(values, '--limit', 80)
+    });
+    const queued = [];
+    for (const episode of episodes) queued.push(...await provider.proposeTemporalFactsFromEpisode(episode));
+    const unique = new Map(queued.map((item) => [item.id, item]));
+    const proposalFacts = [...unique.values()].map(summarizeProposalQueueFact).filter(Boolean);
+    const report = {
+      schemaVersion: '1.0.0',
+      command: 'memory ingest',
+      generatedAt,
+      workspaceId,
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: `workspace://${sqlitePath.relative}`,
+        rootRef: 'workspace://.'
+      },
+      summary: {
+        episodeCount: episodes.length,
+        proposalCount: proposalFacts.length,
+        activeMemoryCreated: 0,
+        sources: {
+          gitHistory: episodes.filter((item) => item.metadata?.sourceKind === 'git-history').length,
+          docs: episodes.filter((item) => item.metadata?.sourceKind === 'workspace-doc').length,
+          sourceGraph: episodes.filter((item) => item.metadata?.sourceKind === 'source-graph').length
+        }
+      },
+      proposalFacts,
+      safeguards: {
+        proposalGated: true,
+        activeMemoryCreated: 0,
+        hardDeleted: false,
+        deterministicOffline: true,
+        networkCalls: 0,
+        modelCalls: 0,
+        externalWritesEnabled: false,
+        rawSourceBodiesIncluded: false,
+        absoluteFilesystemLocationsIncluded: false
+      },
+      reportFingerprint: null
+    };
+    console.log(JSON.stringify({ ...report, reportFingerprint: stableJsonFingerprint(report) }, null, 2));
+  } finally {
+    provider.close();
   }
 }
 
@@ -1725,6 +1800,10 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
   try {
     const facts = await provider.getTemporalFacts({ workspaceId, scope, query, at: generatedAt, limit });
     const activeFacts = facts.filter((fact) => fact.status === 'active' && !fact.supersededBy).slice(0, limit);
+    const proposalFacts = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
+      .map(summarizeProposalQueueFact)
+      .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, query))
+      .slice(0, limit);
     const withChains = [];
     for (const fact of activeFacts) {
       const history = await provider.getTemporalFactHistory({
@@ -1744,8 +1823,11 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
         available: true,
         query: mcpSanitizeString(query),
         scope,
-        factCount: withChains.length,
-        facts: withChains
+        factCount: withChains.length + proposalFacts.length,
+        activeFactCount: withChains.length,
+        proposalFactCount: proposalFacts.length,
+        facts: withChains,
+        proposalFacts
       }
     });
   } finally {
@@ -1775,7 +1857,12 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
         at: generatedAt,
         limit
       });
-      records.push(...exported.records, ...facts.map(mcpProfileRecordFromFact));
+      const proposalRecords = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
+        .map(summarizeProposalQueueFact)
+        .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, objective))
+        .slice(0, limit)
+        .map(mcpProfileRecordFromProposal);
+      records.push(...exported.records, ...facts.map(mcpProfileRecordFromFact), ...proposalRecords);
     } finally {
       provider.close();
     }
@@ -1805,6 +1892,8 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
         dynamicRecordCount: report.profile.dynamicRecordCount,
         acceptedHistoryRecordCount: report.profile.acceptedHistoryRecordCount,
         skippedHistoryRecordCount: report.profile.skippedHistoryRecordCount,
+        governedFactCount: records.length,
+        proposalFactCount: records.filter((item) => item.metadata?.memoryLifecycle === 'proposal').length,
         contentHash: report.profile.contentHash
       },
       contextBudget: report.contextBudget,
@@ -1887,6 +1976,39 @@ function mcpProfileRecordFromFact(fact) {
     updatedAt: fact.updatedAt,
     observedAt: fact.validFrom
   };
+}
+
+function mcpProfileRecordFromProposal(fact) {
+  return {
+    id: `mem_${fact.id}`,
+    workspaceId: fact.workspaceId,
+    kind: 'fact',
+    text: `proposal_only ${fact.text}`,
+    scope: 'workspace-private',
+    dataClass: 'workspace-private',
+    status: 'active',
+    source: fact.provenance.sourceLocator ?? 'workspace://memory/proposals',
+    sourceTrust: 'unverified',
+    trustClass: 'proposal',
+    confidence: 0.5,
+    authority: 0.5,
+    tags: [fact.subject, fact.predicate, fact.object, 'memory:proposal'].filter(Boolean),
+    relations: [fact.subject, fact.object].filter(Boolean),
+    updatedAt: fixedNow(),
+    observedAt: fixedNow(),
+    metadata: {
+      memoryLifecycle: 'proposal',
+      proposalQueueId: fact.id,
+      sourceHash: fact.provenance.sourceHash
+    }
+  };
+}
+
+function proposalFactMatchesQuery(fact, query) {
+  const tokens = String(query ?? '').toLowerCase().match(/[a-z0-9:_-]+/gu) ?? [];
+  if (!tokens.length) return true;
+  const haystack = `${fact.subject} ${fact.predicate} ${fact.object} ${fact.text}`.toLowerCase();
+  return tokens.some((token) => haystack.includes(token));
 }
 
 function mcpSummarizeTemporalFact(fact, { history }) {
@@ -3320,6 +3442,180 @@ async function readWorkspaceMemoryPath(root, relativePath) {
   };
 }
 
+async function resolveWorkspaceSqlitePath(root, sqlitePath, commandName, { mustExist }) {
+  const requested = sqlitePath ?? '.local/memory.sqlite';
+  const realRoot = await realpath(root);
+  const absolute = path.resolve(realRoot, requested);
+  if (path.isAbsolute(requested) || !isInside(realRoot, absolute)) {
+    throw new Error(`${commandName} --sqlite must be a relative path inside --root`);
+  }
+  const existing = await stat(absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (mustExist && !existing?.isFile()) {
+    throw new Error(`${commandName} requires an existing SQLite database at --sqlite or .local/memory.sqlite; no database is created`);
+  }
+  return { absolute, relative: toPosix(path.relative(realRoot, absolute)) };
+}
+
+async function buildWorkspaceMemoryIngestEpisodes({ root, workspaceId, scope, generatedAt, limit }) {
+  const episodes = [];
+  const remaining = () => Math.max(0, limit - episodes.reduce((sum, episode) => sum + episode.text.split(/\n/u).filter(Boolean).length, 0));
+  const gitFacts = collectGitHistoryFacts(root).slice(0, Math.min(12, remaining()));
+  if (gitFacts.length) episodes.push(memoryIngestEpisode({
+    workspaceId,
+    scope,
+    sourceLocator: 'workspace://git/recent-commits',
+    observedAt: generatedAt,
+    facts: gitFacts,
+    metadata: { sourceKind: 'git-history' }
+  }));
+
+  for (const relativePath of memoryIngestDocPaths()) {
+    if (remaining() <= 0) break;
+    const facts = await collectDocMemoryFacts(root, relativePath);
+    if (!facts.length) continue;
+    episodes.push(memoryIngestEpisode({
+      workspaceId,
+      scope,
+      sourceLocator: `workspace://${relativePath}`,
+      observedAt: generatedAt,
+      facts: facts.slice(0, remaining()),
+      metadata: { sourceKind: 'workspace-doc' }
+    }));
+  }
+
+  if (remaining() > 0) {
+    const graphFacts = await collectSourceGraphMemoryFacts(root, workspaceId, generatedAt);
+    if (graphFacts.length) episodes.push(memoryIngestEpisode({
+      workspaceId,
+      scope,
+      sourceLocator: 'workspace://source-graph/native-preview',
+      observedAt: generatedAt,
+      facts: graphFacts.slice(0, remaining()),
+      metadata: { sourceKind: 'source-graph' }
+    }));
+  }
+  return episodes;
+}
+
+function memoryIngestEpisode({ workspaceId, scope, sourceLocator, observedAt, facts, metadata }) {
+  return {
+    workspaceId,
+    scope,
+    sourceLocator,
+    observedAt,
+    text: [...new Set(facts)].join('\n'),
+    metadata
+  };
+}
+
+function collectGitHistoryFacts(root) {
+  try {
+    return execFileSync('git', ['-C', root, 'log', '--max-count=12', '--pretty=%s'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).split(/\r?\n/u)
+      .map((subject) => safeFactToken(subject, 'commit'))
+      .filter(Boolean)
+      .map((subject) => factTriple('project:oaf', 'recent_commit', subject));
+  } catch {
+    return [];
+  }
+}
+
+function memoryIngestDocPaths() {
+  return [
+    'README.md',
+    'AGENTS.md',
+    'PRODUCT.md',
+    'PROJECT_STATUS.json',
+    'docs/architecture/overview.md',
+    'docs/adr/0019-proposal-gated-harness-memory-import.md',
+    'docs/adr/0020-read-only-mcp-before-write-tools.md',
+    'docs/adr/0021-native-source-graph-before-codebase-memory-adapter.md'
+  ];
+}
+
+async function collectDocMemoryFacts(root, relativePath) {
+  const absolute = path.resolve(root, relativePath);
+  const info = await stat(absolute).catch(() => null);
+  if (!info?.isFile() || info.size > 512 * 1024) return [];
+  const text = await readFile(absolute, 'utf8');
+  const facts = [factTriple('project:oaf', 'has_doc', safeFactToken(relativePath, 'doc'))];
+  const checks = [
+    [/local-first/i, 'locality', 'local-first'],
+    [/proposal[- ]gated|proposal gate/i, 'memory_policy', 'proposal-gated'],
+    [/read-only MCP/i, 'mcp_policy', 'read-only-first'],
+    [/source graph/i, 'context_source', 'native-source-graph'],
+    [/context manifest/i, 'requires', 'context-manifests'],
+    [/no external service|no external writes|externalWrites.*false/i, 'external_writes', 'disabled-by-default'],
+    [/SQLite|FTS5/i, 'memory_store', 'sqlite-fts5']
+  ];
+  for (const [pattern, predicate, object] of checks) {
+    if (pattern.test(text)) facts.push(factTriple('project:oaf', predicate, object));
+  }
+  return [...new Set(facts)];
+}
+
+async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt) {
+  const preview = await buildSourceGraphPreview({
+    root,
+    workspaceId,
+    query: 'memory context mcp',
+    sampleLimit: 12,
+    maxFiles: 200,
+    clock: () => generatedAt
+  });
+  const summary = preview.graph?.summary ?? {};
+  const facts = [
+    factTriple('project:oaf', 'source_graph_files', `files_${Math.max(0, Number(summary.fileCount ?? 0))}`),
+    factTriple('project:oaf', 'source_graph_modules', `modules_${Math.max(0, Number(summary.moduleCount ?? 0))}`),
+    factTriple('project:oaf', 'source_graph_symbols', `symbols_${Math.max(0, Number(summary.symbolCount ?? 0))}`)
+  ];
+  for (const hotspot of (summary.hotspots ?? []).slice(0, 5)) {
+    const label = safeFactToken(hotspot.label ?? hotspot.name ?? hotspot.id, 'hotspot');
+    if (label) facts.push(factTriple('project:oaf', 'source_graph_hub', label));
+  }
+  return facts;
+}
+
+function factTriple(subject, predicate, object) {
+  return `${safeFactToken(subject, 'subject')} ${safeFactToken(predicate, 'predicate')} ${safeFactToken(object, 'object')}.`;
+}
+
+function safeFactToken(value, fallback) {
+  const normalized = String(value ?? '')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/gu, '_')
+    .replace(/^_+|_+$/gu, '')
+    .slice(0, 96);
+  const token = normalized || fallback;
+  return /^[a-z0-9:_-]{1,128}$/u.test(token) ? token : fallback;
+}
+
+function summarizeProposalQueueFact(item) {
+  if (item?.payload?.kind !== 'fact') return null;
+  if (!['pending', 'claimed'].includes(item.status)) return null;
+  return {
+    id: mcpSanitizeString(item.id, 120),
+    workspaceId: item.workspaceId,
+    status: item.status,
+    scope: mcpSanitizeString(item.payload.scope ?? 'workspace', 64),
+    subject: mcpSanitizeString(item.payload.subject, 160),
+    predicate: mcpSanitizeString(item.payload.predicate, 120),
+    object: mcpSanitizeString(item.payload.object, 240),
+    text: mcpSanitizeString(item.payload.text, 600),
+    provenance: {
+      sourceLocator: mcpSafeLocator(item.sourceLocator),
+      sourceHash: item.sourceHash,
+      episodeId: item.payload.provenanceEpisodeId ? mcpSanitizeString(item.payload.provenanceEpisodeId, 120) : null
+    }
+  };
+}
+
 async function writeWorkspaceFile(root, locator, content) {
   if (!locator.startsWith('workspace://')) throw new Error('only workspace locators can be written');
   const relativePath = locator.slice('workspace://'.length);
@@ -3537,6 +3833,7 @@ Usage:
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
+  oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
   oaf memory proposals --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
