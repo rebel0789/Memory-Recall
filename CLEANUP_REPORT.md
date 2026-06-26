@@ -99,6 +99,47 @@ test+doc updates.
 - **G0.7 — Rationalize CLI surface** (product decision): keep the load-bearing
   context/loop commands, merge/remove strict-subset variants, update tests + docs.
 
+## G0.5 diligence: utility "duplication" is mostly UNSAFE to merge
+
+A byte-level comparison of the duplicated helper bodies shows they have **diverged**
+— same name, different behavior. Blindly consolidating would change hashing /
+validation / fingerprints. This is both why no merge was performed and a latent
+correctness smell.
+
+| Helper | Copies | Distinct bodies | Safe to merge? |
+| --- | --- | --- | --- |
+| `sha256` | 9 | **5** | ❌ diverged (see below) |
+| `stableStringify` | 6 | **3** | ❌ feeds fingerprints |
+| `assertPlainObject` | 4 | **4 (all different)** | ❌ validation semantics differ |
+| `deepFreeze` | 4 | 2 | ⚠️ inert re fingerprints; low risk |
+| `canonicalStringify` | 3 | **1 (identical)** | ✅ only trivially-safe case |
+
+The 5 `sha256` variants:
+
+```text
+update(value)                                              x5  (string/Buffer only)
+update(Buffer.isBuffer(value) ? value : String(value))     tool-registry
+update(String(value))                                      ast-code
+update(String(value), 'utf8')                              identity-local
+update(typeof value === 'string' ? value : stable(value))  workflow-durable-sqlite
+```
+
+For a non-string input these return **different digests**, so unifying them would
+change any fingerprint computed over non-string data.
+
+**Conclusion:** consolidation is NOT a behavior-preserving cleanup here. It first
+requires *standardizing behavior* (a deliberate decision), then unifying, guarded
+by fingerprint-equivalence tests over every caller. Re-scoped as a proper task:
+
+> **G0.5 (corrected) — Reconcile + unify divergent utilities.** Choose one
+> canonical implementation per helper, confirm every caller's inputs are
+> compatible, add fingerprint-equivalence tests proving no digest changes, then
+> consolidate into a shared module under `packages/protocol/src/` (the existing
+> shared base that packages already import via `../../protocol/...`). Treat
+> `sha256`, `stableStringify`, and `assertPlainObject` as behavior-sensitive.
+
+Not done in this pass to avoid silently breaking determinism.
+
 ## CI
 
 `npm run ci` after the safe removals: green (see commit).
