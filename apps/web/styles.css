@@ -228,6 +228,8 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
 .fabric-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,560px);gap:var(--space-24);align-items:end}
 .fabric-hero h2{font-size:28px;line-height:1.08;margin:0}
 .fabric-hero p{margin:var(--space-8) 0 0;color:var(--slate);max-width:var(--layout-prose)}
+.memory-token-hero h2{font-size:44px;line-height:1;margin:0;letter-spacing:0}
+.memory-token-hero .facts{margin-top:var(--space-16)}
 .fabric-scoreboard{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--space-8);margin:0}
 .fabric-scoreboard div{border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-2);padding:var(--space-10,10px);min-width:0}
 .fabric-scoreboard dt{color:var(--slate);font-size:11px;font-weight:720;text-transform:uppercase;letter-spacing:.08em}

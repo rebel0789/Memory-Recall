@@ -900,6 +900,37 @@ export function createApiRouteContracts(limits = {}) {
     }
   };
   const contextGraphPreviewResponse = sourceGraphPreviewSchema;
+  const memoryCockpitResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'facts', 'proposalQueue', 'tokenBudget', 'profile', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      workspaceId,
+      generatedAt: { type: 'string', format: 'date-time' },
+      provider: { const: 'provider:native:memory:sqlite' },
+      facts: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } },
+      proposalQueue: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } },
+      tokenBudget: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['basis', 'estimatedDeliveryTokens', 'profileTokens', 'retrievedContextTokens', 'historyTokensAvailable', 'historyTokensAvoided', 'reductionRatio', 'measured'],
+        properties: {
+          basis: boundedString(120),
+          estimatedDeliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          profileTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          retrievedContextTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          historyTokensAvailable: { type: 'integer', minimum: 0, maximum: 1000000 },
+          historyTokensAvoided: { type: 'integer', minimum: 0, maximum: 1000000 },
+          reductionRatio: { type: 'number', minimum: 0, maximum: 1 },
+          measured: { const: true }
+        }
+      },
+      profile: { type: 'object', additionalProperties: true },
+      safeguards: { type: 'object', additionalProperties: true },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
   const manualConfigSnippet = {
     type: 'object',
     additionalProperties: false,
@@ -1288,6 +1319,21 @@ export function createApiRouteContracts(limits = {}) {
           }
         }
       }
+    },
+    {
+      method: 'GET',
+      path: '/api/memory/cockpit',
+      operationId: 'getMemoryCockpit',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: memoryCockpitResponse }
     },
     {
       method: 'GET',

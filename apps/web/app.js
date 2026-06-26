@@ -37,6 +37,8 @@ let pinnedHandoffReceiveReport=null;
 let pinnedHandoffReceiveError=null;
 let loopWorkbench=null;
 let loopWorkbenchError=null;
+let memoryCockpit=null;
+let memoryCockpitError=null;
 let contextSourcePreviewResult=null;
 let contextSourcePreviewError=null;
 let sourceGraphResult=null;
@@ -411,6 +413,54 @@ export function buildMemoryReviewModel({ memories = [] } = {}) {
   });
 }
 
+export function buildMemoryCockpitModel(cockpit = null) {
+  const budget = cockpit?.tokenBudget ?? {};
+  const facts = Array.isArray(cockpit?.facts) ? cockpit.facts : [];
+  const proposalQueue = Array.isArray(cockpit?.proposalQueue) ? cockpit.proposalQueue : [];
+  return {
+    ready:Boolean(cockpit),
+    workspaceId:safeText(cockpit?.workspaceId ?? 'ws_local'),
+    provider:safeText(cockpit?.provider ?? 'provider:native:memory:sqlite'),
+    generatedAt:cockpit?.generatedAt ?? null,
+    tokenSavingPercent:Math.round(Number(budget.reductionRatio ?? 0) * 100),
+    tokenBudget:{
+      estimatedDeliveryTokens:Number(budget.estimatedDeliveryTokens ?? 0),
+      historyTokensAvoided:Number(budget.historyTokensAvoided ?? 0),
+      historyTokensAvailable:Number(budget.historyTokensAvailable ?? 0),
+      profileTokens:Number(budget.profileTokens ?? 0),
+      basis:safeText(budget.basis ?? 'not measured')
+    },
+    facts:facts.map((fact)=>({
+      id:safeText(fact.id ?? 'memfact_unknown'),
+      text:memoryDisplayText(fact.text ?? ''),
+      subject:safeText(fact.subject ?? 'unknown'),
+      predicate:safeText(fact.predicate ?? 'unknown'),
+      object:memoryDisplayText(fact.object ?? ''),
+      status:safeText(fact.status ?? 'unknown'),
+      scope:safeText(fact.scope ?? 'workspace'),
+      validFrom:fact.validity?.validFrom ?? fact.validFrom ?? null,
+      validUntil:fact.validity?.validUntil ?? fact.validUntil ?? null,
+      supersededBy:fact.supersededBy ? safeText(fact.supersededBy) : 'none',
+      supersessionChain:Array.isArray(fact.supersessionChain) ? fact.supersessionChain.map(safeText) : [],
+      provenance:{
+        episodeId:safeText(fact.provenance?.episodeId ?? fact.episodeId ?? 'none'),
+        source:safeText(fact.provenance?.source ?? fact.source ?? 'unknown'),
+        summary:memoryDisplayText(fact.provenance?.episode?.summary ?? fact.episode?.summary ?? '')
+      }
+    })),
+    proposalQueue:proposalQueue.map((item)=>({
+      id:safeText(item.id ?? 'mpq_unknown'),
+      status:safeText(item.status ?? 'pending'),
+      sourceLocator:safeText(item.sourceLocator ?? 'workspace://unknown'),
+      sourceHash:safeText(item.sourceHash ?? 'sha256:unknown'),
+      attempts:Number(item.attempts ?? 0),
+      payload:safeKeyValueList(item.payload ?? {}).slice(0,6)
+    })),
+    safeguards:cockpit?.safeguards ?? {},
+    reportFingerprint:safeText(cockpit?.reportFingerprint ?? 'sha256:unavailable')
+  };
+}
+
 export function buildEvidenceExplorerModel({ latestManifest = null, latestRun = null, evidenceGraph = null } = {}) {
   const manifestEvidence = (latestManifest?.selected ?? []).filter((item)=>['observation','evidence'].includes(item.kind));
   const graphObservations = Array.isArray(evidenceGraph?.observations) ? evidenceGraph.observations : [];
@@ -723,7 +773,7 @@ async function load() {
   render();
   try {
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
-    await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench()]);
+    await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit()]);
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
     dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
@@ -751,6 +801,16 @@ async function loadLoopWorkbench() {
   } catch (error) {
     loopWorkbench = null;
     loopWorkbenchError = error.message;
+  }
+}
+
+async function loadMemoryCockpit() {
+  try {
+    memoryCockpit = await api(`/api/memory/cockpit?workspaceId=${encodeURIComponent(workspaceId())}`);
+    memoryCockpitError = null;
+  } catch (error) {
+    memoryCockpit = null;
+    memoryCockpitError = error.message;
   }
 }
 
@@ -1934,8 +1994,20 @@ function sourceGraphSafeguards(safeguards={}) {
 }
 
 function renderMemory() {
-  const memories=buildMemoryReviewModel({memories:dashboard?.memories});
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Memory diffs</h2><span>${memories.length} reviewable records</span></div>${memoryDiffList(memories)}</div><aside class="inspector"><h2>Lifecycle states</h2><ol class="compact-list"><li>Observed</li><li>Proposed</li><li>Verified</li><li>Active</li><li>Superseded / retracted / expired</li></ol><hr><p class="muted">Memory remains proposal-first. Raw source bodies, credentials, local paths, and hidden reasoning are not rendered.</p></aside></section>`;
+  if(memoryCockpitError)return statePanel('error','Memory cockpit unavailable',memoryCockpitError);
+  return renderMemoryCockpit(memoryCockpit);
+}
+
+export function renderMemoryCockpit(cockpit = null) {
+  const model=buildMemoryCockpitModel(cockpit);
+  if(!model.ready)return statePanel('empty','No native memory store loaded','Run the local memory-loop demo to seed temporal facts and proposal-gated extraction records.');
+  const facts=model.facts.length
+    ? `<div class="memory-list">${model.facts.map((fact)=>`<article class="memory-diff state-${esc(fact.status)}"><header><div><code>${esc(fact.id)}</code><h3>${esc(fact.subject)} ${esc(fact.predicate)}</h3></div>${statusChip(fact.status,fact.status,'Temporal fact status')}</header><p>${esc(fact.text)}</p><dl class="facts compact-facts"><div><dt>Scope</dt><dd>${esc(fact.scope)}</dd></div><div><dt>Object</dt><dd>${esc(fact.object)}</dd></div><div><dt>Valid from</dt><dd>${date(fact.validFrom)}</dd></div><div><dt>Valid until</dt><dd>${fact.validUntil?date(fact.validUntil):'open'}</dd></div><div><dt>Superseded by</dt><dd>${esc(fact.supersededBy)}</dd></div><div><dt>Episode</dt><dd>${esc(fact.provenance.episodeId)}</dd></div></dl><div class="reason-list">${fact.supersessionChain.map((id)=>`<span class="reason">${esc(id)}</span>`).join('')}</div><p class="muted">Source ${esc(fact.provenance.source)}${fact.provenance.summary?` · ${esc(fact.provenance.summary)}`:''}</p></article>`).join('')}</div>`
+    : statePanel('empty','No temporal facts yet','The native SQLite provider is reachable, but this workspace has no bi-temporal facts.');
+  const queue=model.proposalQueue.length
+    ? `<ol class="compact-list locator-list">${model.proposalQueue.map((item)=>`<li><strong>${esc(item.id)} · ${esc(item.status)}</strong><span>${esc(item.sourceLocator)} · attempts ${item.attempts}</span>${item.payload.length?`<dl class="summary-list">${item.payload.map((entry)=>`<div><dt>${esc(entry.key)}</dt><dd>${esc(entry.value)}</dd></div>`).join('')}</dl>`:''}</li>`).join('')}</ol>`
+    : '<p class="muted">No queued extraction proposals for this workspace.</p>';
+  return `<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.tokenSavingPercent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
 }
 
 function renderEvidence() {

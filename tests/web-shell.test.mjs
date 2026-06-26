@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { buildCompressedProfileContextReport } from '../packages/context-compiler/src/index.mjs';
+import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 import {
   ROUTES,
   SHELL_STATES,
@@ -16,6 +18,7 @@ import {
   buildFirstUseReadinessModel,
   buildHarnessSetupUiModel,
   buildLoopWorkbenchModel,
+  buildMemoryCockpitModel,
   buildMemoryReviewModel,
   buildPinnedHandoffStatusModel,
   canReceivePinnedHandoff,
@@ -32,6 +35,7 @@ import {
   runDetailLink,
   safeEventSummary,
   selectContextPackPinPayload,
+  renderMemoryCockpit,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -58,6 +62,75 @@ test('web shell exposes stable path routes with legacy query compatibility',()=>
   assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id,'home');
   assert.equal(legacyViewPath('design'),'/settings');
   assert.equal(ROUTES.some(route=>route.id==='content'),true);
+});
+
+test('memory route renders real temporal fact fields and computed token number', async (t) => {
+  const provider = new SQLiteMemoryProvider({ filename: ':memory:', clock: () => '2026-06-26T10:00:00.000Z' });
+  t.after(() => provider.close());
+  await provider.put({
+    id: 'mem_web_profile',
+    workspaceId: 'ws_local',
+    kind: 'decision',
+    text: `${Array(80).fill('surface-wire-memory').join(' ')} local token budget profile`,
+    source: 'workspace://docs/web-memory.md',
+    status: 'active',
+    confidence: 0.9,
+    authority: 0.9,
+    updatedAt: '2026-06-26T09:55:00.000Z'
+  });
+  const proposal = await provider.enqueueProposal({
+    id: 'mpq_web_memory',
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://docs/web-memory.md',
+    sourceHash: 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    payload: { kind: 'fact', subject: 'memory-route', predicate: 'renders', object: 'real-fields' }
+  });
+  await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'reviewer', leaseUntil: '2026-06-26T10:05:00.000Z' });
+  await provider.recordProposalResult({ workspaceId: 'ws_local', id: proposal.id, workerId: 'reviewer', status: 'applied', result: { accepted: true } });
+  await provider.addTemporalFact({
+    id: 'memfact_web_memory',
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'memory-route',
+    predicate: 'renders',
+    object: 'real-fields',
+    text: 'The memory route renders native SQLite fact fields.',
+    source: 'workspace://docs/web-memory.md',
+    proposalQueueId: proposal.id,
+    validFrom: '2026-06-26T10:00:00.000Z'
+  });
+  const exported = await provider.export({ workspaceId: 'ws_local' });
+  const facts = await provider.listTemporalFacts({ workspaceId: 'ws_local' });
+  const proposalQueue = await provider.listProposalQueue({ workspaceId: 'ws_local' });
+  const profile = buildCompressedProfileContextReport({
+    records: [...exported.records, ...facts],
+    workspaceId: 'ws_local',
+    generatedAt: '2026-06-26T10:00:00.000Z',
+    objective: 'Render memory route',
+    step: 'Assert token number',
+    tokenBudget: 4096
+  });
+  const cockpit = {
+    schemaVersion: '1.0.0',
+    workspaceId: 'ws_local',
+    generatedAt: '2026-06-26T10:00:00.000Z',
+    provider: 'provider:native:memory:sqlite',
+    facts,
+    proposalQueue,
+    tokenBudget: profile.contextBudget,
+    profile: { id: profile.id },
+    safeguards: { readOnly: true },
+    reportFingerprint: profile.id.replace(/^ctxprofile_/, 'sha256:').padEnd(71, '0')
+  };
+  const model = buildMemoryCockpitModel(cockpit);
+  const html = renderMemoryCockpit(cockpit);
+  assert.equal(model.tokenBudget.estimatedDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
+  assert.match(html, new RegExp(`${model.tokenSavingPercent}% token saving`));
+  assert.match(html, /memfact_web_memory/);
+  assert.match(html, /memory-route/);
+  assert.match(html, /Jun 26, 2026/);
+  assert.match(html, /mpq_web_memory/);
+  assert.match(html, new RegExp(`<dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
 });
 
 test('context pack pin uses the reviewed build payload instead of a stale form payload',()=>{

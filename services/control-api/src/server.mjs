@@ -6,8 +6,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { FileStateStore } from '../../../packages/storage/src/file-store.mjs';
 import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/identity-local/src/index.mjs';
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
+import { SQLiteMemoryProvider } from '../../../providers/native/memory-sqlite/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
-import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
+import { buildCompressedProfileContextReport, compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
 import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, pinContextPackArtifacts, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
@@ -16,6 +17,7 @@ import {
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
+import { sha256Hex, stableStringify } from '../../../packages/protocol/src/fingerprint.mjs';
 import { createTelemetryFromEnv, createTraceContext, routeSpanAttributes } from '../../../packages/observability/src/index.mjs';
 import { API_ERROR_SCHEMA, createApiRouteContracts } from './route-contracts.mjs';
 
@@ -195,6 +197,106 @@ function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt }) {
   };
 }
 
+function factProfileRecord(fact) {
+  return {
+    id: fact.id,
+    workspaceId: fact.workspaceId,
+    kind: 'fact',
+    text: fact.text,
+    scope: 'workspace-private',
+    dataClass: 'workspace-private',
+    status: fact.status,
+    source: fact.source,
+    confidence: fact.confidence,
+    authority: fact.confidence,
+    tags: [fact.subject, fact.predicate, fact.object].filter(Boolean),
+    relations: [fact.subject, fact.object].filter(Boolean),
+    updatedAt: fact.updatedAt,
+    observedAt: fact.validFrom
+  };
+}
+
+function temporalFactChains(facts) {
+  const byKey = new Map();
+  for (const fact of facts) {
+    const key = `${fact.scope}:${fact.subject}:${fact.predicate}`;
+    const values = byKey.get(key) ?? [];
+    values.push(fact);
+    byKey.set(key, values);
+  }
+  for (const values of byKey.values()) {
+    values.sort((left, right) => String(left.validFrom).localeCompare(String(right.validFrom)) || String(left.id).localeCompare(String(right.id)));
+  }
+  return new Map(facts.map((fact) => {
+    const key = `${fact.scope}:${fact.subject}:${fact.predicate}`;
+    return [fact.id, byKey.get(key).map((item) => item.id)];
+  }));
+}
+
+async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt }) {
+  const [exported, facts, proposalQueue] = await Promise.all([
+    provider.export({ workspaceId }),
+    provider.listTemporalFacts({ workspaceId, limit: 100 }),
+    provider.listProposalQueue({ workspaceId, limit: 100 })
+  ]);
+  const chains = temporalFactChains(facts);
+  const profileRecords = [...exported.records, ...facts.map(factProfileRecord)];
+  const profile = buildCompressedProfileContextReport({
+    records: profileRecords,
+    workspaceId,
+    generatedAt,
+    objective: 'Surface local bi-temporal memory and proposal-gated extraction state',
+    step: 'Render memory cockpit token budget',
+    tokenBudget: 4096
+  });
+  const projectedFacts = facts.map((fact) => ({
+    ...fact,
+    validity: { validFrom: fact.validFrom, validUntil: fact.validUntil },
+    supersessionChain: chains.get(fact.id) ?? [fact.id],
+    provenance: {
+      episodeId: fact.episodeId,
+      source: fact.source,
+      episode: fact.episode
+        ? {
+            id: fact.episode.id,
+            sourceLocator: fact.episode.sourceLocator,
+            summary: fact.episode.summary,
+            observedAt: fact.episode.observedAt
+          }
+        : null
+    }
+  }));
+  const report = {
+    schemaVersion: '1.0.0',
+    workspaceId,
+    generatedAt,
+    provider: 'provider:native:memory:sqlite',
+    facts: projectedFacts,
+    proposalQueue,
+    tokenBudget: profile.contextBudget,
+    profile: {
+      id: profile.id,
+      acceptedHistoryRecordCount: profile.profile.acceptedHistoryRecordCount,
+      skippedHistoryRecordCount: profile.profile.skippedHistoryRecordCount,
+      layers: profile.profile.layers,
+      contentHash: profile.profile.contentHash
+    },
+    safeguards: {
+      readOnly: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      rawSourceBodiesIncluded: false
+    }
+  };
+  return {
+    ...report,
+    reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}`
+  };
+}
+
 const VALID_CORRELATION_ID = /^req_[A-Za-z0-9._:-]{8,96}$/;
 const SAFE_RUN_ID = /^run_[A-Za-z0-9._:-]{1,120}$/;
 const SAFE_WORKSPACE_ID = /^ws_[A-Za-z0-9._:-]{1,120}$/;
@@ -220,6 +322,8 @@ export function createControlApiServer({
   manifestRepository = null,
   sourceGraphRoot = path.resolve(here, '../../..'),
   harnessSetupHome = process.env.HOME ?? process.cwd(),
+  memoryProvider = null,
+  memoryDatabasePath = path.resolve(sourceGraphRoot, '.local/memory.sqlite'),
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   policyService = null,
@@ -356,6 +460,8 @@ export function createControlApiServer({
         const state = await store.read();
         return buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock() });
       }
+      case 'getMemoryCockpit':
+        return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock() }));
       case 'listRuns': {
         const state = await store.read();
         return { schemaVersion: '1.0.0', items: state.runs.filter((run) => run.workspaceId === context.workspaceId).slice().reverse() };
@@ -679,6 +785,22 @@ export function createControlApiServer({
   }
 
   return { server, close, contracts, activeStreamCount: () => streams.size };
+
+  async function withMemoryProvider(operation) {
+    if (memoryProvider) return operation(memoryProvider);
+    let provider;
+    try {
+      await stat(memoryDatabasePath);
+      provider = new SQLiteMemoryProvider({ filename: memoryDatabasePath, clock, migrate: false, readOnly: true });
+    } catch {
+      provider = new SQLiteMemoryProvider({ filename: ':memory:', clock });
+    }
+    try {
+      return await operation(provider);
+    } finally {
+      provider.close();
+    }
+  }
 }
 
 function selectCorrelationId(value, factory) {
@@ -1236,7 +1358,7 @@ async function main() {
   const store = await new FileStateStore(dataDir).init();
   const identityStore = await new LocalIdentityStore({ directory: path.join(dataDir, 'identity') }).init();
   const manifestRepository = new FilesystemContextManifestRepository({ root: path.join(dataDir, 'context-manifests') });
-  const api = createControlApiServer({ store, identityStore, manifestRepository });
+  const api = createControlApiServer({ store, identityStore, manifestRepository, memoryDatabasePath: path.join(dataDir, 'memory.sqlite') });
   api.server.listen(port, host, () => {
     console.log(`Open Agent Fabric local bootstrap: http://${host}:${port}`);
     console.log('No external writes are enabled. Press Ctrl+C to stop.');

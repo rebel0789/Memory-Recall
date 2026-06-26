@@ -338,3 +338,39 @@ test('native SQLite temporal facts are proposal-gated, superseded, time-travel q
   assert.equal(history[1].episode.sourceLocator, 'workspace://memory/status.md');
   assert.equal(second.proposalQueueId, 'mpq_second');
 });
+
+test('native SQLite memory exposes read-only temporal cockpit lists', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-memory-cockpit-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const provider = new SQLiteMemoryProvider({ filename: path.join(directory, 'memory.sqlite'), clock: () => '2026-06-26T10:00:00.000Z' });
+  t.after(() => provider.close());
+
+  const proposal = await provider.enqueueProposal({
+    id: 'mpq_cockpit',
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://notes/cockpit.md',
+    sourceHash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    payload: { kind: 'fact', subject: 'surface-wire', predicate: 'phase', object: 'S1' }
+  });
+  await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'reviewer', leaseUntil: '2026-06-26T10:05:00.000Z' });
+  await provider.recordProposalResult({ workspaceId: 'ws_local', id: proposal.id, workerId: 'reviewer', status: 'applied', result: { accepted: true } });
+  await provider.addTemporalFact({
+    id: 'memfact_cockpit',
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'surface-wire',
+    predicate: 'phase',
+    object: 'S1',
+    text: 'Surface & Wire S1 renders real native memory facts.',
+    source: 'workspace://notes/cockpit.md',
+    proposalQueueId: proposal.id,
+    validFrom: '2026-06-26T10:00:00.000Z'
+  });
+
+  const facts = await provider.listTemporalFacts({ workspaceId: 'ws_local' });
+  const queue = await provider.listProposalQueue({ workspaceId: 'ws_local' });
+  assert.equal(facts[0].id, 'memfact_cockpit');
+  assert.equal(facts[0].episode.sourceLocator, 'workspace://notes/cockpit.md');
+  assert.equal(queue[0].id, 'mpq_cockpit');
+  assert.equal(queue[0].status, 'applied');
+});

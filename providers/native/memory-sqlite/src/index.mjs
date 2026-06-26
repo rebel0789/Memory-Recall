@@ -895,6 +895,20 @@ export class SQLiteMemoryProvider {
     `).all(workspaceId, normalizedScope, subject, predicate, boundedLimit).map((row) => this.#temporalFactFromRow(row));
   }
 
+  async listTemporalFacts({ workspaceId, scope = 'workspace', limit = 100 } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    const normalizedScope = normalizeTemporalScope(scope);
+    const boundedLimit = Math.max(1, Math.min(500, Number(limit) || 100));
+    return this.database.prepare(`
+      SELECT *
+      FROM memory_facts
+      WHERE workspace_id = ?
+        AND scope = ?
+      ORDER BY valid_from DESC, created_at DESC, id ASC
+      LIMIT ?
+    `).all(workspaceId, normalizedScope, boundedLimit).map((row) => this.#temporalFactFromRow(row));
+  }
+
   #validTemporalFactRows({ workspaceId, scope, at }) {
     return this.database.prepare(`
       SELECT *
@@ -1193,6 +1207,18 @@ export class SQLiteMemoryProvider {
       WHERE workspace_id = ?
         AND status = 'poison'
       ORDER BY updated_at DESC, id ASC
+      LIMIT ?
+    `).all(workspaceId, boundedLimit).map(rowToQueueRecord);
+  }
+
+  async listProposalQueue({ workspaceId, limit = 100 } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    const boundedLimit = Math.max(1, Math.min(500, Number(limit) || 100));
+    return this.database.prepare(`
+      SELECT *
+      FROM memory_proposal_queue
+      WHERE workspace_id = ?
+      ORDER BY enqueued_at DESC, id ASC
       LIMIT ?
     `).all(workspaceId, boundedLimit).map(rowToQueueRecord);
   }
