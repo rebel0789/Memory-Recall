@@ -1,0 +1,117 @@
+{
+  "id": "oaf-temporal-gold-v1",
+  "version": "1.0.0",
+  "description": "Fixed evolving-fact timelines for the OAF temporal memory benchmark.",
+  "cases": [
+    {
+      "id": "auth_token_ttl",
+      "question": "What is the current auth_token_ttl value?",
+      "subject": "project:oaf",
+      "predicate": "auth_token_ttl",
+      "timeline": [
+        { "at": "2026-06-20T09:00:00.000Z", "value": "ttl_30m" },
+        { "at": "2026-06-21T09:00:00.000Z", "value": "ttl_15m" },
+        { "at": "2026-06-22T09:00:00.000Z", "value": "ttl_60m" }
+      ]
+    },
+    {
+      "id": "memory_retention",
+      "question": "What is the current memory_retention value?",
+      "subject": "project:oaf",
+      "predicate": "memory_retention",
+      "timeline": [
+        { "at": "2026-06-20T10:00:00.000Z", "value": "retain_7d" },
+        { "at": "2026-06-21T10:00:00.000Z", "value": "retain_30d" },
+        { "at": "2026-06-22T10:00:00.000Z", "value": "retain_14d" }
+      ]
+    },
+    {
+      "id": "default_model",
+      "question": "What is the current default_model value?",
+      "subject": "project:oaf",
+      "predicate": "default_model",
+      "timeline": [
+        { "at": "2026-06-20T11:00:00.000Z", "value": "model_alpha" },
+        { "at": "2026-06-21T11:00:00.000Z", "value": "model_beta" },
+        { "at": "2026-06-22T11:00:00.000Z", "value": "model_delta" }
+      ]
+    },
+    {
+      "id": "approval_window",
+      "question": "What is the current approval_window value?",
+      "subject": "project:oaf",
+      "predicate": "approval_window",
+      "timeline": [
+        { "at": "2026-06-20T12:00:00.000Z", "value": "window_24h" },
+        { "at": "2026-06-21T12:00:00.000Z", "value": "window_12h" },
+        { "at": "2026-06-22T12:00:00.000Z", "value": "window_48h" }
+      ]
+    },
+    {
+      "id": "retry_budget",
+      "question": "What is the current retry_budget value?",
+      "subject": "project:oaf",
+      "predicate": "retry_budget",
+      "timeline": [
+        { "at": "2026-06-20T13:00:00.000Z", "value": "retry_2" },
+        { "at": "2026-06-21T13:00:00.000Z", "value": "retry_4" },
+        { "at": "2026-06-22T13:00:00.000Z", "value": "retry_3" }
+      ]
+    },
+    {
+      "id": "context_budget",
+      "question": "What is the current context_budget value?",
+      "subject": "project:oaf",
+      "predicate": "context_budget",
+      "timeline": [
+        { "at": "2026-06-20T14:00:00.000Z", "value": "ctx_4096" },
+        { "at": "2026-06-21T14:00:00.000Z", "value": "ctx_8192" },
+        { "at": "2026-06-22T14:00:00.000Z", "value": "ctx_6144" }
+      ]
+    },
+    {
+      "id": "release_channel",
+      "question": "What is the current release_channel value?",
+      "subject": "project:oaf",
+      "predicate": "release_channel",
+      "timeline": [
+        { "at": "2026-06-20T15:00:00.000Z", "value": "channel_alpha" },
+        { "at": "2026-06-21T15:00:00.000Z", "value": "channel_rc" },
+        { "at": "2026-06-22T15:00:00.000Z", "value": "channel_stable" }
+      ]
+    },
+    {
+      "id": "workflow_timeout",
+      "question": "What is the current workflow_timeout value?",
+      "subject": "project:oaf",
+      "predicate": "workflow_timeout",
+      "timeline": [
+        { "at": "2026-06-20T16:00:00.000Z", "value": "timeout_90s" },
+        { "at": "2026-06-21T16:00:00.000Z", "value": "timeout_45s" },
+        { "at": "2026-06-22T16:00:00.000Z", "value": "timeout_120s" }
+      ]
+    },
+    {
+      "id": "adapter_policy",
+      "question": "What is the current adapter_policy value?",
+      "subject": "project:oaf",
+      "predicate": "adapter_policy",
+      "timeline": [
+        { "at": "2026-06-20T17:00:00.000Z", "value": "adapter_preview" },
+        { "at": "2026-06-21T17:00:00.000Z", "value": "adapter_shadow" },
+        { "at": "2026-06-22T17:00:00.000Z", "value": "adapter_disabled" }
+      ]
+    },
+    {
+      "id": "evidence_level",
+      "question": "What is the current evidence_level value?",
+      "subject": "project:oaf",
+      "predicate": "evidence_level",
+      "timeline": [
+        { "at": "2026-06-20T18:00:00.000Z", "value": "evidence_optional" },
+        { "at": "2026-06-21T18:00:00.000Z", "value": "evidence_required" },
+        { "at": "2026-06-22T18:00:00.000Z", "value": "evidence_strict" }
+      ]
+    }
+  ]
+}

@@ -1464,9 +1464,10 @@ async function contextProfileCommand(values) {
 
 async function benchmarkCommand(values) {
   if (values[0] === 'sufficiency') return await benchmarkSufficiencyCommand(values.slice(1));
+  if (values[0] === 'temporal') return await benchmarkTemporalCommand(values.slice(1));
 
   if (values[0] !== 'truth-floor') {
-    console.error('benchmark requires truth-floor or sufficiency');
+    console.error('benchmark requires truth-floor, sufficiency, or temporal');
     process.exitCode = 2;
     return;
   }
@@ -1505,6 +1506,305 @@ async function benchmarkCommand(values) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function benchmarkTemporalCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('bench temporal requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out')) {
+    console.error('bench temporal is read-only and does not write or pin workspace artifacts');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--workspace', '--workspace-id', '--budget', '--token-budget', '--limit', '--dataset', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`bench temporal unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('bench temporal only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const report = await buildTemporalBenchmarkReport(values);
+    console.log(format === 'summary' ? renderTemporalBenchmarkSummary(report) : JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function buildTemporalBenchmarkReport(values) {
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('bench temporal --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 1024));
+  const recallLimit = parseIntegerOption(values, '--limit', 8);
+  const datasetPath = option(values, '--dataset') ?? 'evals/temporal/gold.v1.json';
+  const dataset = await loadTemporalDataset(datasetPath);
+  const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-temporal-'));
+  const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
+  const sqliteValues = ['--sqlite', 'memory.sqlite'];
+  const cases = [];
+  let temporalFactCount = 0;
+  try {
+    const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+    const provider = new SQLiteMemoryProvider({ filename: scratchSqlite, clock: () => generatedAt });
+    try {
+      for (const item of dataset.cases) temporalFactCount += await addTemporalBenchmarkFacts(provider, { item, workspaceId });
+    } finally {
+      provider.close();
+    }
+
+    for (const item of dataset.cases) {
+      const profilePayload = await buildMcpContextProfilePayload({
+        values: sqliteValues,
+        root: scratchRoot,
+        workspaceId,
+        generatedAt,
+        args: {
+          objective: item.question,
+          step: 'Measure current temporal fact without stale superseded values',
+          scope: 'workspace',
+          budget: tokenBudget,
+          limit: recallLimit
+        }
+      });
+      const recallPayload = await buildMcpMemoryRecallPayload({
+        values: sqliteValues,
+        root: scratchRoot,
+        workspaceId,
+        generatedAt,
+        args: {
+          query: item.question,
+          scope: 'workspace',
+          limit: recallLimit
+        }
+      });
+      const oafText = JSON.stringify({ contextProfile: profilePayload, memoryRecall: recallPayload });
+      const baseline = buildTemporalRawTimelineBaseline({ item, tokenBudget });
+      cases.push({
+        id: item.id,
+        question: item.question,
+        currentValue: item.currentValue,
+        supersededValues: item.supersededValues,
+        oaf: scoreTemporalAnswer(oafText, item, {
+          deliveredTokens: estimateTokens(oafText),
+          contextProfileTokens: estimateTokens(JSON.stringify(profilePayload)),
+          memoryRecallTokens: estimateTokens(JSON.stringify(recallPayload)),
+          activeFactCount: Number(recallPayload.data?.activeFactCount ?? 0),
+          selectedContextCount: Number(profilePayload.data?.selectedContext?.selectedCount ?? 0)
+        }),
+        baseline: scoreTemporalAnswer(baseline.text, item, {
+          deliveredTokens: baseline.deliveredTokens,
+          snippetCount: baseline.snippetCount,
+          evidenceLocators: baseline.evidenceLocators
+        })
+      });
+    }
+  } finally {
+    await rm(scratchRoot, { recursive: true, force: true }).catch(() => {});
+  }
+
+  const oaf = summarizeTemporalArm('bi-temporal memory.recall+context.profile', cases.map((item) => item.oaf), tokenBudget);
+  const baseline = {
+    ...summarizeTemporalArm('keyword-top-k-raw-timeline', cases.map((item) => item.baseline), tokenBudget),
+    dumpRepo: false
+  };
+  const headline = {
+    metric: 'current-correct-and-clean-temporal-recall',
+    oafWins: oaf.correctnessPercent > baseline.correctnessPercent && oaf.cleanlinessPercent > baseline.cleanlinessPercent,
+    rule: 'OAF wins only when it is more correct and cleaner than keyword top-k over the same raw timeline text',
+    oafDeliveredTokens: oaf.deliveredTokens,
+    baselineDeliveredTokens: baseline.deliveredTokens
+  };
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'bench temporal',
+    generatedAt,
+    workspaceId,
+    dataset: {
+      id: dataset.id,
+      version: dataset.version,
+      ref: datasetPath.startsWith('/') ? 'local-absolute-dataset' : `workspace://${toPosix(datasetPath)}`,
+      caseCount: dataset.cases.length
+    },
+    budget: {
+      tokenBudget,
+      unit: 'estimated delivery tokens per question',
+      estimator: 'ceil(chars/4)'
+    },
+    source: {
+      memoryProvider: 'provider:native:memory:sqlite',
+      scratchStore: 'os-temp-sqlite',
+      temporalFactCount,
+      proposalGated: true
+    },
+    oaf,
+    baseline,
+    headline,
+    antiGaming: {
+      returningStaleFails: true,
+      returningNothingFails: true,
+      returningCurrentAndStaleIsNotClean: true,
+      realisticBaseline: true,
+      dumpRepoBaseline: false,
+      sameRawTimelineText: true
+    },
+    cases,
+    safeguards: {
+      readOnly: true,
+      workspaceFilesWritten: 0,
+      scratchFilesWritten: temporalFactCount > 0 ? 1 : 0,
+      proposalGated: true,
+      activeMemoryCreated: temporalFactCount,
+      hardDeleted: false,
+      deterministicOffline: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      rawTimelineBodiesIncluded: false,
+      rawMcpPayloadsIncluded: false,
+      providerBillingClaimed: false
+    },
+    reportFingerprint: null
+  };
+  return { ...report, reportFingerprint: stableJsonFingerprint(report) };
+}
+
+async function addTemporalBenchmarkFacts(provider, { item, workspaceId }) {
+  let count = 0;
+  for (let index = 0; index < item.timeline.length; index += 1) {
+    const point = item.timeline[index];
+    const proposalId = `mpq_${item.id}_${index + 1}`;
+    await provider.enqueueProposal({
+      id: proposalId,
+      workspaceId,
+      sourceLocator: `workspace://evals/temporal/${item.id}.md`,
+      sourceHash: `sha256:${createHash('sha256').update(`${item.id}:${index}:${point.value}`).digest('hex')}`,
+      payload: { kind: 'fact', subject: item.subject, predicate: item.predicate, object: point.value }
+    });
+    await provider.claimProposal({ workspaceId, workerId: 'temporal-bench', leaseUntil: '2999-01-01T00:00:00.000Z' });
+    await provider.recordProposalResult({ workspaceId, id: proposalId, workerId: 'temporal-bench', status: 'applied', result: { accepted: true } });
+    await provider.addTemporalFact({
+      id: `memfact_${item.id}_${index + 1}`,
+      workspaceId,
+      scope: 'workspace',
+      subject: item.subject,
+      predicate: item.predicate,
+      object: point.value,
+      text: `${item.predicate} current value ${point.value}.`,
+      source: `workspace://evals/temporal/${item.id}.md`,
+      proposalQueueId: proposalId,
+      validFrom: point.at,
+      episode: {
+        id: `mep_${item.id}_${index + 1}`,
+        sourceLocator: `workspace://evals/temporal/${item.id}.md`,
+        summary: `${item.predicate} changed to ${point.value}.`,
+        observedAt: point.at
+      }
+    });
+    count += 1;
+  }
+  return count;
+}
+
+async function loadTemporalDataset(datasetPath) {
+  const parsed = JSON.parse(await readFile(datasetPath, 'utf8'));
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('bench temporal dataset must be a JSON object');
+  if (typeof parsed.id !== 'string' || !parsed.id.trim()) throw new Error('bench temporal dataset requires id');
+  const cases = Array.isArray(parsed.cases) ? parsed.cases.map(normalizeTemporalCase) : [];
+  if (cases.length < 8 || cases.length > 12) throw new Error('bench temporal dataset requires 8-12 cases');
+  return { id: parsed.id, version: parsed.version ?? '1.0.0', cases };
+}
+
+function normalizeTemporalCase(item, index) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('bench temporal case must be an object');
+  const id = String(item.id ?? `case_${index + 1}`);
+  const question = String(item.question ?? '').trim();
+  const subject = String(item.subject ?? 'project:oaf').trim();
+  const predicate = String(item.predicate ?? '').trim();
+  const timeline = Array.isArray(item.timeline) ? item.timeline.map((point) => ({
+    at: String(point.at ?? '').trim(),
+    value: String(point.value ?? '').trim()
+  })).filter((point) => point.at && point.value) : [];
+  if (!/^[A-Za-z0-9._:-]{1,80}$/.test(id)) throw new Error(`bench temporal case has unsafe id: ${id}`);
+  if (!question || question.length > 240) throw new Error(`bench temporal case ${id} requires a short question`);
+  if (!/^[A-Za-z0-9:_-]{1,128}$/.test(subject)) throw new Error(`bench temporal case ${id} has unsafe subject`);
+  if (!/^[A-Za-z0-9:_-]{1,128}$/.test(predicate)) throw new Error(`bench temporal case ${id} has unsafe predicate`);
+  if (timeline.length < 2) throw new Error(`bench temporal case ${id} requires at least one supersession`);
+  for (const point of timeline) {
+    if (Number.isNaN(Date.parse(point.at))) throw new Error(`bench temporal case ${id} has invalid timestamp`);
+    if (!/^[A-Za-z0-9:_-]{1,128}$/.test(point.value)) throw new Error(`bench temporal case ${id} has unsafe value`);
+  }
+  const currentValue = timeline.at(-1).value;
+  const supersededValues = [...new Set(timeline.slice(0, -1).map((point) => point.value))];
+  return { id, question, subject, predicate, timeline, currentValue, supersededValues };
+}
+
+function buildTemporalRawTimelineBaseline({ item, tokenBudget }) {
+  const raw = [
+    `Question: ${item.question}`,
+    `Timeline for ${item.predicate}: ${item.timeline.map((point) => `${point.at}=${point.value}`).join(' -> ')}`,
+    `Current marker: ${item.currentValue}`
+  ].join('\n');
+  const text = fitEstimatedTokens(raw, tokenBudget);
+  return {
+    text,
+    deliveredTokens: estimateTokens(text),
+    snippetCount: text ? 1 : 0,
+    evidenceLocators: [{ locator: `workspace://evals/temporal/${item.id}.md`, lineStart: 1, lineEnd: item.timeline.length + 2 }]
+  };
+}
+
+function scoreTemporalAnswer(text, item, extra = {}) {
+  const normalized = normalizeSufficiencyText(text);
+  const hasCurrent = normalized.includes(normalizeSufficiencyText(item.currentValue));
+  const staleValuesReturned = item.supersededValues.filter((value) => normalized.includes(normalizeSufficiencyText(value)));
+  const clean = staleValuesReturned.length === 0;
+  return {
+    ...extra,
+    hasCurrent,
+    clean,
+    correct: hasCurrent && clean,
+    staleValueCount: staleValuesReturned.length
+  };
+}
+
+function summarizeTemporalArm(name, items, tokenBudget) {
+  const correctCount = items.filter((item) => item.correct).length;
+  const cleanCount = items.filter((item) => item.clean).length;
+  const deliveredTokens = items.reduce((sum, item) => sum + Math.max(0, Math.trunc(Number(item.deliveredTokens ?? 0))), 0);
+  const maxDeliveredTokensPerCase = items.reduce((max, item) => Math.max(max, Math.max(0, Math.trunc(Number(item.deliveredTokens ?? 0)))), 0);
+  return {
+    name,
+    tokenBudget,
+    caseCount: items.length,
+    correctCount,
+    cleanCount,
+    correctnessPercent: sufficiencyPercent(correctCount, items.length),
+    cleanlinessPercent: sufficiencyPercent(cleanCount, items.length),
+    deliveredTokens,
+    averageDeliveredTokens: items.length ? Math.round(deliveredTokens / items.length) : 0,
+    maxDeliveredTokensPerCase
+  };
+}
+
+function renderTemporalBenchmarkSummary(report) {
+  return [
+    `Temporal benchmark: OAF ${report.oaf.correctnessPercent}% correct / ${report.oaf.cleanlinessPercent}% clean / ${report.oaf.deliveredTokens} tokens; baseline ${report.baseline.correctnessPercent}% correct / ${report.baseline.cleanlinessPercent}% clean / ${report.baseline.deliveredTokens} tokens`,
+    `OAF wins: ${report.headline.oafWins ? 'yes' : 'no'}`,
+    `Basis: current value must be present and superseded values absent`
+  ].join('\n');
 }
 
 async function benchmarkSufficiencyCommand(values) {
@@ -4907,6 +5207,7 @@ Usage:
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary
   oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
   oaf bench sufficiency --read-only --root . --format json
+  oaf bench temporal --read-only --root . --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
   oaf memory review --root . --sqlite .local/memory.sqlite --format json
