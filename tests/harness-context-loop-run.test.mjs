@@ -112,6 +112,7 @@ test('loop run bounds iterations, timeout, durable resume, budget, and human gat
     durableRuntime: firstRuntime,
     workflowTicks: 1,
     verificationRunner: async () => ({ id: 'loopverify_ok', status: 'proposed', stopReason: 'completed' }),
+    executeCommands: true,
     clock
   });
   firstRuntime.close();
@@ -124,6 +125,7 @@ test('loop run bounds iterations, timeout, durable resume, budget, and human gat
     durableRuntime: reopened,
     workflowTicks: 10,
     verificationRunner: async () => ({ id: 'loopverify_ok', status: 'proposed', stopReason: 'completed' }),
+    executeCommands: true,
     clock
   });
   assert.equal(resumed.durable.status, 'completed');

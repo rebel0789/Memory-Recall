@@ -190,18 +190,13 @@ async function loopPlanCommand(values) {
 }
 
 async function loopObserveCommand(values) {
-  if (!values.includes('--read-only')) {
-    console.error('loop observe requires --read-only');
-    process.exitCode = 2;
-    return;
-  }
   if (values.includes('--write') || values.includes('--out') || values.includes('--pin')) {
     console.error('loop observe records only sanitized in-memory ledger events in this CLI mode');
     process.exitCode = 2;
     return;
   }
-  const valueOptions = new Set(['--root', '--plan', '--run-id', '--format']);
-  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  const valueOptions = new Set(['--root', '--plan', '--run-id', '--allow-command', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--execute-commands', ...valueOptions]), valueOptions);
   if (unsupported.length > 0) {
     console.error(`loop observe unsupported option: ${unsupported[0]}`);
     process.exitCode = 2;
@@ -227,6 +222,8 @@ async function loopObserveCommand(values) {
     loopPlan,
     runId: option(values, '--run-id') ?? 'run_loop_observation',
     cwd: root,
+    executeCommands: values.includes('--execute-commands'),
+    confirmedCommands: options(values, '--allow-command'),
     appendEvent: async (event) => events.push(event),
     clock: fixedNow
   });
@@ -234,18 +231,13 @@ async function loopObserveCommand(values) {
 }
 
 async function loopVerifyCommand(values) {
-  if (!values.includes('--read-only')) {
-    console.error('loop verify requires --read-only for this CLI checkpoint');
-    process.exitCode = 2;
-    return;
-  }
   if (values.includes('--write') || values.includes('--out') || values.includes('--merge')) {
     console.error('loop verify does not merge or write reports in this CLI checkpoint');
     process.exitCode = 2;
     return;
   }
-  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--format']);
-  const unsupported = unsupportedFlags(values, new Set(['--read-only', '--replay', ...valueOptions]), valueOptions);
+  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--allow-command', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--execute-commands', '--replay', ...valueOptions]), valueOptions);
   if (unsupported.length > 0) {
     console.error(`loop verify unsupported option: ${unsupported[0]}`);
     process.exitCode = 2;
@@ -273,6 +265,8 @@ async function loopVerifyCommand(values) {
     runId: option(values, '--run-id') ?? 'run_loop_verification',
     worktreePath,
     replayMode: values.includes('--replay'),
+    executeCommands: values.includes('--execute-commands'),
+    confirmedCommands: options(values, '--allow-command'),
     implementer: async () => {},
     appendEvent: async (event) => events.push(event),
     clock: fixedNow
@@ -281,18 +275,13 @@ async function loopVerifyCommand(values) {
 }
 
 async function loopRunCommand(values) {
-  if (!values.includes('--read-only')) {
-    console.error('loop run requires --read-only for this CLI checkpoint');
-    process.exitCode = 2;
-    return;
-  }
   if (values.includes('--write') || values.includes('--out') || values.includes('--merge')) {
     console.error('loop run does not merge or write reports in this CLI checkpoint');
     process.exitCode = 2;
     return;
   }
-  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--max-iterations', '--timeout-ms', '--format']);
-  const unsupported = unsupportedFlags(values, new Set(['--read-only', '--human-approval-required', ...valueOptions]), valueOptions);
+  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--max-iterations', '--timeout-ms', '--allow-command', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--execute-commands', '--human-approval-required', ...valueOptions]), valueOptions);
   if (unsupported.length > 0) {
     console.error(`loop run unsupported option: ${unsupported[0]}`);
     process.exitCode = 2;
@@ -320,6 +309,8 @@ async function loopRunCommand(values) {
     maxIterations: numericOption(values, '--max-iterations', loopPlan.maxIterations),
     timeoutMs: numericOption(values, '--timeout-ms', loopPlan.timeoutSeconds * 1000),
     humanApprovalRequired: values.includes('--human-approval-required'),
+    executeCommands: values.includes('--execute-commands'),
+    confirmedCommands: options(values, '--allow-command'),
     clock: fixedNow
   });
   console.log(JSON.stringify(report, null, 2));
@@ -2296,9 +2287,9 @@ Usage:
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
-  oaf loop observe --read-only --root . --plan loop-plan.json --format json
-  oaf loop verify --read-only --root . --plan loop-plan.json --worktree ../isolated-worktree --format json
-  oaf loop run --read-only --root . --plan loop-plan.json --worktree ../isolated-worktree --format json
+  oaf loop observe --root . --plan loop-plan.json --execute-commands --format json
+  oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --execute-commands --format json
+  oaf loop run --root . --plan loop-plan.json --worktree ../isolated-worktree --execute-commands --format json
   oaf loop schedule --read-only --root . --plan loop-plan.json --kind triage --cadence manual --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format summary

@@ -44,6 +44,7 @@ test('loop verification checks validation and blocks unrelated worktree diffs wi
       writeFileSync(path.join(worktreePath, 'src', 'auth.ts'), 'export const value = 2;\n');
       writeFileSync(path.join(worktreePath, 'README.md'), 'unrelated\n');
     },
+    executeCommands: true,
     commandRunner: async () => ({ exitCode: 0, stdout: 'ok token=secret-value /Users/rebel/private.txt', stderr: '', durationMs: 5 }),
     appendEvent: async (event) => events.push(event),
     clock: () => '2026-06-26T00:00:01.000Z'
@@ -62,6 +63,35 @@ test('loop verification checks validation and blocks unrelated worktree diffs wi
   assert.equal(JSON.stringify(report).includes('secret-value'), false);
   assert.equal(JSON.stringify(report).includes('/Users/rebel/private.txt'), false);
   assert.equal(git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).trim(), initialBranch);
+});
+
+test('loop verification classifies unsafe git paths as out of scope instead of aborting', async () => {
+  const root = fixtureRepo();
+  const plan = buildLoopPlan({
+    objective: 'Classify unsafe changes',
+    stopCondition: 'verification reports out of scope',
+    validationCommands: ['npm run check'],
+    changedLocators: ['src/auth.ts'],
+    clock: () => '2026-06-26T00:00:00.000Z'
+  });
+
+  const report = await runLoopVerification({
+    loopPlan: plan,
+    runId: 'run_loop_unsafe_git_paths',
+    worktreePath: root,
+    implementer: async ({ worktreePath }) => {
+      mkdirSync(path.join(worktreePath, 'node_modules'), { recursive: true });
+      writeFileSync(path.join(worktreePath, 'node_modules', 'not-allowed.txt'), 'unsafe\n');
+      writeFileSync(path.join(worktreePath, 'src', 'auth.ts'), 'export const value = 3;\n');
+    },
+    executeCommands: true,
+    commandRunner: async () => ({ exitCode: 0, stdout: 'ok', stderr: '', durationMs: 1 }),
+    clock: () => '2026-06-26T00:00:01.000Z'
+  });
+
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.stopReason, 'unrelated_changes');
+  assert.equal(report.scope.unrelatedLocators.some((locator) => locator.startsWith('workspace://out-of-scope/')), true);
 });
 
 test('loop verification replay mode disables implementer and checker side effects', async () => {

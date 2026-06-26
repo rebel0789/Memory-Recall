@@ -90,6 +90,31 @@ test('loop plan rejects unsafe intent and reference fields', () => {
   }), /changed_context_locator_invalid/);
 });
 
+test('loop plan falls back to context-pack reads and normalizes upstream reason codes', () => {
+  const plan = buildLoopPlan({
+    objective: 'Use context-pack reads',
+    stopCondition: 'plan validates',
+    contextPack: {
+      utility: {
+        requiredLocalReads: [
+          {
+            locator: 'workspace://AGENTS.md',
+            role: 'selected_context',
+            required: true,
+            reasonCodes: ['Selected Context', '9 bad/code']
+          }
+        ]
+      }
+    },
+    usePlan: { requiredLocalReads: [] },
+    clock: () => '2026-06-26T00:00:00.000Z'
+  });
+
+  const read = plan.requiredLocalReads.find((item) => item.locator === 'workspace://AGENTS.md');
+  assert(read);
+  assert.deepEqual(read.reasonCodes, ['reason_9_bad_code', 'selected_context']);
+});
+
 test('loop plan CLI is read-only and emits JSON', () => {
   const result = spawnSync(process.execPath, [
     'apps/cli/oaf.mjs',

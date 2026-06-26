@@ -70,7 +70,7 @@ const CONTROL_BYTES = new Set([...Array.from({ length: 9 }, (_, index) => index)
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/giu;
 const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)+/gu;
 const LOCAL_USER_ROOT = /\/Users\/[A-Za-z0-9._-]+(?=$|[\s"'`,;).])/gu;
-const HANDOFF_ABSOLUTE_PATH = /(?:\/home\/[A-Za-z0-9._-]+(?:\/[^\s"'`,;).]+)+|[A-Za-z]:\\[^\s"'`,;]+(?:\\[^\s"'`,;]+)+)/gu;
+const HANDOFF_ABSOLUTE_PATH = /(?:\/home\/[A-Za-z0-9._-]+(?:\/[^\s"'`,;).]+)+|\/private\/[^\s"'`,;).]+(?:\/[^\s"'`,;).]+)*|\/var\/folders\/[^\s"'`,;).]+(?:\/[^\s"'`,;).]+)*|[A-Za-z]:\\[^\s"'`,;]+(?:\\[^\s"'`,;]+)+)/gu;
 const UNSAFE_PERSISTED_LOCATOR = /(?:https?:|file:|\/Users(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|oaf_session|oaf_ses_|sk-proj|OPENAI_API_KEY|authorization|cookie|token\s*[=:]|secret\s*[=:]|api[_-]?key\s*[=:])/iu;
 const REDACTED_UNSAFE_SOURCE_LOCATOR = 'workspace://context-packs/redacted-unsafe-source-locator';
 const execFileAsync = promisify(execFile);
@@ -162,11 +162,12 @@ function redact(text) {
   const withoutSecrets = text.replace(SECRET_LIKE, '[redacted-secret]');
   const filePaths = replaceWithCount(withoutSecrets, LOCAL_FILE_PATH, '[redacted-local-path]');
   const rootPaths = replaceWithCount(filePaths.redacted, LOCAL_USER_ROOT, '[redacted-local-path]');
-  const localPathCount = filePaths.count + rootPaths.count;
+  const absolutePaths = replaceWithCount(rootPaths.redacted, HANDOFF_ABSOLUTE_PATH, '[redacted-local-path]');
+  const localPathCount = filePaths.count + rootPaths.count + absolutePaths.count;
   const reasonCodes = [];
   if (secretCount > 0) reasonCodes.push('secret_like_value');
   if (localPathCount > 0) reasonCodes.push('local_path');
-  return { redacted: rootPaths.redacted, secretCount, localPathCount, reasonCodes };
+  return { redacted: absolutePaths.redacted, secretCount, localPathCount, reasonCodes };
 }
 
 function assertSafeHandoffField(value, fieldName) {
@@ -2061,13 +2062,24 @@ function nullableFingerprint(value) {
   return typeof value === 'string' && /^sha256:[a-f0-9]{64}$/u.test(value) ? value : null;
 }
 
+function normalizeReasonCode(value) {
+  const text = String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_:-]+/gu, '_').replace(/^_+|_+$/gu, '');
+  if (!text) return null;
+  return (/^[a-z]/u.test(text) ? text : `reason_${text}`).slice(0, 96);
+}
+
+function normalizeReasonCodes(values, fallback) {
+  const input = Array.isArray(values) && values.length ? values : fallback;
+  return [...new Set((input ?? []).map(normalizeReasonCode).filter(Boolean))].sort().slice(0, 16);
+}
+
 function loopReadItem({ locator, role, required = true, contentHash = null, reasonCodes = [] }) {
   return {
     locator,
     role,
     required: required === true,
     contentHash: nullableFingerprint(contentHash),
-    reasonCodes: [...new Set(reasonCodes.filter(Boolean))].sort().slice(0, 16)
+    reasonCodes: normalizeReasonCodes(reasonCodes, [])
   };
 }
 
@@ -2148,7 +2160,8 @@ export function buildLoopPlan({
       reasonCodes: ['explicit_user_file', 'read_before_handoff']
     }));
   }
-  for (const item of usePlan?.requiredLocalReads ?? contextPack?.utility?.requiredLocalReads ?? []) {
+  const inheritedReads = (usePlan?.requiredLocalReads?.length ? usePlan.requiredLocalReads : contextPack?.utility?.requiredLocalReads) ?? [];
+  for (const item of inheritedReads) {
     addLoopRead(reads, loopReadItem({
       locator: item.locator,
       role: ['selected_context', 'explicit_user_selected', 'changed_locator', 'source_graph_hint'].includes(item.role) ? item.role : 'selected_context',
@@ -2244,6 +2257,27 @@ function splitCommand(command) {
   return parts;
 }
 
+function isAllowlistedValidationCommand(command) {
+  const [file, ...args] = splitCommand(command);
+  const executable = path.basename(file);
+  if (executable === 'node' && args[0] === '--test') return true;
+  if (executable === 'npm' && args[0] === 'test') return true;
+  if (executable === 'npm' && args[0] === 'run' && typeof args[1] === 'string' && !args[1].startsWith('-')) return true;
+  return false;
+}
+
+function assertValidationCommandAllowed(command, { executeCommands = false, confirmedCommands = [] } = {}) {
+  if (executeCommands !== true) {
+    const error = new Error('loop_observation_command_execution_not_enabled');
+    error.code = 'loop_observation_command_execution_not_enabled';
+    throw error;
+  }
+  if (isAllowlistedValidationCommand(command) || confirmedCommands.includes(command)) return;
+  const error = new Error('loop_observation_command_not_allowed');
+  error.code = 'loop_observation_command_not_allowed';
+  throw error;
+}
+
 async function defaultValidationCommandRunner(command, { cwd = process.cwd(), timeoutMs = 60_000 } = {}) {
   const [file, ...args] = splitCommand(command);
   const started = Date.now();
@@ -2276,6 +2310,7 @@ async function defaultValidationCommandRunner(command, { cwd = process.cwd(), ti
 function summarizeCommandOutput({ stdout = '', stderr = '' }) {
   const redactions = redact(`${stdout}\n${stderr}`.trim());
   const redacted = redactions.redacted.replace(/\s+/gu, ' ').trim();
+  assertSafeHandoffField(redacted, 'command_output');
   return {
     summary: redacted.slice(0, 320),
     hash: hash(redacted),
@@ -2315,6 +2350,8 @@ export async function recordLoopObservation({
   loopPlan,
   runId = 'run_loop_observation',
   validationCommands = null,
+  executeCommands = false,
+  confirmedCommands = [],
   cwd = process.cwd(),
   commandRunner = defaultValidationCommandRunner,
   appendEvent = async () => {},
@@ -2329,6 +2366,7 @@ export async function recordLoopObservation({
     if (!planCommands.includes(command)) throw new Error('loop_observation_command_not_in_plan');
   }
   if (!normalizedCommands.length) throw new Error('loop_observation_commands_required');
+  for (const command of normalizedCommands) assertValidationCommandAllowed(command, { executeCommands, confirmedCommands });
 
   const createdAt = clock();
   const results = [];
@@ -2383,8 +2421,6 @@ export async function recordLoopObservation({
   observation.observationFingerprint = hashJson({ ...observation, observationFingerprint: null });
   const event = loopObservationEvent({ observation, sequence: eventSequence, occurredAt: createdAt });
   observation.events = [{ id: event.id, type: event.type, sequence: event.sequence }];
-  observation.observationFingerprint = hashJson({ ...observation, observationFingerprint: null });
-  event.payload.observationFingerprint = observation.observationFingerprint;
   await appendEvent(event);
   assertJsonSchema(loopObservationSchema, observation, 'loop observation');
   return observation;
@@ -2408,7 +2444,14 @@ async function gitChangedWorkspaceLocators(worktreePath) {
   ]);
   const paths = `${tracked.stdout}\n${untracked.stdout}`;
   return [...new Set(paths.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean))]
-    .map((relativePath) => `workspace://${normalizeUserSelectedFilePath(relativePath)}`)
+    .map((relativePath) => {
+      if (relativePath.startsWith('"')) return `workspace://out-of-scope/${idDigest(relativePath)}`;
+      try {
+        return `workspace://${normalizeUserSelectedFilePath(relativePath)}`;
+      } catch {
+        return `workspace://out-of-scope/${idDigest(relativePath)}`;
+      }
+    })
     .sort();
 }
 
@@ -2457,6 +2500,8 @@ export async function runLoopVerification({
   runId = 'run_loop_verification',
   worktreePath,
   implementer = async () => {},
+  executeCommands = false,
+  confirmedCommands = [],
   commandRunner = defaultValidationCommandRunner,
   appendEvent = async () => {},
   replayMode = false,
@@ -2544,6 +2589,8 @@ export async function runLoopVerification({
       runId,
       cwd: worktreePath,
       commandRunner,
+      executeCommands,
+      confirmedCommands,
       appendEvent: async () => {},
       eventSequence: sequence,
       clock
@@ -2720,6 +2767,8 @@ export async function runLoop({
   workflowTicks = 0,
   workerId = 'worker_loop',
   verificationRunner = async (input) => runLoopVerification(input),
+  executeCommands = false,
+  confirmedCommands = [],
   clock = () => new Date().toISOString()
 } = {}) {
   assertJsonSchema(loopPlanSchema, loopPlan, 'loop run plan');
@@ -2759,6 +2808,8 @@ export async function runLoop({
         loopPlan,
         runId: `${runId}_iter_${index}`,
         worktreePath,
+        executeCommands,
+        confirmedCommands,
         replayMode: false,
         clock
       });
