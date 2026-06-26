@@ -17,6 +17,7 @@
     "local:run": "npm run bootstrap && npm run native:smoke",
     "dev": "node services/control-api/src/server.mjs",
     "demo": "node scripts/demo.mjs",
+    "demo:memory-loop": "node apps/cli/oaf.mjs demo memory-loop --root . --format summary --contradicting-fact",
     "test": "node --test tests/*.test.mjs",
     "eval": "node scripts/run-evals.mjs",
     "check": "node scripts/check.mjs",

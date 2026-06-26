@@ -28,11 +28,13 @@
         "package.json",
         "scripts/bootstrap.mjs",
         "scripts/native-smoke.mjs",
+        "apps/cli/oaf.mjs",
         "providers/native/memory-sqlite/src/index.mjs",
         "providers/native/identity-local/src/index.mjs",
         "packages/context-compiler/src/index.mjs",
         "packages/harness-context/src/index.mjs",
         "tests/native-core-local-profile-e2e.test.mjs",
+        "tests/cli.test.mjs",
         "tests/native-identity-store.test.mjs",
         "docs/operations/local-deployment.md",
         "README.md"
@@ -40,7 +42,8 @@
       "limitations": [
         "Production-ready only for the local-first single-developer profile exercised by local tests and smoke commands.",
         "Team/cloud production remains out of scope: no production SSO, MFA, hosted secret manager, reverse proxy/TLS deployment, managed database, external connectors, publishing, signed distribution, or sandbox worker fleet is claimed.",
-        "The one-command local path is `npm run local:run` after dependencies are installed; it bootstraps local files and runs native smoke checks without enabling network, cloud fallback, or external writes."
+        "The one-command local path is `npm run local:run` after dependencies are installed; it bootstraps local files and runs native smoke checks without enabling network, cloud fallback, or external writes.",
+        "`npm run demo:memory-loop` is an in-repository local proof over native SQLite memory, compressed profile contextBudget, bounded loop observation, and temporal supersession; it does not imply team/cloud memory, hosted retrieval, model API calls, or external services."
       ]
     },
     {
@@ -935,6 +938,7 @@
       "npm run protocol:validate",
       "npm run eval",
       "npm run ci",
+      "npm run demo:memory-loop",
       "npm run tool:bounded:smoke",
       "npm run workflow:durable:smoke",
       "npm run ops:smoke",
@@ -944,7 +948,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 403,
+    "testsExpected": 404,
     "protocolFixturesExpected": 160,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

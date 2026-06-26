@@ -95,7 +95,8 @@ if (command === 'demo' && args[0] === 'memory-loop') {
 
 async function demoMemoryLoopCommand(values) {
   const valueOptions = new Set(['--root', '--workspace-id', '--workspace', '--format']);
-  const unsupported = unsupportedFlags(values, valueOptions, valueOptions);
+  const allowed = new Set(['--contradicting-fact', ...valueOptions]);
+  const unsupported = unsupportedFlags(values, allowed, valueOptions);
   if (unsupported.length > 0) {
     console.error(`demo memory-loop unsupported option: ${unsupported[0]}`);
     process.exitCode = 2;
@@ -115,14 +116,14 @@ async function demoMemoryLoopCommand(values) {
   const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
   const provider = new SQLiteMemoryProvider({ filename: ':memory:', clock: () => generatedAt });
   try {
-    const report = await runMemoryLoopDemo({ provider, workspaceId, root, generatedAt });
+    const report = await runMemoryLoopDemo({ provider, workspaceId, root, generatedAt, includeContradiction: values.includes('--contradicting-fact') });
     console.log(format === 'summary' ? renderMemoryLoopSummary(report) : JSON.stringify(report, null, 2));
   } finally {
     provider.close();
   }
 }
 
-async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt }) {
+async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt, includeContradiction = false }) {
   const objective = 'Use native memory to complete a local feedback loop';
   await provider.put({
     id: 'mem_demo_profile',
@@ -135,6 +136,7 @@ async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt }) {
     authority: 0.9,
     updatedAt: generatedAt
   });
+  if (includeContradiction) await seedContradictingMemoryLoopFact({ provider, workspaceId, generatedAt });
   const queued = await provider.proposeTemporalFactsFromEpisode({
     workspaceId,
     scope: 'workspace',
@@ -205,6 +207,10 @@ async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt }) {
     clock: () => generatedAt
   });
   const appliedProposal = (await provider.listProposalQueue({ workspaceId, limit: 10 })).find((item) => item.id === proposal.id);
+  const currentFacts = await provider.listTemporalFacts({ workspaceId, limit: 100 });
+  const superseded = currentFacts
+    .filter((item) => item.supersededBy === fact.id)
+    .map((item) => ({ id: item.id, text: item.text, validUntil: item.validUntil, supersededBy: item.supersededBy }));
   const report = {
     schemaVersion: '1.0.0',
     command: 'demo memory-loop',
@@ -245,7 +251,7 @@ async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt }) {
       episodeId: fact.episodeId
     },
     remembered: [fact.text],
-    superseded: [],
+    superseded,
     ledgerEvents: ledgerEvents.map((event) => ({ id: event.id, type: event.type, sequence: event.sequence })),
     safeguards: {
       localOnly: true,
@@ -258,6 +264,47 @@ async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt }) {
     }
   };
   return { ...report, reportFingerprint: fingerprintJson({ ...report, reportFingerprint: null }) };
+}
+
+async function seedContradictingMemoryLoopFact({ provider, workspaceId, generatedAt }) {
+  const previousAt = new Date(Date.parse(generatedAt) - 86_400_000).toISOString();
+  const proposal = await provider.enqueueProposal({
+    id: 'mpq_demo_previous_memory_loop',
+    workspaceId,
+    sourceLocator: 'workspace://docs/product/loop-workbench-build-plan.md',
+    sourceHash: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+    payload: { kind: 'fact', scope: 'workspace', subject: 'project:oaf', predicate: 'memory_loop', object: 'disconnected', text: 'project:oaf memory_loop disconnected', observedAt: previousAt }
+  });
+  await provider.claimProposal({
+    workspaceId,
+    workerId: 'memory-loop-demo',
+    leaseUntil: new Date(Date.parse(generatedAt) + 60_000).toISOString()
+  });
+  await provider.recordProposalResult({
+    workspaceId,
+    id: proposal.id,
+    workerId: 'memory-loop-demo',
+    status: 'applied',
+    result: { accepted: true, seed: 'contradicting_fact' }
+  });
+  await provider.addTemporalFact({
+    id: 'memfact_demo_memory_loop_previous',
+    workspaceId,
+    scope: 'workspace',
+    subject: 'project:oaf',
+    predicate: 'memory_loop',
+    object: 'disconnected',
+    text: 'project:oaf memory_loop disconnected',
+    source: 'workspace://docs/product/loop-workbench-build-plan.md',
+    proposalQueueId: proposal.id,
+    validFrom: previousAt,
+    episode: {
+      id: 'mep_demo_memory_loop_previous',
+      sourceLocator: 'workspace://docs/product/loop-workbench-build-plan.md',
+      summary: 'Seeded an earlier contradictory local memory-loop fact for supersession proof.',
+      observedAt: previousAt
+    }
+  });
 }
 
 function memoryLoopFactProfileRecord(fact) {
@@ -293,7 +340,7 @@ function renderMemoryLoopSummary(report) {
   return [
     `Memory loop token saving: ${tokenSaving}`,
     `Remembered: ${report.remembered.join('; ') || 'none'}`,
-    `Superseded: ${report.superseded.join('; ') || 'none'}`,
+    `Superseded: ${report.superseded.map((item) => `${item.id} -> ${item.supersededBy}`).join('; ') || 'none'}`,
     `Observation: ${report.observation.status}`,
     `Fact: ${report.memoryFact.id}`
   ].join('\n');

@@ -71,6 +71,7 @@ Requirement: Node.js 22 or newer.
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
 npm run local:run
+npm run demo:memory-loop
 npm run verify:handoff
 npm run dev
 ```
@@ -78,6 +79,10 @@ npm run dev
 `npm run local:run` is the one-command local native profile check after
 dependencies are installed: it runs bootstrap and the native smoke suite without
 enabling network access, cloud fallback, or external writes.
+`npm run demo:memory-loop` runs the local native memory-loop proof: it seeds a
+contradicting temporal fact in SQLite memory, applies the proposal-gated update,
+and prints the measured token-saving percentage plus remembered and superseded
+facts.
 
 Open <http://127.0.0.1:4310>. If the browser asks for local owner setup or
 sign-in, complete that before running dashboard actions. CLI-only setup is also
