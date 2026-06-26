@@ -47,6 +47,8 @@ export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
 export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
 export const LOOP_PLAN_VERSION = '0.1.0';
 export const LOOP_RUN_WORKFLOW_ID = 'workflow:oaf:loop-run';
+export const OAF_MCP_RESOURCE_ARGS = Object.freeze(['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
+export const OAF_MCP_TOKEN_SAVER_ARGS = Object.freeze(['--silent', 'run', 'oaf', '--', 'mcp', 'server', '--read-only', '--root', '.', '--stdio']);
 
 const DEFAULT_MAX_BYTES = 65_536;
 const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
@@ -4605,17 +4607,19 @@ export async function buildHarnessSetupReport({
   server = 'oaf',
   home = process.env.HOME ?? process.cwd(),
   configPath = null,
+  bridgeMode = 'resources',
   generatedAt = new Date().toISOString()
 }) {
   const normalizedAction = normalizeHarnessSetupAction(action);
   const normalizedClient = normalizeHarnessSetupClient(client);
   const normalizedServer = normalizeHarnessSetupServer(server);
+  const normalizedBridgeMode = normalizeHarnessSetupBridgeMode(bridgeMode);
   const selectedConfigPath = configPath ?? normalizedClient.configPath;
   const config = await readHomeConfig(home, selectedConfigPath);
   const parsed = config.exists ? parseHarnessConfig(config.text, normalizedClient.format) : emptyHarnessConfig(normalizedClient.format);
   const servers = extractHarnessServers(parsed);
-  const serverState = classifyHarnessServer(servers.get(normalizedServer));
-  const operations = harnessSetupOperations({ action: normalizedAction, server: normalizedServer, serverState });
+  const serverState = classifyHarnessServer(servers.get(normalizedServer), { bridgeMode: normalizedBridgeMode });
+  const operations = harnessSetupOperations({ action: normalizedAction, server: normalizedServer, serverState, bridgeMode: normalizedBridgeMode });
   const report = {
     schemaVersion: '1.0.0',
     plannerVersion: HARNESS_SETUP_PLANNER_VERSION,
@@ -4625,6 +4629,7 @@ export async function buildHarnessSetupReport({
     client: normalizedClient.id,
     clientLabel: normalizedClient.label,
     server: normalizedServer,
+    bridgeMode: normalizedBridgeMode,
     config: {
       ref: config.configRef,
       format: normalizedClient.format,
@@ -4635,10 +4640,11 @@ export async function buildHarnessSetupReport({
       config: config.exists ? 'present' : 'absent',
       server: serverState
     },
-    desiredServer: desiredHarnessServerSummary(normalizedServer),
+    desiredServer: desiredHarnessServerSummary(normalizedServer, { bridgeMode: normalizedBridgeMode }),
     manualConfigSnippet: harnessManualConfigSnippet({
       client: normalizedClient,
       server: normalizedServer,
+      bridgeMode: normalizedBridgeMode,
       configRef: config.configRef
     }),
     diff: {
@@ -4672,6 +4678,12 @@ function normalizeHarnessSetupServer(value) {
   return name;
 }
 
+function normalizeHarnessSetupBridgeMode(value) {
+  const mode = String(value ?? 'resources').trim();
+  if (!['resources', 'token-saver'].includes(mode)) throw new Error(`unsupported harness setup bridge mode: ${mode || '<missing>'}`);
+  return mode;
+}
+
 async function readHomeConfig(home, relativePath) {
   if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes('..')) throw new Error(`harness config path is unsupported: ${relativePath}`);
   const realHome = await realpath(home);
@@ -4691,16 +4703,17 @@ async function readHomeConfig(home, relativePath) {
   return { exists: true, text: await readFile(actual, 'utf8'), configRef: `home://${toPosix(relativePath)}` };
 }
 
-function harnessSetupOperations({ action, server, serverState }) {
+function harnessSetupOperations({ action, server, serverState, bridgeMode }) {
   if (action === 'status') return [];
   if (action === 'plan') {
     if (serverState === 'installed') return [];
+    const label = bridgeMode === 'token-saver' ? 'token-saver server' : 'resource bridge';
     return [{
       op: serverState === 'absent' ? 'add' : 'replace',
       target: `mcpServers.${server}`,
       before: serverState,
       after: 'read-only-oaf-mcp-stdio',
-      summary: `${serverState === 'absent' ? 'add' : 'replace'} ${server} with read-only OAF MCP stdio resource bridge`
+      summary: `${serverState === 'absent' ? 'add' : 'replace'} ${server} with read-only OAF MCP stdio ${label}`
     }];
   }
   if (serverState === 'absent') return [];
@@ -4728,20 +4741,21 @@ function harnessSetupSafeguards() {
   };
 }
 
-function desiredHarnessServerSummary(server) {
+function desiredHarnessServerSummary(server, { bridgeMode = 'resources' } = {}) {
+  const args = bridgeMode === 'token-saver' ? [...OAF_MCP_TOKEN_SAVER_ARGS] : [...OAF_MCP_RESOURCE_ARGS];
   return {
     name: server,
     transport: 'stdio',
     command: 'npm',
-    args: ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'],
+    args,
     environmentKeys: [],
-    resourceMode: 'read-only',
+    resourceMode: bridgeMode === 'token-saver' ? 'read-only-token-saver' : 'read-only',
     externalWrites: false
   };
 }
 
-function harnessManualConfigSnippet({ client, server, configRef }) {
-  const desired = desiredHarnessServerSummary(server);
+function harnessManualConfigSnippet({ client, server, bridgeMode = 'resources', configRef }) {
+  const desired = desiredHarnessServerSummary(server, { bridgeMode });
   const serverConfig = {
     command: desired.command,
     args: desired.args
@@ -4770,12 +4784,13 @@ function harnessManualConfigSnippet({ client, server, configRef }) {
   };
 }
 
-function classifyHarnessServer(server) {
+function classifyHarnessServer(server, { bridgeMode = 'resources' } = {}) {
   if (!server) return 'absent';
+  const expectedArgs = bridgeMode === 'token-saver' ? OAF_MCP_TOKEN_SAVER_ARGS : OAF_MCP_RESOURCE_ARGS;
   if (
     server.command === 'npm' &&
     Array.isArray(server.args) &&
-    arraysEqual(server.args, ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'])
+    arraysEqual(server.args, expectedArgs)
   ) return 'installed';
   return 'drifted';
 }

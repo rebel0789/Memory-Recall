@@ -42,6 +42,10 @@ This repository is an **agent-ready development kit**, not a claim that the full
   exposing locators, hashes, token counts, omissions, changed-file impact, and
   utility coverage counts without raw task text, source bodies, markdown
   bodies, or write tools;
+- read-only MCP token-saver server and preview-confirm install planner for
+  Claude Code, Cursor, and Codex, exposing `memory.recall`,
+  `context.profile`, and `context.pack` over local stdio and writing exactly
+  the `oaf` MCP server entry only after `--apply --confirm`;
 - local MCP context-pack stdio smoke report with observed duration, response
   size, selected/candidate source units, and delivered-handoff unit counts for
   one explicit local invocation;
@@ -55,14 +59,14 @@ This repository is an **agent-ready development kit**, not a claim that the full
   gated temporal memory, hybrid retrieval, compressed memory profile context,
   bounded loop runs, local-owner auth, and `npm run local:run`;
 - dry-run harness setup planner for local MCP client configs, with redacted
-  status, add, replace, and uninstall previews and no home config writes;
+  status, add, replace, and uninstall previews and no silent home config writes;
 - versioned contract fixtures for 12 disabled external adapter targets;
 - tests, evaluations, repository checks, and agent task tooling;
 - no API key, paid service, database server, or external network required.
 
 ## What is deliberately not claimed
 
-Production PostgreSQL repositories, crash-resumable workflow orchestration, production authentication, proposal-based harness context import, automatic harness history import, write-capable MCP tools, real harness config writes, real social connectors, hardened sandboxes, external publishing, signed Agent Pack distribution, and a production frontend framework are **specified and planned**, but not completed. `PROJECT_STATUS.json` is the machine-readable source for current capability status and limitations.
+Production PostgreSQL repositories, crash-resumable workflow orchestration, production authentication, proposal-based harness context import, automatic harness history import, write-capable MCP tools, silent or broad harness config writes outside confirmed MCP install, real social connectors, hardened sandboxes, external publishing, signed Agent Pack distribution, and a production frontend framework are **specified and planned**, but not completed. `PROJECT_STATUS.json` is the machine-readable source for current capability status and limitations.
 
 ## Start in five minutes
 

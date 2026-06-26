@@ -69,6 +69,37 @@ active memory, call a model, use network access, reveal raw source bodies,
 print credentials, or reveal absolute filesystem locations. Side-effecting MCP
 tools still require the existing exact server-side grant path.
 
+To connect a local coding-agent client, preview the exact config first:
+
+```bash
+npm run oaf -- mcp install --client claude-code --dry-run --format json
+npm run oaf -- mcp install --client cursor --dry-run --format json
+npm run oaf -- mcp install --client codex --dry-run --format json
+```
+
+Dry-run is the default and writes nothing. The preview uses the same
+harness-setup planner and prints the ready-to-paste stdio server:
+
+```text
+npm --silent run oaf -- mcp server --read-only --root . --stdio
+```
+
+Applying the preview requires the matching plan fingerprint from that dry-run:
+
+```bash
+npm run oaf -- mcp install --client claude-code \
+  --apply --confirm sha256:<plan-fingerprint> --format json
+```
+
+The apply path updates only the selected client's local MCP config under the
+chosen home directory (`.claude/mcp.json`, `.cursor/mcp.json`, or
+`.codex/config.toml`) and only for the `oaf` server entry. It rejects `--write`,
+absolute/escaping config paths, unsupported clients, non-JSON reports, and
+stale confirmation fingerprints. Reports stay redacted and include the exact
+server entry plus a reversible manual target (`mcpServers.oaf` or
+`mcp_servers.oaf`); raw home config bodies, credentials, and absolute local
+paths are not printed.
+
 For a harness that needs a stable artifact, `context pack --write --use-out`
 can also write a schema-validated use plan under
 `context-packs/*.use.json`. The use plan is separate from the markdown pack:

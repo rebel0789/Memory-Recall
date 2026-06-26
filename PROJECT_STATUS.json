@@ -783,14 +783,16 @@
         "examples/protocol/context-pack-handoff-report.json",
         "examples/protocol/mcp-context-pack-smoke.json",
         "apps/cli/oaf.mjs",
+        "packages/harness-context/src/index.mjs",
         "tests/protocol-bridges.test.mjs",
         "tests/cli.test.mjs",
         "docs/architecture/protocol-bridges.md",
         "docs/implementation/OAF-028-protocol-bridges-note.md"
       ],
       "limitations": [
-        "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio composition using npm --silent for harness setup previews; no HTTP, SSE, hosted bridge, or network listener is started",
+        "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio compositions and the preview-confirm mcp install planner using npm --silent; no HTTP, SSE, hosted bridge, or network listener is started",
         "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, opt-in current context packs, auto-discovered pinned context-pack use plans, and pinned context-pack registry verification; they do not expose write tools, source bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
+        "The MCP token-saver install command writes only the selected local client MCP config entry after --apply plus a matching dry-run fingerprint; default dry-run prints exact config only, rejects --write, and does not print raw home config bodies or absolute paths",
         "The stdio bridge enforces bounded stdin, JSON-RPC line size, message count, child runtime, child stdout/stderr, JSON-RPC id, method, resource URI, and tool name limits; JSON-RPC batch arrays are rejected and request-metadata failures are redacted",
         "MCP context-pack smoke and measurement reports are observed local single-invocation measurements only; delivery-budget metrics distinguish locator-handoff cost from source-body selection cost but are not production latency benchmarks, provider billing-token claims, or external tool comparisons",
         "Requires OAF trusted context and server-side exact grants; remote protocol clients do not inherit local authority",
@@ -948,7 +950,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 406,
+    "testsExpected": 409,
     "protocolFixturesExpected": 160,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

@@ -951,7 +951,7 @@ export function createApiRouteContracts(limits = {}) {
   const harnessSetupPlanResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'config', 'status', 'desiredServer', 'manualConfigSnippet', 'diff', 'safeguards', 'planFingerprint'],
+    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'bridgeMode', 'config', 'status', 'desiredServer', 'manualConfigSnippet', 'diff', 'safeguards', 'planFingerprint'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       plannerVersion: boundedString(32),
@@ -961,6 +961,7 @@ export function createApiRouteContracts(limits = {}) {
       client: boundedString(32),
       clientLabel: boundedString(80),
       server: { const: 'oaf' },
+      bridgeMode: { const: 'resources' },
       config: {
         type: 'object',
         additionalProperties: false,

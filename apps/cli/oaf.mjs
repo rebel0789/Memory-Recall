@@ -53,6 +53,11 @@ const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 const MCP_PRIVATE_MATERIAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
 const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
+const MCP_INSTALL_CLIENTS = new Map([
+  ['codex', { id: 'codex', format: 'toml', configPath: '.codex/config.toml' }],
+  ['cursor', { id: 'cursor', format: 'json', configPath: '.cursor/mcp.json' }],
+  ['claude-code', { id: 'claude-code', format: 'json', configPath: '.claude/mcp.json' }]
+]);
 
 const [command = 'help', ...args] = process.argv.slice(2);
 const commands = new Map([
@@ -1349,8 +1354,9 @@ async function mcpCommand(values) {
   try {
     if (subcommand === 'resources') return await mcpResourcesCommand(rest);
     if (subcommand === 'server') return await mcpServerCommand(rest);
+    if (subcommand === 'install') return await mcpInstallCommand(rest);
     if (subcommand === 'smoke') return await mcpSmokeCommand(rest);
-    console.error('mcp requires resources, server, or smoke');
+    console.error('mcp requires resources, server, install, or smoke');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -1749,6 +1755,164 @@ function mcpToolJsonResult(payload) {
 function mcpToolTextResult(text) {
   if (MCP_PRIVATE_MATERIAL.test(text)) throw new Error('mcp tool output contains private material');
   return { content: [{ type: 'text', text }] };
+}
+
+async function mcpInstallCommand(values) {
+  if (values.includes('--write')) {
+    console.error('mcp install uses --apply with --confirm; --write is not supported');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('mcp install only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const client = normalizeMcpInstallClient(option(values, '--client'));
+  const apply = values.includes('--apply');
+  if (apply && values.includes('--dry-run')) {
+    console.error('mcp install accepts either dry-run/default or --apply, not both');
+    process.exitCode = 2;
+    return;
+  }
+  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--format', '--dry-run', '--apply', '--confirm']);
+  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--format', '--confirm']);
+  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
+  if (unsupported.length) {
+    console.error(`mcp install unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? '.';
+  const home = option(values, '--home') ?? process.env.HOME ?? process.cwd();
+  const setup = await buildHarnessSetupReport({
+    action: 'plan',
+    client: client.id,
+    server: option(values, '--server') ?? 'oaf',
+    home,
+    configPath: option(values, '--config'),
+    bridgeMode: 'token-saver',
+    generatedAt: fixedNow()
+  });
+  const preview = buildMcpInstallReport({ values, setup, client, root, apply, applied: false, localFilesWritten: 0 });
+  const confirm = option(values, '--confirm');
+  if (apply && confirm !== preview.planFingerprint) {
+    console.error('mcp install --apply requires --confirm <planFingerprint> from a dry-run preview');
+    process.exitCode = 2;
+    return;
+  }
+  if (apply) {
+    await applyMcpInstallConfig({ home, client, configPath: option(values, '--config') ?? client.configPath, server: setup.server, desiredServer: setup.desiredServer });
+    console.log(JSON.stringify(buildMcpInstallReport({ values, setup, client, root, apply, applied: true, localFilesWritten: 1 }), null, 2));
+    return;
+  }
+  console.log(JSON.stringify(preview, null, 2));
+}
+
+function normalizeMcpInstallClient(value) {
+  const aliases = new Map([['claude', 'claude-code']]);
+  const id = aliases.get(String(value ?? '').trim()) ?? String(value ?? '').trim();
+  const client = MCP_INSTALL_CLIENTS.get(id);
+  if (!client) throw new Error('mcp install requires --client claude-code|cursor|codex');
+  return client;
+}
+
+function buildMcpInstallReport({ values, setup, client, root, apply, applied, localFilesWritten }) {
+  const reportBase = {
+    schemaVersion: '1.0.0',
+    command: 'mcp install',
+    generatedAt: setup.generatedAt,
+    dryRun: !apply,
+    apply: {
+      requested: apply,
+      confirmed: apply,
+      applied
+    },
+    client: setup.client,
+    clientLabel: setup.clientLabel,
+    server: setup.server,
+    bridgeMode: setup.bridgeMode,
+    workspaceRootRef: root === '.' ? 'workspace://.' : 'workspace://selected-root',
+    config: setup.config,
+    status: setup.status,
+    desiredServer: setup.desiredServer,
+    manualConfigSnippet: setup.manualConfigSnippet,
+    reversal: {
+      mode: 'manual',
+      configRef: setup.config.ref,
+      target: client.format === 'toml' ? `mcp_servers.${setup.server}` : `mcpServers.${setup.server}`,
+      instruction: 'Remove only this server entry to reverse the install; do not paste or print the raw home config body.'
+    },
+    diff: setup.diff,
+    safeguards: {
+      ...setup.safeguards,
+      localFilesWritten,
+      homeConfigMutated: applied
+    }
+  };
+  const planFingerprint = fingerprintMcpInstallPlan(reportBase);
+  return {
+    ...reportBase,
+    planFingerprint,
+    nextCommand: apply || applied
+      ? null
+      : `npm run oaf -- mcp install --client ${client.id} --apply --confirm ${planFingerprint} --format json`,
+    warnings: [
+      'Dry-run is the default; OAF writes home config only with --apply and matching --confirm.',
+      'Review the config before applying. The MCP server is local stdio and read-only.'
+    ]
+  };
+}
+
+function fingerprintMcpInstallPlan(report) {
+  return fingerprintJson({
+    command: report.command,
+    client: report.client,
+    server: report.server,
+    bridgeMode: report.bridgeMode,
+    workspaceRootRef: report.workspaceRootRef,
+    config: report.config,
+    status: report.status,
+    desiredServer: report.desiredServer,
+    diff: report.diff
+  });
+}
+
+async function applyMcpInstallConfig({ home, client, configPath, server, desiredServer }) {
+  const realHome = await realpath(home);
+  if (path.isAbsolute(configPath) || configPath.includes('..')) throw new Error('mcp install config path must stay inside --home');
+  const target = path.resolve(realHome, configPath);
+  if (!isInside(realHome, target)) throw new Error('mcp install config path escapes --home');
+  await mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
+  const current = await readFile(target, 'utf8').catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  const serverConfig = { command: desiredServer.command, args: desiredServer.args };
+  const next = client.format === 'toml'
+    ? mergeMcpInstallToml(current ?? '', server, serverConfig)
+    : mergeMcpInstallJson(current ?? '{}', server, serverConfig);
+  await writeFile(target, next, { mode: 0o600 });
+}
+
+function mergeMcpInstallJson(text, server, serverConfig) {
+  const parsed = JSON.parse(text || '{}');
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('mcp install JSON config must be an object');
+  const source = parsed.mcpServers && typeof parsed.mcpServers === 'object' && !Array.isArray(parsed.mcpServers)
+    ? { ...parsed.mcpServers }
+    : {};
+  source[server] = serverConfig;
+  return `${JSON.stringify({ ...parsed, mcpServers: source }, null, 2)}\n`;
+}
+
+function mergeMcpInstallToml(text, server, serverConfig) {
+  const sectionPattern = new RegExp(`(?:^|\\n)\\[mcp_servers\\.${server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\n(?:[^\\[]|\\[(?!mcp_servers\\.))*`, 'u');
+  const withoutExisting = text.replace(sectionPattern, (match) => match.startsWith('\n') ? '\n' : '');
+  const args = serverConfig.args.map((item) => `"${String(item).replaceAll('"', '\\"')}"`).join(', ');
+  const section = `[mcp_servers.${server}]\ncommand = "${serverConfig.command}"\nargs = [${args}]\n`;
+  const prefix = withoutExisting.trimEnd();
+  return `${prefix ? `${prefix}\n\n` : ''}${section}`;
 }
 
 async function mcpSmokeCommand(values) {
@@ -3157,6 +3321,7 @@ Usage:
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf mcp server --read-only --root . --stdio
+  oaf mcp install --client claude-code --dry-run --format json
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json
   oaf harness setup uninstall --client cursor --server oaf --dry-run --format json

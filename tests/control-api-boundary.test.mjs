@@ -860,6 +860,7 @@ test('harness setup plan route is protected plan-only and does not expose home c
   assert.equal(response.body.dryRun, true);
   assert.equal(response.body.client, 'cursor');
   assert.equal(response.body.server, 'oaf');
+  assert.equal(response.body.bridgeMode, 'resources');
   assert.equal(response.body.config.ref, 'home://.cursor/mcp.json');
   assert.equal(response.body.config.serverCount, 1);
   assert.equal(response.body.diff.redacted, true);

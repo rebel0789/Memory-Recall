@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import { spawnSync } from 'node:child_process';import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';import os from 'node:os';import path from 'node:path';import contextPackHandoffReportSchema from '../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };import contextPackMeasurementReportSchema from '../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };import contextPackReceiveReportSchema from '../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 test('CLI help documents MCP token-saver server',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp server --read-only --root \. --stdio/)});
+test('CLI help documents MCP token-saver install',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp install --client claude-code --dry-run --format json/)});
 test('CLI help is local and documents core commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf task <OAF-ID>/);assert.match(result.stdout,/Run oaf task only when npm run status names a next task/);assert.match(result.stdout,/oaf demo memory-loop --root \. --format json/);assert.match(result.stdout,/oaf context scan --from codex --root \. --dry-run/);assert.match(result.stdout,/oaf context preview --from codex --root \. --objective/);assert.match(result.stdout,/oaf context pack .*--changed src\/auth\.ts .*--changed-from-git/);assert.match(result.stdout,/oaf context handoff --read-only --from codex --root \./);assert.match(result.stdout,/--memory-config oaf\.memory\.json/);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format json/);assert.match(result.stdout,/oaf context registry status --read-only --format json/);assert.match(result.stdout,/oaf context graph preview --root \. --query/);assert.match(result.stdout,/oaf loop plan --read-only --root \./);assert.match(result.stdout,/oaf loop observe --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf loop verify --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf measure context-pack --read-only --root \./);assert.match(result.stdout,/impact brief/);assert.match(result.stdout,/--format summary/);assert.match(result.stdout,/oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals\/benchmark-truth-floor\/cases.v1.json --format json/);assert.match(result.stdout,/oaf memory sgrep "context manifest"/);assert.match(result.stdout,/oaf memory fact add --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact get --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact history --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf mcp resources --read-only/);assert.match(result.stdout,/oaf mcp smoke context-pack/);assert.match(result.stdout,/oaf harness setup status --client codex --dry-run --format json/);assert.match(result.stdout,/oaf harness setup plan --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/oaf harness setup uninstall --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/no external writes/i)});
 test('demo memory-loop runs native profile plan observe proposal and fact flow',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','demo','memory-loop','--root','.','--format','json'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.command,'demo memory-loop');assert(report.compressedProfile.contextBudget.estimatedDeliveryTokens>0);assert.equal(report.loopPlan.contextBudget.estimatedDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert.equal(report.observation.status,'passed');assert.equal(report.extractionProposal.status,'applied');assert.equal(report.memoryFact.id,'memfact_demo_memory_loop');assert.equal(report.memoryFact.validity.validFrom,'2026-06-26T10:00:00.000Z');assert.deepEqual(report.remembered,['project:oaf memory_loop connected']);assert.deepEqual(report.superseded,[]);assert.equal(report.safeguards.localOnly,true);assert.equal(report.safeguards.networkCalls,0);assert.equal(report.safeguards.modelCalls,0)});
 test('demo memory-loop npm script prints token saving remembered and superseded facts',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync('npm',['run','demo:memory-loop'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/Memory loop token saving: \d+%/);assert.match(result.stdout,/Remembered: project:oaf memory_loop connected/);assert.match(result.stdout,/Superseded: memfact_demo_memory_loop_previous -> memfact_demo_memory_loop/);assert.match(result.stdout,/Observation: passed/);assert.equal(result.stdout.includes('network'),false)});
@@ -614,6 +615,93 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
   assert(profile.data.tokenSavingPercent > 0);
   assert.equal(profile.data.profile.acceptedHistoryRecordCount, 1);
   assert.equal(profile.safeguards.canonicalStateMutated, false);
+});
+test('mcp install dry-run prints exact token-saver config for coding clients without writes', () => {
+  const expectedArgs = ['--silent', 'run', 'oaf', '--', 'mcp', 'server', '--read-only', '--root', '.', '--stdio'];
+  for (const client of ['claude-code', 'cursor', 'codex']) {
+    const home = mkdtempSync(path.join(os.tmpdir(), `oaf-cli-mcp-install-${client}-`));
+    const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', client, '--home', home, '--format', 'json'], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    assert.equal(result.stdout.includes(home), false);
+    assert.equal(result.stdout.includes('/Users/'), false);
+    const report = JSON.parse(result.stdout);
+    assert.equal(report.command, 'mcp install');
+    assert.equal(report.dryRun, true);
+    assert.equal(report.apply.requested, false);
+    assert.equal(report.apply.applied, false);
+    assert.equal(report.client, client);
+    assert.equal(report.server, 'oaf');
+    assert.equal(report.bridgeMode, 'token-saver');
+    assert.equal(report.config.ref.startsWith('home://'), true);
+    assert.equal(report.config.exists, false);
+    assert.equal(report.status.server, 'absent');
+    assert.equal(report.desiredServer.command, 'npm');
+    assert.deepEqual(report.desiredServer.args, expectedArgs);
+    assert.equal(report.desiredServer.resourceMode, 'read-only-token-saver');
+    assert.equal(report.safeguards.localFilesWritten, 0);
+    assert.equal(report.safeguards.homeConfigMutated, false);
+    assert.equal(report.safeguards.externalWritesEnabled, false);
+    assert.equal(report.safeguards.networkCalls, 0);
+    assert.equal(report.safeguards.modelCalls, 0);
+    assert.match(report.planFingerprint, /^sha256:[a-f0-9]{64}$/);
+    assert.match(report.nextCommand, new RegExp(`mcp install --client ${client} --apply --confirm sha256:[a-f0-9]{64} --format json`));
+    if (client === 'codex') {
+      assert.match(report.manualConfigSnippet.content, /\[mcp_servers\.oaf\]/);
+      assert.equal(report.reversal.target, 'mcp_servers.oaf');
+      assert.equal(existsSync(path.join(home, '.codex', 'config.toml')), false);
+    } else {
+      assert.match(report.manualConfigSnippet.content, /"mcpServers"/);
+      assert.equal(report.reversal.target, 'mcpServers.oaf');
+      const configPath = client === 'cursor' ? '.cursor/mcp.json' : '.claude/mcp.json';
+      assert.equal(existsSync(path.join(home, configPath)), false);
+    }
+  }
+});
+
+test('mcp install apply requires matching confirmation before writing config', () => {
+  const expectedArgs = ['--silent', 'run', 'oaf', '--', 'mcp', 'server', '--read-only', '--root', '.', '--stdio'];
+  const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-apply-'));
+  const configPath = path.join(home, '.cursor', 'mcp.json');
+  const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(preview.status, 0, preview.stderr);
+  const previewReport = JSON.parse(preview.stdout);
+  assert.equal(previewReport.status.server, 'absent');
+  assert.equal(existsSync(configPath), false);
+
+  const missingConfirm = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(missingConfirm.status, 2);
+  assert.match(missingConfirm.stderr, /requires --confirm <planFingerprint>/);
+  assert.equal(missingConfirm.stdout, '');
+  assert.equal(existsSync(configPath), false);
+
+  const wrongConfirm = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--confirm', 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(wrongConfirm.status, 2);
+  assert.match(wrongConfirm.stderr, /requires --confirm <planFingerprint>/);
+  assert.equal(wrongConfirm.stdout, '');
+  assert.equal(existsSync(configPath), false);
+
+  const applied = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--confirm', previewReport.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(applied.status, 0, applied.stderr);
+  const appliedReport = JSON.parse(applied.stdout);
+  assert.equal(appliedReport.dryRun, false);
+  assert.equal(appliedReport.apply.requested, true);
+  assert.equal(appliedReport.apply.confirmed, true);
+  assert.equal(appliedReport.apply.applied, true);
+  assert.equal(appliedReport.safeguards.localFilesWritten, 1);
+  assert.equal(appliedReport.safeguards.homeConfigMutated, true);
+  assert.equal(appliedReport.nextCommand, null);
+  assert.equal(appliedReport.reversal.target, 'mcpServers.oaf');
+  assert.equal(existsSync(configPath), true);
+  const written = JSON.parse(readFileSync(configPath, 'utf8'));
+  assert.equal(written.mcpServers.oaf.command, 'npm');
+  assert.deepEqual(written.mcpServers.oaf.args, expectedArgs);
+
+  const after = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(after.status, 0, after.stderr);
+  const afterReport = JSON.parse(after.stdout);
+  assert.equal(afterReport.status.server, 'installed');
+  assert.deepEqual(afterReport.desiredServer.args, expectedArgs);
 });
 test('mcp resources CLI lists, reads, and serves sanitized read-only resources over stdio',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-mcp-'));mkdirSync(path.join(root,'.local'),{recursive:true});writeFileSync(path.join(root,'PROJECT_STATUS.json'),JSON.stringify({release:'0.2.0-dev',phase:'local-test',nextTask:'OAF-031',defaults:{network:'deny',externalWrites:false,modelMode:'deterministic',dataResidency:'local-only',adapters:'disabled'}},null,2));writeFileSync(path.join(root,'.local','state.json'),JSON.stringify({schemaVersion:'1.0.0',runs:[{id:'run_cli_mcp',workspaceId:'ws_local',workflowId:'workflow:content-intelligence',objective:'Do not print this private objective.',status:'completed',residency:'local-only',createdAt:'2026-06-24T00:00:00.000Z',output:{text:'private model result'}}],events:[{id:'evt_cli_ctx',workspaceId:'ws_local',runId:'run_cli_mcp',sequence:1,type:'context.compiled',occurredAt:'2026-06-24T00:00:00.000Z',payload:{id:'ctx_cli',compilerVersion:'context-compiler@1.0.0',budget:{available:100,used:20},selected:[{id:'doc_cli',kind:'instruction',tokens:20,reasonCodes:['explicit_requirement'],source:'workspace://memory/old-private.md',text:'raw prompt body token=secret'}],excluded:[]}},{id:'evt_other',workspaceId:'ws_other',runId:'run_other',sequence:1,type:'run.started',occurredAt:'2026-06-24T00:00:00.000Z',payload:{text:'other workspace'}}],memories:[{id:'mem_cli_prop',workspaceId:'ws_local',kind:'decision',status:'proposed',decision:'review',confidence:0.6,text:'private memory text'}],approvals:[],artifacts:[]},null,2));const env={...process.env,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z'};const listed=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--format','json'],{encoding:'utf8',env});assert.equal(listed.status,0,listed.stderr);const listing=JSON.parse(listed.stdout);assert.equal(listing.mode,'read-only');assert.equal(listing.resources.length,5);assert(listing.resources.some(item=>item.uri==='oaf://workspace/ws_local/status'));assert.equal(listing.safeguards.externalWritesEnabled,false);const read=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--uri','oaf://workspace/ws_local/context/latest','--format','json'],{encoding:'utf8',env});assert.equal(read.status,0,read.stderr);const envelope=JSON.parse(read.stdout);const payload=JSON.parse(envelope.contents[0].text);assert.equal(payload.resourceKind,'context-manifest-summary');assert.equal(payload.data.contextManifest.selectedCount,1);assert.match(payload.resourceFingerprint,/^sha256:[a-f0-9]{64}$/);assert(!read.stdout.includes('raw prompt body'));assert(!read.stdout.includes('private objective'));assert(!read.stdout.includes('private model result'));assert(!read.stdout.includes('private memory text'));assert(!read.stdout.includes('/Users/rebel'));const stdioInput=['{"jsonrpc":"2.0","id":1,"method":"resources/list"}',JSON.stringify({jsonrpc:'2.0',id:2,method:'resources/read',params:{uri:'oaf://workspace/ws_local/status'}})].join('\n');const stdio=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--stdio'],{encoding:'utf8',env,input:stdioInput});assert.equal(stdio.status,0,stdio.stderr);const lines=stdio.stdout.trim().split(/\n/u).map(line=>JSON.parse(line));assert.equal(lines[0].result.resources.length,5);const statusPayload=JSON.parse(lines[1].result.contents[0].text);assert.equal(statusPayload.data.counts.runs,1);assert.equal(statusPayload.data.counts.proposedMemories,1);assert.equal(statusPayload.safeguards.canonicalStateMutated,false);});
 test('mcp resources CLI bounds stdio input without echoing raw request bytes',()=>{
