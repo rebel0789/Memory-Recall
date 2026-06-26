@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { extractTemporalFactProposalsFromEpisode } from '../../../../packages/memory-core/src/index.mjs';
 import { prefixedId, nowIso, assertPlainObject, stableStringify, sha256Hex } from '../../../../packages/protocol/src/index.mjs';
 
 const PROVIDER_ID = 'provider:native:memory:sqlite';
@@ -509,7 +510,7 @@ export class SQLiteMemoryProvider {
   }
 
   async capabilities() {
-    return ['memory.put', 'memory.get', 'memory.search.lexical', 'memory.supersede', 'memory.forget', 'memory.export', 'memory.filesystemReports', 'memory.proposalQueue', 'memory.temporalFacts', 'memory.search.hybrid'];
+    return ['memory.put', 'memory.get', 'memory.search.lexical', 'memory.supersede', 'memory.forget', 'memory.export', 'memory.filesystemReports', 'memory.proposalQueue', 'memory.temporalFacts', 'memory.search.hybrid', 'memory.extract.proposals'];
   }
 
   #recordValues(record) {
@@ -1028,6 +1029,35 @@ export class SQLiteMemoryProvider {
       semantic: report.signals.semantic,
       scopedDigest: report.scopedDigest
     };
+  }
+
+  async proposeTemporalFactsFromEpisode(input) {
+    const extracted = extractTemporalFactProposalsFromEpisode(input);
+    const queued = [];
+    for (const proposal of extracted.proposals) {
+      queued.push(await this.enqueueProposal({
+        id: proposal.id,
+        workspaceId: proposal.workspaceId,
+        sourceLocator: proposal.sourceLocator,
+        sourceHash: proposal.sourceHash,
+        payload: {
+          kind: 'fact',
+          scope: proposal.payload.scope,
+          subject: proposal.payload.subject,
+          predicate: proposal.payload.predicate,
+          object: proposal.payload.object,
+          text: proposal.payload.text,
+          observedAt: proposal.payload.observedAt,
+          subjectEntity: proposal.payload.subjectEntity,
+          objectEntity: proposal.payload.objectEntity,
+          entityLinksJson: stableStringify(proposal.payload.entityLinks),
+          provenanceEpisodeId: proposal.payload.provenance.episodeId,
+          provenanceSourceLocator: proposal.payload.provenance.sourceLocator,
+          provenanceSourceHash: proposal.payload.provenance.sourceHash
+        }
+      }));
+    }
+    return queued;
   }
 
   async enqueueProposal(input) {

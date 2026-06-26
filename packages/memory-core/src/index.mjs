@@ -1,4 +1,4 @@
-import { prefixedId, nowIso, assertPlainObject } from '../../protocol/src/index.mjs';
+import { prefixedId, nowIso, assertPlainObject, stableStringify, sha256Hex } from '../../protocol/src/index.mjs';
 
 const SECRET_PATTERNS = [
   /sk-[A-Za-z0-9_-]{20,}/,
@@ -123,6 +123,90 @@ function findConflicts(record, existingRecords) {
       predicate: record.metadata.predicate,
       reason: 'same_subject_predicate_different_text'
     }));
+}
+
+function deterministicMemoryCoreId(prefix, value) {
+  return `${prefix}_${sha256Hex(stableStringify(value)).slice(0, 32)}`;
+}
+
+function normalizeExtractionToken(value, name) {
+  const text = String(value ?? '').trim();
+  if (!/^[A-Za-z0-9:_-]{1,128}$/.test(text)) throw new Error(`${name} must be a safe extraction token`);
+  return text;
+}
+
+function extractionSentences(text) {
+  return String(text ?? '')
+    .split(/[.\n]/u)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 50);
+}
+
+export function extractTemporalFactProposalsFromEpisode(input) {
+  plain(input, 'memory extraction episode');
+  const workspaceId = input.workspaceId ?? 'ws_local';
+  const scope = input.scope ?? 'workspace';
+  const sourceLocator = String(input.sourceLocator ?? '');
+  if (!/^workspace:\/\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/.test(sourceLocator)) throw new Error('sourceLocator must be a safe workspace locator');
+  const observedAt = timestamp(input.observedAt);
+  const text = String(input.text ?? '');
+  const episode = deepFreeze({
+    schemaVersion: '1.0.0',
+    id: deterministicMemoryCoreId('mep', { workspaceId, scope, sourceLocator, observedAt, text }),
+    workspaceId,
+    scope,
+    sourceLocator,
+    observedAt
+  });
+  const sourceHash = `sha256:${sha256Hex(text)}`;
+  const proposals = extractionSentences(text).map((sentence) => {
+    const [subjectRaw, predicateRaw, objectRaw, ...rest] = sentence.split(/\s+/u);
+    if (rest.length || !subjectRaw || !predicateRaw || !objectRaw || hasSecret(sentence)) return null;
+    const subject = normalizeExtractionToken(subjectRaw, 'subject');
+    const predicate = normalizeExtractionToken(predicateRaw, 'predicate');
+    const object = normalizeExtractionToken(objectRaw, 'object');
+    const payload = {
+      kind: 'fact',
+      scope,
+      subject,
+      predicate,
+      object,
+      text: `${subject} ${predicate} ${object}`,
+      sourceLocator,
+      observedAt,
+      subjectEntity: subject,
+      objectEntity: object,
+      entityLinks: [
+        { name: subject, role: 'subject' },
+        { name: object, role: 'object' }
+      ],
+      provenance: {
+        episodeId: episode.id,
+        sourceLocator,
+        sourceHash
+      }
+    };
+    return {
+      id: deterministicMemoryCoreId('mpq', { workspaceId, sourceLocator, sourceHash, payload }),
+      workspaceId,
+      sourceLocator,
+      sourceHash,
+      payload
+    };
+  }).filter(Boolean);
+  return deepFreeze({
+    schemaVersion: '1.0.0',
+    workspaceId,
+    scope,
+    episode,
+    proposals,
+    safeguards: {
+      activeMemoryCreated: 0,
+      canonicalStateMutated: false,
+      deterministicOffline: true
+    }
+  });
 }
 
 export function evaluateMemoryWrite(input, { existingRecords = [] } = {}) {

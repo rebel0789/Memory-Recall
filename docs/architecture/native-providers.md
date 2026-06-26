@@ -83,6 +83,10 @@ FTS5 matches seed the result set, entity edges add graph-neighbor facts,
 temporal ranking prefers recent valid facts, and scoped digests provide a compact
 graphify-style handoff summary. Semantic sqlite-vec ranking is reported as
 skipped when no local embedder is available; no network or model API is called.
+Offline fact extraction is ADD-only and deterministic: safe `subject predicate
+object` triples from an episode enqueue reviewable proposals with provenance and
+entity links. Extraction does not write active facts; the existing proposal queue
+must still be approved before a temporal fact can be added.
 No network calls, model calls, external writes, Supermemory sync, FUSE/NFS
 mounts, API-key storage, or active-memory creation from ordinary file edits are
 enabled.
