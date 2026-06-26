@@ -648,6 +648,7 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
   const env = { ...process.env, OAF_FIXED_NOW: '2026-06-26T11:00:00.000Z' };
   const input = [
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+    JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
     JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }),
     JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'mcp token saver ready', scope: 'workspace', limit: 5 } } }),
     JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'context.profile', arguments: { objective: 'mcp token saver ready', step: 'serve coding agent context', budget: 256, limit: 10 } } })

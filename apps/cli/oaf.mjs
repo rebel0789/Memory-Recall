@@ -3082,7 +3082,7 @@ async function mcpResourcesStdio({
   const messages = parseJsonRpcMessages(input, { commandLabel });
   for (const message of messages) {
     const response = await bridge.handle(message);
-    console.log(JSON.stringify(response));
+    if (response) console.log(JSON.stringify(response));
   }
 }
 

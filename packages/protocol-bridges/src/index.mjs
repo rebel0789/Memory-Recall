@@ -168,6 +168,10 @@ function validateMessage(message) {
   return message;
 }
 
+function isJsonRpcNotification(message) {
+  return isPlainObject(message) && message.jsonrpc === JSONRPC && message.method !== undefined && message.id === undefined;
+}
+
 function resourceUriParam(params) {
   return assertBoundedString(params.uri, {
     message: 'MCP resource URI is invalid',
@@ -1136,6 +1140,7 @@ export function createMcpBridge({
   async function handle(message) {
     let requestId = null;
     try {
+      if (isJsonRpcNotification(message)) return null;
       validateMessage(message);
       requestId = message.id;
       requireConnected();
