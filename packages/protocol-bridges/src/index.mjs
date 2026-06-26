@@ -26,7 +26,7 @@ const MAX_JSONRPC_RESOURCE_URI_BYTES = 512;
 const MAX_JSONRPC_TOOL_NAME_BYTES = 512;
 const MAX_CONTEXT_PACK_ITEMS = 2;
 const MAX_CONTEXT_PACK_BULK_ITEMS = 1;
-const MCP_METHODS = new Set(['initialize', 'ping', 'tools/list', 'tools/call', 'resources/list', 'resources/read']);
+const MCP_METHODS = new Set(['initialize', 'ping', 'tools/list', 'tools/call', 'resources/list', 'resources/read', 'prompts/list']);
 
 function hash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -1153,11 +1153,13 @@ export function createMcpBridge({
           serverInfo: { name, version },
           capabilities: {
             tools: { listChanged: false },
-            resources: { subscribe: false, listChanged: false }
+            resources: { subscribe: false, listChanged: false },
+            prompts: { listChanged: false }
           }
         });
       }
       if (message.method === 'ping') return jsonRpcResult(message.id, {});
+      if (message.method === 'prompts/list') return jsonRpcResult(message.id, { prompts: [] });
       if (message.method === 'tools/list') {
         requireIdentity();
         return jsonRpcResult(message.id, assertSafeResult({ tools: [...toolsByName.values()].map(publicTool) }));
