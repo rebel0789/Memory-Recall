@@ -36,3 +36,4 @@ export function createEvent({ type, workspaceId='ws_local', runId, actorId='syst
 }
 
 export { validateJsonSchema, assertJsonSchema } from './schema-validator.mjs';
+export { canonicalStringify, stableStringify, sha256Hex } from './fingerprint.mjs';

@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto';
-import { assertPlainObject } from '../../protocol/src/index.mjs';
+import { assertPlainObject, canonicalStringify, sha256Hex as sha256 } from '../../protocol/src/index.mjs';
 
 const SNAPSHOT_FORBIDDEN_KEYS = new Set([
   'observed',
@@ -25,23 +24,11 @@ const DEFAULT_MAX_SOURCE_BYTES = 256 * 1024;
 const DEFAULT_MAX_ITEMS_PER_SOURCE = 100;
 const SECRET_QUERY_PARAMETER_PATTERN = /(^|[-_.])(accesskeyid|api[-_]?key|apikey|auth|authorization|client[-_]?secret|credential|credentials|jwt|key|password|passwd|pwd|secret|session|sig|signature|token)([-_.]|$)/i;
 
-function sha256(value) {
-  return createHash('sha256').update(value).digest('hex');
-}
-
 function toBuffer(value) {
   if (Buffer.isBuffer(value)) return Buffer.from(value);
   if (value instanceof Uint8Array) return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
   if (typeof value === 'string') return Buffer.from(value, 'utf8');
   throw new TypeError('body must be a string, Buffer, or Uint8Array');
-}
-
-function canonicalStringify(value) {
-  if (Array.isArray(value)) return `[${value.map((item) => canonicalStringify(item)).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalStringify(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
 }
 
 function deepFreeze(value) {

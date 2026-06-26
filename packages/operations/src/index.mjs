@@ -1,6 +1,6 @@
-import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { canonicalStringify, sha256Hex as sha256 } from '../../protocol/src/index.mjs';
 
 export const OPERATIONS_VERSION = '0.1.0';
 export const BACKUP_SCHEMA_VERSION = '1.0.0';
@@ -16,18 +16,6 @@ function operationsError(code, message, details = {}) {
   error.code = code;
   error.details = details;
   return error;
-}
-
-function sha256(value) {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-function canonicalStringify(value) {
-  if (Array.isArray(value)) return `[${value.map((item) => canonicalStringify(item)).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalStringify(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
 }
 
 function requireWorkspaceId(value) {

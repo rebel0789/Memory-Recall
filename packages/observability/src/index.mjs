@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { stableStringify } from '../../protocol/src/index.mjs';
 
 export const OBSERVABILITY_VERSION = '1.0.0';
 export const DEFAULT_SERVICE_NAME = 'open-agent-fabric';
@@ -9,12 +10,6 @@ const SECRET_VALUE = /sk-[A-Za-z0-9_-]{12,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE 
 const LOCAL_PATH = /(?:^|[\s"'=])\/Users\/|(?:^|[\s"'=])\/private\/|(?:^|[\s"'=])\/var\/folders\//;
 const TRACE_ID = /^[a-f0-9]{32}$/;
 const SPAN_ID = /^[a-f0-9]{16}$/;
-
-function stableStringify(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-}
 
 function hashHex(value, length) {
   return createHash('sha256').update(typeof value === 'string' ? value : stableStringify(value)).digest('hex').slice(0, length);

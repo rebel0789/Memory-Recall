@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { stableStringify } from '../../protocol/src/index.mjs';
 import {
   compileContext,
   compileContextFromSources,
@@ -50,12 +51,6 @@ const BLOCKED_KEY_SEGMENTS = new Set([
 ]);
 const SECRET_VALUE = /sk-[A-Za-z0-9_-]{12,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gh[op]_[A-Za-z0-9_]{12,}/;
 const LOCAL_PATH = /(?:^|[\s"'=])\/Users\/|(?:^|[\s"'=])\/private\/|(?:^|[\s"'=])\/var\/folders\//;
-
-function stableStringify(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-}
 
 function fingerprint(value) {
   return `sha256:${createHash('sha256').update(stableStringify(value)).digest('hex')}`;

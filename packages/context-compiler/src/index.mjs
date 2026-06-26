@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { prefixedId, nowIso, assertPlainObject } from '../../protocol/src/index.mjs';
+import { prefixedId, nowIso, assertPlainObject, stableStringify as protocolStableStringify } from '../../protocol/src/index.mjs';
 
 export const COMPILER_VERSION = '0.2.0';
 const STOP_WORDS = new Set(['a','an','and','are','as','at','be','by','for','from','in','is','it','of','on','or','that','the','this','to','with']);
@@ -142,11 +142,7 @@ function normalizeStringArray(values, name, { max = MAX_ID_COUNT, pattern = null
   return result;
 }
 
-export function stableStringify(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-}
+export const stableStringify = protocolStableStringify;
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');

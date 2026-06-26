@@ -143,3 +143,19 @@ Not done in this pass to avoid silently breaking determinism.
 ## CI
 
 `npm run ci` after the safe removals: green (see commit).
+
+## G0.5 follow-up on `codex/run1-fixes`
+
+- Added `packages/protocol/src/fingerprint.mjs` for the byte-identical
+  `canonicalStringify`, equivalent generic `stableStringify`, and raw
+  `hash.update(value)` SHA-256 behavior.
+- Replaced only callers whose old helper behavior is covered by
+  `tests/protocol-fingerprint-utils.test.mjs`, including non-string SHA-256
+  inputs (`Buffer`, `Uint8Array`) and the raw `TypeError` on unsupported objects.
+- Kept the divergent `assertPlainObject` variants local because they intentionally
+  preserve package-specific error classes/codes/messages; kept String-coercing and
+  stable-object SHA-256 variants local because unifying them would change
+  non-string digests.
+
+Digest/validation changes from G0.5: zero intended; behavior-sensitive variants
+remain local.
