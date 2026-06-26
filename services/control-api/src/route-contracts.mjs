@@ -1303,7 +1303,7 @@ export function createApiRouteContracts(limits = {}) {
         200: {
           type: 'object',
           additionalProperties: false,
-          required: ['schemaVersion', 'workspaceId', 'generatedAt', 'plan', 'runs', 'observations', 'verification', 'tokenBudget', 'stopReasons', 'trace', 'safeguards'],
+          required: ['schemaVersion', 'workspaceId', 'generatedAt', 'plan', 'runs', 'observations', 'verification', 'tokenBudget', 'memoryLoop', 'stopReasons', 'trace', 'safeguards'],
           properties: {
             schemaVersion: { const: '1.0.0' },
             workspaceId,
@@ -1313,6 +1313,7 @@ export function createApiRouteContracts(limits = {}) {
             observations: { type: 'object', additionalProperties: true },
             verification: { type: 'object', additionalProperties: true },
             tokenBudget: { type: 'object', additionalProperties: true },
+            memoryLoop: { type: ['object', 'null'], additionalProperties: true },
             stopReasons: { type: 'array', maxItems: 16, items: boundedString(64) },
             trace: { type: 'object', additionalProperties: true },
             safeguards: { type: 'object', additionalProperties: true }

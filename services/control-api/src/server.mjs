@@ -9,7 +9,7 @@ import { FilesystemContextManifestRepository } from '../../../providers/native/c
 import { SQLiteMemoryProvider } from '../../../providers/native/memory-sqlite/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { buildCompressedProfileContextReport, compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, pinContextPackArtifacts, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
+import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildLoopPlan, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, pinContextPackArtifacts, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
@@ -132,12 +132,104 @@ function redactContextPackForApiTransport(pack) {
   return safePack;
 }
 
-function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt }) {
+function loopBudgetFromProfile(contextBudget) {
+  return {
+    basis: 'context-pack-measurement',
+    estimatedDeliveryTokens: Number(contextBudget?.estimatedDeliveryTokens ?? 0),
+    sourceBodyTokensExcluded: Number(contextBudget?.historyTokensAvoided ?? 0),
+    deliveryReductionRatio: Number(contextBudget?.reductionRatio ?? 0)
+  };
+}
+
+function proposalPayloadText(proposal) {
+  const payload = proposal?.payload ?? {};
+  return payload.text ?? [payload.subject, payload.predicate, payload.object].filter(Boolean).join(' ');
+}
+
+async function buildMemoryLoopFlow({ provider, workspaceId, generatedAt, loopEventCount }) {
+  const [exported, facts, proposalQueue] = await Promise.all([
+    provider.export({ workspaceId }),
+    provider.listTemporalFacts({ workspaceId, limit: 100 }),
+    provider.listProposalQueue({ workspaceId, limit: 100 })
+  ]);
+  const objective = 'Use native memory to complete a local feedback loop';
+  const compressedProfile = buildCompressedProfileContextReport({
+    records: [...exported.records, ...facts.map(factProfileRecord)],
+    workspaceId,
+    generatedAt,
+    objective,
+    step: 'Compress memory before planning the loop',
+    tokenBudget: 4096
+  });
+  const loopPlan = buildLoopPlan({
+    workspaceId,
+    objective,
+    stopCondition: 'The observed proposal is applied as a temporal memory fact',
+    validationCommands: ['node --test tests/native-memory-profile-context.test.mjs'],
+    changedLocators: ['workspace://providers/native/memory-sqlite/src/index.mjs', 'workspace://apps/web/app.js'],
+    userSelectedFiles: ['docs/product/loop-workbench-build-plan.md'],
+    contextBudget: loopBudgetFromProfile(compressedProfile.contextBudget),
+    clock: () => generatedAt
+  });
+  const latestProposal = proposalQueue.find((proposal) => ['applied', 'claimed', 'pending'].includes(proposal.status)) ?? proposalQueue[0] ?? null;
+  const latestFact = facts.find((fact) => fact.proposalQueueId === latestProposal?.id) ?? facts[0] ?? null;
+  const observationStatus = loopEventCount > 0 ? 'recorded' : 'ready';
+  return {
+    objective,
+    compressedProfile: {
+      id: compressedProfile.id,
+      contextBudget: compressedProfile.contextBudget,
+      acceptedHistoryRecordCount: compressedProfile.profile.acceptedHistoryRecordCount,
+      skippedHistoryRecordCount: compressedProfile.profile.skippedHistoryRecordCount
+    },
+    loopPlan: {
+      id: loopPlan.id,
+      maxIterations: loopPlan.maxIterations,
+      timeoutMs: loopPlan.timeoutMs,
+      validationCommands: loopPlan.validationCommands,
+      contextBudget: loopPlan.contextBudget,
+      sideEffectClass: loopPlan.sideEffectClass
+    },
+    observation: {
+      status: observationStatus,
+      command: loopPlan.validationCommands[0] ?? null,
+      rawOutputIncluded: false
+    },
+    extractionProposal: latestProposal
+      ? {
+          id: latestProposal.id,
+          status: latestProposal.status,
+          sourceLocator: latestProposal.sourceLocator,
+          text: proposalPayloadText(latestProposal)
+        }
+      : null,
+    memoryFact: latestFact
+      ? {
+          id: latestFact.id,
+          text: latestFact.text,
+          status: latestFact.status,
+          validity: { validFrom: latestFact.validFrom, validUntil: latestFact.validUntil },
+          supersededBy: latestFact.supersededBy,
+          proposalQueueId: latestFact.proposalQueueId,
+          episodeId: latestFact.episodeId
+        }
+      : null,
+    safeguards: {
+      readOnlyView: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false
+    }
+  };
+}
+
+async function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt, memoryProvider = null }) {
   const runs = state.runs.filter((run) => run.workspaceId === workspaceId);
   const events = state.events.filter((event) => event.workspaceId === workspaceId);
   const loopEvents = events.filter((event) => String(event.type ?? '').startsWith('loop.'));
   const loopRunRecords = runs.filter((run) => String(run.workflowId ?? '').includes('loop'));
   const eventTypes = [...new Set(loopEvents.map((event) => event.type))].sort();
+  const memoryLoop = memoryProvider ? await buildMemoryLoopFlow({ provider: memoryProvider, workspaceId, generatedAt, loopEventCount: loopEvents.length }) : null;
   return {
     schemaVersion: '1.0.0',
     workspaceId,
@@ -167,11 +259,12 @@ function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt }) {
       autoMerge: false
     },
     tokenBudget: {
-      basis: 'contextBudget estimate',
-      estimatedDeliveryTokens: 0,
-      aggregatedEstimatedDeliveryTokens: 0,
+      basis: memoryLoop ? 'compressed-profile contextBudget' : 'contextBudget estimate',
+      estimatedDeliveryTokens: memoryLoop?.compressedProfile.contextBudget.estimatedDeliveryTokens ?? 0,
+      aggregatedEstimatedDeliveryTokens: memoryLoop?.loopPlan.contextBudget.estimatedDeliveryTokens ?? 0,
       providerBillingClaimed: false
     },
+    memoryLoop,
     stopReasons: [
       'completed',
       'validation_failed',
@@ -458,7 +551,7 @@ export function createControlApiServer({
       }
       case 'getLoopWorkbench': {
         const state = await store.read();
-        return buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock() });
+        return withMemoryProvider(async (provider) => buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock(), memoryProvider: provider }));
       }
       case 'getMemoryCockpit':
         return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock() }));

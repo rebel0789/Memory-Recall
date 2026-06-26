@@ -36,6 +36,7 @@ import {
   safeEventSummary,
   selectContextPackPinPayload,
   renderMemoryCockpit,
+  renderLoopWorkbenchMemoryFlow,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -520,6 +521,20 @@ test('loop workbench model exposes plan run observation verification budget and 
     observations:{status:'recorded',count:1,rawOutputIncluded:false},
     verification:{status:'reported',count:1,autoMerge:false},
     tokenBudget:{basis:'contextBudget estimate',estimatedDeliveryTokens:10,aggregatedEstimatedDeliveryTokens:20,providerBillingClaimed:false},
+    memoryLoop:{
+      objective:'Use native memory to complete a local feedback loop',
+      compressedProfile:{
+        id:'ctxprofile_loop',
+        contextBudget:{basis:'compressed-profile-measurement',estimatedDeliveryTokens:123,profileTokens:44,retrievedContextTokens:0,historyTokensAvailable:600,historyTokensAvoided:477,reductionRatio:0.795,measured:true},
+        acceptedHistoryRecordCount:2,
+        skippedHistoryRecordCount:0
+      },
+      loopPlan:{id:'loopplan_native_memory',maxIterations:3,timeoutMs:1800000,validationCommands:['node --test tests/native-memory-profile-context.test.mjs'],contextBudget:{basis:'context-pack-measurement',estimatedDeliveryTokens:123,sourceBodyTokensExcluded:477,deliveryReductionRatio:0.795},sideEffectClass:'read-only'},
+      observation:{status:'recorded',command:'node --test tests/native-memory-profile-context.test.mjs',rawOutputIncluded:false},
+      extractionProposal:{id:'mpq_loop_web',status:'applied',sourceLocator:'workspace://docs/surface.md',text:'surface-wire visible loop-workbench'},
+      memoryFact:{id:'memfact_loop_web',text:'Loop Workbench renders native memory-loop fact fields.',status:'active',validity:{validFrom:'2026-06-26T10:00:00.000Z',validUntil:null},supersededBy:null,proposalQueueId:'mpq_loop_web',episodeId:'mep_loop_web'},
+      safeguards:{readOnlyView:true,networkCalls:0,modelCalls:0,externalWritesEnabled:false}
+    },
     stopReasons:['completed','validation_failed','blocked_needs_human','max_iterations','timeout','unrelated_changes'],
     trace:{eventCount:3,eventTypes:['loop.run_started','loop.verification_reported','loop.run_stopped']},
     safeguards:{readOnlyViews:true,planCreationViaControlApi:true,externalWritesEnabled:false,networkCalls:0,modelCalls:0,autoMerge:false}
@@ -530,6 +545,13 @@ test('loop workbench model exposes plan run observation verification budget and 
   assert.equal(model.observations.rawOutputIncluded,false);
   assert.equal(model.verification.autoMerge,false);
   assert.equal(model.tokenBudget.aggregatedEstimatedDeliveryTokens,20);
+  assert.equal(model.memoryLoop.loopPlan.contextBudget.estimatedDeliveryTokens,123);
+  const flowHtml=renderLoopWorkbenchMemoryFlow(model.memoryLoop);
+  assert.match(flowHtml,/80% token saving into loop plan/);
+  assert.match(flowHtml,/123 delivery tokens/);
+  assert.match(flowHtml,/mpq_loop_web/);
+  assert.match(flowHtml,/memfact_loop_web/);
+  assert.match(flowHtml,/Jun 26, 2026/);
   assert.equal(model.stopReasons.includes('unrelated_changes'),true);
   const app=await readFile('apps/web/app.js','utf8');
   assert.match(app,/function renderLoopWorkbench/);

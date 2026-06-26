@@ -64,7 +64,9 @@ const commands = new Map([
   ['task', ['scripts/task.mjs', ...args]]
 ]);
 
-if (commands.has(command)) {
+if (command === 'demo' && args[0] === 'memory-loop') {
+  await demoMemoryLoopCommand(args.slice(1));
+} else if (commands.has(command)) {
   process.exitCode = await runNode(commands.get(command));
 } else if (command === 'context') {
   await contextCommand(args);
@@ -89,6 +91,212 @@ if (commands.has(command)) {
   console.error(`Unknown command: ${command}\n`);
   help();
   process.exitCode = 2;
+}
+
+async function demoMemoryLoopCommand(values) {
+  const valueOptions = new Set(['--root', '--workspace-id', '--workspace', '--format']);
+  const unsupported = unsupportedFlags(values, valueOptions, valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`demo memory-loop unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('demo memory-loop only supports --format json or --format summary');
+    process.exitCode = 2;
+    return;
+  }
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('demo memory-loop --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  const provider = new SQLiteMemoryProvider({ filename: ':memory:', clock: () => generatedAt });
+  try {
+    const report = await runMemoryLoopDemo({ provider, workspaceId, root, generatedAt });
+    console.log(format === 'summary' ? renderMemoryLoopSummary(report) : JSON.stringify(report, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt }) {
+  const objective = 'Use native memory to complete a local feedback loop';
+  await provider.put({
+    id: 'mem_demo_profile',
+    workspaceId,
+    kind: 'decision',
+    text: `${Array(90).fill('native-memory-profile').join(' ')} keeps the local feedback loop token measured and proposal gated.`,
+    source: 'workspace://docs/product/loop-workbench-build-plan.md',
+    status: 'active',
+    confidence: 0.9,
+    authority: 0.9,
+    updatedAt: generatedAt
+  });
+  const queued = await provider.proposeTemporalFactsFromEpisode({
+    workspaceId,
+    scope: 'workspace',
+    sourceLocator: 'workspace://docs/product/loop-workbench-build-plan.md',
+    observedAt: generatedAt,
+    text: 'project:oaf memory_loop connected.'
+  });
+  const claimed = await provider.claimProposal({
+    workspaceId,
+    workerId: 'memory-loop-demo',
+    leaseUntil: new Date(Date.parse(generatedAt) + 60_000).toISOString()
+  });
+  const proposal = claimed[0] ?? queued[0];
+  await provider.recordProposalResult({
+    workspaceId,
+    id: proposal.id,
+    workerId: 'memory-loop-demo',
+    status: 'applied',
+    result: { accepted: true, objective }
+  });
+  const payload = proposal.payload;
+  const fact = await provider.addTemporalFact({
+    id: 'memfact_demo_memory_loop',
+    workspaceId,
+    scope: payload.scope ?? 'workspace',
+    subject: payload.subject,
+    predicate: payload.predicate,
+    object: payload.object,
+    text: payload.text,
+    source: payload.provenanceSourceLocator ?? proposal.sourceLocator,
+    proposalQueueId: proposal.id,
+    validFrom: payload.observedAt ?? generatedAt,
+    episode: {
+      id: payload.provenanceEpisodeId ?? 'mep_demo_memory_loop',
+      sourceLocator: payload.provenanceSourceLocator ?? proposal.sourceLocator,
+      summary: 'Observed the local memory-loop demo proposal and applied it as a temporal fact.',
+      observedAt: payload.observedAt ?? generatedAt
+    }
+  });
+  const exported = await provider.export({ workspaceId });
+  const facts = await provider.listTemporalFacts({ workspaceId, limit: 100 });
+  const profile = buildCompressedProfileContextReport({
+    records: [...exported.records, ...facts.map(memoryLoopFactProfileRecord)],
+    workspaceId,
+    generatedAt,
+    objective,
+    step: 'Compress memory before planning the loop',
+    tokenBudget: 4096
+  });
+  const loopPlan = buildLoopPlan({
+    workspaceId,
+    objective,
+    stopCondition: 'The observed proposal is applied as a temporal memory fact',
+    validationCommands: ['node --test tests/native-memory-profile-context.test.mjs'],
+    changedLocators: ['workspace://providers/native/memory-sqlite/src/index.mjs'],
+    userSelectedFiles: ['docs/product/loop-workbench-build-plan.md'],
+    contextBudget: loopBudgetFromProfile(profile.contextBudget),
+    clock: () => generatedAt
+  });
+  const ledgerEvents = [];
+  const observation = await recordLoopObservation({
+    loopPlan,
+    runId: 'run_memory_loop_demo',
+    executeCommands: true,
+    confirmedCommands: loopPlan.validationCommands,
+    cwd: root,
+    appendEvent: async (event) => ledgerEvents.push(event),
+    clock: () => generatedAt
+  });
+  const appliedProposal = (await provider.listProposalQueue({ workspaceId, limit: 10 })).find((item) => item.id === proposal.id);
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'demo memory-loop',
+    workspaceId,
+    generatedAt,
+    objective,
+    compressedProfile: {
+      id: profile.id,
+      contextBudget: profile.contextBudget,
+      acceptedHistoryRecordCount: profile.profile.acceptedHistoryRecordCount,
+      skippedHistoryRecordCount: profile.profile.skippedHistoryRecordCount
+    },
+    loopPlan: {
+      id: loopPlan.id,
+      contextBudget: loopPlan.contextBudget,
+      validationCommands: loopPlan.validationCommands,
+      stopCondition: loopPlan.stopCondition
+    },
+    observation: {
+      id: observation.id,
+      status: observation.status,
+      commands: observation.commands,
+      events: observation.events
+    },
+    extractionProposal: {
+      id: proposal.id,
+      status: appliedProposal?.status ?? 'applied',
+      sourceLocator: proposal.sourceLocator,
+      text: payload.text
+    },
+    memoryFact: {
+      id: fact.id,
+      text: fact.text,
+      status: fact.status,
+      validity: { validFrom: fact.validFrom, validUntil: fact.validUntil },
+      supersededBy: fact.supersededBy,
+      proposalQueueId: fact.proposalQueueId,
+      episodeId: fact.episodeId
+    },
+    remembered: [fact.text],
+    superseded: [],
+    ledgerEvents: ledgerEvents.map((event) => ({ id: event.id, type: event.type, sequence: event.sequence })),
+    safeguards: {
+      localOnly: true,
+      persisted: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      activeMemoryCreated: 1,
+      rawOutputIncluded: false
+    }
+  };
+  return { ...report, reportFingerprint: fingerprintJson({ ...report, reportFingerprint: null }) };
+}
+
+function memoryLoopFactProfileRecord(fact) {
+  return {
+    id: fact.id,
+    workspaceId: fact.workspaceId,
+    kind: 'fact',
+    text: fact.text,
+    scope: 'workspace-private',
+    dataClass: 'workspace-private',
+    status: fact.status,
+    source: fact.source,
+    confidence: fact.confidence,
+    authority: fact.confidence,
+    tags: [fact.subject, fact.predicate, fact.object].filter(Boolean),
+    relations: [fact.subject, fact.object].filter(Boolean),
+    updatedAt: fact.updatedAt,
+    observedAt: fact.validFrom
+  };
+}
+
+function loopBudgetFromProfile(contextBudget) {
+  return {
+    basis: 'context-pack-measurement',
+    estimatedDeliveryTokens: Number(contextBudget?.estimatedDeliveryTokens ?? 0),
+    sourceBodyTokensExcluded: Number(contextBudget?.historyTokensAvoided ?? 0),
+    deliveryReductionRatio: Number(contextBudget?.reductionRatio ?? 0)
+  };
+}
+
+function renderMemoryLoopSummary(report) {
+  const tokenSaving = `${Math.round(Number(report.compressedProfile.contextBudget.reductionRatio ?? 0) * 100)}%`;
+  return [
+    `Memory loop token saving: ${tokenSaving}`,
+    `Remembered: ${report.remembered.join('; ') || 'none'}`,
+    `Superseded: ${report.superseded.join('; ') || 'none'}`,
+    `Observation: ${report.observation.status}`,
+    `Fact: ${report.memoryFact.id}`
+  ].join('\n');
 }
 
 async function memoryCommand(values) {
@@ -2459,6 +2667,7 @@ Usage:
   oaf status
   oaf task <OAF-ID>
   oaf demo [objective]
+  oaf demo memory-loop --root . --format json
   oaf serve
   oaf check
   oaf eval

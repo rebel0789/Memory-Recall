@@ -154,7 +154,7 @@ paths:
         - { $ref: '#/components/parameters/WorkspaceId' }
       responses:
         '200':
-          description: Loop Workbench read model for plan, runs, observation, verification, budget, and stop reasons.
+          description: Loop Workbench read model for plan, runs, observation, verification, budget, stop reasons, and the native memory-loop flow.
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
   /api/memory/cockpit:
