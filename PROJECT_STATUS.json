@@ -21,6 +21,29 @@
   },
   "capabilities": [
     {
+      "id": "native.local-profile",
+      "name": "Local-first single-developer native core profile",
+      "status": "implemented",
+      "evidence": [
+        "package.json",
+        "scripts/bootstrap.mjs",
+        "scripts/native-smoke.mjs",
+        "providers/native/memory-sqlite/src/index.mjs",
+        "providers/native/identity-local/src/index.mjs",
+        "packages/context-compiler/src/index.mjs",
+        "packages/harness-context/src/index.mjs",
+        "tests/native-core-local-profile-e2e.test.mjs",
+        "tests/native-identity-store.test.mjs",
+        "docs/operations/local-deployment.md",
+        "README.md"
+      ],
+      "limitations": [
+        "Production-ready only for the local-first single-developer profile exercised by local tests and smoke commands.",
+        "Team/cloud production remains out of scope: no production SSO, MFA, hosted secret manager, reverse proxy/TLS deployment, managed database, external connectors, publishing, signed distribution, or sandbox worker fleet is claimed.",
+        "The one-command local path is `npm run local:run` after dependencies are installed; it bootstraps local files and runs native smoke checks without enabling network, cloud fallback, or external writes."
+      ]
+    },
+    {
       "id": "bootstrap.control-api",
       "name": "Local control API",
       "status": "reference",
@@ -905,6 +928,7 @@
     "asOf": "2026-06-26",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
+      "npm run local:run",
       "npm run bootstrap",
       "npm run doctor",
       "node --test tests/tool-manifest-loader.test.mjs tests/tool-grants.test.mjs tests/tool-executor.test.mjs tests/tool-executor-brokers.test.mjs tests/tool-durable-integration.test.mjs tests/tool-registry.test.mjs tests/policy-contextual.test.mjs tests/workflow-durable-sqlite.test.mjs tests/workflow-durable-crash.test.mjs",
@@ -920,7 +944,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 396,
+    "testsExpected": 398,
     "protocolFixturesExpected": 160,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

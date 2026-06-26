@@ -51,6 +51,9 @@ This repository is an **agent-ready development kit**, not a claim that the full
 - read-only native JS/TS source graph preview through CLI and loopback API,
   with bounded search, trace, diff-impact results, 256 KiB default file
   coverage for static JS/TS, and no graph database;
+- local-first native core profile for single-developer use, covering proposal-
+  gated temporal memory, hybrid retrieval, compressed memory profile context,
+  bounded loop runs, local-owner auth, and `npm run local:run`;
 - dry-run harness setup planner for local MCP client configs, with redacted
   status, add, replace, and uninstall previews and no home config writes;
 - versioned contract fixtures for 12 disabled external adapter targets;
@@ -67,10 +70,14 @@ Requirement: Node.js 22 or newer.
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
-npm run bootstrap
+npm run local:run
 npm run verify:handoff
 npm run dev
 ```
+
+`npm run local:run` is the one-command local native profile check after
+dependencies are installed: it runs bootstrap and the native smoke suite without
+enabling network access, cloud fallback, or external writes.
 
 Open <http://127.0.0.1:4310>. If the browser asks for local owner setup or
 sign-in, complete that before running dashboard actions. CLI-only setup is also

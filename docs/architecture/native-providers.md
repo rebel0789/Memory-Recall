@@ -107,6 +107,7 @@ The native identity provider implements `IdentityStorePort` version `1.0.0` for 
 - opaque browser sessions with httpOnly SameSite=Strict cookies;
 - CSRF tokens bound to sessions and compared with timing-safe checks;
 - hashed API tokens returned raw only at creation time;
+- API token minting requires active owner membership for every requested workspace;
 - workspace memberships with owner, builder, operator, and auditor roles;
 - security audit events without raw secrets, cookies, token values, password credentials, salts, or filesystem paths.
 
