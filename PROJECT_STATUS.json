@@ -128,7 +128,7 @@
       "limitations": [
         "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 256 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
-        "Compressed memory profile context and oaf measure savings use bounded local before/after delivery-token estimates over a realistic workspace candidate-file and git-history baseline, surfaced in the memory cockpit and MCP stats; they do not claim provider billing-token savings",
+        "Compressed memory profile context and oaf measure savings use bounded local before/after delivery-token estimates over a realistic workspace candidate-file and git-history baseline, surfaced in the memory cockpit and MCP stats; MCP stats separates context.profile compression-path savings from memory.recall compaction savings and does not claim provider billing-token savings",
         "Native source graph is read-only derived metadata; it is not canonical source state, not a graph database, not persisted as memory, and does not emit graph candidate-source records yet",
         "Token estimate is approximate",
         "Manifest persistence is local native or repository-layer only; no production orchestration is implied"

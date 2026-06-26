@@ -2565,6 +2565,16 @@ function buildMcpStatsReport({ entries, workspaceId, generatedAt, statsRef, real
     tokensSaved: total.tokensSaved + item.tokensSaved
   }), { callCount: 0, deliveredTokens: 0, baselineTokens: 0, tokensSaved: 0 });
   const tokenSavingPercent = summary.baselineTokens > 0 ? Math.round((summary.tokensSaved / summary.baselineTokens) * 100) : 0;
+  const byToolItems = [...byTool.values()]
+    .sort((left, right) => left.toolName.localeCompare(right.toolName))
+    .map((item) => ({
+      ...item,
+      tokenSavingPercent: item.baselineTokens > 0 ? Math.round((item.tokensSaved / item.baselineTokens) * 100) : 0
+    }));
+  const savingClasses = {
+    compressionPath: mcpStatsSavingClass(byToolItems, 'context.profile', 'context.profile compression path', 'history budget compared with delivered context.profile payload'),
+    recallCompaction: mcpStatsSavingClass(byToolItems, 'memory.recall', 'memory.recall compaction', 'verbose recall payload compared with compact memory.recall delivery')
+  };
   return {
     schemaVersion: '1.0.0',
     command: 'mcp stats',
@@ -2580,10 +2590,8 @@ function buildMcpStatsReport({ entries, workspaceId, generatedAt, statsRef, real
       providerBillingClaimed: false,
       basis: 'estimated tokens over exact MCP JSON tool payload text'
     },
-    byTool: [...byTool.values()].sort((left, right) => left.toolName.localeCompare(right.toolName)).map((item) => ({
-      ...item,
-      tokenSavingPercent: item.baselineTokens > 0 ? Math.round((item.tokensSaved / item.baselineTokens) * 100) : 0
-    })),
+    savingClasses,
+    byTool: byToolItems,
     realisticBenchmark: realisticBenchmark ?? { available: false, reason: 'not_measured' },
     recentCalls: entries.slice(-10).map((entry) => ({
       recordedAt: entry.recordedAt,
@@ -2604,11 +2612,25 @@ function buildMcpStatsReport({ entries, workspaceId, generatedAt, statsRef, real
       providerBillingClaimed: false,
       rawRequestTextIncluded: false
     },
-    reportFingerprint: fingerprintJson({ workspaceId, statsRef, summary, realisticBenchmark, byTool: [...byTool.keys()].sort() })
+    reportFingerprint: fingerprintJson({ workspaceId, statsRef, summary, savingClasses, realisticBenchmark, byTool: [...byTool.keys()].sort() })
   };
 }
 
+function mcpStatsSavingClass(byToolItems, toolName, label, basis) {
+  const item = byToolItems.find((candidate) => candidate.toolName === toolName) ?? {
+    toolName,
+    callCount: 0,
+    deliveredTokens: 0,
+    baselineTokens: 0,
+    tokensSaved: 0,
+    tokenSavingPercent: 0
+  };
+  return { ...item, label, basis, providerBillingClaimed: false };
+}
+
 function renderMcpStatsSummary(report) {
+  const compression = report.savingClasses?.compressionPath ?? { tokenSavingPercent: 0, deliveredTokens: 0, baselineTokens: 0 };
+  const recall = report.savingClasses?.recallCompaction ?? { tokenSavingPercent: 0, deliveredTokens: 0, baselineTokens: 0 };
   const realistic = report.realisticBenchmark?.available
     ? [
         `Realistic context.profile saving: ${report.realisticBenchmark.percent}%`,
@@ -2621,6 +2643,10 @@ function renderMcpStatsSummary(report) {
     `Baseline tokens: ${report.summary.baselineTokens}`,
     `Saved tokens: ${report.summary.tokensSaved}`,
     `Saving: ${report.summary.tokenSavingPercent}%`,
+    `Compression-path saving (context.profile): ${compression.tokenSavingPercent}%`,
+    `Compression-path before/after: ${compression.baselineTokens} -> ${compression.deliveredTokens}`,
+    `Recall compaction saving (memory.recall): ${recall.tokenSavingPercent}%`,
+    `Recall before/after: ${recall.baselineTokens} -> ${recall.deliveredTokens}`,
     ...realistic,
     `Provider billing claimed: ${report.summary.providerBillingClaimed ? 'yes' : 'no'}`
   ].join('\n');
