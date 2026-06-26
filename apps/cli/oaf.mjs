@@ -1576,7 +1576,10 @@ async function buildTemporalBenchmarkReport(values) {
           step: 'Measure current temporal fact without stale superseded values',
           scope: 'workspace',
           budget: tokenBudget,
-          limit: recallLimit
+          limit: recallLimit,
+          subject: item.subject,
+          predicate: item.predicate,
+          currentTruthOnly: true
         }
       });
       const recallPayload = await buildMcpMemoryRecallPayload({
@@ -1587,7 +1590,10 @@ async function buildTemporalBenchmarkReport(values) {
         args: {
           query: item.question,
           scope: 'workspace',
-          limit: recallLimit
+          limit: recallLimit,
+          subject: item.subject,
+          predicate: item.predicate,
+          currentTruthOnly: true
         }
       });
       const oafText = JSON.stringify({ contextProfile: profilePayload, memoryRecall: recallPayload });
@@ -2719,6 +2725,9 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
   const scope = mcpSafeScope(args.scope ?? 'workspace');
   const limit = mcpBoundedInteger(args.limit, 8, { min: 1, max: 20 });
   const verbose = args.verbose === true;
+  const currentTruthOnly = args.currentTruthOnly === true && !verbose;
+  const subject = typeof args.subject === 'string' && args.subject.trim() ? mcpSanitizeString(args.subject, 128) : null;
+  const predicate = typeof args.predicate === 'string' && args.predicate.trim() ? mcpSanitizeString(args.predicate, 128) : null;
   const provider = await openMcpReadOnlyMemoryProvider({ values, root, generatedAt });
   if (!provider) {
     return mcpBasePayload({
@@ -2729,8 +2738,26 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
     });
   }
   try {
-    const facts = await provider.getTemporalFacts({ workspaceId, scope, query, at: generatedAt, limit });
+    const facts = await provider.getTemporalFacts({ workspaceId, scope, subject, predicate, query, at: generatedAt, limit });
     const activeFacts = facts.filter((fact) => fact.status === 'active' && !fact.supersededBy).slice(0, limit);
+    if (currentTruthOnly) {
+      const currentFacts = activeFacts.map(mcpSummarizeCurrentTruthFact);
+      return mcpBasePayload({
+        command: 'memory.recall',
+        workspaceId,
+        generatedAt,
+        data: {
+          available: true,
+          query: mcpSanitizeString(query),
+          scope,
+          mode: 'current-truth',
+          factCount: currentFacts.length,
+          activeFactCount: currentFacts.length,
+          proposalFactCount: 0,
+          facts: currentFacts
+        }
+      });
+    }
     const proposalLimit = Math.max(0, limit - activeFacts.length);
     const proposalFacts = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
       .map(summarizeProposalQueueFact)
@@ -2786,20 +2813,53 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
   const scope = mcpSafeScope(args.scope ?? 'workspace');
   const budget = mcpBoundedInteger(args.budget, 4096, { min: 1, max: 100000 });
   const limit = mcpBoundedInteger(args.limit, 50, { min: 1, max: 100 });
+  const currentTruthOnly = args.currentTruthOnly === true;
+  const subject = typeof args.subject === 'string' && args.subject.trim() ? mcpSanitizeString(args.subject, 128) : null;
+  const predicate = typeof args.predicate === 'string' && args.predicate.trim() ? mcpSanitizeString(args.predicate, 128) : null;
   const provider = await openMcpReadOnlyMemoryProvider({ values, root, generatedAt });
   const records = [];
   let available = false;
   if (provider) {
     try {
       available = true;
-      const exported = await provider.export({ workspaceId });
       const facts = await provider.getTemporalFacts({
         workspaceId,
         scope,
+        subject,
+        predicate,
         query: objective,
         at: generatedAt,
         limit
       });
+      if (currentTruthOnly) {
+        const selected = facts
+          .filter((fact) => fact.status === 'active' && !fact.supersededBy)
+          .slice(0, limit)
+          .map(mcpSummarizeCurrentTruthFact);
+        return mcpBasePayload({
+          command: 'context.profile',
+          workspaceId,
+          generatedAt,
+          data: {
+            available: true,
+            objective: mcpSanitizeString(objective, 500),
+            scope,
+            mode: 'current-truth',
+            selectedContext: {
+              selectedCount: selected.length,
+              selected
+            },
+            contextBudget: {
+              budget,
+              estimatedDeliveryTokens: estimateTokens(JSON.stringify(selected)),
+              unit: 'estimated delivery tokens'
+            },
+            governedFactCount: selected.length,
+            proposalFactCount: 0
+          }
+        });
+      }
+      const exported = await provider.export({ workspaceId });
       const proposalRecords = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
         .map(summarizeProposalQueueFact)
         .filter((item) => item && item.scope === scope && proposalFactMatchesQuery(item, objective))
@@ -3002,6 +3062,14 @@ function mcpSummarizeTemporalFact(fact, { history, verbose = false }) {
         observedAt: fact.episode.observedAt
       } : null
     }
+  };
+}
+
+function mcpSummarizeCurrentTruthFact(fact) {
+  return {
+    id: mcpSanitizeString(fact.id, 120),
+    value: mcpSanitizeString(fact.object, 240),
+    sourceRef: mcpCompactProvenanceRef(fact.proposalQueueId ?? fact.episode?.sourceLocator ?? fact.source ?? fact.id)
   };
 }
 

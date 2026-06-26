@@ -642,6 +642,7 @@ test('bench temporal compares current bi-temporal recall with stale raw timeline
   assert.equal(report.baseline.name,'keyword-top-k-raw-timeline');
   assert.equal(report.baseline.dumpRepo,false);
   assert(report.oaf.deliveredTokens>0);
+  assert(report.oaf.averageDeliveredTokens<=500);
   assert(report.baseline.deliveredTokens>0);
   assert(report.baseline.maxDeliveredTokensPerCase<=640);
   assert(report.oaf.correctnessPercent>report.baseline.correctnessPercent);
