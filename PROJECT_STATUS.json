@@ -280,11 +280,11 @@
         "docs/product/loop-workbench.md"
       ],
       "limitations": [
-        "Read-only Loop Plan generator, sanitized observation capture, maker/checker verification report, bounded loop-run projection, and /loop-workbench route only.",
+        "Read-only Loop Plan generator, sanitized observation capture, maker/checker verification report, bounded loop-run projection with structured skill reasoning, and /loop-workbench route only.",
         "The verifier uses an isolated worktree, injected implementer, plan-limited checker commands, unrelated-diff blocking, replay side-effect disabling, and no auto-merge.",
         "The run controller bounds iterations/timeouts, projects durable workflow history, aggregates contextBudget estimates, and supports opt-in schedule prompt reports; it is not a background daemon.",
         "The web route is a dependency-free read surface over the local Control API model; it does not add a production frontend framework.",
-        "Loop Workbench skills are read-only instruction folders; they do not execute tools, grant authority, or create an autonomous skill runtime.",
+        "Loop Workbench skills are read-only instruction folders with structured maker/checker guidance; they do not execute tools, grant authority, or create an autonomous skill runtime.",
         "Proof summary and autonomous executor are not implemented.",
         "contextBudget is an estimate carried from a context-pack measurement; it does not claim provider billing tokens."
       ]

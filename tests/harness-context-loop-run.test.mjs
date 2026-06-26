@@ -63,6 +63,11 @@ test('loop run bounds iterations, timeout, durable resume, budget, and human gat
   assert.equal(validationStop.stopReason, 'validation_failed');
   assert.equal(validationStop.iterations.length, 1);
   assert.equal(validationStop.tokenBudget.aggregatedEstimatedDeliveryTokens, 7);
+  assert.equal(validationStop.reasoning.maker.skillId, 'skill:loop-action-efficiency');
+  assert.equal(validationStop.reasoning.maker.actionLadder[0], 'reuse_existing_primitive');
+  assert.equal(validationStop.reasoning.checker.skillId, 'skill:loop-intent-clarification');
+  assert.equal(validationStop.reasoning.checker.planFields.stopCondition, 'stop with proof');
+  assert.equal(validationStop.reasoning.stopConditions.observedStopReason, 'validation_failed');
 
   let attempts = 0;
   const maxed = await runLoop({

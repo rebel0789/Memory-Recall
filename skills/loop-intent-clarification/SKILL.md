@@ -17,7 +17,9 @@ explicit enough to become a Loop Plan.
 4. Convert the clarified intent into Loop Plan fields: `objective`,
    `stopCondition`, `nonGoals`, `riskClass`, `sideEffectClass`,
    `validationCommands`, `changedLocators`, `safeguards`, and `rollback`.
-5. Mark unresolved ambiguity as `blocked_needs_human` instead of guessing.
+5. Mark unresolved ambiguity as `blocked_needs_human` instead of guessing. The
+   status can become `ready` only when objective, stop condition, validation,
+   side-effect class, and rollback are all explicit.
 
 ## Guardrails
 
@@ -29,5 +31,6 @@ explicit enough to become a Loop Plan.
 
 ## Completion
 
-Return the clarified Loop Plan fields, open questions, evidence source, stop
-reason if blocked, and safest next action.
+Return `skill:loop-intent-clarification`, status, clarified Loop Plan fields,
+at most three open questions, evidence source, stop reason if blocked, safest
+next action, and confirmation that the skill granted no authority.

@@ -2107,6 +2107,110 @@ function normalizeLoopBudget(contextBudget = null) {
   };
 }
 
+function normalizeSkillTokens(values, fieldName, maxItems = 16) {
+  return normalizeLoopPlanTexts(values, fieldName, maxItems);
+}
+
+function loopSkillStatusReady(value) {
+  return value ? 'ready' : 'blocked_needs_human';
+}
+
+export function buildLoopActionEfficiencyGuidance({
+  loopPlan = null,
+  reusablePrimitives = [],
+  proposedBoundary = [],
+  validationCommands = loopPlan?.validationCommands ?? [],
+  contextBudget = loopPlan?.contextBudget ?? null
+} = {}) {
+  if (loopPlan) assertJsonSchema(loopPlanSchema, loopPlan, 'loop action efficiency plan');
+  const normalizedPrimitives = normalizeSkillTokens(reusablePrimitives, 'reusablePrimitive', 12);
+  const normalizedValidation = normalizeLoopPlanTexts(validationCommands, 'validationCommand', 8);
+  const normalizedBoundary = normalizeChangedLocators(proposedBoundary.length ? proposedBoundary : loopPlan?.sourceGraph?.changedLocators ?? []);
+  const measuredBudget = normalizeLoopBudget(contextBudget);
+  const ready = normalizedPrimitives.length > 0 && normalizedValidation.length > 0;
+  return {
+    schemaVersion: '1.0.0',
+    skillId: 'skill:loop-action-efficiency',
+    status: loopSkillStatusReady(ready),
+    actionLadder: [
+      'reuse_existing_primitive',
+      'adapt_existing_boundary',
+      'make_smallest_coherent_edit',
+      'generate_new_code_last'
+    ],
+    reusedPrimitives: normalizedPrimitives,
+    proposedBoundary: normalizedBoundary,
+    validationCommands: normalizedValidation,
+    measured: {
+      contextBudget: measuredBudget,
+      diffSize: 'unmeasured'
+    },
+    writeAuthorityGranted: false,
+    reasonCodes: [
+      'reuse_before_generate',
+      normalizedPrimitives.length ? 'existing_primitive_named' : 'existing_primitive_missing',
+      normalizedValidation.length ? 'validation_named' : 'validation_missing',
+      measuredBudget.basis === 'context-pack-measurement' ? 'context_budget_measured' : 'context_budget_unestimated',
+      'no_write_authority_granted'
+    ].sort()
+  };
+}
+
+export function buildLoopIntentClarification({
+  objective = '',
+  stopCondition = '',
+  nonGoals = [],
+  sideEffectClass = 'read-only',
+  validationCommands = [],
+  rollback = ''
+} = {}) {
+  const normalizedObjective = String(objective ?? '').replace(/\s+/gu, ' ').trim();
+  const normalizedStopCondition = String(stopCondition ?? '').replace(/\s+/gu, ' ').trim();
+  const normalizedValidation = normalizeLoopPlanTexts(validationCommands, 'validationCommand', 8);
+  const normalizedRollback = String(rollback ?? '').replace(/\s+/gu, ' ').trim();
+  if (normalizedObjective) assertSafeLoopPlanField(normalizedObjective, 'objective');
+  if (normalizedStopCondition) assertSafeLoopPlanField(normalizedStopCondition, 'stopCondition');
+  if (normalizedRollback) assertSafeLoopPlanField(normalizedRollback, 'rollback');
+  const reasons = [];
+  const questions = [];
+  if (!normalizedObjective) {
+    reasons.push('missing_objective');
+    questions.push('What observable behavior should this loop produce?');
+  }
+  if (!normalizedStopCondition) {
+    reasons.push('missing_stop_condition');
+    questions.push('What exact condition stops the loop?');
+  }
+  if (!normalizedValidation.length) {
+    reasons.push('missing_validation');
+    questions.push('Which command or check proves the stop condition?');
+  }
+  if (!normalizedRollback) reasons.push('missing_rollback');
+  const safeSideEffectClass = ['read-only', 'local-write', 'external-write'].includes(sideEffectClass) ? sideEffectClass : 'read-only';
+  const ready = reasons.length === 0 && safeSideEffectClass !== 'external-write';
+  return {
+    schemaVersion: '1.0.0',
+    skillId: 'skill:loop-intent-clarification',
+    status: loopSkillStatusReady(ready),
+    planFields: {
+      objective: normalizedObjective,
+      stopCondition: normalizedStopCondition,
+      nonGoals: normalizeLoopPlanTexts(nonGoals, 'nonGoal', 8),
+      sideEffectClass: safeSideEffectClass,
+      validationCommands: normalizedValidation,
+      rollback: normalizedRollback
+    },
+    openQuestions: questions.slice(0, 3),
+    stopReason: ready ? null : 'blocked_needs_human',
+    authorityGranted: false,
+    reasonCodes: [
+      ...reasons,
+      safeSideEffectClass === 'external-write' ? 'external_write_requires_human' : 'side_effect_class_bounded',
+      'no_authority_granted'
+    ].sort()
+  };
+}
+
 function loopRefId(value) {
   if (typeof value !== 'string') return null;
   const text = value.trim();
@@ -2878,6 +2982,28 @@ export async function runLoop({
     runLog: {
       eventCount: runLogEventTypes.length,
       eventTypes: runLogEventTypes
+    },
+    reasoning: {
+      maker: buildLoopActionEfficiencyGuidance({
+        loopPlan,
+        reusablePrimitives: ['buildLoopPlan', 'runLoopVerification', 'runLoop'],
+        proposedBoundary: loopPlan.sourceGraph.changedLocators,
+        validationCommands: loopPlan.validationCommands,
+        contextBudget: loopPlan.contextBudget
+      }),
+      checker: buildLoopIntentClarification({
+        objective: loopPlan.objective,
+        stopCondition: loopPlan.stopCondition,
+        nonGoals: loopPlan.nonGoals,
+        sideEffectClass: loopPlan.sideEffectClass,
+        validationCommands: loopPlan.validationCommands,
+        rollback: loopPlan.rollback
+      }),
+      stopConditions: {
+        plannedStopCondition: loopPlan.stopCondition,
+        terminalStopReasons: terminalReasons,
+        observedStopReason: stopReason
+      }
     },
     safeguards: {
       boundedIterations: true,

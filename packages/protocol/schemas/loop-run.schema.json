@@ -126,6 +126,138 @@
         }
       }
     },
+    "reasoning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maker", "checker", "stopConditions"],
+      "properties": {
+        "maker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "skillId", "status", "actionLadder", "reusedPrimitives", "proposedBoundary", "validationCommands", "measured", "writeAuthorityGranted", "reasonCodes"],
+          "properties": {
+            "schemaVersion": { "const": "1.0.0" },
+            "skillId": { "const": "skill:loop-action-efficiency" },
+            "status": { "enum": ["ready", "blocked_needs_human"] },
+            "actionLadder": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9_:-]{1,96}$" },
+              "minItems": 1,
+              "maxItems": 8
+            },
+            "reusedPrimitives": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 240 },
+              "maxItems": 12
+            },
+            "proposedBoundary": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^workspace://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,320}$" },
+              "maxItems": 16
+            },
+            "validationCommands": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 400 },
+              "maxItems": 8
+            },
+            "measured": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["contextBudget", "diffSize"],
+              "properties": {
+                "contextBudget": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["estimatedDeliveryTokens", "sourceBodyTokensExcluded", "deliveryReductionRatio", "basis"],
+                  "properties": {
+                    "estimatedDeliveryTokens": { "type": "integer", "minimum": 0 },
+                    "sourceBodyTokensExcluded": { "type": "integer", "minimum": 0 },
+                    "deliveryReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "basis": { "type": "string" }
+                  }
+                },
+                "diffSize": { "type": "string", "maxLength": 64 }
+              }
+            },
+            "writeAuthorityGranted": { "const": false },
+            "reasonCodes": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9_:-]{1,96}$" },
+              "maxItems": 16
+            }
+          }
+        },
+        "checker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "skillId", "status", "planFields", "openQuestions", "stopReason", "authorityGranted", "reasonCodes"],
+          "properties": {
+            "schemaVersion": { "const": "1.0.0" },
+            "skillId": { "const": "skill:loop-intent-clarification" },
+            "status": { "enum": ["ready", "blocked_needs_human"] },
+            "planFields": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["objective", "stopCondition", "nonGoals", "sideEffectClass", "validationCommands", "rollback"],
+              "properties": {
+                "objective": { "type": "string", "maxLength": 240 },
+                "stopCondition": { "type": "string", "maxLength": 240 },
+                "nonGoals": {
+                  "type": "array",
+                  "items": { "type": "string", "maxLength": 240 },
+                  "maxItems": 8
+                },
+                "sideEffectClass": { "enum": ["read-only", "local-write", "external-write"] },
+                "validationCommands": {
+                  "type": "array",
+                  "items": { "type": "string", "maxLength": 400 },
+                  "maxItems": 8
+                },
+                "rollback": { "type": "string", "maxLength": 240 }
+              }
+            },
+            "openQuestions": {
+              "type": "array",
+              "items": { "type": "string", "maxLength": 240 },
+              "maxItems": 3
+            },
+            "stopReason": { "type": ["string", "null"], "enum": ["blocked_needs_human", null] },
+            "authorityGranted": { "const": false },
+            "reasonCodes": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9_:-]{1,96}$" },
+              "maxItems": 16
+            }
+          }
+        },
+        "stopConditions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["plannedStopCondition", "terminalStopReasons", "observedStopReason"],
+          "properties": {
+            "plannedStopCondition": { "type": "string", "maxLength": 240 },
+            "terminalStopReasons": {
+              "type": "array",
+              "items": { "type": "string" },
+              "maxItems": 8
+            },
+            "observedStopReason": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "validation_failed",
+                "blocked_needs_human",
+                "unsafe_action_required",
+                "max_iterations",
+                "timeout",
+                "unrelated_changes",
+                "out_of_scope"
+              ]
+            }
+          }
+        }
+      }
+    },
     "safeguards": {
       "type": "object",
       "additionalProperties": false,

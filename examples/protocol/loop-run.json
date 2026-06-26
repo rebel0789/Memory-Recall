@@ -49,6 +49,79 @@
       "loop.run_stopped"
     ]
   },
+  "reasoning": {
+    "maker": {
+      "schemaVersion": "1.0.0",
+      "skillId": "skill:loop-action-efficiency",
+      "status": "ready",
+      "actionLadder": [
+        "reuse_existing_primitive",
+        "adapt_existing_boundary",
+        "make_smallest_coherent_edit",
+        "generate_new_code_last"
+      ],
+      "reusedPrimitives": [
+        "buildLoopPlan",
+        "runLoopVerification",
+        "runLoop"
+      ],
+      "proposedBoundary": [
+        "workspace://src/auth.ts"
+      ],
+      "validationCommands": [
+        "npm run check"
+      ],
+      "measured": {
+        "contextBudget": {
+          "estimatedDeliveryTokens": 123,
+          "sourceBodyTokensExcluded": 456,
+          "deliveryReductionRatio": 0.5,
+          "basis": "context-pack-measurement"
+        },
+        "diffSize": "unmeasured"
+      },
+      "writeAuthorityGranted": false,
+      "reasonCodes": [
+        "context_budget_measured",
+        "existing_primitive_named",
+        "no_write_authority_granted",
+        "reuse_before_generate",
+        "validation_named"
+      ]
+    },
+    "checker": {
+      "schemaVersion": "1.0.0",
+      "skillId": "skill:loop-intent-clarification",
+      "status": "ready",
+      "planFields": {
+        "objective": "Run a bounded loop",
+        "stopCondition": "stop with proof",
+        "nonGoals": [],
+        "sideEffectClass": "read-only",
+        "validationCommands": [
+          "npm run check"
+        ],
+        "rollback": "Discard this loop plan; Slice 1 is read-only and mutates no workspace state."
+      },
+      "openQuestions": [],
+      "stopReason": null,
+      "authorityGranted": false,
+      "reasonCodes": [
+        "no_authority_granted",
+        "side_effect_class_bounded"
+      ]
+    },
+    "stopConditions": {
+      "plannedStopCondition": "stop with proof",
+      "terminalStopReasons": [
+        "completed",
+        "validation_failed",
+        "blocked_needs_human",
+        "unrelated_changes"
+      ],
+      "observedStopReason": "blocked_needs_human"
+    }
+  },
   "safeguards": {
     "boundedIterations": true,
     "timeoutEnforced": true,

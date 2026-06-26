@@ -97,7 +97,9 @@ the whole product is done.
 Two small instruction skills layer across all slices:
 `skill:loop-action-efficiency` for reuse-before-generate action work and
 `skill:loop-intent-clarification` for interrogating the objective before work
-begins. Both are read-only skill folders; they do not grant authority.
+begins. Loop-run reports now include structured maker/checker reasoning from
+those skills, including the reuse ladder, clarified plan fields, and observed
+stop reason. Both are read-only skill folders; they do not grant authority.
 
 ## Hard boundaries (apply to every slice until explicitly lifted)
 
