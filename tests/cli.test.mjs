@@ -684,14 +684,15 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
   assert.equal(profile.safeguards.canonicalStateMutated, false);
 });
 test('mcp install dry-run prints exact token-saver config for coding clients without writes', () => {
-  const expectedArgs = ['--silent', 'run', 'oaf', '--', 'mcp', 'server', '--read-only', '--root', '.', '--stdio'];
+  const root = path.resolve('.');
+  const sqlitePath = path.join(root, '.local', 'memory.sqlite');
+  const expectedArgs = [path.join(root, 'apps', 'cli', 'oaf.mjs'), 'mcp', 'server', '--read-only', '--root', root, '--sqlite', sqlitePath, '--stdio'];
   for (const client of ['claude-code', 'cursor', 'codex']) {
     const home = mkdtempSync(path.join(os.tmpdir(), `oaf-cli-mcp-install-${client}-`));
     const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', client, '--home', home, '--format', 'json'], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, '');
     assert.equal(result.stdout.includes(home), false);
-    assert.equal(result.stdout.includes('/Users/'), false);
     const report = JSON.parse(result.stdout);
     assert.equal(report.command, 'mcp install');
     assert.equal(report.dryRun, true);
@@ -703,7 +704,10 @@ test('mcp install dry-run prints exact token-saver config for coding clients wit
     assert.equal(report.config.ref.startsWith('home://'), true);
     assert.equal(report.config.exists, false);
     assert.equal(report.status.server, 'absent');
-    assert.equal(report.desiredServer.command, 'npm');
+    assert.equal(report.workspaceRoot, root);
+    assert.equal(report.memory.sqlitePath, sqlitePath);
+    assert.equal(report.memory.sqliteRef, 'workspace://.local/memory.sqlite');
+    assert.equal(report.desiredServer.command, process.execPath);
     assert.deepEqual(report.desiredServer.args, expectedArgs);
     assert.equal(report.desiredServer.resourceMode, 'read-only-token-saver');
     assert.equal(report.safeguards.localFilesWritten, 0);
@@ -712,13 +716,15 @@ test('mcp install dry-run prints exact token-saver config for coding clients wit
     assert.equal(report.safeguards.networkCalls, 0);
     assert.equal(report.safeguards.modelCalls, 0);
     assert.match(report.planFingerprint, /^sha256:[a-f0-9]{64}$/);
-    assert.match(report.nextCommand, new RegExp(`mcp install --client ${client} --apply --confirm sha256:[a-f0-9]{64} --format json`));
+    assert.match(report.nextCommand, new RegExp(`mcp install --client ${client} --root .* --apply --confirm sha256:[a-f0-9]{64} --format json`));
     if (client === 'codex') {
       assert.match(report.manualConfigSnippet.content, /\[mcp_servers\.oaf\]/);
+      assert.match(report.manualConfigSnippet.content, /--sqlite/);
       assert.equal(report.reversal.target, 'mcp_servers.oaf');
       assert.equal(existsSync(path.join(home, '.codex', 'config.toml')), false);
     } else {
       assert.match(report.manualConfigSnippet.content, /"mcpServers"/);
+      assert.match(report.manualConfigSnippet.content, /--sqlite/);
       assert.equal(report.reversal.target, 'mcpServers.oaf');
       const configPath = client === 'cursor' ? '.cursor/mcp.json' : '.claude/mcp.json';
       assert.equal(existsSync(path.join(home, configPath)), false);
@@ -727,7 +733,8 @@ test('mcp install dry-run prints exact token-saver config for coding clients wit
 });
 
 test('mcp install apply requires matching confirmation before writing config', () => {
-  const expectedArgs = ['--silent', 'run', 'oaf', '--', 'mcp', 'server', '--read-only', '--root', '.', '--stdio'];
+  const root = path.resolve('.');
+  const expectedArgs = [path.join(root, 'apps', 'cli', 'oaf.mjs'), 'mcp', 'server', '--read-only', '--root', root, '--sqlite', path.join(root, '.local', 'memory.sqlite'), '--stdio'];
   const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-apply-'));
   const configPath = path.join(home, '.cursor', 'mcp.json');
   const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
@@ -761,7 +768,7 @@ test('mcp install apply requires matching confirmation before writing config', (
   assert.equal(appliedReport.reversal.target, 'mcpServers.oaf');
   assert.equal(existsSync(configPath), true);
   const written = JSON.parse(readFileSync(configPath, 'utf8'));
-  assert.equal(written.mcpServers.oaf.command, 'npm');
+  assert.equal(written.mcpServers.oaf.command, process.execPath);
   assert.deepEqual(written.mcpServers.oaf.args, expectedArgs);
 
   const after = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
@@ -769,6 +776,37 @@ test('mcp install apply requires matching confirmation before writing config', (
   const afterReport = JSON.parse(after.stdout);
   assert.equal(afterReport.status.server, 'installed');
   assert.deepEqual(afterReport.desiredServer.args, expectedArgs);
+});
+
+test('mcp install emits portable server config that works from another cwd', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-portable-root-'));
+  const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-portable-home-'));
+  const otherCwd = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-portable-cwd-'));
+  mkdirSync(path.join(root, 'docs', 'adr'), { recursive: true });
+  writeFileSync(path.join(root, 'README.md'), 'Portable MCP memory should recall proposal-gated workspace facts from any agent cwd.');
+  writeFileSync(path.join(root, 'AGENTS.md'), 'Keep MCP memory local-first, read-only by default, and proposal gated.');
+  writeFileSync(path.join(root, 'docs', 'adr', '0001-portable-mcp.md'), 'Portable MCP install uses absolute root and SQLite memory paths.');
+  const ingest = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'ingest', '--root', root, '--sqlite', '.local/memory.sqlite', '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(ingest.status, 0, ingest.stderr);
+  assert(JSON.parse(ingest.stdout).summary.proposalCount > 0);
+  const install = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'claude-code', '--home', home, '--root', root, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(install.status, 0, install.stderr);
+  const report = JSON.parse(install.stdout);
+  assert.equal(report.desiredServer.command, process.execPath);
+  assert.equal(report.desiredServer.args.includes(report.workspaceRoot), true);
+  assert.equal(report.desiredServer.args.includes(report.memory.sqlitePath), true);
+  const input = [
+    JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
+    JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
+    JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'portable MCP memory proposal gated', limit: 5 } } })
+  ].join('\n');
+  const served = spawnSync(report.desiredServer.command, report.desiredServer.args, { cwd: otherCwd, encoding: 'utf8', input });
+  assert.equal(served.status, 0, served.stderr);
+  const lines = served.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
+  const recall = JSON.parse(lines[1].result.content[0].text);
+  assert.equal(recall.data.available, true);
+  assert(recall.data.proposalFactCount > 0);
+  assert.equal(recall.safeguards.readOnly, true);
 });
 test('mcp resources CLI lists, reads, and serves sanitized read-only resources over stdio',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-mcp-'));mkdirSync(path.join(root,'.local'),{recursive:true});writeFileSync(path.join(root,'PROJECT_STATUS.json'),JSON.stringify({release:'0.2.0-dev',phase:'local-test',nextTask:'OAF-031',defaults:{network:'deny',externalWrites:false,modelMode:'deterministic',dataResidency:'local-only',adapters:'disabled'}},null,2));writeFileSync(path.join(root,'.local','state.json'),JSON.stringify({schemaVersion:'1.0.0',runs:[{id:'run_cli_mcp',workspaceId:'ws_local',workflowId:'workflow:content-intelligence',objective:'Do not print this private objective.',status:'completed',residency:'local-only',createdAt:'2026-06-24T00:00:00.000Z',output:{text:'private model result'}}],events:[{id:'evt_cli_ctx',workspaceId:'ws_local',runId:'run_cli_mcp',sequence:1,type:'context.compiled',occurredAt:'2026-06-24T00:00:00.000Z',payload:{id:'ctx_cli',compilerVersion:'context-compiler@1.0.0',budget:{available:100,used:20},selected:[{id:'doc_cli',kind:'instruction',tokens:20,reasonCodes:['explicit_requirement'],source:'workspace://memory/old-private.md',text:'raw prompt body token=secret'}],excluded:[]}},{id:'evt_other',workspaceId:'ws_other',runId:'run_other',sequence:1,type:'run.started',occurredAt:'2026-06-24T00:00:00.000Z',payload:{text:'other workspace'}}],memories:[{id:'mem_cli_prop',workspaceId:'ws_local',kind:'decision',status:'proposed',decision:'review',confidence:0.6,text:'private memory text'}],approvals:[],artifacts:[]},null,2));const env={...process.env,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z'};const listed=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--format','json'],{encoding:'utf8',env});assert.equal(listed.status,0,listed.stderr);const listing=JSON.parse(listed.stdout);assert.equal(listing.mode,'read-only');assert.equal(listing.resources.length,5);assert(listing.resources.some(item=>item.uri==='oaf://workspace/ws_local/status'));assert.equal(listing.safeguards.externalWritesEnabled,false);const read=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--uri','oaf://workspace/ws_local/context/latest','--format','json'],{encoding:'utf8',env});assert.equal(read.status,0,read.stderr);const envelope=JSON.parse(read.stdout);const payload=JSON.parse(envelope.contents[0].text);assert.equal(payload.resourceKind,'context-manifest-summary');assert.equal(payload.data.contextManifest.selectedCount,1);assert.match(payload.resourceFingerprint,/^sha256:[a-f0-9]{64}$/);assert(!read.stdout.includes('raw prompt body'));assert(!read.stdout.includes('private objective'));assert(!read.stdout.includes('private model result'));assert(!read.stdout.includes('private memory text'));assert(!read.stdout.includes('/Users/rebel'));const stdioInput=['{"jsonrpc":"2.0","id":1,"method":"resources/list"}',JSON.stringify({jsonrpc:'2.0',id:2,method:'resources/read',params:{uri:'oaf://workspace/ws_local/status'}})].join('\n');const stdio=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--read-only','--root',root,'--stdio'],{encoding:'utf8',env,input:stdioInput});assert.equal(stdio.status,0,stdio.stderr);const lines=stdio.stdout.trim().split(/\n/u).map(line=>JSON.parse(line));assert.equal(lines[0].result.resources.length,5);const statusPayload=JSON.parse(lines[1].result.contents[0].text);assert.equal(statusPayload.data.counts.runs,1);assert.equal(statusPayload.data.counts.proposedMemories,1);assert.equal(statusPayload.safeguards.canonicalStateMutated,false);});
 test('mcp resources CLI bounds stdio input without echoing raw request bytes',()=>{

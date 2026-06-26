@@ -1680,7 +1680,7 @@ async function mcpServerCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const root = option(values, '--root') ?? process.cwd();
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
     schemaVersion: '1.0.0',
@@ -1939,12 +1939,8 @@ async function openMcpReadOnlyMemoryProvider({ values, root, generatedAt }) {
 }
 
 async function openReadOnlySqliteMemoryProvider({ values, root, generatedAt, commandName, missingOk }) {
-  const sqlitePath = option(values, '--sqlite') ?? '.local/memory.sqlite';
-  const realRoot = await realpath(root);
-  const absolute = path.resolve(realRoot, sqlitePath);
-  if (path.isAbsolute(sqlitePath) || !isInside(realRoot, absolute)) {
-    throw new Error(`${commandName} --sqlite must be a relative path inside --root`);
-  }
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', commandName, { mustExist: !missingOk });
+  const absolute = sqlitePath.absolute;
   const sqliteStat = await stat(absolute).catch((error) => {
     if (error.code === 'ENOENT') return null;
     throw error;
@@ -2124,15 +2120,18 @@ async function mcpInstallCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--format', '--dry-run', '--apply', '--confirm']);
-  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--format', '--confirm']);
+  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--format', '--dry-run', '--apply', '--confirm']);
+  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--format', '--confirm']);
   const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
   if (unsupported.length) {
     console.error(`mcp install unsupported option: ${unsupported[0]}`);
     process.exitCode = 2;
     return;
   }
-  const root = option(values, '--root') ?? '.';
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('mcp install --root must point at a local workspace directory');
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'mcp install', { mustExist: false });
   const home = option(values, '--home') ?? process.env.HOME ?? process.cwd();
   const setup = await buildHarnessSetupReport({
     action: 'plan',
@@ -2143,7 +2142,8 @@ async function mcpInstallCommand(values) {
     bridgeMode: 'token-saver',
     generatedAt: fixedNow()
   });
-  const preview = buildMcpInstallReport({ values, setup, client, root, apply, applied: false, localFilesWritten: 0 });
+  const installPlan = await buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, home, configPath: option(values, '--config') ?? client.configPath });
+  const preview = buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, apply, applied: false, localFilesWritten: 0 });
   const confirm = option(values, '--confirm');
   if (apply && confirm !== preview.planFingerprint) {
     console.error('mcp install --apply requires --confirm <planFingerprint> from a dry-run preview');
@@ -2151,8 +2151,8 @@ async function mcpInstallCommand(values) {
     return;
   }
   if (apply) {
-    await applyMcpInstallConfig({ home, client, configPath: option(values, '--config') ?? client.configPath, server: setup.server, desiredServer: setup.desiredServer });
-    console.log(JSON.stringify(buildMcpInstallReport({ values, setup, client, root, apply, applied: true, localFilesWritten: 1 }), null, 2));
+    await applyMcpInstallConfig({ home, client, configPath: option(values, '--config') ?? client.configPath, server: setup.server, desiredServer: installPlan.desiredServer });
+    console.log(JSON.stringify(buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, apply, applied: true, localFilesWritten: 1 }), null, 2));
     return;
   }
   console.log(JSON.stringify(preview, null, 2));
@@ -2166,7 +2166,121 @@ function normalizeMcpInstallClient(value) {
   return client;
 }
 
-function buildMcpInstallReport({ values, setup, client, root, apply, applied, localFilesWritten }) {
+async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, home, configPath }) {
+  const realRoot = await realpath(root);
+  const desiredServer = {
+    name: setup.server,
+    transport: 'stdio',
+    command: process.execPath,
+    args: [
+      CLI_PATH,
+      'mcp',
+      'server',
+      '--read-only',
+      '--root',
+      realRoot,
+      '--sqlite',
+      sqlitePath.absolute,
+      '--stdio'
+    ],
+    environmentKeys: [],
+    resourceMode: 'read-only-token-saver',
+    externalWrites: false
+  };
+  const serverConfig = { command: desiredServer.command, args: desiredServer.args };
+  const status = await classifyMcpInstallServer({ home, client, configPath, server: setup.server, desiredServer }).catch(() => setup.status.server);
+  const diffOperations = status === 'installed'
+    ? []
+    : [{
+        op: status === 'absent' ? 'add' : 'replace',
+        target: client.format === 'toml' ? `mcp_servers.${setup.server}` : `mcpServers.${setup.server}`,
+        before: status,
+        after: 'read-only-oaf-mcp-stdio',
+        summary: `${status === 'absent' ? 'add' : 'replace'} ${setup.server} with read-only OAF MCP stdio token-saver server`
+      }];
+  return {
+    desiredServer,
+    workspaceRoot: realRoot,
+    sqlitePath,
+    status: {
+      ...setup.status,
+      server: status
+    },
+    diff: {
+      ...setup.diff,
+      operations: diffOperations,
+      preview: diffOperations.map((operation) => operation.summary)
+    },
+    manualConfigSnippet: buildMcpInstallManualConfigSnippet({
+      client,
+      server: setup.server,
+      configRef: setup.config.ref,
+      serverConfig
+    })
+  };
+}
+
+function buildMcpInstallManualConfigSnippet({ client, server, configRef, serverConfig }) {
+  let content;
+  if (client.format === 'toml') {
+    const args = serverConfig.args.map((item) => `"${String(item).replaceAll('"', '\\"')}"`).join(', ');
+    content = `[mcp_servers.${server}]\ncommand = "${String(serverConfig.command).replaceAll('"', '\\"')}"\nargs = [${args}]`;
+  } else {
+    content = JSON.stringify({ mcpServers: { [server]: serverConfig } }, null, 2);
+  }
+  return {
+    format: client.format,
+    configRef,
+    applyMode: 'preview-then-confirm',
+    content,
+    warning: 'Preview only. OAF writes home config only with --apply and matching --confirm.'
+  };
+}
+
+async function classifyMcpInstallServer({ home, client, configPath, server, desiredServer }) {
+  const existing = await readMcpInstallServerConfig({ home, client, configPath, server });
+  if (!existing) return 'absent';
+  if (existing.command === desiredServer.command && arraysEqual(existing.args, desiredServer.args)) return 'installed';
+  return 'drifted';
+}
+
+async function readMcpInstallServerConfig({ home, client, configPath, server }) {
+  const realHome = await realpath(home);
+  if (path.isAbsolute(configPath) || configPath.includes('..')) throw new Error('mcp install config path must stay inside --home');
+  const target = path.resolve(realHome, configPath);
+  if (!isInside(realHome, target)) throw new Error('mcp install config path escapes --home');
+  const text = await readFile(target, 'utf8').catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (text === null) return null;
+  if (client.format === 'json') {
+    const parsed = JSON.parse(text || '{}');
+    const existing = parsed?.mcpServers?.[server];
+    if (existing && typeof existing === 'object' && !Array.isArray(existing)) return existing;
+    return null;
+  }
+  if (client.format === 'toml') return readMcpInstallTomlServerConfig(text, server);
+  return null;
+}
+
+function readMcpInstallTomlServerConfig(text, server) {
+  const escaped = server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = text.match(new RegExp(`(?:^|\\n)\\[mcp_servers\\.${escaped}\\]\\n([\\s\\S]*?)(?=\\n\\[|$)`, 'u'));
+  if (!match) return null;
+  const body = match[1];
+  const command = body.match(/(?:^|\n)\s*command\s*=\s*"((?:\\.|[^"\\])*)"/u)?.[1]?.replaceAll('\\"', '"');
+  const argsText = body.match(/(?:^|\n)\s*args\s*=\s*\[([^\]]*)\]/u)?.[1] ?? '';
+  const args = [...argsText.matchAll(/"((?:\\.|[^"\\])*)"/gu)].map((item) => item[1].replaceAll('\\"', '"'));
+  if (!command) return null;
+  return { command, args };
+}
+
+function arraysEqual(left, right) {
+  return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, apply, applied, localFilesWritten }) {
   const reportBase = {
     schemaVersion: '1.0.0',
     command: 'mcp install',
@@ -2181,18 +2295,24 @@ function buildMcpInstallReport({ values, setup, client, root, apply, applied, lo
     clientLabel: setup.clientLabel,
     server: setup.server,
     bridgeMode: setup.bridgeMode,
-    workspaceRootRef: root === '.' ? 'workspace://.' : 'workspace://selected-root',
+    workspaceRootRef: 'workspace://selected-root',
+    workspaceRoot: installPlan.workspaceRoot,
+    memory: {
+      provider: 'provider:native:memory:sqlite',
+      sqlitePath: sqlitePath.absolute,
+      sqliteRef: `workspace://${sqlitePath.relative}`
+    },
     config: setup.config,
-    status: setup.status,
-    desiredServer: setup.desiredServer,
-    manualConfigSnippet: setup.manualConfigSnippet,
+    status: installPlan.status,
+    desiredServer: installPlan.desiredServer,
+    manualConfigSnippet: installPlan.manualConfigSnippet,
     reversal: {
       mode: 'manual',
       configRef: setup.config.ref,
       target: client.format === 'toml' ? `mcp_servers.${setup.server}` : `mcpServers.${setup.server}`,
       instruction: 'Remove only this server entry to reverse the install; do not paste or print the raw home config body.'
     },
-    diff: setup.diff,
+    diff: installPlan.diff,
     safeguards: {
       ...setup.safeguards,
       localFilesWritten,
@@ -2205,7 +2325,7 @@ function buildMcpInstallReport({ values, setup, client, root, apply, applied, lo
     planFingerprint,
     nextCommand: apply || applied
       ? null
-      : `npm run oaf -- mcp install --client ${client.id} --apply --confirm ${planFingerprint} --format json`,
+      : `npm run oaf -- mcp install --client ${client.id} --root ${JSON.stringify(root)} --apply --confirm ${planFingerprint} --format json`,
     warnings: [
       'Dry-run is the default; OAF writes home config only with --apply and matching --confirm.',
       'Review the config before applying. The MCP server is local stdio and read-only.'
@@ -3445,9 +3565,9 @@ async function readWorkspaceMemoryPath(root, relativePath) {
 async function resolveWorkspaceSqlitePath(root, sqlitePath, commandName, { mustExist }) {
   const requested = sqlitePath ?? '.local/memory.sqlite';
   const realRoot = await realpath(root);
-  const absolute = path.resolve(realRoot, requested);
-  if (path.isAbsolute(requested) || !isInside(realRoot, absolute)) {
-    throw new Error(`${commandName} --sqlite must be a relative path inside --root`);
+  const absolute = path.isAbsolute(requested) ? path.resolve(requested) : path.resolve(realRoot, requested);
+  if (!isInside(realRoot, absolute)) {
+    throw new Error(`${commandName} --sqlite must stay inside --root`);
   }
   const existing = await stat(absolute).catch((error) => {
     if (error.code === 'ENOENT') return null;
