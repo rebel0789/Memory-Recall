@@ -59,6 +59,7 @@ const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 const MCP_PRIVATE_MATERIAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
 const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
+const MEMORY_BATCH_UNSAFE_TEXT = /(?:^|[\s('"`])\/(?:[A-Za-z0-9._-]+\/)+[^\s)'"<>]+|file:\/\/|[A-Za-z]:\\|\n|\r/iu;
 const REALQA_QUERY_STOPWORDS = new Set(['what', 'which', 'who', 'where', 'when', 'why', 'how', 'is', 'the', 'a', 'an', 'by', 'does', 'do', 'for', 'to', 'of', 'provider', 'default', 'implements']);
 const MCP_INSTALL_CLIENTS = new Map([
   ['codex', { id: 'codex', format: 'toml', configPath: '.codex/config.toml' }],
@@ -579,11 +580,19 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
   const { sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: false, commandName: command });
   try {
     const pending = (await provider.listProposalQueue({ workspaceId, limit: 500 })).filter((item) => item.status === 'pending');
-    const targets = allFrom ? pending.filter((item) => item.sourceLocator === allFrom).map((item) => item.id) : [proposalId];
+    const targets = allFrom ? pending
+      .filter((item) => item.sourceLocator === allFrom)
+      .sort((left, right) => String(left.enqueuedAt).localeCompare(String(right.enqueuedAt)) || String(left.id).localeCompare(String(right.id)))
+      .map((item) => item.id) : [proposalId];
     if (!targets.length) throw new Error(`memory approve found no pending proposals for ${allFrom}`);
     const approved = [];
     for (const id of targets) approved.push(await provider.approveProposalFact({ workspaceId, id, workerId, approvedAt: generatedAt }));
     const facts = approved.map((item) => item.fact);
+    const supersededFacts = [];
+    for (const item of facts) {
+      const history = await provider.getTemporalFactHistory({ workspaceId, scope: item.scope, subject: item.subject, predicate: item.predicate, limit: 50 });
+      supersededFacts.push(...history.filter((fact) => fact.supersededBy === item.id));
+    }
     const report = {
       schemaVersion: '1.0.0',
       command,
@@ -596,11 +605,13 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
       summary: {
         pendingProposalCount: 0,
         activeMemoryCreated: facts.length,
-        rejectedProposalCount: 0
+        rejectedProposalCount: 0,
+        supersededFactCount: supersededFacts.length
       },
       proposal: approved.length === 1 ? approved[0].proposal : null,
       fact: facts[0] ?? null,
       facts,
+      supersededFacts,
       safeguards: {
         readOnly: false,
         proposalGated: true,
@@ -628,6 +639,7 @@ async function memoryRememberCommand(values) {
     process.exitCode = 2;
     return;
   }
+  if (option(values, '--batch')) return await memoryRememberBatchCommand(values);
   const valueOptions = new Set([
     '--root',
     '--sqlite',
@@ -669,31 +681,9 @@ async function memoryRememberCommand(values) {
   const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'memory remember', { mustExist: false });
   const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
   const provider = new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: () => generatedAt });
-  const text = `${subject} ${predicate} ${object}`;
-  const sourceHash = `sha256:${sha256Hex(stableStringify({ subject, predicate, object, source }))}`;
-  const proposalId = `mpq_${sha256Hex(stableStringify({ workspaceId, scope, subject, predicate, object, sourceHash })).slice(0, 32)}`;
-  const episodeId = `mep_${sha256Hex(stableStringify({ workspaceId, source, sourceHash, text })).slice(0, 32)}`;
+  const proposalInput = buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source, generatedAt });
   try {
-    const queued = await provider.enqueueProposal({
-      id: proposalId,
-      workspaceId,
-      sourceLocator: source,
-      sourceHash,
-      payload: {
-        kind: 'fact',
-        scope,
-        subject,
-        predicate,
-        object,
-        text,
-        observedAt: generatedAt,
-        subjectEntity: subject,
-        objectEntity: object,
-        provenanceEpisodeId: episodeId,
-        provenanceSourceLocator: source,
-        provenanceSourceHash: sourceHash
-      }
-    });
+    const queued = await provider.enqueueProposal(proposalInput);
     const approved = await provider.approveProposalFact({
       workspaceId,
       id: queued.id,
@@ -738,6 +728,172 @@ async function memoryRememberCommand(values) {
   } finally {
     provider.close();
   }
+}
+
+async function memoryRememberBatchCommand(values) {
+  const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--scope', '--batch', '--format']);
+  const unsupported = unsupportedFlags(values, valueOptions, valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`memory remember unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('memory remember --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const scope = option(values, '--scope') ?? 'workspace';
+  if (!['workspace', 'session', 'agent', 'user'].includes(scope)) throw new Error('memory remember --scope must be workspace, session, agent, or user');
+  const generatedAt = fixedNow();
+  const batchPath = await resolveWorkspaceReadPath(root, option(values, '--batch'), 'memory remember --batch');
+  const parsed = JSON.parse(await readFile(batchPath.absolute, 'utf8'));
+  const facts = parsed?.facts;
+  if (!Array.isArray(facts)) throw new Error('memory remember --batch requires JSON shaped as {facts:[...]}');
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'memory remember', { mustExist: false });
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  const provider = new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: () => generatedAt });
+  const queued = [];
+  const seen = new Set();
+  let skippedUnsafeCount = 0;
+  let skippedDuplicateCount = 0;
+  try {
+    for (const [index, item] of facts.entries()) {
+      let fact;
+      try {
+        fact = await normalizeMemoryBatchFact(root, item);
+      } catch {
+        skippedUnsafeCount += 1;
+        continue;
+      }
+      const key = `${fact.subject}\u0000${fact.predicate}\u0000${fact.object}`;
+      if (seen.has(key)) {
+        skippedDuplicateCount += 1;
+        continue;
+      }
+      seen.add(key);
+      queued.push(await provider.enqueueProposal(buildMemoryRememberProposalInput({
+        workspaceId,
+        scope,
+        subject: fact.subject,
+        predicate: fact.predicate,
+        object: fact.object,
+        source: fact.source,
+        generatedAt,
+        enqueuedAt: addMilliseconds(generatedAt, index)
+      })));
+    }
+    const proposalFacts = queued.map(summarizeProposalQueueFact).filter(Boolean);
+    const report = {
+      schemaVersion: '1.0.0',
+      command: 'memory remember --batch',
+      generatedAt,
+      workspaceId,
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: `workspace://${sqlitePath.relative}`,
+        batchRef: `workspace://${batchPath.relative}`
+      },
+      summary: {
+        inputFactCount: facts.length,
+        recordedCount: proposalFacts.length,
+        proposalCount: proposalFacts.length,
+        pendingProposalCount: proposalFacts.length,
+        skippedUnsafeCount,
+        skippedDuplicateCount,
+        supersededFactCount: 0,
+        activeMemoryCreated: 0
+      },
+      proposalFacts,
+      safeguards: {
+        readOnly: false,
+        proposalGated: true,
+        canonicalStateMutated: true,
+        activeMemoryCreated: 0,
+        hardDeleted: false,
+        networkCalls: 0,
+        modelCalls: 0,
+        externalWritesEnabled: false,
+        rawSourceBodiesIncluded: false,
+        absoluteFilesystemLocationsIncluded: false
+      },
+      reportFingerprint: null
+    };
+    console.log(JSON.stringify({ ...report, reportFingerprint: stableJsonFingerprint(report) }, null, 2));
+  } finally {
+    provider.close();
+  }
+}
+
+function buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source, generatedAt, enqueuedAt }) {
+  const text = `${subject} ${predicate} ${object}`;
+  const sourceHash = `sha256:${sha256Hex(stableStringify({ subject, predicate, object, source }))}`;
+  const proposalId = `mpq_${sha256Hex(stableStringify({ workspaceId, scope, subject, predicate, object, sourceHash })).slice(0, 32)}`;
+  const episodeId = `mep_${sha256Hex(stableStringify({ workspaceId, source, sourceHash, text })).slice(0, 32)}`;
+  return {
+    id: proposalId,
+    workspaceId,
+    sourceLocator: source,
+    sourceHash,
+    enqueuedAt,
+    payload: {
+      kind: 'fact',
+      scope,
+      subject,
+      predicate,
+      object,
+      text,
+      observedAt: generatedAt,
+      subjectEntity: subject,
+      objectEntity: object,
+      provenanceEpisodeId: episodeId,
+      provenanceSourceLocator: source,
+      provenanceSourceHash: sourceHash
+    }
+  };
+}
+
+async function normalizeMemoryBatchFact(root, input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('fact must be an object');
+  const subject = safeMemoryBatchToken(input.subject, 'subject');
+  const predicate = safeMemoryBatchToken(input.predicate, 'predicate');
+  const object = safeMemoryBatchObject(input.object);
+  const source = await safeMemoryBatchSource(root, input.source);
+  if (input.supersedes) {
+    const supersedesSubject = safeMemoryBatchToken(input.supersedes.subject, 'supersedes.subject');
+    const supersedesPredicate = safeMemoryBatchToken(input.supersedes.predicate, 'supersedes.predicate');
+    if (supersedesSubject !== subject || supersedesPredicate !== predicate) throw new Error('supersedes must match subject and predicate');
+  }
+  if (input.notes !== undefined) safeMemoryBatchObject(input.notes);
+  return { subject, predicate, object, source };
+}
+
+function safeMemoryBatchToken(value, name) {
+  const text = String(value ?? '').trim();
+  if (!/^[A-Za-z0-9:_-]{1,128}$/u.test(text)) throw new Error(`${name} must be safe`);
+  if (MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error(`${name} must be safe`);
+  return text;
+}
+
+function safeMemoryBatchObject(value) {
+  const text = String(value ?? '').trim().replace(/[.;:,]+$/u, '').trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9:_./ -]{0,239}$/u.test(text)) throw new Error('object must be safe');
+  if (MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('object must be safe');
+  return text;
+}
+
+async function safeMemoryBatchSource(root, value) {
+  const source = String(value ?? '').trim();
+  if (!/^workspace:\/\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(source)) throw new Error('source must be workspace-relative');
+  const relativePath = source.slice('workspace://'.length);
+  if (!relativePath || relativePath.startsWith('/') || relativePath.includes('..')) throw new Error('source must stay inside workspace');
+  const realRoot = await realpath(root);
+  const absolute = path.resolve(realRoot, relativePath);
+  if (!isInside(realRoot, absolute)) throw new Error('source must stay inside workspace');
+  return source;
+}
+
+function addMilliseconds(iso, amount) {
+  return new Date(Date.parse(iso) + amount).toISOString();
 }
 
 async function memoryRejectCommand(values) {
@@ -5625,6 +5781,19 @@ async function resolveWorkspaceSqlitePath(root, sqlitePath, commandName, { mustE
   return { absolute, relative: toPosix(path.relative(realRoot, absolute)) };
 }
 
+async function resolveWorkspaceReadPath(root, requestedPath, commandName) {
+  if (!requestedPath) throw new Error(`${commandName} requires a workspace-relative JSON path`);
+  if (path.isAbsolute(requestedPath) || requestedPath.includes('..')) throw new Error(`${commandName} path must stay inside --root`);
+  const realRoot = await realpath(root);
+  const absolute = path.resolve(realRoot, requestedPath);
+  if (!isInside(realRoot, absolute)) throw new Error(`${commandName} path must stay inside --root`);
+  const actual = await realpath(absolute);
+  if (!isInside(realRoot, actual)) throw new Error(`${commandName} path must stay inside --root`);
+  const info = await stat(actual);
+  if (!info.isFile()) throw new Error(`${commandName} path must be a file`);
+  return { absolute: actual, relative: toPosix(path.relative(realRoot, actual)) };
+}
+
 async function resolveWorkspaceStatsPath(root, statsPath, commandName, { mustExist }) {
   const requested = statsPath ?? '.local/mcp-stats.jsonl';
   const realRoot = await realpath(root);
@@ -6193,6 +6362,7 @@ Usage:
   oaf bench realqa --read-only --root . --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory remember --root . --sqlite .local/memory.sqlite --subject auth --predicate token_expiry --object "15 minutes" --supersedes-subject auth --supersedes-predicate token_expiry --source workspace://DECISIONS.md --format json
+  oaf memory remember --batch facts.json --root . --sqlite .local/memory.sqlite --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
   oaf memory review --root . --sqlite .local/memory.sqlite --format json
   oaf memory approve mpq_status --root . --sqlite .local/memory.sqlite --format json

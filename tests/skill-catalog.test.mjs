@@ -85,3 +85,14 @@ test('loop intent clarification skill blocks ambiguous loop starts', async () =>
   assert.equal(clarified.planFields.sideEffectClass, 'read-only');
   assert.equal(clarified.authorityGranted, false);
 });
+
+test('oaf memory mapper skill is registered as a governed reversible write', async () => {
+  const { manifest, text } = await readSkill('oaf-memory');
+  assert.equal(manifest.id, 'skill:oaf-memory');
+  assert.equal(manifest.sideEffectClass, 'reversible-write');
+  assert(manifest.triggers.includes('/oaf-memory'));
+  assert(manifest.tools.includes('tool:workspace-write'));
+  assert.match(text, /facts\.json schema/);
+  assert.match(text, /oaf memory remember --batch facts\.json/);
+  assert.match(text, /Never auto-approve/);
+});

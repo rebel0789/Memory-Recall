@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:oaf-memory",
+  "name": "OAF Memory Mapper",
+  "version": "0.1.0",
+  "triggers": [
+    "/oaf-memory",
+    "map this project into OAF",
+    "remember my decisions",
+    "set up OAF memory"
+  ],
+  "tools": [
+    "tool:filesystem-read",
+    "tool:git-read",
+    "tool:workspace-write",
+    "tool:shell-sandbox"
+  ],
+  "sideEffectClass": "reversible-write",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}
