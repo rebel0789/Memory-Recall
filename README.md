@@ -46,6 +46,8 @@ generic token savings versus RAG, hosted memory, or cloud sync.
   manifests, and source-graph hints into PENDING proposals only;
 - `oaf memory review`, `oaf memory approve`, and `oaf memory reject` for the
   trust step from candidate proposal to ACTIVE fact;
+- `oaf memory remember --batch facts.json` for host-agent extracted memory maps
+  from `skills/oaf-memory`, including supersession and confidence labels;
 - read-only `oaf mcp server` exposing `memory.recall`, `context.profile`, and
   `context.pack` over local stdio with active facts separated from proposals;
 - persisted MCP cursors and `since` deltas so repeat `memory.recall` and

@@ -1098,6 +1098,7 @@ export class SQLiteMemoryProvider {
       });
       throw new Error('memory approve only supports fact proposals');
     }
+    const extractionConfidence = ['extracted', 'inferred', 'ambiguous'].includes(payload.extractionConfidence) ? payload.extractionConfidence : 'extracted';
     const text = payload.text || `${payload.subject} ${payload.predicate} ${payload.object}`;
     const proposal = await this.recordProposalResult({
       workspaceId,
@@ -1117,7 +1118,7 @@ export class SQLiteMemoryProvider {
       source: claimed.sourceLocator,
       proposalQueueId: id,
       validFrom: payload.observedAt ?? now,
-      confidence: 0.75,
+      confidence: { extracted: 0.9, inferred: 0.6, ambiguous: 0.3 }[extractionConfidence],
       episode: {
         id: payload.provenanceEpisodeId ?? episodeIdFromProposalId(id),
         sourceLocator: claimed.sourceLocator,
@@ -1127,7 +1128,9 @@ export class SQLiteMemoryProvider {
       metadata: {
         approvedBy: 'oaf memory approve',
         approvedAt: now,
-        sourceHash: claimed.sourceHash
+        sourceHash: claimed.sourceHash,
+        extractionConfidence,
+        notes: payload.notes ?? null
       }
     });
     return { proposal, fact };

@@ -60,6 +60,7 @@ const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_
 const MCP_PRIVATE_MATERIAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
 const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
 const MEMORY_BATCH_UNSAFE_TEXT = /(?:^|[\s('"`])\/(?:[A-Za-z0-9._-]+\/)+[^\s)'"<>]+|file:\/\/|[A-Za-z]:\\|\n|\r/iu;
+const MEMORY_BATCH_CONFIDENCES = new Set(['extracted', 'inferred', 'ambiguous']);
 const REALQA_QUERY_STOPWORDS = new Set(['what', 'which', 'who', 'where', 'when', 'why', 'how', 'is', 'the', 'a', 'an', 'by', 'does', 'do', 'for', 'to', 'of', 'provider', 'default', 'implements']);
 const MCP_INSTALL_CLIENTS = new Map([
   ['codex', { id: 'codex', format: 'toml', configPath: '.codex/config.toml' }],
@@ -779,7 +780,9 @@ async function memoryRememberBatchCommand(values) {
         object: fact.object,
         source: fact.source,
         generatedAt,
-        enqueuedAt: addMilliseconds(generatedAt, index)
+        enqueuedAt: addMilliseconds(generatedAt, index),
+        extractionConfidence: fact.extractionConfidence,
+        notes: fact.notes
       })));
     }
     const proposalFacts = queued.map(summarizeProposalQueueFact).filter(Boolean);
@@ -824,7 +827,7 @@ async function memoryRememberBatchCommand(values) {
   }
 }
 
-function buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source, generatedAt, enqueuedAt }) {
+function buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source, generatedAt, enqueuedAt, extractionConfidence = 'extracted', notes }) {
   const text = `${subject} ${predicate} ${object}`;
   const sourceHash = `sha256:${sha256Hex(stableStringify({ subject, predicate, object, source }))}`;
   const proposalId = `mpq_${sha256Hex(stableStringify({ workspaceId, scope, subject, predicate, object, sourceHash })).slice(0, 32)}`;
@@ -847,7 +850,9 @@ function buildMemoryRememberProposalInput({ workspaceId, scope, subject, predica
       objectEntity: object,
       provenanceEpisodeId: episodeId,
       provenanceSourceLocator: source,
-      provenanceSourceHash: sourceHash
+      provenanceSourceHash: sourceHash,
+      extractionConfidence,
+      notes: notes ?? null
     }
   };
 }
@@ -858,13 +863,14 @@ async function normalizeMemoryBatchFact(root, input) {
   const predicate = safeMemoryBatchToken(input.predicate, 'predicate');
   const object = safeMemoryBatchObject(input.object);
   const source = await safeMemoryBatchSource(root, input.source);
+  const extractionConfidence = safeMemoryBatchConfidence(input.confidence);
+  const notes = input.notes === undefined ? null : safeMemoryBatchObject(input.notes);
   if (input.supersedes) {
     const supersedesSubject = safeMemoryBatchToken(input.supersedes.subject, 'supersedes.subject');
     const supersedesPredicate = safeMemoryBatchToken(input.supersedes.predicate, 'supersedes.predicate');
     if (supersedesSubject !== subject || supersedesPredicate !== predicate) throw new Error('supersedes must match subject and predicate');
   }
-  if (input.notes !== undefined) safeMemoryBatchObject(input.notes);
-  return { subject, predicate, object, source };
+  return { subject, predicate, object, source, extractionConfidence, notes };
 }
 
 function safeMemoryBatchToken(value, name) {
@@ -876,9 +882,15 @@ function safeMemoryBatchToken(value, name) {
 
 function safeMemoryBatchObject(value) {
   const text = String(value ?? '').trim().replace(/[.;:,]+$/u, '').trim();
-  if (!/^[A-Za-z0-9][A-Za-z0-9:_./ -]{0,239}$/u.test(text)) throw new Error('object must be safe');
+  if (!/^[A-Za-z0-9][A-Za-z0-9:_./ =-]{0,239}$/u.test(text)) throw new Error('object must be safe');
   if (MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('object must be safe');
   return text;
+}
+
+function safeMemoryBatchConfidence(value) {
+  const confidence = String(value ?? 'extracted').trim();
+  if (!MEMORY_BATCH_CONFIDENCES.has(confidence)) throw new Error('confidence must be extracted, inferred, or ambiguous');
+  return confidence;
 }
 
 async function safeMemoryBatchSource(root, value) {
@@ -3681,7 +3693,8 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
       id: mcpSanitizeString(record.id, 120),
       text: mcpSanitizeString(record.text, 300),
       sourceRef: mcpCompactProvenanceRef(record.source),
-      trust: record.metadata?.memoryLifecycle === 'proposal' ? 'proposal' : 'active'
+      trust: record.metadata?.memoryLifecycle === 'proposal' ? 'proposal' : 'active',
+      extractionConfidence: MEMORY_BATCH_CONFIDENCES.has(record.metadata?.extractionConfidence) ? record.metadata.extractionConfidence : 'extracted'
     }))
     .slice(0, 20);
   if (selectedFacts.length) payload.data.selectedFacts = selectedFacts;
@@ -3755,7 +3768,10 @@ function mcpProfileRecordFromFact(fact) {
     tags: [fact.subject, fact.predicate, fact.object].filter(Boolean),
     relations: [fact.subject, fact.object].filter(Boolean),
     updatedAt: fact.updatedAt,
-    observedAt: fact.validFrom
+    observedAt: fact.validFrom,
+    metadata: {
+      extractionConfidence: MEMORY_BATCH_CONFIDENCES.has(fact.metadata?.extractionConfidence) ? fact.metadata.extractionConfidence : 'extracted'
+    }
   };
 }
 
@@ -3780,7 +3796,8 @@ function mcpProfileRecordFromProposal(fact) {
     metadata: {
       memoryLifecycle: 'proposal',
       proposalQueueId: fact.id,
-      sourceHash: fact.provenance.sourceHash
+      sourceHash: fact.provenance.sourceHash,
+      extractionConfidence: MEMORY_BATCH_CONFIDENCES.has(fact.extractionConfidence) ? fact.extractionConfidence : 'extracted'
     }
   };
 }
@@ -3813,6 +3830,7 @@ function mcpSummarizeProposalFact(fact, { verbose = false } = {}) {
     subject: fact.subject,
     predicate: fact.predicate,
     object: fact.object,
+    extractionConfidence: MEMORY_BATCH_CONFIDENCES.has(fact.extractionConfidence) ? fact.extractionConfidence : 'extracted',
     text: fact.text
   };
   return verbose
@@ -3835,6 +3853,7 @@ function mcpSummarizeTemporalFact(fact, { history, verbose = false }) {
     text: mcpSanitizeString(fact.text, 600),
     status: fact.status,
     confidence: Number(fact.confidence ?? 0),
+    extractionConfidence: MEMORY_BATCH_CONFIDENCES.has(fact.metadata?.extractionConfidence) ? fact.metadata.extractionConfidence : 'extracted',
     validityWindow: {
       validFrom: fact.validFrom,
       validUntil: fact.validUntil ?? null
@@ -3883,6 +3902,7 @@ function mcpSummarizeCurrentTruthFact(fact) {
   return {
     id: mcpSanitizeString(fact.id, 120),
     value: mcpSanitizeString(fact.object, 240),
+    extractionConfidence: MEMORY_BATCH_CONFIDENCES.has(fact.metadata?.extractionConfidence) ? fact.metadata.extractionConfidence : 'extracted',
     sourceRef: mcpCompactProvenanceRef(fact.proposalQueueId ?? fact.episode?.sourceLocator ?? fact.source ?? fact.id)
   };
 }
@@ -6123,6 +6143,7 @@ function summarizeProposalQueueFact(item) {
     subject: mcpSanitizeString(item.payload.subject, 160),
     predicate: mcpSanitizeString(item.payload.predicate, 120),
     object: mcpSanitizeString(item.payload.object, 240),
+    extractionConfidence: MEMORY_BATCH_CONFIDENCES.has(item.payload.extractionConfidence) ? item.payload.extractionConfidence : 'extracted',
     text: mcpSanitizeString(item.payload.text, 600),
     provenance: {
       sourceLocator: mcpSafeLocator(item.sourceLocator),

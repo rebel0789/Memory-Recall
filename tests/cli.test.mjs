@@ -118,6 +118,29 @@ test('memory remember batch skips unsafe facts without failing the command',()=>
   assert.equal(report.proposalFacts.length,1);
   assert.equal(report.proposalFacts[0].object,'15 minutes');
 });
+test('memory remember batch stores extraction confidence for recall',()=>{
+  const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-memory-batch-confidence-'));
+  mkdirSync(path.join(root,'.local'),{recursive:true});
+  writeFileSync(path.join(root,'package.json'),JSON.stringify({name:'notes-api'},null,2));
+  writeFileSync(path.join(root,'facts.json'),JSON.stringify({facts:[
+    {subject:'notes-api',predicate:'default',object:'storage = sqlite',confidence:'inferred',source:'workspace://package.json',notes:'inferred from dependencies'}
+  ]},null,2));
+  const env={...process.env,OAF_FIXED_NOW:'2026-06-27T09:00:00.000Z'};
+  const batch=spawnSync(process.execPath,['apps/cli/oaf.mjs','memory','remember','--batch','facts.json','--root',root,'--sqlite','.local/memory.sqlite','--format','json'],{encoding:'utf8',env});
+  assert.equal(batch.status,0,batch.stderr);
+  const batchReport=JSON.parse(batch.stdout);
+  assert.equal(batchReport.proposalFacts[0].extractionConfidence,'inferred');
+  const approve=spawnSync(process.execPath,['apps/cli/oaf.mjs','memory','approve','--root',root,'--sqlite','.local/memory.sqlite','--all-from','workspace://package.json','--format','json'],{encoding:'utf8',env});
+  assert.equal(approve.status,0,approve.stderr);
+  const input=[
+    JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize',params:{}}),
+    JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'memory.recall',arguments:{client:'confidence-test',query:'sqlite storage',subject:'notes-api',predicate:'default',scope:'workspace',limit:5}}})
+  ].join('\n');
+  const mcp=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','server','--read-only','--root',root,'--sqlite','.local/memory.sqlite','--stdio'],{encoding:'utf8',env,input});
+  assert.equal(mcp.status,0,mcp.stderr);
+  const recall=JSON.parse(JSON.parse(mcp.stdout.trim().split(/\n/u)[1]).result.content[0].text);
+  assert.equal(recall.data.activeFacts[0].extractionConfidence,'inferred');
+});
 test('demo memory-loop runs native profile plan observe proposal and fact flow',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','demo','memory-loop','--root','.','--format','json'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.command,'demo memory-loop');assert(report.compressedProfile.contextBudget.estimatedDeliveryTokens>0);assert.equal(report.loopPlan.contextBudget.estimatedDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert.equal(report.savings.beforeDeliveryTokens,report.compressedProfile.contextBudget.historyTokensAvailable);assert.equal(report.savings.afterDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert(report.savings.percent>0);assert.equal(report.savings.savings.providerBillingClaimed,false);assert.equal(report.observation.status,'passed');assert.equal(report.extractionProposal.status,'applied');assert.equal(report.memoryFact.id,'memfact_demo_memory_loop');assert.equal(report.memoryFact.validity.validFrom,'2026-06-26T10:00:00.000Z');assert.deepEqual(report.remembered,['project:oaf memory_loop connected']);assert.deepEqual(report.superseded,[]);assert.equal(report.safeguards.localOnly,true);assert.equal(report.safeguards.networkCalls,0);assert.equal(report.safeguards.modelCalls,0)});
 test('demo memory-loop npm script prints token saving remembered and superseded facts',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync('npm',['run','demo:memory-loop'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/Memory loop token saving: \d+%/);assert.match(result.stdout,/Before\/after delivery tokens: \d+ -> \d+/);assert.match(result.stdout,/Remembered: project:oaf memory_loop connected/);assert.match(result.stdout,/Superseded: memfact_demo_memory_loop_previous -> memfact_demo_memory_loop/);assert.match(result.stdout,/Observation: passed/);assert.equal(result.stdout.includes('network'),false)});
 test('measure savings reports real SQLite before and after delivery tokens without writes', async () => {
