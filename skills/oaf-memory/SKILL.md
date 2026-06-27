@@ -56,6 +56,20 @@ Priority order:
 Derive the project subject from the actual repo (package name or folder), e.g.
 `project:notes-api` — never a hardcoded name.
 
+**Complement, don't duplicate (the graphify rule).** OAF's built-in
+`oaf memory ingest` already captures the cheap structural facts for free — commit
+subjects, file/module structure, config defaults. Do **not** re-extract those.
+Spend your intelligence on what heuristics provably cannot do: **decisions, the
+rationale behind them (WHY), what changed over time (supersession), and cross-file
+relationships.** That division — deterministic structural pass + AI semantic pass —
+is exactly how graphify splits AST extraction from its semantic subagents.
+
+**Scale with parallel chunks.** For a large repo, do not read everything in one
+pass. Split the high-signal sources into chunks of a handful of files and dispatch
+a subagent per chunk to extract its fragment in parallel, then merge the fragments
+into one `facts.json` (dedup by `subject|predicate|object`). This is graphify's
+core scalability technique. For a small repo, a single pass is fine.
+
 ### Step 2 — Extract the fact map
 
 For each source, extract durable facts as `{subject, predicate, object, source}`
@@ -71,11 +85,29 @@ edges, but as governed facts. Capture three kinds:
   `tests | runner | node --test`, `commits | style | conventional`.
 
 Rules for good facts:
-- Subjects/predicates are short, lowercase, stable identifiers (`snake_case` or
-  `kebab` ids); objects are a short value or identifier.
+- Subjects/predicates are short, lowercase, **deterministic** identifiers
+  (`snake_case`); the same entity must always produce the same subject id so it
+  dedups across chunks (graphify's deterministic-id rule). Objects are a short
+  value or identifier.
 - Prefer durable, load-bearing facts an agent would need to act correctly. Skip
   trivia, formatting, and ephemeral noise.
 - One fact = one claim. Do not pack multiple claims into one object string.
+
+**Predicate vocabulary.** Prefer a controlled set so the map stays queryable
+(graphify uses a fixed relation taxonomy for the same reason). Reach for these
+first; only invent a new predicate when none fits:
+`uses`, `depends_on`, `implements`, `exposes`, `default`, `config`, `decision`,
+`constraint`, `convention`, `owns`, `relates_to`.
+
+**Confidence (the audit trail).** Tag every fact with how you know it, mirroring
+graphify's EXTRACTED / INFERRED / AMBIGUOUS:
+- `extracted` — stated explicitly in a source (a decision log line, a config
+  value). Record it.
+- `inferred` — a reasonable read of the code/structure, not stated outright.
+  Record it, but say so in `notes`.
+- `ambiguous` — you are unsure it is current or correct. Surface it in the dry-run
+  for the user to confirm; do not record it silently.
+Never guess a value to fill a gap — an unknown is better than a wrong fact.
 
 ### Step 3 — Detect temporal supersession (the part heuristics cannot do)
 
@@ -141,23 +173,27 @@ covered, and anything skipped — so the user sees exactly what OAF now knows.
   "facts": [
     {
       "subject": "auth",
-      "predicate": "token_expiry",
-      "object": "15 minutes",
+      "predicate": "decision",
+      "object": "token_expiry = 15 minutes",
+      "confidence": "extracted",
       "source": "workspace://DECISIONS.md",
-      "supersedes": { "subject": "auth", "predicate": "token_expiry" },
+      "supersedes": { "subject": "auth", "predicate": "decision" },
       "notes": "2026-03 security review; replaces the 60-minute decision"
     },
     {
       "subject": "notes-api",
-      "predicate": "default_storage",
-      "object": "sqlite",
-      "source": "workspace://package.json"
+      "predicate": "default",
+      "object": "storage = sqlite",
+      "confidence": "inferred",
+      "source": "workspace://package.json",
+      "notes": "inferred from dependencies; not stated in a decision log"
     }
   ]
 }
 ```
 
-`supersedes` and `notes` are optional. Omit `supersedes` for a brand-new fact.
+`confidence` is one of `extracted` | `inferred` | `ambiguous`. `supersedes` and
+`notes` are optional. Omit `supersedes` for a brand-new fact.
 
 ## Boundaries
 
