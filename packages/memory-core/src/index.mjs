@@ -145,6 +145,10 @@ function normalizeExtractionObjectText(value) {
   return text;
 }
 
+function isUnsafeExtractionError(error) {
+  return /^(subject|predicate|object) (?:must be safe extraction|is required)/u.test(error?.message ?? '');
+}
+
 function extractionSentences(text) {
   return String(text ?? '')
     .split(/[.\n]/u)
@@ -170,54 +174,61 @@ export function extractTemporalFactProposalsFromEpisode(input) {
     observedAt
   });
   const sourceHash = `sha256:${sha256Hex(text)}`;
+  let skippedUnsafeCount = 0;
   const proposals = extractionSentences(text).map((sentence) => {
-    if (hasSecret(sentence)) return null;
-    let subjectRaw;
-    let predicateRaw;
-    let objectRaw;
-    const decision = sentence.match(/^(?:Decision|Fact):\s*([A-Za-z0-9:_-]+)\s+([A-Za-z0-9:_-]+)\s+(.+)$/iu);
-    if (decision) {
-      subjectRaw = decision[1];
-      predicateRaw = decision[2];
-      objectRaw = decision[3].replace(/\s+(?:and\s+)?(?:supersedes|replaces|overrides)\s+.+$/iu, '');
-    } else {
-      const [subjectToken, predicateToken, objectToken, ...rest] = sentence.split(/\s+/u);
-      if (rest.length || !subjectToken || !predicateToken || !objectToken) return null;
-      subjectRaw = subjectToken;
-      predicateRaw = predicateToken;
-      objectRaw = objectToken;
-    }
-    const subject = normalizeExtractionToken(subjectRaw, 'subject');
-    const predicate = normalizeExtractionToken(predicateRaw, 'predicate');
-    const object = decision ? normalizeExtractionObjectText(objectRaw) : normalizeExtractionToken(objectRaw, 'object');
-    const payload = {
-      kind: 'fact',
-      scope,
-      subject,
-      predicate,
-      object,
-      text: `${subject} ${predicate} ${object}`,
-      sourceLocator,
-      observedAt,
-      subjectEntity: subject,
-      objectEntity: object,
-      entityLinks: [
-        { name: subject, role: 'subject' },
-        { name: object, role: 'object' }
-      ],
-      provenance: {
-        episodeId: episode.id,
-        sourceLocator,
-        sourceHash
+    try {
+      if (hasSecret(sentence)) return null;
+      let subjectRaw;
+      let predicateRaw;
+      let objectRaw;
+      const decision = sentence.match(/^(?:Decision|Fact):\s*([A-Za-z0-9:_-]+)\s+([A-Za-z0-9:_-]+)\s+(.+)$/iu);
+      if (decision) {
+        subjectRaw = decision[1];
+        predicateRaw = decision[2];
+        objectRaw = decision[3].replace(/\s+(?:and\s+)?(?:supersedes|replaces|overrides)\s+.+$/iu, '');
+      } else {
+        const [subjectToken, predicateToken, objectToken, ...rest] = sentence.split(/\s+/u);
+        if (rest.length || !subjectToken || !predicateToken || !objectToken) return null;
+        subjectRaw = subjectToken;
+        predicateRaw = predicateToken;
+        objectRaw = objectToken;
       }
-    };
-    return {
-      id: deterministicMemoryCoreId('mpq', { workspaceId, sourceLocator, sourceHash, payload }),
-      workspaceId,
-      sourceLocator,
-      sourceHash,
-      payload
-    };
+      const subject = normalizeExtractionToken(subjectRaw, 'subject');
+      const predicate = normalizeExtractionToken(predicateRaw, 'predicate');
+      const object = decision ? normalizeExtractionObjectText(objectRaw) : normalizeExtractionToken(objectRaw, 'object');
+      const payload = {
+        kind: 'fact',
+        scope,
+        subject,
+        predicate,
+        object,
+        text: `${subject} ${predicate} ${object}`,
+        sourceLocator,
+        observedAt,
+        subjectEntity: subject,
+        objectEntity: object,
+        entityLinks: [
+          { name: subject, role: 'subject' },
+          { name: object, role: 'object' }
+        ],
+        provenance: {
+          episodeId: episode.id,
+          sourceLocator,
+          sourceHash
+        }
+      };
+      return {
+        id: deterministicMemoryCoreId('mpq', { workspaceId, sourceLocator, sourceHash, payload }),
+        workspaceId,
+        sourceLocator,
+        sourceHash,
+        payload
+      };
+    } catch (error) {
+      if (!isUnsafeExtractionError(error)) throw error;
+      skippedUnsafeCount += 1;
+      return null;
+    }
   }).filter(Boolean);
   return deepFreeze({
     schemaVersion: '1.0.0',
@@ -228,7 +239,8 @@ export function extractTemporalFactProposalsFromEpisode(input) {
     safeguards: {
       activeMemoryCreated: 0,
       canonicalStateMutated: false,
-      deterministicOffline: true
+      deterministicOffline: true,
+      skippedUnsafeCount
     }
   });
 }

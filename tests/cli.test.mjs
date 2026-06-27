@@ -45,6 +45,25 @@ test('memory remember and decision-log ingest serve only the superseding real de
   assert.equal(recall.data.summary.proposalFactCount,0);
   assert.equal(recall.data.activeFacts[0].subject,'auth');
 });
+test('memory ingest skips unsafe markdown decision candidates and keeps safe facts',()=>{
+  const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-ingest-resilient-'));
+  mkdirSync(path.join(root,'.local'),{recursive:true});
+  writeFileSync(path.join(root,'package.json'),JSON.stringify({name:'auth-service'},null,2));
+  writeFileSync(path.join(root,'DECISIONS.md'),[
+    '# Decision log',
+    '',
+    '2026-06-20: **Decision:** Auth token expiry was reviewed after mobile logout reports.',
+    'Decision: auth token_expiry **15 minutes** (mobile app) supersedes 60 minutes.',
+    '',
+    '2026-06-21: Decision: auth session_window 15 minutes supersedes 60 minutes.'
+  ].join('\n'));
+  const env={...process.env,OAF_FIXED_NOW:'2026-06-27T09:00:00.000Z'};
+  const ingest=spawnSync(process.execPath,['apps/cli/oaf.mjs','memory','ingest','--root',root,'--sqlite','.local/memory.sqlite','--format','json'],{encoding:'utf8',env});
+  assert.equal(ingest.status,0,ingest.stderr);
+  const report=JSON.parse(ingest.stdout);
+  assert(report.summary.skippedUnsafeCount>0);
+  assert(report.proposalFacts.some((fact)=>fact.subject==='auth'&&fact.predicate==='session_window'&&fact.object==='15 minutes'));
+});
 test('demo memory-loop runs native profile plan observe proposal and fact flow',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','demo','memory-loop','--root','.','--format','json'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.command,'demo memory-loop');assert(report.compressedProfile.contextBudget.estimatedDeliveryTokens>0);assert.equal(report.loopPlan.contextBudget.estimatedDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert.equal(report.savings.beforeDeliveryTokens,report.compressedProfile.contextBudget.historyTokensAvailable);assert.equal(report.savings.afterDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert(report.savings.percent>0);assert.equal(report.savings.savings.providerBillingClaimed,false);assert.equal(report.observation.status,'passed');assert.equal(report.extractionProposal.status,'applied');assert.equal(report.memoryFact.id,'memfact_demo_memory_loop');assert.equal(report.memoryFact.validity.validFrom,'2026-06-26T10:00:00.000Z');assert.deepEqual(report.remembered,['project:oaf memory_loop connected']);assert.deepEqual(report.superseded,[]);assert.equal(report.safeguards.localOnly,true);assert.equal(report.safeguards.networkCalls,0);assert.equal(report.safeguards.modelCalls,0)});
 test('demo memory-loop npm script prints token saving remembered and superseded facts',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync('npm',['run','demo:memory-loop'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/Memory loop token saving: \d+%/);assert.match(result.stdout,/Before\/after delivery tokens: \d+ -> \d+/);assert.match(result.stdout,/Remembered: project:oaf memory_loop connected/);assert.match(result.stdout,/Superseded: memfact_demo_memory_loop_previous -> memfact_demo_memory_loop/);assert.match(result.stdout,/Observation: passed/);assert.equal(result.stdout.includes('network'),false)});
 test('measure savings reports real SQLite before and after delivery tokens without writes', async () => {

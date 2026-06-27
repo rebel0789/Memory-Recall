@@ -826,7 +826,12 @@ async function memoryIngestCommand(values) {
       limit: parseIntegerOption(values, '--limit', 80)
     });
     const queued = [];
-    for (const episode of episodes) queued.push(...await provider.proposeTemporalFactsFromEpisode(episode));
+    let skippedUnsafeCount = 0;
+    for (const episode of episodes) {
+      const proposed = await provider.proposeTemporalFactsFromEpisode(episode);
+      skippedUnsafeCount += proposed.skippedUnsafeCount ?? 0;
+      queued.push(...proposed);
+    }
     const unique = new Map(queued.map((item) => [item.id, item]));
     const proposalFacts = [...unique.values()].map(summarizeProposalQueueFact).filter(Boolean);
     const report = {
@@ -843,6 +848,7 @@ async function memoryIngestCommand(values) {
         episodeCount: episodes.length,
         proposalCount: proposalFacts.length,
         activeMemoryCreated: 0,
+        skippedUnsafeCount,
         sources: {
           gitHistory: episodes.filter((item) => item.metadata?.sourceKind === 'git-history').length,
           docs: episodes.filter((item) => item.metadata?.sourceKind === 'workspace-doc').length,

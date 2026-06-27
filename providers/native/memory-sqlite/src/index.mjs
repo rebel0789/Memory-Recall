@@ -1079,6 +1079,7 @@ export class SQLiteMemoryProvider {
         }
       }));
     }
+    Object.defineProperty(queued, 'skippedUnsafeCount', { value: extracted.safeguards?.skippedUnsafeCount ?? 0 });
     return queued;
   }
 
