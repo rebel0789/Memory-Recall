@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
@@ -16,6 +16,26 @@ async function approveProposal(provider, { id, workspaceId = 'ws_local', sourceH
   });
   await provider.claimProposal({ workspaceId, workerId: 'reviewer', leaseUntil: '2026-06-26T10:05:00.000Z' });
   await provider.recordProposalResult({ workspaceId, id, workerId: 'reviewer', status: 'applied', result: { accepted: true } });
+}
+
+async function approveFact(provider, { id, subject, predicate, object, observedAt = '2026-06-26T09:00:00.000Z', supersedes = false }) {
+  await provider.enqueueProposal({
+    id,
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://DECISIONS.md',
+    sourceHash: `sha256:${id.replace(/[^a-f0-9]/giu, 'a').slice(0, 64).padEnd(64, 'a')}`,
+    payload: {
+      kind: 'fact',
+      scope: 'workspace',
+      subject,
+      predicate,
+      object,
+      text: `${subject} ${predicate} ${object}`,
+      observedAt,
+      supersedesSubjectPredicate: supersedes
+    }
+  });
+  return provider.approveProposalFact({ workspaceId: 'ws_local', id });
 }
 
 test('native hybrid memory retrieval fuses FTS5 graph and temporal signals while degrading without embeddings', async (t) => {
@@ -112,4 +132,75 @@ test('native hybrid memory retrieval fuses FTS5 graph and temporal signals while
   const explain = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'explain', '--sqlite', sqlitePath, '--workspace', 'ws_local', '--scope', 'workspace', '--query', 'release', '--fact', 'memfact_release', '--format', 'json'], { encoding: 'utf8', env });
   assert.equal(explain.status, 0, explain.stderr);
   assert.equal(JSON.parse(explain.stdout).fact.id, 'memfact_release');
+});
+
+test('native temporal graph queries traverse approved current-truth neighborhoods', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'oaf-memory-graph-queries-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, '.local'), { recursive: true });
+  const sqlitePath = path.join(root, '.local', 'memory.sqlite');
+  const provider = new SQLiteMemoryProvider({ filename: sqlitePath, clock: () => '2026-06-26T11:00:00.000Z' });
+  let closed = false;
+  t.after(() => { if (!closed) provider.close(); });
+
+  await approveFact(provider, { id: 'mpq_notes_depends_auth', subject: 'notes-api', predicate: 'depends_on', object: 'auth' });
+  await approveFact(provider, { id: 'mpq_notes_uses_auth_mjs', subject: 'notes-api', predicate: 'uses', object: 'auth_mjs' });
+  await approveFact(provider, { id: 'mpq_auth_uses_hmac', subject: 'auth', predicate: 'uses', object: 'hmac-session-tokens' });
+  await approveFact(provider, { id: 'mpq_auth_implemented_by_auth_mjs', subject: 'auth', predicate: 'implemented_by', object: 'auth_mjs' });
+  await approveFact(provider, { id: 'mpq_auth_mjs_exposes_issue', subject: 'auth_mjs', predicate: 'exposes', object: 'issueToken' });
+  await approveFact(provider, { id: 'mpq_auth_mjs_exposes_verify', subject: 'auth_mjs', predicate: 'exposes', object: 'verifyToken' });
+  await approveFact(provider, { id: 'mpq_auth_token_expiry', subject: 'auth', predicate: 'token_expiry', object: '15 minutes' });
+
+  const issuePath = await provider.getTemporalMemoryPath({ workspaceId: 'ws_local', from: 'notes-api', to: 'issueToken', maxHops: 6 });
+  assert.deepEqual(issuePath.path.map((node) => node.name), ['notes-api', 'auth_mjs', 'issueToken']);
+  assert.deepEqual(issuePath.edges.map((edge) => [edge.from, edge.predicate, edge.to]), [
+    ['notes-api', 'uses', 'auth_mjs'],
+    ['auth_mjs', 'exposes', 'issueToken']
+  ]);
+  assert.deepEqual((await provider.getTemporalMemoryPath({ workspaceId: 'ws_local', from: 'issueToken', to: 'notes-api', maxHops: 6 })).path, []);
+  const undirectedBackPath = await provider.getTemporalMemoryPath({ workspaceId: 'ws_local', from: 'issueToken', to: 'notes-api', maxHops: 6, undirected: true });
+  assert.deepEqual(undirectedBackPath.path.map((node) => node.name), ['issueToken', 'auth_mjs', 'notes-api']);
+
+  const hmacPath = await provider.getTemporalMemoryPath({ workspaceId: 'ws_local', from: 'notes-api', to: 'hmac-session-tokens', maxHops: 6 });
+  assert.deepEqual(hmacPath.path.map((node) => node.name), ['notes-api', 'auth', 'hmac-session-tokens']);
+
+  const authExplain = await provider.explainTemporalMemory({ workspaceId: 'ws_local', entity: 'auth', depth: 1 });
+  assert.deepEqual(authExplain.edges.map((edge) => [edge.from, edge.predicate, edge.to]).sort(), [
+    ['auth', 'implemented_by', 'auth_mjs'],
+    ['auth', 'token_expiry', '15 minutes'],
+    ['auth', 'uses', 'hmac-session-tokens'],
+    ['notes-api', 'depends_on', 'auth']
+  ]);
+
+  await approveFact(provider, {
+    id: 'mpq_auth_uses_signed_sessions',
+    subject: 'auth',
+    predicate: 'uses',
+    object: 'signed-session-tokens',
+    observedAt: '2026-06-26T10:00:00.000Z',
+    supersedes: true
+  });
+
+  const stalePath = await provider.getTemporalMemoryPath({ workspaceId: 'ws_local', from: 'notes-api', to: 'hmac-session-tokens', maxHops: 6 });
+  assert.deepEqual(stalePath.path, []);
+  assert.deepEqual(stalePath.edges, []);
+  const historicalPath = await provider.getTemporalMemoryPath({ workspaceId: 'ws_local', from: 'notes-api', to: 'hmac-session-tokens', maxHops: 6, at: '2026-06-26T09:30:00.000Z' });
+  assert.deepEqual(historicalPath.path.map((node) => node.name), ['notes-api', 'auth', 'hmac-session-tokens']);
+
+  const currentExplain = await provider.explainTemporalMemory({ workspaceId: 'ws_local', entity: 'auth', depth: 1 });
+  assert.equal(currentExplain.edges.some((edge) => edge.to === 'hmac-session-tokens'), false);
+  assert.equal(currentExplain.edges.some((edge) => edge.to === 'signed-session-tokens'), true);
+  provider.close();
+  closed = true;
+
+  const env = { ...process.env, OAF_FIXED_NOW: '2026-06-26T11:00:00.000Z' };
+  const cliPath = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'path', '--root', root, '--sqlite', '.local/memory.sqlite', '--workspace', 'ws_local', '--from', 'notes-api', '--to', 'issueToken', '--max-hops', '6', '--format', 'json'], { encoding: 'utf8', env });
+  assert.equal(cliPath.status, 0, cliPath.stderr);
+  assert.deepEqual(JSON.parse(cliPath.stdout).path.map((node) => node.name), ['notes-api', 'auth_mjs', 'issueToken']);
+  const cliExplain = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'explain', '--root', root, '--sqlite', '.local/memory.sqlite', '--workspace', 'ws_local', '--entity', 'auth', '--depth', '1', '--format', 'json'], { encoding: 'utf8', env });
+  assert.equal(cliExplain.status, 0, cliExplain.stderr);
+  const explainReport = JSON.parse(cliExplain.stdout);
+  assert.equal(explainReport.entity, 'auth');
+  assert.equal(explainReport.edges.some((edge) => edge.to === 'hmac-session-tokens'), false);
+  assert.equal(explainReport.edges.some((edge) => edge.to === 'signed-session-tokens'), true);
 });

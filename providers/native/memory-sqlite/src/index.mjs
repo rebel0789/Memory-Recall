@@ -1012,45 +1012,176 @@ export class SQLiteMemoryProvider {
     };
   }
 
-  async getTemporalMemoryPath({ workspaceId, scope = 'workspace', from, to } = {}) {
-    if (!workspaceId) throw new Error('workspaceId is required');
-    if (!from || !to) throw new Error('from and to are required');
-    const normalizedScope = normalizeTemporalScope(scope);
-    const rows = this.database.prepare(`
+  #validTemporalGraphEdges({ workspaceId, scope, at }) {
+    return this.database.prepare(`
       SELECT e.predicate, e.fact_id, source.name AS source_name, target.name AS target_name
       FROM memory_edges e
       JOIN memory_entities source ON source.id = e.source_entity_id
       JOIN memory_entities target ON target.id = e.target_entity_id
+      JOIN memory_facts f ON f.workspace_id = e.workspace_id
+        AND f.scope = e.scope
+        AND f.id = e.fact_id
       WHERE e.workspace_id = ?
         AND e.scope = ?
-        AND source.name = ?
-        AND target.name = ?
-      ORDER BY e.created_at ASC, e.fact_id ASC
-      LIMIT 10
-    `).all(workspaceId, normalizedScope, from, to);
+        AND f.status IN ('active', 'superseded')
+        AND f.valid_from <= ?
+        AND (f.valid_until IS NULL OR f.valid_until > ?)
+        AND (f.superseded_by IS NULL OR f.valid_until > ?)
+      ORDER BY source.name ASC, e.predicate ASC, target.name ASC, e.created_at ASC, e.fact_id ASC
+    `).all(workspaceId, scope, at, at, at).map((row) => ({
+      from: row.source_name,
+      predicate: row.predicate,
+      to: row.target_name,
+      factId: row.fact_id
+    }));
+  }
+
+  async getTemporalMemoryPath({ workspaceId, scope = 'workspace', from, to, maxHops = 6, undirected = false, at = this.clock() } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    if (!from || !to) throw new Error('from and to are required');
+    const normalizedScope = normalizeTemporalScope(scope);
+    const boundedHops = Math.max(1, Math.min(12, Number(maxHops) || 6));
+    if (from === to) {
+      const path = [{ name: from }];
+      return {
+        schemaVersion: '1.0.0',
+        provider: PROVIDER_ID,
+        workspaceId,
+        scope: normalizedScope,
+        at,
+        maxHops: boundedHops,
+        undirected: undirected === true,
+        path,
+        nodes: path,
+        edges: []
+      };
+    }
+    const edges = this.#validTemporalGraphEdges({ workspaceId, scope: normalizedScope, at });
+    const adjacency = new Map();
+    const addEdge = (edge) => {
+      if (!adjacency.has(edge.from)) adjacency.set(edge.from, []);
+      adjacency.get(edge.from).push(edge);
+    };
+    for (const edge of edges) {
+      addEdge(edge);
+      if (undirected) addEdge({ ...edge, from: edge.to, to: edge.from });
+    }
+    const queue = [{ node: from, path: [from], edges: [] }];
+    const visited = new Set([from]);
+    let found = null;
+    while (queue.length && !found) {
+      const current = queue.shift();
+      if (current.edges.length >= boundedHops) continue;
+      for (const edge of adjacency.get(current.node) ?? []) {
+        if (visited.has(edge.to)) continue;
+        const next = { node: edge.to, path: [...current.path, edge.to], edges: [...current.edges, edge] };
+        if (edge.to === to) {
+          found = next;
+          break;
+        }
+        visited.add(edge.to);
+        queue.push(next);
+      }
+    }
+    const path = found ? found.path.map((name) => ({ name })) : [];
     return {
       schemaVersion: '1.0.0',
       provider: PROVIDER_ID,
       workspaceId,
       scope: normalizedScope,
-      path: rows.length ? [{ name: from }, { name: to }] : [],
-      edges: rows.map((row) => ({ from: row.source_name, predicate: row.predicate, to: row.target_name, factId: row.fact_id }))
+      at,
+      maxHops: boundedHops,
+      undirected: undirected === true,
+      path,
+      nodes: path,
+      edges: found?.edges ?? []
     };
   }
 
-  async explainTemporalMemory({ workspaceId, scope = 'workspace', query = '', factId, at = this.clock() } = {}) {
-    if (!factId) throw new Error('factId is required');
+  #resolveTemporalEntityName({ edges, entity, query }) {
+    const requested = String(entity || query || '').trim();
+    if (!requested) return null;
+    const names = [...new Set(edges.flatMap((edge) => [edge.from, edge.to]))].sort();
+    return names.find((name) => name === requested)
+      ?? names.find((name) => name.toLowerCase() === requested.toLowerCase())
+      ?? names.find((name) => name.toLowerCase().includes(requested.toLowerCase()))
+      ?? null;
+  }
+
+  async explainTemporalMemory({ workspaceId, scope = 'workspace', query = '', factId, entity, depth = 1, at = this.clock() } = {}) {
     const report = await this.searchTemporalMemory({ workspaceId, scope, query, at, limit: 100 });
-    const result = report.results.find((item) => item.fact.id === factId);
-    if (!result) throw new Error(`temporal fact not found in search result: ${factId}`);
+    const result = factId ? report.results.find((item) => item.fact.id === factId) : null;
+    if (factId && result) {
+      return {
+        schemaVersion: '1.0.0',
+        provider: PROVIDER_ID,
+        workspaceId: report.workspaceId,
+        scope: report.scope,
+        query,
+        fact: result.fact,
+        ranking: result.ranking,
+        semantic: report.signals.semantic,
+        scopedDigest: report.scopedDigest
+      };
+    }
+    if (factId) {
+      const fact = this.#temporalFactFromRow(this.database.prepare(`
+        SELECT *
+        FROM memory_facts
+        WHERE workspace_id = ?
+          AND scope = ?
+          AND id = ?
+          AND status IN ('active', 'superseded')
+          AND valid_from <= ?
+          AND (valid_until IS NULL OR valid_until > ?)
+          AND (superseded_by IS NULL OR valid_until > ?)
+      `).get(workspaceId, report.scope, factId, at, at, at));
+      if (!fact) throw new Error(`temporal fact not found in search result: ${factId}`);
+      return {
+        schemaVersion: '1.0.0',
+        provider: PROVIDER_ID,
+        workspaceId: report.workspaceId,
+        scope: report.scope,
+        query,
+        fact,
+        ranking: { score: 0, signals: { fts5: 0, graph: 0, temporal: temporalRank(fact.validFrom, at), semantic: 0 } },
+        semantic: report.signals.semantic,
+        scopedDigest: report.scopedDigest
+      };
+    }
+    const edges = this.#validTemporalGraphEdges({ workspaceId, scope: report.scope, at });
+    const entityName = this.#resolveTemporalEntityName({ edges, entity, query });
+    if (!entityName) throw new Error('entity is required');
+    const boundedDepth = Math.max(1, Math.min(6, Number(depth) || 1));
+    const nodes = new Map([[entityName, { name: entityName, depth: 0 }]]);
+    const edgeMap = new Map();
+    let frontier = [entityName];
+    for (let level = 1; level <= boundedDepth; level += 1) {
+      const next = [];
+      for (const node of frontier) {
+        for (const edge of edges) {
+          if (edge.from !== node && edge.to !== node) continue;
+          edgeMap.set(`${edge.from}\0${edge.predicate}\0${edge.to}\0${edge.factId}`, edge);
+          const other = edge.from === node ? edge.to : edge.from;
+          if (!nodes.has(other)) {
+            nodes.set(other, { name: other, depth: level });
+            next.push(other);
+          }
+        }
+      }
+      frontier = next;
+    }
     return {
       schemaVersion: '1.0.0',
       provider: PROVIDER_ID,
       workspaceId: report.workspaceId,
       scope: report.scope,
       query,
-      fact: result.fact,
-      ranking: result.ranking,
+      entity: entityName,
+      depth: boundedDepth,
+      at,
+      nodes: [...nodes.values()],
+      edges: [...edgeMap.values()],
       semantic: report.signals.semantic,
       scopedDigest: report.scopedDigest
     };

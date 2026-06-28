@@ -1695,6 +1695,15 @@ async function memoryFactCommand(values) {
 async function openMemoryFactProvider(values, { readOnly }) {
   const sqlitePath = option(values, '--sqlite');
   if (!sqlitePath) throw new Error('memory fact requires --sqlite <path>');
+  const rootOption = option(values, '--root');
+  if (rootOption) {
+    const root = path.resolve(rootOption);
+    const rootStat = await stat(root).catch(() => null);
+    if (!rootStat?.isDirectory()) throw new Error('memory fact --root must point at a local workspace directory');
+    const resolved = await resolveWorkspaceSqlitePath(root, sqlitePath, 'memory fact', { mustExist: readOnly });
+    const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+    return new SQLiteMemoryProvider({ filename: resolved.absolute, clock: fixedNow, migrate: !readOnly, readOnly });
+  }
   try {
     await stat(sqlitePath);
   } catch {
@@ -1817,7 +1826,10 @@ async function memoryPathCommand(values) {
     const report = await provider.getTemporalMemoryPath({
       ...memoryHybridQuery(values),
       from: requiredOption(values, '--from'),
-      to: requiredOption(values, '--to')
+      to: requiredOption(values, '--to'),
+      maxHops: parseIntegerOption(values, '--max-hops', 6),
+      undirected: values.includes('--undirected'),
+      at: option(values, '--at') ?? fixedNow()
     });
     console.log(JSON.stringify(report, null, 2));
   } finally {
@@ -1829,10 +1841,16 @@ async function memoryExplainCommand(values) {
   if (!validateJsonFormat(values)) return;
   const provider = await openMemoryFactProvider(values, { readOnly: true });
   try {
+    const factId = option(values, '--fact');
+    const entity = option(values, '--entity');
+    const query = option(values, '--query');
+    if (!factId && !entity && !query) throw new Error('memory explain requires --fact, --entity, or --query');
     const report = await provider.explainTemporalMemory({
       ...memoryHybridQuery(values),
-      query: requiredOption(values, '--query'),
-      factId: requiredOption(values, '--fact'),
+      query: query ?? '',
+      factId,
+      entity,
+      depth: parseIntegerOption(values, '--depth', 1),
       at: option(values, '--at') ?? fixedNow()
     });
     console.log(JSON.stringify(report, null, 2));
@@ -6513,8 +6531,8 @@ Usage:
   oaf memory fact get --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --at 2026-06-26T00:00:00.000Z --format json
   oaf memory fact history --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --format json
   oaf memory search "release" --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --format json
-  oaf memory path --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --from project:oaf --to temporal-memory --format json
-  oaf memory explain --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --query release --fact memfact_status --format json
+  oaf memory path --root . --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --from project:oaf --to temporal-memory --max-hops 6 --format json
+  oaf memory explain --root . --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --entity auth --depth 1 --format json
   oaf mcp resources --read-only --workspace ws_local --format json
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --uri oaf://workspace/ws_local/context-pack/current --format json
   oaf mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json
