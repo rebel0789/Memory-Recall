@@ -1211,13 +1211,64 @@ async function loopObserveCommand(values) {
   console.log(JSON.stringify({ ...observation, ledgerEvents: events }, null, 2));
 }
 
+async function openLoopGovernanceChecker({ values, root, generatedAt, commandName }) {
+  if (!values.includes('--sqlite')) return { provider: null, checker: undefined };
+  const provider = await openReadOnlySqliteMemoryProvider({ values, root, generatedAt, commandName, missingOk: false });
+  return {
+    provider,
+    checker: async ({ loopPlan, worktreePath }) => evaluateLoopGovernanceAssertions({ loopPlan, worktreePath, provider })
+  };
+}
+
+async function evaluateLoopGovernanceAssertions({ loopPlan, worktreePath, provider }) {
+  const assertions = Array.isArray(loopPlan.governanceAssertions) ? loopPlan.governanceAssertions.slice(0, 16) : [];
+  if (!provider || assertions.length === 0) return { checked: 0, violations: [] };
+  const violations = [];
+  let checked = 0;
+  for (const assertion of assertions) {
+    const subject = safeMemoryBatchToken(assertion.subject, 'governance subject');
+    const predicate = safeMemoryBatchToken(assertion.predicate, 'governance predicate');
+    const expected = await loopGovernanceExpectedValue({ provider, workspaceId: loopPlan.workspaceId, subject, predicate });
+    if (!expected) continue;
+    const actual = await loopGovernanceActualValue({ worktreePath, probe: assertion.probe });
+    checked += 1;
+    if (actual !== expected && violations.length < 16) {
+      violations.push({ subject, predicate, expected, actual, file: safeWorkspaceRelativePath(assertion.probe.file, 'governance assertion file') });
+    }
+  }
+  return { checked, violations };
+}
+
+async function loopGovernanceExpectedValue({ provider, workspaceId, subject, predicate }) {
+  const facts = await provider.listTemporalFacts({ workspaceId, scope: 'workspace', limit: 500 });
+  const fact = facts.find((item) => item.status === 'active' && !item.supersededBy && item.subject === subject && item.predicate === predicate);
+  return fact ? safeMemoryBatchObject(fact.object) : null;
+}
+
+async function loopGovernanceActualValue({ worktreePath, probe }) {
+  const file = safeWorkspaceRelativePath(probe?.file, 'governance assertion file');
+  const rootReal = await realpath(worktreePath);
+  const absolute = path.resolve(rootReal, file);
+  if (!isInside(rootReal, absolute)) throw new Error('governance assertion file must stay inside worktree');
+  const actual = await realpath(absolute).catch(() => null);
+  if (!actual) return 'not found';
+  if (!isInside(rootReal, actual)) throw new Error('governance assertion file must stay inside worktree');
+  const info = await stat(actual).catch(() => null);
+  if (!info?.isFile()) return 'not found';
+  if (info.size > 64 * 1024) return 'file too large';
+  const text = await readFile(actual, 'utf8');
+  const match = text.match(new RegExp(String(probe.capture ?? ''), 'u'));
+  if (!match || match.length < 2) return 'not found';
+  return safeMemoryBatchObject(String(probe.valueTemplate ?? '').replace(/\$(\d+)/gu, (_, index) => match[Number(index)] ?? ''));
+}
+
 async function loopVerifyCommand(values) {
   if (values.includes('--write') || values.includes('--out') || values.includes('--merge')) {
     console.error('loop verify does not merge or write reports in this CLI checkpoint');
     process.exitCode = 2;
     return;
   }
-  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--allow-command', '--format']);
+  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--allow-command', '--sqlite', '--format']);
   const unsupported = unsupportedFlags(values, new Set(['--execute-commands', '--replay', ...valueOptions]), valueOptions);
   if (unsupported.length > 0) {
     console.error(`loop verify unsupported option: ${unsupported[0]}`);
@@ -1241,18 +1292,26 @@ async function loopVerifyCommand(values) {
   const loopPlan = await loadWorkspaceJson(root, safeWorkspaceRelativePath(planPath, 'loop plan'), null);
   if (!loopPlan) throw new Error(`loop plan not found: ${planPath}`);
   const events = [];
-  const report = await runLoopVerification({
-    loopPlan,
-    runId: option(values, '--run-id') ?? 'run_loop_verification',
-    worktreePath,
-    replayMode: values.includes('--replay'),
-    executeCommands: values.includes('--execute-commands'),
-    confirmedCommands: options(values, '--allow-command'),
-    implementer: async () => {},
-    appendEvent: async (event) => events.push(event),
-    clock: fixedNow
-  });
-  console.log(JSON.stringify({ ...report, ledgerEvents: events }, null, 2));
+  const generatedAt = fixedNow();
+  const { provider, checker } = await openLoopGovernanceChecker({ values, root, generatedAt, commandName: 'loop verify' });
+  try {
+    const report = await runLoopVerification({
+      loopPlan,
+      runId: option(values, '--run-id') ?? 'run_loop_verification',
+      worktreePath,
+      replayMode: values.includes('--replay'),
+      executeCommands: values.includes('--execute-commands'),
+      confirmedCommands: options(values, '--allow-command'),
+      governanceChecker: checker,
+      implementer: async () => {},
+      appendEvent: async (event) => events.push(event),
+      clock: fixedNow
+    });
+    if (report.governance.violations.length) process.exitCode = 1;
+    console.log(JSON.stringify({ ...report, ledgerEvents: events }, null, 2));
+  } finally {
+    provider?.close();
+  }
 }
 
 async function loopRunCommand(values) {
@@ -1261,7 +1320,7 @@ async function loopRunCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--max-iterations', '--timeout-ms', '--allow-command', '--format']);
+  const valueOptions = new Set(['--root', '--plan', '--worktree', '--run-id', '--max-iterations', '--timeout-ms', '--allow-command', '--sqlite', '--format']);
   const unsupported = unsupportedFlags(values, new Set(['--execute-commands', '--human-approval-required', ...valueOptions]), valueOptions);
   if (unsupported.length > 0) {
     console.error(`loop run unsupported option: ${unsupported[0]}`);
@@ -1283,18 +1342,26 @@ async function loopRunCommand(values) {
   }
   const loopPlan = await loadWorkspaceJson(root, safeWorkspaceRelativePath(planPath, 'loop plan'), null);
   if (!loopPlan) throw new Error(`loop plan not found: ${planPath}`);
-  const report = await runLoop({
-    loopPlan,
-    runId: option(values, '--run-id') ?? 'run_loop',
-    worktreePath: option(values, '--worktree') ?? root,
-    maxIterations: numericOption(values, '--max-iterations', loopPlan.maxIterations),
-    timeoutMs: numericOption(values, '--timeout-ms', loopPlan.timeoutSeconds * 1000),
-    humanApprovalRequired: values.includes('--human-approval-required'),
-    executeCommands: values.includes('--execute-commands'),
-    confirmedCommands: options(values, '--allow-command'),
-    clock: fixedNow
-  });
-  console.log(JSON.stringify(report, null, 2));
+  const generatedAt = fixedNow();
+  const { provider, checker } = await openLoopGovernanceChecker({ values, root, generatedAt, commandName: 'loop run' });
+  try {
+    const report = await runLoop({
+      loopPlan,
+      runId: option(values, '--run-id') ?? 'run_loop',
+      worktreePath: option(values, '--worktree') ?? root,
+      maxIterations: numericOption(values, '--max-iterations', loopPlan.maxIterations),
+      timeoutMs: numericOption(values, '--timeout-ms', loopPlan.timeoutSeconds * 1000),
+      humanApprovalRequired: values.includes('--human-approval-required'),
+      executeCommands: values.includes('--execute-commands'),
+      confirmedCommands: options(values, '--allow-command'),
+      governanceChecker: checker,
+      clock: fixedNow
+    });
+    if (report.governance.violations.length) process.exitCode = 1;
+    console.log(JSON.stringify(report, null, 2));
+  } finally {
+    provider?.close();
+  }
 }
 
 async function loopScheduleCommand(values) {
@@ -6417,8 +6484,8 @@ Usage:
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --root . --plan loop-plan.json --execute-commands --format json
-  oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --execute-commands --format json
-  oaf loop run --root . --plan loop-plan.json --worktree ../isolated-worktree --execute-commands --format json
+  oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
+  oaf loop run --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
   oaf loop schedule --read-only --root . --plan loop-plan.json --kind triage --cadence manual --format json
   oaf measure savings --read-only --root . --objective "Ship safely" --step "measure savings" --format json
   oaf measure savings --read-only --root . --objective "Ship safely" --step "measure savings" --format summary

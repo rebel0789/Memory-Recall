@@ -18,6 +18,7 @@
     "controller",
     "durable",
     "iterations",
+    "governance",
     "tokenBudget",
     "schedule",
     "runLog",
@@ -39,6 +40,7 @@
       "enum": [
         "completed",
         "validation_failed",
+        "governance-violation",
         "blocked_needs_human",
         "unsafe_action_required",
         "max_iterations",
@@ -89,6 +91,30 @@
         }
       },
       "maxItems": 20
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checked", "violations"],
+      "properties": {
+        "checked": { "type": "integer", "minimum": 0, "maximum": 320 },
+        "violations": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["subject", "predicate", "expected", "actual", "file"],
+            "properties": {
+              "subject": { "type": "string", "pattern": "^[A-Za-z0-9:_-]{1,128}$" },
+              "predicate": { "type": "string", "pattern": "^[A-Za-z0-9:_-]{1,128}$" },
+              "expected": { "type": "string", "minLength": 1, "maxLength": 240 },
+              "actual": { "type": "string", "minLength": 1, "maxLength": 240 },
+              "file": { "type": "string", "pattern": "^[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$" }
+            }
+          }
+        }
+      }
     },
     "tokenBudget": {
       "type": "object",
@@ -246,6 +272,7 @@
               "enum": [
                 "completed",
                 "validation_failed",
+                "governance-violation",
                 "blocked_needs_human",
                 "unsafe_action_required",
                 "max_iterations",

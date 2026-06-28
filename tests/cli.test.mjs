@@ -389,6 +389,57 @@ test('measure savings reports real SQLite before and after delivery tokens witho
   assert.equal(summary.stdout.includes('SAVINGS_RAW_BODY'), false);
 });
 test('CLI help documents loop run and schedule',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf loop run --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf loop schedule --read-only --root \./)});
+test('loop verify gates passing validation on governed memory drift',()=>{
+  const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-loop-governance-'));
+  mkdirSync(path.join(root,'.local'),{recursive:true});
+  mkdirSync(path.join(root,'src'),{recursive:true});
+  mkdirSync(path.join(root,'tests'),{recursive:true});
+  writeFileSync(path.join(root,'.gitignore'),'.local/\nloop-plan.json\n');
+  writeFileSync(path.join(root,'DECISIONS.md'),'Auth token expiry is governed at 15 minutes. Refresh tokens are enabled, 24h.\n');
+  writeFileSync(path.join(root,'package.json'),JSON.stringify({name:'notes-api',type:'module'},null,2));
+  writeFileSync(path.join(root,'tests','pass.test.mjs'),"import test from 'node:test';import assert from 'node:assert/strict';test('passes',()=>assert.equal(1,1));\n");
+  writeFileSync(path.join(root,'src','auth.mjs'),'export const TOKEN_EXPIRY_MINUTES = 60;\nexport const REFRESH_TOKENS = "enabled, 24h";\n');
+  spawnSync('git',['init'],{cwd:root,encoding:'utf8'});
+  spawnSync('git',['add','.'],{cwd:root,encoding:'utf8'});
+  spawnSync('git',['-c','user.name=OAF Test','-c','user.email=oaf@example.invalid','commit','-m','notes-api auth fixture'],{cwd:root,encoding:'utf8'});
+  const env={...process.env,OAF_FIXED_NOW:'2026-06-28T09:00:00.000Z'};
+  for(const [subject,predicate,object] of [['auth','token_expiry','15 minutes'],['auth','refresh_tokens','enabled, 24h']]){
+    const remember=spawnSync(process.execPath,['apps/cli/oaf.mjs','memory','remember','--root',root,'--sqlite','.local/memory.sqlite','--subject',subject,'--predicate',predicate,'--object',object,'--source','workspace://DECISIONS.md','--format','json'],{encoding:'utf8',env});
+    assert.equal(remember.status,0,remember.stderr);
+  }
+  const planResult=spawnSync(process.execPath,['apps/cli/oaf.mjs','loop','plan','--read-only','--root',root,'--objective','Keep notes-api auth decisions aligned','--stop-condition','validation passes and governed memory matches source','--validation','node --test tests/pass.test.mjs','--changed','src/auth.mjs','--format','json'],{encoding:'utf8',env});
+  assert.equal(planResult.status,0,planResult.stderr);
+  const plan=JSON.parse(planResult.stdout);
+  plan.governanceAssertions=[
+    {subject:'auth',predicate:'token_expiry',probe:{file:'src/auth.mjs',capture:'TOKEN_EXPIRY_MINUTES\\s*=\\s*(\\d+)',valueTemplate:'$1 minutes'}},
+    {subject:'auth',predicate:'refresh_tokens',probe:{file:'src/auth.mjs',capture:'REFRESH_TOKENS\\s*=\\s*"([^"]+)"',valueTemplate:'$1'}}
+  ];
+  writeFileSync(path.join(root,'loop-plan.json'),JSON.stringify(plan,null,2));
+  const verifyArgs=['apps/cli/oaf.mjs','loop','verify','--root',root,'--plan','loop-plan.json','--worktree',root,'--sqlite','.local/memory.sqlite','--execute-commands','--format','json'];
+  const violating=spawnSync(process.execPath,verifyArgs,{encoding:'utf8',env});
+  assert.equal(violating.status,1,violating.stderr);
+  const badReport=JSON.parse(violating.stdout);
+  assert.equal(badReport.checker.observation.status,'passed');
+  assert.equal(badReport.status,'blocked');
+  assert.equal(badReport.stopReason,'governance-violation');
+  assert.equal(badReport.governance.checked,2);
+  assert.deepEqual(badReport.governance.violations,[{subject:'auth',predicate:'token_expiry',expected:'15 minutes',actual:'60 minutes',file:'src/auth.mjs'}]);
+  const violatingRun=spawnSync(process.execPath,['apps/cli/oaf.mjs','loop','run','--root',root,'--plan','loop-plan.json','--worktree',root,'--sqlite','.local/memory.sqlite','--execute-commands','--format','json'],{encoding:'utf8',env});
+  assert.equal(violatingRun.status,1,violatingRun.stderr);
+  const badRunReport=JSON.parse(violatingRun.stdout);
+  assert.equal(badRunReport.status,'blocked');
+  assert.equal(badRunReport.stopReason,'governance-violation');
+  assert.deepEqual(badRunReport.governance.violations,badReport.governance.violations);
+  writeFileSync(path.join(root,'src','auth.mjs'),'export const TOKEN_EXPIRY_MINUTES = 15;\nexport const REFRESH_TOKENS = "enabled, 24h";\n');
+  const compliant=spawnSync(process.execPath,verifyArgs,{encoding:'utf8',env});
+  assert.equal(compliant.status,0,compliant.stderr);
+  const okReport=JSON.parse(compliant.stdout);
+  assert.equal(okReport.checker.observation.status,'passed');
+  assert.equal(okReport.status,'proposed');
+  assert.equal(okReport.stopReason,'completed');
+  assert.equal(okReport.governance.checked,2);
+  assert.deepEqual(okReport.governance.violations,[]);
+});
 test('CLI rejects unknown commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','wat'],{encoding:'utf8'});assert.equal(result.status,2);assert.match(result.stderr,/Unknown command/)});
 test('task command prints stop condition',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','task','OAF-004'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/Stop condition/)});
 test('context scan dry-run reports sanitized harness sources',()=>{const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-harness-'));writeFileSync(path.join(root,'AGENTS.md'),'Run npm run ci. token=secret-value. See /Users/rebel/private.txt');const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','scan','--from','codex','--root',root,'--dry-run'],{encoding:'utf8'});assert.equal(result.status,0);const report=JSON.parse(result.stdout);assert.equal(report.summary.totalAccepted,1);assert.equal(report.summary.externalAdaptersEnabled,0);assert.equal(report.summary.externalWritesEnabled,false);assert(!result.stdout.includes('secret-value'));assert(!result.stdout.includes('/Users/rebel/private.txt'))});

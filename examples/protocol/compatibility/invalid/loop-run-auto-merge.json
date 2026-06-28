@@ -23,6 +23,10 @@
     "historyEventCount": 0
   },
   "iterations": [],
+  "governance": {
+    "checked": 0,
+    "violations": []
+  },
   "tokenBudget": {
     "perIterationEstimatedDeliveryTokens": 0,
     "aggregatedEstimatedDeliveryTokens": 0,

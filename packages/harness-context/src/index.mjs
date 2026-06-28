@@ -2482,12 +2482,31 @@ function loopRefId(value) {
   return /^[A-Za-z0-9._:-]{1,120}$/u.test(text) ? text : null;
 }
 
+function normalizeLoopGovernanceAssertions(values = []) {
+  if (values === null || values === undefined) return [];
+  if (!Array.isArray(values) || values.length > 16) throw new Error('loop_governance_assertions_invalid');
+  return values.map((item) => {
+    const subject = String(item?.subject ?? '').trim();
+    const predicate = String(item?.predicate ?? '').trim();
+    const file = normalizeUserSelectedFilePath(item?.probe?.file);
+    const capture = String(item?.probe?.capture ?? '').trim();
+    const valueTemplate = String(item?.probe?.valueTemplate ?? '').trim();
+    if (!/^[A-Za-z0-9:_-]{1,128}$/u.test(subject)) throw new Error('loop_governance_subject_invalid');
+    if (!/^[A-Za-z0-9:_-]{1,128}$/u.test(predicate)) throw new Error('loop_governance_predicate_invalid');
+    if (!capture || capture.length > 240 || /[\r\n]/u.test(capture)) throw new Error('loop_governance_capture_invalid');
+    if (!valueTemplate || valueTemplate.length > 120 || /[\r\n]/u.test(valueTemplate) || !valueTemplate.includes('$1')) throw new Error('loop_governance_value_template_invalid');
+    assertSafeHandoffField(`${subject} ${predicate} ${file} ${capture} ${valueTemplate}`, 'loop_governance_assertion');
+    return { subject, predicate, probe: { file, capture, valueTemplate } };
+  });
+}
+
 export function buildLoopPlan({
   workspaceId = 'ws_local',
   objective,
   stopCondition,
   nonGoals = [],
   validationCommands = [],
+  governanceAssertions = [],
   changedLocators = [],
   userSelectedFiles = [],
   contextPack = null,
@@ -2511,6 +2530,7 @@ export function buildLoopPlan({
   }
   const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
   const normalizedUserSelectedFiles = normalizeUserSelectedFiles(userSelectedFiles);
+  const normalizedGovernanceAssertions = normalizeLoopGovernanceAssertions(governanceAssertions);
   const reads = [];
 
   for (const locator of normalizedChangedLocators) {
@@ -2582,6 +2602,7 @@ export function buildLoopPlan({
     stopReasons: [
       'completed',
       'validation_failed',
+      'governance-violation',
       'blocked_needs_human',
       'unsafe_action_required',
       'max_iterations',
@@ -2605,11 +2626,13 @@ export function buildLoopPlan({
       hiddenReasoningIncluded: false
     }
   };
+  if (normalizedGovernanceAssertions.length) plan.governanceAssertions = normalizedGovernanceAssertions;
   plan.id = `loopplan_${idDigest(stableStringify({
     workspaceId: plan.workspaceId,
     objective: plan.objective,
     stopCondition: plan.stopCondition,
     validationCommands: plan.validationCommands,
+    governanceAssertions: plan.governanceAssertions ?? [],
     requiredLocalReads: plan.requiredLocalReads,
     contextBudget: plan.contextBudget
   }))}`;
@@ -2864,6 +2887,20 @@ function replayEvidence({ workspaceId, runId, reason }) {
   };
 }
 
+function normalizeLoopGovernanceReport(report = {}) {
+  const violations = Array.isArray(report.violations) ? report.violations.slice(0, 16).map((item) => ({
+    subject: String(item.subject ?? '').trim(),
+    predicate: String(item.predicate ?? '').trim(),
+    expected: String(item.expected ?? '').trim().slice(0, 240),
+    actual: String(item.actual ?? '').trim().slice(0, 240),
+    file: normalizeUserSelectedFilePath(item.file)
+  })) : [];
+  return {
+    checked: Math.max(0, Math.min(16, Math.trunc(Number(report.checked ?? 0)))),
+    violations
+  };
+}
+
 export async function runLoopVerification({
   loopPlan,
   runId = 'run_loop_verification',
@@ -2872,6 +2909,7 @@ export async function runLoopVerification({
   executeCommands = false,
   confirmedCommands = [],
   commandRunner = defaultValidationCommandRunner,
+  governanceChecker = async () => ({ checked: 0, violations: [] }),
   appendEvent = async () => {},
   replayMode = false,
   clock = () => new Date().toISOString()
@@ -2902,6 +2940,10 @@ export async function runLoopVerification({
     checker: {
       status: replayMode ? 'skipped_replay' : 'failed',
       observation: null
+    },
+    governance: {
+      checked: 0,
+      violations: []
     },
     scope: {
       status: replayMode ? 'skipped_replay' : 'passed',
@@ -2967,17 +3009,20 @@ export async function runLoopVerification({
     report.checker.observation = observation;
     report.checker.status = observation.status === 'passed' ? 'passed' : 'failed';
     await emit('loop.checker_completed', { observationId: observation.id, checkerStatus: report.checker.status });
+    report.governance = normalizeLoopGovernanceReport(await governanceChecker({ loopPlan, worktreePath, runId }));
     report.scope.changedLocators = changedLocators;
     report.scope.unrelatedLocators = changedLocators.filter((locator) => !allowedLocators.includes(locator));
     report.scope.status = report.scope.unrelatedLocators.length ? 'blocked' : 'passed';
     const checkerPassed = report.checker.status === 'passed';
-    report.status = checkerPassed && report.scope.status === 'passed' ? 'proposed' : 'blocked';
-    report.stopReason = !checkerPassed ? 'validation_failed' : report.scope.status === 'blocked' ? 'unrelated_changes' : 'completed';
+    const governancePassed = report.governance.violations.length === 0;
+    report.status = checkerPassed && report.scope.status === 'passed' && governancePassed ? 'proposed' : 'blocked';
+    report.stopReason = !checkerPassed ? 'validation_failed' : !governancePassed ? 'governance-violation' : report.scope.status === 'blocked' ? 'unrelated_changes' : 'completed';
   }
 
   report.proposal.status = report.status === 'proposed' ? 'proposed' : 'blocked';
   report.proposal.reasonCodes = [
     report.checker.status === 'passed' ? 'checker_passed' : report.checker.status === 'skipped_replay' ? 'checker_skipped_replay' : 'checker_failed',
+    report.governance.checked === 0 ? 'governance_not_configured' : report.governance.violations.length ? 'governance_violation' : 'governance_passed',
     report.scope.status === 'passed' ? 'scope_passed' : report.scope.status === 'skipped_replay' ? 'scope_skipped_replay' : 'unrelated_changes',
     'human_approval_required',
     'auto_merge_disabled'
@@ -3060,12 +3105,13 @@ function normalizedTerminalStopReasons(reasons) {
   const allowed = new Set([
     'completed',
     'validation_failed',
+    'governance-violation',
     'blocked_needs_human',
     'unsafe_action_required',
     'unrelated_changes',
     'out_of_scope'
   ]);
-  const selected = Array.isArray(reasons) && reasons.length ? reasons : ['completed', 'validation_failed', 'blocked_needs_human', 'unsafe_action_required', 'unrelated_changes', 'out_of_scope'];
+  const selected = Array.isArray(reasons) && reasons.length ? reasons : ['completed', 'validation_failed', 'governance-violation', 'blocked_needs_human', 'unsafe_action_required', 'unrelated_changes', 'out_of_scope'];
   return [...new Set(selected.filter((reason) => allowed.has(reason)))].slice(0, 8);
 }
 
@@ -3138,6 +3184,7 @@ export async function runLoop({
   verificationRunner = async (input) => runLoopVerification(input),
   executeCommands = false,
   confirmedCommands = [],
+  governanceChecker = async () => ({ checked: 0, violations: [] }),
   clock = () => new Date().toISOString()
 } = {}) {
   assertJsonSchema(loopPlanSchema, loopPlan, 'loop run plan');
@@ -3159,6 +3206,7 @@ export async function runLoop({
   });
   const perIterationTokens = loopPlan.contextBudget.estimatedDeliveryTokens;
   const iterations = [];
+  const governance = { checked: 0, violations: [] };
   let status = 'blocked';
   let stopReason = 'max_iterations';
   const deadline = Date.parse(createdAt) + boundedTimeoutMs;
@@ -3179,9 +3227,14 @@ export async function runLoop({
         worktreePath,
         executeCommands,
         confirmedCommands,
+        governanceChecker,
         replayMode: false,
         clock
       });
+      governance.checked += Number(verification.governance?.checked ?? 0);
+      for (const violation of verification.governance?.violations ?? []) {
+        if (governance.violations.length < 16) governance.violations.push(violation);
+      }
       const iterationStopReason = verification.stopReason ?? (verification.status === 'proposed' ? 'completed' : 'validation_failed');
       iterations.push({
         index,
@@ -3231,6 +3284,7 @@ export async function runLoop({
       historyEventCount: durable.historyEventCount
     },
     iterations,
+    governance,
     tokenBudget: {
       perIterationEstimatedDeliveryTokens: perIterationTokens,
       aggregatedEstimatedDeliveryTokens: perIterationTokens * iterations.length,

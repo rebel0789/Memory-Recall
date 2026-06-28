@@ -42,6 +42,9 @@ test('loop plan builds deterministically without executing validation commands',
     stopCondition: 'focused tests pass and no unrelated diff',
     nonGoals: ['do not build the UI'],
     validationCommands: ['node --test tests/web-shell.test.mjs'],
+    governanceAssertions: [
+      { subject: 'auth', predicate: 'token_expiry', probe: { file: 'src/auth.ts', capture: 'TOKEN_EXPIRY_MINUTES\\s*=\\s*(\\d+)', valueTemplate: '$1 minutes' } }
+    ],
     changedLocators: ['src/auth.ts'],
     userSelectedFiles: ['notes/handoff.md'],
     contextPack,
@@ -60,6 +63,8 @@ test('loop plan builds deterministically without executing validation commands',
   assert.equal(first.sideEffectClass, 'read-only');
   assert.equal(first.approvalRequired, false);
   assert.deepEqual(first.validationCommands, ['node --test tests/web-shell.test.mjs']);
+  assert.deepEqual(first.governanceAssertions, input.governanceAssertions);
+  assert.equal(first.stopReasons.includes('governance-violation'), true);
   assert.deepEqual(first.contextBudget, contextBudget);
   assert.equal(first.safeguards.commandsExecuted, 0);
   assert.equal(first.safeguards.modelCalls, 0);

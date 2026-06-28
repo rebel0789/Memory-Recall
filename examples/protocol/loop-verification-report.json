@@ -21,6 +21,10 @@
     "status": "passed",
     "observation": null
   },
+  "governance": {
+    "checked": 0,
+    "violations": []
+  },
   "scope": {
     "status": "passed",
     "allowedLocators": ["workspace://src/auth.ts"],
