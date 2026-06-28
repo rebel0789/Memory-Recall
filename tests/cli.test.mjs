@@ -211,6 +211,94 @@ test('memory remember batch approval handles real multi-source supersession flow
   assert.equal(recall.data.summary.activeFactCount,7);
   assert.equal(recall.data.summary.proposalFactCount,0);
 });
+test('memory recall current-truth deltas rebuild a broad labeled auth map',()=>{
+  const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-delta-labeled-'));
+  mkdirSync(path.join(root,'.local'),{recursive:true});
+  mkdirSync(path.join(root,'src'),{recursive:true});
+  writeFileSync(path.join(root,'DECISIONS.md'),[
+    '# Decisions',
+    '',
+    '2026-06-20: Auth token expiry is 60 minutes.',
+    '2026-06-21: Auth token expiry is now 15 minutes and supersedes 60 minutes.'
+  ].join('\n'));
+  writeFileSync(path.join(root,'package.json'),JSON.stringify({name:'auth-delta-repo',dependencies:{express:'latest',jsonwebtoken:'latest'}},null,2));
+  writeFileSync(path.join(root,'src','auth.mjs'),[
+    'export const language = "javascript";',
+    'export const refreshTokens = "enabled, 24h";',
+    'export function issueToken() { return "token"; }'
+  ].join('\n'));
+  const writeFacts=(file,facts)=>writeFileSync(path.join(root,file),JSON.stringify({facts},null,2));
+  writeFacts('facts-initial.json',[
+    {subject:'auth',predicate:'token_expiry',object:'60 minutes',source:'workspace://DECISIONS.md'},
+    {subject:'auth',predicate:'refresh_tokens',object:'enabled, 24h',source:'workspace://src/auth.mjs'},
+    {subject:'auth',predicate:'language',object:'javascript',source:'workspace://src/auth.mjs'},
+    {subject:'auth',predicate:'uses',object:'express',source:'workspace://package.json'},
+    {subject:'auth',predicate:'uses',object:'jsonwebtoken',source:'workspace://package.json'},
+    {subject:'auth',predicate:'exposes',object:'issueToken',source:'workspace://src/auth.mjs'}
+  ]);
+  writeFacts('facts-update.json',[
+    {subject:'auth',predicate:'token_expiry',object:'15 minutes',source:'workspace://DECISIONS.md',supersedes:{subject:'auth',predicate:'token_expiry'},notes:'2026-03 security review; replaces the 60-minute decision'}
+  ]);
+  const envAt=(iso)=>({...process.env,OAF_FIXED_NOW:iso});
+  const cli=(args,iso)=>spawnSync(process.execPath,['apps/cli/oaf.mjs',...args],{encoding:'utf8',env:envAt(iso)});
+  let result=cli(['memory','remember','--batch','facts-initial.json','--root',root,'--sqlite','.local/memory.sqlite','--format','json'],'2026-06-27T09:00:00.000Z');
+  assert.equal(result.status,0,result.stderr);
+  result=cli(['memory','approve','--all','--root',root,'--sqlite','.local/memory.sqlite','--format','json'],'2026-06-27T09:00:01.000Z');
+  assert.equal(result.status,0,result.stderr);
+  const recall=(iso,args)=>{
+    const input=[
+      JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize',params:{}}),
+      JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'memory.recall',arguments:args}})
+    ].join('\n');
+    const mcp=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','server','--read-only','--root',root,'--sqlite','.local/memory.sqlite','--cursors','.local/delta-cursors.json','--stdio'],{encoding:'utf8',env:envAt(iso),input});
+    assert.equal(mcp.status,0,mcp.stderr);
+    return JSON.parse(JSON.parse(mcp.stdout.trim().split(/\n/u)[1]).result.content[0].text);
+  };
+  const baseArgs={client:'delta-labeled',query:'auth',subject:'auth',scope:'workspace',limit:20,currentTruthOnly:true};
+  const expectedBefore=[
+    'auth exposes = issueToken',
+    'auth language = javascript',
+    'auth refresh_tokens = enabled, 24h',
+    'auth token_expiry = 60 minutes',
+    'auth uses = express',
+    'auth uses = jsonwebtoken'
+  ];
+  const expectedAfter=expectedBefore.map((item)=>item==='auth token_expiry = 60 minutes'?'auth token_expiry = 15 minutes':item).sort();
+  const agent=new Map();
+  let cursor=null;
+  let fullTotal=0;
+  let deltaTotal=0;
+  const table=[];
+  const tokens=(payload)=>Math.ceil(JSON.stringify(payload).length/4);
+  const applyPayload=(payload)=>{
+    for (const id of (payload.r ?? [])) agent.delete(id);
+    for (const change of (payload.d ?? payload.data?.facts ?? [])) {
+      assert.equal(typeof change.subject,'string');
+      assert.equal(typeof change.predicate,'string');
+      assert.equal(typeof change.value,'string');
+      agent.set(change.id,`${change.subject} ${change.predicate} = ${change.value}`);
+    }
+  };
+  for (const [index,iso] of ['2026-06-27T09:01:00.000Z','2026-06-27T09:02:00.000Z','2026-06-27T09:04:00.000Z','2026-06-27T09:05:00.000Z','2026-06-27T09:06:00.000Z'].entries()) {
+    if (index===2) {
+      result=cli(['memory','remember','--batch','facts-update.json','--root',root,'--sqlite','.local/memory.sqlite','--format','json'],'2026-06-27T09:03:00.000Z');
+      assert.equal(result.status,0,result.stderr);
+      result=cli(['memory','approve','--all','--root',root,'--sqlite','.local/memory.sqlite','--format','json'],'2026-06-27T09:03:01.000Z');
+      assert.equal(result.status,0,result.stderr);
+    }
+    const full=recall(iso,{...baseArgs,client:`delta-full-${index}`});
+    const delta=recall(iso,cursor?{...baseArgs,since:cursor}:baseArgs);
+    fullTotal+=tokens(full);
+    deltaTotal+=tokens(delta);
+    applyPayload(delta);
+    cursor=delta.c ?? delta.data.cursor.next;
+    const reconstructed=[...agent.values()].sort();
+    assert.deepEqual(reconstructed,index<2?expectedBefore:expectedAfter);
+    assert.equal(reconstructed.includes('auth token_expiry = 60 minutes'),index<2);
+    table.push({turn:index+1,fullTokens:tokens(full),deltaTokens:tokens(delta),changes:(delta.d ?? delta.data.facts).length,retracted:(delta.r ?? []).length});
+  }
+  assert(deltaTotal<fullTotal*0.75,JSON.stringify({fullTotal,deltaTotal,table}));
+});
 test('demo memory-loop runs native profile plan observe proposal and fact flow',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','demo','memory-loop','--root','.','--format','json'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);const report=JSON.parse(result.stdout);assert.equal(report.command,'demo memory-loop');assert(report.compressedProfile.contextBudget.estimatedDeliveryTokens>0);assert.equal(report.loopPlan.contextBudget.estimatedDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert.equal(report.savings.beforeDeliveryTokens,report.compressedProfile.contextBudget.historyTokensAvailable);assert.equal(report.savings.afterDeliveryTokens,report.compressedProfile.contextBudget.estimatedDeliveryTokens);assert(report.savings.percent>0);assert.equal(report.savings.savings.providerBillingClaimed,false);assert.equal(report.observation.status,'passed');assert.equal(report.extractionProposal.status,'applied');assert.equal(report.memoryFact.id,'memfact_demo_memory_loop');assert.equal(report.memoryFact.validity.validFrom,'2026-06-26T10:00:00.000Z');assert.deepEqual(report.remembered,['project:oaf memory_loop connected']);assert.deepEqual(report.superseded,[]);assert.equal(report.safeguards.localOnly,true);assert.equal(report.safeguards.networkCalls,0);assert.equal(report.safeguards.modelCalls,0)});
 test('demo memory-loop npm script prints token saving remembered and superseded facts',()=>{const env={...process.env,OAF_FIXED_NOW:'2026-06-26T10:00:00.000Z'};const result=spawnSync('npm',['run','demo:memory-loop'],{encoding:'utf8',env});assert.equal(result.status,0,result.stderr);assert.match(result.stdout,/Memory loop token saving: \d+%/);assert.match(result.stdout,/Before\/after delivery tokens: \d+ -> \d+/);assert.match(result.stdout,/Remembered: project:oaf memory_loop connected/);assert.match(result.stdout,/Superseded: memfact_demo_memory_loop_previous -> memfact_demo_memory_loop/);assert.match(result.stdout,/Observation: passed/);assert.equal(result.stdout.includes('network'),false)});
 test('measure savings reports real SQLite before and after delivery tokens without writes', async () => {

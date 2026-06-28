@@ -3560,7 +3560,11 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
     const changedActiveFacts = since ? activeFacts.filter((fact) => mcpFactChangedSince(fact, since)) : activeFacts;
     if (currentTruthOnly) {
       const currentFacts = changedActiveFacts.map(mcpSummarizeCurrentTruthFact);
-      if (since) return mcpCursorDeltaPayload({ cursor: generatedAt, changes: currentFacts });
+      const retracted = since ? (await provider.listTemporalFacts({ workspaceId, scope, limit: 500 }))
+        .filter((fact) => fact.status === 'superseded' && fact.supersededBy && mcpFactChangedSince(fact, since))
+        .filter((fact) => proposalFactMatchesTemporalFilter(fact, { subject, predicate }) && proposalFactMatchesQuery(fact, query))
+        .map((fact) => mcpSanitizeString(fact.id, 120)) : [];
+      if (since) return mcpCursorDeltaPayload({ cursor: generatedAt, changes: currentFacts, retracted });
       return mcpBasePayload({
         command: 'memory.recall',
         workspaceId,
@@ -3943,6 +3947,8 @@ function mcpSummarizeTemporalFact(fact, { history, verbose = false }) {
 function mcpSummarizeCurrentTruthFact(fact) {
   return {
     id: mcpSanitizeString(fact.id, 120),
+    subject: mcpSanitizeString(fact.subject, 160),
+    predicate: mcpSanitizeString(fact.predicate, 120),
     value: mcpSanitizeString(fact.object, 240),
     extractionConfidence: MEMORY_BATCH_CONFIDENCES.has(fact.metadata?.extractionConfidence) ? fact.metadata.extractionConfidence : 'extracted',
     sourceRef: mcpCompactProvenanceRef(fact.proposalQueueId ?? fact.episode?.sourceLocator ?? fact.source ?? fact.id)
@@ -3961,8 +3967,8 @@ function mcpFactChangedSince(fact, since) {
   return Date.parse(fact.updatedAt ?? fact.validFrom ?? 0) > Date.parse(since);
 }
 
-function mcpCursorDeltaPayload({ cursor, changes }) {
-  return { c: cursor, d: changes };
+function mcpCursorDeltaPayload({ cursor, changes, retracted = [] }) {
+  return { c: cursor, d: changes, r: retracted };
 }
 
 function mcpPayloadNextCursor(payload) {
