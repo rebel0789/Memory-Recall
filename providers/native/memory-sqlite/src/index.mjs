@@ -289,6 +289,7 @@ function normalizeTemporalFactInput(input, clock) {
     proposalQueueId: input.proposalQueueId ?? input.proposalId ?? null,
     createdAt: input.createdAt ?? clock(),
     updatedAt: input.updatedAt ?? input.createdAt ?? clock(),
+    supersedeSubjectPredicate: input.supersedeSubjectPredicate !== false,
     metadata: input.metadata && typeof input.metadata === 'object' && !Array.isArray(input.metadata) ? input.metadata : {},
     episode: input.episode ?? null
   };
@@ -807,21 +808,23 @@ export class SQLiteMemoryProvider {
       this.#upsertTemporalEpisode(episode);
       const subjectEntityId = this.#upsertTemporalEntity({ workspaceId: normalized.workspaceId, scope: normalized.scope, kind: 'subject', name: normalized.subject, now });
       const objectEntityId = this.#upsertTemporalEntity({ workspaceId: normalized.workspaceId, scope: normalized.scope, kind: 'object', name: normalized.object, now });
-      this.database.prepare(`
-        UPDATE memory_facts
-        SET status = 'superseded',
-            valid_until = ?,
-            superseded_by = ?,
-            updated_at = ?
-        WHERE workspace_id = ?
-          AND scope = ?
-          AND subject = ?
-          AND predicate = ?
-          AND id <> ?
-          AND object <> ?
-          AND superseded_by IS NULL
-          AND (valid_until IS NULL OR valid_until > ?)
-      `).run(normalized.validFrom, normalized.id, now, normalized.workspaceId, normalized.scope, normalized.subject, normalized.predicate, normalized.id, normalized.object, normalized.validFrom);
+      if (normalized.supersedeSubjectPredicate) {
+        this.database.prepare(`
+          UPDATE memory_facts
+          SET status = 'superseded',
+              valid_until = ?,
+              superseded_by = ?,
+              updated_at = ?
+          WHERE workspace_id = ?
+            AND scope = ?
+            AND subject = ?
+            AND predicate = ?
+            AND id <> ?
+            AND object <> ?
+            AND superseded_by IS NULL
+            AND (valid_until IS NULL OR valid_until > ?)
+        `).run(normalized.validFrom, normalized.id, now, normalized.workspaceId, normalized.scope, normalized.subject, normalized.predicate, normalized.id, normalized.object, normalized.validFrom);
+      }
       this.#writeTemporalFact(normalized);
       this.database.prepare(`
         INSERT INTO memory_edges (id, workspace_id, scope, source_entity_id, target_entity_id, predicate, fact_id, created_at)
@@ -1099,6 +1102,7 @@ export class SQLiteMemoryProvider {
       throw new Error('memory approve only supports fact proposals');
     }
     const extractionConfidence = ['extracted', 'inferred', 'ambiguous'].includes(payload.extractionConfidence) ? payload.extractionConfidence : 'extracted';
+    const supersedeSubjectPredicate = payload.supersedesSubjectPredicate === true;
     const text = payload.text || `${payload.subject} ${payload.predicate} ${payload.object}`;
     const proposal = await this.recordProposalResult({
       workspaceId,
@@ -1118,6 +1122,7 @@ export class SQLiteMemoryProvider {
       source: claimed.sourceLocator,
       proposalQueueId: id,
       validFrom: payload.observedAt ?? now,
+      supersedeSubjectPredicate,
       confidence: { extracted: 0.9, inferred: 0.6, ambiguous: 0.3 }[extractionConfidence],
       episode: {
         id: payload.provenanceEpisodeId ?? episodeIdFromProposalId(id),

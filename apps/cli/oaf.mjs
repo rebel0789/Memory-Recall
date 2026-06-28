@@ -563,7 +563,8 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
     return;
   }
   const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--proposal', '--all-from', '--format']);
-  const unsupported = unsupportedFlags(values, valueOptions, valueOptions);
+  const allowedOptions = new Set([...valueOptions, '--all']);
+  const unsupported = unsupportedFlags(values, allowedOptions, valueOptions);
   if (unsupported.length > 0) {
     console.error(`memory approve unsupported option: ${unsupported[0]}`);
     process.exitCode = 2;
@@ -572,8 +573,9 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
   const positionalId = values.find((value, index) => index === 0 && !value.startsWith('--'));
   const proposalId = option(values, '--proposal') ?? positionalId;
   const allFrom = option(values, '--all-from');
-  if (proposalId && allFrom) throw new Error('memory approve accepts either <id>/--proposal or --all-from <source>, not both');
-  if (!allFrom && !/^mpq_[A-Za-z0-9._-]{1,128}$/u.test(proposalId ?? '')) throw new Error('memory approve requires <mpq_id>, --proposal <mpq_id>, or --all-from <source>');
+  const approveAll = values.includes('--all');
+  if ([proposalId, allFrom, approveAll].filter(Boolean).length > 1) throw new Error('memory approve accepts one target: <id>/--proposal, --all-from <source>, or --all');
+  if (!approveAll && !allFrom && !/^mpq_[A-Za-z0-9._-]{1,128}$/u.test(proposalId ?? '')) throw new Error('memory approve requires <mpq_id>, --proposal <mpq_id>, --all-from <source>, or --all');
   if (allFrom && !/^workspace:\/\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(allFrom)) throw new Error('memory approve --all-from requires a workspace:// source locator');
   const generatedAt = fixedNow();
   const workerId = 'memory-review';
@@ -581,11 +583,11 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
   const { sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: false, commandName: command });
   try {
     const pending = (await provider.listProposalQueue({ workspaceId, limit: 500 })).filter((item) => item.status === 'pending');
-    const targets = allFrom ? pending
-      .filter((item) => item.sourceLocator === allFrom)
+    const targets = (allFrom || approveAll ? pending
+      .filter((item) => approveAll || memoryProposalSourceMatches(item, allFrom))
       .sort((left, right) => String(left.enqueuedAt).localeCompare(String(right.enqueuedAt)) || String(left.id).localeCompare(String(right.id)))
-      .map((item) => item.id) : [proposalId];
-    if (!targets.length) throw new Error(`memory approve found no pending proposals for ${allFrom}`);
+      .map((item) => item.id) : [proposalId]);
+    if (!targets.length) throw new Error(approveAll ? 'memory approve found no pending proposals' : `memory approve found no pending proposals for ${allFrom}`);
     const approved = [];
     for (const id of targets) approved.push(await provider.approveProposalFact({ workspaceId, id, workerId, approvedAt: generatedAt }));
     const facts = approved.map((item) => item.fact);
@@ -594,6 +596,7 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
       const history = await provider.getTemporalFactHistory({ workspaceId, scope: item.scope, subject: item.subject, predicate: item.predicate, limit: 50 });
       supersededFacts.push(...history.filter((fact) => fact.supersededBy === item.id));
     }
+    const pendingAfter = (await provider.listProposalQueue({ workspaceId, limit: 500 })).filter((item) => item.status === 'pending').length;
     const report = {
       schemaVersion: '1.0.0',
       command,
@@ -604,7 +607,7 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
         sqliteRef: `workspace://${sqlitePath.relative}`
       },
       summary: {
-        pendingProposalCount: 0,
+        pendingProposalCount: pendingAfter,
         activeMemoryCreated: facts.length,
         rejectedProposalCount: 0,
         supersededFactCount: supersededFacts.length
@@ -631,6 +634,20 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
   } finally {
     provider.close();
   }
+}
+
+function normalizeWorkspaceLocator(value) {
+  const locator = String(value ?? '').trim();
+  if (!locator.startsWith('workspace://')) return locator;
+  const relative = path.posix.normalize(locator.slice('workspace://'.length));
+  if (!relative || relative === '.' || relative.startsWith('../') || relative === '..') return locator;
+  return `workspace://${relative}`;
+}
+
+function memoryProposalSourceMatches(item, sourceLocator) {
+  const target = normalizeWorkspaceLocator(sourceLocator);
+  return [item.sourceLocator, item.payload?.provenance?.sourceLocator]
+    .some((candidate) => normalizeWorkspaceLocator(candidate) === target);
 }
 
 async function memoryRememberCommand(values) {
@@ -675,6 +692,7 @@ async function memoryRememberCommand(values) {
   if (!['workspace', 'session', 'agent', 'user'].includes(scope)) throw new Error('memory remember --scope must be workspace, session, agent, or user');
   const supersedesSubject = option(values, '--supersedes-subject') ?? subject;
   const supersedesPredicate = option(values, '--supersedes-predicate') ?? predicate;
+  const supersedes = values.includes('--supersedes-subject') || values.includes('--supersedes-predicate');
   if (supersedesSubject !== subject || supersedesPredicate !== predicate) {
     throw new Error('memory remember can only supersede the same subject and predicate as the new fact');
   }
@@ -682,7 +700,7 @@ async function memoryRememberCommand(values) {
   const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'memory remember', { mustExist: false });
   const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
   const provider = new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: () => generatedAt });
-  const proposalInput = buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source, generatedAt });
+  const proposalInput = buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source: normalizeWorkspaceLocator(source), generatedAt, supersedes });
   try {
     const queued = await provider.enqueueProposal(proposalInput);
     const approved = await provider.approveProposalFact({
@@ -782,7 +800,8 @@ async function memoryRememberBatchCommand(values) {
         generatedAt,
         enqueuedAt: addMilliseconds(generatedAt, index),
         extractionConfidence: fact.extractionConfidence,
-        notes: fact.notes
+        notes: fact.notes,
+        supersedes: fact.supersedes
       })));
     }
     const proposalFacts = queued.map(summarizeProposalQueueFact).filter(Boolean);
@@ -827,7 +846,7 @@ async function memoryRememberBatchCommand(values) {
   }
 }
 
-function buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source, generatedAt, enqueuedAt, extractionConfidence = 'extracted', notes }) {
+function buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source, generatedAt, enqueuedAt, extractionConfidence = 'extracted', notes, supersedes = false }) {
   const text = `${subject} ${predicate} ${object}`;
   const sourceHash = `sha256:${sha256Hex(stableStringify({ subject, predicate, object, source }))}`;
   const proposalId = `mpq_${sha256Hex(stableStringify({ workspaceId, scope, subject, predicate, object, sourceHash })).slice(0, 32)}`;
@@ -852,6 +871,7 @@ function buildMemoryRememberProposalInput({ workspaceId, scope, subject, predica
       provenanceSourceLocator: source,
       provenanceSourceHash: sourceHash,
       extractionConfidence,
+      supersedesSubjectPredicate: supersedes === true,
       notes: notes ?? null
     }
   };
@@ -865,12 +885,14 @@ async function normalizeMemoryBatchFact(root, input) {
   const source = await safeMemoryBatchSource(root, input.source);
   const extractionConfidence = safeMemoryBatchConfidence(input.confidence);
   const notes = input.notes === undefined ? null : safeMemoryBatchObject(input.notes);
+  let supersedes = false;
   if (input.supersedes) {
     const supersedesSubject = safeMemoryBatchToken(input.supersedes.subject, 'supersedes.subject');
     const supersedesPredicate = safeMemoryBatchToken(input.supersedes.predicate, 'supersedes.predicate');
     if (supersedesSubject !== subject || supersedesPredicate !== predicate) throw new Error('supersedes must match subject and predicate');
+    supersedes = true;
   }
-  return { subject, predicate, object, source, extractionConfidence, notes };
+  return { subject, predicate, object, source, extractionConfidence, notes, supersedes };
 }
 
 function safeMemoryBatchToken(value, name) {
@@ -901,7 +923,7 @@ async function safeMemoryBatchSource(root, value) {
   const realRoot = await realpath(root);
   const absolute = path.resolve(realRoot, relativePath);
   if (!isInside(realRoot, absolute)) throw new Error('source must stay inside workspace');
-  return source;
+  return `workspace://${toPosix(path.relative(realRoot, absolute))}`;
 }
 
 function addMilliseconds(iso, amount) {
@@ -6388,6 +6410,7 @@ Usage:
   oaf memory review --root . --sqlite .local/memory.sqlite --format json
   oaf memory approve mpq_status --root . --sqlite .local/memory.sqlite --format json
   oaf memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
+  oaf memory approve --all --root . --sqlite .local/memory.sqlite --format json
   oaf memory reject mpq_status --root . --sqlite .local/memory.sqlite --format json
   oaf memory review approve --root . --sqlite .local/memory.sqlite --proposal mpq_status --format json
   oaf memory proposals --records memory-export.json --root . --dry-run --format json
