@@ -159,20 +159,29 @@ test('memory remember batch approval handles real multi-source supersession flow
     'export function verifyToken(token) { return token === "token"; }'
   ].join('\n'));
   writeFileSync(path.join(root,'facts.json'),JSON.stringify({facts:[
-    {subject:'auth',predicate:'token_expiry',object:'15 minutes',source:'workspace://./DECISIONS.md',supersedes:{subject:'auth',predicate:'token_expiry'},notes:'replaces 60 minutes'},
-    {subject:'auth',predicate:'refresh_tokens',object:'disabled',source:'workspace://./DECISIONS.md'},
+    {subject:'auth',predicate:'token_expiry',object:'15 minutes',source:'workspace://./DECISIONS.md',supersedes:{subject:'auth',predicate:'token_expiry'},notes:'2026-03 security review; replaces the 60-minute decision'},
+    {subject:'auth',predicate:'refresh_tokens',object:'enabled, 24h',source:'workspace://./DECISIONS.md'},
     {subject:'auth',predicate:'uses',object:'express',source:'workspace://package.json'},
     {subject:'auth',predicate:'uses',object:'jsonwebtoken',source:'workspace://package.json'},
     {subject:'auth',predicate:'language',object:'javascript',source:'workspace://src/auth.mjs'},
     {subject:'auth',predicate:'exposes',object:'issueToken',source:'workspace://src/auth.mjs'},
-    {subject:'auth',predicate:'exposes',object:'verifyToken',source:'workspace://src/auth.mjs'}
+    {subject:'auth',predicate:'exposes',object:'verifyToken',source:'workspace://src/auth.mjs'},
+    {subject:'auth',predicate:'config_path',object:'/Users/rebel/private-config.json',source:'workspace://DECISIONS.md'},
+    {subject:'auth',predicate:'credential',object:'token=SECRETVALUE',source:'workspace://DECISIONS.md'}
   ]},null,2));
   const env={...process.env,OAF_FIXED_NOW:'2026-06-27T09:00:00.000Z'};
   const rememberOld=spawnSync(process.execPath,['apps/cli/oaf.mjs','memory','remember','--root',root,'--sqlite','.local/memory.sqlite','--subject','auth','--predicate','token_expiry','--object','60 minutes','--source','workspace://DECISIONS.md','--format','json'],{encoding:'utf8',env});
   assert.equal(rememberOld.status,0,rememberOld.stderr);
   const batch=spawnSync(process.execPath,['apps/cli/oaf.mjs','memory','remember','--batch','facts.json','--root',root,'--sqlite','.local/memory.sqlite','--format','json'],{encoding:'utf8',env});
   assert.equal(batch.status,0,batch.stderr);
-  assert.equal(JSON.parse(batch.stdout).summary.recordedCount,7);
+  const batchReport=JSON.parse(batch.stdout);
+  assert.equal(batchReport.summary.recordedCount,7);
+  assert.equal(batchReport.summary.skippedUnsafeCount,2);
+  assert.deepEqual(batchReport.skipped.map((item)=>({index:item.index,subject:item.subject,predicate:item.predicate,reason:item.reason})),[
+    {index:7,subject:'auth',predicate:'config_path',reason:'object must be safe'},
+    {index:8,subject:'auth',predicate:'credential',reason:'object must be safe'}
+  ]);
+  assert.deepEqual(batchReport.summary.skipped,batchReport.skipped);
   const approveDecisions=spawnSync(process.execPath,['apps/cli/oaf.mjs','memory','approve','--root',root,'--sqlite','.local/memory.sqlite','--all-from','workspace://DECISIONS.md','--format','json'],{encoding:'utf8',env});
   assert.equal(approveDecisions.status,0,approveDecisions.stderr);
   const approvedDecisions=JSON.parse(approveDecisions.stdout);
@@ -193,7 +202,7 @@ test('memory remember batch approval handles real multi-source supersession flow
     'auth exposes = issueToken',
     'auth exposes = verifyToken',
     'auth language = javascript',
-    'auth refresh_tokens = disabled',
+    'auth refresh_tokens = enabled, 24h',
     'auth token_expiry = 15 minutes',
     'auth uses = express',
     'auth uses = jsonwebtoken'

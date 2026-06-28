@@ -773,6 +773,7 @@ async function memoryRememberBatchCommand(values) {
   const provider = new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: () => generatedAt });
   const queued = [];
   const seen = new Set();
+  const skipped = [];
   let skippedUnsafeCount = 0;
   let skippedDuplicateCount = 0;
   try {
@@ -780,8 +781,9 @@ async function memoryRememberBatchCommand(values) {
       let fact;
       try {
         fact = await normalizeMemoryBatchFact(root, item);
-      } catch {
+      } catch (error) {
         skippedUnsafeCount += 1;
+        skipped.push(memoryBatchSkippedFact(index, item, error));
         continue;
       }
       const key = `${fact.subject}\u0000${fact.predicate}\u0000${fact.object}`;
@@ -822,10 +824,12 @@ async function memoryRememberBatchCommand(values) {
         pendingProposalCount: proposalFacts.length,
         skippedUnsafeCount,
         skippedDuplicateCount,
+        skipped,
         supersededFactCount: 0,
         activeMemoryCreated: 0
       },
       proposalFacts,
+      skipped,
       safeguards: {
         readOnly: false,
         proposalGated: true,
@@ -884,7 +888,7 @@ async function normalizeMemoryBatchFact(root, input) {
   const object = safeMemoryBatchObject(input.object);
   const source = await safeMemoryBatchSource(root, input.source);
   const extractionConfidence = safeMemoryBatchConfidence(input.confidence);
-  const notes = input.notes === undefined ? null : safeMemoryBatchObject(input.notes);
+  const notes = input.notes === undefined ? null : safeMemoryBatchNotes(input.notes);
   let supersedes = false;
   if (input.supersedes) {
     const supersedesSubject = safeMemoryBatchToken(input.supersedes.subject, 'supersedes.subject');
@@ -904,9 +908,25 @@ function safeMemoryBatchToken(value, name) {
 
 function safeMemoryBatchObject(value) {
   const text = String(value ?? '').trim().replace(/[.;:,]+$/u, '').trim();
-  if (!/^[A-Za-z0-9][A-Za-z0-9:_./ =-]{0,239}$/u.test(text)) throw new Error('object must be safe');
+  if (!/^[A-Za-z0-9][A-Za-z0-9:_./ =,;()'-]{0,239}$/u.test(text)) throw new Error('object must be safe');
   if (MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('object must be safe');
   return text;
+}
+
+function safeMemoryBatchNotes(value) {
+  const text = String(value ?? '').trim();
+  if (!text || text.length > 500) throw new Error('notes must be safe');
+  if (/[\n\r]/u.test(text) || MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('notes must be safe');
+  return text;
+}
+
+function memoryBatchSkippedFact(index, item, error) {
+  return {
+    index,
+    subject: mcpSanitizeString(item?.subject ?? '', 128) || null,
+    predicate: mcpSanitizeString(item?.predicate ?? '', 128) || null,
+    reason: error instanceof Error ? error.message : 'fact must be safe'
+  };
 }
 
 function safeMemoryBatchConfidence(value) {
