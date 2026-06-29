@@ -29,6 +29,8 @@ pub struct BatchFact {
 pub struct Supersedes {
     pub subject: String,
     pub predicate: String,
+    #[serde(default)]
+    pub object: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -89,6 +91,14 @@ pub struct RecallFact {
     pub metadata: Value,
     pub episode_source_locator: Option<String>,
     pub episode: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActiveFactSnapshot {
+    pub subject: String,
+    pub predicate: String,
+    pub object: String,
+    pub source: String,
 }
 
 pub struct Store {
@@ -308,6 +318,7 @@ impl Store {
             "extracted",
             None,
             supersedes,
+            None,
         )?;
         self.begin()?;
         let result = (|| {
@@ -367,6 +378,7 @@ impl Store {
                     &fact.extraction_confidence,
                     fact.notes.as_deref(),
                     fact.supersedes,
+                    fact.supersedes_object.as_deref(),
                 )?;
                 self.enqueue_proposal_uncommitted(&proposal)?;
                 if let Some(value) =
@@ -492,6 +504,32 @@ impl Store {
         )?;
         let rows = stmt.query_map(params![self.workspace_id], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as usize))
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    pub fn active_ingest_facts(&self, scope: &str) -> Result<Vec<ActiveFactSnapshot>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT subject, predicate, object, source
+            FROM memory_facts
+            WHERE workspace_id = ?1
+              AND scope = ?2
+              AND status = 'active'
+              AND superseded_by IS NULL
+              AND object NOT LIKE 'retired_%'
+              AND metadata_json LIKE '%oaf.ingest:%'
+            ORDER BY subject, predicate, object, source
+            "#,
+        )?;
+        let rows = stmt.query_map(params![self.workspace_id, scope], |row| {
+            Ok(ActiveFactSnapshot {
+                subject: row.get(0)?,
+                predicate: row.get(1)?,
+                object: row.get(2)?,
+                source: row.get(3)?,
+            })
         })?;
         rows.collect::<std::result::Result<Vec<_>, _>>()
             .map_err(Into::into)
@@ -660,36 +698,71 @@ impl Store {
             .and_then(Value::as_bool)
             == Some(true)
         {
+            let supersedes_object = payload.get("supersedesObject").and_then(Value::as_str);
             let history = self.history(&scope, &subject, &predicate, 50)?;
-            self.conn.execute(
-                r#"
-                UPDATE memory_facts
-                SET status='superseded', valid_until=?1, superseded_by=?2, updated_at=?3
-                WHERE workspace_id=?4
-                  AND scope=?5
-                  AND subject=?6
-                  AND predicate=?7
-                  AND id <> ?8
-                  AND object <> ?9
-                  AND superseded_by IS NULL
-                  AND (valid_until IS NULL OR valid_until > ?10)
-                "#,
-                params![
-                    observed_at,
-                    fact_id,
-                    self.now,
-                    self.workspace_id,
-                    scope,
-                    subject,
-                    predicate,
-                    fact_id,
-                    object,
-                    observed_at
-                ],
-            )?;
+            if let Some(supersedes_object) = supersedes_object {
+                self.conn.execute(
+                    r#"
+                    UPDATE memory_facts
+                    SET status='superseded', valid_until=?1, superseded_by=?2, updated_at=?3
+                    WHERE workspace_id=?4
+                      AND scope=?5
+                      AND subject=?6
+                      AND predicate=?7
+                      AND id <> ?8
+                      AND object = ?9
+                      AND superseded_by IS NULL
+                      AND (valid_until IS NULL OR valid_until > ?10)
+                    "#,
+                    params![
+                        observed_at,
+                        fact_id,
+                        self.now,
+                        self.workspace_id,
+                        scope,
+                        subject,
+                        predicate,
+                        fact_id,
+                        supersedes_object,
+                        observed_at
+                    ],
+                )?;
+            } else {
+                self.conn.execute(
+                    r#"
+                    UPDATE memory_facts
+                    SET status='superseded', valid_until=?1, superseded_by=?2, updated_at=?3
+                    WHERE workspace_id=?4
+                      AND scope=?5
+                      AND subject=?6
+                      AND predicate=?7
+                      AND id <> ?8
+                      AND object <> ?9
+                      AND superseded_by IS NULL
+                      AND (valid_until IS NULL OR valid_until > ?10)
+                    "#,
+                    params![
+                        observed_at,
+                        fact_id,
+                        self.now,
+                        self.workspace_id,
+                        scope,
+                        subject,
+                        predicate,
+                        fact_id,
+                        object,
+                        observed_at
+                    ],
+                )?;
+            }
             superseded_facts = history
                 .into_iter()
-                .filter(|fact| fact.superseded_by.is_none() && fact.object != object)
+                .filter(|fact| {
+                    fact.superseded_by.is_none()
+                        && supersedes_object
+                            .map(|exact| fact.object == exact)
+                            .unwrap_or(fact.object != object)
+                })
                 .map(|mut fact| {
                     fact.status = "superseded".to_string();
                     fact.superseded_by = Some(fact_id.clone());
@@ -997,6 +1070,7 @@ struct NormalizedBatchFact {
     extraction_confidence: String,
     notes: Option<String>,
     supersedes: bool,
+    supersedes_object: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1024,7 +1098,7 @@ fn normalize_batch_fact(root: &Path, input: &BatchFact) -> Result<NormalizedBatc
         Some(value) => Some(safe_batch_notes(value)?),
         None => None,
     };
-    let supersedes = match &input.supersedes {
+    let (supersedes, supersedes_object) = match &input.supersedes {
         Some(supersedes) => {
             let supersedes_subject = safe_batch_token(&supersedes.subject, "supersedes.subject")?;
             let supersedes_predicate =
@@ -1032,9 +1106,13 @@ fn normalize_batch_fact(root: &Path, input: &BatchFact) -> Result<NormalizedBatc
             if supersedes_subject != subject || supersedes_predicate != predicate {
                 bail!("supersedes must match subject and predicate");
             }
-            true
+            let supersedes_object = match supersedes.object.as_deref() {
+                Some(value) => Some(safe_batch_object(value)?),
+                None => None,
+            };
+            (true, supersedes_object)
         }
-        None => false,
+        None => (false, None),
     };
     Ok(NormalizedBatchFact {
         subject,
@@ -1044,6 +1122,7 @@ fn normalize_batch_fact(root: &Path, input: &BatchFact) -> Result<NormalizedBatc
         extraction_confidence,
         notes,
         supersedes,
+        supersedes_object,
     })
 }
 
@@ -1059,6 +1138,7 @@ fn build_proposal_input(
     extraction_confidence: &str,
     notes: Option<&str>,
     supersedes: bool,
+    supersedes_object: Option<&str>,
 ) -> Result<ProposalInput> {
     let text = format!("{subject} {predicate} {object}");
     let source_hash = format!(
@@ -1085,28 +1165,32 @@ fn build_proposal_input(
         "mep",
         &json!({ "workspaceId": workspace_id, "source": source, "sourceHash": source_hash, "text": text }),
     );
+    let mut payload = json!({
+        "kind": "fact",
+        "scope": scope,
+        "subject": subject,
+        "predicate": predicate,
+        "object": object,
+        "text": text,
+        "observedAt": generated_at,
+        "subjectEntity": subject,
+        "objectEntity": object,
+        "provenanceEpisodeId": episode_id,
+        "provenanceSourceLocator": source,
+        "provenanceSourceHash": source_hash,
+        "extractionConfidence": extraction_confidence,
+        "supersedesSubjectPredicate": supersedes,
+        "notes": notes
+    });
+    if let Some(supersedes_object) = supersedes_object {
+        payload["supersedesObject"] = Value::String(supersedes_object.to_string());
+    }
     Ok(ProposalInput {
         id,
         source_locator: source.to_string(),
         source_hash: source_hash.clone(),
         enqueued_at: enqueued_at.to_string(),
-        payload: json!({
-            "kind": "fact",
-            "scope": scope,
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "text": text,
-            "observedAt": generated_at,
-            "subjectEntity": subject,
-            "objectEntity": object,
-            "provenanceEpisodeId": episode_id,
-            "provenanceSourceLocator": source,
-            "provenanceSourceHash": source_hash,
-            "extractionConfidence": extraction_confidence,
-            "supersedesSubjectPredicate": supersedes,
-            "notes": notes
-        }),
+        payload,
     })
 }
 

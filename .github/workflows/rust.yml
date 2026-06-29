@@ -19,4 +19,4 @@ jobs:
       - run: cargo test --manifest-path rust/Cargo.toml
       - run: cargo build --release --manifest-path rust/Cargo.toml
       - run: node scripts/rust-recall-conformance.mjs
-
+      - run: node scripts/rust-ingest-quality.mjs

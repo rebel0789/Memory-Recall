@@ -66,6 +66,7 @@ fn governed_batch_approve_supersedes_skips_unsafe_and_dedupes_entities_by_name()
                     supersedes: Some(Supersedes {
                         subject: "auth".into(),
                         predicate: "token_expiry".into(),
+                        object: None,
                     }),
                 },
                 BatchFact {

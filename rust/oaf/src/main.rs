@@ -1,5 +1,9 @@
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{SecondsFormat, Utc};
+use oaf_ingest::{
+    extract_repo, report_quality_fields, retirement_facts, IngestOptions, DEFAULT_MAX_FILE_BYTES,
+    DEFAULT_MAX_MEMORY_BYTES,
+};
 use oaf_store::{ApproveReport, BatchFact, BatchReport, Store, StoreOptions};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -25,9 +29,37 @@ fn run() -> Result<()> {
     match args.first().map(String::as_str) {
         Some("memory") => memory_command(&args[1..]),
         Some("mcp") => mcp_command(&args[1..]),
+        Some("ingest") => ingest_command(&args[1..]),
         Some(other) => bail!("unsupported command: {other}"),
-        None => bail!("oaf rust m1 requires a command"),
+        None => bail!("oaf rust requires a command"),
     }
+}
+
+fn ingest_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let mut options = IngestOptions::new(config.root.clone());
+    options.max_memory_bytes = parse_memory_bytes(args)?;
+    options.max_file_bytes = parse_file_bytes(args)?;
+    let mut extraction = extract_repo(&options)?;
+    if extraction.parsed_file_count == 0 {
+        bail!("ingest parsed no supported source files");
+    }
+    let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    let active = store.active_ingest_facts(&config.scope)?;
+    let retirements = retirement_facts(&active, &extraction.facts);
+    let retired_proposal_count = retirements.len();
+    extraction.facts.extend(retirements);
+    let report = store.remember_batch(&config.root, &config.scope, &extraction.facts)?;
+    print_json(ingest_report(
+        &config,
+        &extraction,
+        report,
+        retired_proposal_count,
+        options.max_memory_bytes,
+        options.max_file_bytes,
+    ));
+    Ok(())
 }
 
 fn memory_command(args: &[String]) -> Result<()> {
@@ -567,6 +599,71 @@ fn reject_report(config: &CliConfig, report: ApproveReport) -> Value {
     }))
 }
 
+fn ingest_report(
+    config: &CliConfig,
+    extraction: &oaf_ingest::IngestReport,
+    report: BatchReport,
+    retired_proposal_count: usize,
+    max_memory_bytes: u64,
+    max_file_bytes: u64,
+) -> Value {
+    let proposal_fact_count = report.proposal_facts.len();
+    let proposal_preview = report
+        .proposal_facts
+        .iter()
+        .take(50)
+        .cloned()
+        .collect::<Vec<_>>();
+    with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "ingest",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": source_block(config),
+        "summary": {
+            "scannedFileCount": extraction.scanned_file_count,
+            "parsedFileCount": extraction.parsed_file_count,
+            "skippedFileCount": extraction.skipped_file_count,
+            "generatedFactCount": extraction.generated_fact_count,
+            "inputFactCount": report.recorded_count + report.skipped_unsafe_count + report.skipped_duplicate_count,
+            "recordedCount": report.recorded_count,
+            "proposalCount": report.recorded_count,
+            "pendingProposalCount": report.recorded_count,
+            "retiredProposalCount": retired_proposal_count,
+            "skippedUnsafeCount": report.skipped_unsafe_count,
+            "skippedDuplicateCount": report.skipped_duplicate_count,
+            "activeMemoryCreated": 0,
+            "supersededFactCount": 0,
+            "generatedCallCount": extraction.generated_call_count,
+            "definitionCount": extraction.definition_count,
+            "importCount": extraction.import_count,
+            "parsedBytes": extraction.parsed_bytes,
+            "elapsedMs": extraction.elapsed_ms
+        },
+        "quality": report_quality_fields(extraction),
+        "proposalFacts": proposal_preview,
+        "proposalFactsOmittedCount": proposal_fact_count.saturating_sub(50),
+        "skipped": report.skipped,
+        "safeguards": {
+            "readOnly": false,
+            "proposalGated": true,
+            "canonicalStateMutated": true,
+            "activeMemoryCreated": 0,
+            "hardDeleted": false,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "externalWritesEnabled": false,
+            "rawSourceBodiesIncluded": false,
+            "absoluteFilesystemLocationsIncluded": false,
+            "maxMemoryBytes": max_memory_bytes,
+            "maxFileBytes": max_file_bytes,
+            "fdStrategy": "single-file",
+            "largeFilesTruncated": false
+        },
+        "reportFingerprint": Value::Null
+    }))
+}
+
 fn source_block(config: &CliConfig) -> Value {
     json!({ "provider": PROVIDER, "sqliteRef": config.sqlite_ref })
 }
@@ -915,6 +1012,38 @@ fn ensure_json(args: &[String]) -> Result<()> {
         bail!("Rust M1 only supports --format json");
     }
     Ok(())
+}
+
+fn parse_memory_bytes(args: &[String]) -> Result<u64> {
+    parse_size_option(args, "--max-memory", DEFAULT_MAX_MEMORY_BYTES, 1024 * 1024)
+}
+
+fn parse_file_bytes(args: &[String]) -> Result<u64> {
+    if let Some(value) = option(args, "--max-file-bytes") {
+        return value
+            .parse::<u64>()
+            .context("--max-file-bytes must be an integer byte count");
+    }
+    parse_size_option(args, "--max-file-mb", DEFAULT_MAX_FILE_BYTES, 1024 * 1024)
+}
+
+fn parse_size_option(args: &[String], flag: &str, default: u64, multiplier: u64) -> Result<u64> {
+    let Some(raw) = option(args, flag) else {
+        return Ok(default);
+    };
+    let trimmed = raw.trim().to_ascii_lowercase();
+    let number = trimmed
+        .strip_suffix("mb")
+        .or_else(|| trimmed.strip_suffix('m'))
+        .unwrap_or(&trimmed)
+        .parse::<u64>()
+        .with_context(|| format!("{flag} must be an integer megabyte value"))?;
+    if number == 0 {
+        bail!("{flag} must be greater than zero");
+    }
+    number
+        .checked_mul(multiplier)
+        .ok_or_else(|| anyhow!("{flag} is too large"))
 }
 
 fn option(args: &[String], flag: &str) -> Option<String> {
