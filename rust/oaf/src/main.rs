@@ -134,69 +134,185 @@ fn memory_review(args: &[String]) -> Result<()> {
 
 fn mcp_command(args: &[String]) -> Result<()> {
     if args.first().map(String::as_str) != Some("server") {
-        bail!("mcp supports server only in Rust M1");
+        bail!("mcp supports server only");
     }
     let config = CliConfig::from_args(&args[1..])?;
     let mut input = String::new();
     io::stdin().read_to_string(&mut input)?;
+    let mut session = McpSession::new(config);
     for line in input.lines().filter(|line| !line.trim().is_empty()) {
         let message: Value = serde_json::from_str(line).context("invalid JSON-RPC line")?;
-        let response = handle_rpc(&config, &message);
-        println!("{}", serde_json::to_string(&response)?);
+        if let Some(response) = session.handle_rpc(&message) {
+            println!("{}", serde_json::to_string(&response)?);
+        }
     }
     Ok(())
 }
 
-fn handle_rpc(config: &CliConfig, message: &Value) -> Value {
-    let id = message.get("id").cloned().unwrap_or(Value::Null);
-    match message.get("method").and_then(Value::as_str).unwrap_or("") {
-        "initialize" => json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "result": {
-                "protocolVersion": PROTOCOL_VERSION,
-                "serverInfo": { "name": "open-agent-fabric", "version": SERVER_VERSION },
-                "capabilities": {
-                    "tools": { "listChanged": false },
-                    "resources": { "subscribe": false, "listChanged": false },
-                    "prompts": { "listChanged": false }
-                }
-            }
-        }),
-        "tools/list" => {
-            json!({ "jsonrpc": "2.0", "id": id, "result": { "tools": [memory_recall_tool()] } })
-        }
-        "tools/call" => match call_tool(config, message) {
-            Ok(result) => json!({ "jsonrpc": "2.0", "id": id, "result": result }),
-            Err(error) => json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "error": { "code": -32000, "message": "MCP tool failed", "data": { "code": "oaf_recall_error", "message": error.to_string() } }
-            }),
-        },
-        _ => json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "error": { "code": -32601, "message": "Method not found", "data": { "code": "oaf_recall_error", "message": "unsupported MCP method" } }
-        }),
-    }
+struct McpSession {
+    config: CliConfig,
+    call_count: i64,
+    delivered_tokens: i64,
+    baseline_tokens: i64,
+    tokens_saved: i64,
+    session_id: String,
 }
 
-fn call_tool(config: &CliConfig, message: &Value) -> Result<Value> {
-    let params = message
-        .get("params")
-        .and_then(Value::as_object)
-        .context("params are required")?;
-    if params.get("name").and_then(Value::as_str) != Some("memory.recall") {
-        bail!("unknown MCP tool");
+impl McpSession {
+    fn new(config: CliConfig) -> Self {
+        Self {
+            config,
+            call_count: 0,
+            delivered_tokens: 0,
+            baseline_tokens: 0,
+            tokens_saved: 0,
+            session_id: "mcpsess_000000000000000000000000".to_string(),
+        }
     }
-    let args = params
-        .get("arguments")
-        .and_then(Value::as_object)
-        .cloned()
-        .unwrap_or_default();
-    let payload = decorate_delivery(recall_payload(config, &args)?)?;
-    Ok(json!({ "content": [{ "type": "text", "text": serde_json::to_string(&payload)? }] }))
+
+    fn handle_rpc(&mut self, message: &Value) -> Option<Value> {
+        if message.get("id").is_none() {
+            return None;
+        }
+        let id = message.get("id").cloned().unwrap_or(Value::Null);
+        Some(
+            match message.get("method").and_then(Value::as_str).unwrap_or("") {
+                "initialize" => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": {
+                    "protocolVersion": PROTOCOL_VERSION,
+                    "serverInfo": { "name": "open-agent-fabric", "version": SERVER_VERSION },
+                    "capabilities": {
+                        "tools": { "listChanged": false },
+                        "resources": { "subscribe": false, "listChanged": false },
+                        "prompts": { "listChanged": false }
+                    }
+                }
+                }),
+                "ping" => json!({ "jsonrpc": "2.0", "id": id, "result": {} }),
+                "prompts/list" => {
+                    json!({ "jsonrpc": "2.0", "id": id, "result": { "prompts": [] } })
+                }
+                "resources/list" => {
+                    json!({ "jsonrpc": "2.0", "id": id, "result": { "resources": mcp_resources(&self.config.workspace_id) } })
+                }
+                "tools/list" => {
+                    json!({ "jsonrpc": "2.0", "id": id, "result": { "tools": mcp_tools() } })
+                }
+                "tools/call" => match self.call_tool(message) {
+                    Ok(result) => json!({ "jsonrpc": "2.0", "id": id, "result": result }),
+                    Err(error) if error.to_string() == "unknown MCP tool" => {
+                        rpc_error(id, -32601, "unknown MCP tool", "mcp_method_not_found")
+                    }
+                    Err(error)
+                        if error.to_string().contains("invalid")
+                            || error.to_string().contains("requires") =>
+                    {
+                        rpc_error(id, -32602, &error.to_string(), "mcp_invalid_params")
+                    }
+                    Err(error) => rpc_error(id, -32008, &error.to_string(), "mcp_tool_failed"),
+                },
+                _ => rpc_error(id, -32601, "unsupported MCP method", "mcp_method_not_found"),
+            },
+        )
+    }
+
+    fn call_tool(&mut self, message: &Value) -> Result<Value> {
+        let params = message
+            .get("params")
+            .and_then(Value::as_object)
+            .context("params are required")?;
+        let name = params
+            .get("name")
+            .and_then(Value::as_str)
+            .context("MCP tool name is invalid")?;
+        let args = params
+            .get("arguments")
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        let args = self.args_with_cursor(name, args)?;
+        let payload = match name {
+            "memory.recall" => recall_payload(&self.config, &args)?,
+            "context.profile" => context_profile_payload(&self.config, &args)?,
+            "context.pack" => bail!(
+                "context.pack parity deferred for M2: Node context-pack builder is not ported"
+            ),
+            _ => bail!("unknown MCP tool"),
+        };
+        self.persist_cursor(name, &args, &payload)?;
+        let payload = self.decorate_delivery(payload, name)?;
+        Ok(json!({
+            "content": [{ "type": "text", "text": serde_json::to_string(&payload)? }],
+            "isError": false,
+            "_meta": { "oaf": { "toolName": name, "operation": name, "sideEffectClass": "read-only", "grantId": "grant_readonly_implicit" } }
+        }))
+    }
+
+    fn args_with_cursor(
+        &self,
+        tool_name: &str,
+        mut args: serde_json::Map<String, Value>,
+    ) -> Result<serde_json::Map<String, Value>> {
+        if args.get("since").is_some() {
+            return Ok(args);
+        }
+        if let Some(cursor) = read_cursor(&self.config, tool_name, &args)? {
+            args.insert("since".to_string(), Value::String(cursor));
+        }
+        Ok(args)
+    }
+
+    fn persist_cursor(
+        &self,
+        tool_name: &str,
+        args: &serde_json::Map<String, Value>,
+        payload: &Value,
+    ) -> Result<()> {
+        let cursor = payload
+            .get("c")
+            .and_then(Value::as_str)
+            .or_else(|| payload.pointer("/data/cursor/next").and_then(Value::as_str));
+        if let Some(cursor) = cursor {
+            write_cursor(&self.config, tool_name, args, cursor)?;
+        }
+        Ok(())
+    }
+
+    fn decorate_delivery(&mut self, payload: Value, tool_name: &str) -> Result<Value> {
+        let mut final_payload = payload.clone();
+        let mut entry = delivery_entry(&final_payload, tool_name)?;
+        let preview_totals = self.preview_totals(&entry);
+        final_payload = decorate_payload(payload.clone(), &entry, &preview_totals);
+        entry = delivery_entry(&final_payload, tool_name)?;
+        let final_totals = self.commit_totals(&entry);
+        Ok(decorate_payload(payload, &entry, &final_totals))
+    }
+
+    fn preview_totals(&self, entry: &DeliveryEntry) -> Value {
+        totals(
+            &self.session_id,
+            1,
+            entry.delivered_tokens,
+            entry.baseline_tokens,
+            entry.tokens_saved,
+        )
+    }
+
+    fn commit_totals(&mut self, entry: &DeliveryEntry) -> Value {
+        self.call_count += 1;
+        self.delivered_tokens += entry.delivered_tokens;
+        self.baseline_tokens += entry.baseline_tokens;
+        self.tokens_saved += entry.tokens_saved;
+        totals(
+            &self.session_id,
+            self.call_count,
+            self.delivered_tokens,
+            self.baseline_tokens,
+            self.tokens_saved,
+        )
+    }
 }
 
 fn recall_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> Result<Value> {
@@ -252,11 +368,71 @@ fn recall_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> 
     ))
 }
 
+fn context_profile_payload(
+    config: &CliConfig,
+    args: &serde_json::Map<String, Value>,
+) -> Result<Value> {
+    let objective = required_json_string(args, "objective", 500)?;
+    let scope = json_string(args.get("scope"), "workspace", 64);
+    let limit = json_i64(args.get("limit"), 50, 1, 100) as usize;
+    let budget = json_i64(args.get("budget"), 4096, 1, 100000);
+    let subject = optional_json_string(args.get("subject"), 128);
+    let predicate = optional_json_string(args.get("predicate"), 128);
+    let since = optional_json_string(args.get("since"), 80);
+    if args.get("currentTruthOnly").and_then(Value::as_bool) != Some(true) {
+        bail!("context.profile compressed parity is deferred in Rust M2; use currentTruthOnly");
+    }
+    if !config.sqlite_abs.is_file() {
+        return Ok(base_payload_command(
+            config,
+            "context.profile",
+            json!({ "available": false, "objective": objective, "scope": scope, "selectedContext": { "selectedCount": 0, "selected": [] } }),
+        ));
+    }
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    if let Some(since) = since {
+        return store.recall_delta(
+            &scope,
+            &objective,
+            subject.as_deref(),
+            predicate.as_deref(),
+            limit,
+            &since,
+        );
+    }
+    let selected = store.recall_current_truth(
+        &scope,
+        &objective,
+        subject.as_deref(),
+        predicate.as_deref(),
+        limit,
+    )?;
+    let selected_count = selected.len();
+    let estimated = estimate_tokens(&serde_json::to_string(&selected)?);
+    Ok(base_payload_command(
+        config,
+        "context.profile",
+        json!({
+            "available": true,
+            "objective": objective,
+            "scope": scope,
+            "mode": "current-truth",
+            "selectedContext": { "selectedCount": selected_count, "selected": selected },
+            "contextBudget": { "budget": budget, "estimatedDeliveryTokens": estimated, "unit": "estimated delivery tokens" },
+            "governedFactCount": selected_count,
+            "proposalFactCount": 0,
+            "summary": { "activeFactCount": selected_count, "proposalFactCount": 0, "totalFactCount": selected_count },
+            "cursor": { "previous": Value::Null, "next": config.now }
+        }),
+    ))
+}
+
 #[derive(Clone)]
 struct CliConfig {
     root: PathBuf,
     sqlite_abs: PathBuf,
     sqlite_ref: String,
+    cursor_abs: PathBuf,
     workspace_id: String,
     scope: String,
     now: String,
@@ -282,10 +458,18 @@ impl CliConfig {
         } else {
             format!("workspace://{}", sqlite.replace('\\', "/"))
         };
+        let cursor =
+            option(args, "--cursors").unwrap_or_else(|| ".local/mcp-cursors.json".to_string());
+        let cursor_abs = if Path::new(&cursor).is_absolute() {
+            PathBuf::from(&cursor)
+        } else {
+            root.join(&cursor)
+        };
         Ok(Self {
             root,
             sqlite_abs,
             sqlite_ref,
+            cursor_abs,
             workspace_id: option(args, "--workspace-id")
                 .or_else(|| option(args, "--workspace"))
                 .unwrap_or_else(|| "ws_local".to_string()),
@@ -403,9 +587,13 @@ fn safeguards(read_only: bool, mutated: bool, active_created: usize) -> Value {
 }
 
 fn base_payload(config: &CliConfig, data: Value) -> Value {
+    base_payload_command(config, "memory.recall", data)
+}
+
+fn base_payload_command(config: &CliConfig, command: &str, data: Value) -> Value {
     json!({
         "schemaVersion": "1.0.0",
-        "command": "memory.recall",
+        "command": command,
         "workspaceId": config.workspace_id,
         "generatedAt": config.now,
         "data": data,
@@ -424,26 +612,20 @@ fn base_payload(config: &CliConfig, data: Value) -> Value {
     })
 }
 
-fn decorate_delivery(payload: Value) -> Result<Value> {
-    let mut final_payload = payload.clone();
-    let mut entry = delivery_entry(&final_payload)?;
-    let preview_totals = totals(&entry);
-    final_payload = decorate_payload(payload.clone(), &entry, &preview_totals);
-    entry = delivery_entry(&final_payload)?;
-    let final_totals = totals(&entry);
-    Ok(decorate_payload(payload, &entry, &final_totals))
-}
-
 struct DeliveryEntry {
+    tool_name: String,
+    request_fingerprint: String,
     delivered_tokens: i64,
     baseline_tokens: i64,
     tokens_saved: i64,
 }
 
-fn delivery_entry(payload: &Value) -> Result<DeliveryEntry> {
+fn delivery_entry(payload: &Value, tool_name: &str) -> Result<DeliveryEntry> {
     let delivered_tokens = estimate_tokens(&serde_json::to_string(payload)?);
-    let baseline_tokens = mcp_stats_baseline_tokens(payload)?;
+    let baseline_tokens = mcp_stats_baseline_tokens(payload, tool_name)?;
     Ok(DeliveryEntry {
+        tool_name: tool_name.to_string(),
+        request_fingerprint: mcp_request_fingerprint(payload, tool_name),
         delivered_tokens,
         baseline_tokens,
         tokens_saved: 0.max(baseline_tokens - delivered_tokens),
@@ -457,13 +639,13 @@ fn decorate_payload(mut payload: Value, entry: &DeliveryEntry, totals: &Value) -
             data.insert(
                 "deliveryEstimate".to_string(),
                 json!({
-                    "toolName": "memory.recall",
+                    "toolName": entry.tool_name,
                     "deliveredTokens": entry.delivered_tokens,
                     "baselineTokens": entry.baseline_tokens,
                     "tokensSaved": entry.tokens_saved,
                     "providerBillingClaimed": false,
                     "basis": "estimated tokens over exact MCP JSON tool payload text",
-                    "requestFingerprint": format!("sha256:{}", "0".repeat(64))
+                    "requestFingerprint": entry.request_fingerprint
                 }),
             );
             data.insert("sessionStats".to_string(), totals.clone());
@@ -476,25 +658,38 @@ fn decorate_payload(mut payload: Value, entry: &DeliveryEntry, totals: &Value) -
     payload
 }
 
-fn totals(entry: &DeliveryEntry) -> Value {
-    let percent = if entry.baseline_tokens > 0 {
-        ((entry.tokens_saved as f64 / entry.baseline_tokens as f64) * 100.0).round() as i64
+fn totals(
+    session_id: &str,
+    call_count: i64,
+    delivered_tokens: i64,
+    baseline_tokens: i64,
+    tokens_saved: i64,
+) -> Value {
+    let percent = if baseline_tokens > 0 {
+        ((tokens_saved as f64 / baseline_tokens as f64) * 100.0).round() as i64
     } else {
         0
     };
     json!({
-        "sessionId": "mcpsess_000000000000000000000000",
+        "sessionId": session_id,
         "statsRef": "workspace://.local/mcp-stats.jsonl",
-        "callCount": 1,
-        "deliveredTokens": entry.delivered_tokens,
-        "baselineTokens": entry.baseline_tokens,
-        "tokensSaved": entry.tokens_saved,
+        "callCount": call_count,
+        "deliveredTokens": delivered_tokens,
+        "baselineTokens": baseline_tokens,
+        "tokensSaved": tokens_saved,
         "tokenSavingPercent": percent,
         "providerBillingClaimed": false
     })
 }
 
-fn mcp_stats_baseline_tokens(payload: &Value) -> Result<i64> {
+fn mcp_stats_baseline_tokens(payload: &Value, tool_name: &str) -> Result<i64> {
+    if tool_name == "context.profile" {
+        return Ok(payload
+            .pointer("/data/contextBudget/historyTokensAvailable")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            .max(0));
+    }
     let compact = estimate_tokens(&serde_json::to_string(&json!({
         "activeFacts": payload.pointer("/data/activeFacts").cloned().unwrap_or_else(|| json!([])),
         "facts": payload.pointer("/data/facts").cloned().unwrap_or_else(|| json!([])),
@@ -505,6 +700,29 @@ fn mcp_stats_baseline_tokens(payload: &Value) -> Result<i64> {
         .and_then(Value::as_i64)
         .unwrap_or(compact);
     Ok(estimate_tokens(&serde_json::to_string(payload)?) + 0.max(verbose - compact))
+}
+
+fn mcp_request_fingerprint(payload: &Value, tool_name: &str) -> String {
+    if tool_name == "context.profile" {
+        return payload
+            .pointer("/data/objectiveFingerprint")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .unwrap_or_else(|| fingerprint_json(&Value::String(tool_name.to_string())));
+    }
+    fingerprint_json(&json!({
+        "toolName": tool_name,
+        "query": payload.pointer("/data/query").and_then(Value::as_str).unwrap_or(""),
+        "scope": payload.pointer("/data/scope").and_then(Value::as_str).unwrap_or("workspace")
+    }))
+}
+
+fn mcp_tools() -> Value {
+    json!([
+        memory_recall_tool(),
+        context_profile_tool(),
+        context_pack_tool()
+    ])
 }
 
 fn memory_recall_tool() -> Value {
@@ -526,6 +744,155 @@ fn memory_recall_tool() -> Value {
         },
         "annotations": { "sideEffectClass": "read-only", "oafOperation": "memory.recall" }
     })
+}
+
+fn context_profile_tool() -> Value {
+    json!({
+        "name": "context.profile",
+        "description": "Compile a compressed profile from governed local memory for an objective.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["objective"],
+            "properties": {
+                "objective": { "type": "string", "minLength": 1, "maxLength": 500 },
+                "step": { "type": "string", "maxLength": 500 },
+                "scope": { "type": "string", "maxLength": 64, "default": "workspace" },
+                "client": { "type": "string", "maxLength": 80, "default": "default" },
+                "budget": { "type": "integer", "minimum": 1, "maximum": 100000, "default": 4096 },
+                "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
+                "since": { "type": "string", "maxLength": 80 }
+            }
+        },
+        "annotations": { "sideEffectClass": "read-only", "oafOperation": "context.profile" }
+    })
+}
+
+fn context_pack_tool() -> Value {
+    json!({
+        "name": "context.pack",
+        "description": "Return the existing sanitized context-pack handoff summary.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["objective", "step"],
+            "properties": {
+                "objective": { "type": "string", "minLength": 1, "maxLength": 500 },
+                "step": { "type": "string", "minLength": 1, "maxLength": 500 },
+                "from": { "type": "string", "maxLength": 80, "default": "all" },
+                "target": { "type": "string", "maxLength": 80, "default": "generic" },
+                "budget": { "type": "integer", "minimum": 1, "maximum": 100000, "default": 4096 }
+            }
+        },
+        "annotations": { "sideEffectClass": "read-only", "oafOperation": "context.pack" }
+    })
+}
+
+fn mcp_resources(workspace_id: &str) -> Value {
+    json!([
+        { "uri": format!("oaf://workspace/{workspace_id}/status"), "name": "OAF workspace status", "description": "Sanitized local OAF workspace status and default safety posture.", "mimeType": "application/json" },
+        { "uri": format!("oaf://workspace/{workspace_id}/context/latest"), "name": "Latest context manifest summary", "description": "Sanitized selected and excluded context manifest summary.", "mimeType": "application/json" },
+        { "uri": format!("oaf://workspace/{workspace_id}/runs/latest"), "name": "Latest run summary", "description": "Sanitized latest run and recent event timeline without event bodies.", "mimeType": "application/json" },
+        { "uri": format!("oaf://workspace/{workspace_id}/memory/proposals"), "name": "Memory proposal summary", "description": "Proposal-only memory queue summary without memory text.", "mimeType": "application/json" },
+        { "uri": format!("oaf://workspace/{workspace_id}/handoff/latest"), "name": "Handoff bundle summary", "description": "Sanitized handoff and artifact summary for local agent review.", "mimeType": "application/json" }
+    ])
+}
+
+fn rpc_error(id: Value, code: i64, message: &str, data_code: &str) -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "error": { "code": code, "message": message, "data": { "code": data_code } }
+    })
+}
+
+fn read_cursor(
+    config: &CliConfig,
+    tool_name: &str,
+    args: &serde_json::Map<String, Value>,
+) -> Result<Option<String>> {
+    let text = match fs::read_to_string(&config.cursor_abs) {
+        Ok(text) => text,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(error).context("read MCP cursor store"),
+    };
+    if text.trim().is_empty() {
+        return Ok(None);
+    }
+    let parsed: Value = serde_json::from_str(&text).context("parse MCP cursor store")?;
+    Ok(parsed
+        .get("cursors")
+        .and_then(Value::as_object)
+        .and_then(|cursors| cursors.get(&cursor_key(config, tool_name, args)))
+        .and_then(|entry| entry.get("cursor"))
+        .and_then(Value::as_str)
+        .map(str::to_string))
+}
+
+fn write_cursor(
+    config: &CliConfig,
+    tool_name: &str,
+    args: &serde_json::Map<String, Value>,
+    cursor: &str,
+) -> Result<()> {
+    let mut data = match fs::read_to_string(&config.cursor_abs) {
+        Ok(text) if !text.trim().is_empty() => {
+            serde_json::from_str::<Value>(&text).context("parse MCP cursor store")?
+        }
+        _ => json!({ "schemaVersion": "1.0.0", "kind": "mcp-session-cursors", "cursors": {} }),
+    };
+    let key = cursor_key(config, tool_name, args);
+    data["schemaVersion"] = Value::String("1.0.0".to_string());
+    data["kind"] = Value::String("mcp-session-cursors".to_string());
+    data["workspaceId"] = Value::String(config.workspace_id.clone());
+    if !data.get("cursors").is_some_and(Value::is_object) {
+        data["cursors"] = json!({});
+    }
+    data["cursors"][key] = json!({
+        "workspaceId": config.workspace_id,
+        "toolName": tool_name,
+        "client": json_string(args.get("client"), "default", 80),
+        "scope": json_string(args.get("scope"), "workspace", 64),
+        "cursor": cursor,
+        "updatedAt": cursor
+    });
+    if let Some(parent) = config.cursor_abs.parent() {
+        fs::create_dir_all(parent).context("create MCP cursor directory")?;
+    }
+    let tmp = config.cursor_abs.with_file_name(format!(
+        ".{}.{}.tmp",
+        config
+            .cursor_abs
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or("mcp-cursors.json"),
+        std::process::id()
+    ));
+    fs::write(&tmp, format!("{}\n", serde_json::to_string_pretty(&data)?))
+        .context("write MCP cursor temp file")?;
+    fs::rename(tmp, &config.cursor_abs).context("replace MCP cursor store")?;
+    Ok(())
+}
+
+fn cursor_key(
+    config: &CliConfig,
+    tool_name: &str,
+    args: &serde_json::Map<String, Value>,
+) -> String {
+    [
+        sanitize(&config.workspace_id, 120),
+        sanitize(tool_name, 120),
+        json_string(args.get("client"), "default", 80),
+        json_string(args.get("scope"), "workspace", 64),
+    ]
+    .join("|")
+}
+
+fn fingerprint_json(value: &Value) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(&serde_json::to_string(value).unwrap_or_default())
+    )
 }
 
 fn with_fingerprint(mut report: Value) -> Value {

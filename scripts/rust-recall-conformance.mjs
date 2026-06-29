@@ -35,28 +35,47 @@ function rustCli(root, args) {
 }
 
 function rpcInput(args) {
-  return [
-    JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }),
-    JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: args } })
-  ].join('\n');
+  return rpcLines([
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: args } }
+  ]);
+}
+
+function rpcLines(messages) {
+  return messages.map((message) => JSON.stringify(message)).join('\n');
+}
+
+function mcpResponses(command, args, messages, options = {}) {
+  const result = run(command, args, {
+    input: rpcLines(messages),
+    env: { ...process.env, OAF_FIXED_NOW: FIXED_NOW }
+  });
+  return result.stdout.trim().split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
 }
 
 function mcpPayload(command, args, root, recallArgs) {
-  const result = run(command, args, {
-    input: rpcInput(recallArgs),
-    env: { ...process.env, OAF_FIXED_NOW: FIXED_NOW }
-  });
-  const lines = result.stdout.trim().split(/\r?\n/u).filter(Boolean).map((line) => JSON.parse(line));
+  const lines = mcpResponses(command, args, [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: recallArgs } }
+  ]);
   assert.equal(lines[0].result.protocolVersion, '2025-06-18');
   return JSON.parse(lines[1].result.content[0].text);
 }
 
 function nodeRecall(root, recallArgs) {
-  return mcpPayload(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--stdio'], root, recallArgs);
+  return mcpPayload(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--cursors', '.local/node-recall-cursors.json', '--stdio'], root, recallArgs);
 }
 
 function rustRecall(root, recallArgs) {
-  return mcpPayload(RUST_BIN, ['mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--stdio'], root, recallArgs);
+  return mcpPayload(RUST_BIN, ['mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--cursors', '.local/rust-recall-cursors.json', '--stdio'], root, recallArgs);
+}
+
+function nodeMcp(root, messages, extra = []) {
+  return mcpResponses(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, ...extra, '--stdio'], messages);
+}
+
+function rustMcp(root, messages, extra = []) {
+  return mcpResponses(RUST_BIN, ['mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, ...extra, '--stdio'], messages);
 }
 
 function normalize(value) {
@@ -75,6 +94,20 @@ function normalize(value) {
   return value;
 }
 
+function normalizeMcp(value) {
+  if (Array.isArray(value)) return value.map(normalizeMcp);
+  const normalized = normalize(value);
+  const content = normalized?.result?.content;
+  if (Array.isArray(content)) {
+    for (const item of content) {
+      if (item?.type === 'text' && typeof item.text === 'string' && item.text.trim().startsWith('{')) {
+        item.text = normalize(JSON.parse(item.text));
+      }
+    }
+  }
+  return normalized;
+}
+
 function canonical(value) {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
   if (value && typeof value === 'object') {
@@ -85,6 +118,10 @@ function canonical(value) {
 
 function assertParity(label, rustValue, nodeValue) {
   assert.equal(canonical(normalize(rustValue)), canonical(normalize(nodeValue)), label);
+}
+
+function assertMcpParity(label, rustValue, nodeValue) {
+  assert.equal(canonical(normalizeMcp(rustValue)), canonical(normalizeMcp(nodeValue)), label);
 }
 
 function makeRoot() {
@@ -172,8 +209,26 @@ function benchmark(root) {
   const approveLatency = timed(RUST_BIN, ['memory', 'approve', '--all', '--root', benchRoot, '--sqlite', SQLITE, '--format', 'json'], { env });
   const recallArgs = { client: 'bench', query: 'auth', subject: 'auth', scope: 'workspace', limit: 20, currentTruthOnly: true };
   const recallLatency = timed(RUST_BIN, ['mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--stdio'], { env, input: rpcInput(recallArgs) });
+  const lifecycleLatency = timed(RUST_BIN, ['mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--stdio'], {
+    env,
+    input: rpcLines([
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', method: 'notifications/initialized', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'ping', params: {} },
+      { jsonrpc: '2.0', id: 3, method: 'tools/list', params: {} },
+      { jsonrpc: '2.0', id: 4, method: 'resources/list', params: {} },
+      { jsonrpc: '2.0', id: 5, method: 'prompts/list', params: {} }
+    ])
+  });
+  const profileLatency = timed(RUST_BIN, ['mcp', 'server', '--read-only', '--root', root, '--sqlite', SQLITE, '--stdio'], {
+    env,
+    input: rpcLines([
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'context.profile', arguments: { client: 'bench-profile', objective: 'auth', scope: 'workspace', limit: 20, budget: 4096, currentTruthOnly: true } } }
+    ])
+  });
   rmSync(benchRoot, { recursive: true, force: true });
-  return { writeLatency, approveLatency, recallLatency };
+  return { writeLatency, approveLatency, recallLatency, lifecycleLatency, profileLatency };
 }
 
 assert.equal(existsSync(path.join(ROOT, 'docs/product/oaf-rust-supertool-spec.md')), false, 'spec doc should stay out of this branch worktree unless intentionally committed');
@@ -207,6 +262,31 @@ try {
     assert(nodeCounts.every((item) => item.count === 1), JSON.stringify(nodeCounts));
     const counts = entityCounts(rustB.root);
     assert(counts.every((item) => item.count === 1), JSON.stringify(counts));
+
+    const lifecycleMessages = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', method: 'notifications/initialized', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'ping', params: {} },
+      { jsonrpc: '2.0', id: 3, method: 'tools/list', params: {} },
+      { jsonrpc: '2.0', id: 4, method: 'resources/list', params: {} },
+      { jsonrpc: '2.0', id: 5, method: 'prompts/list', params: {} }
+    ];
+    assertMcpParity('M2 MCP lifecycle/tools/resources/prompts parity', rustMcp(rustB.root, lifecycleMessages), nodeMcp(rustB.root, lifecycleMessages));
+
+    const toolMessages = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: { client: 'm2', query: 'MemoryBackendPort', scope: 'workspace', limit: 20, currentTruthOnly: true } } },
+      { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'context.profile', arguments: { client: 'm2', objective: 'MemoryBackendPort', step: 'Verify memory backend', scope: 'workspace', limit: 20, budget: 4096, currentTruthOnly: true } } }
+    ];
+    assertMcpParity('M2 MCP memory.recall/context.profile parity', rustMcp(rustB.root, toolMessages, ['--cursors', '.local/rust-tools-cursors.json']), nodeMcp(rustB.root, toolMessages, ['--cursors', '.local/node-tools-cursors.json']));
+
+    const deltaMessages = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: { client: 'm2-delta', query: 'MemoryBackendPort', scope: 'workspace', limit: 20, currentTruthOnly: true } } },
+      { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'memory.recall', arguments: { client: 'm2-delta', query: 'MemoryBackendPort', scope: 'workspace', limit: 20, currentTruthOnly: true } } }
+    ];
+    assertMcpParity('M2 MCP cursor auto-delta parity', rustMcp(rustB.root, deltaMessages, ['--cursors', '.local/rust-delta-cursors.json']), nodeMcp(rustB.root, deltaMessages, ['--cursors', '.local/node-delta-cursors.json']));
+
     const bench = benchmark(rustA.root);
     console.log(JSON.stringify({
       schemaVersion: '1.0.0',
@@ -214,7 +294,13 @@ try {
       conformance: {
         scenarioA: 'byte-parity',
         scenarioB: 'byte-parity',
-        nodeInternalEntityDedup: 'deduped-by-name'
+        nodeInternalEntityDedup: 'deduped-by-name',
+        mcpLifecycle: 'byte-parity',
+        mcpToolsList: 'byte-parity',
+        mcpMemoryRecall: 'byte-parity',
+        mcpContextProfile: 'byte-parity',
+        mcpCursorAutoDelta: 'byte-parity',
+        mcpContextPack: 'deferred: Node context.pack is backed by the full harness context-pack builder; Rust M2 exposes the schema but does not silently approximate the text payload.'
       },
       benchmark: {
         nodeBaseline: { coldStartMs: 50, coldStartRssMb: 55, initRecallMs: 60, initRecallRssMb: 60 },
