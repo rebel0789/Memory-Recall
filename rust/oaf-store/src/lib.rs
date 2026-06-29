@@ -96,6 +96,32 @@ pub struct RecallFact {
     pub episode: Option<Value>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchMode {
+    Keyword,
+    Semantic,
+    Hybrid,
+}
+
+impl SearchMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Keyword => "keyword",
+            Self::Semantic => "semantic",
+            Self::Hybrid => "hybrid",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ScoredFact {
+    fact: RecallFact,
+    keyword_score: f64,
+    semantic_score: f64,
+    governance_boost: f64,
+    score: f64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActiveFactSnapshot {
     pub subject: String,
@@ -302,6 +328,15 @@ impl Store {
               object,
               text,
               tokenize='unicode61 remove_diacritics 2'
+            );
+            CREATE TABLE IF NOT EXISTS memory_semantic_embeddings (
+              fact_id TEXT NOT NULL,
+              workspace_id TEXT NOT NULL,
+              model TEXT NOT NULL,
+              dimensions INTEGER NOT NULL,
+              vector_json TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              PRIMARY KEY(workspace_id, fact_id, model)
             );
             "#,
         )?;
@@ -527,6 +562,129 @@ impl Store {
             .take(limit)
             .map(|fact| summarize_current_truth_fact(&fact))
             .collect())
+    }
+
+    pub fn search_current_truth(
+        &mut self,
+        scope: &str,
+        query: &str,
+        mode: SearchMode,
+        semantic_enabled: bool,
+        limit: usize,
+    ) -> Result<Value> {
+        let limit = limit.clamp(1, 50);
+        if mode != SearchMode::Keyword && !semantic_enabled {
+            bail!("semantic search modes require --semantic");
+        }
+        let table_loaded = semantic_enabled;
+        let table = if semantic_enabled {
+            Some(semantic_table()?)
+        } else {
+            None
+        };
+        let keyword_hits = self
+            .recall_facts(scope, query, None, None, 100)?
+            .into_iter()
+            .filter(|fact| fact.status == "active" && fact.superseded_by.is_none())
+            .take(100)
+            .enumerate()
+            .map(|(index, fact)| (fact.id.clone(), 1.0 / (index as f64 + 1.0), fact))
+            .collect::<Vec<_>>();
+        let mut by_id: BTreeMap<String, ScoredFact> = BTreeMap::new();
+        for (id, keyword_score, fact) in keyword_hits {
+            by_id.insert(
+                id,
+                ScoredFact {
+                    governance_boost: governance_boost(&fact),
+                    fact,
+                    keyword_score,
+                    semantic_score: 0.0,
+                    score: 0.0,
+                },
+            );
+        }
+
+        let mut embedding_rows_built = 0usize;
+        let mut semantic_candidate_count = 0usize;
+        if let Some(table) = table {
+            let facts = self.active_current_facts(scope, 50_000)?;
+            embedding_rows_built = self.ensure_semantic_embeddings(table, &facts)?;
+            let query_vector = pooled_vector(table, query);
+            if !query_vector.is_empty() {
+                semantic_candidate_count = facts.len();
+                for fact in facts {
+                    let fact_vector = self.semantic_embedding_for_fact(table, &fact)?;
+                    if fact_vector.is_empty() {
+                        continue;
+                    }
+                    let semantic_score = cosine(&query_vector, &fact_vector).max(0.0);
+                    let entry = by_id.entry(fact.id.clone()).or_insert_with(|| ScoredFact {
+                        governance_boost: governance_boost(&fact),
+                        fact,
+                        keyword_score: 0.0,
+                        semantic_score: 0.0,
+                        score: 0.0,
+                    });
+                    entry.semantic_score = semantic_score;
+                }
+            }
+        }
+
+        let mut scored = by_id.into_values().collect::<Vec<_>>();
+        for item in &mut scored {
+            item.score = match mode {
+                SearchMode::Keyword => item.keyword_score + item.governance_boost,
+                SearchMode::Semantic => item.semantic_score + item.governance_boost,
+                SearchMode::Hybrid => {
+                    (item.semantic_score * 0.72)
+                        + (item.keyword_score * 0.23)
+                        + item.governance_boost
+                }
+            };
+        }
+        scored.sort_by(|left, right| {
+            right
+                .score
+                .partial_cmp(&left.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| {
+                    right
+                        .semantic_score
+                        .partial_cmp(&left.semantic_score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .then_with(|| {
+                    right
+                        .keyword_score
+                        .partial_cmp(&left.keyword_score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
+                .then_with(|| left.fact.id.cmp(&right.fact.id))
+        });
+        let hits = scored
+            .into_iter()
+            .filter(|item| item.score > 0.0)
+            .take(limit)
+            .map(search_hit_value)
+            .collect::<Vec<_>>();
+        Ok(json!({
+            "query": query,
+            "scope": scope,
+            "mode": mode.as_str(),
+            "hitCount": hits.len(),
+            "hits": hits,
+            "semantic": {
+                "enabled": semantic_enabled,
+                "tableLoaded": table_loaded,
+                "model": table.map(|table| table.source.model.clone()),
+                "revision": table.map(|table| table.source.revision.clone()),
+                "license": table.map(|table| table.source.license.clone()),
+                "dimensions": table.map(|table| table.dimensions).unwrap_or(0),
+                "tokenCount": table.map(|table| table.tokens.len()).unwrap_or(0),
+                "embeddingRowsBuilt": embedding_rows_built,
+                "candidateCount": semantic_candidate_count
+            }
+        }))
     }
 
     pub fn recall_delta(
@@ -1769,6 +1927,86 @@ impl Store {
         })?;
         rows.collect::<std::result::Result<Vec<_>, _>>()
             .map_err(Into::into)
+    }
+
+    fn active_current_facts(&self, scope: &str, limit: usize) -> Result<Vec<RecallFact>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT * FROM memory_facts m WHERE m.workspace_id = ? AND m.scope = ? AND m.status = 'active' AND m.superseded_by IS NULL AND m.valid_from <= ? AND (m.valid_until IS NULL OR m.valid_until > ?) ORDER BY m.valid_from DESC, m.id ASC LIMIT ?",
+        )?;
+        let rows = stmt.query_map(
+            params![
+                self.workspace_id,
+                scope,
+                self.now,
+                self.now,
+                limit.clamp(1, 100_000) as i64
+            ],
+            |row| fact_from_row(&self.conn, row),
+        )?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    fn ensure_semantic_embeddings(
+        &mut self,
+        table: &'static SemanticTable,
+        facts: &[RecallFact],
+    ) -> Result<usize> {
+        let tx = self.conn.transaction()?;
+        let mut built = 0usize;
+        {
+            let mut existing = tx.prepare(
+                "SELECT 1 FROM memory_semantic_embeddings WHERE workspace_id = ? AND fact_id = ? AND model = ? LIMIT 1",
+            )?;
+            let mut insert = tx.prepare(
+                "INSERT OR REPLACE INTO memory_semantic_embeddings (fact_id, workspace_id, model, dimensions, vector_json, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            )?;
+            for fact in facts {
+                let present: Option<i64> = existing
+                    .query_row(
+                        params![self.workspace_id, fact.id, table.source.model],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+                if present.is_some() {
+                    continue;
+                }
+                let vector = pooled_vector(table, &fact_semantic_text(fact));
+                if vector.is_empty() {
+                    continue;
+                }
+                insert.execute(params![
+                    fact.id,
+                    self.workspace_id,
+                    table.source.model,
+                    table.dimensions as i64,
+                    quantized_vector_json(&vector),
+                    self.now
+                ])?;
+                built += 1;
+            }
+        }
+        tx.commit()?;
+        Ok(built)
+    }
+
+    fn semantic_embedding_for_fact(
+        &self,
+        table: &'static SemanticTable,
+        fact: &RecallFact,
+    ) -> Result<Vec<f32>> {
+        let stored: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT vector_json FROM memory_semantic_embeddings WHERE workspace_id = ? AND fact_id = ? AND model = ? LIMIT 1",
+                params![self.workspace_id, fact.id, table.source.model],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(stored) = stored {
+            return dequantized_vector_json(&stored);
+        }
+        Ok(pooled_vector(table, &fact_semantic_text(fact)))
     }
 
     fn retracted_ids(
@@ -3224,6 +3462,30 @@ fn summarize_current_truth_fact(fact: &RecallFact) -> Value {
     })
 }
 
+fn search_hit_value(item: ScoredFact) -> Value {
+    json!({
+        "fact": {
+            "id": sanitize_string(&item.fact.id, 120),
+            "subject": sanitize_string(&item.fact.subject, 160),
+            "predicate": sanitize_string(&item.fact.predicate, 120),
+            "value": sanitize_string(&item.fact.object, 240),
+            "text": sanitize_string(&item.fact.text, 320),
+            "sourceRef": compact_provenance_ref(item.fact.episode_source_locator.as_deref().unwrap_or(&item.fact.source)),
+            "extractionConfidence": extraction_confidence(item.fact.metadata.get("extractionConfidence").and_then(Value::as_str))
+        },
+        "score": {
+            "total": round_score(item.score),
+            "keyword": round_score(item.keyword_score),
+            "semantic": round_score(item.semantic_score),
+            "governanceBoost": round_score(item.governance_boost)
+        }
+    })
+}
+
+fn round_score(value: f64) -> f64 {
+    (value * 10_000.0).round() / 10_000.0
+}
+
 fn profile_record_from_fact(fact: &RecallFact) -> Value {
     json!({
         "id": format!("mem_{}", fact.id),
@@ -3518,6 +3780,218 @@ fn compact_provenance_ref(value: &str) -> String {
         raw.to_string()
     };
     sanitize_string(&compact, 96)
+}
+
+#[derive(Debug, Deserialize)]
+struct SemanticTableArtifact {
+    source: SemanticSource,
+    dimensions: usize,
+    tokens: Vec<SemanticTokenArtifact>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SemanticSource {
+    model: String,
+    revision: String,
+    license: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct SemanticTokenArtifact {
+    token: String,
+    scale: f32,
+    vector: Vec<i8>,
+}
+
+#[derive(Debug)]
+struct SemanticTable {
+    source: SemanticSource,
+    dimensions: usize,
+    tokens: HashMap<String, Vec<f32>>,
+}
+
+fn semantic_table() -> Result<&'static SemanticTable> {
+    static TABLE: OnceLock<Result<SemanticTable, String>> = OnceLock::new();
+    let result = TABLE.get_or_init(|| {
+        let artifact: SemanticTableArtifact =
+            serde_json::from_str(include_str!("semantic_table.json"))
+                .map_err(|error| format!("parse semantic token table: {error}"))?;
+        if artifact.dimensions == 0 || artifact.tokens.is_empty() {
+            return Err("semantic token table is empty".to_string());
+        }
+        let mut tokens = HashMap::new();
+        for token in artifact.tokens {
+            if token.vector.len() != artifact.dimensions {
+                return Err(format!(
+                    "semantic token {} has wrong dimensions",
+                    token.token
+                ));
+            }
+            tokens.insert(
+                token.token,
+                token
+                    .vector
+                    .into_iter()
+                    .map(|value| value as f32 * token.scale)
+                    .collect::<Vec<_>>(),
+            );
+        }
+        Ok(SemanticTable {
+            source: artifact.source,
+            dimensions: artifact.dimensions,
+            tokens,
+        })
+    });
+    result.as_ref().map_err(|error| anyhow!(error.clone()))
+}
+
+fn fact_semantic_text(fact: &RecallFact) -> String {
+    format!("{} {} {}", fact.subject, fact.predicate, fact.object)
+}
+
+fn pooled_vector(table: &SemanticTable, value: &str) -> Vec<f32> {
+    let tokens = semantic_tokens(table, value);
+    if tokens.is_empty() {
+        return Vec::new();
+    }
+    let mut pooled = vec![0.0f32; table.dimensions];
+    for token in &tokens {
+        if let Some(vector) = table.tokens.get(token) {
+            for (index, value) in vector.iter().enumerate() {
+                pooled[index] += *value;
+            }
+        }
+    }
+    for value in &mut pooled {
+        *value /= tokens.len() as f32;
+    }
+    normalize_vector(pooled)
+}
+
+fn semantic_tokens(table: &SemanticTable, value: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let expanded = split_identifier(&value.replace([':', '_', '-'], " "));
+    for raw in expanded
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .filter(|token| !token.is_empty())
+    {
+        let lower = raw.to_lowercase();
+        if semantic_stopword(&lower) {
+            continue;
+        }
+        for token in wordpiece(&lower, &table.tokens) {
+            if !semantic_stopword(token.trim_start_matches("##")) {
+                out.push(token);
+            }
+        }
+        if out.len() >= 96 {
+            break;
+        }
+    }
+    out
+}
+
+fn semantic_stopword(value: &str) -> bool {
+    matches!(
+        value,
+        "function"
+            | "method"
+            | "module"
+            | "command"
+            | "workspace"
+            | "src"
+            | "lib"
+            | "for"
+            | "all"
+            | "the"
+            | "a"
+            | "an"
+            | "of"
+            | "to"
+            | "in"
+            | "and"
+    )
+}
+
+fn wordpiece(value: &str, vocab: &HashMap<String, Vec<f32>>) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut start = 0usize;
+    while start < value.len() {
+        let mut end = value.len();
+        let mut current = None;
+        while start < end {
+            let piece = if start == 0 {
+                value[start..end].to_string()
+            } else {
+                format!("##{}", &value[start..end])
+            };
+            if vocab.contains_key(&piece) {
+                current = Some((piece, end));
+                break;
+            }
+            end -= 1;
+        }
+        let Some((piece, next)) = current else {
+            return Vec::new();
+        };
+        out.push(piece);
+        start = next;
+    }
+    out
+}
+
+fn normalize_vector(mut vector: Vec<f32>) -> Vec<f32> {
+    let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
+    if norm > 0.0 {
+        for value in &mut vector {
+            *value /= norm;
+        }
+    }
+    vector
+}
+
+fn cosine(left: &[f32], right: &[f32]) -> f64 {
+    if left.len() != right.len() || left.is_empty() {
+        return 0.0;
+    }
+    left.iter()
+        .zip(right.iter())
+        .map(|(left, right)| (*left as f64) * (*right as f64))
+        .sum::<f64>()
+}
+
+fn governance_boost(fact: &RecallFact) -> f64 {
+    let mut boost = 0.03;
+    let text = format!("{} {} {}", fact.subject, fact.predicate, fact.object).to_lowercase();
+    if text.contains("govern") || text.contains("decision") || text.contains("truth") {
+        boost += 0.02;
+    }
+    boost
+}
+
+fn quantized_vector_json(vector: &[f32]) -> String {
+    let max_abs = vector
+        .iter()
+        .fold(0.0f32, |max, value| max.max(value.abs()));
+    let scale = if max_abs == 0.0 { 1.0 } else { max_abs / 127.0 };
+    let values = vector
+        .iter()
+        .map(|value| (value / scale).round().clamp(-127.0, 127.0) as i8)
+        .collect::<Vec<_>>();
+    json!({ "scale": scale, "vector": values }).to_string()
+}
+
+fn dequantized_vector_json(value: &str) -> Result<Vec<f32>> {
+    let parsed: Value = serde_json::from_str(value)?;
+    let scale = parsed.get("scale").and_then(Value::as_f64).unwrap_or(1.0) as f32;
+    let vector = parsed
+        .get("vector")
+        .and_then(Value::as_array)
+        .ok_or_else(|| anyhow!("semantic vector cache is malformed"))?
+        .iter()
+        .map(|value| value.as_i64().unwrap_or(0) as f32 * scale)
+        .collect::<Vec<_>>();
+    Ok(normalize_vector(vector))
 }
 
 fn fact_id_from_proposal_id(id: &str) -> String {

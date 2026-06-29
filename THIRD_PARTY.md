@@ -13,6 +13,7 @@ External projects are research inputs or optional adapter targets. **No upstream
 | CCCC | agent collaboration | optional service bridge |
 | Understand Anything | repository intelligence | optional CLI adapter |
 | Mem0 | memory backend | optional memory adapter |
+| Nomic Embed Text v1.5 | offline token-vector table for opt-in Rust semantic search | `nomic-ai/nomic-embed-text-v1.5` revision `e9b6763023c676ca8431644204f50c2b100d9aab`, Apache-2.0 reviewed for this derived 65-token int8 table; source weights SHA-256 `9e7d262b1fe5ea350782829496efa831901b77486bbde1cea54a4c822d010d5c`, vocab SHA-256 `07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3`; no model runtime, no network, and no upstream source is vendored |
 | ECC | source of reviewed procedures | `adapter:tool:ecc` is pinned at `34faa39bd3cd496a0aece0245f2b7e38b7923abc`, archive SHA-256 `c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0`, MIT reviewed, no-install, experimental, disabled by default, and never bulk-loaded |
 | OpenViking | context backend experiment | isolated adapter |
 | Postiz | social publishing | separate approved-write service |

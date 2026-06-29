@@ -6,7 +6,7 @@ use oaf_ingest::{
     extract_repo, report_quality_fields, retirement_facts, IngestOptions, DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_MEMORY_BYTES,
 };
-use oaf_store::{ApproveReport, BatchFact, BatchReport, Store, StoreOptions};
+use oaf_store::{ApproveReport, BatchFact, BatchReport, SearchMode, Store, StoreOptions};
 use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -39,6 +39,7 @@ fn run() -> Result<()> {
         Some("memory") => memory_command(&args[1..]),
         Some("mcp") => mcp_command(&args[1..]),
         Some("ingest") => ingest_command(&args[1..]),
+        Some("search") => search_command(&args[1..]),
         Some("graph") => graph_command(&args[1..]),
         Some("query") => query_command(&args[1..]),
         Some("architecture") => architecture_command(&args[1..]),
@@ -1114,6 +1115,37 @@ fn memory_review(args: &[String]) -> Result<()> {
         "safeguards": safeguards(true, false, 0),
         "reportFingerprint": Value::Null
     });
+    print_json(with_fingerprint(report));
+    Ok(())
+}
+
+fn search_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let query = required(args, "--query")?;
+    let limit = parse_usize_option(args, "--limit", 8, 1, 50);
+    let mode = match option(args, "--mode")
+        .unwrap_or_else(|| "keyword".to_string())
+        .as_str()
+    {
+        "keyword" => SearchMode::Keyword,
+        "semantic" => SearchMode::Semantic,
+        "hybrid" => SearchMode::Hybrid,
+        other => bail!("search --mode must be keyword, semantic, or hybrid; got {other}"),
+    };
+    let semantic_enabled = semantic_enabled(args);
+    let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    let search =
+        store.search_current_truth(&config.scope, &query, mode, semantic_enabled, limit)?;
+    let mut report = json!({
+        "schemaVersion": "1.0.0",
+        "command": "search",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": source_block(&config),
+        "reportFingerprint": Value::Null
+    });
+    merge_object(&mut report, search)?;
     print_json(with_fingerprint(report));
     Ok(())
 }
@@ -2545,6 +2577,19 @@ fn print_json(value: Value) {
     );
 }
 
+fn merge_object(target: &mut Value, source: Value) -> Result<()> {
+    let target = target
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("target report must be an object"))?;
+    let source = source
+        .as_object()
+        .ok_or_else(|| anyhow!("search report must be an object"))?;
+    for (key, value) in source {
+        target.insert(key.clone(), value.clone());
+    }
+    Ok(())
+}
+
 fn ensure_json(args: &[String]) -> Result<()> {
     if option(args, "--format").as_deref().unwrap_or("json") != "json" {
         bail!("Rust M1 only supports --format json");
@@ -2619,6 +2664,16 @@ fn parse_usize_option(
 fn option(args: &[String], flag: &str) -> Option<String> {
     args.windows(2)
         .find_map(|pair| (pair[0] == flag).then(|| pair[1].clone()))
+}
+
+fn semantic_enabled(args: &[String]) -> bool {
+    let Some(index) = args.iter().position(|arg| arg == "--semantic") else {
+        return false;
+    };
+    args.get(index + 1)
+        .filter(|value| !value.starts_with("--"))
+        .map(|value| matches!(value.as_str(), "1" | "true" | "yes" | "on"))
+        .unwrap_or(true)
 }
 
 fn workspace_locator(value: &str) -> String {
