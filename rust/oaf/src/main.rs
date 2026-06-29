@@ -30,9 +30,95 @@ fn run() -> Result<()> {
         Some("memory") => memory_command(&args[1..]),
         Some("mcp") => mcp_command(&args[1..]),
         Some("ingest") => ingest_command(&args[1..]),
+        Some("graph") => graph_command(&args[1..]),
+        Some("query") => query_command(&args[1..]),
+        Some("architecture") => architecture_command(&args[1..]),
         Some(other) => bail!("unsupported command: {other}"),
         None => bail!("oaf rust requires a command"),
     }
+}
+
+fn graph_command(args: &[String]) -> Result<()> {
+    match args.first().map(String::as_str) {
+        Some("path") => graph_path_command(&args[1..]),
+        Some("explain") => graph_explain_command(&args[1..]),
+        Some(other) => bail!("graph unsupported command: {other}"),
+        None => bail!("graph requires a subcommand"),
+    }
+}
+
+fn graph_path_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let report = store.graph_path(
+        &config.scope,
+        &required(args, "--from")?,
+        &required(args, "--to")?,
+        parse_usize_option(args, "--max-hops", 6, 1, 12),
+        has(args, "--undirected"),
+        &option(args, "--at").unwrap_or_else(|| config.now.clone()),
+    )?;
+    print_json(report);
+    Ok(())
+}
+
+fn graph_explain_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let report = store.graph_explain(
+        &config.scope,
+        option(args, "--entity").as_deref(),
+        option(args, "--query").as_deref(),
+        parse_usize_option(args, "--depth", 1, 1, 6),
+        &option(args, "--at").unwrap_or_else(|| config.now.clone()),
+    )?;
+    print_json(report);
+    Ok(())
+}
+
+fn query_command(args: &[String]) -> Result<()> {
+    match args.first().map(String::as_str) {
+        Some("graph") => query_graph_command(&args[1..]),
+        Some(other) => bail!("query unsupported command: {other}"),
+        None => bail!("query requires a subcommand"),
+    }
+}
+
+fn query_graph_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let report = store.query_graph(
+        &config.scope,
+        &required(args, "--cypher")?,
+        &option(args, "--at").unwrap_or_else(|| config.now.clone()),
+        parse_usize_option(args, "--max-rows", 100, 1, 500),
+    )?;
+    print_json(report);
+    Ok(())
+}
+
+fn architecture_command(args: &[String]) -> Result<()> {
+    match args.first().map(String::as_str) {
+        Some("overview") => architecture_overview_command(&args[1..]),
+        Some(other) => bail!("architecture unsupported command: {other}"),
+        None => bail!("architecture requires a subcommand"),
+    }
+}
+
+fn architecture_overview_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let report = store.architecture_overview(
+        &config.scope,
+        &option(args, "--at").unwrap_or_else(|| config.now.clone()),
+        parse_usize_option(args, "--max-items", 20, 1, 50),
+    )?;
+    print_json(report);
+    Ok(())
 }
 
 fn ingest_command(args: &[String]) -> Result<()> {
@@ -271,6 +357,10 @@ impl McpSession {
             "context.pack" => bail!(
                 "context.pack parity deferred for M2: Node context-pack builder is not ported"
             ),
+            "graph.path" => graph_path_payload(&self.config, &args)?,
+            "graph.explain" => graph_explain_payload(&self.config, &args)?,
+            "query.graph" => query_graph_payload(&self.config, &args)?,
+            "architecture.overview" => architecture_overview_payload(&self.config, &args)?,
             _ => bail!("unknown MCP tool"),
         };
         self.persist_cursor(name, &args, &payload)?;
@@ -456,6 +546,85 @@ fn context_profile_payload(
             "summary": { "activeFactCount": selected_count, "proposalFactCount": 0, "totalFactCount": selected_count },
             "cursor": { "previous": Value::Null, "next": config.now }
         }),
+    ))
+}
+
+fn graph_path_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> Result<Value> {
+    let from = required_json_string(args, "from", 160)?;
+    let to = required_json_string(args, "to", 160)?;
+    let scope = json_string(args.get("scope"), "workspace", 64);
+    let at = json_string(args.get("at"), &config.now, 80);
+    let max_hops = json_i64(
+        args.get("maxHops").or_else(|| args.get("max_hops")),
+        6,
+        1,
+        12,
+    ) as usize;
+    let undirected = args.get("undirected").and_then(Value::as_bool) == Some(true);
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let report = store.graph_path(&scope, &from, &to, max_hops, undirected, &at)?;
+    Ok(base_payload_command(
+        config,
+        "graph.path",
+        json!({ "available": true, "path": report }),
+    ))
+}
+
+fn graph_explain_payload(
+    config: &CliConfig,
+    args: &serde_json::Map<String, Value>,
+) -> Result<Value> {
+    let entity = optional_json_string(args.get("entity"), 160);
+    let query = optional_json_string(args.get("query"), 240);
+    let scope = json_string(args.get("scope"), "workspace", 64);
+    let at = json_string(args.get("at"), &config.now, 80);
+    let depth = json_i64(args.get("depth"), 1, 1, 6) as usize;
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let report = store.graph_explain(&scope, entity.as_deref(), query.as_deref(), depth, &at)?;
+    Ok(base_payload_command(
+        config,
+        "graph.explain",
+        json!({ "available": true, "explain": report }),
+    ))
+}
+
+fn query_graph_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> Result<Value> {
+    let cypher = required_json_string(args, "cypher", 2000)?;
+    let scope = json_string(args.get("scope"), "workspace", 64);
+    let at = json_string(args.get("at"), &config.now, 80);
+    let max_rows = json_i64(
+        args.get("maxRows").or_else(|| args.get("max_rows")),
+        100,
+        1,
+        500,
+    ) as usize;
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let report = store.query_graph(&scope, &cypher, &at, max_rows)?;
+    Ok(base_payload_command(
+        config,
+        "query.graph",
+        json!({ "available": true, "query": report }),
+    ))
+}
+
+fn architecture_overview_payload(
+    config: &CliConfig,
+    args: &serde_json::Map<String, Value>,
+) -> Result<Value> {
+    let scope = json_string(args.get("scope"), "workspace", 64);
+    let at = json_string(args.get("at"), &config.now, 80);
+    let max_items = json_i64(
+        args.get("maxItems").or_else(|| args.get("max_items")),
+        20,
+        1,
+        50,
+    ) as usize;
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let report = store.architecture_overview(&scope, &at, max_items)?;
+    Ok(base_payload_command(
+        config,
+        "architecture.overview",
+        json!({ "available": true, "overview": report }),
     ))
 }
 
@@ -818,7 +987,11 @@ fn mcp_tools() -> Value {
     json!([
         memory_recall_tool(),
         context_profile_tool(),
-        context_pack_tool()
+        context_pack_tool(),
+        graph_path_tool(),
+        graph_explain_tool(),
+        query_graph_tool(),
+        architecture_overview_tool()
     ])
 }
 
@@ -882,6 +1055,82 @@ fn context_pack_tool() -> Value {
             }
         },
         "annotations": { "sideEffectClass": "read-only", "oafOperation": "context.pack" }
+    })
+}
+
+fn graph_path_tool() -> Value {
+    json!({
+        "name": "graph.path",
+        "description": "Find a bounded temporal path through governed active memory graph edges.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to"],
+            "properties": {
+                "from": { "type": "string", "minLength": 1, "maxLength": 160 },
+                "to": { "type": "string", "minLength": 1, "maxLength": 160 },
+                "scope": { "type": "string", "maxLength": 64, "default": "workspace" },
+                "at": { "type": "string", "maxLength": 80 },
+                "maxHops": { "type": "integer", "minimum": 1, "maximum": 12, "default": 6 },
+                "undirected": { "type": "boolean", "default": false }
+            }
+        },
+        "annotations": { "sideEffectClass": "read-only", "oafOperation": "graph.path" }
+    })
+}
+
+fn graph_explain_tool() -> Value {
+    json!({
+        "name": "graph.explain",
+        "description": "Return a bounded temporal k-hop neighborhood for a governed graph entity.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "entity": { "type": "string", "maxLength": 160 },
+                "query": { "type": "string", "maxLength": 240 },
+                "scope": { "type": "string", "maxLength": 64, "default": "workspace" },
+                "at": { "type": "string", "maxLength": 80 },
+                "depth": { "type": "integer", "minimum": 1, "maximum": 6, "default": 1 }
+            }
+        },
+        "annotations": { "sideEffectClass": "read-only", "oafOperation": "graph.explain" }
+    })
+}
+
+fn query_graph_tool() -> Value {
+    json!({
+        "name": "query.graph",
+        "description": "Run the M4 read-only Cypher subset against governed active graph edges.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["cypher"],
+            "properties": {
+                "cypher": { "type": "string", "minLength": 1, "maxLength": 2000 },
+                "scope": { "type": "string", "maxLength": 64, "default": "workspace" },
+                "at": { "type": "string", "maxLength": 80 },
+                "maxRows": { "type": "integer", "minimum": 1, "maximum": 500, "default": 100 }
+            }
+        },
+        "annotations": { "sideEffectClass": "read-only", "oafOperation": "query.graph" }
+    })
+}
+
+fn architecture_overview_tool() -> Value {
+    json!({
+        "name": "architecture.overview",
+        "description": "Summarize the current governed source graph in one read-only architecture report.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "scope": { "type": "string", "maxLength": 64, "default": "workspace" },
+                "at": { "type": "string", "maxLength": 80 },
+                "maxItems": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 }
+            }
+        },
+        "annotations": { "sideEffectClass": "read-only", "oafOperation": "architecture.overview" }
     })
 }
 
@@ -1044,6 +1293,19 @@ fn parse_size_option(args: &[String], flag: &str, default: u64, multiplier: u64)
     number
         .checked_mul(multiplier)
         .ok_or_else(|| anyhow!("{flag} is too large"))
+}
+
+fn parse_usize_option(
+    args: &[String],
+    flag: &str,
+    default: usize,
+    min: usize,
+    max: usize,
+) -> usize {
+    option(args, flag)
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(default)
+        .clamp(min, max)
 }
 
 fn option(args: &[String], flag: &str) -> Option<String> {

@@ -11,6 +11,7 @@ const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RUST_BIN = path.join(ROOT, 'rust/target/release/oaf');
 const FIXED_NOW = '2026-06-29T00:00:00.000Z';
 const SQLITE = '.local/memory.sqlite';
+const LEGACY_MCP_TOOLS = new Set(['memory.recall', 'context.profile', 'context.pack']);
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { cwd: ROOT, encoding: 'utf8', ...options });
@@ -97,6 +98,10 @@ function normalize(value) {
 function normalizeMcp(value) {
   if (Array.isArray(value)) return value.map(normalizeMcp);
   const normalized = normalize(value);
+  if (Array.isArray(normalized?.result?.tools)) {
+    // M4 adds graph/query tools; this legacy harness still verifies the M2 tool subset byte-for-byte.
+    normalized.result.tools = normalized.result.tools.filter((tool) => LEGACY_MCP_TOOLS.has(tool.name));
+  }
   const content = normalized?.result?.content;
   if (Array.isArray(content)) {
     for (const item of content) {

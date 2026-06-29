@@ -5,11 +5,13 @@ use rusqlite::{params, params_from_iter, Connection, OpenFlags, OptionalExtensio
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs;
 use std::path::{Component, Path};
 use std::sync::OnceLock;
 use std::time::Duration;
+
+const PROVIDER_ID: &str = "provider:native:memory:sqlite";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchFact {
@@ -99,6 +101,15 @@ pub struct ActiveFactSnapshot {
     pub predicate: String,
     pub object: String,
     pub source: String,
+}
+
+#[derive(Debug, Clone)]
+struct GraphEdge {
+    from: String,
+    predicate: String,
+    to: String,
+    fact_id: String,
+    source: String,
 }
 
 pub struct Store {
@@ -535,6 +546,348 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub fn graph_path(
+        &self,
+        scope: &str,
+        from: &str,
+        to: &str,
+        max_hops: usize,
+        undirected: bool,
+        at: &str,
+    ) -> Result<Value> {
+        if from.trim().is_empty() || to.trim().is_empty() {
+            bail!("from and to are required");
+        }
+        let scope = normalize_temporal_scope(scope)?;
+        let max_hops = max_hops.clamp(1, 12);
+        if from == to {
+            let path = vec![json!({ "name": from })];
+            return Ok(json!({
+                "schemaVersion": "1.0.0",
+                "provider": PROVIDER_ID,
+                "workspaceId": self.workspace_id,
+                "scope": scope,
+                "at": at,
+                "maxHops": max_hops,
+                "undirected": undirected,
+                "path": path,
+                "nodes": path,
+                "edges": []
+            }));
+        }
+
+        let edges = self.temporal_graph_edges(&scope, at)?;
+        let mut adjacency: BTreeMap<String, Vec<GraphEdge>> = BTreeMap::new();
+        for edge in edges {
+            adjacency
+                .entry(edge.from.clone())
+                .or_default()
+                .push(edge.clone());
+            if undirected {
+                let mut reversed = edge;
+                std::mem::swap(&mut reversed.from, &mut reversed.to);
+                adjacency
+                    .entry(reversed.from.clone())
+                    .or_default()
+                    .push(reversed);
+            }
+        }
+
+        let mut queue = VecDeque::from([PathState {
+            node: from.to_string(),
+            path: vec![from.to_string()],
+            edges: Vec::new(),
+        }]);
+        let mut visited = HashSet::from([from.to_string()]);
+        let mut found: Option<PathState> = None;
+        while let Some(current) = queue.pop_front() {
+            if found.is_some() {
+                break;
+            }
+            if current.edges.len() >= max_hops {
+                continue;
+            }
+            for edge in adjacency.get(&current.node).cloned().unwrap_or_default() {
+                if visited.contains(&edge.to) {
+                    continue;
+                }
+                let mut next = current.clone();
+                next.node = edge.to.clone();
+                next.path.push(edge.to.clone());
+                next.edges.push(edge.clone());
+                if edge.to == to {
+                    found = Some(next);
+                    break;
+                }
+                visited.insert(edge.to);
+                queue.push_back(next);
+            }
+        }
+
+        let path = found
+            .as_ref()
+            .map(|state| {
+                state
+                    .path
+                    .iter()
+                    .map(|name| json!({ "name": name }))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let edge_values = found
+            .as_ref()
+            .map(|state| state.edges.iter().map(graph_edge_value).collect::<Vec<_>>())
+            .unwrap_or_default();
+        Ok(json!({
+            "schemaVersion": "1.0.0",
+            "provider": PROVIDER_ID,
+            "workspaceId": self.workspace_id,
+            "scope": scope,
+            "at": at,
+            "maxHops": max_hops,
+            "undirected": undirected,
+            "path": path,
+            "nodes": path,
+            "edges": edge_values
+        }))
+    }
+
+    pub fn graph_explain(
+        &self,
+        scope: &str,
+        entity: Option<&str>,
+        query: Option<&str>,
+        depth: usize,
+        at: &str,
+    ) -> Result<Value> {
+        let scope = normalize_temporal_scope(scope)?;
+        let query = query.unwrap_or("");
+        let edges = self.temporal_graph_edges(&scope, at)?;
+        let entity_name = resolve_temporal_entity_name(&edges, entity, query)
+            .ok_or_else(|| anyhow!("entity is required"))?;
+        let depth = depth.clamp(1, 6);
+        let mut nodes = vec![json!({ "name": entity_name, "depth": 0 })];
+        let mut depths = HashMap::from([(entity_name.clone(), 0usize)]);
+        let mut edge_keys = HashSet::new();
+        let mut selected_edges = Vec::new();
+        let mut frontier = vec![entity_name.clone()];
+        for level in 1..=depth {
+            let mut next_frontier = Vec::new();
+            for node in &frontier {
+                for edge in &edges {
+                    if edge.from != *node && edge.to != *node {
+                        continue;
+                    }
+                    let key = format!(
+                        "{}\0{}\0{}\0{}",
+                        edge.from, edge.predicate, edge.to, edge.fact_id
+                    );
+                    if edge_keys.insert(key) {
+                        selected_edges.push(edge.clone());
+                    }
+                    let other = if edge.from == *node {
+                        &edge.to
+                    } else {
+                        &edge.from
+                    };
+                    if !depths.contains_key(other) {
+                        depths.insert(other.clone(), level);
+                        nodes.push(json!({ "name": other, "depth": level }));
+                        next_frontier.push(other.clone());
+                    }
+                }
+            }
+            frontier = next_frontier;
+        }
+        let scoped_digest =
+            scoped_digest(query, at, Vec::<String>::new(), Vec::<[String; 3]>::new());
+        Ok(json!({
+            "schemaVersion": "1.0.0",
+            "provider": PROVIDER_ID,
+            "workspaceId": self.workspace_id,
+            "scope": scope,
+            "query": query,
+            "entity": entity_name,
+            "depth": depth,
+            "at": at,
+            "nodes": nodes,
+            "edges": selected_edges.iter().map(graph_edge_value).collect::<Vec<_>>(),
+            "semantic": { "status": "skipped", "reason": "local_embedder_unavailable" },
+            "scopedDigest": scoped_digest
+        }))
+    }
+
+    pub fn query_graph(
+        &self,
+        scope: &str,
+        cypher: &str,
+        at: &str,
+        max_rows: usize,
+    ) -> Result<Value> {
+        let scope = normalize_temporal_scope(scope)?;
+        let parsed = parse_cypher(cypher)?;
+        let at = parsed.at.as_deref().unwrap_or(at);
+        let edges = self.temporal_graph_edges(&scope, at)?;
+        let result = evaluate_cypher(&parsed, &edges, max_rows.clamp(1, 500))?;
+        Ok(json!({
+            "schemaVersion": "1.0.0",
+            "command": "query.graph",
+            "provider": PROVIDER_ID,
+            "workspaceId": self.workspace_id,
+            "scope": scope,
+            "at": at,
+            "cypher": cypher,
+            "columns": result.columns,
+            "rowCount": result.rows.len(),
+            "truncated": result.truncated,
+            "rows": result.rows,
+            "supportedSubset": [
+                "MATCH (n:Label)-[:REL]->(m:Label)",
+                "WHERE property compares with AND/OR/NOT and n:Label",
+                "RETURN properties, AS, labels(n), count(*), count(DISTINCT x)",
+                "WITH DISTINCT",
+                "ORDER BY",
+                "LIMIT",
+                "toInteger()",
+                "AS OF '<iso-timestamp>'"
+            ],
+            "safeguards": read_only_safeguards()
+        }))
+    }
+
+    pub fn architecture_overview(&self, scope: &str, at: &str, max_items: usize) -> Result<Value> {
+        let scope = normalize_temporal_scope(scope)?;
+        let max_items = max_items.clamp(1, 50);
+        let edges = self.temporal_graph_edges(&scope, at)?;
+        let mut nodes: BTreeMap<String, OverviewNode> = BTreeMap::new();
+        let mut out_degree: HashMap<String, usize> = HashMap::new();
+        let mut in_degree: HashMap<String, usize> = HashMap::new();
+        let mut language_counts: BTreeMap<String, usize> = BTreeMap::new();
+        for edge in &edges {
+            for name in [&edge.from, &edge.to] {
+                nodes.entry(name.clone()).or_insert_with(|| OverviewNode {
+                    name: name.clone(),
+                    entity_type: temporal_graph_entity_type(name),
+                    degree: 0,
+                    community: 0,
+                });
+                if let Some(language) = infer_language(name) {
+                    *language_counts.entry(language).or_default() += 1;
+                }
+            }
+            if let Some(language) = infer_language(&edge.source) {
+                *language_counts.entry(language).or_default() += 1;
+            }
+            *out_degree.entry(edge.from.clone()).or_default() += 1;
+            *in_degree.entry(edge.to.clone()).or_default() += 1;
+        }
+        for node in nodes.values_mut() {
+            node.degree = out_degree.get(&node.name).copied().unwrap_or(0)
+                + in_degree.get(&node.name).copied().unwrap_or(0);
+        }
+        let communities = graph_communities(nodes.keys().cloned().collect(), &edges);
+        for node in nodes.values_mut() {
+            node.community = communities.get(&node.name).copied().unwrap_or(0);
+        }
+        let mut community_stats: BTreeMap<usize, CommunityStats> = BTreeMap::new();
+        for node in nodes.values() {
+            let entry = community_stats.entry(node.community).or_default();
+            entry.node_count += 1;
+            if entry.sample_nodes.len() < 5 {
+                entry.sample_nodes.push(node.name.clone());
+            }
+        }
+        for edge in &edges {
+            if let Some(community) = communities.get(&edge.from) {
+                community_stats.entry(*community).or_default().edge_count += 1;
+            }
+        }
+        let mut hotspots = nodes.values().cloned().collect::<Vec<_>>();
+        hotspots.sort_by(|left, right| {
+            right
+                .degree
+                .cmp(&left.degree)
+                .then_with(|| left.name.cmp(&right.name))
+        });
+        let mut modules = hotspots
+            .iter()
+            .filter(|node| node.entity_type == "module" || node.entity_type == "file")
+            .cloned()
+            .collect::<Vec<_>>();
+        modules.truncate(max_items);
+        let mut entry_points = nodes
+            .values()
+            .filter(|node| {
+                out_degree.get(&node.name).copied().unwrap_or(0) > 0
+                    && incoming_call_count(&node.name, &edges) == 0
+                    && outgoing_call_count(&node.name, &edges) > 0
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        entry_points.sort_by(|left, right| {
+            outgoing_call_count(&right.name, &edges)
+                .cmp(&outgoing_call_count(&left.name, &edges))
+                .then_with(|| left.name.cmp(&right.name))
+        });
+        entry_points.truncate(max_items);
+        let mut governed_decisions = nodes
+            .values()
+            .filter(|node| {
+                node.name.starts_with("decision:")
+                    || node.name.starts_with("adr:")
+                    || edges.iter().any(|edge| {
+                        edge.predicate == "GOVERNS"
+                            && (edge.from == node.name || edge.to == node.name)
+                    })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        governed_decisions.sort_by(|left, right| left.name.cmp(&right.name));
+        governed_decisions.truncate(max_items);
+        let language_histogram = language_counts
+            .into_iter()
+            .map(|(language, count)| json!({ "language": language, "count": count }))
+            .collect::<Vec<_>>();
+        let communities_out = community_stats
+            .into_iter()
+            .map(|(id, stats)| {
+                json!({
+                    "id": id,
+                    "nodeCount": stats.node_count,
+                    "edgeCount": stats.edge_count,
+                    "sampleNodes": stats.sample_nodes
+                })
+            })
+            .take(max_items)
+            .collect::<Vec<_>>();
+        let node_count = nodes.len();
+        let edge_count = edges.len();
+        Ok(json!({
+            "schemaVersion": "1.0.0",
+            "command": "architecture.overview",
+            "provider": PROVIDER_ID,
+            "workspaceId": self.workspace_id,
+            "scope": scope,
+            "at": at,
+            "communityMethod": "label-propagation",
+            "summary": {
+                "nodeCount": node_count,
+                "edgeCount": edge_count,
+                "currentNodeCount": node_count,
+                "currentEdgeCount": edge_count,
+                "communityCount": communities.values().copied().collect::<BTreeSet<_>>().len(),
+                "truncated": hotspots.len() > max_items
+            },
+            "languageHistogram": language_histogram,
+            "topModules": modules.iter().map(overview_node_value).collect::<Vec<_>>(),
+            "entryPoints": entry_points.iter().map(overview_node_value).collect::<Vec<_>>(),
+            "hotspots": hotspots.iter().take(max_items).map(overview_node_value).collect::<Vec<_>>(),
+            "governedDecisions": governed_decisions.iter().map(overview_node_value).collect::<Vec<_>>(),
+            "communities": communities_out,
+            "safeguards": read_only_safeguards()
+        }))
+    }
+
     pub fn integrity_check(&self) -> Result<String> {
         let result: String = self
             .conn
@@ -543,6 +896,42 @@ impl Store {
             bail!("sqlite integrity check failed: {result}");
         }
         Ok(result)
+    }
+
+    fn temporal_graph_edges(&self, scope: &str, at: &str) -> Result<Vec<GraphEdge>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT e.predicate,
+                   e.fact_id,
+                   source.name AS source_name,
+                   target.name AS target_name,
+                   f.source AS fact_source
+            FROM memory_edges e
+            JOIN memory_entities source ON source.id = e.source_entity_id
+            JOIN memory_entities target ON target.id = e.target_entity_id
+            JOIN memory_facts f ON f.workspace_id = e.workspace_id
+              AND f.scope = e.scope
+              AND f.id = e.fact_id
+            WHERE e.workspace_id = ?
+              AND e.scope = ?
+              AND f.status IN ('active', 'superseded')
+              AND f.valid_from <= ?
+              AND (f.valid_until IS NULL OR f.valid_until > ?)
+              AND (f.superseded_by IS NULL OR f.valid_until > ?)
+            ORDER BY source.name ASC, e.predicate ASC, target.name ASC, e.created_at ASC, e.fact_id ASC
+            "#,
+        )?;
+        let rows = stmt.query_map(params![self.workspace_id, scope, at, at, at], |row| {
+            Ok(GraphEdge {
+                predicate: row.get("predicate")?,
+                fact_id: row.get("fact_id")?,
+                from: row.get("source_name")?,
+                to: row.get("target_name")?,
+                source: row.get("fact_source")?,
+            })
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
     }
 
     fn begin(&self) -> Result<()> {
@@ -1058,6 +1447,1097 @@ impl Store {
             }
         }
         Ok(out)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PathState {
+    node: String,
+    path: Vec<String>,
+    edges: Vec<GraphEdge>,
+}
+
+#[derive(Debug, Clone)]
+struct OverviewNode {
+    name: String,
+    entity_type: String,
+    degree: usize,
+    community: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CommunityStats {
+    node_count: usize,
+    edge_count: usize,
+    sample_nodes: Vec<String>,
+}
+
+fn graph_edge_value(edge: &GraphEdge) -> Value {
+    json!({
+        "from": edge.from,
+        "predicate": edge.predicate,
+        "to": edge.to,
+        "factId": edge.fact_id
+    })
+}
+
+fn read_only_safeguards() -> Value {
+    json!({
+        "readOnly": true,
+        "proposalGated": true,
+        "canonicalStateMutated": false,
+        "activeMemoryCreated": 0,
+        "hardDeleted": false,
+        "networkCalls": 0,
+        "modelCalls": 0,
+        "externalWritesEnabled": false,
+        "rawSourceBodiesIncluded": false,
+        "absoluteFilesystemLocationsIncluded": false
+    })
+}
+
+fn normalize_temporal_scope(scope: &str) -> Result<String> {
+    match scope {
+        "workspace" | "session" | "agent" | "user" => Ok(scope.to_string()),
+        _ => bail!("unsupported temporal memory scope: {scope}"),
+    }
+}
+
+fn resolve_temporal_entity_name(
+    edges: &[GraphEdge],
+    entity: Option<&str>,
+    query: &str,
+) -> Option<String> {
+    let requested = entity.unwrap_or(query).trim();
+    if requested.is_empty() {
+        return None;
+    }
+    let names = edges
+        .iter()
+        .flat_map(|edge| [edge.from.clone(), edge.to.clone()])
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    names
+        .iter()
+        .find(|name| name.as_str() == requested)
+        .cloned()
+        .or_else(|| {
+            let lower = requested.to_lowercase();
+            names
+                .iter()
+                .find(|name| name.to_lowercase() == lower)
+                .cloned()
+        })
+        .or_else(|| {
+            let lower = requested.to_lowercase();
+            names
+                .iter()
+                .find(|name| name.to_lowercase().contains(&lower))
+                .cloned()
+        })
+}
+
+fn scoped_digest(query: &str, at: &str, result_ids: Vec<String>, edges: Vec<[String; 3]>) -> Value {
+    let summary = json!({
+        "query": query,
+        "at": at,
+        "resultIds": result_ids,
+        "edges": edges
+    });
+    let serialized = canonical_json(&summary);
+    json!({
+        "digest": format!("sha256:{}", sha256_hex(&serialized)),
+        "summary": summary
+    })
+}
+
+fn temporal_graph_entity_type(name: &str) -> String {
+    if name.starts_with("project:") {
+        "project"
+    } else if name.starts_with("provider:") {
+        "provider"
+    } else if name.starts_with("adr:") || name.starts_with("decision:") {
+        "decision"
+    } else if name.starts_with("file:") {
+        "file"
+    } else if name.starts_with("module:") || name.ends_with("_mjs") {
+        "module"
+    } else if name.ends_with("Port") {
+        "port"
+    } else if name.starts_with("class:") {
+        "class"
+    } else if name.starts_with("method:") {
+        "method"
+    } else if name.starts_with("function:") {
+        "function"
+    } else {
+        "entity"
+    }
+    .to_string()
+}
+
+fn cypher_label(name: &str) -> String {
+    match temporal_graph_entity_type(name).as_str() {
+        "project" => "Project",
+        "provider" => "Provider",
+        "decision" => "Decision",
+        "file" => "File",
+        "module" => "Module",
+        "port" => "Port",
+        "class" => "Class",
+        "method" => "Method",
+        "function" => "Function",
+        _ => "Entity",
+    }
+    .to_string()
+}
+
+fn label_matches(name: &str, label: &str) -> bool {
+    cypher_label(name).eq_ignore_ascii_case(label)
+}
+
+fn infer_language(value: &str) -> Option<String> {
+    let lower = value.to_lowercase();
+    let language = if lower.ends_with(".rs") || lower.ends_with("_rs") {
+        "rust"
+    } else if lower.ends_with(".ts") || lower.ends_with("_ts") {
+        "typescript"
+    } else if lower.ends_with(".tsx") || lower.ends_with("_tsx") {
+        "tsx"
+    } else if lower.ends_with(".js")
+        || lower.ends_with("_js")
+        || lower.ends_with(".mjs")
+        || lower.ends_with("_mjs")
+    {
+        "javascript"
+    } else if lower.ends_with(".jsx") || lower.ends_with("_jsx") {
+        "jsx"
+    } else if lower.ends_with(".py") || lower.ends_with("_py") {
+        "python"
+    } else if lower.ends_with(".go") || lower.ends_with("_go") {
+        "go"
+    } else {
+        return None;
+    };
+    Some(language.to_string())
+}
+
+fn graph_communities(nodes: Vec<String>, edges: &[GraphEdge]) -> BTreeMap<String, usize> {
+    let mut labels = nodes
+        .iter()
+        .map(|node| (node.clone(), node.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let mut neighbors = nodes
+        .iter()
+        .map(|node| (node.clone(), Vec::<String>::new()))
+        .collect::<BTreeMap<_, _>>();
+    for edge in edges {
+        if neighbors.contains_key(&edge.from) && neighbors.contains_key(&edge.to) {
+            neighbors
+                .entry(edge.from.clone())
+                .or_default()
+                .push(edge.to.clone());
+            neighbors
+                .entry(edge.to.clone())
+                .or_default()
+                .push(edge.from.clone());
+        }
+    }
+    for _ in 0..8 {
+        let mut changed = false;
+        for node in &nodes {
+            let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+            for neighbor in neighbors.get(node).cloned().unwrap_or_default() {
+                if let Some(label) = labels.get(&neighbor) {
+                    *counts.entry(label.clone()).or_default() += 1;
+                }
+            }
+            let best = counts
+                .into_iter()
+                .max_by(|left, right| left.1.cmp(&right.1).then_with(|| right.0.cmp(&left.0)))
+                .map(|(label, _)| label);
+            if let Some(best) = best {
+                if labels.get(node) != Some(&best) {
+                    labels.insert(node.clone(), best);
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    let label_ids = labels
+        .values()
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .enumerate()
+        .map(|(index, label)| (label, index + 1))
+        .collect::<BTreeMap<_, _>>();
+    labels
+        .into_iter()
+        .map(|(node, label)| (node, label_ids.get(&label).copied().unwrap_or(0)))
+        .collect()
+}
+
+fn outgoing_call_count(name: &str, edges: &[GraphEdge]) -> usize {
+    edges
+        .iter()
+        .filter(|edge| edge.from == name && edge.predicate == "CALLS")
+        .count()
+}
+
+fn incoming_call_count(name: &str, edges: &[GraphEdge]) -> usize {
+    edges
+        .iter()
+        .filter(|edge| edge.to == name && edge.predicate == "CALLS")
+        .count()
+}
+
+fn overview_node_value(node: &OverviewNode) -> Value {
+    json!({
+        "name": node.name,
+        "type": node.entity_type,
+        "degree": node.degree,
+        "community": node.community
+    })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum TokenKind {
+    Ident,
+    String,
+    Number,
+    Symbol,
+}
+
+#[derive(Debug, Clone)]
+struct Token {
+    kind: TokenKind,
+    text: String,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedCypher {
+    at: Option<String>,
+    pattern: MatchPattern,
+    where_expr: Option<BoolExpr>,
+    with_clause: Option<ProjectionClause>,
+    return_clause: ProjectionClause,
+    order_by: Option<OrderBy>,
+    limit: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+struct MatchPattern {
+    left_var: String,
+    left_label: Option<String>,
+    rel_var: Option<String>,
+    rel_type: String,
+    right_var: String,
+    right_label: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct ProjectionClause {
+    distinct: bool,
+    items: Vec<SelectItem>,
+}
+
+#[derive(Debug, Clone)]
+struct SelectItem {
+    expr: ValueExpr,
+    alias: String,
+}
+
+#[derive(Debug, Clone)]
+struct OrderBy {
+    key: String,
+    descending: bool,
+}
+
+#[derive(Debug, Clone)]
+enum ValueExpr {
+    Property(String, String),
+    Labels(String),
+    ToInteger(Box<ValueExpr>),
+    String(String),
+    Number(i64),
+    Alias(String),
+    CountAll,
+    CountDistinct(Box<ValueExpr>),
+}
+
+#[derive(Debug, Clone)]
+enum BoolExpr {
+    Or(Box<BoolExpr>, Box<BoolExpr>),
+    And(Box<BoolExpr>, Box<BoolExpr>),
+    Not(Box<BoolExpr>),
+    Compare(ValueExpr, CompareOp, ValueExpr),
+    LabelTest(String, String),
+}
+
+#[derive(Debug, Clone)]
+enum CompareOp {
+    Eq,
+    Ne,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+    Contains,
+    StartsWith,
+}
+
+#[derive(Debug, Clone)]
+struct QueryResult {
+    columns: Vec<String>,
+    rows: Vec<Value>,
+    truncated: bool,
+}
+
+#[derive(Debug, Clone)]
+struct EvalRow {
+    entities: HashMap<String, String>,
+    rels: HashMap<String, GraphEdge>,
+    aliases: HashMap<String, Value>,
+}
+
+fn parse_cypher(input: &str) -> Result<ParsedCypher> {
+    let upper = input.to_ascii_uppercase();
+    for forbidden in ["CREATE", "MERGE", "DELETE", "DETACH", "SET ", "REMOVE "] {
+        if upper.contains(forbidden) {
+            bail!("unsupported Cypher: write and mutation clauses are not supported");
+        }
+    }
+    let tokens = lex_cypher(input)?;
+    let mut parser = CypherParser { tokens, pos: 0 };
+    let at = if parser.consume_keyword("AS") {
+        parser.expect_keyword("OF")?;
+        Some(parser.expect_string_like("AS OF timestamp")?)
+    } else {
+        None
+    };
+    parser.expect_keyword("MATCH")?;
+    let pattern = parser.parse_pattern()?;
+    let where_expr = if parser.consume_keyword("WHERE") {
+        Some(parser.parse_or_expr()?)
+    } else {
+        None
+    };
+    let with_clause = if parser.consume_keyword("WITH") {
+        Some(parser.parse_projection_until(&["RETURN"])?)
+    } else {
+        None
+    };
+    parser.expect_keyword("RETURN")?;
+    let return_clause = parser.parse_projection_until(&["ORDER", "LIMIT"])?;
+    let order_by = if parser.consume_keyword("ORDER") {
+        parser.expect_keyword("BY")?;
+        let key = parser.expect_ident("ORDER BY key")?;
+        let descending = if parser.consume_keyword("DESC") {
+            true
+        } else {
+            parser.consume_keyword("ASC");
+            false
+        };
+        Some(OrderBy { key, descending })
+    } else {
+        None
+    };
+    let limit = if parser.consume_keyword("LIMIT") {
+        Some(parser.expect_number("LIMIT")? as usize)
+    } else {
+        None
+    };
+    if !parser.is_end() {
+        bail!("unsupported Cypher: trailing syntax is not part of the M4 subset");
+    }
+    Ok(ParsedCypher {
+        at,
+        pattern,
+        where_expr,
+        with_clause,
+        return_clause,
+        order_by,
+        limit,
+    })
+}
+
+fn lex_cypher(input: &str) -> Result<Vec<Token>> {
+    let chars = input.chars().collect::<Vec<_>>();
+    let mut out = Vec::new();
+    let mut index = 0;
+    while index < chars.len() {
+        let ch = chars[index];
+        if ch.is_whitespace() {
+            index += 1;
+            continue;
+        }
+        if ch == '\'' {
+            index += 1;
+            let mut value = String::new();
+            while index < chars.len() && chars[index] != '\'' {
+                value.push(chars[index]);
+                index += 1;
+            }
+            if index >= chars.len() {
+                bail!("invalid Cypher: unterminated string literal");
+            }
+            index += 1;
+            out.push(Token {
+                kind: TokenKind::String,
+                text: value,
+            });
+            continue;
+        }
+        if ch.is_ascii_digit() {
+            let start = index;
+            index += 1;
+            while index < chars.len() && chars[index].is_ascii_digit() {
+                index += 1;
+            }
+            out.push(Token {
+                kind: TokenKind::Number,
+                text: chars[start..index].iter().collect(),
+            });
+            continue;
+        }
+        if ch.is_alphabetic() || ch == '_' {
+            let start = index;
+            index += 1;
+            while index < chars.len() && (chars[index].is_alphanumeric() || chars[index] == '_') {
+                index += 1;
+            }
+            out.push(Token {
+                kind: TokenKind::Ident,
+                text: chars[start..index].iter().collect(),
+            });
+            continue;
+        }
+        let two = if index + 1 < chars.len() {
+            Some([chars[index], chars[index + 1]])
+        } else {
+            None
+        };
+        if matches!(
+            two,
+            Some(['-', '>'] | ['<', '-'] | ['<', '>'] | ['>', '='] | ['<', '='])
+        ) {
+            out.push(Token {
+                kind: TokenKind::Symbol,
+                text: chars[index..=index + 1].iter().collect(),
+            });
+            index += 2;
+            continue;
+        }
+        if "()[]:.,-=<>*|".contains(ch) {
+            out.push(Token {
+                kind: TokenKind::Symbol,
+                text: ch.to_string(),
+            });
+            index += 1;
+            continue;
+        }
+        bail!("invalid Cypher: unsupported character {ch:?}");
+    }
+    Ok(out)
+}
+
+struct CypherParser {
+    tokens: Vec<Token>,
+    pos: usize,
+}
+
+impl CypherParser {
+    fn is_end(&self) -> bool {
+        self.pos >= self.tokens.len()
+    }
+
+    fn peek(&self) -> Option<&Token> {
+        self.tokens.get(self.pos)
+    }
+
+    fn peek_text(&self) -> Option<&str> {
+        self.peek().map(|token| token.text.as_str())
+    }
+
+    fn consume_text(&mut self, text: &str) -> bool {
+        if self.peek_text() == Some(text) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn consume_keyword(&mut self, text: &str) -> bool {
+        if self.peek().is_some_and(|token| {
+            token.kind == TokenKind::Ident && token.text.eq_ignore_ascii_case(text)
+        }) {
+            self.pos += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect_keyword(&mut self, text: &str) -> Result<()> {
+        if self.consume_keyword(text) {
+            Ok(())
+        } else {
+            bail!("invalid Cypher: expected {text}");
+        }
+    }
+
+    fn expect_text(&mut self, text: &str) -> Result<()> {
+        if self.consume_text(text) {
+            Ok(())
+        } else {
+            bail!("invalid Cypher: expected {text}");
+        }
+    }
+
+    fn expect_ident(&mut self, context: &str) -> Result<String> {
+        if self
+            .peek()
+            .is_some_and(|token| token.kind == TokenKind::Ident)
+        {
+            let value = self.tokens[self.pos].text.clone();
+            self.pos += 1;
+            Ok(value)
+        } else {
+            bail!("invalid Cypher: expected {context}");
+        }
+    }
+
+    fn expect_number(&mut self, context: &str) -> Result<i64> {
+        if self
+            .peek()
+            .is_some_and(|token| token.kind == TokenKind::Number)
+        {
+            let value = self.tokens[self.pos].text.parse::<i64>()?;
+            self.pos += 1;
+            Ok(value)
+        } else {
+            bail!("invalid Cypher: expected numeric {context}");
+        }
+    }
+
+    fn expect_string_like(&mut self, context: &str) -> Result<String> {
+        if self
+            .peek()
+            .is_some_and(|token| matches!(token.kind, TokenKind::String | TokenKind::Ident))
+        {
+            let value = self.tokens[self.pos].text.clone();
+            self.pos += 1;
+            Ok(value)
+        } else {
+            bail!("invalid Cypher: expected {context}");
+        }
+    }
+
+    fn parse_pattern(&mut self) -> Result<MatchPattern> {
+        if self
+            .peek()
+            .is_some_and(|token| token.kind == TokenKind::Ident)
+            && self
+                .tokens
+                .get(self.pos + 1)
+                .is_some_and(|token| token.text == "=")
+        {
+            bail!("unsupported Cypher: path binding is not part of the M4 subset");
+        }
+        self.expect_text("(")?;
+        let left_var = self.expect_ident("left node variable")?;
+        let left_label = if self.consume_text(":") {
+            Some(self.expect_ident("left node label")?)
+        } else {
+            None
+        };
+        self.expect_text(")")?;
+        self.expect_text("-")?;
+        self.expect_text("[")?;
+        let mut rel_var = None;
+        if self
+            .peek()
+            .is_some_and(|token| token.kind == TokenKind::Ident)
+            && self
+                .tokens
+                .get(self.pos + 1)
+                .is_some_and(|token| token.text == ":")
+        {
+            rel_var = Some(self.expect_ident("relationship variable")?);
+        }
+        self.expect_text(":")?;
+        if self.consume_text("*") {
+            bail!(
+                "unsupported Cypher: variable-length relationships are not part of the M4 subset"
+            );
+        }
+        let rel_type = self.expect_ident("relationship type")?;
+        if self.consume_text("|") {
+            bail!("unsupported Cypher: relationship alternation is not part of the M4 subset");
+        }
+        self.expect_text("]")?;
+        if self.consume_text("<-") {
+            bail!(
+                "unsupported Cypher: reverse relationship patterns are not part of the M4 subset"
+            );
+        }
+        self.expect_text("->")?;
+        self.expect_text("(")?;
+        let right_var = self.expect_ident("right node variable")?;
+        let right_label = if self.consume_text(":") {
+            Some(self.expect_ident("right node label")?)
+        } else {
+            None
+        };
+        self.expect_text(")")?;
+        Ok(MatchPattern {
+            left_var,
+            left_label,
+            rel_var,
+            rel_type,
+            right_var,
+            right_label,
+        })
+    }
+
+    fn parse_projection_until(&mut self, stop_keywords: &[&str]) -> Result<ProjectionClause> {
+        let distinct = self.consume_keyword("DISTINCT");
+        let mut items = Vec::new();
+        loop {
+            let expr = self.parse_value_expr()?;
+            let alias = if self.consume_keyword("AS") {
+                self.expect_ident("projection alias")?
+            } else {
+                default_alias(&expr)
+            };
+            items.push(SelectItem { expr, alias });
+            if self.consume_text(",") {
+                continue;
+            }
+            if self.is_end()
+                || stop_keywords.iter().any(|keyword| {
+                    self.peek().is_some_and(|token| {
+                        token.kind == TokenKind::Ident && token.text.eq_ignore_ascii_case(keyword)
+                    })
+                })
+            {
+                break;
+            }
+            bail!("invalid Cypher: expected comma or clause boundary");
+        }
+        if items.is_empty() {
+            bail!("invalid Cypher: projection requires at least one item");
+        }
+        Ok(ProjectionClause { distinct, items })
+    }
+
+    fn parse_or_expr(&mut self) -> Result<BoolExpr> {
+        let mut expr = self.parse_and_expr()?;
+        while self.consume_keyword("OR") {
+            expr = BoolExpr::Or(Box::new(expr), Box::new(self.parse_and_expr()?));
+        }
+        Ok(expr)
+    }
+
+    fn parse_and_expr(&mut self) -> Result<BoolExpr> {
+        let mut expr = self.parse_not_expr()?;
+        while self.consume_keyword("AND") {
+            expr = BoolExpr::And(Box::new(expr), Box::new(self.parse_not_expr()?));
+        }
+        Ok(expr)
+    }
+
+    fn parse_not_expr(&mut self) -> Result<BoolExpr> {
+        if self.consume_keyword("NOT") {
+            Ok(BoolExpr::Not(Box::new(self.parse_not_expr()?)))
+        } else {
+            self.parse_atom_expr()
+        }
+    }
+
+    fn parse_atom_expr(&mut self) -> Result<BoolExpr> {
+        if self.consume_text("(") {
+            let expr = self.parse_or_expr()?;
+            self.expect_text(")")?;
+            return Ok(expr);
+        }
+        if self
+            .peek()
+            .is_some_and(|token| token.kind == TokenKind::Ident)
+            && self
+                .tokens
+                .get(self.pos + 1)
+                .is_some_and(|token| token.text == ":")
+        {
+            let var = self.expect_ident("label variable")?;
+            self.expect_text(":")?;
+            let label = self.expect_ident("label")?;
+            return Ok(BoolExpr::LabelTest(var, label));
+        }
+        let left = self.parse_value_expr()?;
+        let op = if self.consume_text("=") {
+            CompareOp::Eq
+        } else if self.consume_text("<>") {
+            CompareOp::Ne
+        } else if self.consume_text(">=") {
+            CompareOp::Gte
+        } else if self.consume_text("<=") {
+            CompareOp::Lte
+        } else if self.consume_text(">") {
+            CompareOp::Gt
+        } else if self.consume_text("<") {
+            CompareOp::Lt
+        } else if self.consume_keyword("CONTAINS") {
+            CompareOp::Contains
+        } else if self.consume_keyword("STARTS") {
+            self.expect_keyword("WITH")?;
+            CompareOp::StartsWith
+        } else {
+            bail!("invalid Cypher: expected WHERE comparison operator");
+        };
+        let right = self.parse_value_expr()?;
+        Ok(BoolExpr::Compare(left, op, right))
+    }
+
+    fn parse_value_expr(&mut self) -> Result<ValueExpr> {
+        if self.consume_keyword("count") {
+            self.expect_text("(")?;
+            if self.consume_text("*") {
+                self.expect_text(")")?;
+                return Ok(ValueExpr::CountAll);
+            }
+            self.expect_keyword("DISTINCT")?;
+            let expr = self.parse_value_expr()?;
+            self.expect_text(")")?;
+            return Ok(ValueExpr::CountDistinct(Box::new(expr)));
+        }
+        if self.consume_keyword("labels") {
+            self.expect_text("(")?;
+            let var = self.expect_ident("labels variable")?;
+            self.expect_text(")")?;
+            return Ok(ValueExpr::Labels(var));
+        }
+        if self.consume_keyword("toInteger") {
+            self.expect_text("(")?;
+            let expr = self.parse_value_expr()?;
+            self.expect_text(")")?;
+            return Ok(ValueExpr::ToInteger(Box::new(expr)));
+        }
+        if self
+            .peek()
+            .is_some_and(|token| token.kind == TokenKind::String)
+        {
+            let value = self.tokens[self.pos].text.clone();
+            self.pos += 1;
+            return Ok(ValueExpr::String(value));
+        }
+        if self
+            .peek()
+            .is_some_and(|token| token.kind == TokenKind::Number)
+        {
+            let value = self.tokens[self.pos].text.parse::<i64>()?;
+            self.pos += 1;
+            return Ok(ValueExpr::Number(value));
+        }
+        let ident = self.expect_ident("expression")?;
+        if self.consume_text(".") {
+            let prop = self.expect_ident("property")?;
+            return Ok(ValueExpr::Property(ident, prop));
+        }
+        Ok(ValueExpr::Alias(ident))
+    }
+}
+
+fn default_alias(expr: &ValueExpr) -> String {
+    match expr {
+        ValueExpr::Property(var, prop) => format!("{var}.{prop}"),
+        ValueExpr::Labels(var) => format!("labels({var})"),
+        ValueExpr::ToInteger(_) => "toInteger".to_string(),
+        ValueExpr::String(_) => "string".to_string(),
+        ValueExpr::Number(_) => "number".to_string(),
+        ValueExpr::Alias(value) => value.clone(),
+        ValueExpr::CountAll => "count".to_string(),
+        ValueExpr::CountDistinct(_) => "count".to_string(),
+    }
+}
+
+fn evaluate_cypher(
+    parsed: &ParsedCypher,
+    edges: &[GraphEdge],
+    max_rows: usize,
+) -> Result<QueryResult> {
+    let mut rows = Vec::new();
+    for edge in edges {
+        if edge.predicate != parsed.pattern.rel_type {
+            continue;
+        }
+        if parsed
+            .pattern
+            .left_label
+            .as_deref()
+            .is_some_and(|label| !label_matches(&edge.from, label))
+            || parsed
+                .pattern
+                .right_label
+                .as_deref()
+                .is_some_and(|label| !label_matches(&edge.to, label))
+        {
+            continue;
+        }
+        let mut entities = HashMap::new();
+        entities.insert(parsed.pattern.left_var.clone(), edge.from.clone());
+        entities.insert(parsed.pattern.right_var.clone(), edge.to.clone());
+        let mut rels = HashMap::new();
+        if let Some(var) = &parsed.pattern.rel_var {
+            rels.insert(var.clone(), edge.clone());
+        }
+        rows.push(EvalRow {
+            entities,
+            rels,
+            aliases: HashMap::new(),
+        });
+    }
+    if let Some(expr) = &parsed.where_expr {
+        rows.retain(|row| eval_bool(expr, row).unwrap_or(false));
+    }
+    if let Some(with_clause) = &parsed.with_clause {
+        rows = project_eval_rows(&rows, with_clause)?;
+    }
+    let columns = parsed
+        .return_clause
+        .items
+        .iter()
+        .map(|item| item.alias.clone())
+        .collect::<Vec<_>>();
+    let has_aggregate = parsed
+        .return_clause
+        .items
+        .iter()
+        .any(|item| matches!(item.expr, ValueExpr::CountAll | ValueExpr::CountDistinct(_)));
+    let mut out_rows = if has_aggregate {
+        if parsed.return_clause.items.len() != 1 {
+            bail!("unsupported Cypher: aggregate projections cannot be mixed in the M4 subset");
+        }
+        vec![project_aggregate_row(
+            &rows,
+            &parsed.return_clause.items[0],
+        )?]
+    } else {
+        project_json_rows(&rows, &parsed.return_clause)?
+    };
+    if parsed.return_clause.distinct {
+        out_rows = distinct_json_rows(out_rows);
+    }
+    if let Some(order_by) = &parsed.order_by {
+        out_rows.sort_by(|left, right| {
+            let left_value = left.get(&order_by.key).cloned().unwrap_or(Value::Null);
+            let right_value = right.get(&order_by.key).cloned().unwrap_or(Value::Null);
+            let ordering = json_sort_key(&left_value).cmp(&json_sort_key(&right_value));
+            if order_by.descending {
+                ordering.reverse()
+            } else {
+                ordering
+            }
+        });
+    }
+    if let Some(limit) = parsed.limit {
+        out_rows.truncate(limit);
+    }
+    let truncated = out_rows.len() > max_rows;
+    out_rows.truncate(max_rows);
+    Ok(QueryResult {
+        columns,
+        rows: out_rows,
+        truncated,
+    })
+}
+
+fn project_eval_rows(rows: &[EvalRow], clause: &ProjectionClause) -> Result<Vec<EvalRow>> {
+    let mut out = Vec::new();
+    let mut seen = HashSet::new();
+    for row in rows {
+        let mut aliases = HashMap::new();
+        let mut key_parts = Vec::new();
+        for item in &clause.items {
+            let value = eval_value(&item.expr, row)?;
+            key_parts.push(canonical_json(&value));
+            aliases.insert(item.alias.clone(), value);
+        }
+        if clause.distinct && !seen.insert(key_parts.join("\0")) {
+            continue;
+        }
+        out.push(EvalRow {
+            entities: HashMap::new(),
+            rels: HashMap::new(),
+            aliases,
+        });
+    }
+    Ok(out)
+}
+
+fn project_json_rows(rows: &[EvalRow], clause: &ProjectionClause) -> Result<Vec<Value>> {
+    let mut out = Vec::new();
+    for row in rows {
+        let mut object = Map::new();
+        for item in &clause.items {
+            object.insert(item.alias.clone(), eval_value(&item.expr, row)?);
+        }
+        out.push(Value::Object(object));
+    }
+    Ok(out)
+}
+
+fn project_aggregate_row(rows: &[EvalRow], item: &SelectItem) -> Result<Value> {
+    let value = match &item.expr {
+        ValueExpr::CountAll => json!(rows.len()),
+        ValueExpr::CountDistinct(expr) => {
+            let mut seen = HashSet::new();
+            for row in rows {
+                seen.insert(canonical_json(&eval_value(expr, row)?));
+            }
+            json!(seen.len())
+        }
+        _ => bail!("invalid Cypher: expected aggregate expression"),
+    };
+    let mut object = Map::new();
+    object.insert(item.alias.clone(), value);
+    Ok(Value::Object(object))
+}
+
+fn distinct_json_rows(rows: Vec<Value>) -> Vec<Value> {
+    let mut seen = HashSet::new();
+    rows.into_iter()
+        .filter(|row| seen.insert(canonical_json(row)))
+        .collect()
+}
+
+fn eval_bool(expr: &BoolExpr, row: &EvalRow) -> Result<bool> {
+    Ok(match expr {
+        BoolExpr::Or(left, right) => eval_bool(left, row)? || eval_bool(right, row)?,
+        BoolExpr::And(left, right) => eval_bool(left, row)? && eval_bool(right, row)?,
+        BoolExpr::Not(inner) => !eval_bool(inner, row)?,
+        BoolExpr::LabelTest(var, label) => row
+            .entities
+            .get(var)
+            .is_some_and(|name| label_matches(name, label)),
+        BoolExpr::Compare(left, op, right) => {
+            compare_values(&eval_value(left, row)?, op, &eval_value(right, row)?)
+        }
+    })
+}
+
+fn compare_values(left: &Value, op: &CompareOp, right: &Value) -> bool {
+    match op {
+        CompareOp::Eq => left == right,
+        CompareOp::Ne => left != right,
+        CompareOp::Gt | CompareOp::Gte | CompareOp::Lt | CompareOp::Lte => {
+            let left_num = left.as_i64().or_else(|| left.as_str().and_then(parse_int));
+            let right_num = right
+                .as_i64()
+                .or_else(|| right.as_str().and_then(parse_int));
+            match (left_num, right_num) {
+                (Some(left), Some(right)) => match op {
+                    CompareOp::Gt => left > right,
+                    CompareOp::Gte => left >= right,
+                    CompareOp::Lt => left < right,
+                    CompareOp::Lte => left <= right,
+                    _ => false,
+                },
+                _ => match op {
+                    CompareOp::Gt => json_sort_key(left) > json_sort_key(right),
+                    CompareOp::Gte => json_sort_key(left) >= json_sort_key(right),
+                    CompareOp::Lt => json_sort_key(left) < json_sort_key(right),
+                    CompareOp::Lte => json_sort_key(left) <= json_sort_key(right),
+                    _ => false,
+                },
+            }
+        }
+        CompareOp::Contains => value_string(left).contains(&value_string(right)),
+        CompareOp::StartsWith => value_string(left).starts_with(&value_string(right)),
+    }
+}
+
+fn eval_value(expr: &ValueExpr, row: &EvalRow) -> Result<Value> {
+    Ok(match expr {
+        ValueExpr::Property(var, prop) => {
+            if let Some(name) = row.entities.get(var) {
+                match prop.as_str() {
+                    "name" => Value::String(name.clone()),
+                    "type" | "kind" => Value::String(temporal_graph_entity_type(name)),
+                    _ => bail!("unsupported Cypher: node property {prop} is not supported"),
+                }
+            } else if let Some(edge) = row.rels.get(var) {
+                match prop.as_str() {
+                    "predicate" => Value::String(edge.predicate.clone()),
+                    "factId" | "fact_id" => Value::String(edge.fact_id.clone()),
+                    "from" => Value::String(edge.from.clone()),
+                    "to" => Value::String(edge.to.clone()),
+                    "source" => Value::String(edge.source.clone()),
+                    _ => bail!("unsupported Cypher: relationship property {prop} is not supported"),
+                }
+            } else {
+                bail!("invalid Cypher: unknown variable {var}");
+            }
+        }
+        ValueExpr::Labels(var) => {
+            let name = row
+                .entities
+                .get(var)
+                .ok_or_else(|| anyhow!("invalid Cypher: unknown variable {var}"))?;
+            json!([cypher_label(name)])
+        }
+        ValueExpr::ToInteger(inner) => {
+            let value = eval_value(inner, row)?;
+            match value
+                .as_i64()
+                .or_else(|| value.as_str().and_then(parse_int))
+            {
+                Some(value) => json!(value),
+                None => Value::Null,
+            }
+        }
+        ValueExpr::String(value) => Value::String(value.clone()),
+        ValueExpr::Number(value) => json!(value),
+        ValueExpr::Alias(value) => row
+            .aliases
+            .get(value)
+            .cloned()
+            .or_else(|| {
+                row.entities
+                    .get(value)
+                    .map(|name| Value::String(name.clone()))
+            })
+            .ok_or_else(|| anyhow!("invalid Cypher: unknown alias or variable {value}"))?,
+        ValueExpr::CountAll | ValueExpr::CountDistinct(_) => {
+            bail!("invalid Cypher: aggregate expression is only valid in RETURN")
+        }
+    })
+}
+
+fn parse_int(value: &str) -> Option<i64> {
+    value.trim().parse::<i64>().ok()
+}
+
+fn value_string(value: &Value) -> String {
+    value
+        .as_str()
+        .map(str::to_string)
+        .unwrap_or_else(|| value.to_string())
+}
+
+fn json_sort_key(value: &Value) -> String {
+    match value {
+        Value::Null => "".to_string(),
+        Value::String(value) => value.clone(),
+        Value::Number(value) => format!("{value:>020}"),
+        Value::Bool(value) => value.to_string(),
+        Value::Array(_) | Value::Object(_) => canonical_json(value),
     }
 }
 
