@@ -102,13 +102,37 @@ function safeQueueObject(value) {
   return output;
 }
 
+function identifierSearchText(value) {
+  const text = String(value ?? '');
+  return `${text} ${text
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([\p{Ll}\p{N}])([\p{Lu}])/gu, '$1 $2')
+    .replace(/[:_.-]+/g, ' ')}`;
+}
+
 function tokenizeQuery(value) {
-  return [...new Set(String(value ?? '').toLocaleLowerCase().match(/[\p{L}\p{N}_]+/gu) ?? [])].slice(0, 24);
+  return [...new Set(identifierSearchText(value).toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])].slice(0, 24);
 }
 
 function ftsExpression(query) {
   const tokens = tokenizeQuery(query);
   return tokens.length ? tokens.map((token) => `"${token.replaceAll('"', '""')}"*`).join(' OR ') : null;
+}
+
+function temporalFactFtsText(fact) {
+  return [fact.subject, fact.predicate, fact.object, fact.text].map(identifierSearchText).join(' ');
+}
+
+function temporalFactLexicalScore(fact, query) {
+  const tokens = tokenizeQuery(query);
+  if (!tokens.length) return 0;
+  const rawQuery = String(query ?? '').trim().toLocaleLowerCase();
+  const rawHaystack = [fact.subject, fact.predicate, fact.object, fact.text].join(' ').toLocaleLowerCase();
+  if (rawQuery && rawHaystack.includes(rawQuery)) return 1;
+  const haystack = temporalFactFtsText(fact).toLocaleLowerCase();
+  const matched = tokens.filter((token) => haystack.includes(token)).length;
+  if (matched === tokens.length) return 0.9;
+  return matched ? 0.25 * (matched / tokens.length) : 0;
 }
 
 function normalizeRecord(input, clock) {
@@ -506,11 +530,69 @@ export class SQLiteMemoryProvider {
     this.#ensureColumn('memory_records', 'verified_by', 'TEXT');
     this.#ensureColumn('memory_records', 'activated_by', 'TEXT');
     this.#ensureColumn('memory_records', 'lifecycle_json', "TEXT NOT NULL DEFAULT '[]'");
+    this.#migrateTemporalEntityIdentity();
+    this.database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_entities_identity ON memory_entities(workspace_id, scope, name);');
+    this.#rebuildTemporalFactFts();
   }
 
   #ensureColumn(table, column, definition) {
     const columns = this.database.prepare(`PRAGMA table_info(${table})`).all().map((row) => row.name);
     if (!columns.includes(column)) this.database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+  }
+
+  #migrateTemporalEntityIdentity() {
+    const rows = this.database.prepare(`
+      SELECT *
+      FROM memory_entities
+      ORDER BY workspace_id ASC, scope ASC, name ASC, updated_at DESC, id ASC
+    `).all();
+    if (!rows.length) return;
+    const groups = new Map();
+    for (const row of rows) {
+      const key = `${row.workspace_id}\0${row.scope}\0${row.name}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(row);
+    }
+    this.database.exec('BEGIN IMMEDIATE');
+    try {
+      const insertEntity = this.database.prepare(`
+        INSERT INTO memory_entities (id, workspace_id, scope, kind, name, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          workspace_id=excluded.workspace_id,
+          scope=excluded.scope,
+          name=excluded.name,
+          updated_at=excluded.updated_at
+      `);
+      const updateSource = this.database.prepare('UPDATE memory_edges SET source_entity_id = ? WHERE workspace_id = ? AND scope = ? AND source_entity_id = ?');
+      const updateTarget = this.database.prepare('UPDATE memory_edges SET target_entity_id = ? WHERE workspace_id = ? AND scope = ? AND target_entity_id = ?');
+      const deleteDuplicate = this.database.prepare('DELETE FROM memory_entities WHERE workspace_id = ? AND scope = ? AND name = ? AND id <> ?');
+      const updateKind = this.database.prepare('UPDATE memory_entities SET kind = ?, updated_at = ? WHERE id = ?');
+      for (const group of groups.values()) {
+        const first = group[0];
+        const canonicalId = deterministicId('ment', { workspaceId: first.workspace_id, scope: first.scope, name: first.name });
+        const createdAt = group.map((row) => row.created_at).sort()[0];
+        const updatedAt = group.map((row) => row.updated_at).sort().at(-1);
+        insertEntity.run(canonicalId, first.workspace_id, first.scope, `canonical:${canonicalId}`, first.name, createdAt, updatedAt);
+        for (const row of group) {
+          updateSource.run(canonicalId, row.workspace_id, row.scope, row.id);
+          updateTarget.run(canonicalId, row.workspace_id, row.scope, row.id);
+        }
+        deleteDuplicate.run(first.workspace_id, first.scope, first.name, canonicalId);
+        updateKind.run(first.kind, updatedAt, canonicalId);
+      }
+      this.database.exec('COMMIT');
+    } catch (error) {
+      this.database.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  #rebuildTemporalFactFts() {
+    const rows = this.database.prepare('SELECT id, workspace_id, scope, subject, predicate, object, text FROM memory_facts').all();
+    this.database.prepare('DELETE FROM memory_fact_fts').run();
+    const insert = this.database.prepare('INSERT INTO memory_fact_fts(id, workspace_id, scope, subject, predicate, object, text) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    for (const row of rows) insert.run(row.id, row.workspace_id, row.scope, row.subject, row.predicate, row.object, temporalFactFtsText(row));
   }
 
   async health() {
@@ -726,11 +808,13 @@ export class SQLiteMemoryProvider {
   }
 
   #upsertTemporalEntity({ workspaceId, scope, kind, name, now }) {
-    const id = deterministicId('ment', { workspaceId, scope, kind, name });
+    const id = deterministicId('ment', { workspaceId, scope, name });
     this.database.prepare(`
       INSERT INTO memory_entities (id, workspace_id, scope, kind, name, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(workspace_id, scope, kind, name) DO UPDATE SET updated_at=excluded.updated_at
+      ON CONFLICT(workspace_id, scope, name) DO UPDATE SET
+        kind=excluded.kind,
+        updated_at=excluded.updated_at
     `).run(id, workspaceId, scope, kind, name, now, now);
     return id;
   }
@@ -785,7 +869,7 @@ export class SQLiteMemoryProvider {
     });
     this.database.prepare('DELETE FROM memory_fact_fts WHERE workspace_id = ? AND id = ?').run(fact.workspaceId, fact.id);
     this.database.prepare('INSERT INTO memory_fact_fts(id, workspace_id, scope, subject, predicate, object, text) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(fact.id, fact.workspaceId, fact.scope, fact.subject, fact.predicate, fact.object, fact.text);
+      .run(fact.id, fact.workspaceId, fact.scope, fact.subject, fact.predicate, fact.object, temporalFactFtsText(fact));
   }
 
   #temporalFactFromRow(row) {
@@ -969,7 +1053,7 @@ export class SQLiteMemoryProvider {
     const relatedIds = this.#relatedTemporalFactIds(rows, seedRows);
     const scored = rows
       .map((row) => {
-        const fts5 = ftsScores.get(row.id) ?? 0;
+        const fts5 = Math.max(ftsScores.get(row.id) ?? 0, temporalFactLexicalScore(row, query));
         const graph = fts5 > 0 ? 0.2 : (relatedIds.has(row.id) ? 0.4 : 0);
         const temporal = temporalRank(row.valid_from, at);
         const score = fts5 * 0.7 + graph * 0.2 + temporal * 0.1;

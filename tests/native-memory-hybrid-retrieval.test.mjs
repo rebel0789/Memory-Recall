@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { DatabaseSync } from 'node:sqlite';
 import os from 'node:os';
 import path from 'node:path';
 import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
@@ -203,4 +204,90 @@ test('native temporal graph queries traverse approved current-truth neighborhood
   assert.equal(explainReport.entity, 'auth');
   assert.equal(explainReport.edges.some((edge) => edge.to === 'hmac-session-tokens'), false);
   assert.equal(explainReport.edges.some((edge) => edge.to === 'signed-session-tokens'), true);
+});
+
+test('native temporal graph handles scale-shaped entity identity and identifier recall', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-memory-graph-scale-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const provider = new SQLiteMemoryProvider({ filename: path.join(directory, 'memory.sqlite'), clock: () => '2026-06-26T12:00:00.000Z' });
+  let closed = false;
+  t.after(() => { if (!closed) provider.close(); });
+
+  await approveFact(provider, { id: 'mpq_project_default_memory_provider', subject: 'project:open-agent-fabric', predicate: 'default_memory_provider', object: 'provider:native:memory:sqlite' });
+  await approveFact(provider, { id: 'mpq_provider_implements_port', subject: 'provider:native:memory:sqlite', predicate: 'implements_port', object: 'MemoryBackendPort' });
+  await approveFact(provider, { id: 'mpq_provider_uses_memory_edges', subject: 'provider:native:memory:sqlite', predicate: 'uses', object: 'memory_edges' });
+  for (let index = 0; index < 60; index += 1) {
+    await approveFact(provider, { id: `mpq_noise_memory_${index}`, subject: `noise:${index}`, predicate: 'mentions', object: `memory_${index}` });
+  }
+
+  const entities = provider.database.prepare(`
+    SELECT id, kind, name
+    FROM memory_entities
+    WHERE workspace_id = ? AND scope = ? AND name = ?
+    ORDER BY id ASC
+  `).all('ws_local', 'workspace', 'provider:native:memory:sqlite');
+  assert.equal(entities.length, 1);
+
+  const pathReport = await provider.getTemporalMemoryPath({
+    workspaceId: 'ws_local',
+    from: 'project:open-agent-fabric',
+    to: 'MemoryBackendPort',
+    maxHops: 6
+  });
+  assert.deepEqual(pathReport.path.map((node) => node.name), ['project:open-agent-fabric', 'provider:native:memory:sqlite', 'MemoryBackendPort']);
+
+  const portRecall = await provider.searchTemporalMemory({ workspaceId: 'ws_local', query: 'MemoryBackendPort', limit: 5 });
+  assert.equal(portRecall.results[0].fact.object, 'MemoryBackendPort');
+  const memoryRecall = await provider.searchTemporalMemory({ workspaceId: 'ws_local', query: 'memory', limit: 80 });
+  assert(memoryRecall.results.some((item) => item.fact.subject === 'provider:native:memory:sqlite' || item.fact.object === 'memory_edges'));
+
+  const legacyPath = path.join(directory, 'legacy.sqlite');
+  const legacy = new DatabaseSync(legacyPath);
+  legacy.exec(`
+    CREATE TABLE memory_entities (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(workspace_id, scope, kind, name)
+    );
+    CREATE TABLE memory_edges (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      scope TEXT NOT NULL,
+      source_entity_id TEXT NOT NULL,
+      target_entity_id TEXT NOT NULL,
+      predicate TEXT NOT NULL,
+      fact_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(workspace_id, scope, fact_id)
+    );
+    INSERT INTO memory_entities VALUES
+      ('old_object_provider', 'ws_local', 'workspace', 'object', 'provider:native:memory:sqlite', '2026-06-26T09:00:00.000Z', '2026-06-26T09:00:00.000Z'),
+      ('old_subject_provider', 'ws_local', 'workspace', 'subject', 'provider:native:memory:sqlite', '2026-06-26T09:00:00.000Z', '2026-06-26T10:00:00.000Z'),
+      ('old_project', 'ws_local', 'workspace', 'subject', 'project:open-agent-fabric', '2026-06-26T09:00:00.000Z', '2026-06-26T09:00:00.000Z');
+    INSERT INTO memory_edges VALUES
+      ('edge_project_provider', 'ws_local', 'workspace', 'old_project', 'old_object_provider', 'default_memory_provider', 'fact_project_provider', '2026-06-26T09:00:00.000Z'),
+      ('edge_provider_port', 'ws_local', 'workspace', 'old_subject_provider', 'old_project', 'implements_port', 'fact_provider_port', '2026-06-26T10:00:00.000Z');
+  `);
+  legacy.close();
+  const migrated = new SQLiteMemoryProvider({ filename: legacyPath, clock: () => '2026-06-26T12:00:00.000Z' });
+  const migratedEntities = migrated.database.prepare(`
+    SELECT id
+    FROM memory_entities
+    WHERE workspace_id = ? AND scope = ? AND name = ?
+  `).all('ws_local', 'workspace', 'provider:native:memory:sqlite');
+  assert.equal(migratedEntities.length, 1);
+  const migratedEdgeIds = migrated.database.prepare(`
+    SELECT source_entity_id, target_entity_id
+    FROM memory_edges
+    WHERE workspace_id = ? AND scope = ?
+    ORDER BY id ASC
+  `).all('ws_local', 'workspace');
+  assert(migratedEdgeIds.some((edge) => edge.source_entity_id === migratedEntities[0].id));
+  assert(migratedEdgeIds.some((edge) => edge.target_entity_id === migratedEntities[0].id));
+  migrated.close();
 });
