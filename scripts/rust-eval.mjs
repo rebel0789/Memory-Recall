@@ -11,6 +11,9 @@ const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RUST_BIN = path.join(ROOT, 'rust/target/release/oaf');
 const FIXED_NOW = '2026-06-29T00:00:00.000Z';
 const CBM_PER_FILE_MS = 2.4;
+const BASELINE_FILE_CAP = 8;
+const BASELINE_CONTEXT_LINES = 30;
+const SMALL_FILE_LINES = 120;
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -155,21 +158,76 @@ function graphAnswer(root, sqlite, query) {
   const answer = JSON.stringify(report.rows);
   const hits = query.expected.filter((needle) => answer.includes(needle)).length;
   const grade = hits === query.expected.length ? 'PASS' : hits > 0 ? 'PARTIAL' : 'FAIL';
-  const tokens = estimateTokens(answer) + estimateTokens(query.cypher);
+  const tokens = estimateTokens(JSON.stringify(report));
   return { grade, tokens, toolCalls: 1, hits, answer };
 }
 
 function fileBaselineAnswer(root, query) {
-  const files = query.baselineFiles.filter((file) => existsSync(path.join(root, file)));
-  let combined = '';
-  let toolCalls = 0;
-  for (const file of files) {
-    combined += readFileSync(path.join(root, file), 'utf8');
-    toolCalls += 1;
-  }
+  const grep = spawnSync('git', ['grep', '-n', '-I', '-F', '--', query.searchTerm], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024
+  });
+  assert.ok(grep.status === 0 || grep.status === 1, grep.stderr || grep.stdout);
+  const grepOutput = grep.stdout.trim();
+  const matches = parseGrepMatches(grepOutput);
+  const files = [...new Set(matches.map((match) => match.file))]
+    .filter((file) => file !== 'scripts/rust-eval.mjs')
+    .filter((file) => existsSync(path.join(root, file)))
+    .slice(0, BASELINE_FILE_CAP);
+  const snippets = files.map((file) => matchedFileSnippet(root, file, matches.filter((match) => match.file === file).map((match) => match.line)));
+  const combined = [grepOutput, ...snippets].join('\n');
   const hits = query.expected.filter((needle) => combined.includes(query.fileNeedles?.[needle] ?? needle)).length;
   const grade = hits === query.expected.length ? 'PASS' : hits > 0 ? 'PARTIAL' : 'FAIL';
-  return { grade, tokens: estimateTokens(combined), toolCalls, hits };
+  return {
+    grade,
+    tokens: estimateTokens(combined),
+    toolCalls: 1 + files.length,
+    hits,
+    searchTerm: query.searchTerm,
+    grepMatchCount: matches.length,
+    matchedFileCount: new Set(matches.map((match) => match.file)).size,
+    filesRead: files,
+    fileCap: BASELINE_FILE_CAP,
+    contextLines: BASELINE_CONTEXT_LINES
+  };
+}
+
+function parseGrepMatches(output) {
+  if (!output) return [];
+  return output.split(/\r?\n/u).flatMap((line) => {
+    const match = /^(.*?):(\d+):(.*)$/u.exec(line);
+    return match ? [{ file: match[1], line: Number(match[2]), text: match[3] }] : [];
+  });
+}
+
+function matchedFileSnippet(root, file, matchLines) {
+  const lines = readFileSync(path.join(root, file), 'utf8').split(/\r?\n/u);
+  if (lines.length <= SMALL_FILE_LINES) {
+    return `--- ${file}:1-${lines.length} ---\n${lines.join('\n')}`;
+  }
+  const windows = mergeWindows(matchLines.map((line) => ({
+    start: Math.max(1, line - BASELINE_CONTEXT_LINES),
+    end: Math.min(lines.length, line + BASELINE_CONTEXT_LINES)
+  })));
+  return windows.map((window) => {
+    const body = lines.slice(window.start - 1, window.end).join('\n');
+    return `--- ${file}:${window.start}-${window.end} ---\n${body}`;
+  }).join('\n');
+}
+
+function mergeWindows(windows) {
+  const sorted = windows.filter((window) => Number.isFinite(window.start)).sort((a, b) => a.start - b.start);
+  const merged = [];
+  for (const window of sorted) {
+    const last = merged.at(-1);
+    if (!last || window.start > last.end + 1) {
+      merged.push({ ...window });
+    } else {
+      last.end = Math.max(last.end, window.end);
+    }
+  }
+  return merged;
 }
 
 function estimateTokens(text) {
@@ -188,7 +246,9 @@ function evaluateRepo(label, root, queries) {
         graph: { grade: graph.grade, tokens: graph.tokens, toolCalls: graph.toolCalls, hits: graph.hits },
         fileBaseline,
         tokenReduction: Number((1 - graph.tokens / Math.max(1, fileBaseline.tokens)).toFixed(3)),
-        toolCallReduction: Number((1 - graph.toolCalls / Math.max(1, fileBaseline.toolCalls)).toFixed(3))
+        tokenMultiplier: Number((fileBaseline.tokens / Math.max(1, graph.tokens)).toFixed(2)),
+        toolCallReduction: Number((1 - graph.toolCalls / Math.max(1, fileBaseline.toolCalls)).toFixed(3)),
+        toolCallMultiplier: Number((fileBaseline.toolCalls / Math.max(1, graph.toolCalls)).toFixed(2))
       };
     });
     return {
@@ -201,6 +261,26 @@ function evaluateRepo(label, root, queries) {
   } finally {
     rmSync(ingest.temp, { recursive: true, force: true });
   }
+}
+
+function aggregateEvalResults(evals) {
+  const questions = evals.flatMap((repo) => repo.questions.map((question) => ({ repo: repo.label, ...question })));
+  const graphTokens = questions.reduce((sum, question) => sum + question.graph.tokens, 0);
+  const baselineTokens = questions.reduce((sum, question) => sum + question.fileBaseline.tokens, 0);
+  const graphToolCalls = questions.reduce((sum, question) => sum + question.graph.toolCalls, 0);
+  const baselineToolCalls = questions.reduce((sum, question) => sum + question.fileBaseline.toolCalls, 0);
+  return {
+    questionCount: questions.length,
+    graphTokens,
+    baselineTokens,
+    graphToolCalls,
+    baselineToolCalls,
+    tokenReduction: Number((1 - graphTokens / Math.max(1, baselineTokens)).toFixed(3)),
+    tokenMultiplier: Number((baselineTokens / Math.max(1, graphTokens)).toFixed(2)),
+    toolCallReduction: Number((1 - graphToolCalls / Math.max(1, baselineToolCalls)).toFixed(3)),
+    toolCallMultiplier: Number((baselineToolCalls / Math.max(1, graphToolCalls)).toFixed(2)),
+    suspicious: baselineTokens / Math.max(1, graphTokens) > 50 || questions.some((question) => question.toolCallReduction <= 0)
+  };
 }
 
 assert.equal(existsSync(RUST_BIN), true, 'run cargo build --release before rust-eval');
@@ -216,7 +296,7 @@ try {
         id: 'store-approval-claim-callers',
         cypher: "MATCH (n)-[:CALLS]->(m) WHERE m.name = 'function:claim_result_uncommitted' RETURN n.name AS caller, m.name AS callee ORDER BY caller LIMIT 20",
         expected: ['method:Store_approve_proposal_uncommitted', 'function:claim_result_uncommitted'],
-        baselineFiles: ['rust/oaf-store/src/lib.rs'],
+        searchTerm: 'claim_result_uncommitted',
         fileNeedles: {
           'method:Store_approve_proposal_uncommitted': 'fn approve_proposal_uncommitted',
           'function:claim_result_uncommitted': 'fn claim_result_uncommitted'
@@ -225,33 +305,71 @@ try {
       {
         id: 'cli-detect-changes-surface',
         cypher: "MATCH (n)-[:DEFINES]->(m) WHERE m.name = 'function:impact_detect_changes_command' RETURN n.name AS owner, m.name AS symbol LIMIT 20",
-        expected: ['function:impact_detect_changes_command'],
-        baselineFiles: ['rust/oaf/src/main.rs'],
-        fileNeedles: { 'function:impact_detect_changes_command': 'fn impact_detect_changes_command' }
+        expected: ['module:rust_oaf_src_main', 'function:impact_detect_changes_command'],
+        searchTerm: 'impact_detect_changes_command',
+        fileNeedles: {
+          'module:rust_oaf_src_main': 'fn impact_detect_changes_command',
+          'function:impact_detect_changes_command': 'fn impact_detect_changes_command'
+        }
+      },
+      {
+        id: 'architecture-overview-surface',
+        cypher: "MATCH (n)-[:DEFINES]->(m) WHERE m.name = 'function:architecture_overview_command' RETURN n.name AS owner, m.name AS symbol LIMIT 20",
+        expected: ['module:rust_oaf_src_main', 'function:architecture_overview_command'],
+        searchTerm: 'architecture_overview_command',
+        fileNeedles: {
+          'module:rust_oaf_src_main': 'fn architecture_overview_command',
+          'function:architecture_overview_command': 'fn architecture_overview_command'
+        }
       }
     ]),
     evaluateRepo('dtolnay/itoa', externalRepo, [
       {
         id: 'buffer-methods',
         cypher: "MATCH (n)-[:DEFINES]->(m) WHERE m.name = 'method:Buffer_new' RETURN n.name AS owner, m.name AS method LIMIT 20",
-        expected: ['method:Buffer_new'],
-        baselineFiles: ['src/lib.rs'],
-        fileNeedles: { 'method:Buffer_new': 'fn new' }
+        expected: ['module:src_lib', 'method:Buffer_new'],
+        searchTerm: 'pub fn new',
+        fileNeedles: {
+          'module:src_lib': 'pub fn new',
+          'method:Buffer_new': 'fn new'
+        }
       },
       {
         id: 'format-helper-call',
         cypher: "MATCH (n)-[:CALLS]->(m) WHERE n.name = 'method:Buffer_format' RETURN n.name AS caller, m.name AS callee LIMIT 20",
-        expected: ['method:Buffer_format'],
-        baselineFiles: ['src/lib.rs'],
-        fileNeedles: { 'method:Buffer_format': 'fn format' }
+        expected: ['method:Buffer_format', 'function:write'],
+        searchTerm: 'pub fn format',
+        fileNeedles: {
+          'method:Buffer_format': 'fn format',
+          'function:write': '.write('
+        }
+      },
+      {
+        id: 'u128-format-calls',
+        cypher: "MATCH (n)-[:CALLS]->(m) WHERE n.name = 'method:u128_fmt' RETURN n.name AS caller, m.name AS callee ORDER BY callee LIMIT 20",
+        expected: ['method:u128_fmt', 'function:divmod100'],
+        searchTerm: 'divmod100',
+        fileNeedles: {
+          'method:u128_fmt': 'fn fmt',
+          'function:divmod100': 'fn divmod100'
+        }
       }
     ])
   ];
   const failures = evals.flatMap((repo) => repo.questions.filter((question) => question.graph.grade === 'FAIL').map((question) => `${repo.label}:${question.id}`));
+  const aggregate = aggregateEvalResults(evals);
+  assert.ok(evals.length >= 2, 'rust eval must cover at least two real repos');
+  for (const repo of evals) {
+    assert.ok(repo.questions.length >= 3, `${repo.label} must cover at least three structural questions`);
+    for (const question of repo.questions) {
+      assert.ok(question.toolCallReduction > 0, `${repo.label}:${question.id} must reduce tool calls`);
+    }
+  }
+  assert.equal(aggregate.suspicious, false, `suspect rust eval numbers: ${JSON.stringify(aggregate)}`);
   const report = {
     schemaVersion: '1.0.0',
     command: 'rust eval',
-    methodology: 'Graph queries over governed Rust ingest compared with targeted file-by-file reads of likely source files; no whole-repo dumping baseline.',
+    methodology: 'Graph queries over governed Rust ingest compared with a multi-call file baseline: one git grep call for the target symbol, then snippets from matched files only, capped at 8 files; no whole-repo dumping and no unmatched file reads.',
     parallelIngest: {
       ...oafBench,
       cbmDocumentedPerFileMs: CBM_PER_FILE_MS,
@@ -260,6 +378,7 @@ try {
     },
     memoryBound: memory,
     evals,
+    aggregate,
     unhandledPatterns: [
       'Rust receiver-qualified method calls currently resolve to bare function targets when the method name is not globally unique.',
       'Dynamic dispatch, macro-expanded calls, and cross-file alias import resolution remain outside M7.'
