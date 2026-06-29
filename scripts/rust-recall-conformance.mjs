@@ -236,7 +236,9 @@ function benchmark(root) {
   return { writeLatency, approveLatency, recallLatency, lifecycleLatency, profileLatency };
 }
 
-assert.equal(existsSync(path.join(ROOT, 'docs/product/oaf-rust-supertool-spec.md')), false, 'spec doc should stay out of this branch worktree unless intentionally committed');
+if (existsSync(path.join(ROOT, 'docs/product/oaf-rust-supertool-spec.md'))) {
+  run('git', ['ls-files', '--error-unmatch', 'docs/product/oaf-rust-supertool-spec.md']);
+}
 run('cargo', ['build', '--release', '--manifest-path', 'rust/Cargo.toml']);
 
 const nodeA = scenarioA(nodeCli);

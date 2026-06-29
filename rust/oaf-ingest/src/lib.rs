@@ -655,7 +655,10 @@ fn read_cgroup_limit(path: &str) -> Option<u64> {
 }
 
 fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
-    if matches!(node.kind(), "call_expression" | "call" | "method_invocation") {
+    if matches!(
+        node.kind(),
+        "call_expression" | "call" | "method_invocation"
+    ) {
         if let Some(caller) = context.caller.as_deref() {
             if let Some(callee) = callee_name(node, source) {
                 parsed.add_call(caller, &callee, &context.source);
