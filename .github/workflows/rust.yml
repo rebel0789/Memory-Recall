@@ -1,0 +1,22 @@
+name: Rust
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: cargo build --manifest-path rust/Cargo.toml
+      - run: cargo test --manifest-path rust/Cargo.toml
+      - run: cargo build --release --manifest-path rust/Cargo.toml
+      - run: node scripts/rust-recall-conformance.mjs
+
