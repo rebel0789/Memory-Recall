@@ -438,10 +438,47 @@ function oafRepoScenario() {
   };
 }
 
+function realMultiLanguageRepoScenario() {
+  const temp = mkdtempSync(path.join(os.tmpdir(), 'oaf-rust-m9-real-'));
+  const repo = path.join(temp, 'tree-sitter-cpp');
+  try {
+    run('git', ['clone', '--depth', '1', 'https://github.com/tree-sitter/tree-sitter-cpp.git', repo]);
+    const sqlite = path.join(temp, 'real.sqlite');
+    const timed = timedJson(RUST_BIN, ['ingest', '--root', repo, '--sqlite', sqlite, '--format', 'json', '--max-memory', '350', '--max-file-mb', '2']);
+    assert.ok(timed.value.summary.parsedFileCount >= 5, 'real multi-language repo parsed too few files');
+    assert.ok(timed.value.quality.languageCounts.c > 0, 'real repo must exercise C');
+    assert.ok(timed.value.quality.languageCounts.cpp > 0, 'real repo must exercise C++');
+    assert.ok(timed.value.quality.languageCounts['javascript-jsx'] > 0, 'real repo must exercise JS');
+    rustCli(repo, ['memory', 'approve', '--all'], sqlite);
+    const duplicateNames = rows(repo, `
+      SELECT name, count(*) AS count
+      FROM memory_entities
+      GROUP BY workspace_id, scope, name
+      HAVING count(*) > 1
+    `, sqlite);
+    assert.deepEqual(duplicateNames, []);
+    assert.equal(activeCallEdges(repo, sqlite).filter((edge) => edge.target.startsWith('module:')).length, 0);
+    return {
+      label: 'tree-sitter/tree-sitter-cpp',
+      parsedFileCount: timed.value.summary.parsedFileCount,
+      generatedFactCount: timed.value.summary.generatedFactCount,
+      skippedFileCount: timed.value.summary.skippedFileCount,
+      languageCounts: timed.value.quality.languageCounts,
+      duplicateEntityNameCount: duplicateNames.length,
+      moduleTargetCallCount: activeCallEdges(repo, sqlite).filter((edge) => edge.target.startsWith('module:')).length,
+      indexMs: timed.ms,
+      peakRssMb: timed.peakRssMb
+    };
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+}
+
 const fixture = fixtureScenario();
 const languageQuality = languageFixtures();
 crashScenario();
 const oafRepo = oafRepoScenario();
+const realMultiLanguageRepo = realMultiLanguageRepoScenario();
 rmSync(fixture.root, { recursive: true, force: true });
 
 console.log([
@@ -469,6 +506,15 @@ console.log([
   `  oafCallEdgeCount ${oafRepo.oafCallEdgeCount}`,
   `  oafCamelRecallCount ${oafRepo.oafCamelRecallCount}`,
   `  oafIdempotentRecordedCount ${oafRepo.oafIdempotentRecordedCount}`,
+  `  realMultiLanguageRepo ${realMultiLanguageRepo.label}`,
+  `  realMultiLanguageParsedFileCount ${realMultiLanguageRepo.parsedFileCount}`,
+  `  realMultiLanguageGeneratedFactCount ${realMultiLanguageRepo.generatedFactCount}`,
+  `  realMultiLanguageSkippedFileCount ${realMultiLanguageRepo.skippedFileCount}`,
+  `  realMultiLanguageCounts ${JSON.stringify(realMultiLanguageRepo.languageCounts)}`,
+  `  realMultiLanguageDuplicateEntityNameCount ${realMultiLanguageRepo.duplicateEntityNameCount}`,
+  `  realMultiLanguageModuleTargetCallCount ${realMultiLanguageRepo.moduleTargetCallCount}`,
+  `  realMultiLanguageIndexMs ${realMultiLanguageRepo.indexMs}`,
+  `  realMultiLanguagePeakRssMb ${realMultiLanguageRepo.peakRssMb}`,
   `  rustOafIndexMs ${oafRepo.rustOafIndexMs}`,
   `  rustOafPeakRssMb ${oafRepo.rustOafPeakRssMb}`,
   `  documentedNodeBaselineMs ${NODE_BASELINE_MS}`,
