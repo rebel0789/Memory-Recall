@@ -249,6 +249,7 @@ enum LangKind {
     Python,
     Rust,
     Go,
+    Java,
 }
 
 impl LangKind {
@@ -259,6 +260,7 @@ impl LangKind {
             LangKind::Python => "python",
             LangKind::Rust => "rust",
             LangKind::Go => "go",
+            LangKind::Java => "java",
         }
     }
 
@@ -270,6 +272,7 @@ impl LangKind {
             LangKind::Python => tree_sitter_python::LANGUAGE.into(),
             LangKind::Rust => tree_sitter_rust::LANGUAGE.into(),
             LangKind::Go => tree_sitter_go::LANGUAGE.into(),
+            LangKind::Java => tree_sitter_java::LANGUAGE.into(),
         }
     }
 }
@@ -644,7 +647,7 @@ fn read_cgroup_limit(path: &str) -> Option<u64> {
 }
 
 fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
-    if node.kind() == "call_expression" || node.kind() == "call" {
+    if matches!(node.kind(), "call_expression" | "call" | "method_invocation") {
         if let Some(caller) = context.caller.as_deref() {
             if let Some(callee) = callee_name(node, source) {
                 parsed.add_call(caller, &callee, &context.source);
@@ -873,6 +876,15 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<String> 
                     out.push(raw);
                 }
             }
+            LangKind::Java => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("import ")
+                    .and_then(module_from_import)
+                {
+                    out.push(raw);
+                }
+            }
             _ => {}
         }
     }
@@ -1013,6 +1025,7 @@ fn language_for_path(path: &Path) -> Option<LangKind> {
         "py" => Some(LangKind::Python),
         "rs" => Some(LangKind::Rust),
         "go" => Some(LangKind::Go),
+        "java" => Some(LangKind::Java),
         _ => None,
     }
 }

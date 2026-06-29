@@ -200,6 +200,97 @@ function assertFixtureQuality(root) {
   };
 }
 
+function makeLangFixtureRoot(language, filename, source) {
+  const root = mkdtempSync(path.join(os.tmpdir(), `oaf-rust-m9-${language}-`));
+  mkdirSync(path.join(root, '.local'), { recursive: true });
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  writeFileSync(path.join(root, 'src', filename), source);
+  return root;
+}
+
+function activeFacts(root, sqlite = SQLITE) {
+  return rows(root, `
+    SELECT subject, predicate, object
+    FROM memory_facts
+    WHERE status = 'active'
+      AND superseded_by IS NULL
+    ORDER BY subject, predicate, object
+  `, sqlite);
+}
+
+function assertContainsFacts(actual, expected, language) {
+  const actualKeys = new Set(actual.map((fact) => `${fact.subject}\t${fact.predicate}\t${fact.object}`));
+  const missing = expected.filter((fact) => !actualKeys.has(`${fact.subject}\t${fact.predicate}\t${fact.object}`));
+  assert.deepEqual(missing, [], `${language} missing expected facts`);
+}
+
+function assertLanguageFixture({ language, filename, source, expectedFacts, expectedCalls }) {
+  const root = makeLangFixtureRoot(language, filename, source);
+  try {
+    const ingest = rustCli(root, ['ingest', '--max-file-bytes', '2048']);
+    assert.equal(ingest.summary.parsedFileCount, 1, `${language} parsed files`);
+    assert.equal(ingest.quality.skippedFileCount, 0, `${language} skipped files`);
+    rustCli(root, ['memory', 'approve', '--all']);
+    const facts = activeFacts(root);
+    assertContainsFacts(facts, expectedFacts, language);
+    const actualCalls = activeCallEdges(root).map((edge) => ({ source: edge.source, target: edge.target }));
+    assert.deepEqual(actualCalls, expectedCalls, `${language} call graph`);
+    assert.equal(actualCalls.filter((edge) => edge.target.startsWith('module:')).length, 0, `${language} CALLS must not target modules`);
+    const second = rustCli(root, ['ingest', '--max-file-bytes', '2048']);
+    assert.equal(second.summary.recordedCount, 0, `${language} idempotent re-ingest`);
+    return {
+      language,
+      expectedCallEdges: expectedCalls.length,
+      actualCallEdges: actualCalls.length,
+      callPrecision: Number((expectedCalls.length / actualCalls.length).toFixed(3)),
+      callRecall: Number((actualCalls.length / expectedCalls.length).toFixed(3)),
+      parsedFileCount: ingest.summary.parsedFileCount,
+      generatedFactCount: ingest.summary.recordedCount
+    };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function languageFixtures() {
+  return [
+    assertLanguageFixture({
+      language: 'java',
+      filename: 'Worker.java',
+      source: [
+        'package demo;',
+        'import java.util.List;',
+        'class Worker {',
+        '  @Deprecated',
+        '  void run() {',
+        '    helper();',
+        '  }',
+        '  void helper() {}',
+        '}',
+        'class Utility {',
+        '  static void boot() {',
+        '    setup();',
+        '  }',
+        '  static void setup() {}',
+        '}'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'class:Utility', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Utility_boot', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Utility_setup', predicate: 'IS_A', object: 'Method' },
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:java' }
+      ],
+      expectedCalls: [
+        { source: 'method:Utility_boot', target: 'method:Utility_setup' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    })
+  ];
+}
+
 function assertCamelRecall(root, query, expectedSubject, sqlite = SQLITE) {
   const payload = mcpPayload(root, { client: 'm3-quality', query, scope: 'workspace', limit: 20, currentTruthOnly: true }, sqlite);
   const facts = payload.data.facts ?? [];
@@ -299,6 +390,7 @@ function oafRepoScenario() {
 }
 
 const fixture = fixtureScenario();
+const languageQuality = languageFixtures();
 crashScenario();
 const oafRepo = oafRepoScenario();
 rmSync(fixture.root, { recursive: true, force: true });
@@ -313,6 +405,14 @@ console.log([
   `  fixtureIdempotentRecordedCount ${fixture.fixtureIdempotentRecordedCount}`,
   `  fixtureRetiredProposalCount ${fixture.fixtureRetiredProposalCount}`,
   `  fixtureSupersededFactCount ${fixture.fixtureSupersededFactCount}`,
+  ...languageQuality.flatMap((item) => [
+    `  ${item.language}CallPrecision ${item.callPrecision}`,
+    `  ${item.language}CallRecall ${item.callRecall}`,
+    `  ${item.language}ExpectedCallEdges ${item.expectedCallEdges}`,
+    `  ${item.language}ActualCallEdges ${item.actualCallEdges}`,
+    `  ${item.language}ParsedFileCount ${item.parsedFileCount}`,
+    `  ${item.language}GeneratedFactCount ${item.generatedFactCount}`
+  ]),
   `  oafParsedFileCount ${oafRepo.oafParsedFileCount}`,
   `  oafGeneratedFactCount ${oafRepo.oafGeneratedFactCount}`,
   `  oafSkippedFileCount ${oafRepo.oafSkippedFileCount}`,
