@@ -132,6 +132,58 @@ fn governed_batch_approve_supersedes_skips_unsafe_and_dedupes_entities_by_name()
 }
 
 #[test]
+fn recall_splits_query_identifiers_like_node_oracle() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::create_dir(dir.path().join(".local")).unwrap();
+    fs::write(dir.path().join("package.json"), "{}").unwrap();
+    let db = dir.path().join(".local/memory.sqlite");
+    let mut store = open_store(&db);
+
+    let batch = store
+        .remember_batch(
+            dir.path(),
+            "workspace",
+            &[
+                BatchFact {
+                    subject: "project:open-agent-fabric".into(),
+                    predicate: "memory_backend".into(),
+                    object: "MemoryBackendPort".into(),
+                    source: "workspace://package.json".into(),
+                    confidence: Some("inferred".into()),
+                    notes: None,
+                    supersedes: None,
+                },
+                BatchFact {
+                    subject: "MemoryBackendPort".into(),
+                    predicate: "implemented_by".into(),
+                    object: "provider:native:memory".into(),
+                    source: "workspace://package.json".into(),
+                    confidence: None,
+                    notes: None,
+                    supersedes: None,
+                },
+                BatchFact {
+                    subject: "provider:native:memory".into(),
+                    predicate: "uses".into(),
+                    object: "MemoryBackendPort".into(),
+                    source: "workspace://package.json".into(),
+                    confidence: None,
+                    notes: None,
+                    supersedes: None,
+                },
+            ],
+        )
+        .unwrap();
+    assert_eq!(batch.recorded_count, 3);
+    assert_eq!(store.approve_all().unwrap().active_memory_created, 3);
+
+    let facts = store
+        .recall_current_truth("workspace", "MemoryBackendPort", None, None, 20)
+        .unwrap();
+    assert_eq!(facts[0]["predicate"].as_str(), Some("memory_backend"));
+}
+
+#[test]
 fn storage_survives_killed_uncommitted_write_without_success_on_empty() {
     let dir = tempfile::tempdir().unwrap();
     fs::create_dir(dir.path().join(".local")).unwrap();

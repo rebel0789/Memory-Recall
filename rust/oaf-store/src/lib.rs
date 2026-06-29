@@ -1392,8 +1392,8 @@ fn split_identifier(value: &str) -> String {
 
 fn fts_expression(query: &str) -> Option<String> {
     let mut tokens = Vec::new();
-    for token in query
-        .to_lowercase()
+    let expanded = expand_token_text(query);
+    for token in expanded
         .split(|ch: char| !(ch.is_alphanumeric() || ch == '_'))
         .filter(|token| !token.is_empty())
     {

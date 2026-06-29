@@ -203,6 +203,8 @@ try {
     assertParity('scenario B recall exact against Rust DB', rustRecall(rustB.root, exactArgs), nodeRecall(rustB.root, exactArgs));
     const tokenizerRecall = rustRecall(rustB.root, { client: 'scenario-b-tokenizer', query: 'backend', scope: 'workspace', limit: 20, currentTruthOnly: true });
     assert((tokenizerRecall.data?.factCount ?? 0) > 0, JSON.stringify(tokenizerRecall));
+    const nodeCounts = entityCounts(nodeB.root);
+    assert(nodeCounts.every((item) => item.count === 1), JSON.stringify(nodeCounts));
     const counts = entityCounts(rustB.root);
     assert(counts.every((item) => item.count === 1), JSON.stringify(counts));
     const bench = benchmark(rustA.root);
@@ -212,7 +214,7 @@ try {
       conformance: {
         scenarioA: 'byte-parity',
         scenarioB: 'byte-parity',
-        nodeInternalEntityDedup: 'known-gap: Node duplicates subject/object entity rows by kind; Rust M1 dedupes by name'
+        nodeInternalEntityDedup: 'deduped-by-name'
       },
       benchmark: {
         nodeBaseline: { coldStartMs: 50, coldStartRssMb: 55, initRecallMs: 60, initRecallRssMb: 60 },
@@ -227,4 +229,3 @@ try {
   rmSync(nodeA.root, { recursive: true, force: true });
   rmSync(rustA.root, { recursive: true, force: true });
 }
-
