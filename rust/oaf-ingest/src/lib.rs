@@ -251,6 +251,7 @@ enum LangKind {
     Go,
     Java,
     C,
+    Cpp,
 }
 
 impl LangKind {
@@ -263,6 +264,7 @@ impl LangKind {
             LangKind::Go => "go",
             LangKind::Java => "java",
             LangKind::C => "c",
+            LangKind::Cpp => "cpp",
         }
     }
 
@@ -276,6 +278,7 @@ impl LangKind {
             LangKind::Go => tree_sitter_go::LANGUAGE.into(),
             LangKind::Java => tree_sitter_java::LANGUAGE.into(),
             LangKind::C => tree_sitter_c::LANGUAGE.into(),
+            LangKind::Cpp => tree_sitter_cpp::LANGUAGE.into(),
         }
     }
 }
@@ -750,6 +753,15 @@ fn callable_definition(
                     "Method",
                 ));
             }
+            if context.lang == LangKind::Cpp && context.class_name.is_some() {
+                let class_name = context.class_name.as_deref().unwrap();
+                let method_name = format!("{class_name}_{sanitized}");
+                return Some((
+                    method_name.clone(),
+                    format!("method:{method_name}"),
+                    "Method",
+                ));
+            }
             Some((
                 sanitized.clone(),
                 format!("function:{sanitized}"),
@@ -794,6 +806,9 @@ fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
         "class_declaration" | "class" | "abstract_class_declaration" | "class_definition" => {
             node_name(node, source).and_then(|name| sanitize_symbol(&name))
         }
+        "class_specifier" if lang == LangKind::Cpp => {
+            node_name(node, source).and_then(|name| sanitize_symbol(&name))
+        }
         "struct_item" | "enum_item" | "trait_item" if lang == LangKind::Rust => {
             node_name(node, source).and_then(|name| sanitize_symbol(&name))
         }
@@ -828,7 +843,7 @@ fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
 }
 
 fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
-    if context.lang == LangKind::C && node.kind() == "function_definition" {
+    if matches!(context.lang, LangKind::C | LangKind::Cpp) && node.kind() == "function_definition" {
         return node
             .child_by_field_name("declarator")
             .and_then(|child| descendant_identifier_name(child, source))
@@ -1058,6 +1073,7 @@ fn language_for_path(path: &Path) -> Option<LangKind> {
         "go" => Some(LangKind::Go),
         "java" => Some(LangKind::Java),
         "c" | "h" => Some(LangKind::C),
+        "cc" | "cpp" | "cxx" | "hpp" | "hh" | "hxx" => Some(LangKind::Cpp),
         _ => None,
     }
 }

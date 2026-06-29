@@ -308,6 +308,34 @@ function languageFixtures() {
       expectedCalls: [
         { source: 'function:c_entry', target: 'function:c_helper' }
       ]
+    }),
+    assertLanguageFixture({
+      language: 'cpp',
+      filename: 'widget.cpp',
+      source: [
+        '#include "widget.hpp"',
+        'class Widget {',
+        'public:',
+        '  int render() { return paint(); }',
+        '  int paint() { return 1; }',
+        '};',
+        'int boot() {',
+        '  return helper();',
+        '}',
+        'int helper() { return 1; }'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Widget', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Widget_render', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Widget_paint', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_widget', predicate: 'IMPORTS', object: 'module:widget' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:helper' },
+        { source: 'method:Widget_render', target: 'method:Widget_paint' }
+      ]
     })
   ];
 }
