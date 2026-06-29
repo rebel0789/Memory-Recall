@@ -13,7 +13,8 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
+use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
@@ -32,6 +33,9 @@ fn main() {
 fn run() -> Result<()> {
     let args: Vec<String> = env::args().skip(1).collect();
     match args.first().map(String::as_str) {
+        Some("--version") | Some("-V") => version_command(),
+        Some("install") => install_command(&args[1..]),
+        Some("ui") => ui_command(&args[1..]),
         Some("memory") => memory_command(&args[1..]),
         Some("mcp") => mcp_command(&args[1..]),
         Some("ingest") => ingest_command(&args[1..]),
@@ -44,6 +48,607 @@ fn run() -> Result<()> {
         None => bail!("oaf rust requires a command"),
     }
 }
+
+fn version_command() -> Result<()> {
+    println!("oaf {SERVER_VERSION}");
+    Ok(())
+}
+
+const INSTALL_SERVER_NAME: &str = "open-agent-fabric";
+
+#[derive(Clone, Copy)]
+enum InstallFormat {
+    Json,
+    Toml,
+}
+
+#[derive(Clone)]
+struct InstallTarget {
+    client: &'static str,
+    format: InstallFormat,
+    path: PathBuf,
+}
+
+struct InstallOutcome {
+    changed: bool,
+    action: String,
+    backup: Option<PathBuf>,
+}
+
+fn install_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config_home = install_config_home()?;
+    let targets = install_targets(
+        option(args, "--client")
+            .unwrap_or_else(|| "all".to_string())
+            .as_str(),
+        &config_home,
+    )?;
+    let command = env::current_exe()
+        .context("resolve current executable")?
+        .display()
+        .to_string();
+    let uninstall = has(args, "--uninstall");
+    let dry_run = has(args, "--dry-run");
+    let server = json!({ "command": command, "args": ["mcp", "server", "--stdio"], "env": {} });
+    let touched_files = install_touched_files(&targets);
+    let plan = json!({
+        "command": "install",
+        "serverName": INSTALL_SERVER_NAME,
+        "server": server,
+        "clients": targets.iter().map(|target| target.client).collect::<Vec<_>>(),
+        "touchedFiles": touched_files,
+        "uninstall": uninstall
+    });
+    let plan_fingerprint = fingerprint_json(&plan);
+    if !dry_run && option(args, "--confirm").as_deref() != Some(plan_fingerprint.as_str()) {
+        bail!("install requires --dry-run first, then --confirm {plan_fingerprint}");
+    }
+
+    let mut entries = Vec::new();
+    let mut changed = false;
+    let mut touched = touched_files;
+    if !dry_run {
+        for target in &targets {
+            let outcome = apply_install_target(target, &server, uninstall)?;
+            changed |= outcome.changed;
+            if let Some(backup) = &outcome.backup {
+                touched.push(backup.display().to_string());
+            }
+            entries.push(install_entry(target, &server, &outcome.action));
+        }
+    } else {
+        entries = targets
+            .iter()
+            .map(|target| {
+                install_entry(
+                    target,
+                    &server,
+                    if uninstall {
+                        "would-uninstall"
+                    } else {
+                        "would-install"
+                    },
+                )
+            })
+            .collect();
+    }
+    touched.sort();
+    touched.dedup();
+    print_json(json!({
+        "schemaVersion": "1.0.0",
+        "command": "install",
+        "generatedAt": fixed_now(),
+        "dryRun": dry_run,
+        "uninstall": uninstall,
+        "changed": changed,
+        "idempotent": !dry_run && !changed,
+        "confirmationRequired": dry_run,
+        "planFingerprint": plan_fingerprint,
+        "receipt": {
+            "serverName": INSTALL_SERVER_NAME,
+            "configHome": config_home.display().to_string(),
+            "clients": targets.iter().map(|target| target.client).collect::<Vec<_>>(),
+            "touchedFiles": touched,
+            "entries": entries,
+            "confirmCommand": format!("oaf install --client {}{} --confirm {} --format json", option(args, "--client").unwrap_or_else(|| "all".to_string()), if uninstall { " --uninstall" } else { "" }, plan_fingerprint)
+        },
+        "safeguards": {
+            "dryRunBeforeWrite": true,
+            "confirmationRequired": true,
+            "atomicWrites": true,
+            "safeTempFiles": "create_new_random_same_directory",
+            "writesOutsideConfigHome": false,
+            "networkCalls": 0,
+            "modelCalls": 0
+        }
+    }));
+    Ok(())
+}
+
+fn install_config_home() -> Result<PathBuf> {
+    if let Ok(home) = env::var("OAF_CONFIG_HOME") {
+        return Ok(PathBuf::from(home));
+    }
+    env::var("HOME")
+        .map(PathBuf::from)
+        .context("HOME or OAF_CONFIG_HOME is required for install")
+}
+
+fn install_targets(client: &str, home: &Path) -> Result<Vec<InstallTarget>> {
+    let all = vec![
+        InstallTarget {
+            client: "claude-code",
+            format: InstallFormat::Json,
+            path: home.join(".claude/mcp.json"),
+        },
+        InstallTarget {
+            client: "codex",
+            format: InstallFormat::Toml,
+            path: home.join(".codex/config.toml"),
+        },
+        InstallTarget {
+            client: "cursor",
+            format: InstallFormat::Json,
+            path: home.join(".cursor/mcp.json"),
+        },
+        InstallTarget {
+            client: "vscode",
+            format: InstallFormat::Json,
+            path: home.join(".vscode/mcp.json"),
+        },
+    ];
+    let normalized = match client {
+        "all" => return Ok(all),
+        "claude" => "claude-code",
+        other => other,
+    };
+    let Some(target) = all.into_iter().find(|target| target.client == normalized) else {
+        bail!("install --client must be all|claude-code|codex|cursor|vscode");
+    };
+    Ok(vec![target])
+}
+
+fn install_entry(target: &InstallTarget, server: &Value, action: &str) -> Value {
+    json!({
+        "client": target.client,
+        "configPath": target.path.display().to_string(),
+        "format": match target.format { InstallFormat::Json => "json", InstallFormat::Toml => "toml" },
+        "target": match target.format { InstallFormat::Json => "mcpServers.open-agent-fabric", InstallFormat::Toml => "mcp_servers.open-agent-fabric" },
+        "action": action,
+        "server": server
+    })
+}
+
+fn install_touched_files(targets: &[InstallTarget]) -> Vec<String> {
+    let mut files = Vec::new();
+    for target in targets {
+        files.push(target.path.display().to_string());
+        let backup = install_backup_path(&target.path);
+        if target.path.exists() || backup.exists() {
+            files.push(backup.display().to_string());
+        }
+    }
+    files.sort();
+    files.dedup();
+    files
+}
+
+fn apply_install_target(
+    target: &InstallTarget,
+    server: &Value,
+    uninstall: bool,
+) -> Result<InstallOutcome> {
+    match target.format {
+        InstallFormat::Json => apply_json_install(target, server, uninstall),
+        InstallFormat::Toml => apply_toml_install(target, server, uninstall),
+    }
+}
+
+fn apply_json_install(
+    target: &InstallTarget,
+    server: &Value,
+    uninstall: bool,
+) -> Result<InstallOutcome> {
+    if uninstall && install_backup_path(&target.path).exists() {
+        let backup = restore_backup(&target.path)?;
+        return Ok(InstallOutcome {
+            changed: true,
+            action: "restored-backup".to_string(),
+            backup: Some(backup),
+        });
+    }
+    let text = fs::read_to_string(&target.path).ok();
+    let mut parsed = match text
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        Some(existing) => serde_json::from_str::<Value>(existing)
+            .with_context(|| format!("parse JSON config {}", target.path.display()))?,
+        None => json!({}),
+    };
+    if !parsed.is_object() {
+        bail!(
+            "install JSON config must be an object: {}",
+            target.path.display()
+        );
+    }
+    let object = parsed.as_object_mut().expect("object checked");
+    let servers = object
+        .entry("mcpServers".to_string())
+        .or_insert_with(|| json!({}));
+    if !servers.is_object() {
+        bail!(
+            "install JSON mcpServers must be an object: {}",
+            target.path.display()
+        );
+    }
+    let servers = servers.as_object_mut().expect("object checked");
+    if uninstall {
+        if servers.remove(INSTALL_SERVER_NAME).is_none() {
+            return Ok(InstallOutcome {
+                changed: false,
+                action: "not-installed".to_string(),
+                backup: None,
+            });
+        }
+        if json_config_only_empty_mcp_servers(&parsed) {
+            fs::remove_file(&target.path)
+                .with_context(|| format!("remove config {}", target.path.display()))?;
+            return Ok(InstallOutcome {
+                changed: true,
+                action: "removed-file".to_string(),
+                backup: None,
+            });
+        }
+        let backup = backup_existing(&target.path)?;
+        atomic_write(
+            &target.path,
+            &format!("{}\n", serde_json::to_string_pretty(&parsed)?),
+        )?;
+        return Ok(InstallOutcome {
+            changed: true,
+            action: "removed-entry".to_string(),
+            backup,
+        });
+    }
+    if servers.get(INSTALL_SERVER_NAME) == Some(server) {
+        return Ok(InstallOutcome {
+            changed: false,
+            action: "already-installed".to_string(),
+            backup: None,
+        });
+    }
+    servers.insert(INSTALL_SERVER_NAME.to_string(), server.clone());
+    let backup = if target.path.exists() {
+        backup_existing(&target.path)?
+    } else {
+        None
+    };
+    atomic_write(
+        &target.path,
+        &format!("{}\n", serde_json::to_string_pretty(&parsed)?),
+    )?;
+    Ok(InstallOutcome {
+        changed: true,
+        action: "installed".to_string(),
+        backup,
+    })
+}
+
+fn json_config_only_empty_mcp_servers(value: &Value) -> bool {
+    value
+        .as_object()
+        .map(|object| {
+            object.len() == 1
+                && object
+                    .get("mcpServers")
+                    .and_then(Value::as_object)
+                    .is_some_and(|servers| servers.is_empty())
+        })
+        .unwrap_or(false)
+}
+
+fn apply_toml_install(
+    target: &InstallTarget,
+    server: &Value,
+    uninstall: bool,
+) -> Result<InstallOutcome> {
+    let command = server
+        .get("command")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let desired = toml_managed_block(command);
+    let text = fs::read_to_string(&target.path).ok();
+    if uninstall {
+        if install_backup_path(&target.path).exists() {
+            let backup = restore_backup(&target.path)?;
+            return Ok(InstallOutcome {
+                changed: true,
+                action: "restored-backup".to_string(),
+                backup: Some(backup),
+            });
+        }
+        let Some(existing) = text else {
+            return Ok(InstallOutcome {
+                changed: false,
+                action: "not-installed".to_string(),
+                backup: None,
+            });
+        };
+        let Some(next) = remove_toml_managed_block(&existing) else {
+            return Ok(InstallOutcome {
+                changed: false,
+                action: "not-installed".to_string(),
+                backup: None,
+            });
+        };
+        if next.trim().is_empty() {
+            fs::remove_file(&target.path)
+                .with_context(|| format!("remove config {}", target.path.display()))?;
+            return Ok(InstallOutcome {
+                changed: true,
+                action: "removed-file".to_string(),
+                backup: None,
+            });
+        }
+        let backup = backup_existing(&target.path)?;
+        atomic_write(&target.path, &next)?;
+        return Ok(InstallOutcome {
+            changed: true,
+            action: "removed-entry".to_string(),
+            backup,
+        });
+    }
+    let next = match text {
+        Some(existing) if existing.contains(&desired) => {
+            return Ok(InstallOutcome {
+                changed: false,
+                action: "already-installed".to_string(),
+                backup: None,
+            });
+        }
+        Some(existing) => replace_or_append_toml_block(&existing, &desired),
+        None => desired,
+    };
+    let backup = if target.path.exists() {
+        backup_existing(&target.path)?
+    } else {
+        None
+    };
+    atomic_write(&target.path, &next)?;
+    Ok(InstallOutcome {
+        changed: true,
+        action: "installed".to_string(),
+        backup,
+    })
+}
+
+fn toml_managed_block(command: &str) -> String {
+    format!(
+        "# OAF managed begin {INSTALL_SERVER_NAME}\n[mcp_servers.{INSTALL_SERVER_NAME}]\ncommand = \"{}\"\nargs = [\"mcp\", \"server\", \"--stdio\"]\n# OAF managed end {INSTALL_SERVER_NAME}\n",
+        toml_quote(command)
+    )
+}
+
+fn toml_quote(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn replace_or_append_toml_block(existing: &str, desired: &str) -> String {
+    if remove_toml_managed_block(existing).is_some() {
+        return format!(
+            "{}{}",
+            remove_toml_managed_block(existing).unwrap_or_default(),
+            desired
+        );
+    }
+    format!(
+        "{}{}{}",
+        existing.trim_end(),
+        if existing.trim().is_empty() {
+            ""
+        } else {
+            "\n\n"
+        },
+        desired
+    )
+}
+
+fn remove_toml_managed_block(existing: &str) -> Option<String> {
+    let begin = format!("# OAF managed begin {INSTALL_SERVER_NAME}");
+    let end = format!("# OAF managed end {INSTALL_SERVER_NAME}");
+    let start = existing.find(&begin)?;
+    let end_start = existing[start..].find(&end)? + start;
+    let end_index = existing[end_start..]
+        .find('\n')
+        .map(|offset| end_start + offset + 1)
+        .unwrap_or(existing.len());
+    Some(format!("{}{}", &existing[..start], &existing[end_index..]))
+}
+
+fn backup_existing(path: &Path) -> Result<Option<PathBuf>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+    let backup = install_backup_path(path);
+    if backup.exists() {
+        return Ok(Some(backup));
+    }
+    let content = fs::read(path).with_context(|| format!("read config {}", path.display()))?;
+    let mut handle = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&backup)
+        .with_context(|| format!("create backup config {}", backup.display()))?;
+    handle.write_all(&content)?;
+    handle.sync_all()?;
+    Ok(Some(backup))
+}
+
+fn atomic_write(path: &Path, content: &str) -> Result<()> {
+    atomic_write_bytes(path, content.as_bytes())
+}
+
+fn atomic_write_bytes(path: &Path, content: &[u8]) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("create config directory {}", parent.display()))?;
+    }
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let file = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("config");
+    let tmp = parent.join(format!(".{file}.{}.tmp", random_hex(12)?));
+    let mut handle = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&tmp)
+        .with_context(|| format!("create temp config {}", tmp.display()))?;
+    handle.write_all(content)?;
+    handle.sync_all()?;
+    fs::rename(&tmp, path).with_context(|| format!("replace config {}", path.display()))?;
+    Ok(())
+}
+
+fn restore_backup(path: &Path) -> Result<PathBuf> {
+    let backup = install_backup_path(path);
+    let content = fs::read(&backup).with_context(|| format!("read backup {}", backup.display()))?;
+    atomic_write_bytes(path, &content)?;
+    fs::remove_file(&backup).with_context(|| format!("remove backup {}", backup.display()))?;
+    Ok(backup)
+}
+
+fn install_backup_path(path: &Path) -> PathBuf {
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let file = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("config");
+    parent.join(format!(".{file}.{INSTALL_SERVER_NAME}.bak"))
+}
+
+fn random_hex(bytes: usize) -> Result<String> {
+    let mut data = vec![0_u8; bytes];
+    getrandom::getrandom(&mut data)
+        .map_err(|error| anyhow!("secure random bytes for install temp file: {error}"))?;
+    Ok(hex::encode(data))
+}
+
+fn ui_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let port = parse_usize_option(args, "--port", 4317, 1, 65535) as u16;
+    let listener = TcpListener::bind(("127.0.0.1", port))
+        .with_context(|| format!("bind oaf ui on 127.0.0.1:{port}"))?;
+    let actual_port = listener.local_addr()?.port();
+    print_json(json!({
+        "schemaVersion": "1.0.0",
+        "command": "ui",
+        "url": format!("http://127.0.0.1:{actual_port}"),
+        "bind": "127.0.0.1",
+        "port": actual_port,
+        "safeguards": {
+            "localhostOnly": true,
+            "readOnly": true,
+            "assetsCompiledIn": true,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "externalWritesEnabled": false
+        }
+    }));
+    for stream in listener.incoming() {
+        if let Ok(stream) = stream {
+            let _ = handle_ui_stream(stream, &config);
+        }
+    }
+    Ok(())
+}
+
+fn handle_ui_stream(mut stream: TcpStream, config: &CliConfig) -> Result<()> {
+    let mut buffer = [0_u8; 4096];
+    let read = stream.read(&mut buffer)?;
+    let request = String::from_utf8_lossy(&buffer[..read]);
+    let path = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .unwrap_or("/");
+    if path == "/" {
+        return http_response(&mut stream, 200, "text/html; charset=utf-8", UI_HTML);
+    }
+    if path.starts_with("/api/graph") {
+        let history = path.contains("mode=history");
+        let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+        let graph = store.ui_graph(&config.scope, &config.now, history)?;
+        return http_response(
+            &mut stream,
+            200,
+            "application/json; charset=utf-8",
+            &serde_json::to_string(&graph)?,
+        );
+    }
+    http_response(
+        &mut stream,
+        404,
+        "application/json; charset=utf-8",
+        r#"{"error":"not found"}"#,
+    )
+}
+
+fn http_response(
+    stream: &mut TcpStream,
+    status: u16,
+    content_type: &str,
+    body: &str,
+) -> Result<()> {
+    let status_text = if status == 200 { "OK" } else { "Not Found" };
+    write!(
+        stream,
+        "HTTP/1.1 {status} {status_text}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    )?;
+    Ok(())
+}
+
+const UI_HTML: &str = r#"<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OAF Memory Graph</title>
+<style>
+html,body{margin:0;height:100%;background:#101317;color:#eceff3;font:14px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{display:grid;grid-template-rows:auto 1fr}
+header{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #303842;background:#171b21}
+h1{font-size:15px;font-weight:650;margin:0}
+button{border:1px solid #3b4653;background:#202833;color:#eceff3;border-radius:6px;padding:7px 10px;cursor:pointer}
+button[aria-pressed=true]{background:#2f6fed;border-color:#79a8ff}
+#wrap{display:grid;grid-template-columns:1fr 280px;min-height:0}
+canvas{width:100%;height:100%;display:block}
+aside{border-left:1px solid #303842;background:#15191f;padding:12px;overflow:auto}
+.k{color:#9aa6b2}.pill{display:inline-block;margin:3px 4px 3px 0;padding:3px 6px;border-radius:999px;background:#24303c;color:#cfd8e3;font-size:12px}
+</style>
+<header><h1>OAF Memory Graph</h1><button id="current" aria-pressed="true">Current</button><button id="history" aria-pressed="false">History</button></header>
+<div id="wrap"><canvas id="graph"></canvas><aside id="detail"><div class="k">Select a node</div></aside></div>
+<script>
+const canvas=document.getElementById('graph'),ctx=canvas.getContext('2d'),detail=document.getElementById('detail');
+let graph={nodes:[],edges:[],communities:[]},mode='current',focus=null,sim=null;
+function color(n){return n.governedDecision?'#ffcf5a':['#6ee7b7','#7aa2ff','#f08bd3','#f97373','#a3e635','#22d3ee'][n.community%6]}
+function resize(){const r=canvas.getBoundingClientRect();canvas.width=Math.max(320,r.width*devicePixelRatio);canvas.height=Math.max(240,r.height*devicePixelRatio)}
+addEventListener('resize',resize);resize();
+async function load(next){mode=next;document.getElementById('current').setAttribute('aria-pressed',mode==='current');document.getElementById('history').setAttribute('aria-pressed',mode==='history');graph=await fetch('/api/graph?mode='+mode).then(r=>r.json());seed();tick()}
+function seed(){const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=Math.min(w,h)*0.34;graph.nodes.forEach((n,i)=>{const a=(i/Math.max(1,graph.nodes.length))*Math.PI*2;n.x=cx+Math.cos(a)*r;n.y=cy+Math.sin(a)*r;n.vx=0;n.vy=0});}
+function tick(){cancelAnimationFrame(sim);step();draw();sim=requestAnimationFrame(tick)}
+function step(){const nodes=graph.nodes,by=new Map(nodes.map(n=>[n.id,n]));for(const a of nodes)for(const b of nodes){if(a===b)continue;const dx=a.x-b.x,dy=a.y-b.y,d=Math.max(40,Math.hypot(dx,dy));a.vx+=dx/d*18/d;a.vy+=dy/d*18/d}for(const e of graph.edges){const a=by.get(e.from),b=by.get(e.to);if(!a||!b)continue;const dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy)),pull=(d-170)*0.0009;a.vx+=dx*pull;b.vx-=dx*pull;a.vy+=dy*pull;b.vy-=dy*pull}for(const n of nodes){n.vx*=0.86;n.vy*=0.86;n.x=Math.min(canvas.width-20,Math.max(20,n.x+n.vx));n.y=Math.min(canvas.height-20,Math.max(20,n.y+n.vy))}}
+function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);const by=new Map(graph.nodes.map(n=>[n.id,n]));ctx.lineWidth=1*devicePixelRatio;for(const e of graph.edges){const a=by.get(e.from),b=by.get(e.to);if(!a||!b)continue;ctx.strokeStyle=e.governedDecision?'#ffcf5a66':'#6b728066';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}for(const n of graph.nodes){ctx.fillStyle=color(n);ctx.beginPath();ctx.arc(n.x,n.y,(focus===n.id?8:5)*devicePixelRatio,0,Math.PI*2);ctx.fill();if(focus===n.id){ctx.fillStyle='#f8fafc';ctx.font=`${12*devicePixelRatio}px system-ui`;ctx.fillText(n.label,n.x+10,n.y-10)}}}
+canvas.addEventListener('click',ev=>{const r=canvas.getBoundingClientRect(),x=(ev.clientX-r.left)*devicePixelRatio,y=(ev.clientY-r.top)*devicePixelRatio;let best=null,dist=1e9;for(const n of graph.nodes){const d=Math.hypot(n.x-x,n.y-y);if(d<dist){dist=d;best=n}}if(best&&dist<28*devicePixelRatio){focus=best.id;const rel=graph.edges.filter(e=>e.from===best.id||e.to===best.id).slice(0,20);detail.innerHTML=`<h2>${best.label}</h2><div class="k">${best.type} · community ${best.community} · degree ${best.degree}</div>${rel.map(e=>`<span class="pill">${e.from===best.id?'→ '+e.to:'← '+e.from} ${e.predicate}</span>`).join('')}`;}});
+document.getElementById('current').onclick=()=>load('current');document.getElementById('history').onclick=()=>load('history');load('current');
+</script>
+</html>
+"#;
 
 fn loop_command(args: &[String]) -> Result<()> {
     match args.first().map(String::as_str) {

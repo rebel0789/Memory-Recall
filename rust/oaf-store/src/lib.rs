@@ -1086,6 +1086,77 @@ impl Store {
         }))
     }
 
+    pub fn ui_graph(&self, scope: &str, at: &str, history: bool) -> Result<Value> {
+        let scope = normalize_temporal_scope(scope)?;
+        let edges = if history {
+            self.history_graph_edges(&scope)?
+        } else {
+            self.temporal_graph_edges(&scope, at)?
+        };
+        let mut nodes: BTreeMap<String, OverviewNode> = BTreeMap::new();
+        for edge in &edges {
+            for name in [&edge.from, &edge.to] {
+                nodes.entry(name.clone()).or_insert_with(|| OverviewNode {
+                    name: name.clone(),
+                    entity_type: temporal_graph_entity_type(name),
+                    degree: 0,
+                    community: 0,
+                });
+            }
+        }
+        for edge in &edges {
+            if let Some(node) = nodes.get_mut(&edge.from) {
+                node.degree += 1;
+            }
+            if let Some(node) = nodes.get_mut(&edge.to) {
+                node.degree += 1;
+            }
+        }
+        let communities = graph_communities(nodes.keys().cloned().collect(), &edges);
+        let mut community_stats: BTreeMap<usize, CommunityStats> = BTreeMap::new();
+        for node in nodes.values_mut() {
+            node.community = communities.get(&node.name).copied().unwrap_or(0);
+            let entry = community_stats.entry(node.community).or_default();
+            entry.node_count += 1;
+            if entry.sample_nodes.len() < 5 {
+                entry.sample_nodes.push(node.name.clone());
+            }
+        }
+        for edge in &edges {
+            if let Some(community) = communities.get(&edge.from) {
+                community_stats.entry(*community).or_default().edge_count += 1;
+            }
+        }
+        let mut safeguards = read_only_safeguards();
+        if let Some(object) = safeguards.as_object_mut() {
+            object.insert("localhostOnly".to_string(), Value::Bool(true));
+            object.insert("uiAssetsCompiledIn".to_string(), Value::Bool(true));
+        }
+        Ok(json!({
+            "schemaVersion": "1.0.0",
+            "command": "ui.graph",
+            "provider": PROVIDER_ID,
+            "workspaceId": self.workspace_id,
+            "scope": scope,
+            "mode": if history { "history" } else { "current" },
+            "at": at,
+            "summary": {
+                "nodeCount": nodes.len(),
+                "edgeCount": edges.len(),
+                "communityCount": communities.values().copied().collect::<BTreeSet<_>>().len()
+            },
+            "nodes": nodes.values().map(ui_node_value).collect::<Vec<_>>(),
+            "edges": edges.iter().map(ui_edge_value).collect::<Vec<_>>(),
+            "communities": community_stats.into_iter().map(|(id, stats)| json!({
+                "id": id,
+                "nodeCount": stats.node_count,
+                "edgeCount": stats.edge_count,
+                "sampleNodes": stats.sample_nodes
+            })).collect::<Vec<_>>(),
+            "safeguards": safeguards
+        }))
+    }
+
     pub fn integrity_check(&self) -> Result<String> {
         let result: String = self
             .conn
@@ -1120,6 +1191,39 @@ impl Store {
             "#,
         )?;
         let rows = stmt.query_map(params![self.workspace_id, scope, at, at, at], |row| {
+            Ok(GraphEdge {
+                predicate: row.get("predicate")?,
+                fact_id: row.get("fact_id")?,
+                from: row.get("source_name")?,
+                to: row.get("target_name")?,
+                source: row.get("fact_source")?,
+            })
+        })?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    fn history_graph_edges(&self, scope: &str) -> Result<Vec<GraphEdge>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT e.predicate,
+                   e.fact_id,
+                   source.name AS source_name,
+                   target.name AS target_name,
+                   f.source AS fact_source
+            FROM memory_edges e
+            JOIN memory_entities source ON source.id = e.source_entity_id
+            JOIN memory_entities target ON target.id = e.target_entity_id
+            JOIN memory_facts f ON f.workspace_id = e.workspace_id
+              AND f.scope = e.scope
+              AND f.id = e.fact_id
+            WHERE e.workspace_id = ?
+              AND e.scope = ?
+              AND f.status IN ('active', 'superseded')
+            ORDER BY source.name ASC, e.predicate ASC, target.name ASC, e.created_at ASC, e.fact_id ASC
+            "#,
+        )?;
+        let rows = stmt.query_map(params![self.workspace_id, scope], |row| {
             Ok(GraphEdge {
                 predicate: row.get("predicate")?,
                 fact_id: row.get("fact_id")?,
@@ -1900,6 +2004,32 @@ fn overview_node_value(node: &OverviewNode) -> Value {
         "type": node.entity_type,
         "degree": node.degree,
         "community": node.community
+    })
+}
+
+fn ui_node_value(node: &OverviewNode) -> Value {
+    json!({
+        "id": node.name,
+        "label": node.name,
+        "type": node.entity_type,
+        "degree": node.degree,
+        "community": node.community,
+        "governedDecision": node.entity_type == "decision"
+    })
+}
+
+fn ui_edge_value(edge: &GraphEdge) -> Value {
+    let governed = edge.predicate == "GOVERNS"
+        || edge.from.starts_with("decision:")
+        || edge.from.starts_with("adr:")
+        || edge.to.starts_with("decision:")
+        || edge.to.starts_with("adr:");
+    json!({
+        "from": edge.from,
+        "to": edge.to,
+        "predicate": edge.predicate,
+        "factId": edge.fact_id,
+        "governedDecision": governed
     })
 }
 
