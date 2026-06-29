@@ -1364,6 +1364,7 @@ fn recall_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> 
     let subject = optional_json_string(args.get("subject"), 128);
     let predicate = optional_json_string(args.get("predicate"), 128);
     let since = optional_json_string(args.get("since").or_else(|| args.get("cursor")), 80);
+    let with_conflicts = json_flag(args, "withConflicts") || json_flag(args, "with_conflicts");
     let current_truth_only = args.get("currentTruthOnly").and_then(Value::as_bool) == Some(true)
         && args.get("verbose").and_then(Value::as_bool) != Some(true);
     if !config.sqlite_abs.is_file() {
@@ -1393,7 +1394,7 @@ fn recall_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> 
         predicate.as_deref(),
         limit,
     )?;
-    Ok(base_payload(
+    let mut payload = base_payload(
         config,
         json!({
             "available": true,
@@ -1407,7 +1408,16 @@ fn recall_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> 
             "facts": facts,
             "cursor": { "previous": Value::Null, "next": config.now }
         }),
-    ))
+    );
+    if with_conflicts {
+        payload["data"]["conflicts"] = store.current_truth_conflicts(
+            &scope,
+            &query,
+            subject.as_deref(),
+            predicate.as_deref(),
+        )?;
+    }
+    Ok(payload)
 }
 
 fn memory_why_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> Result<Value> {
@@ -1435,6 +1445,7 @@ fn context_profile_payload(
     let predicate = optional_json_string(args.get("predicate"), 128);
     let since = optional_json_string(args.get("since"), 80);
     let with_omissions = json_flag(args, "withOmissions") || json_flag(args, "with_omissions");
+    let with_conflicts = json_flag(args, "withConflicts") || json_flag(args, "with_conflicts");
     if !config.sqlite_abs.is_file() {
         return Ok(base_payload_command(
             config,
@@ -1528,6 +1539,14 @@ fn context_profile_payload(
             200,
         )?;
         payload["omissions"] = json!(omission_manifest(&candidates, &[], budget, budget + 1));
+    }
+    if with_conflicts {
+        payload["data"]["conflicts"] = store.current_truth_conflicts(
+            &scope,
+            &objective,
+            subject.as_deref(),
+            predicate.as_deref(),
+        )?;
     }
     Ok(payload)
 }

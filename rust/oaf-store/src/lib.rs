@@ -599,6 +599,61 @@ impl Store {
             .collect())
     }
 
+    pub fn current_truth_conflicts(
+        &self,
+        scope: &str,
+        query: &str,
+        subject: Option<&str>,
+        predicate: Option<&str>,
+    ) -> Result<Value> {
+        let mut groups: BTreeMap<(String, String), Vec<RecallFact>> = BTreeMap::new();
+        for fact in self.recall_facts(scope, query, subject, predicate, 100)? {
+            if fact.status == "active" && fact.superseded_by.is_none() {
+                groups
+                    .entry((fact.subject.clone(), fact.predicate.clone()))
+                    .or_default()
+                    .push(fact);
+            }
+        }
+        let mut items = Vec::new();
+        for ((subject, predicate), mut facts) in groups {
+            let objects = facts
+                .iter()
+                .map(|fact| fact.object.clone())
+                .collect::<BTreeSet<_>>();
+            if objects.len() < 2 {
+                continue;
+            }
+            facts.sort_by(|left, right| {
+                left.object
+                    .cmp(&right.object)
+                    .then_with(|| left.valid_from.cmp(&right.valid_from))
+                    .then_with(|| left.id.cmp(&right.id))
+            });
+            let fact_values = facts.iter().map(conflict_fact_value).collect::<Vec<_>>();
+            items.push(json!({
+                "id": deterministic_id("ctconf", &json!({
+                    "workspaceId": self.workspace_id,
+                    "scope": scope,
+                    "subject": subject,
+                    "predicate": predicate,
+                    "objects": objects
+                })),
+                "reason": "active_same_subject_predicate",
+                "scope": scope,
+                "subject": subject,
+                "predicate": predicate,
+                "objects": objects.into_iter().collect::<Vec<_>>(),
+                "activeFactCount": fact_values.len(),
+                "facts": fact_values
+            }));
+        }
+        Ok(json!({
+            "summary": { "conflictCount": items.len() },
+            "items": items
+        }))
+    }
+
     pub fn search_current_truth(
         &mut self,
         scope: &str,
@@ -3661,6 +3716,19 @@ fn summarize_current_truth_fact(fact: &RecallFact) -> Value {
         } else {
             fact.episode_source_locator.as_deref().unwrap_or(&fact.source)
         })
+    })
+}
+
+fn conflict_fact_value(fact: &RecallFact) -> Value {
+    json!({
+        "id": sanitize_string(&fact.id, 120),
+        "object": sanitize_string(&fact.object, 240),
+        "status": fact.status,
+        "sourceRef": compact_provenance_ref(fact.episode_source_locator.as_deref().unwrap_or(&fact.source)),
+        "sourceTrust": fact.metadata.get("sourceTrust").cloned().unwrap_or_else(|| Value::String("verified".to_string())),
+        "trustClass": fact.metadata.get("trustClass").cloned().unwrap_or_else(|| Value::String("verified".to_string())),
+        "validFrom": fact.valid_from,
+        "confidence": fact.confidence
     })
 }
 
