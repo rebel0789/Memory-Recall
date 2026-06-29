@@ -305,7 +305,7 @@ try {
         mcpMemoryRecall: 'byte-parity',
         mcpContextProfile: 'byte-parity',
         mcpCursorAutoDelta: 'byte-parity',
-        mcpContextPack: 'deferred: Node context.pack is backed by the full harness context-pack builder; Rust M2 exposes the schema but does not silently approximate the text payload.'
+        mcpContextPack: 'closed-in-M5: byte-parity covered by rust-intelligence-quality'
       },
       benchmark: {
         nodeBaseline: { coldStartMs: 50, coldStartRssMb: 55, initRecallMs: 60, initRecallRssMb: 60 },

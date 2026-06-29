@@ -509,6 +509,204 @@ impl Store {
         Ok(json!({ "c": self.now, "d": changes, "r": retracted }))
     }
 
+    pub fn profile_records(
+        &self,
+        scope: &str,
+        query: &str,
+        subject: Option<&str>,
+        predicate: Option<&str>,
+        limit: usize,
+        since: Option<&str>,
+    ) -> Result<Vec<Value>> {
+        Ok(self
+            .recall_facts(scope, query, subject, predicate, limit)?
+            .into_iter()
+            .filter(|fact| {
+                fact.status == "active"
+                    && fact.superseded_by.is_none()
+                    && since.is_none_or(|since| changed_since(fact, since))
+            })
+            .take(limit)
+            .map(|fact| profile_record_from_fact(&fact))
+            .collect())
+    }
+
+    pub fn profile_selected_facts(
+        &self,
+        scope: &str,
+        query: &str,
+        subject: Option<&str>,
+        predicate: Option<&str>,
+        limit: usize,
+        since: Option<&str>,
+    ) -> Result<Vec<Value>> {
+        Ok(self
+            .recall_facts(scope, query, subject, predicate, limit)?
+            .into_iter()
+            .filter(|fact| {
+                fact.status == "active"
+                    && fact.superseded_by.is_none()
+                    && since.is_none_or(|since| changed_since(fact, since))
+            })
+            .take(limit)
+            .map(|fact| {
+                json!({
+                    "id": format!("mem_{}", sanitize_string(&fact.id, 120)),
+                    "text": sanitize_string(&fact.text, 300),
+                    "sourceRef": compact_provenance_ref(fact.episode_source_locator.as_deref().unwrap_or(&fact.source)),
+                    "trust": "active",
+                    "extractionConfidence": extraction_confidence(fact.metadata.get("extractionConfidence").and_then(Value::as_str))
+                })
+            })
+            .collect())
+    }
+
+    pub fn active_value(
+        &self,
+        scope: &str,
+        subject: &str,
+        predicate: &str,
+    ) -> Result<Option<String>> {
+        self.conn
+            .query_row(
+                r#"
+                SELECT object FROM memory_facts
+                WHERE workspace_id = ?1
+                  AND scope = ?2
+                  AND subject = ?3
+                  AND predicate = ?4
+                  AND status = 'active'
+                  AND superseded_by IS NULL
+                ORDER BY valid_from DESC, id ASC
+                LIMIT 1
+                "#,
+                params![self.workspace_id, scope, subject, predicate],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(Into::into)
+    }
+
+    pub fn detect_changes(
+        &self,
+        scope: &str,
+        changed_locators: &[String],
+        max_depth: usize,
+        at: &str,
+    ) -> Result<Value> {
+        let edges = self.temporal_graph_edges(scope, at)?;
+        let changed: BTreeSet<String> = changed_locators.iter().cloned().collect();
+        let mut symbol_source = BTreeMap::new();
+        let mut changed_symbols = BTreeSet::new();
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT subject, object, source FROM memory_facts
+            WHERE workspace_id = ?1
+              AND scope = ?2
+              AND predicate = 'IS_A'
+              AND object IN ('Function', 'Class', 'Method')
+              AND status = 'active'
+              AND superseded_by IS NULL
+            ORDER BY subject ASC
+            "#,
+        )?;
+        let rows = stmt.query_map(params![self.workspace_id, scope], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?;
+        for row in rows {
+            let (name, kind, source) = row?;
+            symbol_source.insert(name.clone(), (kind, source.clone()));
+            if changed.contains(&source) {
+                changed_symbols.insert(name);
+            }
+        }
+
+        let mut affected_depth = BTreeMap::new();
+        let mut queue = VecDeque::new();
+        for name in &changed_symbols {
+            affected_depth.insert(name.clone(), 0usize);
+            queue.push_back(name.clone());
+        }
+        let bounded_depth = max_depth.clamp(1, 12);
+        while let Some(callee) = queue.pop_front() {
+            let depth = affected_depth.get(&callee).copied().unwrap_or(0);
+            if depth >= bounded_depth {
+                continue;
+            }
+            for edge in edges
+                .iter()
+                .filter(|edge| edge.predicate == "CALLS" && edge.to == callee)
+            {
+                if edge.from.starts_with("module:") || affected_depth.contains_key(&edge.from) {
+                    continue;
+                }
+                affected_depth.insert(edge.from.clone(), depth + 1);
+                queue.push_back(edge.from.clone());
+            }
+        }
+
+        let mut affected_symbols = Vec::new();
+        for (name, depth) in affected_depth {
+            if name.starts_with("module:") {
+                continue;
+            }
+            let (kind, source) = symbol_source
+                .get(&name)
+                .cloned()
+                .unwrap_or_else(|| (symbol_kind(&name), "workspace://unknown".to_string()));
+            affected_symbols.push(json!({
+                "name": name,
+                "symbolKind": kind.to_ascii_lowercase(),
+                "depth": depth,
+                "sourceRef": source,
+                "reasonCodes": if depth == 0 { vec!["changed_locator"] } else { vec!["reverse_call_graph"] }
+            }));
+        }
+        affected_symbols.sort_by(|left, right| {
+            left.get("depth")
+                .and_then(Value::as_u64)
+                .cmp(&right.get("depth").and_then(Value::as_u64))
+                .then_with(|| {
+                    left.get("name")
+                        .and_then(Value::as_str)
+                        .cmp(&right.get("name").and_then(Value::as_str))
+                })
+        });
+
+        let represented: BTreeSet<String> = changed_symbols
+            .iter()
+            .filter_map(|name| symbol_source.get(name).map(|(_, source)| source.clone()))
+            .collect();
+        let unresolved: Vec<Value> = changed
+            .iter()
+            .filter(|locator| !represented.contains(*locator))
+            .map(|locator| json!({ "locator": locator, "reason": "no_function_class_or_method_symbol" }))
+            .collect();
+        let module_false = affected_symbols
+            .iter()
+            .filter(|item| {
+                item.get("name")
+                    .and_then(Value::as_str)
+                    .is_some_and(|name| name.starts_with("module:"))
+            })
+            .count();
+
+        Ok(json!({
+            "changedLocators": changed_locators,
+            "representedChangedLocators": represented.into_iter().collect::<Vec<_>>(),
+            "affectedSymbols": affected_symbols,
+            "unresolved": unresolved,
+            "quality": {
+                "moduleLevelFalseAttributionCount": module_false,
+                "maxDepth": bounded_depth
+            }
+        }))
+    }
+
     pub fn entity_name_counts(&self) -> Result<Vec<(String, usize)>> {
         let mut stmt = self.conn.prepare(
             "SELECT name, count(*) FROM memory_entities WHERE workspace_id = ? GROUP BY workspace_id, scope, name ORDER BY name",
@@ -2820,6 +3018,40 @@ fn summarize_current_truth_fact(fact: &RecallFact) -> Value {
             fact.episode_source_locator.as_deref().unwrap_or(&fact.source)
         })
     })
+}
+
+fn profile_record_from_fact(fact: &RecallFact) -> Value {
+    json!({
+        "id": format!("mem_{}", fact.id),
+        "workspaceId": fact.workspace_id,
+        "kind": "fact",
+        "text": fact.text,
+        "scope": fact.scope,
+        "dataClass": "workspace-private",
+        "status": fact.status,
+        "source": fact.source,
+        "sourceTrust": "verified",
+        "trustClass": "verified",
+        "confidence": fact.confidence,
+        "authority": fact.confidence,
+        "tags": [fact.subject.clone(), fact.predicate.clone(), fact.object.clone()],
+        "relations": [fact.subject.clone(), fact.object.clone()],
+        "updatedAt": fact.updated_at,
+        "observedAt": fact.valid_from,
+        "metadata": {
+            "extractionConfidence": extraction_confidence(fact.metadata.get("extractionConfidence").and_then(Value::as_str))
+        }
+    })
+}
+
+fn symbol_kind(name: &str) -> String {
+    if name.starts_with("method:") {
+        "Method".to_string()
+    } else if name.starts_with("class:") {
+        "Class".to_string()
+    } else {
+        "Function".to_string()
+    }
 }
 
 fn safe_batch_token(value: &str, name: &str) -> Result<String> {

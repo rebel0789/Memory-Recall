@@ -410,6 +410,7 @@ dependencies = [
  "hex",
  "oaf-ingest",
  "oaf-store",
+ "regex",
  "serde_json",
  "sha2",
 ]

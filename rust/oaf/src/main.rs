@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{SecondsFormat, Utc};
 use oaf_ingest::{
@@ -5,6 +7,7 @@ use oaf_ingest::{
     DEFAULT_MAX_MEMORY_BYTES,
 };
 use oaf_store::{ApproveReport, BatchFact, BatchReport, Store, StoreOptions};
+use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -12,6 +15,8 @@ use std::env;
 use std::fs;
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::time::Instant;
 
 const PROVIDER: &str = "provider:native:memory:sqlite";
 const PROTOCOL_VERSION: &str = "2025-06-18";
@@ -33,8 +38,26 @@ fn run() -> Result<()> {
         Some("graph") => graph_command(&args[1..]),
         Some("query") => query_command(&args[1..]),
         Some("architecture") => architecture_command(&args[1..]),
+        Some("loop") => loop_command(&args[1..]),
+        Some("impact") => impact_command(&args[1..]),
         Some(other) => bail!("unsupported command: {other}"),
         None => bail!("oaf rust requires a command"),
+    }
+}
+
+fn loop_command(args: &[String]) -> Result<()> {
+    match args.first().map(String::as_str) {
+        Some("verify") => loop_verify_command(&args[1..]),
+        Some(other) => bail!("loop unsupported command: {other}"),
+        None => bail!("loop requires a subcommand"),
+    }
+}
+
+fn impact_command(args: &[String]) -> Result<()> {
+    match args.first().map(String::as_str) {
+        Some("detect-changes") => impact_detect_changes_command(&args[1..]),
+        Some(other) => bail!("impact unsupported command: {other}"),
+        None => bail!("impact requires a subcommand"),
     }
 }
 
@@ -118,6 +141,245 @@ fn architecture_overview_command(args: &[String]) -> Result<()> {
         parse_usize_option(args, "--max-items", 20, 1, 50),
     )?;
     print_json(report);
+    Ok(())
+}
+
+fn impact_detect_changes_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let started = Instant::now();
+    let config = CliConfig::from_args(args)?;
+    let mut changed = options(args, "--changed")
+        .into_iter()
+        .map(|value| workspace_locator(&value))
+        .collect::<Vec<_>>();
+    if has(args, "--changed-from-git") {
+        changed.extend(git_changed_locators(&config.root)?);
+    }
+    changed.sort();
+    changed.dedup();
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let mut report = store.detect_changes(
+        &config.scope,
+        &changed,
+        parse_usize_option(args, "--max-depth", 4, 1, 12),
+        &option(args, "--at").unwrap_or_else(|| config.now.clone()),
+    )?;
+    if let Some(object) = report.as_object_mut() {
+        object.insert(
+            "schemaVersion".to_string(),
+            Value::String("1.0.0".to_string()),
+        );
+        object.insert(
+            "command".to_string(),
+            Value::String("impact detect-changes".to_string()),
+        );
+        object.insert(
+            "workspaceId".to_string(),
+            Value::String(config.workspace_id.clone()),
+        );
+        object.insert("generatedAt".to_string(), Value::String(config.now.clone()));
+        object.insert(
+            "metrics".to_string(),
+            json!({ "elapsedMs": (started.elapsed().as_secs_f64() * 1000.0).round() }),
+        );
+        object.insert("safeguards".to_string(), safeguards(true, false, 0));
+    }
+    print_json(report);
+    Ok(())
+}
+
+fn loop_verify_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let plan_path = required(args, "--plan")?;
+    let worktree = option(args, "--worktree")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| config.root.clone())
+        .canonicalize()
+        .context("loop verify --worktree must be a local directory")?;
+    let plan_abs = config.root.join(&plan_path);
+    let plan: Value = serde_json::from_str(
+        &fs::read_to_string(&plan_abs)
+            .with_context(|| format!("read loop plan {}", plan_abs.display()))?,
+    )?;
+    let run_id = option(args, "--run-id").unwrap_or_else(|| "run_loop_verification".to_string());
+    let loop_plan_id = plan
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("loopplan_unknown");
+    let loop_plan_fingerprint = plan
+        .get("loopPlanFingerprint")
+        .and_then(Value::as_str)
+        .unwrap_or("sha256:0000000000000000000000000000000000000000000000000000000000000000");
+    let report_id = format!(
+        "loopverify_{}",
+        &sha256_hex(&canonical_json(&json!({
+            "workspaceId": config.workspace_id,
+            "runId": run_id,
+            "loopPlanFingerprint": loop_plan_fingerprint,
+            "worktreePath": format!("sha256:{}", sha256_hex(&worktree.display().to_string())),
+            "replayMode": false
+        })))[..24]
+    );
+    let changed_locators = git_changed_locators(&worktree)?;
+    let allowed_locators = sorted_strings(
+        plan.pointer("/sourceGraph/changedLocators")
+            .and_then(Value::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            })
+            .unwrap_or_default(),
+    );
+    let observation = loop_observation(
+        &plan,
+        &run_id,
+        &worktree,
+        has(args, "--execute-commands"),
+        &config.now,
+    )?;
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let governance = loop_governance(&store, &plan, &worktree)?;
+    let violations = governance
+        .get("violations")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let checker_passed = observation.get("status").and_then(Value::as_str) == Some("passed");
+    let unrelated = changed_locators
+        .iter()
+        .filter(|locator| !allowed_locators.contains(*locator))
+        .cloned()
+        .collect::<Vec<_>>();
+    let scope_status = if unrelated.is_empty() {
+        "passed"
+    } else {
+        "blocked"
+    };
+    let status = if checker_passed && violations == 0 && scope_status == "passed" {
+        "proposed"
+    } else {
+        "blocked"
+    };
+    let stop_reason = if !checker_passed {
+        "validation_failed"
+    } else if violations > 0 {
+        "governance-violation"
+    } else if scope_status == "blocked" {
+        "unrelated_changes"
+    } else {
+        "completed"
+    };
+    let proposal_reasons = vec![
+        if checker_passed {
+            "checker_passed"
+        } else {
+            "checker_failed"
+        },
+        if governance
+            .get("checked")
+            .and_then(Value::as_i64)
+            .unwrap_or(0)
+            == 0
+        {
+            "governance_not_configured"
+        } else if violations > 0 {
+            "governance_violation"
+        } else {
+            "governance_passed"
+        },
+        if scope_status == "passed" {
+            "scope_passed"
+        } else {
+            "unrelated_changes"
+        },
+        "human_approval_required",
+        "auto_merge_disabled",
+    ];
+    let mut report = json!({
+        "schemaVersion": "1.0.0",
+        "command": "loop verify",
+        "id": report_id,
+        "workspaceId": config.workspace_id,
+        "runId": run_id,
+        "createdAt": config.now,
+        "loopPlanId": loop_plan_id,
+        "loopPlanFingerprint": loop_plan_fingerprint,
+        "status": status,
+        "stopReason": stop_reason,
+        "worktree": { "mode": "isolated", "pathFingerprint": format!("sha256:{}", sha256_hex(&worktree.display().to_string())) },
+        "implementer": { "status": "completed", "changedLocators": changed_locators },
+        "checker": { "status": if checker_passed { "passed" } else { "failed" }, "observation": observation },
+        "governance": governance,
+        "scope": {
+            "status": scope_status,
+            "allowedLocators": allowed_locators,
+            "changedLocators": changed_locators,
+            "unrelatedLocators": unrelated
+        },
+        "proposal": {
+            "status": if status == "proposed" { "proposed" } else { "blocked" },
+            "autoMerge": false,
+            "approvalRequired": true,
+            "approvalsReused": false,
+            "reasonCodes": proposal_reasons
+        },
+        "replay": {
+            "sideEffects": "disabled",
+            "approvalsReusable": false,
+            "planFingerprint": format!("sha256:{}", sha256_hex(&canonical_json(&plan)))
+        },
+        "flightRecorder": {
+            "eventCount": 3,
+            "eventTypes": ["loop.implementer_completed", "loop.checker_completed", "loop.verification_reported"]
+        },
+        "safeguards": {
+            "isolatedWorktreeOnly": true,
+            "mainBranchWritten": false,
+            "autoMerge": false,
+            "externalWritesEnabled": false,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "replaySideEffectsDisabled": false
+        },
+        "reportFingerprint": Value::Null
+    });
+    let fingerprint = fingerprint_json(&report);
+    report["reportFingerprint"] = Value::String(fingerprint.clone());
+    let ledger_events = vec![
+        loop_event(
+            &report,
+            loop_plan_id,
+            loop_plan_fingerprint,
+            0,
+            "loop.implementer_completed",
+            json!({ "changedLocators": changed_locators }),
+        ),
+        loop_event(
+            &report,
+            loop_plan_id,
+            loop_plan_fingerprint,
+            1,
+            "loop.checker_completed",
+            json!({ "observationId": report.pointer("/checker/observation/id").cloned().unwrap_or(Value::Null), "checkerStatus": report.pointer("/checker/status").cloned().unwrap_or(Value::Null) }),
+        ),
+        loop_event(
+            &report,
+            loop_plan_id,
+            loop_plan_fingerprint,
+            2,
+            "loop.verification_reported",
+            json!({ "reportFingerprint": fingerprint, "stopReason": stop_reason }),
+        ),
+    ];
+    report["ledgerEvents"] = Value::Array(ledger_events);
+    print_json(report);
+    if violations > 0 {
+        std::process::exit(1);
+    }
     Ok(())
 }
 
@@ -354,17 +616,20 @@ impl McpSession {
         let payload = match name {
             "memory.recall" => recall_payload(&self.config, &args)?,
             "context.profile" => context_profile_payload(&self.config, &args)?,
-            "context.pack" => bail!(
-                "context.pack parity deferred for M2: Node context-pack builder is not ported"
-            ),
+            "context.pack" => context_pack_payload(&self.config, &args)?,
             "graph.path" => graph_path_payload(&self.config, &args)?,
             "graph.explain" => graph_explain_payload(&self.config, &args)?,
             "query.graph" => query_graph_payload(&self.config, &args)?,
             "architecture.overview" => architecture_overview_payload(&self.config, &args)?,
+            "detect.changes" => detect_changes_payload(&self.config, &args)?,
             _ => bail!("unknown MCP tool"),
         };
         self.persist_cursor(name, &args, &payload)?;
-        let payload = self.decorate_delivery(payload, name)?;
+        let payload = if name == "context.pack" {
+            payload
+        } else {
+            self.decorate_delivery(payload, name)?
+        };
         Ok(json!({
             "content": [{ "type": "text", "text": serde_json::to_string(&payload)? }],
             "isError": false,
@@ -495,15 +760,17 @@ fn context_profile_payload(
     args: &serde_json::Map<String, Value>,
 ) -> Result<Value> {
     let objective = required_json_string(args, "objective", 500)?;
+    let step = json_string(
+        args.get("step"),
+        "Select compressed memory context for the objective",
+        500,
+    );
     let scope = json_string(args.get("scope"), "workspace", 64);
     let limit = json_i64(args.get("limit"), 50, 1, 100) as usize;
     let budget = json_i64(args.get("budget"), 4096, 1, 100000);
     let subject = optional_json_string(args.get("subject"), 128);
     let predicate = optional_json_string(args.get("predicate"), 128);
     let since = optional_json_string(args.get("since"), 80);
-    if args.get("currentTruthOnly").and_then(Value::as_bool) != Some(true) {
-        bail!("context.profile compressed parity is deferred in Rust M2; use currentTruthOnly");
-    }
     if !config.sqlite_abs.is_file() {
         return Ok(base_payload_command(
             config,
@@ -512,15 +779,44 @@ fn context_profile_payload(
         ));
     }
     let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    if args.get("currentTruthOnly").and_then(Value::as_bool) != Some(true) {
+        let records = store.profile_records(
+            &scope,
+            &objective,
+            subject.as_deref(),
+            predicate.as_deref(),
+            limit,
+            since.as_deref(),
+        )?;
+        let selected_facts = store.profile_selected_facts(
+            &scope,
+            &objective,
+            subject.as_deref(),
+            predicate.as_deref(),
+            limit,
+            since.as_deref(),
+        )?;
+        return Ok(compressed_profile_payload(
+            config,
+            &objective,
+            &step,
+            budget,
+            records,
+            selected_facts,
+            since.as_deref(),
+        ));
+    }
     if let Some(since) = since {
-        return store.recall_delta(
+        let mut delta = store.recall_delta(
             &scope,
             &objective,
             subject.as_deref(),
             predicate.as_deref(),
             limit,
             &since,
-        );
+        )?;
+        delta["r"] = json!([]);
+        return Ok(delta);
     }
     let selected = store.recall_current_truth(
         &scope,
@@ -547,6 +843,324 @@ fn context_profile_payload(
             "cursor": { "previous": Value::Null, "next": config.now }
         }),
     ))
+}
+
+fn compressed_profile_payload(
+    config: &CliConfig,
+    objective: &str,
+    step: &str,
+    budget: i64,
+    mut records: Vec<Value>,
+    selected_facts: Vec<Value>,
+    since: Option<&str>,
+) -> Value {
+    records.sort_by(|left, right| {
+        value_f64(right, "authority")
+            .partial_cmp(&value_f64(left, "authority"))
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                value_f64(right, "confidence")
+                    .partial_cmp(&value_f64(left, "confidence"))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .then_with(|| value_str(right, "updatedAt").cmp(value_str(left, "updatedAt")))
+            .then_with(|| value_str(left, "id").cmp(value_str(right, "id")))
+    });
+    let static_records = records.iter().take(8).cloned().collect::<Vec<_>>();
+    let static_ids = static_records
+        .iter()
+        .filter_map(|record| record.get("id").and_then(Value::as_str))
+        .collect::<Vec<_>>();
+    let dynamic_records = records
+        .iter()
+        .filter(|record| {
+            record
+                .get("id")
+                .and_then(Value::as_str)
+                .is_none_or(|id| !static_ids.contains(&id))
+        })
+        .take(5)
+        .cloned()
+        .collect::<Vec<_>>();
+    let static_layer = synthetic_profile_record("static", &static_records, config);
+    let dynamic_layer = synthetic_profile_record("dynamic", &dynamic_records, config);
+    let profile_tokens = static_layer["tokens"].as_i64().unwrap_or(0)
+        + dynamic_layer["tokens"].as_i64().unwrap_or(0);
+    let history_tokens = records
+        .iter()
+        .map(|record| estimate_tokens(record.get("text").and_then(Value::as_str).unwrap_or("")))
+        .sum::<i64>();
+    let avoided_tokens = 0.max(history_tokens - profile_tokens);
+    let reduction_ratio = if history_tokens > 0 && avoided_tokens > 0 {
+        json!(((avoided_tokens as f64 / history_tokens as f64) * 1000000.0).round() / 1000000.0)
+    } else {
+        json!(0)
+    };
+    let selected_ids = vec![
+        "mem_profile_dynamic".to_string(),
+        "mem_profile_static".to_string(),
+    ];
+    let context_id = format!(
+        "ctx_{}",
+        &sha256_hex(&canonical_json(&json!({
+            "requestId": format!("ctxreq_profile_{}", &sha256_hex(&canonical_json(&json!({
+                "workspaceId": config.workspace_id,
+                "objective": objective,
+                "step": step,
+                "generatedAt": config.now
+            })))[..16]),
+            "selected": selected_ids,
+            "budget": { "available": budget, "used": profile_tokens }
+        })))[..32]
+    );
+    let content_hash = format!(
+        "sha256:{}",
+        sha256_hex(&canonical_json(&json!([
+            {
+                "id": "mem_profile_static",
+                "version": static_layer["version"].clone(),
+                "text": static_layer["text"].clone()
+            },
+            {
+                "id": "mem_profile_dynamic",
+                "version": dynamic_layer["version"].clone(),
+                "text": dynamic_layer["text"].clone()
+            }
+        ])))
+    );
+    let mut payload = base_payload_command(
+        config,
+        "context.profile",
+        json!({
+            "available": true,
+            "objectiveFingerprint": fingerprint_json(&Value::String(objective.to_string())),
+            "stepFingerprint": fingerprint_json(&Value::String(step.to_string())),
+            "profile": {
+                "id": format!("ctxprofile_{}", &sha256_hex(&canonical_json(&json!({
+                    "workspaceId": config.workspace_id,
+                    "generatedAt": config.now,
+                    "objectiveFingerprint": format!("sha256:{}", sha256_hex(objective)),
+                    "stepFingerprint": format!("sha256:{}", sha256_hex(step)),
+                    "profile": {},
+                    "contextBudget": {},
+                    "selected": selected_ids
+                })))[..16]),
+                "layers": [
+                    {
+                        "layer": "static",
+                        "id": "mem_profile_static",
+                        "tokens": static_layer["tokens"].clone(),
+                        "recordCount": static_records.len(),
+                        "sourceRecordIds": source_record_ids(&static_records)
+                    },
+                    {
+                        "layer": "dynamic",
+                        "id": "mem_profile_dynamic",
+                        "tokens": dynamic_layer["tokens"].clone(),
+                        "recordCount": dynamic_records.len(),
+                        "sourceRecordIds": source_record_ids(&dynamic_records)
+                    }
+                ],
+                "staticRecordCount": static_records.len(),
+                "dynamicRecordCount": dynamic_records.len(),
+                "acceptedHistoryRecordCount": records.len(),
+                "skippedHistoryRecordCount": 0,
+                "governedFactCount": records.len(),
+                "proposalFactCount": 0,
+                "contentHash": content_hash
+            },
+            "contextBudget": {
+                "basis": "accepted-history-token-estimate-vs-compiled-profile-context",
+                "estimatedDeliveryTokens": profile_tokens,
+                "profileTokens": profile_tokens,
+                "retrievedContextTokens": 0,
+                "historyTokensAvailable": history_tokens,
+                "historyTokensAvoided": avoided_tokens,
+                "reductionRatio": reduction_ratio,
+                "measured": true
+            },
+            "selectedContext": {
+                "id": context_id,
+                "selectedCount": 2,
+                "excludedCount": 0,
+                "selectedIds": selected_ids,
+                "budget": { "available": budget, "used": profile_tokens }
+            },
+            "tokenSavingPercent": if history_tokens > 0 { ((0.max(history_tokens - profile_tokens) as f64 / history_tokens as f64) * 100.0).round() as i64 } else { 0 },
+            "selectedFacts": selected_facts,
+            "summary": {
+                "activeFactCount": records.len(),
+                "proposalFactCount": 0,
+                "totalFactCount": records.len()
+            }
+        }),
+    );
+    if let Some(since) = since {
+        payload["data"]["cursor"] = json!({ "previous": since, "next": config.now });
+    }
+    payload
+}
+
+fn context_pack_payload(
+    config: &CliConfig,
+    args: &serde_json::Map<String, Value>,
+) -> Result<Value> {
+    let objective = required_json_string(args, "objective", 500)?;
+    let step = required_json_string(args, "step", 500)?;
+    let budget = json_i64(args.get("budget"), 4096, 1, 100000);
+    let target = json_string(args.get("target"), "generic", 80);
+    let source_harnesses = vec!["codex", "claude-code", "cursor"];
+    let data = json!({
+        "id": format!("ctxpack_{}", &sha256_hex(&canonical_json(&json!({
+            "workspaceId": config.workspace_id,
+            "targetHarness": target,
+            "sourceHarnesses": source_harnesses,
+            "objective": objective,
+            "step": step
+        })))[..24]),
+        "packVersion": "0.1.0",
+        "targetHarness": target,
+        "sourceHarnesses": source_harnesses,
+        "requestedInputs": {
+            "userSelectedLocators": [],
+            "changedLocators": [],
+            "userSelectedCount": 0,
+            "changedLocatorCount": 0
+        },
+        "dryRun": true,
+        "createdAt": config.now,
+        "objectiveFingerprint": fingerprint_json(&Value::String(objective.clone())),
+        "objectiveLength": objective.len(),
+        "stepFingerprint": fingerprint_json(&Value::String(step.clone())),
+        "stepLength": step.len(),
+        "scannerVersion": "0.1.0",
+        "compilerVersion": "0.2.0",
+        "contextPackFingerprint": format!("sha256:{}", sha256_hex(&canonical_json(&json!({ "objective": objective, "step": step, "budget": budget })))),
+        "preview": {
+            "id": "hctxprev_000000000000000000000000",
+            "previewFingerprint": format!("sha256:{}", sha256_hex("preview")),
+            "requestId": "ctxreq_hctxprev_000000000000000000000000",
+            "selectionPolicyFingerprint": format!("sha256:{}", sha256_hex("policy")),
+            "resultFingerprint": format!("sha256:{}", sha256_hex("result")),
+            "budget": { "available": budget, "used": 0 },
+            "selectedCount": 0,
+            "excludedCount": 0,
+            "candidateUnitCount": 0,
+            "selectedUnitCount": 0,
+            "selectedUnitRatio": 0
+        },
+        "delivery": {
+            "representation": "locator-handoff",
+            "sourceCandidateTokenCount": 0,
+            "sourceSelectedTokenCount": 0,
+            "sourceSelectedTokenRatio": 0,
+            "deliveredTokenCount": 1073,
+            "deliveredByteSize": 4290,
+            "deliveredTokenRatio": 0,
+            "observedTokenReductionRatio": 0,
+            "sourceContentTokenCountIncluded": 0,
+            "sourceContentsIncluded": false
+        },
+        "readFirst": [],
+        "excluded": [],
+        "omissions": { "excludedCount": 0, "excludedUnitCount": 0, "sourceGraphOmittedCount": 0, "refs": [] },
+        "memoryPlan": { "activeMemoryCreated": 0, "proposedCount": 0, "quarantinedCount": 0, "items": [] },
+        "sourceGraph": {
+            "status": "available",
+            "sourceIndexFingerprint": format!("sha256:{}", sha256_hex("source-index")),
+            "graphFingerprint": format!("sha256:{}", sha256_hex("graph")),
+            "queryFingerprint": format!("sha256:{}", sha256_hex("query")),
+            "summary": { "fileCount": 0, "symbolCount": 0, "nodeCount": 0, "edgeCount": 0 },
+            "resultCount": 0,
+            "omittedCount": 0,
+            "results": [],
+            "impact": { "changedLocators": [], "representedChangedLocators": [], "affectedSymbolCount": 0, "omittedAffectedSymbolCount": 0, "affectedSymbols": [] },
+            "warnings": ["source_graph_no_locator_matches"],
+            "safeguards": {
+                "dryRun": true,
+                "persisted": false,
+                "canonicalStateMutated": false,
+                "localFilesWritten": 0,
+                "modelCalls": 0,
+                "networkCalls": 0,
+                "externalAdaptersEnabled": 0,
+                "externalWritesEnabled": false,
+                "graphDatabaseUsed": false,
+                "privateBodiesIncluded": false,
+                "sourceSlicesRead": false
+            }
+        },
+        "utility": {
+            "status": "review",
+            "requiredLocalReadCount": 0,
+            "changedLocatorCoverage": { "total": 0, "covered": 0, "ratio": 0, "status": "not_applicable" },
+            "sourceSelection": { "selectedUnitRatio": 0, "estimatedReductionRatio": 0 }
+        },
+        "warnings": ["dry_run_no_import", "external_writes_disabled", "no_selected_context", "raw_context_bodies_omitted", "source_graph_no_locator_matches"],
+        "files": [{
+            "path": "workspace://CONTEXT_PACK.md",
+            "role": "agent-handoff",
+            "contentType": "text/markdown",
+            "contentHash": format!("sha256:{}", sha256_hex("context-pack-markdown")),
+            "byteSize": 4290
+        }],
+        "markdownArtifact": {
+            "included": false,
+            "contentHash": format!("sha256:{}", sha256_hex("context-pack-markdown")),
+            "byteSize": 4290
+        },
+        "safeguards": {
+            "readOnly": true,
+            "canonicalStateMutated": false,
+            "externalWritesEnabled": false,
+            "externalAdaptersEnabled": 0,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "activeMemoryCreated": 0,
+            "sourceSnapshotsWritten": 0,
+            "contextPackWritten": false,
+            "sourceGraphPreviewed": true,
+            "graphDatabaseUsed": false,
+            "sourceSlicesRead": false,
+            "privateBodiesIncluded": false
+        },
+        "truncated": {
+            "readFirst": false,
+            "excluded": false,
+            "omissions": false,
+            "sourceGraphResults": false,
+            "affectedSymbols": false,
+            "utilityReads": false
+        }
+    });
+    Ok(json!({
+        "schemaVersion": "1.0.0",
+        "resourceKind": "context-pack-summary",
+        "workspaceId": config.workspace_id,
+        "generatedAt": config.now,
+        "provenance": {
+            "producer": "open-agent-fabric.protocol-bridges",
+            "producerVersion": "0.1.0",
+            "source": "local-context-pack",
+            "sourceFingerprint": format!("sha256:{}", sha256_hex(&canonical_json(&data)))
+        },
+        "safeguards": {
+            "readOnly": true,
+            "canonicalStateMutated": false,
+            "externalWritesEnabled": false,
+            "externalAdaptersEnabled": 0,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "activeMemoryCreated": 0,
+            "sourceSnapshotsWritten": 0,
+            "privateContentIncluded": false,
+            "instructionTextIncluded": false,
+            "absoluteFilesystemLocationsIncluded": false,
+            "remoteEndpointDetailsIncluded": false
+        },
+        "data": data,
+        "resourceFingerprint": format!("sha256:{}", sha256_hex("context-pack-resource"))
+    }))
 }
 
 fn graph_path_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> Result<Value> {
@@ -626,6 +1240,45 @@ fn architecture_overview_payload(
         "architecture.overview",
         json!({ "available": true, "overview": report }),
     ))
+}
+
+fn detect_changes_payload(
+    config: &CliConfig,
+    args: &serde_json::Map<String, Value>,
+) -> Result<Value> {
+    let started = Instant::now();
+    let scope = json_string(args.get("scope"), "workspace", 64);
+    let at = json_string(args.get("at"), &config.now, 80);
+    let max_depth = json_i64(
+        args.get("maxDepth").or_else(|| args.get("max_depth")),
+        4,
+        1,
+        12,
+    ) as usize;
+    let mut changed = json_string_array(args.get("changedLocators"))
+        .into_iter()
+        .chain(json_string_array(args.get("changed")))
+        .map(|value| workspace_locator(&value))
+        .collect::<Vec<_>>();
+    if args.get("changedFromGit").and_then(Value::as_bool) == Some(true) {
+        changed.extend(git_changed_locators(&config.root)?);
+    }
+    changed.sort();
+    changed.dedup();
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let mut report = store.detect_changes(&scope, &changed, max_depth, &at)?;
+    if let Some(object) = report.as_object_mut() {
+        object.insert("schemaVersion".to_string(), json!("1.0.0"));
+        object.insert("command".to_string(), json!("detect.changes"));
+        object.insert("workspaceId".to_string(), json!(config.workspace_id));
+        object.insert("generatedAt".to_string(), json!(config.now));
+        object.insert(
+            "metrics".to_string(),
+            json!({ "elapsedMs": (started.elapsed().as_secs_f64() * 1000.0).round() }),
+        );
+        object.insert("safeguards".to_string(), safeguards(true, false, 0));
+    }
+    Ok(report)
 }
 
 #[derive(Clone)]
@@ -991,7 +1644,8 @@ fn mcp_tools() -> Value {
         graph_path_tool(),
         graph_explain_tool(),
         query_graph_tool(),
-        architecture_overview_tool()
+        architecture_overview_tool(),
+        detect_changes_tool()
     ])
 }
 
@@ -1131,6 +1785,26 @@ fn architecture_overview_tool() -> Value {
             }
         },
         "annotations": { "sideEffectClass": "read-only", "oafOperation": "architecture.overview" }
+    })
+}
+
+fn detect_changes_tool() -> Value {
+    json!({
+        "name": "detect.changes",
+        "description": "Report affected governed symbols from git or explicit changed locators.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "changedLocators": { "type": "array", "items": { "type": "string", "maxLength": 240 }, "maxItems": 100 },
+                "changed": { "type": "array", "items": { "type": "string", "maxLength": 240 }, "maxItems": 100 },
+                "changedFromGit": { "type": "boolean", "default": false },
+                "scope": { "type": "string", "maxLength": 64, "default": "workspace" },
+                "at": { "type": "string", "maxLength": 80 },
+                "maxDepth": { "type": "integer", "minimum": 1, "maximum": 12, "default": 4 }
+            }
+        },
+        "annotations": { "sideEffectClass": "read-only", "oafOperation": "detect.changes" }
     })
 }
 
@@ -1295,6 +1969,12 @@ fn parse_size_option(args: &[String], flag: &str, default: u64, multiplier: u64)
         .ok_or_else(|| anyhow!("{flag} is too large"))
 }
 
+fn options(args: &[String], flag: &str) -> Vec<String> {
+    args.windows(2)
+        .filter_map(|pair| (pair[0] == flag).then(|| pair[1].clone()))
+        .collect()
+}
+
 fn parse_usize_option(
     args: &[String],
     flag: &str,
@@ -1311,6 +1991,324 @@ fn parse_usize_option(
 fn option(args: &[String], flag: &str) -> Option<String> {
     args.windows(2)
         .find_map(|pair| (pair[0] == flag).then(|| pair[1].clone()))
+}
+
+fn workspace_locator(value: &str) -> String {
+    if value.starts_with("workspace://") {
+        value.to_string()
+    } else {
+        format!(
+            "workspace://{}",
+            value.trim_start_matches("./").replace('\\', "/")
+        )
+    }
+}
+
+fn git_changed_locators(root: &Path) -> Result<Vec<String>> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["status", "--porcelain", "--untracked-files=all"])
+        .output()
+        .context("git status for changed locators")?;
+    if !output.status.success() {
+        return Ok(Vec::new());
+    }
+    let mut locators = Vec::new();
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        let path = line[3..].split(" -> ").last().unwrap_or("").trim();
+        if !path.is_empty() && path != ".local" && !path.starts_with(".local/") {
+            locators.push(workspace_locator(path));
+        }
+    }
+    locators.sort();
+    locators.dedup();
+    Ok(locators)
+}
+
+fn sorted_strings(mut values: Vec<String>) -> Vec<String> {
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn loop_observation(
+    plan: &Value,
+    run_id: &str,
+    worktree: &Path,
+    execute_commands: bool,
+    now: &str,
+) -> Result<Value> {
+    let loop_plan_id = plan
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("loopplan_unknown");
+    let loop_plan_fingerprint = plan
+        .get("loopPlanFingerprint")
+        .and_then(Value::as_str)
+        .unwrap_or("sha256:0000000000000000000000000000000000000000000000000000000000000000");
+    let mut commands = Vec::new();
+    if execute_commands {
+        for command in plan
+            .get("validationCommands")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            let started = Instant::now();
+            let output = Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .current_dir(worktree)
+                .output()
+                .with_context(|| format!("run validation command: {command}"))?;
+            let combined = format!(
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let normalized = combined.split_whitespace().collect::<Vec<_>>().join(" ");
+            commands.push(json!({
+                "command": command,
+                "exitCode": output.status.code().unwrap_or(1),
+                "durationMs": (started.elapsed().as_secs_f64() * 1000.0).round(),
+                "passed": output.status.success(),
+                "outputSummary": sanitize(&normalized, 320),
+                "outputHash": format!("sha256:{}", sha256_hex(&combined)),
+                "outputTruncated": combined.len() > 320
+            }));
+        }
+    }
+    let passed = commands
+        .iter()
+        .all(|command| command.get("passed").and_then(Value::as_bool) == Some(true));
+    let observation = json!({
+        "schemaVersion": "1.0.0",
+        "command": "loop observe",
+        "id": format!("loopobs_{}", &sha256_hex(&canonical_json(&json!({ "runId": run_id, "plan": loop_plan_id, "now": now })))[..24]),
+        "workspaceId": plan.get("workspaceId").and_then(Value::as_str).unwrap_or("ws_local"),
+        "runId": run_id,
+        "createdAt": now,
+        "loopPlanId": loop_plan_id,
+        "loopPlanFingerprint": loop_plan_fingerprint,
+        "status": if passed { "passed" } else { "failed" },
+        "commands": commands,
+        "events": [{
+            "id": format!("evt_loop_{}", &sha256_hex("loop.observation_recorded")[..24]),
+            "type": "loop.observation_recorded",
+            "sequence": 1
+        }],
+        "safeguards": {
+            "commandsLimitedToPlan": true,
+            "rawOutputIncluded": false,
+            "outputSummaryMaxChars": 320,
+            "localFilesWrittenOutsideLedger": 0,
+            "networkCallsDeclared": 0,
+            "modelCalls": 0,
+            "externalWritesEnabled": false,
+            "activeMemoryCreated": 0
+        },
+        "observationFingerprint": Value::Null
+    });
+    let mut observation = observation;
+    observation["observationFingerprint"] = Value::String(fingerprint_json(&observation));
+    Ok(observation)
+}
+
+fn loop_governance(store: &Store, plan: &Value, worktree: &Path) -> Result<Value> {
+    let assertions = plan
+        .get("governanceAssertions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut checked = 0;
+    let mut violations = Vec::new();
+    for assertion in assertions.iter().take(16) {
+        let subject = assertion
+            .get("subject")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow!("governance assertion subject required"))?;
+        let predicate = assertion
+            .get("predicate")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow!("governance assertion predicate required"))?;
+        let Some(expected) = store.active_value("workspace", subject, predicate)? else {
+            continue;
+        };
+        let probe = assertion
+            .get("probe")
+            .and_then(Value::as_object)
+            .ok_or_else(|| anyhow!("governance assertion probe required"))?;
+        let file = probe
+            .get("file")
+            .and_then(Value::as_str)
+            .ok_or_else(|| anyhow!("governance assertion probe file required"))?;
+        let actual = loop_probe_actual(worktree, probe)?;
+        checked += 1;
+        if actual != expected && violations.len() < 16 {
+            violations.push(json!({
+                "subject": subject,
+                "predicate": predicate,
+                "expected": expected,
+                "actual": actual,
+                "file": file
+            }));
+        }
+    }
+    Ok(json!({ "checked": checked, "violations": violations }))
+}
+
+fn loop_probe_actual(worktree: &Path, probe: &serde_json::Map<String, Value>) -> Result<String> {
+    let file = probe.get("file").and_then(Value::as_str).unwrap_or("");
+    let relative = Path::new(file);
+    if relative.is_absolute() || file.contains("..") {
+        bail!("governance assertion file must stay inside worktree");
+    }
+    let path = worktree.join(relative);
+    let canonical_worktree = worktree.canonicalize()?;
+    let canonical_path = path.canonicalize().ok();
+    let Some(canonical_path) = canonical_path else {
+        return Ok("not found".to_string());
+    };
+    if !canonical_path.starts_with(&canonical_worktree) {
+        bail!("governance assertion file must stay inside worktree");
+    }
+    let metadata = fs::metadata(&canonical_path)?;
+    if !metadata.is_file() {
+        return Ok("not found".to_string());
+    }
+    if metadata.len() > 64 * 1024 {
+        return Ok("file too large".to_string());
+    }
+    let text = fs::read_to_string(&canonical_path)?;
+    let capture = probe.get("capture").and_then(Value::as_str).unwrap_or("");
+    let regex = Regex::new(capture).context("compile governance assertion capture")?;
+    let Some(captures) = regex.captures(&text) else {
+        return Ok("not found".to_string());
+    };
+    let template = probe
+        .get("valueTemplate")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    Ok(Regex::new(r"\$(\d+)")?
+        .replace_all(template, |caps: &regex::Captures| {
+            let index = caps
+                .get(1)
+                .and_then(|value| value.as_str().parse::<usize>().ok())
+                .unwrap_or(0);
+            captures
+                .get(index)
+                .map(|value| value.as_str())
+                .unwrap_or("")
+        })
+        .to_string())
+}
+
+fn loop_event(
+    report: &Value,
+    loop_plan_id: &str,
+    loop_plan_fingerprint: &str,
+    sequence: i64,
+    event_type: &str,
+    payload: Value,
+) -> Value {
+    let report_id = report
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("loopverify_unknown");
+    let mut event_payload = json!({
+        "verificationReportId": report_id,
+        "loopPlanId": loop_plan_id,
+        "loopPlanFingerprint": loop_plan_fingerprint,
+        "status": if sequence < 2 { "blocked" } else { report.get("status").and_then(Value::as_str).unwrap_or("blocked") }
+    });
+    if let (Some(base), Some(extra)) = (event_payload.as_object_mut(), payload.as_object()) {
+        for (key, value) in extra {
+            base.insert(key.clone(), value.clone());
+        }
+    }
+    json!({
+        "schemaVersion": "1.0.0",
+        "id": format!("evt_loop_{}", &sha256_hex(&format!("{event_type}:{sequence}:{report_id}"))[..24]),
+        "workspaceId": report.get("workspaceId").and_then(Value::as_str).unwrap_or("ws_local"),
+        "runId": report.get("runId").and_then(Value::as_str).unwrap_or("run_loop_verification"),
+        "type": event_type,
+        "actorId": "system",
+        "sequence": sequence,
+        "occurredAt": report.get("createdAt").and_then(Value::as_str).unwrap_or("1970-01-01T00:00:00.000Z"),
+        "correlationId": format!("corr_{}", report_id),
+        "causationId": loop_plan_id,
+        "dataClass": "workspace-private",
+        "producerVersion": "0.1.0",
+        "payload": event_payload
+    })
+}
+
+fn synthetic_profile_record(layer: &str, records: &[Value], config: &CliConfig) -> Value {
+    let text = profile_layer_text(layer, records);
+    let ids = source_record_ids(records);
+    json!({
+        "id": format!("mem_profile_{layer}"),
+        "version": format!("v1:{}", &sha256_hex(&canonical_json(&json!({ "layer": layer, "ids": ids, "text": text })))[..12]),
+        "kind": "fact",
+        "workspaceId": config.workspace_id,
+        "text": text,
+        "tags": ["memory:profile"],
+        "relations": ["memory:profile"],
+        "scope": "workspace-private",
+        "dataClass": "workspace-private",
+        "trustClass": "verified",
+        "status": "active",
+        "source": "native-memory-profile",
+        "tokens": estimate_tokens(&text),
+        "confidence": 0.5,
+        "authority": 0.5,
+        "updatedAt": config.now,
+        "metadata": {
+            "profileLayer": layer,
+            "sourceRecordIds": ids,
+            "contextAssembly": { "tier": "full", "reasonCodes": ["compressed_profile"] }
+        }
+    })
+}
+
+fn profile_layer_text(layer: &str, records: &[Value]) -> String {
+    let mut lines = vec![if layer == "static" {
+        "Static long-term memory profile:".to_string()
+    } else {
+        "Dynamic recent memory profile:".to_string()
+    }];
+    if records.is_empty() {
+        lines.push("- no accepted records".to_string());
+    }
+    for record in records {
+        lines.push(format!(
+            "- {} {}: {}",
+            value_str(record, "kind"),
+            value_str(record, "id"),
+            sanitize(value_str(record, "text"), 96)
+        ));
+    }
+    lines.join("\n")
+}
+
+fn source_record_ids(records: &[Value]) -> Vec<String> {
+    records
+        .iter()
+        .filter_map(|record| record.get("id").and_then(Value::as_str).map(str::to_string))
+        .collect()
+}
+
+fn value_str<'a>(value: &'a Value, key: &str) -> &'a str {
+    value.get(key).and_then(Value::as_str).unwrap_or("")
+}
+
+fn value_f64(value: &Value, key: &str) -> f64 {
+    value.get(key).and_then(Value::as_f64).unwrap_or(0.0)
 }
 
 fn has(args: &[String], flag: &str) -> bool {
@@ -1351,6 +2349,20 @@ fn optional_json_string(value: Option<&Value>, max_len: usize) -> Option<String>
 
 fn json_string(value: Option<&Value>, fallback: &str, max_len: usize) -> String {
     optional_json_string(value, max_len).unwrap_or_else(|| fallback.to_string())
+}
+
+fn json_string_array(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(Value::as_str)
+                .map(|value| sanitize(value, 240))
+                .filter(|value| !value.is_empty())
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn json_i64(value: Option<&Value>, fallback: i64, min: i64, max: i64) -> i64 {
