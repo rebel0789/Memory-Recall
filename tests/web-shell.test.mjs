@@ -19,6 +19,7 @@ import {
   buildHarnessSetupUiModel,
   buildLoopWorkbenchModel,
   buildMemoryCockpitModel,
+  buildMemoryGraphModel,
   buildMemoryReviewModel,
   buildPinnedHandoffStatusModel,
   canReceivePinnedHandoff,
@@ -36,6 +37,7 @@ import {
   safeEventSummary,
   selectContextPackPinPayload,
   renderMemoryCockpit,
+  renderMemoryGraph,
   renderLoopWorkbenchMemoryFlow,
   shellStatusLabel,
   summarizeRunSteps,
@@ -52,13 +54,14 @@ function replaceGlobal(name,value) {
 }
 
 test('web shell exposes stable path routes with legacy query compatibility',()=>{
-  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/loop-workbench','/fabric-map','/context','/context-pack','/source-graph','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
+  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/loop-workbench','/fabric-map','/context','/context-pack','/source-graph','/memory','/memory-graph','/evidence','/approvals','/content','/agents-tools','/settings']);
   assert.equal(resolveRoute('http://127.0.0.1:4310/runs').id,'runs');
   assert.equal(resolveRoute('http://127.0.0.1:4310/loop-workbench').id,'loop-workbench');
   assert.equal(resolveRoute('http://127.0.0.1:4310/fabric-map').id,'fabric-map');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context?manifest=ctx_1').id,'context');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context-pack').id,'context-pack');
   assert.equal(resolveRoute('http://127.0.0.1:4310/source-graph').id,'source-graph');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/memory-graph').id,'memory-graph');
   assert.equal(resolveRoute('http://127.0.0.1:4310/?view=evidence').id,'evidence');
   assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id,'home');
   assert.equal(legacyViewPath('design'),'/settings');
@@ -173,6 +176,43 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.match(html, /Jun 26, 2026/);
   assert.match(html, /mpq_web_memory/);
   assert.match(html, new RegExp(`<dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
+});
+
+test('memory graph route renders governed graph canvas controls', async () => {
+  const report = {
+    schemaVersion: '1.0.0',
+    workspaceId: 'ws_local',
+    generatedAt: '2026-06-26T10:00:00.000Z',
+    provider: 'provider:native:memory:sqlite',
+    mode: 'history',
+    communityMethod: 'label-propagation',
+    summary: { nodeCount: 3, edgeCount: 2, currentNodeCount: 2, currentEdgeCount: 1, historyNodeCount: 1, historyEdgeCount: 1, communityCount: 2 },
+    graph: {
+      nodes: [
+        { id: 'provider:native:memory:sqlite', entityId: 'ment_provider', name: 'provider:native:memory:sqlite', type: 'provider', kind: 'subject', current: true, governedDecision: false, degree: 2, size: 16, community: 1 },
+        { id: 'MemoryBackendPort', entityId: 'ment_port', name: 'MemoryBackendPort', type: 'port', kind: 'object', current: true, governedDecision: false, degree: 1, size: 13, community: 1 },
+        { id: 'adr:memory-graph-ui', entityId: 'ment_adr', name: 'adr:memory-graph-ui', type: 'decision', kind: 'subject', current: false, governedDecision: true, degree: 1, size: 13, community: 2 }
+      ],
+      edges: [
+        { id: 'medge_provider_port', from: 'provider:native:memory:sqlite', to: 'MemoryBackendPort', predicate: 'implements_port', factId: 'memfact_provider_port', current: true, status: 'active', validFrom: '2026-06-26T09:00:00.000Z', validUntil: null, supersededBy: null, source: 'workspace://providers/native/memory-sqlite/provider.json' },
+        { id: 'medge_adr', from: 'adr:memory-graph-ui', to: 'legacy-view', predicate: 'replaces', factId: 'memfact_adr', current: false, status: 'superseded', validFrom: '2026-06-26T08:00:00.000Z', validUntil: '2026-06-26T09:00:00.000Z', supersededBy: 'memfact_new', source: 'workspace://DECISIONS.md' }
+      ]
+    },
+    focus: null,
+    safeguards: { readOnly: true, networkCalls: 0, modelCalls: 0, externalWritesEnabled: false },
+    reportFingerprint: 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+  };
+  const model = buildMemoryGraphModel(report);
+  const html = renderMemoryGraph(report, { history: true, query: 'provider', communities: true });
+  const source = await readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8');
+  assert.equal(model.summary.edgeCount, 2);
+  assert.equal(model.nodes.some((node) => node.governedDecision), true);
+  assert.match(html, /id="memory-graph-canvas"/);
+  assert.match(html, /id="memory-graph-history"/);
+  assert.match(html, /id="memory-graph-communities"/);
+  assert.match(html, /provider:native:memory:sqlite/);
+  assert.match(html, /legacy-view/);
+  assert.match(source, /\/api\/memory\/graph/);
 });
 
 test('context pack pin uses the reviewed build payload instead of a stale form payload',()=>{

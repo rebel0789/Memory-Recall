@@ -377,6 +377,44 @@ function rowToTemporalFact(row, episode = null) {
   };
 }
 
+function temporalGraphEntityType(name) {
+  const value = String(name ?? '');
+  if (value.startsWith('project:')) return 'project';
+  if (value.startsWith('provider:')) return 'provider';
+  if (value.startsWith('adr:') || value.startsWith('decision:')) return 'decision';
+  if (value.startsWith('module:') || /(?:^|[:/])src[:/]|_mjs$|\.mjs$|\.ts$|\.tsx$|\.js$|\.jsx$/u.test(value)) return 'module';
+  if (/Port$/u.test(value)) return 'port';
+  return 'entity';
+}
+
+function temporalGraphCommunities(nodes, edges) {
+  const labels = new Map(nodes.map((node) => [node.id, node.id]));
+  const neighbors = new Map(nodes.map((node) => [node.id, []]));
+  for (const edge of edges) {
+    if (!neighbors.has(edge.from) || !neighbors.has(edge.to)) continue;
+    neighbors.get(edge.from).push(edge.to);
+    neighbors.get(edge.to).push(edge.from);
+  }
+  for (let pass = 0; pass < 8; pass += 1) {
+    let changed = false;
+    for (const node of [...nodes].sort((left, right) => left.id.localeCompare(right.id))) {
+      const counts = new Map();
+      for (const neighbor of neighbors.get(node.id) ?? []) {
+        const label = labels.get(neighbor);
+        counts.set(label, (counts.get(label) ?? 0) + 1);
+      }
+      const best = [...counts.entries()].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]?.[0];
+      if (best && best !== labels.get(node.id)) {
+        labels.set(node.id, best);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  const communityIds = new Map([...new Set(labels.values())].sort().map((label, index) => [label, index + 1]));
+  return new Map([...labels.entries()].map(([nodeId, label]) => [nodeId, communityIds.get(label) ?? 0]));
+}
+
 export class SQLiteMemoryProvider {
   constructor({ filename = ':memory:', clock = nowIso, migrate = true, readOnly = false } = {}) {
     this.filename = filename;
@@ -601,7 +639,7 @@ export class SQLiteMemoryProvider {
   }
 
   async capabilities() {
-    return ['memory.put', 'memory.get', 'memory.search.lexical', 'memory.supersede', 'memory.forget', 'memory.export', 'memory.filesystemReports', 'memory.proposalQueue', 'memory.temporalFacts', 'memory.search.hybrid', 'memory.extract.proposals'];
+    return ['memory.put', 'memory.get', 'memory.search.lexical', 'memory.supersede', 'memory.forget', 'memory.export', 'memory.filesystemReports', 'memory.proposalQueue', 'memory.temporalFacts', 'memory.temporalGraph', 'memory.search.hybrid', 'memory.extract.proposals'];
   }
 
   #recordValues(record) {
@@ -1268,6 +1306,109 @@ export class SQLiteMemoryProvider {
       edges: [...edgeMap.values()],
       semantic: report.signals.semantic,
       scopedDigest: report.scopedDigest
+    };
+  }
+
+  async getTemporalMemoryGraph({ workspaceId, scope = 'workspace', includeHistory = false, at = this.clock(), limit = 1000 } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    const normalizedScope = normalizeTemporalScope(scope);
+    const boundedLimit = Math.max(1, Math.min(2500, Number(limit) || 1000));
+    const rows = this.database.prepare(`
+      SELECT e.id AS edge_id,
+             e.predicate,
+             e.fact_id,
+             source.id AS source_entity_id,
+             source.kind AS source_kind,
+             source.name AS source_name,
+             target.id AS target_entity_id,
+             target.kind AS target_kind,
+             target.name AS target_name,
+             f.status AS fact_status,
+             f.valid_from,
+             f.valid_until,
+             f.superseded_by,
+             f.source AS fact_source
+      FROM memory_edges e
+      JOIN memory_entities source ON source.id = e.source_entity_id
+      JOIN memory_entities target ON target.id = e.target_entity_id
+      JOIN memory_facts f ON f.workspace_id = e.workspace_id
+        AND f.scope = e.scope
+        AND f.id = e.fact_id
+      WHERE e.workspace_id = ?
+        AND e.scope = ?
+        AND f.status IN ('active', 'superseded')
+        AND f.valid_from <= ?
+        ${includeHistory ? '' : "AND f.status = 'active' AND f.superseded_by IS NULL AND (f.valid_until IS NULL OR f.valid_until > ?)"}
+      ORDER BY source.name ASC, e.predicate ASC, target.name ASC, f.valid_from DESC, e.fact_id ASC
+      LIMIT ?
+    `).all(...(includeHistory ? [workspaceId, normalizedScope, at, boundedLimit] : [workspaceId, normalizedScope, at, at, boundedLimit]));
+    const nodes = new Map();
+    const degree = new Map();
+    const edges = rows.map((row) => {
+      const current = row.fact_status === 'active'
+        && !row.superseded_by
+        && row.valid_from <= at
+        && (!row.valid_until || row.valid_until > at);
+      for (const side of [
+        { id: row.source_entity_id, kind: row.source_kind, name: row.source_name },
+        { id: row.target_entity_id, kind: row.target_kind, name: row.target_name }
+      ]) {
+        const existing = nodes.get(side.name) ?? {
+          id: side.name,
+          entityId: side.id,
+          name: side.name,
+          type: temporalGraphEntityType(side.name),
+          kind: side.kind,
+          current: false,
+          governedDecision: side.name.startsWith('decision:') || side.name.startsWith('adr:')
+        };
+        existing.current = existing.current || current;
+        nodes.set(side.name, existing);
+      }
+      degree.set(row.source_name, (degree.get(row.source_name) ?? 0) + 1);
+      degree.set(row.target_name, (degree.get(row.target_name) ?? 0) + 1);
+      return {
+        id: row.edge_id,
+        from: row.source_name,
+        to: row.target_name,
+        predicate: row.predicate,
+        factId: row.fact_id,
+        current,
+        status: row.fact_status,
+        validFrom: row.valid_from,
+        validUntil: row.valid_until,
+        supersededBy: row.superseded_by,
+        source: row.fact_source
+      };
+    });
+    const nodeList = [...nodes.values()].sort((left, right) => left.name.localeCompare(right.name));
+    const communities = temporalGraphCommunities(nodeList, edges);
+    for (const node of nodeList) {
+      node.degree = degree.get(node.id) ?? 0;
+      node.size = Math.max(8, Math.min(28, 8 + Math.sqrt(node.degree) * 5));
+      node.community = communities.get(node.id) ?? 0;
+    }
+    const currentEdges = edges.filter((edge) => edge.current).length;
+    const currentNodes = nodeList.filter((node) => node.current).length;
+    return {
+      schemaVersion: '1.0.0',
+      provider: PROVIDER_ID,
+      workspaceId,
+      scope: normalizedScope,
+      at,
+      mode: includeHistory ? 'history' : 'current',
+      communityMethod: 'label-propagation',
+      summary: {
+        nodeCount: nodeList.length,
+        edgeCount: edges.length,
+        currentNodeCount: currentNodes,
+        currentEdgeCount: currentEdges,
+        historyNodeCount: Math.max(0, nodeList.length - currentNodes),
+        historyEdgeCount: Math.max(0, edges.length - currentEdges),
+        communityCount: new Set(nodeList.map((node) => node.community)).size
+      },
+      nodes: nodeList,
+      edges
     };
   }
 

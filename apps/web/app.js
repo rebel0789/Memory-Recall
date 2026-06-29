@@ -10,6 +10,7 @@ export const ROUTES = [
   { id:'context-pack', path:'/context-pack', label:'Context Pack', title:'Context Pack', eyebrow:'Agent handoff', description:'Build a safe, token-aware handoff for Codex, Claude Code, Cursor, or a generic agent.' },
   { id:'source-graph', path:'/source-graph', label:'Source Graph', title:'Source Graph', eyebrow:'Code map', description:'Search symbols, trace calls, and inspect likely diff impact from local JS/TS metadata.' },
   { id:'memory', path:'/memory', label:'Memory', title:'Memory', eyebrow:'Lifecycle', description:'Proposals, active records, supersession, retraction, expiry, and provenance.' },
+  { id:'memory-graph', path:'/memory-graph', label:'Graph', title:'Memory Graph', eyebrow:'Governed knowledge', description:'Explore current and historical governed memory relationships from the local SQLite store.' },
   { id:'evidence', path:'/evidence', label:'Evidence', title:'Evidence', eyebrow:'Observed facts', description:'Snapshots, observations, citations, staleness, and inferred pattern boundaries.' },
   { id:'approvals', path:'/approvals', label:'Approvals', title:'Approvals', eyebrow:'Consequences', description:'Exact actions, risk, policy reasons, idempotency, expiry, and disabled publisher state.' },
   { id:'content', path:'/content', label:'Content Lab', title:'Content Lab', eyebrow:'Creator workflow', description:'Candidates, evidence, differentiation, proof needed, local drafts, and outcomes.' },
@@ -39,6 +40,9 @@ let loopWorkbench=null;
 let loopWorkbenchError=null;
 let memoryCockpit=null;
 let memoryCockpitError=null;
+let memoryGraph=null;
+let memoryGraphError=null;
+let memoryGraphOptions={history:false,query:'',entity:'',communities:false};
 let contextSourcePreviewResult=null;
 let contextSourcePreviewError=null;
 let sourceGraphResult=null;
@@ -804,7 +808,7 @@ async function load() {
   render();
   try {
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
-    await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit()]);
+    await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit(), loadMemoryGraph()]);
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
     dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
@@ -842,6 +846,22 @@ async function loadMemoryCockpit() {
   } catch (error) {
     memoryCockpit = null;
     memoryCockpitError = error.message;
+  }
+}
+
+async function loadMemoryGraph(options = memoryGraphOptions) {
+  const next={...memoryGraphOptions,...options};
+  const params=new URLSearchParams({workspaceId:workspaceId(),history:next.history?'true':'false'});
+  if(next.entity)params.set('entity',next.entity);
+  if(next.query)params.set('query',next.query);
+  try {
+    memoryGraph = await api(`/api/memory/graph?${params.toString()}`);
+    memoryGraphError = null;
+    memoryGraphOptions=next;
+  } catch (error) {
+    memoryGraph = null;
+    memoryGraphError = error.message;
+    memoryGraphOptions=next;
   }
 }
 
@@ -887,6 +907,9 @@ function render() {
   root.querySelectorAll('[data-action=refresh-pinned-handoff]').forEach(button=>button.addEventListener('click',refreshPinnedHandoff));
   root.querySelectorAll('[data-action=receive-pinned-handoff]').forEach(button=>button.addEventListener('click',receivePinnedHandoff));
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
+  root.querySelector('#memory-graph-form')?.addEventListener('submit',submitMemoryGraph);
+  root.querySelector('#memory-graph-history')?.addEventListener('change',toggleMemoryGraphHistory);
+  root.querySelector('#memory-graph-communities')?.addEventListener('change',toggleMemoryGraphCommunities);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
   root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
   root.querySelectorAll('[data-action=copy-receiver-packet]').forEach(button=>button.addEventListener('click',copyPinnedReceiverPacket));
@@ -901,6 +924,7 @@ function render() {
   root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
   root.querySelectorAll('[data-action=copy-launch-prompt]').forEach(button=>button.addEventListener('click',copyContextPackLaunchPrompt));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
+  if(route.id==='memory-graph')drawMemoryGraphCanvas(root.querySelector('#memory-graph-canvas'),memoryGraph,memoryGraphOptions);
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
 }
 
@@ -1026,6 +1050,7 @@ function renderRoute(route) {
   if (route.id === 'context-pack') return renderContextPack();
   if (route.id === 'source-graph') return renderSourceGraph();
   if (route.id === 'memory') return renderMemory();
+  if (route.id === 'memory-graph') return renderMemoryGraph(memoryGraph,memoryGraphOptions,memoryGraphError);
   if (route.id === 'evidence') return renderEvidence();
   if (route.id === 'approvals') return renderApprovals();
   if (route.id === 'content') return renderContentLab();
@@ -2060,6 +2085,50 @@ function renderMemory() {
   return renderMemoryCockpit(memoryCockpit);
 }
 
+export function buildMemoryGraphModel(report = null) {
+  if(!report?.graph)return {ready:false,summary:{nodeCount:0,edgeCount:0,communityCount:0},nodes:[],edges:[],focus:null};
+  const nodes=Array.isArray(report.graph.nodes)?report.graph.nodes:[];
+  const edges=Array.isArray(report.graph.edges)?report.graph.edges:[];
+  const summary={nodeCount:nodes.length,edgeCount:edges.length,communityCount:0,...(report.summary??{})};
+  return {
+    ready:true,
+    provider:report.provider??'provider:native:memory:sqlite',
+    mode:report.mode??'current',
+    generatedAt:report.generatedAt,
+    reportFingerprint:report.reportFingerprint,
+    communityMethod:report.communityMethod??'label-propagation',
+    summary,
+    nodes,
+    edges,
+    focus:report.focus,
+    safeguards:report.safeguards??{}
+  };
+}
+
+export function renderMemoryGraph(report = null, options = {}, error = null) {
+  if(error)return statePanel('error','Memory graph unavailable',error);
+  const model=buildMemoryGraphModel(report);
+  if(!model.ready)return statePanel('empty','No governed graph loaded','Ingest and approve temporal memory facts, then refresh this local graph view.');
+  const query=options.query??'';
+  const historyChecked=options.history?' checked':'';
+  const communityChecked=options.communities?' checked':'';
+  const focus=model.focus?.nodes?.length?model.focus:null;
+  const focusList=focus
+    ? `<ol class="compact-list locator-list">${focus.nodes.slice(0,12).map((node)=>`<li><strong>${esc(node.name)}</strong><span>${esc(node.type)} · degree ${Number(node.degree??0)} · community ${Number(node.community??0)}</span></li>`).join('')}</ol>`
+    : '<p class="muted">Click a node or search for an entity to focus its governed neighborhood.</p>';
+  const staleEdges=model.edges.filter((edge)=>!edge.current).slice(0,12);
+  const historyList=staleEdges.length
+    ? `<ol class="compact-list locator-list">${staleEdges.map((edge)=>`<li><strong>${esc(edge.from)} ${esc(edge.predicate)} ${esc(edge.to)}</strong><span>${esc(edge.status)} · superseded by ${esc(edge.supersededBy??'none')}</span></li>`).join('')}</ol>`
+    : '<p class="muted">No superseded graph edges are visible in this mode.</p>';
+  return `<section class="metric-strip" aria-label="Governed memory graph metrics">${metric(model.summary.nodeCount,'Nodes',`${model.summary.currentNodeCount??0} current`)}${metric(model.summary.edgeCount,'Edges',`${model.summary.currentEdgeCount??0} current`)}${metric(model.summary.communityCount,'Communities',model.communityMethod)}${metric(model.summary.historyEdgeCount??0,'History edges',model.mode==='history'?'visible':'hidden')}</section><section class="memory-graph-shell"><div class="surface surface-primary"><div class="section-heading"><h2>Governed knowledge graph</h2><span>${esc(model.mode)} · ${esc(shortFingerprint(model.reportFingerprint))}</span></div><form id="memory-graph-form" class="memory-graph-toolbar"><label class="field memory-graph-search"><span>Search entity</span><input name="query" value="${esc(query)}" placeholder="provider:native:memory:sqlite" maxlength="512"></label><label class="toggle-field"><input id="memory-graph-history" name="history" type="checkbox"${historyChecked}> <span>Show history</span></label><label class="toggle-field"><input id="memory-graph-communities" name="communities" type="checkbox"${communityChecked}> <span>Community colors</span></label><button class="button primary" type="submit">Refresh graph</button></form><div class="memory-graph-canvas-wrap"><canvas id="memory-graph-canvas" width="1120" height="640" role="img" aria-label="Interactive governed memory graph"></canvas></div><div class="memory-graph-legend">${memoryGraphLegend(model.nodes)}</div></div><aside class="inspector"><h2>Focus neighborhood</h2>${focusList}<hr><h2>Temporal history</h2>${historyList}<hr><dl class="facts compact-facts"><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div><div><dt>Read-only</dt><dd>${model.safeguards.readOnly?'yes':'no'}</dd></div><div><dt>Model calls</dt><dd>${Number(model.safeguards.modelCalls??0)}</dd></div><div><dt>Network</dt><dd>${Number(model.safeguards.networkCalls??0)}</dd></div><div><dt>External writes</dt><dd>${model.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div></dl></aside></section>`;
+}
+
+function memoryGraphLegend(nodes=[]) {
+  const types=[...new Set(nodes.map((node)=>node.type))].sort();
+  if(!types.length)return '<p class="muted">No node types to render.</p>';
+  return types.map((type)=>`<span><i style="background:${memoryGraphNodeColor(type,0,false)}"></i>${esc(type)}</span>`).join('');
+}
+
 export function renderMemoryCockpit(cockpit = null) {
   const model=buildMemoryCockpitModel(cockpit);
   if(!model.ready)return statePanel('empty','No native memory store loaded','Run the local memory-loop demo to seed temporal facts and proposal-gated extraction records.');
@@ -2578,6 +2647,32 @@ async function submitSourceGraph(event){
   }
 }
 
+async function submitMemoryGraph(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector('button[type=submit]');
+  const data=new FormData(form);
+  const query=String(data.get('query')??'').trim();
+  const history=data.get('history')==='on';
+  const communities=data.get('communities')==='on';
+  button.disabled=true;
+  button.textContent='Refreshing...';
+  document.querySelector('#live-status').textContent='Refreshing governed memory graph.';
+  await loadMemoryGraph({history,query,entity:'',communities});
+  render();
+  document.querySelector('#live-status').textContent=memoryGraphError??'Governed memory graph ready.';
+}
+
+async function toggleMemoryGraphHistory(event){
+  await loadMemoryGraph({...memoryGraphOptions,history:event.currentTarget.checked,entity:''});
+  render();
+}
+
+function toggleMemoryGraphCommunities(event){
+  memoryGraphOptions={...memoryGraphOptions,communities:event.currentTarget.checked};
+  render();
+}
+
 async function previewContextPackSetup(event){
   const button=event.currentTarget;
   const client=button.dataset.client ?? 'codex';
@@ -2823,6 +2918,160 @@ function approvalActionsForStatus(status){if(status==='pending')return [{label:'
 function memoryDisplayText(value){const text=String(value??'');return /sk-[A-Za-z0-9_-]{12,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gho_[A-Za-z0-9_]{12,}/.test(text) ? '[redacted-sensitive-value]' : previewText(text)}
 function safeKeyValueList(value){if(!value||typeof value!=='object'||Array.isArray(value))return [];return Object.entries(value).filter(([key])=>!/prompt|body|credential|token|secret|path|url|reasoning|sql/i.test(key)).slice(0,8).map(([key,raw])=>({key:labelize(key),value:Array.isArray(raw)?raw.slice(0,4).map(safeText).join(', '):safeText(raw)}))}
 function quoteShell(value){return `'${String(value??'').replaceAll("'","'\"'\"'")}'`}
+
+function memoryGraphNodeColor(type,community=0,useCommunity=false){
+  if(useCommunity){
+    const palette=['#4cc9a6','#7aa2ff','#f7b955','#e56b8b','#b38cff','#62d3ff','#9bd66f','#f08f4f'];
+    return palette[Math.abs(Number(community??0))%palette.length];
+  }
+  return ({project:'#4cc9a6',provider:'#7aa2ff',port:'#f7b955',decision:'#e56b8b',module:'#b38cff',entity:'#8a96a8'})[type]??'#8a96a8';
+}
+
+function memoryGraphVisiblePayload(report){
+  const nodes=Array.isArray(report?.graph?.nodes)?report.graph.nodes:[];
+  const edges=Array.isArray(report?.graph?.edges)?report.graph.edges:[];
+  const focusNames=new Set((report?.focus?.nodes??[]).map((node)=>node.name));
+  if(!focusNames.size)return {nodes,edges};
+  return {
+    nodes:nodes.filter((node)=>focusNames.has(node.name)),
+    edges:edges.filter((edge)=>focusNames.has(edge.from)&&focusNames.has(edge.to))
+  };
+}
+
+function layoutMemoryGraph(nodes,edges,width,height){
+  const positions=new Map();
+  const centerX=width/2;
+  const centerY=height/2;
+  const radius=Math.max(80,Math.min(width,height)*0.36);
+  nodes.forEach((node,index)=>{
+    const angle=(Math.PI*2*index)/Math.max(1,nodes.length);
+    positions.set(node.id,{x:centerX+Math.cos(angle)*radius,y:centerY+Math.sin(angle)*radius,vx:0,vy:0,node});
+  });
+  const linked=edges.map((edge)=>({source:positions.get(edge.from),target:positions.get(edge.to),edge})).filter((item)=>item.source&&item.target);
+  for(let tick=0;tick<90;tick+=1){
+    for(let i=0;i<nodes.length;i+=1){
+      const a=positions.get(nodes[i].id);
+      for(let j=i+1;j<nodes.length;j+=1){
+        const b=positions.get(nodes[j].id);
+        let dx=a.x-b.x;
+        let dy=a.y-b.y;
+        let distance=Math.max(24,Math.hypot(dx,dy));
+        const force=780/(distance*distance);
+        dx/=distance;dy/=distance;
+        a.vx+=dx*force;b.vx-=dx*force;
+        a.vy+=dy*force;b.vy-=dy*force;
+      }
+    }
+    for(const link of linked){
+      const dx=link.target.x-link.source.x;
+      const dy=link.target.y-link.source.y;
+      const distance=Math.max(1,Math.hypot(dx,dy));
+      const target=140;
+      const force=(distance-target)*0.015;
+      const fx=(dx/distance)*force;
+      const fy=(dy/distance)*force;
+      link.source.vx+=fx;link.target.vx-=fx;
+      link.source.vy+=fy;link.target.vy-=fy;
+    }
+    for(const entry of positions.values()){
+      entry.vx+=(centerX-entry.x)*0.004;
+      entry.vy+=(centerY-entry.y)*0.004;
+      entry.x=Math.max(36,Math.min(width-36,entry.x+entry.vx));
+      entry.y=Math.max(36,Math.min(height-36,entry.y+entry.vy));
+      entry.vx*=0.82;entry.vy*=0.82;
+    }
+  }
+  return positions;
+}
+
+function drawMemoryGraphCanvas(canvas,report,options={}){
+  if(!canvas||!report?.graph)return;
+  const ctx=canvas.getContext('2d');
+  if(!ctx)return;
+  const rect=canvas.getBoundingClientRect();
+  const width=Math.max(640,Math.floor(rect.width||canvas.width||1120));
+  const height=Math.max(420,Math.floor(rect.height||canvas.height||640));
+  const dpr=Math.min(2,globalThis.devicePixelRatio||1);
+  canvas.width=width*dpr;
+  canvas.height=height*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,width,height);
+  ctx.fillStyle='#111826';
+  ctx.fillRect(0,0,width,height);
+  const {nodes,edges}=memoryGraphVisiblePayload(report);
+  if(!nodes.length){
+    ctx.fillStyle='#8a96a8';
+    ctx.font='14px Inter, system-ui, sans-serif';
+    ctx.fillText('No governed graph nodes to render.',24,34);
+    return;
+  }
+  const positions=layoutMemoryGraph(nodes,edges,width,height);
+  const focusNodes=new Set((report.focus?.nodes??[]).map((node)=>node.name));
+  const query=String(options.query??'').toLowerCase();
+  ctx.lineCap='round';
+  for(const edge of edges){
+    const source=positions.get(edge.from);
+    const target=positions.get(edge.to);
+    if(!source||!target)continue;
+    const focused=!focusNodes.size||focusNodes.has(edge.from)||focusNodes.has(edge.to);
+    ctx.globalAlpha=edge.current?(focused?0.72:0.32):0.18;
+    ctx.strokeStyle=edge.current?'#4f5d75':'#9aa3b2';
+    ctx.lineWidth=edge.current?1.4:1;
+    ctx.setLineDash(edge.current?[]:[5,5]);
+    ctx.beginPath();
+    ctx.moveTo(source.x,source.y);
+    ctx.lineTo(target.x,target.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const labelX=(source.x+target.x)/2;
+    const labelY=(source.y+target.y)/2;
+    ctx.globalAlpha=edge.current?0.75:0.32;
+    ctx.fillStyle='#c7ced9';
+    ctx.font='11px Inter, system-ui, sans-serif';
+    ctx.fillText(edge.predicate.slice(0,28),labelX+4,labelY-4);
+  }
+  ctx.globalAlpha=1;
+  for(const node of nodes){
+    const point=positions.get(node.id);
+    if(!point)continue;
+    const matched=query&&node.name.toLowerCase().includes(query);
+    const focused=!focusNodes.size||focusNodes.has(node.name);
+    const r=Number(node.size??10)+(matched?4:0);
+    ctx.globalAlpha=node.current?(focused?1:0.52):0.34;
+    ctx.fillStyle=memoryGraphNodeColor(node.type,node.community,options.communities);
+    ctx.beginPath();
+    ctx.arc(point.x,point.y,r,0,Math.PI*2);
+    ctx.fill();
+    if(node.governedDecision||matched){
+      ctx.strokeStyle=node.governedDecision?'#ff7395':'#f7b955';
+      ctx.lineWidth=3;
+      ctx.stroke();
+    }
+    ctx.globalAlpha=node.current?0.92:0.46;
+    ctx.fillStyle='#f5f7fb';
+    ctx.font='12px Inter, system-ui, sans-serif';
+    ctx.fillText(node.name.slice(0,34),point.x+r+5,point.y+4);
+  }
+  ctx.globalAlpha=1;
+  canvas.onclick=async (event)=>{
+    const box=canvas.getBoundingClientRect();
+    const x=(event.clientX-box.left)*(width/box.width);
+    const y=(event.clientY-box.top)*(height/box.height);
+    let selected=null;
+    let best=Infinity;
+    for(const node of nodes){
+      const point=positions.get(node.id);
+      if(!point)continue;
+      const distance=Math.hypot(point.x-x,point.y-y);
+      const hit=(Number(node.size??10)+8);
+      if(distance<hit&&distance<best){selected=node;best=distance;}
+    }
+    if(!selected)return;
+    document.querySelector('#live-status').textContent=`Focusing ${selected.name}.`;
+    await loadMemoryGraph({...memoryGraphOptions,entity:selected.name,query:''});
+    render();
+  };
+}
 
 function boot(){
   document.querySelector('#run-button')?.addEventListener('click',runDemo);

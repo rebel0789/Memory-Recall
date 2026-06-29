@@ -417,6 +417,59 @@ async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt
   };
 }
 
+async function buildMemoryGraphProjection({ provider, workspaceId, generatedAt, includeHistory = false, entity = '', query = '' }) {
+  const graph = await provider.getTemporalMemoryGraph({ workspaceId, includeHistory, at: generatedAt, limit: 1500 });
+  let focus = null;
+  const focusInput = String(entity || query || '').trim();
+  if (focusInput) {
+    try {
+      const explained = await provider.explainTemporalMemory({
+        workspaceId,
+        entity: entity || undefined,
+        query: query || entity,
+        depth: 1,
+        at: generatedAt
+      });
+      const nodeNames = new Set((explained.nodes ?? []).map((node) => node.name));
+      const factIds = new Set((explained.edges ?? []).map((edge) => edge.factId));
+      focus = {
+        entity: explained.entity,
+        depth: explained.depth,
+        nodes: graph.nodes.filter((node) => nodeNames.has(node.name)),
+        edges: graph.edges.filter((edge) => factIds.has(edge.factId))
+      };
+    } catch {
+      focus = { entity: focusInput, depth: 1, nodes: [], edges: [] };
+    }
+  }
+  const report = {
+    schemaVersion: '1.0.0',
+    workspaceId,
+    generatedAt,
+    provider: graph.provider,
+    mode: graph.mode,
+    communityMethod: graph.communityMethod,
+    summary: graph.summary,
+    graph: {
+      nodes: graph.nodes,
+      edges: graph.edges
+    },
+    focus,
+    safeguards: {
+      readOnly: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      externalWritesEnabled: false,
+      rawSourceBodiesIncluded: false
+    }
+  };
+  return {
+    ...report,
+    reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}`
+  };
+}
+
 async function approveMemoryProposal({ provider, workspaceId, proposalId, generatedAt }) {
   const { proposal, fact } = await provider.approveProposalFact({ workspaceId, id: proposalId, workerId: 'memory-cockpit', approvedAt: generatedAt });
   const report = {
@@ -668,6 +721,15 @@ export function createControlApiServer({
       }
       case 'getMemoryCockpit':
         return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock(), mcpStatsPath, root: sourceGraphRoot }));
+      case 'getMemoryGraph':
+        return withMemoryProvider(async (provider) => buildMemoryGraphProjection({
+          provider,
+          workspaceId: context.workspaceId,
+          generatedAt: clock(),
+          includeHistory: context.query.history === 'true',
+          entity: context.query.entity ?? '',
+          query: context.query.query ?? ''
+        }));
       case 'approveMemoryProposal':
         return withMemoryProvider(
           async (provider) => approveMemoryProposal({ provider, workspaceId: context.workspaceId, proposalId: context.params.proposalId, generatedAt: clock() }),
@@ -1464,6 +1526,7 @@ function routeResourceType(contract) {
     case 'detectGitChanges':
     case 'previewContextGraph':
       return 'context';
+    case 'getMemoryGraph':
     case 'approveMemoryProposal':
       return 'memory';
     case 'planHarnessSetup':

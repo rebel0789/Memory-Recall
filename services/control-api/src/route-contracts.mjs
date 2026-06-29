@@ -990,6 +990,90 @@ export function createApiRouteContracts(limits = {}) {
       reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     }
   };
+  const memoryGraphNode = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'entityId', 'name', 'type', 'kind', 'current', 'governedDecision', 'degree', 'size', 'community'],
+    properties: {
+      id: boundedString(512),
+      entityId: boundedString(128),
+      name: boundedString(512),
+      type: { enum: ['project', 'provider', 'port', 'decision', 'module', 'entity'] },
+      kind: boundedString(128),
+      current: { type: 'boolean' },
+      governedDecision: { type: 'boolean' },
+      degree: { type: 'integer', minimum: 0, maximum: 100000 },
+      size: { type: 'number', minimum: 0, maximum: 100 },
+      community: { type: 'integer', minimum: 0, maximum: 2500 }
+    }
+  };
+  const memoryGraphEdge = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'from', 'to', 'predicate', 'factId', 'current', 'status', 'validFrom', 'validUntil', 'supersededBy', 'source'],
+    properties: {
+      id: boundedString(128),
+      from: boundedString(512),
+      to: boundedString(512),
+      predicate: boundedString(160),
+      factId: boundedString(128),
+      current: { type: 'boolean' },
+      status: { enum: ['active', 'superseded'] },
+      validFrom: { type: 'string', format: 'date-time' },
+      validUntil: { type: ['string', 'null'], format: 'date-time' },
+      supersededBy: { type: ['string', 'null'], maxLength: 128 },
+      source: boundedString(512)
+    }
+  };
+  const memoryGraphResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'mode', 'communityMethod', 'summary', 'graph', 'focus', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      workspaceId,
+      generatedAt: { type: 'string', format: 'date-time' },
+      provider: { const: 'provider:native:memory:sqlite' },
+      mode: { enum: ['current', 'history'] },
+      communityMethod: { const: 'label-propagation' },
+      summary: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['nodeCount', 'edgeCount', 'currentNodeCount', 'currentEdgeCount', 'historyNodeCount', 'historyEdgeCount', 'communityCount'],
+        properties: {
+          nodeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          edgeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          currentNodeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          currentEdgeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          historyNodeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          historyEdgeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          communityCount: { type: 'integer', minimum: 0, maximum: 2500 }
+        }
+      },
+      graph: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['nodes', 'edges'],
+        properties: {
+          nodes: { type: 'array', maxItems: 2500, items: memoryGraphNode },
+          edges: { type: 'array', maxItems: 2500, items: memoryGraphEdge }
+        }
+      },
+      focus: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        required: ['entity', 'depth', 'nodes', 'edges'],
+        properties: {
+          entity: boundedString(512),
+          depth: { type: 'integer', minimum: 1, maximum: 6 },
+          nodes: { type: 'array', maxItems: 2500, items: memoryGraphNode },
+          edges: { type: 'array', maxItems: 2500, items: memoryGraphEdge }
+        }
+      },
+      safeguards: { type: 'object', additionalProperties: true },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
   const memoryApprovalRequest = {
     type: 'object',
     additionalProperties: false,
@@ -1420,6 +1504,30 @@ export function createApiRouteContracts(limits = {}) {
       allowsBody: false,
       streams: false,
       responses: { 200: memoryCockpitResponse }
+    },
+    {
+      method: 'GET',
+      path: '/api/memory/graph',
+      operationId: 'getMemoryGraph',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'query' },
+      pathParameters: {},
+      query: {
+        additionalProperties: false,
+        properties: {
+          workspaceId,
+          history: { enum: ['true', 'false'] },
+          entity: boundedString(512),
+          query: boundedString(512)
+        },
+        required: ['workspaceId']
+      },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: memoryGraphResponse }
     },
     {
       method: 'POST',

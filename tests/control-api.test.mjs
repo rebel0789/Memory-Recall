@@ -25,6 +25,39 @@ async function bootstrapIdentity(dataDir) {
   assert.equal(code, 0, stderr);
 }
 
+async function applyTemporalFact(provider, input) {
+  const source = input.source ?? 'workspace://docs/graph.md';
+  const proposal = await provider.enqueueProposal({
+    id: input.proposalId ?? `mpq_${input.id.replace(/^memfact_/u, '')}`,
+    workspaceId: 'ws_local',
+    sourceLocator: source,
+    sourceHash: 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    payload: {
+      kind: 'fact',
+      scope: 'workspace',
+      subject: input.subject,
+      predicate: input.predicate,
+      object: input.object,
+      text: input.text ?? `${input.subject} ${input.predicate} ${input.object}`
+    }
+  });
+  await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'reviewer', leaseUntil: '2026-06-26T10:05:00.000Z' });
+  await provider.recordProposalResult({ workspaceId: 'ws_local', id: proposal.id, workerId: 'reviewer', status: 'applied', result: { accepted: true } });
+  await provider.addTemporalFact({
+    id: input.id,
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: input.subject,
+    predicate: input.predicate,
+    object: input.object,
+    text: input.text ?? `${input.subject} ${input.predicate} ${input.object}`,
+    source,
+    proposalQueueId: proposal.id,
+    validFrom: input.validFrom ?? '2026-06-26T09:30:00.000Z',
+    supersedeSubjectPredicate: input.supersedeSubjectPredicate === true
+  });
+}
+
 async function seedMemory(dataDir) {
   const provider = new SQLiteMemoryProvider({ filename: path.join(dataDir, 'memory.sqlite'), clock: () => '2026-06-26T10:00:00.000Z' });
   try {
@@ -59,6 +92,51 @@ async function seedMemory(dataDir) {
       source: 'workspace://docs/surface.md',
       proposalQueueId: proposal.id,
       validFrom: '2026-06-26T10:00:00.000Z'
+    });
+    await applyTemporalFact(provider, {
+      id: 'memfact_api_graph_project_provider',
+      subject: 'project:open-agent-fabric',
+      predicate: 'default_memory_provider',
+      object: 'provider:native:memory:sqlite',
+      source: 'workspace://docs/architecture/overview.md'
+    });
+    await applyTemporalFact(provider, {
+      id: 'memfact_api_graph_provider_port',
+      subject: 'provider:native:memory:sqlite',
+      predicate: 'implements_port',
+      object: 'MemoryBackendPort',
+      source: 'workspace://providers/native/memory-sqlite/provider.json'
+    });
+    await applyTemporalFact(provider, {
+      id: 'memfact_api_graph_project_module',
+      subject: 'project:open-agent-fabric',
+      predicate: 'uses',
+      object: 'module:apps/web',
+      source: 'workspace://apps/web/app.js'
+    });
+    await applyTemporalFact(provider, {
+      id: 'memfact_api_graph_decision',
+      subject: 'adr:memory-graph-ui',
+      predicate: 'decides',
+      object: 'current-truth-toggle',
+      source: 'workspace://docs/adr/0019-memory-graph-ui.md'
+    });
+    await applyTemporalFact(provider, {
+      id: 'memfact_api_graph_legacy_index',
+      subject: 'provider:native:memory:sqlite',
+      predicate: 'uses',
+      object: 'legacy-memory-index',
+      source: 'workspace://DECISIONS.md',
+      validFrom: '2026-06-26T09:00:00.000Z'
+    });
+    await applyTemporalFact(provider, {
+      id: 'memfact_api_graph_edges_index',
+      subject: 'provider:native:memory:sqlite',
+      predicate: 'uses',
+      object: 'memory_edges',
+      source: 'workspace://DECISIONS.md',
+      validFrom: '2026-06-26T09:45:00.000Z',
+      supersedeSubjectPredicate: true
     });
     await provider.enqueueProposal({
       id: 'mpq_api_cockpit',
@@ -168,6 +246,37 @@ test('memory cockpit route reads native SQLite facts proposals and token budget'
   assert.match(body.reportFingerprint, /^sha256:[a-f0-9]{64}$/);
 });
 
+test('memory graph route serves governed current and temporal history graph', async () => {
+  const auth = await login();
+  const response = await fetch(`${base}/api/memory/graph?workspaceId=ws_local`, { headers: { cookie: auth.cookie } });
+  const text = await response.text();
+  assert.equal(response.status, 200, text);
+  const current = JSON.parse(text);
+  assert.equal(current.provider, 'provider:native:memory:sqlite');
+  assert.equal(current.mode, 'current');
+  assert(current.graph.nodes.some((node) => node.name === 'project:open-agent-fabric' && node.type === 'project'));
+  assert(current.graph.edges.some((edge) => edge.from === 'provider:native:memory:sqlite' && edge.predicate === 'implements_port' && edge.to === 'MemoryBackendPort'));
+  assert(current.summary.communityCount > 1);
+  assert.equal(current.graph.edges.some((edge) => edge.to === 'legacy-memory-index'), false);
+
+  const historyResponse = await fetch(`${base}/api/memory/graph?workspaceId=ws_local&history=true`, { headers: { cookie: auth.cookie } });
+  const historyText = await historyResponse.text();
+  assert.equal(historyResponse.status, 200, historyText);
+  const history = JSON.parse(historyText);
+  assert.equal(history.mode, 'history');
+  assert(history.summary.edgeCount > current.summary.edgeCount);
+  assert(history.graph.edges.some((edge) => edge.to === 'legacy-memory-index' && edge.current === false && edge.status === 'superseded'));
+
+  const focusResponse = await fetch(`${base}/api/memory/graph?workspaceId=ws_local&entity=${encodeURIComponent('provider:native:memory:sqlite')}`, { headers: { cookie: auth.cookie } });
+  const focusText = await focusResponse.text();
+  assert.equal(focusResponse.status, 200, focusText);
+  const focused = JSON.parse(focusText);
+  assert.equal(focused.focus.entity, 'provider:native:memory:sqlite');
+  assert(focused.focus.nodes.some((node) => node.name === 'MemoryBackendPort'));
+  assert(focused.focus.edges.some((edge) => edge.predicate === 'implements_port'));
+  assert.equal(focused.safeguards.readOnly, true);
+});
+
 test('memory cockpit approval endpoint promotes one pending proposal', async () => {
   const auth = await login();
   const response = await fetch(`${base}/api/memory/proposals/mpq_api_cockpit/approve`, {
@@ -184,7 +293,7 @@ test('memory cockpit approval endpoint promotes one pending proposal', async () 
   const cockpit = await fetch(`${base}/api/memory/cockpit?workspaceId=ws_local`, { headers: { cookie: auth.cookie } });
   const after = await cockpit.json();
   assert(after.facts.some((fact) => fact.id === 'memfact_api_cockpit' && fact.status === 'active'));
-  assert.equal(after.summary.activeFactCount, 2);
+  assert.equal(after.summary.activeFactCount, 7);
 });
 
 test('loop workbench route wires compressed profile plan proposal and fact from native memory', async () => {

@@ -167,6 +167,28 @@ paths:
           description: Read-only native SQLite memory cockpit with temporal facts, proposal queue, and compressed profile token budget.
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/graph:
+    get:
+      operationId: getMemoryGraph
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - name: history
+          in: query
+          required: false
+          schema: { enum: ['true', 'false'] }
+        - name: entity
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 512 }
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 512 }
+      responses:
+        '200':
+          description: Read-only governed memory graph projection with current-truth and historical temporal edges.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
   /api/memory/proposals/{proposalId}/approve:
     post:
       operationId: approveMemoryProposal
