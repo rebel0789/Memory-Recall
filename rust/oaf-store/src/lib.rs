@@ -763,6 +763,44 @@ impl Store {
             .collect())
     }
 
+    pub fn omission_candidates(
+        &self,
+        scope: &str,
+        query: &str,
+        subject: Option<&str>,
+        predicate: Option<&str>,
+        limit: usize,
+    ) -> Result<Vec<Value>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT * FROM memory_facts WHERE workspace_id = ? AND scope = ? AND status IN ('active', 'superseded') ORDER BY valid_from DESC, id ASC LIMIT ?",
+        )?;
+        let rows = stmt.query_map(
+            params![self.workspace_id, scope, limit.clamp(1, 500) as i64],
+            |row| fact_from_row(&self.conn, row),
+        )?;
+        let mut out = Vec::new();
+        for row in rows {
+            let fact = row?;
+            if subject.is_some_and(|subject| fact.subject != subject)
+                || predicate.is_some_and(|predicate| fact.predicate != predicate)
+                || !fact_matches_query(&fact, query)
+            {
+                continue;
+            }
+            out.push(json!({
+                "id": format!("mem_{}", fact.id),
+                "factId": sanitize_string(&fact.id, 120),
+                "text": sanitize_string(&fact.text, 300),
+                "subject": sanitize_string(&fact.subject, 160),
+                "predicate": sanitize_string(&fact.predicate, 120),
+                "status": fact.status,
+                "supersededBy": fact.superseded_by,
+                "sourceRef": compact_provenance_ref(fact.episode_source_locator.as_deref().unwrap_or(&fact.source))
+            }));
+        }
+        Ok(out)
+    }
+
     pub fn active_value(
         &self,
         scope: &str,

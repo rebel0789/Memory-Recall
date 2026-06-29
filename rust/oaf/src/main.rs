@@ -1409,6 +1409,7 @@ fn context_profile_payload(
     let subject = optional_json_string(args.get("subject"), 128);
     let predicate = optional_json_string(args.get("predicate"), 128);
     let since = optional_json_string(args.get("since"), 80);
+    let with_omissions = json_flag(args, "withOmissions") || json_flag(args, "with_omissions");
     if !config.sqlite_abs.is_file() {
         return Ok(base_payload_command(
             config,
@@ -1434,6 +1435,17 @@ fn context_profile_payload(
             limit,
             since.as_deref(),
         )?;
+        let omission_candidates = if with_omissions {
+            store.omission_candidates(
+                &scope,
+                &objective,
+                subject.as_deref(),
+                predicate.as_deref(),
+                200,
+            )?
+        } else {
+            Vec::new()
+        };
         return Ok(compressed_profile_payload(
             config,
             &objective,
@@ -1442,6 +1454,7 @@ fn context_profile_payload(
             records,
             selected_facts,
             since.as_deref(),
+            omission_candidates,
         ));
     }
     if let Some(since) = since {
@@ -1465,7 +1478,7 @@ fn context_profile_payload(
     )?;
     let selected_count = selected.len();
     let estimated = estimate_tokens(&serde_json::to_string(&selected)?);
-    Ok(base_payload_command(
+    let mut payload = base_payload_command(
         config,
         "context.profile",
         json!({
@@ -1480,7 +1493,18 @@ fn context_profile_payload(
             "summary": { "activeFactCount": selected_count, "proposalFactCount": 0, "totalFactCount": selected_count },
             "cursor": { "previous": Value::Null, "next": config.now }
         }),
-    ))
+    );
+    if with_omissions {
+        let candidates = store.omission_candidates(
+            &scope,
+            &objective,
+            subject.as_deref(),
+            predicate.as_deref(),
+            200,
+        )?;
+        payload["omissions"] = json!(omission_manifest(&candidates, &[], budget, budget + 1));
+    }
+    Ok(payload)
 }
 
 fn compressed_profile_payload(
@@ -1491,6 +1515,7 @@ fn compressed_profile_payload(
     mut records: Vec<Value>,
     selected_facts: Vec<Value>,
     since: Option<&str>,
+    omission_candidates: Vec<Value>,
 ) -> Value {
     records.sort_by(|left, right| {
         value_f64(right, "authority")
@@ -1636,6 +1661,16 @@ fn compressed_profile_payload(
     if let Some(since) = since {
         payload["data"]["cursor"] = json!({ "previous": since, "next": config.now });
     }
+    if !omission_candidates.is_empty() {
+        let mut selected_record_ids = source_record_ids(&static_records);
+        selected_record_ids.extend(source_record_ids(&dynamic_records));
+        payload["omissions"] = json!(omission_manifest(
+            &omission_candidates,
+            &selected_record_ids,
+            budget,
+            profile_tokens,
+        ));
+    }
     payload
 }
 
@@ -1647,6 +1682,7 @@ fn context_pack_payload(
     let step = required_json_string(args, "step", 500)?;
     let budget = json_i64(args.get("budget"), 4096, 1, 100000);
     let target = json_string(args.get("target"), "generic", 80);
+    let with_omissions = json_flag(args, "withOmissions") || json_flag(args, "with_omissions");
     let source_harnesses = vec!["codex", "claude-code", "cursor"];
     let data = json!({
         "id": format!("ctxpack_{}", &sha256_hex(&canonical_json(&json!({
@@ -1771,7 +1807,7 @@ fn context_pack_payload(
             "utilityReads": false
         }
     });
-    Ok(json!({
+    let mut payload = json!({
         "schemaVersion": "1.0.0",
         "resourceKind": "context-pack-summary",
         "workspaceId": config.workspace_id,
@@ -1798,7 +1834,13 @@ fn context_pack_payload(
         },
         "data": data,
         "resourceFingerprint": format!("sha256:{}", sha256_hex("context-pack-resource"))
-    }))
+    });
+    if with_omissions && config.sqlite_abs.is_file() {
+        let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+        let candidates = store.omission_candidates("workspace", &objective, None, None, 200)?;
+        payload["omissions"] = json!(omission_manifest(&candidates, &[], budget, budget + 1));
+    }
+    Ok(payload)
 }
 
 fn graph_path_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> Result<Value> {
@@ -3053,6 +3095,54 @@ fn json_i64(value: Option<&Value>, fallback: i64, min: i64, max: i64) -> i64 {
         .and_then(Value::as_i64)
         .unwrap_or(fallback)
         .clamp(min, max)
+}
+
+fn json_flag(args: &serde_json::Map<String, Value>, name: &str) -> bool {
+    args.get(name).and_then(Value::as_bool) == Some(true)
+}
+
+fn omission_manifest(
+    candidates: &[Value],
+    selected_ids: &[String],
+    budget: i64,
+    used_tokens: i64,
+) -> Vec<Value> {
+    let selected = selected_ids
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut out = Vec::new();
+    for candidate in candidates {
+        let id = value_str(candidate, "id");
+        let status = value_str(candidate, "status");
+        let reason = if status == "superseded" {
+            "superseded"
+        } else if selected.contains(&id.to_string()) {
+            continue;
+        } else if used_tokens > budget {
+            "budget_pressure"
+        } else {
+            "lower_relevance"
+        };
+        let subject = value_str(candidate, "subject");
+        let predicate = value_str(candidate, "predicate");
+        out.push(json!({
+            "type": "memory_fact",
+            "ref": value_str(candidate, "factId"),
+            "reason": reason,
+            "recoverable_by": format!(
+                "oaf memory recall --query {} --subject {} --predicate {} --current-truth-only",
+                shell_token(value_str(candidate, "text")),
+                shell_token(subject),
+                shell_token(predicate)
+            )
+        }));
+    }
+    out
+}
+
+fn shell_token(value: &str) -> String {
+    let escaped = value.replace('\'', "'\\''");
+    format!("'{escaped}'")
 }
 
 fn sanitize(value: &str, max_len: usize) -> String {
