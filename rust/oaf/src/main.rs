@@ -1052,6 +1052,7 @@ fn memory_remember(args: &[String]) -> Result<()> {
     let predicate = required(args, "--predicate")?;
     let object = required(args, "--object")?;
     let source = required(args, "--source")?;
+    let source_trust = option(args, "--source-trust").unwrap_or_else(|| "verified".to_string());
     let supersedes = has(args, "--supersedes-subject") || has(args, "--supersedes-predicate");
     let supersedes_subject =
         option(args, "--supersedes-subject").unwrap_or_else(|| subject.clone());
@@ -1060,12 +1061,13 @@ fn memory_remember(args: &[String]) -> Result<()> {
     if supersedes && (supersedes_subject != subject || supersedes_predicate != predicate) {
         bail!("memory remember can only supersede the same subject and predicate as the new fact");
     }
-    let report = store.remember_single(
+    let report = store.remember_single_with_trust(
         &config.scope,
         &subject,
         &predicate,
         &object,
         &source,
+        &source_trust,
         supersedes,
     )?;
     print_json(remember_report(&config, &source, report));
@@ -2069,27 +2071,31 @@ fn batch_report(config: &CliConfig, batch: &str, report: BatchReport) -> Value {
 }
 
 fn remember_report(config: &CliConfig, source: &str, report: ApproveReport) -> Value {
-    with_fingerprint(json!({
+    let mut value = json!({
         "schemaVersion": "1.0.0",
         "command": "memory remember",
         "generatedAt": config.now,
         "workspaceId": config.workspace_id,
         "source": { "provider": PROVIDER, "sqliteRef": config.sqlite_ref, "sourceLocator": source },
         "summary": {
-            "activeMemoryCreated": 1,
+            "activeMemoryCreated": report.active_memory_created,
             "supersededFactCount": report.superseded_fact_count,
-            "pendingProposalCount": 0
+            "pendingProposalCount": report.pending_proposal_count
         },
         "proposal": report.proposal,
         "fact": report.fact,
         "supersededFacts": report.superseded_facts,
-        "safeguards": safeguards(false, true, 1),
+        "safeguards": safeguards(false, true, report.active_memory_created),
         "reportFingerprint": Value::Null
-    }))
+    });
+    if !report.policy_receipts.is_empty() {
+        value["policyReceipts"] = Value::Array(report.policy_receipts);
+    }
+    with_fingerprint(value)
 }
 
 fn approve_report(config: &CliConfig, report: ApproveReport) -> Value {
-    with_fingerprint(json!({
+    let mut value = json!({
         "schemaVersion": "1.0.0",
         "command": "memory approve",
         "generatedAt": config.now,
@@ -2107,7 +2113,11 @@ fn approve_report(config: &CliConfig, report: ApproveReport) -> Value {
         "supersededFacts": report.superseded_facts,
         "safeguards": safeguards(false, true, report.active_memory_created),
         "reportFingerprint": Value::Null
-    }))
+    });
+    if !report.policy_receipts.is_empty() {
+        value["policyReceipts"] = Value::Array(report.policy_receipts);
+    }
+    with_fingerprint(value)
 }
 
 fn reject_report(config: &CliConfig, report: ApproveReport) -> Value {

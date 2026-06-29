@@ -234,6 +234,7 @@ impl FactKey {
             predicate: self.predicate,
             object: self.object,
             source: self.source,
+            source_trust: None,
             confidence: Some("extracted".to_string()),
             notes: Some(self.note),
             supersedes: None,
@@ -380,6 +381,7 @@ pub fn retirement_facts(active: &[ActiveFactSnapshot], extracted: &[BatchFact]) 
             predicate: fact.predicate.clone(),
             object: format!("retired_{}", short_hash(&fact.object)),
             source: fact.source.clone(),
+            source_trust: None,
             confidence: Some("extracted".to_string()),
             notes: Some("oaf.ingest:retired".to_string()),
             supersedes: Some(Supersedes {

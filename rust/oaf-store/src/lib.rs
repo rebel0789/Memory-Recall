@@ -20,6 +20,8 @@ pub struct BatchFact {
     pub predicate: String,
     pub object: String,
     pub source: String,
+    #[serde(default, alias = "sourceTrust")]
+    pub source_trust: Option<String>,
     #[serde(default)]
     pub confidence: Option<String>,
     #[serde(default)]
@@ -70,6 +72,7 @@ pub struct ApproveReport {
     pub fact: Option<Value>,
     pub facts: Vec<Value>,
     pub superseded_facts: Vec<Value>,
+    pub policy_receipts: Vec<Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -353,6 +356,22 @@ impl Store {
         source: &str,
         supersedes: bool,
     ) -> Result<ApproveReport> {
+        self.remember_single_with_trust(
+            scope, subject, predicate, object, source, "verified", supersedes,
+        )
+    }
+
+    pub fn remember_single_with_trust(
+        &mut self,
+        scope: &str,
+        subject: &str,
+        predicate: &str,
+        object: &str,
+        source: &str,
+        source_trust: &str,
+        supersedes: bool,
+    ) -> Result<ApproveReport> {
+        let source_trust = normalize_source_trust(source_trust)?;
         let proposal = build_proposal_input(
             &self.workspace_id,
             scope,
@@ -364,13 +383,28 @@ impl Store {
             &self.now,
             "extracted",
             None,
+            &source_trust,
             supersedes,
             None,
         )?;
         self.begin()?;
         let result = (|| {
             self.enqueue_proposal_uncommitted(&proposal)?;
-            self.approve_proposal_uncommitted(&proposal.id, "memory-remember")
+            if source_trust == "untrusted" {
+                let proposal = self.proposal_row_value(&proposal.id)?;
+                Ok(ApproveReport {
+                    pending_proposal_count: 1,
+                    proposal: Some(proposal),
+                    policy_receipts: vec![policy_receipt(
+                        "queue_only",
+                        "untrusted_source_requires_explicit_approval",
+                        &source_trust,
+                    )],
+                    ..ApproveReport::default()
+                })
+            } else {
+                self.approve_proposal_uncommitted(&proposal.id, "memory-remember")
+            }
         })();
         self.finish(result)
     }
@@ -436,6 +470,7 @@ impl Store {
                     &enqueued_at,
                     &fact.extraction_confidence,
                     fact.notes.as_deref(),
+                    &fact.source_trust,
                     fact.supersedes,
                     fact.supersedes_object.as_deref(),
                 )?;
@@ -751,15 +786,7 @@ impl Store {
                     && since.is_none_or(|since| changed_since(fact, since))
             })
             .take(limit)
-            .map(|fact| {
-                json!({
-                    "id": format!("mem_{}", sanitize_string(&fact.id, 120)),
-                    "text": sanitize_string(&fact.text, 300),
-                    "sourceRef": compact_provenance_ref(fact.episode_source_locator.as_deref().unwrap_or(&fact.source)),
-                    "trust": "active",
-                    "extractionConfidence": extraction_confidence(fact.metadata.get("extractionConfidence").and_then(Value::as_str))
-                })
-            })
+            .map(|fact| profile_selected_fact_value(&fact))
             .collect())
     }
 
@@ -1653,6 +1680,25 @@ impl Store {
             .get("extractionConfidence")
             .and_then(Value::as_str)
             .unwrap_or("extracted");
+        let source_trust = payload
+            .get("sourceTrust")
+            .and_then(Value::as_str)
+            .unwrap_or("verified")
+            .to_string();
+        let trust_class = payload
+            .get("trustClass")
+            .and_then(Value::as_str)
+            .unwrap_or(&source_trust)
+            .to_string();
+        let approval_policy_receipt = if source_trust == "untrusted" {
+            policy_receipt(
+                "approved_after_review",
+                "explicit_memory_approve_required",
+                &source_trust,
+            )
+        } else {
+            Value::Null
+        };
         let confidence = match extraction_confidence {
             "inferred" => 0.6,
             "ambiguous" => 0.3,
@@ -1761,13 +1807,18 @@ impl Store {
                 .collect();
         }
 
-        let metadata = json!({
+        let mut metadata = json!({
             "approvedBy": "oaf memory approve",
             "approvedAt": self.now,
             "sourceHash": source_hash,
             "extractionConfidence": if ["extracted", "inferred", "ambiguous"].contains(&extraction_confidence) { extraction_confidence } else { "extracted" },
             "notes": payload.get("notes").cloned().unwrap_or(Value::Null)
         });
+        if source_trust != "verified" {
+            metadata["sourceTrust"] = Value::String(source_trust.clone());
+            metadata["trustClass"] = Value::String(trust_class.clone());
+            metadata["policyReceipt"] = approval_policy_receipt.clone();
+        }
         self.conn.execute(
             r#"
             INSERT INTO memory_facts (
@@ -1846,6 +1897,11 @@ impl Store {
             fact: Some(temporal_fact_value(&fact)),
             facts: vec![temporal_fact_value(&fact)],
             superseded_facts,
+            policy_receipts: if source_trust == "untrusted" {
+                vec![approval_policy_receipt.clone()]
+            } else {
+                Vec::new()
+            },
             ..ApproveReport::default()
         })
     }
@@ -3286,6 +3342,7 @@ struct NormalizedBatchFact {
     predicate: String,
     object: String,
     source: String,
+    source_trust: String,
     extraction_confidence: String,
     notes: Option<String>,
     supersedes: bool,
@@ -3306,6 +3363,7 @@ fn normalize_batch_fact(root: &Path, input: &BatchFact) -> Result<NormalizedBatc
     let predicate = safe_batch_token(&input.predicate, "predicate")?;
     let object = safe_batch_object(&input.object)?;
     let source = safe_batch_source(root, &input.source)?;
+    let source_trust = normalize_source_trust(input.source_trust.as_deref().unwrap_or("verified"))?;
     let extraction_confidence = match input.confidence.as_deref().unwrap_or("extracted").trim() {
         "extracted" | "inferred" | "ambiguous" => input
             .confidence
@@ -3338,6 +3396,7 @@ fn normalize_batch_fact(root: &Path, input: &BatchFact) -> Result<NormalizedBatc
         predicate,
         object,
         source,
+        source_trust,
         extraction_confidence,
         notes,
         supersedes,
@@ -3356,6 +3415,7 @@ fn build_proposal_input(
     enqueued_at: &str,
     extraction_confidence: &str,
     notes: Option<&str>,
+    source_trust: &str,
     supersedes: bool,
     supersedes_object: Option<&str>,
 ) -> Result<ProposalInput> {
@@ -3403,6 +3463,15 @@ fn build_proposal_input(
     });
     if let Some(supersedes_object) = supersedes_object {
         payload["supersedesObject"] = Value::String(supersedes_object.to_string());
+    }
+    if source_trust != "verified" {
+        payload["sourceTrust"] = Value::String(source_trust.to_string());
+        payload["trustClass"] = Value::String(source_trust.to_string());
+        payload["policyReceipt"] = policy_receipt(
+            "queue_only",
+            "untrusted_source_requires_explicit_approval",
+            source_trust,
+        );
     }
     Ok(ProposalInput {
         id,
@@ -3474,7 +3543,7 @@ fn summarize_proposal_value(item: &Value) -> Result<Option<Value>> {
     if status != "pending" && status != "claimed" {
         return Ok(None);
     }
-    Ok(Some(json!({
+    let mut summary = json!({
         "id": sanitize_string(item.get("id").and_then(Value::as_str).unwrap_or(""), 120),
         "workspaceId": item.get("workspaceId").cloned().unwrap_or(Value::Null),
         "status": status,
@@ -3489,7 +3558,17 @@ fn summarize_proposal_value(item: &Value) -> Result<Option<Value>> {
             "sourceHash": item.get("sourceHash").cloned().unwrap_or(Value::Null),
             "episodeId": payload.get("provenanceEpisodeId").and_then(Value::as_str).map(|value| sanitize_string(value, 120))
         }
-    })))
+    });
+    if let Some(source_trust) = payload.get("sourceTrust") {
+        summary["sourceTrust"] = source_trust.clone();
+    }
+    if let Some(trust_class) = payload.get("trustClass") {
+        summary["trustClass"] = trust_class.clone();
+    }
+    if let Some(receipt) = payload.get("policyReceipt") {
+        summary["policyReceipt"] = receipt.clone();
+    }
+    Ok(Some(summary))
 }
 
 fn fact_from_row(conn: &Connection, row: &rusqlite::Row<'_>) -> rusqlite::Result<RecallFact> {
@@ -3628,6 +3707,24 @@ fn round_score(value: f64) -> f64 {
 }
 
 fn profile_record_from_fact(fact: &RecallFact) -> Value {
+    let source_trust = fact
+        .metadata
+        .get("sourceTrust")
+        .and_then(Value::as_str)
+        .unwrap_or("verified");
+    let trust_class = fact
+        .metadata
+        .get("trustClass")
+        .and_then(Value::as_str)
+        .unwrap_or(source_trust);
+    let mut metadata = json!({
+        "extractionConfidence": extraction_confidence(fact.metadata.get("extractionConfidence").and_then(Value::as_str))
+    });
+    if let Some(receipt) = fact.metadata.get("policyReceipt") {
+        if !receipt.is_null() {
+            metadata["policyReceipt"] = receipt.clone();
+        }
+    }
     json!({
         "id": format!("mem_{}", fact.id),
         "workspaceId": fact.workspace_id,
@@ -3637,18 +3734,38 @@ fn profile_record_from_fact(fact: &RecallFact) -> Value {
         "dataClass": "workspace-private",
         "status": fact.status,
         "source": fact.source,
-        "sourceTrust": "verified",
-        "trustClass": "verified",
+        "sourceTrust": source_trust,
+        "trustClass": trust_class,
         "confidence": fact.confidence,
         "authority": fact.confidence,
         "tags": [fact.subject.clone(), fact.predicate.clone(), fact.object.clone()],
         "relations": [fact.subject.clone(), fact.object.clone()],
         "updatedAt": fact.updated_at,
         "observedAt": fact.valid_from,
-        "metadata": {
-            "extractionConfidence": extraction_confidence(fact.metadata.get("extractionConfidence").and_then(Value::as_str))
-        }
+        "metadata": metadata
     })
+}
+
+fn profile_selected_fact_value(fact: &RecallFact) -> Value {
+    let mut value = json!({
+        "id": format!("mem_{}", sanitize_string(&fact.id, 120)),
+        "text": sanitize_string(&fact.text, 300),
+        "sourceRef": compact_provenance_ref(fact.episode_source_locator.as_deref().unwrap_or(&fact.source)),
+        "trust": "active",
+        "extractionConfidence": extraction_confidence(fact.metadata.get("extractionConfidence").and_then(Value::as_str))
+    });
+    if let Some(source_trust) = fact.metadata.get("sourceTrust") {
+        value["sourceTrust"] = source_trust.clone();
+    }
+    if let Some(trust_class) = fact.metadata.get("trustClass") {
+        value["trustClass"] = trust_class.clone();
+    }
+    if let Some(receipt) = fact.metadata.get("policyReceipt") {
+        if !receipt.is_null() {
+            value["metadata"] = json!({ "policyReceipt": receipt });
+        }
+    }
+    value
 }
 
 fn symbol_kind(name: &str) -> String {
@@ -4207,4 +4324,25 @@ fn payload_str<'a>(payload: &'a Map<String, Value>, key: &str, fallback: &'a str
         .and_then(Value::as_str)
         .unwrap_or(fallback)
         .to_string()
+}
+
+fn normalize_source_trust(value: &str) -> Result<String> {
+    match value.trim() {
+        "" | "verified" => Ok("verified".to_string()),
+        "untrusted" => Ok("untrusted".to_string()),
+        other => bail!("source trust must be verified or untrusted, got {other}"),
+    }
+}
+
+fn policy_receipt(decision: &str, reason: &str, source_trust: &str) -> Value {
+    json!({
+        "schemaVersion": "1.0.0",
+        "decision": decision,
+        "reason": reason,
+        "sourceTrust": source_trust,
+        "sideEffectClass": "memory.write",
+        "externalWritesEnabled": false,
+        "modelCalls": 0,
+        "networkCalls": 0
+    })
 }
