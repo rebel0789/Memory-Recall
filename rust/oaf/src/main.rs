@@ -994,6 +994,7 @@ fn ingest_command(args: &[String]) -> Result<()> {
     let mut options = IngestOptions::new(config.root.clone());
     options.max_memory_bytes = parse_memory_bytes(args)?;
     options.max_file_bytes = parse_file_bytes(args)?;
+    options.workers = parse_workers(args)?;
     let mut extraction = extract_repo(&options)?;
     if extraction.parsed_file_count == 0 {
         bail!("ingest parsed no supported source files");
@@ -2034,7 +2035,7 @@ fn ingest_report(
     max_memory_bytes: u64,
     max_file_bytes: u64,
 ) -> Value {
-    let proposal_fact_count = report.proposal_facts.len();
+    let proposal_fact_count = report.recorded_count;
     let proposal_preview = report
         .proposal_facts
         .iter()
@@ -2065,6 +2066,8 @@ fn ingest_report(
             "definitionCount": extraction.definition_count,
             "importCount": extraction.import_count,
             "parsedBytes": extraction.parsed_bytes,
+            "requestedWorkerCount": extraction.requested_worker_count,
+            "effectiveWorkerCount": extraction.effective_worker_count,
             "elapsedMs": extraction.elapsed_ms
         },
         "quality": report_quality_fields(extraction),
@@ -2084,7 +2087,14 @@ fn ingest_report(
             "absoluteFilesystemLocationsIncluded": false,
             "maxMemoryBytes": max_memory_bytes,
             "maxFileBytes": max_file_bytes,
-            "fdStrategy": "single-file",
+            "requestedWorkerCount": extraction.requested_worker_count,
+            "effectiveWorkerCount": extraction.effective_worker_count,
+            "cgroupMemoryLimitBytes": extraction.cgroup_memory_limit_bytes,
+            "boundedWorkerPool": true,
+            "singleWriterCommit": true,
+            "unsafeBlocks": 0,
+            "fdCap": extraction.effective_worker_count,
+            "fdStrategy": "bounded-worker-files",
             "largeFilesTruncated": false
         },
         "reportFingerprint": Value::Null
@@ -2553,6 +2563,19 @@ fn parse_file_bytes(args: &[String]) -> Result<u64> {
             .context("--max-file-bytes must be an integer byte count");
     }
     parse_size_option(args, "--max-file-mb", DEFAULT_MAX_FILE_BYTES, 1024 * 1024)
+}
+
+fn parse_workers(args: &[String]) -> Result<usize> {
+    let Some(raw) = option(args, "--workers") else {
+        return Ok(1);
+    };
+    let workers = raw
+        .parse::<usize>()
+        .context("--workers must be a positive integer")?;
+    if workers == 0 {
+        bail!("--workers must be greater than zero");
+    }
+    Ok(workers.min(1024))
 }
 
 fn parse_size_option(args: &[String], flag: &str, default: u64, multiplier: u64) -> Result<u64> {

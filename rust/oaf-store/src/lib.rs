@@ -12,8 +12,9 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 const PROVIDER_ID: &str = "provider:native:memory:sqlite";
+const PROPOSAL_PREVIEW_LIMIT: usize = 50;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BatchFact {
     pub subject: String,
     pub predicate: String,
@@ -27,7 +28,7 @@ pub struct BatchFact {
     pub supersedes: Option<Supersedes>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Supersedes {
     pub subject: String,
     pub predicate: String,
@@ -375,6 +376,18 @@ impl Store {
         self.begin()?;
         let result = (|| {
             let mut proposal_facts = Vec::new();
+            let mut recorded_fingerprints = HashSet::new();
+            let mut existing_statuses = self.proposal_statuses_by_fingerprint()?;
+            let mut enqueue = self.conn.prepare(
+                r#"
+                INSERT INTO memory_proposal_queue (
+                  id, workspace_id, fingerprint, source_locator, source_hash, status,
+                  attempts, max_attempts, lease_owner, lease_until, payload_json,
+                  result_json, error_json, enqueued_at, updated_at
+                ) VALUES (?1, ?2, ?3, ?4, ?5, 'pending', 0, 3, NULL, NULL, ?6, NULL, NULL, ?7, ?8)
+                ON CONFLICT(workspace_id, fingerprint) DO UPDATE SET updated_at=excluded.updated_at
+                "#,
+            )?;
             for (index, fact) in &normalized {
                 let enqueued_at = add_milliseconds(&self.now, *index as i64)?;
                 let proposal = build_proposal_input(
@@ -391,15 +404,46 @@ impl Store {
                     fact.supersedes,
                     fact.supersedes_object.as_deref(),
                 )?;
-                self.enqueue_proposal_uncommitted(&proposal)?;
-                if let Some(value) =
-                    summarize_proposal_value(&self.proposal_row_value(&proposal.id)?)?
+                let fingerprint = proposal_fingerprint(&self.workspace_id, &proposal);
+                let final_status = existing_statuses
+                    .get(&fingerprint)
+                    .map(String::as_str)
+                    .unwrap_or("pending")
+                    .to_string();
+                enqueue.execute(params![
+                    proposal.id,
+                    self.workspace_id,
+                    fingerprint,
+                    proposal.source_locator,
+                    proposal.source_hash,
+                    serde_json::to_string(&proposal.payload)?,
+                    proposal.enqueued_at,
+                    self.now
+                ])?;
+                if std::env::var("OAF_STORE_ABORT_AFTER_UNCOMMITTED_WRITE")
+                    .ok()
+                    .as_deref()
+                    == Some("1")
                 {
-                    proposal_facts.push(value);
+                    std::process::abort();
+                }
+                existing_statuses
+                    .entry(fingerprint.clone())
+                    .or_insert_with(|| "pending".to_string());
+                if matches!(final_status.as_str(), "pending" | "claimed")
+                    && recorded_fingerprints.insert(fingerprint)
+                {
+                    if proposal_facts.len() < PROPOSAL_PREVIEW_LIMIT {
+                        if let Some(value) =
+                            summarize_proposal_input(&self.workspace_id, &proposal, &final_status)?
+                        {
+                            proposal_facts.push(value);
+                        }
+                    }
                 }
             }
             Ok(BatchReport {
-                recorded_count: proposal_facts.len(),
+                recorded_count: recorded_fingerprints.len(),
                 skipped_unsafe_count,
                 skipped_duplicate_count,
                 skipped: skipped.clone(),
@@ -1256,12 +1300,7 @@ impl Store {
     }
 
     fn enqueue_proposal_uncommitted(&self, proposal: &ProposalInput) -> Result<()> {
-        let fingerprint = sha256_hex(&canonical_json(&json!({
-            "workspaceId": self.workspace_id,
-            "sourceLocator": proposal.source_locator,
-            "sourceHash": proposal.source_hash,
-            "payload": proposal.payload
-        })));
+        let fingerprint = proposal_fingerprint(&self.workspace_id, proposal);
         self.conn.execute(
             r#"
             INSERT INTO memory_proposal_queue (
@@ -1630,6 +1669,17 @@ impl Store {
             )
             .optional()?
             .ok_or_else(|| anyhow!("memory proposal queue record not found: {id}"))
+    }
+
+    fn proposal_statuses_by_fingerprint(&self) -> Result<HashMap<String, String>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT fingerprint, status FROM memory_proposal_queue WHERE workspace_id = ?",
+        )?;
+        let rows = stmt.query_map(params![self.workspace_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        rows.collect::<std::result::Result<HashMap<_, _>, _>>()
+            .map_err(Into::into)
     }
 
     fn fact_by_id(&self, id: &str) -> Result<Option<RecallFact>> {
@@ -3023,6 +3073,30 @@ fn proposal_row_to_value(row: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
         "error": error_json.and_then(|value| serde_json::from_str::<Value>(&value).ok()),
         "enqueuedAt": row.get::<_, String>("enqueued_at")?,
         "updatedAt": row.get::<_, String>("updated_at")?
+    }))
+}
+
+fn proposal_fingerprint(workspace_id: &str, proposal: &ProposalInput) -> String {
+    sha256_hex(&canonical_json(&json!({
+        "workspaceId": workspace_id,
+        "sourceLocator": proposal.source_locator,
+        "sourceHash": proposal.source_hash,
+        "payload": proposal.payload
+    })))
+}
+
+fn summarize_proposal_input(
+    workspace_id: &str,
+    proposal: &ProposalInput,
+    status: &str,
+) -> Result<Option<Value>> {
+    summarize_proposal_value(&json!({
+        "id": proposal.id,
+        "workspaceId": workspace_id,
+        "status": status,
+        "payload": proposal.payload,
+        "sourceLocator": proposal.source_locator,
+        "sourceHash": proposal.source_hash
     }))
 }
 

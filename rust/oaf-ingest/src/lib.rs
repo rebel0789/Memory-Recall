@@ -4,20 +4,24 @@ use oaf_store::{ActiveFactSnapshot, BatchFact, Supersedes};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
 use std::time::Instant;
 use tree_sitter::{Language, Node, Parser};
 
 pub const DEFAULT_MAX_MEMORY_BYTES: u64 = 350 * 1024 * 1024;
 pub const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
+const PER_WORKER_MEMORY_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
 pub struct IngestOptions {
     pub root: PathBuf,
     pub max_memory_bytes: u64,
     pub max_file_bytes: u64,
+    pub workers: usize,
 }
 
 impl IngestOptions {
@@ -26,6 +30,7 @@ impl IngestOptions {
             root: root.into(),
             max_memory_bytes: DEFAULT_MAX_MEMORY_BYTES,
             max_file_bytes: DEFAULT_MAX_FILE_BYTES,
+            workers: 1,
         }
     }
 }
@@ -40,6 +45,9 @@ pub struct IngestReport {
     pub import_count: usize,
     pub definition_count: usize,
     pub parsed_bytes: u64,
+    pub requested_worker_count: usize,
+    pub effective_worker_count: usize,
+    pub cgroup_memory_limit_bytes: Option<u64>,
     pub elapsed_ms: u128,
     pub skipped_files: Vec<SkippedFile>,
     #[serde(skip)]
@@ -187,6 +195,20 @@ impl ParsedRepo {
             None => format!("function:{name}"),
         }
     }
+
+    fn merge(&mut self, other: ParsedRepo) {
+        self.facts.extend(other.facts);
+        self.calls.extend(other.calls);
+        for (name, subjects) in other.definitions_by_name {
+            self.definitions_by_name
+                .entry(name)
+                .or_default()
+                .extend(subjects);
+        }
+        self.generated_call_count += other.generated_call_count;
+        self.import_count += other.import_count;
+        self.definition_count += other.definition_count;
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -270,106 +292,33 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
             options.root.display()
         )
     })?;
+    let requested_worker_count = options.workers.max(1);
+    let cgroup_memory_limit_bytes = cgroup_memory_limit_bytes();
+    let effective_worker_count = effective_worker_count(
+        requested_worker_count,
+        options.max_memory_bytes,
+        cgroup_memory_limit_bytes,
+    );
+    let (jobs, mut skipped_files, scanned_file_count) = discover_jobs(&root, options)?;
+    let results = parse_jobs(jobs, effective_worker_count)?;
     let mut parsed = ParsedRepo::new();
-    let mut skipped_files = Vec::new();
-    let mut scanned_file_count = 0usize;
     let mut parsed_file_count = 0usize;
     let mut parsed_bytes = 0u64;
     let mut language_counts = BTreeMap::new();
-    let mut parser = Parser::new();
 
-    let mut builder = WalkBuilder::new(&root);
-    builder
-        .follow_links(false)
-        .git_ignore(true)
-        .git_exclude(true)
-        .parents(true)
-        .hidden(false)
-        .filter_entry(should_descend);
-
-    for entry in builder.build() {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(error) => {
-                skipped_files.push(SkippedFile {
-                    workspace_ref: "workspace://.".to_string(),
-                    reason: format!("walk error: {error}"),
-                    bytes: 0,
-                });
-                continue;
-            }
-        };
-        let path = entry.path();
-        if !path.is_file() {
+    for result in results {
+        parsed_bytes += result.bytes_read;
+        if let Some(skipped) = result.skipped {
+            skipped_files.push(skipped);
             continue;
         }
-        let Some(lang) = language_for_path(path) else {
-            continue;
-        };
-        scanned_file_count += 1;
-        let rel = workspace_rel(&root, path)?;
-        let source = format!("workspace://{rel}");
-        let metadata = fs::metadata(path).with_context(|| format!("stat {source}"))?;
-        let file_size = metadata.len();
-        if file_size > options.max_file_bytes {
-            skipped_files.push(SkippedFile {
-                workspace_ref: source,
-                reason: "file exceeds max-file-bytes and was not truncated".to_string(),
-                bytes: file_size,
-            });
-            continue;
+        if let Some(file_parsed) = result.parsed {
+            parsed.merge(file_parsed);
+            parsed_file_count += 1;
+            *language_counts
+                .entry(result.lang.group().to_string())
+                .or_insert(0) += 1;
         }
-        if parsed_bytes.saturating_add(file_size) > options.max_memory_bytes {
-            skipped_files.push(SkippedFile {
-                workspace_ref: source,
-                reason: "max-memory cap reached before reading file".to_string(),
-                bytes: file_size,
-            });
-            continue;
-        }
-        let canonical = path
-            .canonicalize()
-            .with_context(|| format!("canonicalize {source}"))?;
-        if !canonical.starts_with(&root) {
-            skipped_files.push(SkippedFile {
-                workspace_ref: source,
-                reason: "path resolves outside workspace root".to_string(),
-                bytes: file_size,
-            });
-            continue;
-        }
-        let bytes = fs::read(path).with_context(|| format!("read {source}"))?;
-        parsed_bytes += bytes.len() as u64;
-        parser
-            .set_language(&lang.language())
-            .with_context(|| format!("load parser for {source}"))?;
-        let tree = parser
-            .parse(&bytes, None)
-            .with_context(|| format!("parse {source}"))?;
-        if tree.root_node().has_error() {
-            skipped_files.push(SkippedFile {
-                workspace_ref: source,
-                reason: "tree-sitter parse error".to_string(),
-                bytes: file_size,
-            });
-            continue;
-        }
-        let file_id = format!("file:{}", path_token(&rel));
-        let module = format!("module:{}", module_token(&rel));
-        parsed.add_entity(file_id.clone(), "File", &source, "oaf.ingest:file");
-        parsed.add_entity(module.clone(), "Module", &source, "oaf.ingest:module");
-        parsed.add_definition(&file_id, &module, &source, "oaf.ingest:file-defines-module");
-        let context = WalkContext {
-            module,
-            source: source.clone(),
-            lang,
-            class_name: None,
-            impl_name: None,
-            caller: None,
-        };
-        walk_node(tree.root_node(), &bytes, &context, &mut parsed);
-        parsed_file_count += 1;
-        *language_counts.entry(lang.group().to_string()).or_insert(0) += 1;
     }
 
     let generated_call_count = parsed.generated_call_count;
@@ -385,6 +334,9 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         import_count,
         definition_count,
         parsed_bytes,
+        requested_worker_count,
+        effective_worker_count,
+        cgroup_memory_limit_bytes,
         elapsed_ms: started.elapsed().as_millis(),
         skipped_files,
         facts,
@@ -440,10 +392,255 @@ pub fn report_quality_fields(report: &IngestReport) -> Value {
         "definitionCount": report.definition_count,
         "importCount": report.import_count,
         "parsedBytes": report.parsed_bytes,
+        "requestedWorkerCount": report.requested_worker_count,
+        "effectiveWorkerCount": report.effective_worker_count,
+        "cgroupMemoryLimitBytes": report.cgroup_memory_limit_bytes,
         "elapsedMs": report.elapsed_ms,
         "languageCounts": report.language_counts,
         "skippedFiles": report.skipped_files
     })
+}
+
+#[derive(Debug, Clone)]
+struct FileJob {
+    index: usize,
+    path: PathBuf,
+    rel: String,
+    source: String,
+    lang: LangKind,
+    bytes: u64,
+}
+
+#[derive(Debug)]
+struct FileParse {
+    index: usize,
+    lang: LangKind,
+    bytes_read: u64,
+    parsed: Option<ParsedRepo>,
+    skipped: Option<SkippedFile>,
+}
+
+fn discover_jobs(
+    root: &Path,
+    options: &IngestOptions,
+) -> Result<(Vec<FileJob>, Vec<SkippedFile>, usize)> {
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+
+    let mut candidates = Vec::new();
+    let mut skipped_files = Vec::new();
+    let mut scanned_file_count = 0usize;
+    for entry in builder.build() {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                skipped_files.push(SkippedFile {
+                    workspace_ref: "workspace://.".to_string(),
+                    reason: format!("walk error: {error}"),
+                    bytes: 0,
+                });
+                continue;
+            }
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(lang) = language_for_path(path) else {
+            continue;
+        };
+        scanned_file_count += 1;
+        let rel = workspace_rel(root, path)?;
+        let source = format!("workspace://{rel}");
+        let metadata = fs::metadata(path).with_context(|| format!("stat {source}"))?;
+        let bytes = metadata.len();
+        if bytes > options.max_file_bytes {
+            skipped_files.push(SkippedFile {
+                workspace_ref: source,
+                reason: "file exceeds max-file-bytes and was not truncated".to_string(),
+                bytes,
+            });
+            continue;
+        }
+        let canonical = path
+            .canonicalize()
+            .with_context(|| format!("canonicalize {source}"))?;
+        if !canonical.starts_with(root) {
+            skipped_files.push(SkippedFile {
+                workspace_ref: source,
+                reason: "path resolves outside workspace root".to_string(),
+                bytes,
+            });
+            continue;
+        }
+        candidates.push(FileJob {
+            index: 0,
+            path: canonical,
+            rel,
+            source,
+            lang,
+            bytes,
+        });
+    }
+
+    candidates.sort_by(|left, right| left.rel.cmp(&right.rel));
+    let mut jobs = Vec::new();
+    let mut planned_bytes = 0u64;
+    for mut candidate in candidates {
+        if planned_bytes.saturating_add(candidate.bytes) > options.max_memory_bytes {
+            skipped_files.push(SkippedFile {
+                workspace_ref: candidate.source,
+                reason: "max-memory cap reached before reading file".to_string(),
+                bytes: candidate.bytes,
+            });
+            continue;
+        }
+        planned_bytes += candidate.bytes;
+        candidate.index = jobs.len();
+        jobs.push(candidate);
+    }
+    Ok((jobs, skipped_files, scanned_file_count))
+}
+
+fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>> {
+    if worker_count <= 1 {
+        return jobs.into_iter().map(parse_file_job).collect();
+    }
+
+    let total_jobs = jobs.len();
+    let queue = Arc::new(Mutex::new(VecDeque::from(jobs)));
+    let (tx, rx) = mpsc::channel();
+    let mut handles = Vec::new();
+    for _ in 0..worker_count.max(1) {
+        let queue = Arc::clone(&queue);
+        let tx = tx.clone();
+        handles.push(thread::spawn(move || loop {
+            let job = queue
+                .lock()
+                .expect("ingest worker queue poisoned")
+                .pop_front();
+            let Some(job) = job else {
+                break;
+            };
+            if tx.send(parse_file_job(job)).is_err() {
+                break;
+            }
+        }));
+    }
+    drop(tx);
+
+    let mut parsed = Vec::with_capacity(total_jobs);
+    let mut first_error = None;
+    for result in rx {
+        match result {
+            Ok(file) => parsed.push(file),
+            Err(error) if first_error.is_none() => first_error = Some(error),
+            Err(_) => {}
+        }
+    }
+    for handle in handles {
+        handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("ingest worker panicked"))?;
+    }
+    if let Some(error) = first_error {
+        return Err(error);
+    }
+    if parsed.len() != total_jobs {
+        bail!("ingest worker pool returned incomplete parse results");
+    }
+    parsed.sort_by_key(|file| file.index);
+    Ok(parsed)
+}
+
+fn parse_file_job(job: FileJob) -> Result<FileParse> {
+    let bytes = fs::read(&job.path).with_context(|| format!("read {}", job.source))?;
+    let bytes_read = bytes.len() as u64;
+    let mut parser = Parser::new();
+    parser
+        .set_language(&job.lang.language())
+        .with_context(|| format!("load parser for {}", job.source))?;
+    let tree = parser
+        .parse(&bytes, None)
+        .with_context(|| format!("parse {}", job.source))?;
+    if tree.root_node().has_error() {
+        return Ok(FileParse {
+            index: job.index,
+            lang: job.lang,
+            bytes_read,
+            parsed: None,
+            skipped: Some(SkippedFile {
+                workspace_ref: job.source,
+                reason: "tree-sitter parse error".to_string(),
+                bytes: job.bytes,
+            }),
+        });
+    }
+
+    let mut parsed = ParsedRepo::new();
+    let file_id = format!("file:{}", path_token(&job.rel));
+    let module = format!("module:{}", module_token(&job.rel));
+    parsed.add_entity(file_id.clone(), "File", &job.source, "oaf.ingest:file");
+    parsed.add_entity(module.clone(), "Module", &job.source, "oaf.ingest:module");
+    parsed.add_definition(
+        &file_id,
+        &module,
+        &job.source,
+        "oaf.ingest:file-defines-module",
+    );
+    let context = WalkContext {
+        module,
+        source: job.source,
+        lang: job.lang,
+        class_name: None,
+        impl_name: None,
+        caller: None,
+    };
+    walk_node(tree.root_node(), &bytes, &context, &mut parsed);
+    Ok(FileParse {
+        index: job.index,
+        lang: job.lang,
+        bytes_read,
+        parsed: Some(parsed),
+        skipped: None,
+    })
+}
+
+fn effective_worker_count(
+    requested: usize,
+    max_memory_bytes: u64,
+    cgroup_memory_limit_bytes: Option<u64>,
+) -> usize {
+    let available = thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+        .max(1);
+    let memory_limit = cgroup_memory_limit_bytes
+        .map(|limit| limit.min(max_memory_bytes))
+        .unwrap_or(max_memory_bytes);
+    let memory_workers = (memory_limit / PER_WORKER_MEMORY_BYTES).max(1) as usize;
+    requested.max(1).min(available).min(memory_workers).max(1)
+}
+
+fn cgroup_memory_limit_bytes() -> Option<u64> {
+    read_cgroup_limit("/sys/fs/cgroup/memory.max")
+        .or_else(|| read_cgroup_limit("/sys/fs/cgroup/memory/memory.limit_in_bytes"))
+}
+
+fn read_cgroup_limit(path: &str) -> Option<u64> {
+    let raw = fs::read_to_string(path).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed == "max" {
+        return None;
+    }
+    let value = trimmed.parse::<u64>().ok()?;
+    (value < (1u64 << 60)).then_some(value)
 }
 
 fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
@@ -886,5 +1083,42 @@ mod tests {
                 .and_then(|item| item.object.as_deref()),
             Some("Function")
         );
+    }
+
+    #[test]
+    fn parallel_extract_matches_sequential_fact_set() {
+        let root = std::env::temp_dir().join(format!("oaf-ingest-parallel-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/a.js"),
+            "export function alpha(){ return beta(); }\nfunction beta(){ return 1; }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/b.py"),
+            "def gamma():\n    return delta()\ndef delta():\n    return 1\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/c.rs"),
+            "fn epsilon(){ zeta(); }\nfn zeta() {}\n",
+        )
+        .unwrap();
+
+        let mut sequential = IngestOptions::new(&root);
+        sequential.workers = 1;
+        let mut parallel = IngestOptions::new(&root);
+        parallel.workers = 4;
+
+        let sequential = extract_repo(&sequential).unwrap();
+        let parallel = extract_repo(&parallel).unwrap();
+        assert_eq!(sequential.facts, parallel.facts);
+        assert_eq!(sequential.scanned_file_count, parallel.scanned_file_count);
+        assert_eq!(sequential.parsed_file_count, parallel.parsed_file_count);
+        assert!(parallel.effective_worker_count >= 1);
+        assert!(parallel.effective_worker_count <= 4);
+
+        fs::remove_dir_all(root).unwrap();
     }
 }
