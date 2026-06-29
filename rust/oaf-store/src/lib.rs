@@ -801,6 +801,68 @@ impl Store {
         Ok(out)
     }
 
+    pub fn memory_why(&self, fact_id: &str, at: &str) -> Result<Value> {
+        let fact = self
+            .conn
+            .query_row(
+                "SELECT * FROM memory_facts WHERE workspace_id = ? AND id = ?",
+                params![self.workspace_id, fact_id],
+                |row| fact_from_row(&self.conn, row),
+            )
+            .optional()?
+            .ok_or_else(|| anyhow!("memory why fact not found"))?;
+        let proposal = self
+            .conn
+            .query_row(
+                "SELECT * FROM memory_proposal_queue WHERE workspace_id = ? AND id = ?",
+                params![self.workspace_id, fact.proposal_queue_id],
+                proposal_row_to_value,
+            )
+            .optional()?;
+        let supersedes = self.facts_superseded_by(&fact.id)?;
+        let superseded_by = if let Some(id) = fact.superseded_by.as_deref() {
+            self.fact_brief_by_id(id)?
+        } else {
+            None
+        };
+        let source_hash = proposal
+            .as_ref()
+            .and_then(|value| value.get("sourceHash"))
+            .cloned()
+            .or_else(|| fact.metadata.get("sourceHash").cloned())
+            .unwrap_or(Value::Null);
+        let source_locator = fact
+            .episode_source_locator
+            .as_deref()
+            .unwrap_or(&fact.source)
+            .to_string();
+        let chain = vec![
+            json!({ "type": "source", "id": source_locator }),
+            json!({ "type": "episode", "id": fact.episode_id }),
+            json!({ "type": "proposal", "id": fact.proposal_queue_id }),
+            json!({ "type": "fact", "id": fact.id }),
+        ];
+        Ok(json!({
+            "fact": fact_brief(&fact),
+            "source": {
+                "sourceLocator": safe_locator(&source_locator),
+                "sourceHash": source_hash
+            },
+            "episode": fact.episode,
+            "proposal": proposal,
+            "chain": chain,
+            "confidence": fact.confidence,
+            "validity": {
+                "asOf": at,
+                "validFrom": fact.valid_from,
+                "validUntil": fact.valid_until,
+                "currentAt": fact.valid_from.as_str() <= at && fact.valid_until.as_deref().is_none_or(|until| until > at)
+            },
+            "supersedes": supersedes,
+            "supersededBy": superseded_by
+        }))
+    }
+
     pub fn active_value(
         &self,
         scope: &str,
@@ -1964,6 +2026,29 @@ impl Store {
             fact_from_row(&self.conn, row)
         })?;
         rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    fn facts_superseded_by(&self, fact_id: &str) -> Result<Vec<Value>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT * FROM memory_facts WHERE workspace_id = ? AND superseded_by = ? ORDER BY valid_from DESC, id ASC",
+        )?;
+        let rows = stmt.query_map(params![self.workspace_id, fact_id], |row| {
+            fact_from_row(&self.conn, row)
+        })?;
+        rows.map(|row| row.map(|fact| fact_brief(&fact)))
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
+    fn fact_brief_by_id(&self, fact_id: &str) -> Result<Option<Value>> {
+        self.conn
+            .query_row(
+                "SELECT * FROM memory_facts WHERE workspace_id = ? AND id = ?",
+                params![self.workspace_id, fact_id],
+                |row| fact_from_row(&self.conn, row).map(|fact| fact_brief(&fact)),
+            )
+            .optional()
             .map_err(Into::into)
     }
 
@@ -3497,6 +3582,24 @@ fn summarize_current_truth_fact(fact: &RecallFact) -> Value {
         } else {
             fact.episode_source_locator.as_deref().unwrap_or(&fact.source)
         })
+    })
+}
+
+fn fact_brief(fact: &RecallFact) -> Value {
+    json!({
+        "id": sanitize_string(&fact.id, 120),
+        "subject": sanitize_string(&fact.subject, 160),
+        "predicate": sanitize_string(&fact.predicate, 120),
+        "object": sanitize_string(&fact.object, 240),
+        "text": sanitize_string(&fact.text, 300),
+        "status": fact.status,
+        "confidence": fact.confidence,
+        "validFrom": fact.valid_from,
+        "validUntil": fact.valid_until,
+        "supersededBy": fact.superseded_by,
+        "episodeId": fact.episode_id,
+        "proposalQueueId": fact.proposal_queue_id,
+        "sourceRef": compact_provenance_ref(fact.episode_source_locator.as_deref().unwrap_or(&fact.source))
     })
 }
 

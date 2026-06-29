@@ -1023,6 +1023,7 @@ fn memory_command(args: &[String]) -> Result<()> {
         Some("approve") => memory_approve(&args[1..]),
         Some("reject") => memory_reject(&args[1..]),
         Some("review") => memory_review(&args[1..]),
+        Some("why") => memory_why(&args[1..]),
         Some(other) => bail!("memory unsupported command: {other}"),
         None => bail!("memory requires a subcommand"),
     }
@@ -1116,6 +1117,19 @@ fn memory_review(args: &[String]) -> Result<()> {
         "reportFingerprint": Value::Null
     });
     print_json(with_fingerprint(report));
+    Ok(())
+}
+
+fn memory_why(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let fact_id = option(args, "--fact-id")
+        .or_else(|| option(args, "--fact"))
+        .or_else(|| args.iter().find(|value| !value.starts_with("--")).cloned())
+        .ok_or_else(|| anyhow!("memory why requires <fact-id> or --fact-id <fact-id>"))?;
+    let at = option(args, "--at").unwrap_or_else(|| config.now.clone());
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    print_json(memory_why_report(&config, store.memory_why(&fact_id, &at)?));
     Ok(())
 }
 
@@ -1253,6 +1267,7 @@ impl McpSession {
         let args = self.args_with_cursor(name, args)?;
         let payload = match name {
             "memory.recall" => recall_payload(&self.config, &args)?,
+            "memory.why" => memory_why_payload(&self.config, &args)?,
             "context.profile" => context_profile_payload(&self.config, &args)?,
             "context.pack" => context_pack_payload(&self.config, &args)?,
             "graph.path" => graph_path_payload(&self.config, &args)?,
@@ -1391,6 +1406,14 @@ fn recall_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> 
             "cursor": { "previous": Value::Null, "next": config.now }
         }),
     ))
+}
+
+fn memory_why_payload(config: &CliConfig, args: &serde_json::Map<String, Value>) -> Result<Value> {
+    let fact_id = optional_json_string(args.get("factId").or_else(|| args.get("fact_id")), 160)
+        .ok_or_else(|| anyhow!("mcp tool requires factId"))?;
+    let at = json_string(args.get("at"), &config.now, 80);
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    Ok(memory_why_report(config, store.memory_why(&fact_id, &at)?))
 }
 
 fn context_profile_payload(
@@ -2101,6 +2124,19 @@ fn reject_report(config: &CliConfig, report: ApproveReport) -> Value {
     }))
 }
 
+fn memory_why_report(config: &CliConfig, data: Value) -> Value {
+    with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "memory why",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": source_block(config),
+        "data": data,
+        "safeguards": safeguards(true, false, 0),
+        "reportFingerprint": Value::Null
+    }))
+}
+
 fn ingest_report(
     config: &CliConfig,
     extraction: &oaf_ingest::IngestReport,
@@ -2328,6 +2364,7 @@ fn mcp_request_fingerprint(payload: &Value, tool_name: &str) -> String {
 fn mcp_tools() -> Value {
     json!([
         memory_recall_tool(),
+        memory_why_tool(),
         context_profile_tool(),
         context_pack_tool(),
         graph_path_tool(),
@@ -2356,6 +2393,23 @@ fn memory_recall_tool() -> Value {
             }
         },
         "annotations": { "sideEffectClass": "read-only", "oafOperation": "memory.recall" }
+    })
+}
+
+fn memory_why_tool() -> Value {
+    json!({
+        "name": "memory.why",
+        "description": "Explain a governed memory fact's source, episode, proposal, validity, and supersession chain.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["factId"],
+            "properties": {
+                "factId": { "type": "string", "minLength": 1, "maxLength": 160 },
+                "at": { "type": "string", "maxLength": 80 }
+            }
+        },
+        "annotations": { "sideEffectClass": "read-only", "oafOperation": "memory.why" }
     })
 }
 
