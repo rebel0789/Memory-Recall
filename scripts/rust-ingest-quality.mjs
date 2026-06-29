@@ -287,6 +287,27 @@ function languageFixtures() {
         { source: 'method:Utility_boot', target: 'method:Utility_setup' },
         { source: 'method:Worker_run', target: 'method:Worker_helper' }
       ]
+    }),
+    assertLanguageFixture({
+      language: 'c',
+      filename: 'worker.c',
+      source: [
+        '#include "dep.h"',
+        'int c_helper(void) {',
+        '  return 1;',
+        '}',
+        'int c_entry(void) {',
+        '  return c_helper();',
+        '}'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'function:c_entry', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:c_helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:dep' }
+      ],
+      expectedCalls: [
+        { source: 'function:c_entry', target: 'function:c_helper' }
+      ]
     })
   ];
 }

@@ -250,6 +250,7 @@ enum LangKind {
     Rust,
     Go,
     Java,
+    C,
 }
 
 impl LangKind {
@@ -261,6 +262,7 @@ impl LangKind {
             LangKind::Rust => "rust",
             LangKind::Go => "go",
             LangKind::Java => "java",
+            LangKind::C => "c",
         }
     }
 
@@ -273,6 +275,7 @@ impl LangKind {
             LangKind::Rust => tree_sitter_rust::LANGUAGE.into(),
             LangKind::Go => tree_sitter_go::LANGUAGE.into(),
             LangKind::Java => tree_sitter_java::LANGUAGE.into(),
+            LangKind::C => tree_sitter_c::LANGUAGE.into(),
         }
     }
 }
@@ -727,7 +730,7 @@ fn callable_definition(
     let kind = node.kind();
     match kind {
         "function_declaration" | "function_definition" | "function_item" => {
-            let name = node_name(node, source)?;
+            let name = callable_node_name(node, source, context)?;
             let sanitized = sanitize_symbol(&name)?;
             if context.lang == LangKind::Python && context.class_name.is_some() {
                 let class_name = context.class_name.as_deref().unwrap();
@@ -824,6 +827,33 @@ fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
         })
 }
 
+fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
+    if context.lang == LangKind::C && node.kind() == "function_definition" {
+        return node
+            .child_by_field_name("declarator")
+            .and_then(|child| descendant_identifier_name(child, source))
+            .or_else(|| node_name(node, source));
+    }
+    node_name(node, source)
+}
+
+fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if matches!(
+        node.kind(),
+        "identifier" | "type_identifier" | "property_identifier" | "field_identifier"
+    ) {
+        return Some(node_text(node, source).to_string());
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            if let Some(name) = descendant_identifier_name(child, source) {
+                return Some(name);
+            }
+        }
+    }
+    None
+}
+
 fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
     let function = node
         .child_by_field_name("function")
@@ -840,6 +870,7 @@ fn is_import_node(kind: &str) -> bool {
             | "import_declaration"
             | "import_spec"
             | "use_declaration"
+            | "preproc_include"
     )
 }
 
@@ -1026,6 +1057,7 @@ fn language_for_path(path: &Path) -> Option<LangKind> {
         "rs" => Some(LangKind::Rust),
         "go" => Some(LangKind::Go),
         "java" => Some(LangKind::Java),
+        "c" | "h" => Some(LangKind::C),
         _ => None,
     }
 }
