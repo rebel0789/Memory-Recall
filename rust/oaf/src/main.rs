@@ -44,6 +44,7 @@ fn run() -> Result<()> {
         Some("ingest") => ingest_command(&args[1..]),
         Some("ingest-docs") => ingest_docs_command(&args[1..]),
         Some("cross-repo") => cross_repo_command(&args[1..]),
+        Some("connectors") => connectors_command(&args[1..]),
         Some("similarity") => similarity_command(&args[1..]),
         Some("dead-code") => dead_code_command(&args[1..]),
         Some("search") => search_command(&args[1..]),
@@ -1118,6 +1119,399 @@ fn is_document_source(source: &str) -> bool {
         || lower.ends_with(".txt")
         || lower.ends_with(".text")
         || lower.ends_with(".pdf")
+}
+
+fn connectors_command(args: &[String]) -> Result<()> {
+    if args.first().map(String::as_str) != Some("ingest") {
+        bail!("connectors supports ingest only");
+    }
+    let args = &args[1..];
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let kind = required(args, "--kind")?;
+    let started = Instant::now();
+    let (facts, receipt, external_tool_invocations) = match kind.as_str() {
+        "docs-folder" | "notion-export" | "obsidian-export" => {
+            let connector_path = required(args, "--path")?;
+            connector_document_facts(&config, &kind, &connector_path)?
+        }
+        "github-gh" => connector_github_facts(&config, args)?,
+        "chat-export" => {
+            let connector_path = required(args, "--path")?;
+            connector_chat_facts(&config, &connector_path)?
+        }
+        other => bail!(
+            "connectors ingest --kind must be docs-folder, notion-export, obsidian-export, github-gh, or chat-export; got {other}"
+        ),
+    };
+    let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    let report = store.remember_batch(&config.root, &config.scope, &facts)?;
+    print_json(connectors_report(
+        &config,
+        &kind,
+        receipt,
+        report,
+        facts.len(),
+        external_tool_invocations,
+        started.elapsed().as_millis(),
+    ));
+    Ok(())
+}
+
+fn connector_document_facts(
+    config: &CliConfig,
+    kind: &str,
+    connector_path: &str,
+) -> Result<(Vec<BatchFact>, Value, usize)> {
+    let prefix = connector_source_prefix(config, connector_path)?;
+    let mut options = IngestOptions::new(config.root.clone());
+    options.max_memory_bytes = DEFAULT_MAX_MEMORY_BYTES;
+    options.max_file_bytes = DEFAULT_MAX_FILE_BYTES;
+    let extraction = extract_documents(&options)?;
+    let facts = extraction
+        .facts
+        .into_iter()
+        .filter(|fact| source_in_prefix(&fact.source, &prefix))
+        .collect::<Vec<_>>();
+    let sources = sorted_strings(
+        facts
+            .iter()
+            .map(|fact| fact.source.clone())
+            .collect::<Vec<_>>(),
+    );
+    Ok((
+        facts,
+        json!({
+            "connectorKind": kind,
+            "mode": "local-folder",
+            "path": prefix,
+            "sourceCount": sources.len(),
+            "sources": sources,
+            "route": "ingest-docs",
+            "receiptFirst": true,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "credentialsStored": false
+        }),
+        0,
+    ))
+}
+
+fn connector_github_facts(
+    config: &CliConfig,
+    args: &[String],
+) -> Result<(Vec<BatchFact>, Value, usize)> {
+    let (source, value, external_tool_invocations) =
+        if let Some(fixture) = option(args, "--fixture") {
+            let fixture_path = config.root.join(&fixture);
+            let text = fs::read_to_string(&fixture_path)
+                .with_context(|| format!("read GitHub fixture {}", fixture_path.display()))?;
+            (
+                format!("workspace://{}", normalize_rel(&fixture)?),
+                serde_json::from_str::<Value>(&text)?,
+                0,
+            )
+        } else {
+            if !has(args, "--allow-gh") {
+                bail!(
+                "github-gh connector requires --fixture for offline ingest or explicit --allow-gh"
+            );
+            }
+            let repo = required(args, "--repo")?;
+            let output = Command::new("gh")
+                .args([
+                    "issue",
+                    "list",
+                    "--repo",
+                    &repo,
+                    "--json",
+                    "number,title,state,url,updatedAt",
+                    "--limit",
+                    "50",
+                ])
+                .output()
+                .context("run gh issue list")?;
+            if !output.status.success() {
+                bail!(
+                    "gh issue list failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            (
+                format!("workspace://github-gh-{}.json", short_hash(&repo)),
+                serde_json::from_slice::<Value>(&output.stdout)?,
+                1,
+            )
+        };
+    let issues = value
+        .as_array()
+        .cloned()
+        .or_else(|| value.get("issues").and_then(Value::as_array).cloned())
+        .unwrap_or_default();
+    let mut facts = Vec::new();
+    for issue in &issues {
+        let number = issue.get("number").and_then(Value::as_i64).unwrap_or(0);
+        if number <= 0 {
+            continue;
+        }
+        let subject = format!("github:issue_{number}");
+        facts.push(connector_fact(
+            &subject,
+            "IS_A",
+            "GitHubIssue",
+            &source,
+            "oaf.connector:github-gh",
+            "untrusted",
+            None,
+        ));
+        if let Some(title) = issue
+            .get("title")
+            .and_then(Value::as_str)
+            .and_then(safe_connector_object)
+        {
+            facts.push(connector_fact(
+                &subject,
+                "HAS_TITLE",
+                &title,
+                &source,
+                "oaf.connector:github-gh",
+                "untrusted",
+                None,
+            ));
+        }
+        if let Some(state) = issue
+            .get("state")
+            .and_then(Value::as_str)
+            .and_then(safe_connector_object)
+        {
+            facts.push(connector_fact(
+                &subject,
+                "HAS_STATE",
+                &state,
+                &source,
+                "oaf.connector:github-gh",
+                "untrusted",
+                None,
+            ));
+        }
+    }
+    Ok((
+        facts,
+        json!({
+            "connectorKind": "github-gh",
+            "mode": if external_tool_invocations == 0 { "recorded-fixture" } else { "explicit-gh-readonly" },
+            "source": source,
+            "itemCount": issues.len(),
+            "receiptFirst": true,
+            "networkCalls": if external_tool_invocations == 0 { 0 } else { 1 },
+            "externalToolInvocations": external_tool_invocations,
+            "credentialsStored": false,
+            "writeOperations": 0
+        }),
+        external_tool_invocations,
+    ))
+}
+
+fn connector_chat_facts(
+    config: &CliConfig,
+    connector_path: &str,
+) -> Result<(Vec<BatchFact>, Value, usize)> {
+    let source = connector_source_prefix(config, connector_path)?;
+    let absolute = config.root.join(connector_path);
+    let parsed: Value = serde_json::from_str(
+        &fs::read_to_string(&absolute)
+            .with_context(|| format!("read chat export {}", absolute.display()))?,
+    )?;
+    let messages = parsed
+        .get("messages")
+        .and_then(Value::as_array)
+        .map(Vec::len)
+        .unwrap_or(0);
+    let subject = format!("chat:export_{}", short_hash(&source));
+    let facts = vec![
+        connector_fact(
+            &subject,
+            "IS_A",
+            "ChatExport",
+            &source,
+            "oaf.connector:chat-export",
+            "untrusted",
+            None,
+        ),
+        connector_fact(
+            &subject,
+            "HAS_MESSAGE_COUNT",
+            &format!("count={messages}"),
+            &source,
+            "oaf.connector:chat-export",
+            "untrusted",
+            None,
+        ),
+    ];
+    Ok((
+        facts,
+        json!({
+            "connectorKind": "chat-export",
+            "mode": "local-chat-export",
+            "source": source,
+            "messageCount": messages,
+            "route": "metadata-only; semantic candidates use oaf-memory plus memory consolidate",
+            "receiptFirst": true,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "credentialsStored": false,
+            "trustClass": "untrusted_external"
+        }),
+        0,
+    ))
+}
+
+fn connector_fact(
+    subject: &str,
+    predicate: &str,
+    object: &str,
+    source: &str,
+    notes: &str,
+    trust: &str,
+    supersedes: Option<oaf_store::Supersedes>,
+) -> BatchFact {
+    BatchFact {
+        subject: subject.to_string(),
+        predicate: predicate.to_string(),
+        object: object.to_string(),
+        source: source.to_string(),
+        source_trust: Some(trust.to_string()),
+        confidence: Some("extracted".to_string()),
+        notes: Some(notes.to_string()),
+        supersedes,
+    }
+}
+
+fn connectors_report(
+    config: &CliConfig,
+    kind: &str,
+    receipt: Value,
+    report: BatchReport,
+    generated_fact_count: usize,
+    external_tool_invocations: usize,
+    elapsed_ms: u128,
+) -> Value {
+    with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "connectors ingest",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": source_block(config),
+        "summary": {
+            "connectorKind": kind,
+            "generatedFactCount": generated_fact_count,
+            "inputFactCount": report.recorded_count + report.skipped_unsafe_count + report.skipped_duplicate_count,
+            "recordedCount": report.recorded_count,
+            "proposalCount": report.recorded_count,
+            "pendingProposalCount": report.recorded_count,
+            "skippedUnsafeCount": report.skipped_unsafe_count,
+            "skippedDuplicateCount": report.skipped_duplicate_count,
+            "activeMemoryCreated": 0,
+            "elapsedMs": elapsed_ms
+        },
+        "connectorReceipt": receipt,
+        "proposalFacts": report.proposal_facts,
+        "skipped": report.skipped,
+        "safeguards": {
+            "readOnly": false,
+            "proposalGated": true,
+            "canonicalStateMutated": report.recorded_count > 0,
+            "activeMemoryCreated": 0,
+            "hardDeleted": false,
+            "networkCalls": receipt.get("networkCalls").and_then(Value::as_u64).unwrap_or(0),
+            "modelCalls": 0,
+            "externalWritesEnabled": false,
+            "rawSourceBodiesIncluded": false,
+            "absoluteFilesystemLocationsIncluded": false,
+            "credentialsStored": false,
+            "externalToolInvocations": external_tool_invocations,
+            "unexpectedNetwork": false
+        },
+        "reportFingerprint": Value::Null
+    }))
+}
+
+fn source_in_prefix(source: &str, prefix: &str) -> bool {
+    source == prefix || source.starts_with(&format!("{}/", prefix.trim_end_matches('/')))
+}
+
+fn connector_source_prefix(config: &CliConfig, connector_path: &str) -> Result<String> {
+    let rel = normalize_rel(connector_path)?;
+    let absolute = config.root.join(&rel);
+    let root = config.root.canonicalize()?;
+    let canonical = absolute
+        .canonicalize()
+        .with_context(|| format!("canonicalize connector path {connector_path}"))?;
+    if !canonical.starts_with(&root) {
+        bail!("connector path must stay inside workspace");
+    }
+    Ok(format!("workspace://{rel}"))
+}
+
+fn normalize_rel(value: &str) -> Result<String> {
+    let path = Path::new(value);
+    if path.is_absolute() {
+        bail!("path must be workspace-relative");
+    }
+    let mut parts = Vec::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Normal(value) => parts.push(value.to_string_lossy().to_string()),
+            std::path::Component::CurDir => {}
+            _ => bail!("path must stay inside workspace"),
+        }
+    }
+    if parts.is_empty() {
+        bail!("path must not be empty");
+    }
+    Ok(parts.join("/"))
+}
+
+fn safe_connector_object(value: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut last_space = false;
+    for ch in value.trim().chars() {
+        let allowed = ch.is_ascii_alphanumeric()
+            || matches!(
+                ch,
+                ' ' | '_' | '.' | ':' | '/' | '=' | ',' | ';' | '(' | ')' | '\'' | '-'
+            );
+        if allowed {
+            if ch.is_whitespace() {
+                if !last_space {
+                    out.push(' ');
+                }
+                last_space = true;
+            } else {
+                out.push(ch);
+                last_space = false;
+            }
+        } else if !last_space {
+            out.push(' ');
+            last_space = true;
+        }
+        if out.len() >= 220 {
+            break;
+        }
+    }
+    let out = out
+        .trim()
+        .trim_end_matches(['.', ';', ':', ','])
+        .to_string();
+    if out
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_alphanumeric())
+    {
+        Some(out)
+    } else {
+        None
+    }
 }
 
 fn cross_repo_command(args: &[String]) -> Result<()> {
