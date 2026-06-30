@@ -2580,6 +2580,16 @@ fn infer_language(value: &str) -> Option<String> {
         || lower.ends_with("_mm")
     {
         "objective-c"
+    } else if lower.ends_with(".scala") || lower.ends_with("_scala") || lower.ends_with(".sc") {
+        "scala"
+    } else if lower.ends_with(".dart") || lower.ends_with("_dart") {
+        "dart"
+    } else if lower.ends_with(".r") || lower.ends_with("_r") {
+        "r"
+    } else if lower.ends_with(".jl") || lower.ends_with("_jl") {
+        "julia"
+    } else if lower.ends_with(".zig") || lower.ends_with("_zig") {
+        "zig"
     } else {
         return None;
     };

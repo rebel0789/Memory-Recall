@@ -442,6 +442,11 @@ enum LangKind {
     Bash,
     Sql,
     ObjectiveC,
+    Scala,
+    Dart,
+    R,
+    Julia,
+    Zig,
 }
 
 impl LangKind {
@@ -464,6 +469,11 @@ impl LangKind {
             LangKind::Bash => "bash",
             LangKind::Sql => "sql",
             LangKind::ObjectiveC => "objective-c",
+            LangKind::Scala => "scala",
+            LangKind::Dart => "dart",
+            LangKind::R => "r",
+            LangKind::Julia => "julia",
+            LangKind::Zig => "zig",
         }
     }
 
@@ -487,6 +497,11 @@ impl LangKind {
             LangKind::Bash => tree_sitter_bash::LANGUAGE.into(),
             LangKind::Sql => tree_sitter_sequel::LANGUAGE.into(),
             LangKind::ObjectiveC => tree_sitter_objc::LANGUAGE.into(),
+            LangKind::Scala => tree_sitter_scala::LANGUAGE.into(),
+            LangKind::Dart => tree_sitter_dart::LANGUAGE.into(),
+            LangKind::R => tree_sitter_r::LANGUAGE.into(),
+            LangKind::Julia => tree_sitter_julia::LANGUAGE.into(),
+            LangKind::Zig => tree_sitter_zig::LANGUAGE.into(),
         }
     }
 }
@@ -1889,8 +1904,10 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         }
         if let Some(caller) = context.caller.as_deref() {
             if let Some(callee) = callee_name(node, source) {
-                let typed_target_name = typed_call_target(node, source, context);
-                parsed.add_call_with_hint(caller, &callee, typed_target_name, &context.source);
+                if !is_declaration_signature_call(node, context.lang, caller, &callee) {
+                    let typed_target_name = typed_call_target(node, source, context);
+                    parsed.add_call_with_hint(caller, &callee, typed_target_name, &context.source);
+                }
             }
         }
     }
@@ -1973,12 +1990,26 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
     }
 }
 
+fn is_declaration_signature_call(
+    node: Node<'_>,
+    lang: LangKind,
+    caller: &str,
+    callee: &str,
+) -> bool {
+    lang == LangKind::Julia
+        && node.kind() == "call_expression"
+        && caller.strip_prefix("function:") == Some(callee)
+}
+
 fn callable_definition(
     node: Node<'_>,
     source: &[u8],
     context: &WalkContext,
 ) -> Option<(String, String, &'static str)> {
     let kind = node.kind();
+    if context.lang == LangKind::R && kind == "function_definition" {
+        return None;
+    }
     match kind {
         "function_declaration"
         | "function_definition"
@@ -2005,6 +2036,8 @@ fn callable_definition(
                         | LangKind::Swift
                         | LangKind::Kotlin
                         | LangKind::Lua
+                        | LangKind::Scala
+                        | LangKind::Zig
                 )
             {
                 let class_name = context.class_name.as_deref().unwrap();
@@ -2022,7 +2055,7 @@ fn callable_definition(
             ))
         }
         "method_definition" | "method_declaration" => {
-            let name = node_name(node, source)?;
+            let name = callable_node_name(node, source, context)?;
             let sanitized = sanitize_symbol(&name)?;
             let receiver = if context.lang == LangKind::Go {
                 go_receiver_name(node_text(node, source))
@@ -2050,6 +2083,21 @@ fn callable_definition(
                 "Function",
             ))
         }
+        "binary_operator" if context.lang == LangKind::R => {
+            let value = node.child_by_field_name("rhs")?;
+            if value.kind() != "function_definition" {
+                return None;
+            }
+            let name = node
+                .child_by_field_name("lhs")
+                .and_then(|child| descendant_identifier_name(child, source))?;
+            let sanitized = sanitize_symbol(&name)?;
+            Some((
+                sanitized.clone(),
+                format!("function:{sanitized}"),
+                "Function",
+            ))
+        }
         _ => None,
     }
 }
@@ -2061,7 +2109,16 @@ fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
         | "abstract_class_declaration"
         | "class_definition"
         | "class_implementation"
-        | "class_interface" => {
+        | "class_interface"
+        | "object_definition"
+        | "trait_definition" => node_name(node, source).and_then(|name| sanitize_symbol(&name)),
+        "struct_definition" if lang == LangKind::Julia => {
+            descendant_identifier_name(node, source).and_then(|name| sanitize_symbol(&name))
+        }
+        "variable_declaration" if lang == LangKind::Zig => {
+            if !node_text(node, source).contains("struct") {
+                return None;
+            }
             node_name(node, source).and_then(|name| sanitize_symbol(&name))
         }
         "class_specifier" if lang == LangKind::Cpp => {
@@ -2107,8 +2164,10 @@ fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
 }
 
 fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
-    if matches!(context.lang, LangKind::C | LangKind::Cpp | LangKind::ObjectiveC)
-        && node.kind() == "function_definition"
+    if matches!(
+        context.lang,
+        LangKind::C | LangKind::Cpp | LangKind::ObjectiveC
+    ) && node.kind() == "function_definition"
     {
         return node
             .child_by_field_name("declarator")
@@ -2118,7 +2177,36 @@ fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
     if context.lang == LangKind::Sql && node.kind() == "create_function" {
         return descendant_identifier_name(node, source);
     }
+    if context.lang == LangKind::Julia && node.kind() == "function_definition" {
+        return node
+            .named_children(&mut node.walk())
+            .find(|child| child.kind() == "signature")
+            .and_then(|signature| descendant_identifier_name(signature, source))
+            .or_else(|| node_name(node, source));
+    }
+    if context.lang == LangKind::Dart
+        && matches!(node.kind(), "function_declaration" | "method_declaration")
+    {
+        return node
+            .child_by_field_name("signature")
+            .and_then(|signature| descendant_field_name(signature, source, "name"))
+            .or_else(|| node_name(node, source));
+    }
     node_name(node, source)
+}
+
+fn descendant_field_name(node: Node<'_>, source: &[u8], field: &str) -> Option<String> {
+    if let Some(child) = node.child_by_field_name(field) {
+        return Some(node_text(child, source).to_string());
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            if let Some(name) = descendant_field_name(child, source, field) {
+                return Some(name);
+            }
+        }
+    }
+    None
 }
 
 fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
@@ -2133,6 +2221,7 @@ fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
             | "variable_name"
             | "name"
             | "method_identifier"
+            | "operator_identifier"
             | "word"
     ) {
         return Some(node_text(node, source).to_string());
@@ -2370,6 +2459,7 @@ fn is_import_node(kind: &str) -> bool {
             | "import_declaration"
             | "import_spec"
             | "import"
+            | "library_import"
             | "use_declaration"
             | "preproc_include"
             | "include_expression"
@@ -2420,7 +2510,13 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                     out.push(raw);
                 }
             }
-            LangKind::Kotlin | LangKind::Swift | LangKind::Php | LangKind::CSharp => {
+            LangKind::Kotlin
+            | LangKind::Swift
+            | LangKind::Php
+            | LangKind::CSharp
+            | LangKind::Scala
+            | LangKind::Dart
+            | LangKind::Julia => {
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
@@ -2550,7 +2646,9 @@ fn resolve_package_prefix(
 fn strip_known_extension(path: &str) -> &str {
     for ext in [
         ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py", ".rs", ".go", ".java", ".c", ".h",
-        ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx",
+        ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx", ".rb", ".php", ".cs", ".swift", ".kt",
+        ".kts", ".lua", ".sh", ".bash", ".zsh", ".sql", ".m", ".mm", ".scala", ".sc", ".dart",
+        ".r", ".R", ".jl", ".zig",
     ] {
         if let Some(stem) = path.strip_suffix(ext) {
             return stem;
@@ -2743,6 +2841,11 @@ fn language_for_path(path: &Path) -> Option<LangKind> {
         "sh" | "bash" | "zsh" => Some(LangKind::Bash),
         "sql" => Some(LangKind::Sql),
         "m" | "mm" => Some(LangKind::ObjectiveC),
+        "scala" | "sc" => Some(LangKind::Scala),
+        "dart" => Some(LangKind::Dart),
+        "r" | "R" => Some(LangKind::R),
+        "jl" => Some(LangKind::Julia),
+        "zig" => Some(LangKind::Zig),
         _ => None,
     }
 }

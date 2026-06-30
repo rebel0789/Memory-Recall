@@ -577,6 +577,135 @@ function languageFixtures() {
         { source: 'function:boot', target: 'function:helper_c' },
         { source: 'method:Worker_run', target: 'method:Worker_helper' }
       ]
+    }),
+    assertLanguageFixture({
+      language: 'scala',
+      filename: 'Worker.scala',
+      source: [
+        'import scala.collection.mutable.ListBuffer',
+        'class Worker {',
+        '  def run(): Int = helper()',
+        '  def helper(): Int = 1',
+        '}',
+        'def boot(): Int = setup()',
+        'def setup(): Int = 1'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:scala' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'dart',
+      filename: 'worker.dart',
+      source: [
+        "import 'dart:math';",
+        'class Worker {',
+        '  int run() {',
+        '    return helper();',
+        '  }',
+        '  int helper() {',
+        '    return 1;',
+        '  }',
+        '}',
+        'int boot() {',
+        '  return setup();',
+        '}',
+        'int setup() { return 1; }'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:dart' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'r',
+      filename: 'worker.R',
+      source: [
+        'helper <- function() {',
+        '  1',
+        '}',
+        'run <- function() {',
+        '  helper()',
+        '}'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' }
+      ],
+      expectedCalls: [
+        { source: 'function:run', target: 'function:helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'julia',
+      filename: 'worker.jl',
+      source: [
+        'import Base: show',
+        'struct Worker',
+        '  value::Int',
+        'end',
+        'function helper()',
+        '  1',
+        'end',
+        'function run()',
+        '  helper()',
+        'end'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:Base' }
+      ],
+      expectedCalls: [
+        { source: 'function:run', target: 'function:helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'zig',
+      filename: 'worker.zig',
+      source: [
+        'const Worker = struct {',
+        '  fn run(self: *Worker) void {',
+        '    self.helper();',
+        '  }',
+        '  fn helper(self: *Worker) void {',
+        '    _ = self;',
+        '  }',
+        '};',
+        'fn boot() void {',
+        '  helperGlobal();',
+        '}',
+        'fn helperGlobal() void {}'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:helperGlobal', predicate: 'IS_A', object: 'Function' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:helperGlobal' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
     })
   ];
 }
