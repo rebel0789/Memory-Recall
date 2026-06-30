@@ -2542,6 +2542,44 @@ fn infer_language(value: &str) -> Option<String> {
         "python"
     } else if lower.ends_with(".go") || lower.ends_with("_go") {
         "go"
+    } else if lower.ends_with(".java") || lower.ends_with("_java") {
+        "java"
+    } else if lower.ends_with(".c") || lower.ends_with("_c") {
+        "c"
+    } else if lower.ends_with(".cpp")
+        || lower.ends_with("_cpp")
+        || lower.ends_with(".cc")
+        || lower.ends_with("_cc")
+        || lower.ends_with(".cxx")
+        || lower.ends_with("_cxx")
+    {
+        "cpp"
+    } else if lower.ends_with(".rb") || lower.ends_with("_rb") {
+        "ruby"
+    } else if lower.ends_with(".php") || lower.ends_with("_php") {
+        "php"
+    } else if lower.ends_with(".cs") || lower.ends_with("_cs") {
+        "csharp"
+    } else if lower.ends_with(".swift") || lower.ends_with("_swift") {
+        "swift"
+    } else if lower.ends_with(".kt") || lower.ends_with("_kt") || lower.ends_with(".kts") {
+        "kotlin"
+    } else if lower.ends_with(".lua") || lower.ends_with("_lua") {
+        "lua"
+    } else if lower.ends_with(".sh")
+        || lower.ends_with("_sh")
+        || lower.ends_with(".bash")
+        || lower.ends_with("_bash")
+    {
+        "bash"
+    } else if lower.ends_with(".sql") || lower.ends_with("_sql") {
+        "sql"
+    } else if lower.ends_with(".m")
+        || lower.ends_with("_m")
+        || lower.ends_with(".mm")
+        || lower.ends_with("_mm")
+    {
+        "objective-c"
     } else {
         return None;
     };

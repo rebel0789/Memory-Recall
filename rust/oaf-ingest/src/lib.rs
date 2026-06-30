@@ -203,7 +203,12 @@ impl ParsedRepo {
         typed_target_name: Option<String>,
         source: &str,
     ) {
-        if callee_name.is_empty() || callee_name == "require" || callee_name == "super" {
+        if callee_name.is_empty()
+            || matches!(
+                callee_name,
+                "require" | "super" | "return" | "exit" | "export" | "local" | "echo"
+            )
+        {
             return;
         }
         self.generated_call_count += 1;
@@ -428,6 +433,15 @@ enum LangKind {
     Java,
     C,
     Cpp,
+    Ruby,
+    Php,
+    CSharp,
+    Swift,
+    Kotlin,
+    Lua,
+    Bash,
+    Sql,
+    ObjectiveC,
 }
 
 impl LangKind {
@@ -441,6 +455,15 @@ impl LangKind {
             LangKind::Java => "java",
             LangKind::C => "c",
             LangKind::Cpp => "cpp",
+            LangKind::Ruby => "ruby",
+            LangKind::Php => "php",
+            LangKind::CSharp => "csharp",
+            LangKind::Swift => "swift",
+            LangKind::Kotlin => "kotlin",
+            LangKind::Lua => "lua",
+            LangKind::Bash => "bash",
+            LangKind::Sql => "sql",
+            LangKind::ObjectiveC => "objective-c",
         }
     }
 
@@ -455,6 +478,15 @@ impl LangKind {
             LangKind::Java => tree_sitter_java::LANGUAGE.into(),
             LangKind::C => tree_sitter_c::LANGUAGE.into(),
             LangKind::Cpp => tree_sitter_cpp::LANGUAGE.into(),
+            LangKind::Ruby => tree_sitter_ruby::LANGUAGE.into(),
+            LangKind::Php => tree_sitter_php::LANGUAGE_PHP.into(),
+            LangKind::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
+            LangKind::Swift => tree_sitter_swift::LANGUAGE.into(),
+            LangKind::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
+            LangKind::Lua => tree_sitter_lua::LANGUAGE.into(),
+            LangKind::Bash => tree_sitter_bash::LANGUAGE.into(),
+            LangKind::Sql => tree_sitter_sequel::LANGUAGE.into(),
+            LangKind::ObjectiveC => tree_sitter_objc::LANGUAGE.into(),
         }
     }
 }
@@ -1839,7 +1871,18 @@ fn read_cgroup_limit(path: &str) -> Option<u64> {
 fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
     if matches!(
         node.kind(),
-        "call_expression" | "call" | "method_invocation"
+        "call_expression"
+            | "call"
+            | "method_invocation"
+            | "function_call"
+            | "function_call_expression"
+            | "member_call_expression"
+            | "nullsafe_member_call_expression"
+            | "scoped_call_expression"
+            | "invocation"
+            | "invocation_expression"
+            | "message_expression"
+            | "command"
     ) {
         if let Some(route) = route_registration(node, source, context) {
             parsed.routes.push(route);
@@ -1903,8 +1946,10 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             );
         }
         parsed.add_symbol_name(&name, &subject);
-        if let Some((_, bare)) = name.rsplit_once('_') {
-            parsed.add_symbol_name(bare, &subject);
+        if subject.starts_with("method:") {
+            if let Some((_, bare)) = name.rsplit_once('_') {
+                parsed.add_symbol_name(bare, &subject);
+            }
         }
         next.caller = Some(subject);
         next.type_bindings = if context.lang == LangKind::Python {
@@ -1935,18 +1980,13 @@ fn callable_definition(
 ) -> Option<(String, String, &'static str)> {
     let kind = node.kind();
     match kind {
-        "function_declaration" | "function_definition" | "function_item" => {
+        "function_declaration"
+        | "function_definition"
+        | "function_item"
+        | "create_function"
+        | "method" => {
             let name = callable_node_name(node, source, context)?;
             let sanitized = sanitize_symbol(&name)?;
-            if context.lang == LangKind::Python && context.class_name.is_some() {
-                let class_name = context.class_name.as_deref().unwrap();
-                let method_name = format!("{class_name}_{sanitized}");
-                return Some((
-                    method_name.clone(),
-                    format!("method:{method_name}"),
-                    "Method",
-                ));
-            }
             if context.lang == LangKind::Rust && context.impl_name.is_some() {
                 let impl_name = context.impl_name.as_deref().unwrap();
                 let method_name = format!("{impl_name}_{sanitized}");
@@ -1956,7 +1996,17 @@ fn callable_definition(
                     "Method",
                 ));
             }
-            if context.lang == LangKind::Cpp && context.class_name.is_some() {
+            if context.class_name.is_some()
+                && matches!(
+                    context.lang,
+                    LangKind::Python
+                        | LangKind::Cpp
+                        | LangKind::Ruby
+                        | LangKind::Swift
+                        | LangKind::Kotlin
+                        | LangKind::Lua
+                )
+            {
                 let class_name = context.class_name.as_deref().unwrap();
                 let method_name = format!("{class_name}_{sanitized}");
                 return Some((
@@ -2006,7 +2056,12 @@ fn callable_definition(
 
 fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
     match node.kind() {
-        "class_declaration" | "class" | "abstract_class_declaration" | "class_definition" => {
+        "class_declaration"
+        | "class"
+        | "abstract_class_declaration"
+        | "class_definition"
+        | "class_implementation"
+        | "class_interface" => {
             node_name(node, source).and_then(|name| sanitize_symbol(&name))
         }
         "class_specifier" if lang == LangKind::Cpp => {
@@ -2039,6 +2094,12 @@ fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
                             | "type_identifier"
                             | "property_identifier"
                             | "field_identifier"
+                            | "constant"
+                            | "simple_identifier"
+                            | "variable_name"
+                            | "name"
+                            | "method_identifier"
+                            | "word"
                     )
                 })
                 .map(|child| node_text(child, source).to_string())
@@ -2046,11 +2107,16 @@ fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
 }
 
 fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
-    if matches!(context.lang, LangKind::C | LangKind::Cpp) && node.kind() == "function_definition" {
+    if matches!(context.lang, LangKind::C | LangKind::Cpp | LangKind::ObjectiveC)
+        && node.kind() == "function_definition"
+    {
         return node
             .child_by_field_name("declarator")
             .and_then(|child| descendant_identifier_name(child, source))
             .or_else(|| node_name(node, source));
+    }
+    if context.lang == LangKind::Sql && node.kind() == "create_function" {
+        return descendant_identifier_name(node, source);
     }
     node_name(node, source)
 }
@@ -2058,7 +2124,16 @@ fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
 fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
     if matches!(
         node.kind(),
-        "identifier" | "type_identifier" | "property_identifier" | "field_identifier"
+        "identifier"
+            | "type_identifier"
+            | "property_identifier"
+            | "field_identifier"
+            | "constant"
+            | "simple_identifier"
+            | "variable_name"
+            | "name"
+            | "method_identifier"
+            | "word"
     ) {
         return Some(node_text(node, source).to_string());
     }
@@ -2073,6 +2148,15 @@ fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
 }
 
 fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if matches!(
+        node.kind(),
+        "member_call_expression"
+            | "nullsafe_member_call_expression"
+            | "scoped_call_expression"
+            | "message_expression"
+    ) {
+        return last_identifier(node_text(node, source)).and_then(|name| sanitize_symbol(&name));
+    }
     let function = node
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
@@ -2285,8 +2369,12 @@ fn is_import_node(kind: &str) -> bool {
             | "import_from_statement"
             | "import_declaration"
             | "import_spec"
+            | "import"
             | "use_declaration"
             | "preproc_include"
+            | "include_expression"
+            | "include_once_expression"
+            | "source_command"
     )
 }
 
@@ -2327,6 +2415,16 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
+                    .and_then(import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Kotlin | LangKind::Swift | LangKind::Php | LangKind::CSharp => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("import ")
+                    .or_else(|| text.trim().strip_prefix("include "))
                     .and_then(import_target_from_raw)
                 {
                     out.push(raw);
@@ -2636,6 +2734,15 @@ fn language_for_path(path: &Path) -> Option<LangKind> {
         "java" => Some(LangKind::Java),
         "c" | "h" => Some(LangKind::C),
         "cc" | "cpp" | "cxx" | "hpp" | "hh" | "hxx" => Some(LangKind::Cpp),
+        "rb" => Some(LangKind::Ruby),
+        "php" => Some(LangKind::Php),
+        "cs" => Some(LangKind::CSharp),
+        "swift" => Some(LangKind::Swift),
+        "kt" | "kts" => Some(LangKind::Kotlin),
+        "lua" => Some(LangKind::Lua),
+        "sh" | "bash" | "zsh" => Some(LangKind::Bash),
+        "sql" => Some(LangKind::Sql),
+        "m" | "mm" => Some(LangKind::ObjectiveC),
         _ => None,
     }
 }

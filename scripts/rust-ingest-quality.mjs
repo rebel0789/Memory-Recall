@@ -336,6 +336,247 @@ function languageFixtures() {
         { source: 'function:boot', target: 'function:helper' },
         { source: 'method:Widget_render', target: 'method:Widget_paint' }
       ]
+    }),
+    assertLanguageFixture({
+      language: 'ruby',
+      filename: 'worker.rb',
+      source: [
+        "require 'json'",
+        'class Worker',
+        '  def run',
+        '    helper()',
+        '  end',
+        '  def helper',
+        '    1',
+        '  end',
+        'end',
+        'def boot',
+        '  top_helper()',
+        'end',
+        'def top_helper',
+        '  1',
+        'end'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:top_helper', predicate: 'IS_A', object: 'Function' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:top_helper' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'php',
+      filename: 'Worker.php',
+      source: [
+        '<?php',
+        "include 'dep.php';",
+        'class Worker {',
+        '  function run() {',
+        '    return $this->helper();',
+        '  }',
+        '  function helper() {',
+        '    return 1;',
+        '  }',
+        '}',
+        'function boot() {',
+        '  return helper_global();',
+        '}',
+        'function helper_global() { return 1; }'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:helper_global', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:dep' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:helper_global' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'csharp',
+      filename: 'Worker.cs',
+      source: [
+        'using System;',
+        'class Worker {',
+        '  void Run() {',
+        '    Helper();',
+        '  }',
+        '  void Helper() {}',
+        '}',
+        'class Utility {',
+        '  void Boot() {',
+        '    Setup();',
+        '  }',
+        '  void Setup() {}',
+        '}'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_Run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_Helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'class:Utility', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Utility_Boot', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Utility_Setup', predicate: 'IS_A', object: 'Method' }
+      ],
+      expectedCalls: [
+        { source: 'method:Utility_Boot', target: 'method:Utility_Setup' },
+        { source: 'method:Worker_Run', target: 'method:Worker_Helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'swift',
+      filename: 'Worker.swift',
+      source: [
+        'import Foundation',
+        'class Worker {',
+        '  func run() {',
+        '    helper()',
+        '  }',
+        '  func helper() {}',
+        '}',
+        'func boot() {',
+        '  topHelper()',
+        '}',
+        'func topHelper() {}'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:topHelper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:Foundation' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:topHelper' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'kotlin',
+      filename: 'Worker.kt',
+      source: [
+        'import kotlin.collections.List',
+        'class Worker {',
+        '  fun run() {',
+        '    helper()',
+        '  }',
+        '  fun helper() {}',
+        '}',
+        'fun boot() {',
+        '  setup()',
+        '}',
+        'fun setup() {}'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:kotlin' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'lua',
+      filename: 'worker.lua',
+      source: [
+        'function helper()',
+        '  return 1',
+        'end',
+        'function run()',
+        '  return helper()',
+        'end'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' }
+      ],
+      expectedCalls: [
+        { source: 'function:run', target: 'function:helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'bash',
+      filename: 'worker.sh',
+      source: [
+        'helper() {',
+        '  return 0',
+        '}',
+        'run() {',
+        '  helper',
+        '}'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' }
+      ],
+      expectedCalls: [
+        { source: 'function:run', target: 'function:helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'sql',
+      filename: 'schema.sql',
+      source: [
+        'CREATE FUNCTION helper() RETURNS integer',
+        'LANGUAGE SQL',
+        'AS $$ SELECT 1 $$;',
+        'CREATE FUNCTION run() RETURNS integer',
+        'LANGUAGE SQL',
+        'AS $$ SELECT helper() $$;'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' }
+      ],
+      expectedCalls: [
+        { source: 'function:run', target: 'function:helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'objectiveC',
+      filename: 'Worker.m',
+      source: [
+        '@interface Worker',
+        '- (void)run;',
+        '- (void)helper;',
+        '@end',
+        '@implementation Worker',
+        '- (void)run {',
+        '  [self helper];',
+        '}',
+        '- (void)helper {}',
+        '@end',
+        'int boot(void) {',
+        '  return helper_c();',
+        '}',
+        'int helper_c(void) { return 1; }'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:helper_c', predicate: 'IS_A', object: 'Function' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:helper_c' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
     })
   ];
 }
