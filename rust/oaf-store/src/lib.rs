@@ -1578,6 +1578,132 @@ impl Store {
         }))
     }
 
+    pub fn knowledge_wiki(&self, scope: &str, at: &str) -> Result<Value> {
+        let scope = normalize_temporal_scope(scope)?;
+        let current = self.active_current_facts(&scope, 10_000)?;
+        let mut stmt = self.conn.prepare(
+            "SELECT * FROM memory_facts WHERE workspace_id = ? AND scope = ? AND status IN ('active', 'superseded') ORDER BY subject, predicate, object, id LIMIT 10000",
+        )?;
+        let rows = stmt.query_map(params![self.workspace_id, scope], |row| {
+            fact_from_row(&self.conn, row)
+        })?;
+        let all = rows.collect::<std::result::Result<Vec<_>, _>>()?;
+        let history = all
+            .iter()
+            .filter(|fact| fact.status != "active" || fact.superseded_by.is_some())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let mut entity_facts: BTreeMap<String, Vec<&RecallFact>> = BTreeMap::new();
+        for fact in &current {
+            entity_facts
+                .entry(fact.subject.clone())
+                .or_default()
+                .push(fact);
+            if is_wiki_entity_like(&fact.object) {
+                entity_facts
+                    .entry(fact.object.clone())
+                    .or_default()
+                    .push(fact);
+            }
+        }
+        let entities = entity_facts
+            .iter()
+            .map(|(entity, facts)| {
+                json!({
+                    "id": entity,
+                    "title": wiki_title(entity),
+                    "factCount": facts.len(),
+                    "currentFacts": facts.iter().take(100).map(|fact| wiki_fact_value(fact)).collect::<Vec<_>>()
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let mut community_facts: BTreeMap<String, Vec<&RecallFact>> = BTreeMap::new();
+        for fact in &current {
+            community_facts
+                .entry(wiki_community(&fact.subject))
+                .or_default()
+                .push(fact);
+        }
+        let communities = community_facts
+            .iter()
+            .map(|(community, facts)| {
+                json!({
+                    "id": community,
+                    "title": wiki_title(community),
+                    "factCount": facts.len(),
+                    "entities": sorted_strings_local(facts.iter().map(|fact| fact.subject.clone()).collect::<Vec<_>>()).into_iter().take(50).collect::<Vec<_>>(),
+                    "currentFacts": facts.iter().take(50).map(|fact| wiki_fact_value(fact)).collect::<Vec<_>>()
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let decisions = current
+            .iter()
+            .filter(|fact| is_wiki_decision_fact(fact))
+            .map(|fact| {
+                let related_history = history
+                    .iter()
+                    .filter(|old| {
+                        old.subject == fact.subject
+                            || old.superseded_by.as_deref() == Some(&fact.id)
+                    })
+                    .map(wiki_fact_value)
+                    .collect::<Vec<_>>();
+                json!({
+                    "id": fact.id,
+                    "title": fact.subject,
+                    "current": wiki_fact_value(fact),
+                    "history": related_history
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let current_truth = current.iter().map(wiki_fact_value).collect::<Vec<_>>();
+        let history_values = history.iter().map(wiki_fact_value).collect::<Vec<_>>();
+        Ok(json!({
+            "schemaVersion": "1.0.0",
+            "command": "ui.wiki",
+            "provider": PROVIDER_ID,
+            "workspaceId": self.workspace_id,
+            "scope": scope,
+            "generatedAt": at,
+            "summary": {
+                "entityPageCount": entities.len(),
+                "communityPageCount": communities.len(),
+                "decisionPageCount": decisions.len(),
+                "currentFactCount": current.len(),
+                "historyFactCount": history_values.len(),
+                "offline": true,
+                "zeroCdn": true,
+                "modelCalls": 0,
+                "networkCalls": 0
+            },
+            "pages": {
+                "index": {
+                    "title": "Knowledge Wiki",
+                    "sections": ["entities", "communities", "decisions", "currentTruth", "history"]
+                },
+                "entities": entities,
+                "communities": communities,
+                "decisions": decisions,
+                "currentTruth": current_truth,
+                "history": history_values
+            },
+            "safeguards": {
+                "readOnly": true,
+                "localhostOnly": true,
+                "uiAssetsCompiledIn": true,
+                "networkCalls": 0,
+                "modelCalls": 0,
+                "externalWritesEnabled": false,
+                "rawSourceBodiesIncluded": false,
+                "absoluteFilesystemLocationsIncluded": false
+            }
+        }))
+    }
+
     pub fn integrity_check(&self) -> Result<String> {
         let result: String = self
             .conn
@@ -2528,6 +2654,61 @@ fn ui_edge_value(edge: &GraphEdge) -> Value {
         "factId": edge.fact_id,
         "governedDecision": governed
     })
+}
+
+fn wiki_fact_value(fact: &RecallFact) -> Value {
+    json!({
+        "id": sanitize_string(&fact.id, 120),
+        "subject": sanitize_string(&fact.subject, 160),
+        "predicate": sanitize_string(&fact.predicate, 120),
+        "object": sanitize_string(&fact.object, 240),
+        "status": fact.status,
+        "sourceRef": compact_provenance_ref(fact.episode_source_locator.as_deref().unwrap_or(&fact.source)),
+        "validFrom": fact.valid_from,
+        "validUntil": fact.valid_until,
+        "supersededBy": fact.superseded_by,
+        "confidence": extraction_confidence(fact.metadata.get("extractionConfidence").and_then(Value::as_str))
+    })
+}
+
+fn is_wiki_entity_like(value: &str) -> bool {
+    value.contains(':')
+        || value == "Decision"
+        || value == "Document"
+        || value == "ADR"
+        || value == "GitHubIssue"
+        || value == "ChatExport"
+}
+
+fn is_wiki_decision_fact(fact: &RecallFact) -> bool {
+    fact.subject.starts_with("decision:")
+        || fact.subject.starts_with("adr:")
+        || matches!(
+            fact.predicate.as_str(),
+            "DECISION" | "HAS_STATUS" | "SUPERSEDES" | "GOVERNS"
+        )
+        || fact.object == "Decision"
+}
+
+fn wiki_community(subject: &str) -> String {
+    subject
+        .split_once(':')
+        .map(|(prefix, _)| prefix.to_string())
+        .unwrap_or_else(|| "general".to_string())
+}
+
+fn wiki_title(value: &str) -> String {
+    value
+        .replace([':', '_', '-'], " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn sorted_strings_local(mut values: Vec<String>) -> Vec<String> {
+    values.sort();
+    values.dedup();
+    values
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

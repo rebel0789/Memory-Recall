@@ -588,6 +588,9 @@ fn handle_ui_stream(mut stream: TcpStream, config: &CliConfig) -> Result<()> {
     if path == "/" {
         return http_response(&mut stream, 200, "text/html; charset=utf-8", UI_HTML);
     }
+    if path == "/wiki" || path == "/wiki/" {
+        return http_response(&mut stream, 200, "text/html; charset=utf-8", WIKI_HTML);
+    }
     if path.starts_with("/api/graph") {
         let history = path.contains("mode=history");
         let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
@@ -597,6 +600,16 @@ fn handle_ui_stream(mut stream: TcpStream, config: &CliConfig) -> Result<()> {
             200,
             "application/json; charset=utf-8",
             &serde_json::to_string(&graph)?,
+        );
+    }
+    if path.starts_with("/api/wiki") {
+        let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+        let wiki = store.knowledge_wiki(&config.scope, &config.now)?;
+        return http_response(
+            &mut stream,
+            200,
+            "application/json; charset=utf-8",
+            &serde_json::to_string(&wiki)?,
         );
     }
     http_response(
@@ -658,6 +671,44 @@ document.getElementById('current').onclick=()=>load('current');document.getEleme
 </script>
 </html>
 "#;
+
+const WIKI_HTML: &str = r##"<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OAF Knowledge Wiki</title>
+<style>
+html,body{margin:0;background:#f7f7f4;color:#1d232a;font:14px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+nav{border-right:1px solid #d8d9d4;background:#ecece7;padding:18px;position:sticky;top:0;height:100vh;box-sizing:border-box}
+main{padding:22px;max-width:1120px}
+h1{font-size:20px;margin:0 0 18px}h2{font-size:17px;margin:28px 0 10px}h3{font-size:14px;margin:18px 0 8px}
+a{display:block;color:#1f4f7a;text-decoration:none;margin:8px 0}code{background:#e5e7df;padding:2px 5px;border-radius:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}.card{border:1px solid #d8d9d4;background:#fff;border-radius:6px;padding:10px}
+.fact{font-size:13px;border-top:1px solid #ecece7;padding:7px 0}.muted{color:#68707a}.pill{display:inline-block;margin:3px 5px 3px 0;padding:3px 6px;border-radius:999px;background:#e8eef4;color:#24445f;font-size:12px}
+</style>
+<nav><h1>OAF Wiki</h1><a href="#index">Index</a><a href="#entities">Entities</a><a href="#communities">Communities</a><a href="#decisions">Decisions</a><a href="#current">Current Truth</a><a href="#history">History</a><p class="muted" id="summary">Loading</p></nav>
+<main id="app"><h1>Knowledge Wiki</h1></main>
+<script>
+const app=document.getElementById('app'),summary=document.getElementById('summary');
+function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function fact(f){return `<div class="fact"><code>${esc(f.subject)}</code> ${esc(f.predicate)} <code>${esc(f.object)}</code><div class="muted">${esc(f.status)} · ${esc(f.sourceRef)}</div></div>`}
+function card(title,body){return `<section class="card"><h3>${esc(title)}</h3>${body}</section>`}
+fetch('/api/wiki').then(r=>r.json()).then(w=>{
+summary.textContent=`${w.summary.currentFactCount} current facts · ${w.summary.historyFactCount} history`;
+const p=w.pages;
+app.innerHTML=`<h1 id="index">Knowledge Wiki</h1>
+<p class="muted">Offline governed memory surface. No CDN, no model calls, no external database.</p>
+<div class="grid">${card('Entities',`${w.summary.entityPageCount} pages`)}${card('Communities',`${w.summary.communityPageCount} pages`)}${card('Decisions',`${w.summary.decisionPageCount} pages`)}</div>
+<h2 id="entities">Entities</h2><div class="grid">${p.entities.slice(0,60).map(e=>card(e.title,`<div class="muted">${e.factCount} facts</div>${e.currentFacts.slice(0,4).map(fact).join('')}`)).join('')}</div>
+<h2 id="communities">Communities</h2><div class="grid">${p.communities.map(c=>card(c.title,`<div class="muted">${c.factCount} facts</div>${c.entities.slice(0,12).map(e=>`<span class="pill">${esc(e)}</span>`).join('')}`)).join('')}</div>
+<h2 id="decisions">Decisions</h2>${p.decisions.slice(0,80).map(d=>card(d.title,`${fact(d.current)}${d.history.length?'<div class="muted">History</div>'+d.history.map(fact).join(''):''}`)).join('')}
+<h2 id="current">Current Truth</h2>${p.currentTruth.slice(0,200).map(fact).join('')}
+<h2 id="history">History</h2>${p.history.slice(0,200).map(fact).join('')}`;
+});
+</script>
+</html>
+"##;
 
 fn loop_command(args: &[String]) -> Result<()> {
     match args.first().map(String::as_str) {
