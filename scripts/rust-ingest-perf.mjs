@@ -27,14 +27,17 @@ function run(command, args, options = {}) {
 
 function timedJson(command, args) {
   const started = performance.now();
-  const result = spawnSync('/usr/bin/time', ['-l', command, ...args], {
+  const timeArgs = process.platform === 'darwin' ? ['-l', command, ...args] : ['-v', command, ...args];
+  const result = spawnSync('/usr/bin/time', timeArgs, {
     cwd: ROOT,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
     env: { ...process.env, OAF_FIXED_NOW: FIXED_NOW }
   });
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const rssBytes = Number(result.stderr.match(/(\d+)\s+maximum resident set size/u)?.[1] ?? 0);
+  const darwinRss = result.stderr.match(/(\d+)\s+maximum resident set size/u);
+  const linuxRss = result.stderr.match(/Maximum resident set size \(kbytes\):\s*(\d+)/u);
+  const rssBytes = darwinRss ? Number(darwinRss[1]) : Number(linuxRss?.[1] ?? 0) * 1024;
   return {
     value: JSON.parse(result.stdout),
     ms: Number((performance.now() - started).toFixed(3)),
