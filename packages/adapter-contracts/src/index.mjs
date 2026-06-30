@@ -32,6 +32,19 @@ export class EventRepositoryPort {
   async listByRun() { return notImplemented(EventRepositoryPort.contract, 'listByRun'); }
 }
 
+export class ContextManifestRepositoryPort {
+  static contract = 'ContextManifestRepositoryPort';
+  static version = '1.0.0';
+  static requiredMethods = ['health', 'capabilities', 'append', 'get', 'listByRun', 'compare', 'verify'];
+  async health() { return notImplemented(ContextManifestRepositoryPort.contract, 'health'); }
+  async capabilities() { return notImplemented(ContextManifestRepositoryPort.contract, 'capabilities'); }
+  async append() { return notImplemented(ContextManifestRepositoryPort.contract, 'append'); }
+  async get() { return notImplemented(ContextManifestRepositoryPort.contract, 'get'); }
+  async listByRun() { return notImplemented(ContextManifestRepositoryPort.contract, 'listByRun'); }
+  async compare() { return notImplemented(ContextManifestRepositoryPort.contract, 'compare'); }
+  async verify() { return notImplemented(ContextManifestRepositoryPort.contract, 'verify'); }
+}
+
 export class ArtifactStorePort {
   static contract = 'ArtifactStorePort';
   static version = '1.1.0';
@@ -80,25 +93,47 @@ export class MemoryBackendPort {
 
 export class ModelGatewayPort {
   static contract = 'ModelGatewayPort';
-  static requiredMethods = ['health', 'capabilities', 'generate'];
+  static version = '1.0.0';
+  static requiredMethods = ['health', 'capabilities', 'profile', 'generate'];
   async health() { return notImplemented(ModelGatewayPort.contract, 'health'); }
   async capabilities() { return notImplemented(ModelGatewayPort.contract, 'capabilities'); }
+  profile() { return notImplemented(ModelGatewayPort.contract, 'profile'); }
   async generate() { return notImplemented(ModelGatewayPort.contract, 'generate'); }
 }
 
 export class WorkflowRuntimePort {
   static contract = 'WorkflowRuntimePort';
-  static requiredMethods = ['health', 'start', 'get', 'cancel'];
+  static version = '1.1.0';
+  static requiredMethods = ['health', 'capabilities', 'registerWorkflow', 'start', 'get', 'list', 'cancel', 'signal', 'resolveApproval', 'tick', 'runWorker', 'history', 'close'];
   async health() { return notImplemented(WorkflowRuntimePort.contract, 'health'); }
+  async capabilities() { return notImplemented(WorkflowRuntimePort.contract, 'capabilities'); }
+  async registerWorkflow() { return notImplemented(WorkflowRuntimePort.contract, 'registerWorkflow'); }
   async start() { return notImplemented(WorkflowRuntimePort.contract, 'start'); }
   async get() { return notImplemented(WorkflowRuntimePort.contract, 'get'); }
+  async list() { return notImplemented(WorkflowRuntimePort.contract, 'list'); }
   async cancel() { return notImplemented(WorkflowRuntimePort.contract, 'cancel'); }
+  async signal() { return notImplemented(WorkflowRuntimePort.contract, 'signal'); }
+  async resolveApproval() { return notImplemented(WorkflowRuntimePort.contract, 'resolveApproval'); }
+  async tick() { return notImplemented(WorkflowRuntimePort.contract, 'tick'); }
+  async runWorker() { return notImplemented(WorkflowRuntimePort.contract, 'runWorker'); }
+  async history() { return notImplemented(WorkflowRuntimePort.contract, 'history'); }
+  close() { return notImplemented(WorkflowRuntimePort.contract, 'close'); }
 }
 
 export class PolicyEvaluatorPort {
   static contract = 'PolicyEvaluatorPort';
   static requiredMethods = ['evaluate'];
   async evaluate() { return notImplemented(PolicyEvaluatorPort.contract, 'evaluate'); }
+}
+
+export class ToolExecutionPort {
+  static contract = 'ToolExecutionPort';
+  static version = '1.0.0';
+  static requiredMethods = ['health', 'capabilities', 'execute', 'close'];
+  async health() { return notImplemented(ToolExecutionPort.contract, 'health'); }
+  async capabilities() { return notImplemented(ToolExecutionPort.contract, 'capabilities'); }
+  async execute() { return notImplemented(ToolExecutionPort.contract, 'execute'); }
+  close() { return notImplemented(ToolExecutionPort.contract, 'close'); }
 }
 
 export class IdentityStorePort {
@@ -154,10 +189,11 @@ export class SecurityAuditSinkPort {
 
 export class CandidateSourcePort {
   static contract = 'CandidateSourcePort';
-  static requiredMethods = ['health', 'capabilities', 'queryCandidates'];
+  static version = '1.0.0';
+  static requiredMethods = ['descriptor', 'health', 'query'];
+  async descriptor() { return notImplemented(CandidateSourcePort.contract, 'descriptor'); }
   async health() { return notImplemented(CandidateSourcePort.contract, 'health'); }
-  async capabilities() { return notImplemented(CandidateSourcePort.contract, 'capabilities'); }
-  async queryCandidates() { return notImplemented(CandidateSourcePort.contract, 'queryCandidates'); }
+  async query() { return notImplemented(CandidateSourcePort.contract, 'query'); }
 }
 
 export class RepositoryGraphPort {
@@ -241,11 +277,13 @@ export class ReplayRepositoryPort {
 export const PORTS = Object.freeze({
   AdapterHealthPort,
   EventRepositoryPort,
+  ContextManifestRepositoryPort,
   ArtifactStorePort,
   MemoryBackendPort,
   ModelGatewayPort,
   WorkflowRuntimePort,
   PolicyEvaluatorPort,
+  ToolExecutionPort,
   IdentityStorePort,
   AuthenticationServicePort,
   AuthorizationServicePort,

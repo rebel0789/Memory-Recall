@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0.0",
+  "resourceKind": "status-summary",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "provenance": {
+    "producer": "open-agent-fabric.protocol-bridges",
+    "producerVersion": "0.1.0",
+    "source": "local-state",
+    "sourceFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "privateContentIncluded": false,
+    "instructionTextIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "remoteEndpointDetailsIncluded": false
+  },
+  "data": {
+    "release": "0.2.0-dev",
+    "phase": "local-test",
+    "nextTask": "OAF-031",
+    "counts": {
+      "runs": 1,
+      "completedRuns": 1,
+      "events": 4,
+      "memoryRecords": 2,
+      "proposedMemories": 1,
+      "acceptedMemories": 1,
+      "pendingApprovals": 0,
+      "artifacts": 1
+    }
+  },
+  "resourceFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": "mcp_req_bad",
+  "method": "tools/call",
+  "grantToken": "grant_secret_token",
+  "params": {
+    "name": "oaf.readRun",
+    "arguments": {
+      "runId": "run_demo"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "requested": ["context-manifest"],
+  "eligible": ["context-manifest"],
+  "selected": ["context-manifest"],
+  "unresolved": []
+}

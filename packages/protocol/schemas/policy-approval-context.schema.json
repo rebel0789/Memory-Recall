@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-approval-context.schema.json",
+  "title": "Policy Approval Context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["approvalId", "operationFingerprint", "approvedAt", "expiresAt", "status"],
+  "properties": {
+    "approvalId": { "type": "string", "pattern": "^app_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "operationFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "actorId": { "type": "string", "pattern": "^usr_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "approverId": { "type": "string", "pattern": "^usr_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "approvedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["active", "revoked", "consumed"] },
+    "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+  }
+}

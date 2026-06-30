@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_ast",
+  "parserVersion": "oaf-js-ts-static-1.0.0",
+  "indexedAt": "2026-06-23T00:00:00.000Z",
+  "symbols": [],
+  "references": [],
+  "imports": [],
+  "exports": [],
+  "callEdges": [],
+  "fileLocators": [
+    "/Users/rebel/private/source.ts"
+  ],
+  "rawBody": "export const secret = process.env.API_KEY;",
+  "symbolIndexFingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+}

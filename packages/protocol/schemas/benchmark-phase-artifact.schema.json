@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/benchmark-phase-artifact.schema.json",
+  "title": "Benchmark Truth-Floor Phase Artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "suite", "phase", "dataset", "generatedAt", "baselineNames", "caseCount", "metrics", "artifactFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^evalphase_[A-Za-z0-9._:-]+$" },
+    "suite": { "const": "benchmark-truth-floor" },
+    "phase": { "enum": ["retrieval", "assembly", "comparison"] },
+    "dataset": { "$ref": "#/$defs/datasetRef" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "baselineNames": { "type": "array", "minItems": 1, "items": { "enum": ["exact", "full", "lexical", "current-harness"] }, "uniqueItems": true },
+    "caseCount": { "type": "integer", "minimum": 1 },
+    "metrics": { "$ref": "#/$defs/metrics" },
+    "artifactFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "datasetRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "datasetFingerprint", "caseCount"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^evalds_[A-Za-z0-9._:-]+$" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "datasetFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "caseCount": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredEvidenceRecall", "distractorExclusionRate", "selectedTokenRatio", "secretLeakageCount", "localPathLeakageCount", "rawPromptLeakageCount", "rawContextLeakageCount", "rawOutputLeakageCount", "forbiddenInclusionCount", "workspaceLeakageCount", "deterministicMismatchCount", "durationMs", "recallAt10", "mrrAt10", "ndcgAt10"],
+      "properties": {
+        "requiredEvidenceRecall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "distractorExclusionRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "selectedTokenRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "secretLeakageCount": { "type": "integer", "minimum": 0 },
+        "localPathLeakageCount": { "type": "integer", "minimum": 0 },
+        "rawPromptLeakageCount": { "type": "integer", "minimum": 0 },
+        "rawContextLeakageCount": { "type": "integer", "minimum": 0 },
+        "rawOutputLeakageCount": { "type": "integer", "minimum": 0 },
+        "forbiddenInclusionCount": { "type": "integer", "minimum": 0 },
+        "workspaceLeakageCount": { "type": "integer", "minimum": 0 },
+        "deterministicMismatchCount": { "type": "integer", "minimum": 0 },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "recallAt10": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mrrAt10": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ndcgAt10": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -95,8 +96,12 @@ for (const [file, value] of jsonValues) {
   }
 
   if (relative.startsWith('tools/manifests/')) {
-    for (const key of ['name', 'version', 'riskClass', 'permissions', 'allowedRoles', 'inputSchema', 'outputSchema']) if (value[key] === undefined) errors.push(`${relative}: missing ${key}`);
-    if (!['read-only', 'reversible-write', 'consequential-write'].includes(value.riskClass)) errors.push(`${relative}: invalid riskClass`);
+    if (value.schemaVersion === '1.1.0') {
+      for (const key of ['name', 'version', 'contractVersion', 'handlerBindingId', 'operations']) if (value[key] === undefined) errors.push(`${relative}: missing ${key}`);
+    } else {
+      for (const key of ['name', 'version', 'riskClass', 'permissions', 'allowedRoles', 'inputSchema', 'outputSchema']) if (value[key] === undefined) errors.push(`${relative}: missing ${key}`);
+      if (!['read-only', 'reversible-write', 'consequential-write'].includes(value.riskClass)) errors.push(`${relative}: invalid riskClass`);
+    }
   }
 
   if (relative.startsWith('adapters/') && relative.endsWith('/adapter.json')) {
@@ -166,7 +171,17 @@ if (backlog) {
     visited.add(id);
   }
   for (const id of taskIds) visit(id);
-  if (projectStatus && !taskSet.has(projectStatus.nextTask)) errors.push(`PROJECT_STATUS.json: unknown nextTask ${projectStatus.nextTask}`);
+  if (projectStatus?.nextTask !== null && projectStatus?.nextTask !== undefined) {
+    const nextTask = byId.get(projectStatus.nextTask);
+    if (!nextTask) errors.push(`PROJECT_STATUS.json: unknown nextTask ${projectStatus.nextTask}`);
+    else if (nextTask.status !== 'planned') errors.push(`PROJECT_STATUS.json: nextTask ${projectStatus.nextTask} is ${nextTask.status}`);
+    else {
+      const completed = new Set((backlog.tasks ?? []).filter((task) => task.status === 'completed').map((task) => task.id));
+      for (const dependency of nextTask.dependsOn ?? []) {
+        if (!completed.has(dependency)) errors.push(`PROJECT_STATUS.json: nextTask ${projectStatus.nextTask} dependency ${dependency} is not completed`);
+      }
+    }
+  }
 }
 
 const agentPack = jsonValues.get(path.join(root, 'examples/agentpacks/content-intelligence.agentpack.json'));
@@ -176,11 +191,8 @@ if (agentPack) {
   if (agentPack.permissions?.consequentialWrites !== false) errors.push('example Agent Pack: consequential writes must be disabled');
 }
 
-try {
-  new Function(await readFile(path.join(root, 'apps/web/app.js'), 'utf8'));
-} catch (error) {
-  errors.push(`apps/web/app.js: JavaScript syntax error (${error.message})`);
-}
+const webSyntax = spawnSync(process.execPath, ['--check', path.join(root, 'apps/web/app.js')], { encoding: 'utf8' });
+if (webSyntax.status !== 0) errors.push(`apps/web/app.js: JavaScript syntax error (${webSyntax.stderr || webSyntax.stdout})`.trim());
 
 const forbidden = [
   /sk-[A-Za-z0-9_-]{20,}/,

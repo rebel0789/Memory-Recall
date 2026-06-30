@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/tool-sandbox-profile-1.0.json",
+  "title": "Tool Sandbox Profile",
+  "enum": ["pure-local", "brokered-filesystem-read", "brokered-filesystem-write", "brokered-loopback-http", "brokered-secret-reference"]
+}

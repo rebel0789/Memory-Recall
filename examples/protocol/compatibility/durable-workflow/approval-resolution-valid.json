@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_local",
+  "runId": "run_durable",
+  "approvalId": "app_abc",
+  "actorId": "usr_reviewer",
+  "decision": "approved",
+  "operationFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

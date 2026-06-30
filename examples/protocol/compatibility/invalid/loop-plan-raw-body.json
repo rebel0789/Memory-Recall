@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "loop plan",
+  "id": "loopplan_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_loop",
+  "createdAt": "2026-06-26T00:00:00.000Z",
+  "loopPlanFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "objective": "Fix source graph report filtering",
+  "stopCondition": "focused tests pass",
+  "nonGoals": [],
+  "riskClass": "low",
+  "sideEffectClass": "read-only",
+  "maxIterations": 3,
+  "timeoutSeconds": 1800,
+  "approvalRequired": false,
+  "sourceGraph": {
+    "status": "unavailable",
+    "sourceIndexFingerprint": null,
+    "graphFingerprint": null,
+    "changedLocators": []
+  },
+  "contextPack": {
+    "contextPackId": null,
+    "contextPackFingerprint": null,
+    "usePlanId": null,
+    "usePlanFingerprint": null
+  },
+  "requiredLocalReads": [],
+  "validationCommands": ["node --test tests/web-shell.test.mjs"],
+  "contextBudget": {
+    "estimatedDeliveryTokens": 0,
+    "sourceBodyTokensExcluded": 0,
+    "deliveryReductionRatio": 0,
+    "basis": "unestimated"
+  },
+  "stopReasons": ["completed", "validation_failed"],
+  "rollback": "Discard this plan.",
+  "safeguards": {
+    "readOnly": true,
+    "commandsExecuted": 0,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceContentIncluded": false,
+    "rawOutputIncluded": false,
+    "hiddenReasoningIncluded": false
+  },
+  "rawBody": "PRIVATE RAW SOURCE BODY token=secret-value /Users/rebel/private.txt"
+}

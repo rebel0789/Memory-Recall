@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "1.0.0",
+  "id": "memprofile_aaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "dryRun": true,
+  "target": {
+    "locator": "workspace://memory/profile.md",
+    "format": "markdown"
+  },
+  "summary": {
+    "acceptedCount": 1,
+    "skippedCount": 2,
+    "recordIds": ["mem_profile_active"],
+    "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "markdown": "# OAF Memory Profile\n\nGenerated from accepted Open Agent Fabric memory records only.\nEditing this file does not create, update, activate, or delete canonical memory.\n\nWorkspace: ws_local\nGenerated: 2026-06-23T00:00:00.000Z\n\n## decision\n\n- Every model call must reference a persisted context manifest.\n  - id: mem_profile_active\n  - source: evidence:ev_context\n  - evidence: ev_context\n",
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false,
+    "localFilesWritten": 0
+  }
+}

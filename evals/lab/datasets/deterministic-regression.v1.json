@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalds_oaf_deterministic_regression",
+  "suite": "deterministic-regression",
+  "version": "1.0.0",
+  "owner": "agent:evaluator",
+  "description": "Merge-gating deterministic regression suite covering context, memory, policy, workflows, tools, content, and evaluation-lab invariants.",
+  "mergeGate": true,
+  "sourceRefs": [
+    "evals/context-selection/cases.json",
+    "evals/memory/cases.json",
+    "evals/policy/cases.json",
+    "scripts/run-evals.mjs"
+  ],
+  "cases": [
+    {
+      "id": "evalcase_context_required_recall",
+      "kind": "context-selection",
+      "inputFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "assertions": ["required_recall", "distractor_exclusion", "budget"],
+      "tags": ["context", "deterministic"]
+    },
+    {
+      "id": "evalcase_bounded_tool_grants",
+      "kind": "bounded-tool",
+      "inputFingerprint": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "assertions": ["one_use_grant", "no_raw_token", "idempotent_effect"],
+      "tags": ["tool", "policy", "deterministic"]
+    }
+  ],
+  "createdAt": "2026-06-20T00:00:00.000Z",
+  "labVersion": "1.0.0",
+  "datasetFingerprint": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+}

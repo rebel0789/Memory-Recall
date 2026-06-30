@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-environment-context.schema.json",
+  "title": "Policy Environment Context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["deploymentProfile", "locality", "interactive", "externalWritesEnabled"],
+  "properties": {
+    "deploymentProfile": { "enum": ["local-dev", "test", "production"] },
+    "locality": { "enum": ["local-only", "loopback", "remote"] },
+    "interactive": { "type": "boolean" },
+    "externalWritesEnabled": { "type": "boolean" }
+  }
+}

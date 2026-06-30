@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "obs_fixture",
+  "workspaceId": "ws_local",
+  "source": "fixture",
+  "sourceSnapshotId": "src_0123456789abcdef",
+  "sourceContentHash": "41cf6794ba4200b839c53531555f0f3998df4cbb01a4d5cb0b94e3ca5e23947d",
+  "platform": "unknown",
+  "creator": "unknown",
+  "text": "Observed source text",
+  "publishedAt": null,
+  "collectedAt": "2026-06-19T00:00:00.000Z",
+  "metricAt": "2026-06-19T00:00:00.000Z",
+  "contentHash": "3ef1d00d53b957bc9c27235c03c57c301f2b29f6a1b1f6a1b95b9faf913c5009",
+  "observed": {
+    "views": 10
+  },
+  "inferred": {
+    "pattern": "question"
+  },
+  "trust": "untrusted-external"
+}

@@ -1,7 +1,9 @@
 import { nowIso } from '../../../../packages/protocol/src/index.mjs';
+import { MODEL_GATEWAY_VERSION, MODEL_OUTPUT_SCHEMA_VERSION, PROMPT_ASSEMBLY_VERSION } from '../../../../packages/model-gateway/src/index.mjs';
 
 const PROVIDER_ID = 'provider:native:model:ollama';
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+const MAX_MODEL_BYTES = 2_000_000;
 
 function validateBaseUrl(value, allowNonLoopback) {
   const url = new URL(value);
@@ -11,18 +13,66 @@ function validateBaseUrl(value, allowNonLoopback) {
   return url;
 }
 
-async function withTimeout(fetchImpl, url, options, timeoutMs) {
+function linkedSignal(parentSignal, timeoutMs) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new Error(`request timed out after ${timeoutMs}ms`)), timeoutMs);
+  let parentListener;
+  if (parentSignal) {
+    if (parentSignal.aborted) controller.abort(parentSignal.reason);
+    else {
+      parentListener = () => controller.abort(parentSignal.reason);
+      parentSignal.addEventListener('abort', parentListener, { once: true });
+    }
+  }
+  return {
+    signal: controller.signal,
+    dispose() {
+      clearTimeout(timer);
+      if (parentListener) parentSignal.removeEventListener('abort', parentListener);
+    }
+  };
+}
+
+async function withTimeout(fetchImpl, url, options, timeoutMs, parentSignal = null) {
+  const linked = linkedSignal(parentSignal, timeoutMs);
   try {
-    return await fetchImpl(url, { ...options, signal: controller.signal });
+    return await fetchImpl(url, { ...options, signal: linked.signal });
   } finally {
-    clearTimeout(timer);
+    linked.dispose();
   }
 }
 
+function outputTooLarge(operation) {
+  const error = new Error(`${operation} exceeds 2 MB`);
+  error.code = 'model_output_too_large';
+  return error;
+}
+
+async function readResponseText(response, operation, maxBytes = MAX_MODEL_BYTES) {
+  if (!response.body?.getReader) {
+    const text = await response.text();
+    if (Buffer.byteLength(text, 'utf8') > maxBytes) throw outputTooLarge(operation);
+    return text;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw outputTooLarge(operation);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return `${text}${decoder.decode()}`;
+}
+
 async function readJsonResponse(response, operation) {
-  const text = await response.text();
+  const text = await readResponseText(response, operation);
   let value;
   try { value = text ? JSON.parse(text) : {}; } catch { throw new Error(`${operation} returned invalid JSON`); }
   if (!response.ok) {
@@ -57,12 +107,44 @@ export class OllamaModelProvider {
   }
 
   async capabilities() {
-    return ['model.generate.text', 'model.structured-output', 'model.local-loopback'];
+    return ['model.generate.text', 'model.structured-output', 'model.local-loopback', 'model.safe-events', 'model.bounded-repair'];
   }
 
-  async generate({ prompt, system = null, format = null, options = {}, metadata = {} }) {
+  profile() {
+    return {
+      schemaVersion: '1.0.0',
+      providerId: PROVIDER_ID,
+      model: this.model,
+      locality: 'loopback-process',
+      enabledByDefault: false,
+      capabilities: {
+        structuredOutput: true,
+        jsonMode: true,
+        toolUse: false,
+        vision: false,
+        network: false,
+        safeEvents: true,
+        boundedRepair: true
+      },
+      capabilityIds: ['model.generate.text', 'model.structured-output', 'model.local-loopback', 'model.safe-events', 'model.bounded-repair'],
+      limits: {
+        maxInputBytes: MAX_MODEL_BYTES,
+        maxOutputBytes: MAX_MODEL_BYTES,
+        defaultTimeoutMs: this.timeoutMs,
+        baseUrlPolicy: 'loopback-http-only',
+        silentFallback: false
+      },
+      versions: {
+        gateway: MODEL_GATEWAY_VERSION,
+        prompt: PROMPT_ASSEMBLY_VERSION,
+        outputSchema: MODEL_OUTPUT_SCHEMA_VERSION
+      }
+    };
+  }
+
+  async generate({ prompt, system = null, format = null, options = {}, metadata = {}, signal = null }) {
     if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('prompt is required');
-    if (Buffer.byteLength(prompt, 'utf8') > 2_000_000) throw new Error('prompt exceeds 2 MB');
+    if (Buffer.byteLength(prompt, 'utf8') > MAX_MODEL_BYTES) throw new Error('prompt exceeds 2 MB');
     const body = {
       model: this.model,
       prompt,
@@ -76,9 +158,10 @@ export class OllamaModelProvider {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify(body)
-    }, this.timeoutMs);
+    }, this.timeoutMs, signal);
     const value = await readJsonResponse(response, 'Ollama generation');
     if (typeof value.response !== 'string') throw new Error('Ollama generation response is missing text');
+    if (Buffer.byteLength(value.response, 'utf8') > MAX_MODEL_BYTES) throw outputTooLarge('Ollama generation output');
     return {
       schemaVersion: '1.0.0',
       provider: PROVIDER_ID,

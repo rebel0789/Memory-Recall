@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalexp_oaf026_selector_smoke",
+  "status": "completed",
+  "mode": "deterministic",
+  "mergeGate": true,
+  "dataset": {
+    "id": "evalds_oaf_deterministic_regression",
+    "suite": "deterministic-regression",
+    "version": "1.0.0",
+    "mergeGate": true,
+    "datasetFingerprint": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "subject": {
+    "kind": "evaluation-lab",
+    "id": "packages/evaluation-lab",
+    "version": "1.0.0",
+    "fingerprint": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+  },
+  "baseline": {
+    "id": "scripts/run-evals.mjs",
+    "version": "oaf-025",
+    "fingerprint": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+  },
+  "candidate": {
+    "id": "packages/evaluation-lab",
+    "version": "oaf-026",
+    "fingerprint": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+  },
+  "createdAt": "2026-06-20T00:01:00.000Z",
+  "labVersion": "1.0.0",
+  "experimentFingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+}

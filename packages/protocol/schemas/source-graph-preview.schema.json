@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/source-graph-preview.schema.json",
+  "title": "Native Source Graph Preview",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "previewVersion", "workspaceId", "generatedAt", "graph", "search", "trace", "impact", "safeguards"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "previewVersion": { "const": "oaf-source-graph-preview-1.0.0" },
+    "workspaceId": { "$ref": "#/$defs/workspaceId" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "graph": { "$ref": "#/$defs/compactGraph" },
+    "search": { "$ref": "#/$defs/searchResult" },
+    "trace": { "$ref": "#/$defs/traceResult" },
+    "impact": { "$ref": "#/$defs/impactResult" },
+    "safeguards": { "$ref": "#/$defs/safeguards" }
+  },
+  "$defs": {
+    "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$", "maxLength": 128 },
+    "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "nodeId": { "type": "string", "pattern": "^sgnode_[a-f0-9]{32}$" },
+    "edgeId": { "type": "string", "pattern": "^sgedge_[a-f0-9]{32}$" },
+    "locator": { "type": "string", "pattern": "^workspace://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+(?:#L[0-9]+-L[0-9]+)?$" },
+    "safeLabel": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])Users[\\\\/])(?!.*(?:^|[\\\\/])private[\\\\/])(?!.*(?:^|[\\\\/])var[\\\\/]folders[\\\\/]).+$" },
+    "nodeKind": { "enum": ["file", "chunk", "symbol", "module"] },
+    "edgeKind": { "enum": ["contains", "defined_in", "imports", "exports", "references", "calls"] },
+    "sourceRef": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^(symbol|astchunk|import|export|call|ref|srcsnap)_[a-f0-9]{16,32}$|^sha256:[a-f0-9]{64}$" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fileCount", "symbolCount", "moduleCount", "nodeCount", "edgeCount", "nodeKindCounts", "edgeKindCounts", "hotspots", "entryPoints"],
+      "properties": {
+        "fileCount": { "type": "integer", "minimum": 0 },
+        "symbolCount": { "type": "integer", "minimum": 0 },
+        "moduleCount": { "type": "integer", "minimum": 0 },
+        "nodeCount": { "type": "integer", "minimum": 0 },
+        "edgeCount": { "type": "integer", "minimum": 0 },
+        "nodeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "edgeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "hotspots": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/hotspot" } },
+        "entryPoints": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/nodeReference" } }
+      }
+    },
+    "compactGraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "workspaceId", "graphVersion", "parserVersion", "builtAt", "sourceIndexFingerprint", "graphFingerprint", "summary", "diagnostics", "sampleLimit", "sampleNodes", "sampleEdges", "omittedNodes", "omittedEdges"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "graphVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "parserVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "builtAt": { "type": "string", "format": "date-time" },
+        "sourceIndexFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "graphFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "summary": { "$ref": "#/$defs/summary" },
+        "diagnostics": { "type": "array", "maxItems": 5000, "items": { "$ref": "#/$defs/diagnostic" } },
+        "sampleLimit": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "sampleNodes": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/node" } },
+        "sampleEdges": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/edge" } },
+        "omittedNodes": { "type": "integer", "minimum": 0 },
+        "omittedEdges": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "kind", "label"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nodeId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "kind": { "$ref": "#/$defs/nodeKind" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "sourceRef": { "$ref": "#/$defs/sourceRef" },
+        "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] },
+        "moduleHash": { "$ref": "#/$defs/fingerprint" },
+        "contentHash": { "$ref": "#/$defs/fingerprint" },
+        "sourceSnapshotId": { "type": "string", "pattern": "^srcsnap_[a-f0-9]{16}$" }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "kind", "fromNodeId", "toNodeId", "confidence"],
+      "properties": {
+        "id": { "$ref": "#/$defs/edgeId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "kind": { "$ref": "#/$defs/edgeKind" },
+        "fromNodeId": { "$ref": "#/$defs/nodeId" },
+        "toNodeId": { "$ref": "#/$defs/nodeId" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "sourceRef": { "$ref": "#/$defs/sourceRef" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "hotspot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "label", "inbound", "outbound", "total"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "inbound": { "type": "integer", "minimum": 0 },
+        "outbound": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "nodeReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "label", "locator", "symbolKind"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "code"],
+      "properties": {
+        "locator": { "$ref": "#/$defs/locator" },
+        "code": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_:-]*$" }
+      }
+    },
+    "searchResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "workspaceId", "graphFingerprint", "retrievalMethod", "queryFingerprint", "total", "limit", "offset", "hasMore", "omittedCount", "results"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "graphFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "retrievalMethod": { "const": "source_graph_lexical" },
+        "queryFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "total": { "type": "integer", "minimum": 0 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "offset": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "hasMore": { "type": "boolean" },
+        "omittedCount": { "type": "integer", "minimum": 0 },
+        "results": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/searchItem" } }
+      }
+    },
+    "searchItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resultType", "id", "kind", "label", "score", "reasonCodes"],
+      "properties": {
+        "resultType": { "enum": ["node", "edge"] },
+        "id": { "type": "string", "pattern": "^(sgnode|sgedge)_[a-f0-9]{32}$" },
+        "kind": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "fromNodeId": { "$ref": "#/$defs/nodeId" },
+        "toNodeId": { "$ref": "#/$defs/nodeId" },
+        "score": { "type": "number", "minimum": 0 },
+        "reasonCodes": { "type": "array", "maxItems": 16, "items": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" } }
+      }
+    },
+    "traceResult": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["schemaVersion", "workspaceId", "graphFingerprint", "retrievalMethod", "startNodeIds", "direction", "edgeKinds", "depth", "limit", "paths"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "graphFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "retrievalMethod": { "const": "source_graph_trace" },
+        "startNodeIds": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/nodeId" } },
+        "direction": { "enum": ["outbound", "inbound", "both"] },
+        "edgeKinds": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/edgeKind" } },
+        "depth": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "paths": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/tracePath" } }
+      }
+    },
+    "tracePath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["depth", "nodeIds", "edgeIds", "terminalNodeId", "terminalLabel"],
+      "properties": {
+        "depth": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "nodeIds": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/nodeId" } },
+        "edgeIds": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/edgeId" } },
+        "terminalNodeId": { "$ref": "#/$defs/nodeId" },
+        "terminalLabel": { "$ref": "#/$defs/safeLabel" }
+      }
+    },
+    "impactResult": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["schemaVersion", "workspaceId", "graphFingerprint", "changedLocators", "representedChangedLocators", "depth", "impactedNodeIds", "impactedEdgeIds", "affectedSymbols"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "graphFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "changedLocators": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/locator" } },
+        "representedChangedLocators": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/locator" } },
+        "depth": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "impactedNodeIds": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/nodeId" } },
+        "impactedEdgeIds": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/edgeId" } },
+        "affectedSymbols": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/affectedSymbol" } }
+      }
+    },
+    "affectedSymbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "name", "locator", "symbolKind"],
+      "properties": {
+        "nodeId": { "$ref": "#/$defs/nodeId" },
+        "name": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dryRun", "persisted", "canonicalStateMutated", "localFilesWritten", "modelCalls", "networkCalls", "externalAdaptersEnabled", "externalWritesEnabled", "graphDatabaseUsed", "rawBodyIncluded", "sourceSlicesRead"],
+      "properties": {
+        "dryRun": { "const": true },
+        "persisted": { "const": false },
+        "canonicalStateMutated": { "const": false },
+        "localFilesWritten": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "externalAdaptersEnabled": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "graphDatabaseUsed": { "const": false },
+        "rawBodyIncluded": { "const": false },
+        "sourceSlicesRead": { "const": false }
+      }
+    }
+  }
+}

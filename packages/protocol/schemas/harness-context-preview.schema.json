@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/harness-context-preview-1.0.json",
+  "title": "Harness Context Preview",
+  "description": "Sanitized dry-run preview of harness context sources converted into temporary Context Compiler candidates. Raw source bodies, prompts, outputs, transcripts, credentials, provider URLs, hidden reasoning, and private local paths are not represented.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "previewVersion",
+    "id",
+    "workspaceId",
+    "createdAt",
+    "dryRun",
+    "scannerVersion",
+    "scan",
+    "candidates",
+    "manifest",
+    "memoryPlan",
+    "metrics",
+    "safeguards",
+    "previewFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "previewVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "id": { "type": "string", "pattern": "^hctxprev_[a-f0-9]{16,64}$" },
+    "workspaceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "dryRun": { "const": true },
+    "scannerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootFingerprint", "summary", "sources", "skipped"],
+      "properties": {
+        "rootFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "summary": { "$ref": "#/$defs/scanSummary" },
+        "sources": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/source" }
+        },
+        "skipped": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/skipped" }
+        }
+      }
+    },
+    "candidates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["totalCount", "tokenTotal", "records"],
+      "properties": {
+        "totalCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "tokenTotal": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "records": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/candidate" }
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compilerVersion",
+        "requestId",
+        "selectionPolicyFingerprint",
+        "resultFingerprint",
+        "budget",
+        "selected",
+        "excluded",
+        "conflicts",
+        "warnings",
+        "coverage"
+      ],
+      "properties": {
+        "compilerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+        "requestId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "selectionPolicyFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "resultFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "budget": { "$ref": "#/$defs/budget" },
+        "selected": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "$ref": "#/$defs/decision" }
+        },
+        "excluded": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/decision" }
+        },
+        "conflicts": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "type": "object" }
+        },
+        "warnings": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requested", "selected", "unresolved"],
+          "properties": {
+            "requested": { "$ref": "#/$defs/stringList" },
+            "selected": { "$ref": "#/$defs/stringList" },
+            "unresolved": { "$ref": "#/$defs/stringList" }
+          }
+        }
+      }
+    },
+    "memoryPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activeMemoryCreated", "proposedCount", "quarantinedCount", "items"],
+      "properties": {
+        "activeMemoryCreated": { "const": 0 },
+        "proposedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "quarantinedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "items": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/memoryPlanItem" }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateTokenCount", "selectedTokenCount", "selectedTokenRatio"],
+      "properties": {
+        "candidateTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "selectedTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "selectedTokenRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "persisted",
+        "modelCalls",
+        "networkCalls",
+        "sourceSnapshotsWritten",
+        "activeMemoryCreated",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "rawBodyIncluded"
+      ],
+      "properties": {
+        "persisted": { "const": false },
+        "modelCalls": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "sourceSnapshotsWritten": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "rawBodyIncluded": { "const": false }
+      }
+    },
+    "previewFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "locator": {
+      "type": "string",
+      "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$",
+      "maxLength": 640
+    },
+    "stringList": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+    },
+    "reasonCodes": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "redactions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secretCount", "localPathCount", "reasonCodes"],
+      "properties": {
+        "secretCount": { "type": "integer", "minimum": 0, "maximum": 1024 },
+        "localPathCount": { "type": "integer", "minimum": 0, "maximum": 1024 },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" }
+      }
+    },
+    "scanSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["totalAccepted", "totalSkipped", "externalAdaptersEnabled", "externalWritesEnabled"],
+      "properties": {
+        "totalAccepted": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "totalSkipped": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "externalAdaptersEnabled": { "const": 0 },
+        "externalWritesEnabled": { "const": false }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "harness",
+        "sourceKind",
+        "scope",
+        "trust",
+        "dataClass",
+        "locator",
+        "contentHash",
+        "bodyHash",
+        "byteSize",
+        "reviewStatus",
+        "retention",
+        "redactions",
+        "summary"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^hctx_[a-f0-9]{16,64}$" },
+        "harness": { "enum": ["codex", "claude-code", "cursor", "opencode", "windsurf", "generic-mcp"] },
+        "sourceKind": { "enum": ["instruction", "rule", "memory", "skill", "mcp-config", "command", "profile", "handoff"] },
+        "scope": { "enum": ["user", "workspace", "repository", "team", "unknown"] },
+        "trust": { "enum": ["user-authored", "tool-generated", "external", "unknown"] },
+        "dataClass": { "enum": ["public", "workspace-private", "sensitive"] },
+        "locator": { "$ref": "#/$defs/locator" },
+        "contentHash": { "$ref": "#/$defs/hash" },
+        "bodyHash": { "$ref": "#/$defs/hash" },
+        "byteSize": { "type": "integer", "minimum": 0, "maximum": 65536 },
+        "reviewStatus": { "enum": ["scan-only", "proposed", "accepted", "rejected", "quarantined"] },
+        "retention": { "enum": ["session", "workspace", "durable", "unknown"] },
+        "redactions": { "$ref": "#/$defs/redactions" },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 240 }
+      }
+    },
+    "skipped": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["harness", "locator", "reason"],
+      "properties": {
+        "harness": { "enum": ["codex", "claude-code", "cursor", "opencode", "windsurf", "generic-mcp"] },
+        "locator": { "$ref": "#/$defs/locator" },
+        "reason": { "enum": ["secret_like_value", "local_path", "oversized", "binary", "symlink_escape", "unsupported_file"] }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sourceId",
+        "locator",
+        "harness",
+        "sourceKind",
+        "kind",
+        "category",
+        "tokens",
+        "dataClass",
+        "trustClass",
+        "scope",
+        "status",
+        "source",
+        "contentHash"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^hctxrec_[a-f0-9]{16,64}$" },
+        "sourceId": { "type": "string", "pattern": "^hctx_[a-f0-9]{16,64}$" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "harness": { "enum": ["codex", "claude-code", "cursor", "opencode", "windsurf", "generic-mcp"] },
+        "sourceKind": { "enum": ["instruction", "rule", "memory", "skill", "mcp-config", "command", "profile", "handoff"] },
+        "kind": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "category": { "enum": ["governance", "workingState", "decisions", "preferences", "evidence", "procedures", "episodes", "artifacts", "negative", "examples", "other"] },
+        "tokens": { "type": "integer", "minimum": 1, "maximum": 65536 },
+        "dataClass": { "enum": ["public", "workspace-private", "sensitive"] },
+        "trustClass": { "enum": ["verified", "trusted", "observed", "untrusted"] },
+        "scope": { "enum": ["public", "workspace-private"] },
+        "status": { "enum": ["active", "verified", "expired", "retracted", "quarantined", "superseded"] },
+        "source": { "type": "string", "pattern": "^harness-context:(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$" },
+        "contentHash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "sourceId",
+        "locator",
+        "harness",
+        "sourceKind",
+        "kind",
+        "category",
+        "tokens",
+        "score",
+        "order",
+        "reasonCodes",
+        "source",
+        "contentHash"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^hctxrec_[a-f0-9]{16,64}$" },
+        "sourceId": { "type": ["string", "null"], "pattern": "^hctx_[a-f0-9]{16,64}$" },
+        "locator": { "type": ["string", "null"], "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$", "maxLength": 640 },
+        "harness": { "type": ["string", "null"] },
+        "sourceKind": { "type": ["string", "null"] },
+        "kind": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "category": { "type": ["string", "null"] },
+        "tokens": { "type": "integer", "minimum": 1, "maximum": 65536 },
+        "score": { "type": "number" },
+        "order": { "type": ["integer", "null"], "minimum": 1, "maximum": 128 },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "source": { "type": "string", "maxLength": 700 },
+        "contentHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "used"],
+      "properties": {
+        "available": { "type": "integer", "minimum": 1, "maximum": 200000 },
+        "used": { "type": "integer", "minimum": 0, "maximum": 200000 }
+      }
+    },
+    "memoryPlanItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "locator", "harness", "sourceKind", "action", "reasonCodes"],
+      "properties": {
+        "sourceId": { "type": "string", "pattern": "^hctx_[a-f0-9]{16,64}$" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "harness": { "enum": ["codex", "claude-code", "cursor", "opencode", "windsurf", "generic-mcp"] },
+        "sourceKind": { "enum": ["instruction", "rule", "memory", "skill", "mcp-config", "command", "profile", "handoff"] },
+        "action": { "enum": ["would_propose", "would_quarantine"] },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" }
+      }
+    }
+  }
+}

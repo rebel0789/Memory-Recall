@@ -179,6 +179,40 @@ test('public bootstrap status is safe and protected routes fail closed before bo
   assert.equal(denied.body.error.code, 'bootstrap_required');
   assert.equal(api.store.reads + api.store.updates + api.store.resets, 0);
   assert.equal(api.calls.workflow, 0);
+
+  const created = await json(api.base, '/api/auth/bootstrap', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify({
+      username: 'owner',
+      displayName: 'Local Owner',
+      password,
+      workspaceId: 'ws_local',
+      workspaceName: 'Local Workspace'
+    })
+  });
+  assert.equal(created.status, 201, created.text);
+  assert.equal(created.body.authenticated, true);
+  assert.equal(created.body.user.username, 'owner');
+  assert.equal(created.body.memberships[0].role, 'owner');
+  assert.equal(created.text.includes(password), false);
+  const cookies = cookieHeader(created.headers);
+  assert.match(cookies, /oaf_session=/);
+  assert.match(cookies, /oaf_csrf=/);
+  assert.match(created.headers.get('set-cookie'), /HttpOnly/);
+
+  const after = await json(api.base, '/api/auth/bootstrap-status');
+  assert.deepEqual(after.body, { schemaVersion: '1.0.0', bootstrapRequired: false });
+  const dashboard = await json(api.base, '/api/dashboard?workspaceId=ws_local', { headers: { cookie: cookies } });
+  assert.equal(dashboard.status, 200, dashboard.text);
+
+  const duplicate = await json(api.base, '/api/auth/bootstrap', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base },
+    body: JSON.stringify({ username: 'again', displayName: 'Again', password })
+  });
+  assert.equal(duplicate.status, 409);
+  assert.equal(duplicate.body.error.code, 'already_bootstrapped');
 });
 
 test('login issues safe session and csrf cookies and rejects credential ambiguity', async (t) => {

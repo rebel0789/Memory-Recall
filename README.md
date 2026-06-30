@@ -10,40 +10,118 @@ This repository is an **agent-ready development kit**, not a claim that the full
 
 > Build the brain. Adapt the organs. Fork only when ownership is unavoidable.
 
+## Ship-ready local memory path
+
+OAF now has a verified local profile for governed coding-agent memory over a
+real workspace. It ingests repository facts into a local SQLite store as
+proposals, requires explicit approval before facts become ACTIVE, serves active
+facts first through read-only MCP, and sends cursor deltas during a session so
+repeat pulls do not resend the same context.
+
+Verified local benchmarks:
+
+- Temporal correctness: `oaf bench temporal --read-only --root .` returned
+  `100%` correct and `100%` clean for current facts while stale values were
+  present in the raw timeline.
+- Session delivery: `oaf bench session --read-only --root .` returned `100%`
+  correctness and a `76%` delivered-token reduction versus full resend
+  (`651` delta tokens vs `2664` full-resend tokens). This is the measured
+  session-delta path, not a provider billing claim.
+- Real repo questions: `oaf bench realqa --read-only --root .` returned `100%`
+  after structured governed ingest on 12 questions derived from this repo.
+
+Plain tradeoff: on static lookup, OAF ties keyword search more than it beats it.
+The edge is correctness when facts change, proposal governance before trust, and
+cheap repeat delivery through MCP cursors. It does not claim semantic retrieval,
+generic token savings versus RAG, hosted memory, or cloud sync.
+
 ## What works now
 
-- dependency-free Node.js 22 bootstrap;
-- local HTTP control API, CLI, and responsive evidence-first dashboard;
-- deterministic Content Intelligence vertical slice;
-- Context Compiler with selected and excluded context reason codes;
-- dependency-free JSON Schema subset validator and compatibility fixtures;
-- provider-neutral ports and conformance helpers;
-- native SQLite + FTS5 workspace memory provider;
-- native content-addressed filesystem artifact provider;
-- cancellable embedded workflow provider with event checkpoints;
-- deterministic model provider and optional loopback-only Ollama provider;
-- portable Agent Pack validation, resolution, and deterministic fingerprinting;
-- side-effect-free replay plans, run comparison, and reviewable learning proposals;
-- versioned contract fixtures for 12 disabled external adapter targets;
-- tests, evaluations, repository checks, and agent task tooling;
-- no API key, paid service, database server, or external network required.
+- dependency-free Node.js 22 bootstrap with no API key, paid service, database
+  server, model API, or external network required;
+- native SQLite/FTS5 governed memory with temporal facts, supersession, entity
+  edges, proposal queue, explicit approve/reject, and no hard delete;
+- `oaf memory ingest --root . --sqlite .local/memory.sqlite` for deterministic
+  offline extraction from git history, key docs, project status, provider
+  manifests, and source-graph hints into PENDING proposals only;
+- `oaf memory review`, `oaf memory approve`, and `oaf memory reject` for the
+  trust step from candidate proposal to ACTIVE fact;
+- `oaf memory remember --batch facts.json` for host-agent extracted memory maps
+  from `skills/oaf-memory`, including supersession and confidence labels;
+- read-only `oaf mcp server` exposing `memory.recall`, `context.profile`, and
+  `context.pack` over local stdio with active facts separated from proposals;
+- persisted MCP cursors and `since` deltas so repeat `memory.recall` and
+  `context.profile` calls send only changed current truth, including after a
+  restart;
+- preview-then-confirm MCP install for Claude Code, Cursor, and Codex with an
+  absolute server path, explicit project root, explicit project SQLite memory
+  path, and no silent home config write;
+- `/memory` cockpit over the loopback Control API with temporal facts, proposal
+  counts, MCP delivery stats, and confirm-gated proposal approval;
+- deterministic local benches for temporal correctness, session delta delivery,
+  and real repo question answering;
+- local HTTP control API, CLI, responsive evidence-first dashboard, Context
+  Compiler, context manifests, native source graph preview, bounded local
+  workflow provider, deterministic model provider, content-addressed artifact
+  provider, policy/tool primitives, Agent Pack validation, tests, evaluations,
+  repository checks, and release manifests.
 
 ## What is deliberately not claimed
 
-Production PostgreSQL repositories, crash-resumable workflow orchestration, production authentication, real social connectors, hardened sandboxes, external publishing, signed Agent Pack distribution, and a production frontend framework are **specified and planned**, but not completed. `PROJECT_STATUS.json` is the machine-readable source for current capability status and limitations.
+Production PostgreSQL repositories, production authentication, semantic
+retrieval, hosted embeddings, vector databases, hosted memory sync, write-capable
+MCP tools, automatic harness history import, silent or broad harness config
+writes outside confirmed MCP install, real social connectors, hardened
+sandboxes, external publishing, signed Agent Pack distribution, and a production
+frontend framework are **not claimed**. Durable workflow and source-graph
+providers exist as local references; team/cloud production remains outside the
+local profile. `PROJECT_STATUS.json` is the machine-readable source for current
+capability status and limitations.
 
-## Start in five minutes
+## Quickstart: governed memory in Claude Code
 
 Requirement: Node.js 22 or newer.
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
-npm run bootstrap
-npm run verify:handoff
-npm run dev
+npm run local:run
+
+# Preview the exact Claude Code MCP config. This writes nothing.
+npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --dry-run --format json
+# Short default preview also works: npm run oaf -- mcp install --client claude-code --dry-run --format json
+
+# Apply only after preview by feeding the matching fingerprint back.
+CONFIRM="$(npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --dry-run --format json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).planFingerprint))')"
+npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --apply --confirm "$CONFIRM" --format json
+
+# Populate governed memory from this repo. Ingest creates proposals, not trust.
+npm --silent run oaf -- memory ingest --root . --sqlite .local/memory.sqlite --format json
+npm --silent run oaf -- memory review --root . --sqlite .local/memory.sqlite --format json
+
+# Promote reviewed facts explicitly. Use a narrower source when you want less.
+npm --silent run oaf -- memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
+
+# Pull what a coding agent receives over the read-only MCP server.
+printf '%s\n' \
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+'{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory.recall","arguments":{"client":"readme-quickstart","query":"default durable workflow provider","scope":"workspace","limit":8}}}' \
+'{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"context.profile","arguments":{"client":"readme-quickstart","objective":"default durable workflow provider","scope":"workspace","limit":8,"budget":512}}}' \
+| npm --silent run oaf -- mcp server --read-only --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --stdio
 ```
 
-Open <http://127.0.0.1:4310>.
+The install command writes only the `oaf` MCP server entry after
+`--apply --confirm`; the server remains read-only and local stdio. The memory
+commands never auto-activate facts. Rejections and supersessions are recorded,
+not hard-deleted.
+
+Manual install flow: run `npm run oaf -- mcp install --client claude-code --dry-run --format json`,
+review the preview, then run the printed `--apply --confirm <fingerprint>`
+command. The installed server does not import harness history, enable write
+tools, call cloud/model APIs, or claim provider billing-token savings.
+In short: it does not import harness history, enable write tools, call cloud/model APIs, or claim provider billing-token savings.
+
+For context-pack handoff paths across Codex, Cursor, and Claude Code, read
+`docs/usage/local-agent-handoff.md`.
 
 The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.
 
@@ -52,8 +130,9 @@ The offline bootstrap installs no runtime npm dependencies. The optional Ollama 
 Tell the agent:
 
 ```text
-Read ASSIGN_TO_AGENT.md and AGENTS.md. Run npm run verify:handoff, then npm run task -- OAF-004.
-Complete one task only, keep npm run ci green, and report using the required handoff template.
+Read ASSIGN_TO_AGENT.md and AGENTS.md. Run `npm run verify:handoff`, then `npm run status`.
+If status names a next OAF task, run `npm run task -- <OAF-ID>` and complete that task only. If status says the backlog is complete, do not invent a task.
+Keep npm run ci green, and report using the required handoff template for task work.
 ```
 
 The operating path is:
@@ -66,7 +145,7 @@ The operating path is:
 6. `docs/START_HERE.md`
 7. `docs/adr/0012-build-the-brain-adapt-the-organs.md`
 8. `docs/implementation/AGENT_EXECUTION_PLAYBOOK.md`
-9. `npm run task -- OAF-004`
+9. `npm run task -- <OAF-ID>` only when `npm run status` names a next task
 
 ## Product thesis
 
@@ -117,11 +196,23 @@ See `REPOSITORY_MAP.md` for ownership and dependency boundaries.
 
 ```bash
 npm run status                 # implemented, reference, planned, disabled
-npm run task -- OAF-004        # next issue-sized assignment bundle
+npm run task -- <OAF-ID>       # only when status names a next task
 npm run doctor                 # environment and local safety checks
 npm run protocol:validate      # v1 valid, invalid, and compatibility fixtures
 npm run native:smoke           # native memory, artifacts, Agent Pack, model
 npm run demo                   # complete synthetic workflow
+npm run oaf -- context scan --from codex --root . --dry-run
+npm run oaf -- context preview --from codex --root . --objective "Prepare handoff" --step "select harness context" --dry-run
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file CONTEXT.md --changed apps/web/app.js --dry-run --format markdown
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- context receive --read-only --root . --target codex --format json  # after --write --pin
+npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
+npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+npm run oaf -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
+npm run oaf -- harness setup status --client codex --dry-run --format json
+npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json
 npm run dev                    # local API and dashboard
 npm run ci                     # checks, protocol, tests, evaluations
 npm run verify:handoff         # full handoff gate plus manifests
@@ -143,4 +234,4 @@ Read:
 
 ## Status
 
-Development kit: **0.2.0-dev**. Foundation tasks OAF-001 through OAF-003 are complete. The safest next task is **OAF-004 — Implement PostgreSQL repositories behind the existing ports while preserving the local conformance baselines**.
+Development kit: **0.2.0-dev**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.

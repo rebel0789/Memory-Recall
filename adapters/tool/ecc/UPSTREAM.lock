@@ -1,5 +1,6 @@
 repository=https://github.com/affaan-m/ECC
-commit=UNPINNED
-archive_sha256=UNVERIFIED
-license_spdx=UNVERIFIED
-reviewed_at=UNREVIEWED
+commit=34faa39bd3cd496a0aece0245f2b7e38b7923abc
+archive_sha256=c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0
+license_spdx=MIT
+reviewed_at=2026-06-20T16:24:00Z
+review_notes=GitHub license metadata and pinned archive LICENSE reviewed. OAF adapter does not run installers, install packages, execute scripts, bulk-load skills, or preserve raw upstream bodies.

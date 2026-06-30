@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/content-pattern-analysis-1.0.json",
+  "title": "Content Pattern Analysis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "observations", "clusters", "safeguards"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaVersion", "observationId", "metrics", "inference"],
+        "properties": {
+          "schemaVersion": { "const": "1.0.0" },
+          "observationId": { "type": "string", "pattern": "^obs_" },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["raw", "baselines", "relativePerformance"],
+            "properties": {
+              "raw": { "type": "object" },
+              "baselines": { "type": "object" },
+              "relativePerformance": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": ["state", "dimensions", "reasonCodes"],
+                "properties": {
+                  "state": { "enum": ["insufficient_baseline", "above_baseline", "near_baseline", "below_baseline"] },
+                  "dimensions": { "type": "object" },
+                  "reasonCodes": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          },
+          "inference": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pattern", "clusterId", "lifecycle", "proofNeeded", "uncertainty", "similarity", "copyingRisk", "reasonCodes"],
+            "properties": {
+              "pattern": { "type": "object" },
+              "clusterId": { "type": "string", "pattern": "^clu_[a-f0-9]{32}$" },
+              "lifecycle": { "enum": ["emerging", "accelerating", "established", "overused", "declining"] },
+              "proofNeeded": { "type": "array", "items": { "type": "string" } },
+              "uncertainty": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["level", "reasonCodes"],
+                "properties": {
+                  "level": { "enum": ["low", "medium", "high"] },
+                  "reasonCodes": { "type": "array", "items": { "type": "string" } }
+                }
+              },
+              "similarity": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["maxScore", "nearestObservationId"],
+                "properties": {
+                  "maxScore": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "nearestObservationId": { "type": ["string", "null"], "pattern": "^obs_" }
+                }
+              },
+              "copyingRisk": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["level", "reasonCodes"],
+                "properties": {
+                  "level": { "enum": ["low", "medium", "high"] },
+                  "reasonCodes": { "type": "array", "items": { "type": "string" } }
+                }
+              },
+              "reasonCodes": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "clusters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "observationIds", "size", "lifecycle", "saturation", "reasonCodes"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^clu_[a-f0-9]{32}$" },
+          "observationIds": { "type": "array", "items": { "type": "string", "pattern": "^obs_" } },
+          "size": { "type": "integer", "minimum": 1 },
+          "lifecycle": { "enum": ["emerging", "established", "overused"] },
+          "saturation": { "enum": ["low", "medium", "high"] },
+          "reasonCodes": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metricsSeparatedFromInference", "rawMetricsAreNotTruth", "sourceTextExcludedFromClusters", "copyingRequiresRewrite"],
+      "properties": {
+        "metricsSeparatedFromInference": { "const": true },
+        "rawMetricsAreNotTruth": { "const": true },
+        "sourceTextExcludedFromClusters": { "const": true },
+        "copyingRequiresRewrite": { "const": true }
+      }
+    }
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "1.0.0",
+  "registryVersion": "0.1.0",
+  "command": "context registry status",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "registry": {
+    "exists": true,
+    "locator": "workspace://context-packs/registry.json",
+    "currentEntryId": "ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa",
+    "entryCount": 1,
+    "registryFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "fingerprintStatus": "verified"
+  },
+  "currentPointer": {
+    "exists": true,
+    "locator": "workspace://context-packs/current.json",
+    "entryId": "ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa",
+    "pointerFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "fingerprintStatus": "verified"
+  },
+  "current": {
+    "entryId": "ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa",
+    "status": "verified"
+  },
+  "entries": [
+    {
+      "id": "ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa",
+      "workspaceId": "ws_local",
+      "createdAt": "2026-06-24T00:00:00.000Z",
+      "targetHarness": "codex",
+      "contextPack": {
+        "id": "ctxpack_bbbbbbbbbbbbbbbbbbbbbbbb",
+        "createdAt": "2026-06-24T00:00:00.000Z",
+        "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "packVersion": "0.1.0",
+        "scannerVersion": "0.1.0",
+        "compilerVersion": "context-compiler@1.0.0"
+      },
+      "usePlan": {
+        "id": "ctxuse_cccccccccccccccccccccccc",
+        "fingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "generatedAt": "2026-06-24T00:00:00.000Z",
+        "resourceUri": "oaf://workspace/ws_local/context-pack/use-plan/current"
+      },
+      "artifactChecks": [
+        {
+          "role": "agent-handoff",
+          "locator": "workspace://context-packs/CONTEXT_PACK.md",
+          "expectedHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "actualHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "expectedByteSize": 4096,
+          "actualByteSize": 4096,
+          "status": "verified",
+          "reasonCodes": ["artifact_hash_verified"]
+        },
+        {
+          "role": "use-plan",
+          "locator": "workspace://context-packs/CONTEXT_PACK.use.json",
+          "expectedHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "actualHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "expectedByteSize": 2048,
+          "actualByteSize": 2048,
+          "status": "verified",
+          "reasonCodes": ["artifact_hash_verified"]
+        }
+      ],
+      "sourceChecks": {
+        "total": 2,
+        "verified": 2,
+        "stale": 0,
+        "unavailable": 0,
+        "verifiedLocators": ["workspace://AGENTS.md", "workspace://src/auth.ts"],
+        "staleLocators": [],
+        "unavailableLocators": []
+      },
+      "status": "verified"
+    }
+  ],
+  "warnings": [],
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "markdownContentIncluded": false,
+    "sourceContentIncluded": false,
+    "privateContentIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false
+  }
+}

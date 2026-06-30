@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "ccreq_example",
+  "correlationId": "req_candidate_sources_000000",
+  "workspaceId": "ws_local",
+  "actorId": "usr_owner",
+  "taskId": "task_oaf_010",
+  "step": "assemble context candidates",
+  "objective": "Find context manifest policy evidence",
+  "requiredIds": [],
+  "requiredEntities": [],
+  "allowedDataClasses": [
+    "workspace-private"
+  ],
+  "allowedTrustClasses": [
+    "verified"
+  ],
+  "sourcePlan": [
+    {
+      "kind": "exact",
+      "required": false
+    }
+  ],
+  "perSourceLimit": 10,
+  "totalCandidateLimit": 20,
+  "trustedTimestamp": "2026-06-19T10:00:00.000Z",
+  "roles": [
+    "owner"
+  ]
+}

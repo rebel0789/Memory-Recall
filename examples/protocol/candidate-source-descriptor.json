@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:context-candidate:exact",
+  "kind": "exact",
+  "version": "1.0.0",
+  "enabled": true,
+  "methods": [
+    "id_lookup"
+  ],
+  "contractVersion": "1.0.0",
+  "description": "Workspace-scoped exact candidate lookup by canonical record id"
+}

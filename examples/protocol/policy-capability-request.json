@@ -1,0 +1,27 @@
+{
+  "toolId": "tool:fixture-read",
+  "operation": "read",
+  "sideEffectClass": "read-only",
+  "filesystem": {
+    "read": ["workspace:project/src"],
+    "write": []
+  },
+  "network": [
+    {
+      "protocol": "http",
+      "host": "localhost",
+      "port": 4310,
+      "methods": ["GET"],
+      "consequence": "read",
+      "locality": "loopback"
+    }
+  ],
+  "secretReferences": [],
+  "dataClasses": ["workspace-private"],
+  "sandbox": "read-only",
+  "limits": {
+    "runtimeMs": 500,
+    "outputBytes": 1024,
+    "costUnits": 0
+  }
+}

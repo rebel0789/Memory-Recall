@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/evaluation-experiment.schema.json",
+  "title": "Evaluation Experiment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "status", "mode", "mergeGate", "dataset", "subject", "baseline", "candidate", "createdAt", "labVersion", "experimentFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^evalexp_[A-Za-z0-9._:-]+$" },
+    "status": { "enum": ["planned", "running", "completed", "cancelled"] },
+    "mode": { "enum": ["deterministic", "model-quality"] },
+    "mergeGate": { "type": "boolean" },
+    "dataset": { "$ref": "#/$defs/datasetRef" },
+    "subject": { "$ref": "#/$defs/componentRef" },
+    "baseline": { "$ref": "#/$defs/versionRef" },
+    "candidate": { "$ref": "#/$defs/versionRef" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "labVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "experimentFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "datasetRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "suite", "version", "mergeGate", "datasetFingerprint"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^evalds_[A-Za-z0-9._:-]+$" },
+        "suite": { "enum": ["deterministic-regression", "model-quality-shadow"] },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "mergeGate": { "type": "boolean" },
+        "datasetFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "componentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id", "version", "fingerprint"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "versionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "fingerprint"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

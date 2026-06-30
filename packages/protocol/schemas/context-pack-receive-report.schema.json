@@ -1,0 +1,589 @@
+{
+  "$id": "https://open-agent-fabric.dev/schemas/context-pack-receive-report-1.0.json",
+  "title": "Context pack receive report",
+  "description": "Read-only receiver report for consuming an explicitly pinned local context pack from a harness without rebuilding, importing, or exposing private payloads.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "generatedAt",
+    "workspaceId",
+    "targetHarness",
+    "state",
+    "commitSha",
+    "measurementScope",
+    "registry",
+    "usePlan",
+    "mcp",
+    "setup",
+    "commands",
+    "checks",
+    "safeguards",
+    "reportFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "command": { "const": "context receive" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "state": { "enum": ["ready", "review", "blocked"] },
+    "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "measurementScope": { "const": "single pinned context-pack registry/use-plan verification, MCP read-only resource proof, and harness setup status dry-run" },
+    "registry": { "$ref": "#/$defs/registry" },
+    "usePlan": { "$ref": "#/$defs/usePlan" },
+    "receiverPacket": { "$ref": "#/$defs/receiverPacket" },
+    "mcp": { "$ref": "#/$defs/mcp" },
+    "setup": { "$ref": "#/$defs/setup" },
+    "commands": { "$ref": "#/$defs/commands" },
+    "checks": { "$ref": "#/$defs/checks" },
+    "safeguards": { "$ref": "#/$defs/safeguards" },
+    "reportFingerprint": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "maybeHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "entryId": { "type": "string", "pattern": "^ctxpin_[a-f0-9]{24}$" },
+    "maybeEntryId": { "type": ["string", "null"], "pattern": "^ctxpin_[a-f0-9]{24}$" },
+    "usePlanId": { "type": "string", "pattern": "^ctxuse_[a-f0-9]{24}$" },
+    "maybeUsePlanId": { "type": ["string", "null"], "pattern": "^ctxuse_[a-f0-9]{24}$" },
+    "harness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "setupClient": { "enum": ["codex", "cursor", "claude-code", "opencode", "aider"] },
+    "status": { "enum": ["verified", "tampered", "missing"] },
+    "entryStatus": { "enum": ["verified", "stale", "tampered", "review", "missing"] },
+    "count": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+    "ratio": { "type": "number", "minimum": 0, "maximum": 1000 },
+    "reasonCode": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_:-]*$" },
+    "reasonCodes": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/reasonCode" }
+    },
+    "locator": {
+      "type": "string",
+      "pattern": "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+    },
+    "artifactLocator": {
+      "type": ["string", "null"],
+      "pattern": "^workspace://context-packs/[A-Za-z0-9._-]+\\.(md|use\\.json)$"
+    },
+    "artifactCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "locator", "expectedHash", "actualHash", "status", "reasonCodes"],
+      "properties": {
+        "role": { "enum": ["agent-handoff", "use-plan", "unknown"] },
+        "locator": { "$ref": "#/$defs/artifactLocator" },
+        "expectedHash": { "$ref": "#/$defs/maybeHash" },
+        "actualHash": { "$ref": "#/$defs/maybeHash" },
+        "status": { "$ref": "#/$defs/status" },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" }
+      }
+    },
+    "sourceChecks": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["total", "verified", "stale", "unavailable", "verifiedLocators", "staleLocators", "unavailableLocators"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "verified": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "stale": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "unavailable": { "type": "integer", "minimum": 0, "maximum": 64 },
+        "verifiedLocators": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/locator" } },
+        "staleLocators": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/locator" } },
+        "unavailableLocators": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/locator" } }
+      }
+    },
+    "registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registryExists",
+        "currentPointerExists",
+        "currentEntryId",
+        "currentStatus",
+        "registryFingerprintStatus",
+        "currentPointerFingerprintStatus",
+        "registryFingerprint",
+        "currentPointerFingerprint",
+        "entryCount",
+        "currentTargetHarness",
+        "contextPackFingerprint",
+        "usePlanFingerprint",
+        "sourceChecks",
+        "artifactChecks",
+        "warnings"
+      ],
+      "properties": {
+        "registryExists": { "type": "boolean" },
+        "currentPointerExists": { "type": "boolean" },
+        "currentEntryId": { "$ref": "#/$defs/maybeEntryId" },
+        "currentStatus": { "$ref": "#/$defs/entryStatus" },
+        "registryFingerprintStatus": { "$ref": "#/$defs/status" },
+        "currentPointerFingerprintStatus": { "$ref": "#/$defs/status" },
+        "registryFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "currentPointerFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "entryCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "currentTargetHarness": { "type": ["string", "null"], "enum": ["codex", "claude-code", "cursor", "generic", null] },
+        "contextPackFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "usePlanFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "sourceChecks": { "$ref": "#/$defs/sourceChecks" },
+        "artifactChecks": { "type": "array", "maxItems": 4, "items": { "$ref": "#/$defs/artifactCheck" } },
+        "warnings": { "$ref": "#/$defs/reasonCodes" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "covered", "ratio", "status"],
+      "properties": {
+        "total": { "$ref": "#/$defs/count" },
+        "covered": { "$ref": "#/$defs/count" },
+        "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "status": { "enum": ["covered", "partial", "not_applicable"] }
+      }
+    },
+    "usePlanCoverage": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["changedLocators", "graphHints"],
+      "properties": {
+        "changedLocators": { "$ref": "#/$defs/coverage" },
+        "graphHints": { "$ref": "#/$defs/coverage" }
+      }
+    },
+    "localRead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "role", "required", "represented", "contentHash", "readHint", "reasonCodes"],
+      "properties": {
+        "locator": { "$ref": "#/$defs/locator" },
+        "role": { "enum": ["selected_context", "explicit_user_selected", "changed_locator", "source_graph_hint"] },
+        "required": { "type": "boolean" },
+        "represented": { "type": "boolean" },
+        "contentHash": { "$ref": "#/$defs/maybeHash" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 700 },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reasonCode" }
+        }
+      }
+    },
+    "sourceSelection": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["candidateUnitCount", "selectedUnitCount", "selectedUnitRatio", "estimatedReductionRatio"],
+      "properties": {
+        "candidateUnitCount": { "$ref": "#/$defs/count" },
+        "selectedUnitCount": { "$ref": "#/$defs/count" },
+        "selectedUnitRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "estimatedReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "delivery": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["representation", "deliveredUnitCount", "deliveredByteSize", "deliveredUnitRatio", "observedReductionRatio", "sourceContentIncluded"],
+      "properties": {
+        "representation": { "const": "locator-handoff" },
+        "deliveredUnitCount": { "$ref": "#/$defs/count" },
+        "deliveredByteSize": { "$ref": "#/$defs/count" },
+        "deliveredUnitRatio": { "$ref": "#/$defs/ratio" },
+        "observedReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sourceContentIncluded": { "const": false }
+      }
+    },
+    "receiverRead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "role", "contentHash", "readHint", "reasonCodes"],
+      "properties": {
+        "locator": { "$ref": "#/$defs/locator" },
+        "role": { "enum": ["selected_context", "explicit_user_selected", "changed_locator", "source_graph_hint"] },
+        "contentHash": { "$ref": "#/$defs/maybeHash" },
+        "readHint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 700,
+          "pattern": "^(?!.*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|https?://|file:|authorization|cookie|secret=|api[_-]?key=)).*$"
+        },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reasonCode" }
+        }
+      }
+    },
+    "receiverFingerprints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registry", "currentPointer", "contextPack", "usePlan"],
+      "properties": {
+        "registry": { "$ref": "#/$defs/maybeHash" },
+        "currentPointer": { "$ref": "#/$defs/maybeHash" },
+        "contextPack": { "$ref": "#/$defs/maybeHash" },
+        "usePlan": { "$ref": "#/$defs/maybeHash" }
+      }
+    },
+    "receiverProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registryFingerprintVerified",
+        "currentPointerVerified",
+        "currentEntryVerified",
+        "targetMatches",
+        "usePlanLoaded",
+        "usePlanResourceRead",
+        "registryResourceRead",
+        "toolsExposed",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "sourceContentIncluded",
+        "markdownBodyIncluded",
+        "rawSourceBodiesIncluded"
+      ],
+      "properties": {
+        "registryFingerprintVerified": { "type": "boolean" },
+        "currentPointerVerified": { "type": "boolean" },
+        "currentEntryVerified": { "type": "boolean" },
+        "targetMatches": { "type": "boolean" },
+        "usePlanLoaded": { "type": "boolean" },
+        "usePlanResourceRead": { "type": "boolean" },
+        "registryResourceRead": { "type": "boolean" },
+        "toolsExposed": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "sourceContentIncluded": { "const": false },
+        "markdownBodyIncluded": { "const": false },
+        "rawSourceBodiesIncluded": { "const": false }
+      }
+    },
+    "receiverReadPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredReadCount", "includedReadCount", "omittedReadCount", "coverage", "sourceSelection", "delivery", "requiredReads"],
+      "properties": {
+        "requiredReadCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "includedReadCount": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "omittedReadCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "coverage": { "$ref": "#/$defs/usePlanCoverage" },
+        "sourceSelection": { "$ref": "#/$defs/sourceSelection" },
+        "delivery": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["deliveredUnitCount", "observedReductionRatio", "sourceContentIncluded"],
+          "properties": {
+            "deliveredUnitCount": { "$ref": "#/$defs/count" },
+            "observedReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "sourceContentIncluded": { "const": false }
+          }
+        },
+        "requiredReads": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/receiverRead" } }
+      }
+    },
+    "receiverNextAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "command", "reasonCode", "required"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Z][A-Za-z0-9 -]{0,79}$" },
+        "command": { "$ref": "#/$defs/command" },
+        "reasonCode": { "$ref": "#/$defs/reasonCode" },
+        "required": { "type": "boolean" }
+      }
+    },
+    "receiverPacket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packetVersion",
+        "state",
+        "targetHarness",
+        "summary",
+        "reviewNeeded",
+        "fingerprints",
+        "proof",
+        "readPlan",
+        "nextActions",
+        "warnings"
+      ],
+      "properties": {
+        "packetVersion": { "const": "oaf-context-receiver-packet-1.0.0" },
+        "state": { "enum": ["ready", "review", "blocked"] },
+        "targetHarness": { "$ref": "#/$defs/harness" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600,
+          "pattern": "^(?!.*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|https?://|file:|authorization|cookie|secret=|api[_-]?key=)).*$"
+        },
+        "reviewNeeded": { "type": "boolean" },
+        "fingerprints": { "$ref": "#/$defs/receiverFingerprints" },
+        "proof": { "$ref": "#/$defs/receiverProof" },
+        "readPlan": { "$ref": "#/$defs/receiverReadPlan" },
+        "nextActions": { "type": "array", "minItems": 1, "maxItems": 5, "items": { "$ref": "#/$defs/receiverNextAction" } },
+        "warnings": { "$ref": "#/$defs/reasonCodes" }
+      }
+    },
+    "usePlanSafeguards": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "canonicalStateMutated",
+        "localFilesWritten",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "networkCalls",
+        "modelCalls",
+        "activeMemoryCreated",
+        "sourceSnapshotsWritten",
+        "objectiveTextIncluded",
+        "stepTextIncluded",
+        "launchInstructionsIncluded",
+        "markdownContentIncluded",
+        "sourceContentIncluded",
+        "privateContentIncluded",
+        "absoluteFilesystemLocationsIncluded",
+        "remoteEndpointDetailsIncluded"
+      ],
+      "properties": {
+        "readOnly": { "const": true },
+        "canonicalStateMutated": { "const": false },
+        "localFilesWritten": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "sourceSnapshotsWritten": { "const": 0 },
+        "objectiveTextIncluded": { "const": false },
+        "stepTextIncluded": { "const": false },
+        "launchInstructionsIncluded": { "const": false },
+        "markdownContentIncluded": { "const": false },
+        "sourceContentIncluded": { "const": false },
+        "privateContentIncluded": { "const": false },
+        "absoluteFilesystemLocationsIncluded": { "const": false },
+        "remoteEndpointDetailsIncluded": { "const": false }
+      }
+    },
+    "usePlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exists",
+        "resourceUri",
+        "id",
+        "targetHarness",
+        "contextPackFingerprint",
+        "usePlanFingerprint",
+        "requiredReadCount",
+        "requiredLocalReads",
+        "truncatedRequiredReadCount",
+        "coverage",
+        "sourceSelection",
+        "delivery",
+        "safeguards"
+      ],
+      "properties": {
+        "exists": { "type": "boolean" },
+        "resourceUri": { "type": ["string", "null"], "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/use-plan/current$" },
+        "id": { "$ref": "#/$defs/maybeUsePlanId" },
+        "targetHarness": { "type": ["string", "null"], "enum": ["codex", "claude-code", "cursor", "generic", null] },
+        "contextPackFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "usePlanFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "requiredReadCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "requiredLocalReads": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/localRead" } },
+        "truncatedRequiredReadCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "coverage": { "$ref": "#/$defs/usePlanCoverage" },
+        "sourceSelection": { "$ref": "#/$defs/sourceSelection" },
+        "delivery": { "$ref": "#/$defs/delivery" },
+        "safeguards": { "$ref": "#/$defs/usePlanSafeguards" }
+      }
+    },
+    "mcpUri": {
+      "type": "string",
+      "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/(status|context/latest|runs/latest|memory/proposals|handoff/latest|context-pack/use-plan/current|context-pack/registry/current)$"
+    },
+    "mcp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "resourcesListed",
+        "resourceUris",
+        "toolsExposed",
+        "usePlanResourceRead",
+        "registryResourceRead",
+        "usePlanResourceFingerprint",
+        "registryResourceFingerprint"
+      ],
+      "properties": {
+        "mode": { "const": "read-only" },
+        "resourcesListed": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "resourceUris": { "type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": { "$ref": "#/$defs/mcpUri" } },
+        "toolsExposed": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "usePlanResourceRead": { "type": "boolean" },
+        "registryResourceRead": { "type": "boolean" },
+        "usePlanResourceFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "registryResourceFingerprint": { "$ref": "#/$defs/maybeHash" }
+      }
+    },
+    "desiredServer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "transport", "command", "args", "environmentKeys", "resourceMode", "externalWrites"],
+      "properties": {
+        "name": { "const": "oaf" },
+        "transport": { "const": "stdio" },
+        "command": { "const": "npm" },
+        "args": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": { "enum": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"] }
+        },
+        "environmentKeys": { "type": "array", "maxItems": 0 },
+        "resourceMode": { "const": "read-only" },
+        "externalWrites": { "const": false }
+      }
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dryRun", "client", "configRef", "serverStatus", "desiredServer", "manualConfigSnippet"],
+      "properties": {
+        "dryRun": { "const": true },
+        "client": { "$ref": "#/$defs/setupClient" },
+        "configRef": { "type": "string", "pattern": "^home://[A-Za-z0-9._/-]{1,160}$" },
+        "serverStatus": { "enum": ["absent", "installed", "drifted"] },
+        "desiredServer": { "$ref": "#/$defs/desiredServer" },
+        "manualConfigSnippet": { "$ref": "#/$defs/manualConfigSnippet" }
+      }
+    },
+    "manualConfigSnippet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "configRef", "applyMode", "content", "warning"],
+      "properties": {
+        "format": { "enum": ["json", "jsonc", "toml", "yaml"] },
+        "configRef": { "type": "string", "pattern": "^home://[A-Za-z0-9._/-]{1,160}$" },
+        "applyMode": { "const": "manual-copy" },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000,
+          "pattern": "^(?![\\s\\S]*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\\s\\S]*$"
+        },
+        "warning": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["createPinnedContextPack", "checkRegistry", "readUsePlan", "readRegistry", "previewSetup", "startReadOnlyBridge"],
+      "properties": {
+        "createPinnedContextPack": { "$ref": "#/$defs/command" },
+        "checkRegistry": { "$ref": "#/$defs/command" },
+        "readUsePlan": { "$ref": "#/$defs/command" },
+        "readRegistry": { "$ref": "#/$defs/command" },
+        "previewSetup": { "$ref": "#/$defs/command" },
+        "startReadOnlyBridge": { "$ref": "#/$defs/command" }
+      }
+    },
+    "command": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": "^(?!.*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|https?://|file:)).*$"
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registryFingerprintVerified",
+        "currentPointerVerified",
+        "currentEntryVerified",
+        "currentEntryMatchesTarget",
+        "usePlanLoaded",
+        "usePlanFingerprintMatchesRegistry",
+        "contextPackFingerprintMatchesRegistry",
+        "noToolsExposed",
+        "usePlanResourceRead",
+        "registryResourceRead",
+        "setupDryRun",
+        "setupUsesSilentNpm"
+      ],
+      "properties": {
+        "registryFingerprintVerified": { "type": "boolean" },
+        "currentPointerVerified": { "type": "boolean" },
+        "currentEntryVerified": { "type": "boolean" },
+        "currentEntryMatchesTarget": { "type": "boolean" },
+        "usePlanLoaded": { "type": "boolean" },
+        "usePlanFingerprintMatchesRegistry": { "type": "boolean" },
+        "contextPackFingerprintMatchesRegistry": { "type": "boolean" },
+        "noToolsExposed": { "type": "boolean" },
+        "usePlanResourceRead": { "type": "boolean" },
+        "registryResourceRead": { "type": "boolean" },
+        "setupDryRun": { "type": "boolean" },
+        "setupUsesSilentNpm": { "type": "boolean" }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "canonicalStateMutated",
+        "localFilesWritten",
+        "homeConfigMutated",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "networkCalls",
+        "modelCalls",
+        "activeMemoryCreated",
+        "sourceSnapshotsWritten",
+        "rawSourceBodiesIncluded",
+        "markdownBodyIncluded",
+        "sourceContentIncluded",
+        "objectiveTextIncluded",
+        "stepTextIncluded",
+        "launchInstructionsIncluded",
+        "credentialsIncluded",
+        "providerUrlsIncluded",
+        "absoluteFilesystemLocationsIncluded",
+        "hiddenReasoningIncluded"
+      ],
+      "properties": {
+        "readOnly": { "const": true },
+        "canonicalStateMutated": { "const": false },
+        "localFilesWritten": { "const": 0 },
+        "homeConfigMutated": { "const": false },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "sourceSnapshotsWritten": { "const": 0 },
+        "rawSourceBodiesIncluded": { "const": false },
+        "markdownBodyIncluded": { "const": false },
+        "sourceContentIncluded": { "const": false },
+        "objectiveTextIncluded": { "const": false },
+        "stepTextIncluded": { "const": false },
+        "launchInstructionsIncluded": { "const": false },
+        "credentialsIncluded": { "const": false },
+        "providerUrlsIncluded": { "const": false },
+        "absoluteFilesystemLocationsIncluded": { "const": false },
+        "hiddenReasoningIncluded": { "const": false }
+      }
+    }
+  }
+}

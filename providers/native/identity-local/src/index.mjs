@@ -446,6 +446,15 @@ export class LocalIdentityStore {
     return this.#update(async (state) => {
       const user = state.users.find((item) => item.id === actorUserId && item.status === 'active');
       if (!user) throw identityError('user_not_found', 'user not found');
+      const requestedWorkspaceIds = [...new Set(workspaceIds)];
+      const ownerWorkspaceIds = new Set(state.memberships
+        .filter((item) => item.userId === actorUserId && item.status === 'active' && item.role === 'owner')
+        .map((item) => item.workspaceId));
+      for (const workspaceId of requestedWorkspaceIds) {
+        if (!ownerWorkspaceIds.has(workspaceId)) {
+          throw identityError('owner_membership_required', 'owner membership required for workspace API token', { workspaceId });
+        }
+      }
       const id = newId('tok');
       const token = apiTokenValue(id);
       const apiToken = {
@@ -454,7 +463,7 @@ export class LocalIdentityStore {
         name,
         tokenHash: sha256(token),
         tokenPrefix: token.slice(0, 24),
-        workspaceIds: [...new Set(workspaceIds)],
+        workspaceIds: requestedWorkspaceIds,
         scopes: [...new Set(scopes)],
         createdAt: this.clock(),
         expiresAt,

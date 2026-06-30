@@ -12,6 +12,7 @@ checks.push({ name: 'Deterministic model default', passed: (process.env.OAF_MODE
 for (const file of ['AGENTS.md', 'PROJECT_STATUS.json', 'PRODUCT.md', 'DESIGN.md', 'docs/implementation/BUILD_ORDER.md', 'planning/backlog.json', 'providers/native/catalog.json']) {
   checks.push({ name: `Required ${file}`, passed: await access(file).then(() => true).catch(() => false) });
 }
+checks.push({ name: 'Reviewed tool catalog', passed: await access('tools/catalog.json').then(() => true).catch(() => false) });
 const state = await readFile('.local/state.json', 'utf8').then(JSON.parse).catch(() => null);
 checks.push({ name: 'Bootstrap state readable', passed: Boolean(state), value: state ? `${state.runs?.length ?? 0} runs` : 'run npm run bootstrap' });
 try {
@@ -20,8 +21,10 @@ try {
   database.exec('CREATE VIRTUAL TABLE smoke_fts USING fts5(text);');
   database.close();
   checks.push({ name: 'Native SQLite with FTS5', passed: true, value: 'available' });
+  checks.push({ name: 'Native durable workflow SQLite', passed: true, value: 'available locally; disabled unless selected' });
 } catch (error) {
   checks.push({ name: 'Native SQLite with FTS5', passed: false, value: error.message });
+  checks.push({ name: 'Native durable workflow SQLite', passed: false, value: error.message });
 }
 console.log(`Environment: ${os.platform()} ${os.release()} ${os.arch()}`);
 for (const check of checks) console.log(`${check.passed ? 'PASS' : 'FAIL'} ${check.name}${check.value ? ` — ${check.value}` : ''}`);

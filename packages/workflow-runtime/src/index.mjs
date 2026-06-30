@@ -1,4 +1,5 @@
 import { createEvent } from '../../protocol/src/index.mjs';
+import { createTelemetry, createTraceContext, workflowSpanAttributes } from '../../observability/src/index.mjs';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -13,35 +14,44 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw cancelledError(signal.reason);
 }
 
-async function withTimeout(promise, ms, signal) {
+async function withTimeout(run, ms, signal) {
   let timer;
   let abortListener;
+  const controller = new AbortController();
   const timeout = new Promise((_, reject) => {
     timer = setTimeout(() => {
       const error = new Error(`step timed out after ${ms}ms`);
       error.code = 'step_timeout';
       error.retryable = true;
+      controller.abort(error);
       reject(error);
     }, ms);
   });
   const cancellation = signal
     ? new Promise((_, reject) => {
-        abortListener = () => reject(cancelledError(signal.reason));
+        abortListener = () => {
+          const error = cancelledError(signal.reason);
+          controller.abort(error);
+          reject(error);
+        };
         signal.addEventListener('abort', abortListener, { once: true });
       })
     : new Promise(() => {});
   try {
     throwIfAborted(signal);
-    return await Promise.race([promise, timeout, cancellation]);
+    return await Promise.race([Promise.resolve(run(controller.signal)), timeout, cancellation]);
   } finally {
     clearTimeout(timer);
     if (abortListener) signal.removeEventListener('abort', abortListener);
   }
 }
 
-export async function executeSteps({ runId, workspaceId = 'ws_local', steps, emit = async () => {}, signal = null }) {
+export async function executeSteps({ runId, workspaceId = 'ws_local', steps, emit = async () => {}, signal = null, telemetry = createTelemetry(), traceContext = null, correlationId = null, workflowId = 'workflow:embedded', workflowVersion = '0.1.0' }) {
   if (!runId) throw new Error('runId is required');
   if (!Array.isArray(steps) || !steps.length) throw new Error('steps must be a non-empty array');
+  const effectiveTelemetry = telemetry ?? createTelemetry();
+  const runTraceContext = traceContext ?? createTraceContext({ correlationId, runId, workspaceId });
+  const runSpan = effectiveTelemetry.startSpan('oaf.workflow.run', workflowSpanAttributes({ runId, workflowId, workflowVersion, workspaceId, correlationId }), runTraceContext);
   const outputs = {};
   const events = [];
   let sequence = 0;
@@ -62,18 +72,21 @@ export async function executeSteps({ runId, workspaceId = 'ws_local', steps, emi
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         throwIfAborted(signal);
         await append('step.started', { stepId: step.id, kind: step.kind, attempt }, step.actorId ?? 'system');
+        const stepSpan = effectiveTelemetry.startSpan('oaf.workflow.step', workflowSpanAttributes({ runId, workflowId, workflowVersion, stepId: step.id, attempt, kind: step.kind, workspaceId, correlationId }), runSpan.traceContext);
         try {
           const output = await withTimeout(
-            Promise.resolve(step.run({ outputs, attempt, emitEvent: append, signal })),
+            (stepSignal) => step.run({ outputs, attempt, emitEvent: append, signal: stepSignal, telemetry: effectiveTelemetry, traceContext: stepSpan.traceContext }),
             step.timeoutMs ?? 30000,
             signal
           );
           outputs[step.id] = output;
           await append('step.completed', { stepId: step.id, attempt, summary: step.summarize?.(output) ?? null }, step.actorId ?? 'system');
+          stepSpan.end('ok', workflowSpanAttributes({ runId, workflowId, workflowVersion, stepId: step.id, attempt, kind: step.kind, status: 'completed', workspaceId, correlationId }));
           lastError = null;
           break;
         } catch (error) {
           lastError = error;
+          stepSpan.end(error.code === 'run_cancelled' ? 'ok' : 'error', workflowSpanAttributes({ runId, workflowId, workflowVersion, stepId: step.id, attempt, kind: step.kind, status: error.code === 'run_cancelled' ? 'cancelled' : 'failed', workspaceId, correlationId }));
           if (error.code === 'run_cancelled') {
             await append('step.cancelled', { stepId: step.id, attempt, message: error.message }, step.actorId ?? 'system');
             throw error;
@@ -86,13 +99,16 @@ export async function executeSteps({ runId, workspaceId = 'ws_local', steps, emi
       if (lastError) throw lastError;
     }
     await append('run.completed', { outputSteps: Object.keys(outputs) });
-    return { status: 'completed', outputs, events };
+    runSpan.end('ok', workflowSpanAttributes({ runId, workflowId, workflowVersion, status: 'completed', workspaceId, correlationId }));
+    return { status: 'completed', outputs, events, traceContext: runSpan.traceContext };
   } catch (error) {
     if (error.code === 'run_cancelled') {
       await append('run.cancelled', { code: error.code, message: error.message });
-      return { status: 'cancelled', outputs, events, error: { code: error.code, message: error.message } };
+      runSpan.end('ok', workflowSpanAttributes({ runId, workflowId, workflowVersion, status: 'cancelled', workspaceId, correlationId }));
+      return { status: 'cancelled', outputs, events, error: { code: error.code, message: error.message }, traceContext: runSpan.traceContext };
     }
     await append('run.failed', { code: error.code ?? 'run_failed', message: error.message });
-    return { status: 'failed', outputs, events, error: { code: error.code ?? 'run_failed', message: error.message } };
+    runSpan.end('error', workflowSpanAttributes({ runId, workflowId, workflowVersion, status: 'failed', workspaceId, correlationId }));
+    return { status: 'failed', outputs, events, error: { code: error.code ?? 'run_failed', message: error.message }, traceContext: runSpan.traceContext };
   }
 }

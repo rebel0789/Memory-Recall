@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "adapterId": "adapter:tool:ecc",
+  "reviewedAt": "2026-06-20T16:24:00Z",
+  "upstream": {
+    "repository": "https://github.com/affaan-m/ECC",
+    "commit": "34faa39bd3cd496a0aece0245f2b7e38b7923abc",
+    "archiveSha256": "c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0",
+    "licenseSpdx": "MIT"
+  },
+  "procedures": [
+    {
+      "id": "ecc:procedure:agent-sort-review",
+      "title": "Evidence-backed skill-surface review",
+      "summary": "Review a repository and propose a minimal skill surface instead of installing or loading a full upstream bundle.",
+      "sourcePath": ".agents/skills/agent-sort/SKILL.md",
+      "reviewStatus": "reviewed-minimal-summary",
+      "allowedUse": "proposal-only"
+    }
+  ]
+}

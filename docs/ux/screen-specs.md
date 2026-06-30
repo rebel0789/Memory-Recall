@@ -2,7 +2,11 @@
 
 ## Global shell
 
-Desktop uses persistent navigation and an optional inspector. Mobile uses a compact bottom or drawer navigation. Header exposes workspace, local/network state, global run status, and pending approvals.
+Desktop uses persistent navigation and an optional inspector. Mobile uses compact bottom navigation. Header exposes workspace, local/network state, global run status, and pending approvals.
+
+The implemented shell has stable routes for Home, Runs, Workflows, Context, Memory, Evidence, Approvals, Content Lab, Agents and Tools, and Settings. Legacy `?view=` links remain compatible. Every route must preserve loading, empty, partial, stale, success, denied, and error states without direct storage access or external fallback.
+
+Accessibility requirements: skip link to main content, primary and mobile navigation landmarks, `aria-current` for active route, visible focus, reduced-motion support, text labels for every status, a live region for run actions, 44 px minimum action targets, and an outline equivalent for graph information.
 
 ## Home
 
@@ -12,21 +16,31 @@ Answer: “Is the system healthy, what is happening, and what needs me?” Show 
 
 List: status, workflow, owner, start, duration, current step, warnings. Detail: outcome, artifacts, timeline, manifests, tool calls, approvals, evaluations, sanitized errors.
 
+Implemented detail route: `/runs?run=<runId>` with optional `/runs?run=<runId>&step=<stepId>` focus. The timeline uses sanitized event summaries and step cards rather than raw logs or raw event payload bodies.
+
 ## Context Inspector
 
 Header: objective, step, actor, budget, compiler version, conflict state. Sections: selected, excluded, conflicts, assembly, compare. Record: text preview, kind, tokens, score, reasons, source, time, scope, confidence, version chain.
+
+Implemented decision route: `/context?record=<recordId>&state=<selected|excluded>`. Selected/excluded cards must keep exact reason codes visible and preserve assembly and comparison panels beside conflict status.
 
 ## Memory Explorer
 
 Filter by kind, status, source, scope, time, confidence. Detail includes lifecycle, version diff, supersession, review, retention, provenance, and runs that used it.
 
+Implemented detail route: `/memory` shows diff cards with previous/proposed values, lifecycle, source, confidence, conflict, retention, supersession, reviewer, and linked evidence IDs. Controls are inspection-only until a checked-in task adds mutation endpoints.
+
 ## Evidence Explorer
 
 Show immutable observation separately from inferred pattern. Include source snapshot, collection method, metric time, hash, trust, claims, and conflict/staleness.
 
+Implemented detail route: `/evidence` shows observation and inference as separate sections with source snapshot IDs, collection method, publication/collection/metric times, hashes, trust class, generated claim links, conflicts, and staleness.
+
 ## Approval Inbox
 
 Show actor, exact action, destination, diff or payload, risk, policy reasons, idempotency, expiry, and consequences. Dangerous approval is never default-focused.
+
+Implemented detail route: `/approvals` shows operation hash, actor, destination, exact content or diff, risk, policy version, expiry, idempotency, reason codes, consequence, and disabled review controls. It does not execute approval decisions or external writes.
 
 ## Workflow Builder
 

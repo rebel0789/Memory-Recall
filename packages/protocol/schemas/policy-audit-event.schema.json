@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-audit-event.schema.json",
+  "title": "Policy Audit Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "actorUserId", "workspaceId", "outcome", "correlationId", "metadata"],
+  "properties": {
+    "type": { "const": "policy.decision" },
+    "actorUserId": { "type": ["string", "null"], "maxLength": 128 },
+    "workspaceId": { "type": ["string", "null"], "maxLength": 128 },
+    "outcome": { "enum": ["allow", "deny"] },
+    "correlationId": { "type": ["string", "null"], "maxLength": 100 },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decisionId", "action", "resourceType", "resourceId", "reasonCodes", "policyVersion", "policyFingerprint", "evaluatedAt", "operationId"],
+      "properties": {
+        "decisionId": { "type": "string", "maxLength": 136 },
+        "action": { "type": ["string", "null"], "maxLength": 96 },
+        "resourceType": { "type": ["string", "null"], "maxLength": 64 },
+        "resourceId": { "type": ["string", "null"], "maxLength": 128 },
+        "reasonCodes": { "type": "string", "maxLength": 512 },
+        "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "policyFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "evaluatedAt": { "type": "string", "format": "date-time" },
+        "operationId": { "type": ["string", "null"], "maxLength": 128 }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "provider:native:context-candidate:ast-code",
+  "name": "Native AST Code Context Candidate Source",
+  "version": "0.2.0-dev",
+  "category": "context-candidate",
+  "enabledByDefault": true,
+  "locality": "in-process",
+  "contract": "CandidateSourcePort",
+  "contractVersion": "1.0.0",
+  "capabilities": [
+    "context.candidate.ast-code",
+    "source.index.js-ts",
+    "source.query.symbols"
+  ],
+  "limits": {
+    "languages": ["javascript", "typescript"],
+    "writes": false,
+    "network": false,
+    "embeddings": false,
+    "executesCode": false
+  },
+  "dataPaths": [],
+  "experimental": false,
+  "notes": [
+    "Uses dependency-free static declaration, import/export, reference, and call parsing for JavaScript and TypeScript.",
+    "Returns derived summaries, safe workspace locators, line/byte ranges, content hashes, symbol index relationships, and entity metadata; it does not return raw source bodies.",
+    "Supports read-only definition, reference, import, export, file-outline, repository-outline, caller, and callee queries over the local derived index.",
+    "Skips symlinks and files outside the configured workspace root."
+  ]
+}

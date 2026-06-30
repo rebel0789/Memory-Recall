@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "1.0.0",
+  "id": "memprofile_badbadbadbadbad1",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "dryRun": true,
+  "target": {
+    "locator": "workspace://memory/profile.md",
+    "format": "markdown"
+  },
+  "summary": {
+    "acceptedCount": 0,
+    "skippedCount": 0,
+    "recordIds": [],
+    "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "markdown": "# OAF Memory Profile\n",
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": true,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false,
+    "localFilesWritten": 0
+  }
+}

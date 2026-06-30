@@ -1,12 +1,25 @@
 # Maintainers
 
-This kit intentionally contains no fabricated maintainer identity.
+Open Agent Fabric is currently maintainer-led by the repository owner:
 
-Before public launch, replace the following placeholders:
+- GitHub owner: `@rebel0789`
+- Repository: <https://github.com/rebel0789/open-agent-fabric>
 
-- `OWNER` in `CITATION.cff`, `.github/ISSUE_TEMPLATE/config.yml`, and `CODEOWNERS`;
-- private security advisory contacts;
-- release signing identities;
-- governance voting members.
+## Security and Conduct
 
-Do not publish placeholder email addresses as support channels.
+Use private GitHub Security Advisories for suspected vulnerabilities:
+<https://github.com/rebel0789/open-agent-fabric/security/advisories/new>
+
+Use GitHub Discussions and Issues for community support and conduct escalation.
+Do not publish private security or conduct reports in public issues.
+
+## Release Ownership
+
+Product release publication, signing identity selection, and final merge approval
+remain explicit maintainer actions. No private signing key or release credential is
+stored in this repository.
+
+## Governance Path
+
+Maintainer-led governance remains in force until public decision records nominate
+reviewers or additional maintainers under `GOVERNANCE.md`.

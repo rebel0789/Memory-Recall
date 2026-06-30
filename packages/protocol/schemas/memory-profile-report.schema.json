@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/memory-profile-report-1.0.json",
+  "title": "Memory Profile Report",
+  "description": "Generated workspace-local profile derived from accepted OAF memory records only. The generated markdown is not canonical memory authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reportVersion", "id", "workspaceId", "generatedAt", "dryRun", "target", "summary", "markdown", "safeguards"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "reportVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^memprofile_[a-f0-9]{16}$" },
+    "workspaceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "dryRun": { "type": "boolean" },
+    "target": { "$ref": "#/$defs/target" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acceptedCount", "skippedCount", "recordIds", "contentHash"],
+      "properties": {
+        "acceptedCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+        "skippedCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "recordIds": { "$ref": "#/$defs/memoryIds" },
+        "contentHash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "markdown": { "$ref": "#/$defs/safeGeneratedText" },
+    "safeguards": { "$ref": "#/$defs/safeguards" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "safeGeneratedText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 65536,
+      "pattern": "^(?![\\s\\S]*(?:/Users/|file:///|workspace:///|BEGIN RSA PRIVATE KEY|BEGIN OPENSSH PRIVATE KEY|sk-[A-Za-z0-9_-]{20,}|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[\\s\\S]*$"
+    },
+    "memoryIds": {
+      "type": "array",
+      "maxItems": 1000,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^mem_" }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "format"],
+      "properties": {
+        "locator": { "type": "string", "pattern": "^workspace://memory/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,256}\\.md$" },
+        "format": { "const": "markdown" }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["networkCalls", "modelCalls", "sourceSnapshotsWritten", "activeMemoryCreated", "canonicalStateMutated", "externalWritesEnabled", "externalAdaptersEnabled", "rawBodyIncluded", "localFilesWritten"],
+      "properties": {
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "sourceSnapshotsWritten": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "canonicalStateMutated": { "const": false },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "rawBodyIncluded": { "const": false },
+        "localFilesWritten": { "type": "integer", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

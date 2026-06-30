@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "1.0.0",
+  "resourceKind": "context-pack-summary",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "provenance": {
+    "producer": "open-agent-fabric.protocol-bridges",
+    "producerVersion": "0.1.0",
+    "source": "local-context-pack",
+    "sourceFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "privateContentIncluded": false,
+    "instructionTextIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "remoteEndpointDetailsIncluded": false
+  },
+  "data": {
+    "id": "ctxpack_example",
+    "targetHarness": "codex",
+    "sourceHarnesses": ["codex"],
+    "requestedInputs": {
+      "userSelectedLocators": ["user-selected://notes/handoff.md"],
+      "changedLocators": ["workspace://src/auth.ts"],
+      "userSelectedCount": 1,
+      "changedLocatorCount": 1
+    },
+    "objectiveFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "objectiveLength": 42,
+    "stepFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "stepLength": 18,
+    "contextPackFingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "delivery": {
+      "representation": "locator-handoff",
+      "sourceCandidateTokenCount": 200,
+      "sourceSelectedTokenCount": 80,
+      "sourceSelectedTokenRatio": 0.4,
+      "deliveredTokenCount": 48,
+      "deliveredByteSize": 192,
+      "deliveredTokenRatio": 0.24,
+      "observedTokenReductionRatio": 0.76,
+      "sourceContentTokenCountIncluded": 0,
+      "sourceContentsIncluded": false
+    },
+    "readFirst": [
+      {
+        "id": "ctx_agents",
+        "locator": "workspace://AGENTS.md",
+        "tokens": 30,
+        "reasonCodes": ["required_context"]
+      }
+    ],
+    "sourceGraph": {
+      "impact": {
+        "changedLocators": ["workspace://src/auth.ts"],
+        "affectedSymbolCount": 1
+      }
+    },
+    "utility": {
+      "status": "ready",
+      "requiredLocalReadCount": 3,
+      "changedLocatorCoverage": {
+        "total": 1,
+        "covered": 1,
+        "ratio": 1,
+        "status": "covered"
+      },
+      "sourceSelection": {
+        "selectedUnitRatio": 0.4,
+        "estimatedReductionRatio": 0.6
+      }
+    },
+    "markdownArtifact": {
+      "included": false,
+      "contentHash": "sha256:abababababababababababababababababababababababababababababababab",
+      "byteSize": 512
+    }
+  },
+  "resourceFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

@@ -14,6 +14,31 @@ The repositories accept an injected PostgreSQL-compatible client with `query(tex
 
 The file-backed state store and native SQLite/artifact providers remain the local conformance baselines. OAF-008 adds native local identity as a separate provider and adds PostgreSQL identity tables for deployments that use the migration runner.
 
+OAF-014 adds a separate native SQLite durable workflow provider. Its internal
+schema is provider-owned and lives under `.local/workflows.sqlite` by default.
+It is not a PostgreSQL migration and does not modify `001_init.sql` or
+`002_identity.sql`. The provider stores workflow definitions, runs, step state,
+attempts, timers, approval waits, worker leases, idempotency records, and
+canonical history needed for local process recovery.
+
+OAF-012 adds immutable context manifest persistence without changing
+migrations. `PostgresContextManifestRepository.append(...)` uses the existing
+`context_manifests` table and requires workspace ID on append, get, and
+list-by-run operations. The same manifest ID plus same fingerprint is
+idempotent; the same ID plus a different fingerprint fails closed as
+`manifest_identity_conflict`.
+
+The native local manifest provider stores JSON files under:
+
+```text
+.local/context-manifests/workspaces/<workspace-id>/manifests/<manifest-id>.json
+```
+
+It uses private directories, atomic temporary-file plus rename writes,
+workspace-scoped reads, bounded list limits, deterministic ordering, and
+verification that detects tampering without repair. Temporary incomplete files
+are ignored by list operations.
+
 ## Migration subsystem
 
 `packages/storage/src/postgres-migrations.mjs` provides explicit PostgreSQL migration discovery, planning, status, and application functions for the `deploy/postgres/migrations` directory. Application startup does not run migrations automatically.
@@ -88,6 +113,8 @@ PostgreSQL migration `002_identity.sql` adds `identity_users`, `identity_workspa
 
 Backups must record the application version and every row in `oaf_schema_migrations` with checksums. Restore rehearsals should verify migration checksums before application startup, validate workspace counts and event sequence integrity, verify artifact hashes, and run read-only representative queries with external writes disabled.
 
+OAF-029 implements the local reference path in `packages/operations`: it writes a backup manifest with component SHA-256 hashes, migration status, artifact export fingerprint, application version, and an external-writes-disabled assertion. `restoreOperationsBackup` verifies the manifest before writing state, imports provider-owned artifact exports into a fresh artifact root, and leaves PostgreSQL physical dump/restore to deployment tooling.
+
 ## Derived indexes
 
 - full-text indexes support lexical candidate generation;
@@ -123,6 +150,8 @@ Retention is explicit. The supported modes are `workspace-default`, `retain`, `e
 Deletion is explicit, workspace-scoped, idempotent, and auditable through tombstones. Object bytes are physically removed only when no active logical record in the workspace references the content hash.
 
 Integrity verification checks record shape, workspace scope, hash algorithm, record/object hash agreement, raw body SHA-256, byte size, unexpected bodies, missing bodies, malformed metadata, and tombstone consistency. It reports findings and does not auto-repair.
+
+Artifact import accepts only exports created by the filesystem artifact provider. It rejects symlinked export paths, escaping relative paths, provider/workspace mismatches, missing objects, hash mismatches, and conflicting destination records, then runs integrity verification after import.
 
 ### Artifact protocol schemas
 

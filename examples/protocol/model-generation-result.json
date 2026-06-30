@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "gatewayVersion": "1.0.0",
+  "requestId": "modelreq_oaf013_demo",
+  "correlationId": "req_oaf013_demo",
+  "provider": "provider:native:model:deterministic",
+  "model": "deterministic-v1",
+  "contextManifest": {
+    "id": "ctx_oaf013_demo",
+    "manifestFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "assemblyFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "compilerVersion": "0.2.0",
+    "assemblyPolicyVersion": "1.0.0",
+    "assemblyPolicyFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "selectedCount": 4,
+    "excludedCount": 8
+  },
+  "outputFingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "validation": {
+    "valid": true,
+    "errorCode": null
+  },
+  "repair": {
+    "attempts": 0
+  },
+  "usage": {
+    "inputTokens": 107,
+    "outputTokens": 240,
+    "durationMs": 0
+  },
+  "occurredAt": "2026-06-20T00:00:01.000Z"
+}

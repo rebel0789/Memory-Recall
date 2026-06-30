@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/ast-code-chunk.schema.json",
+  "title": "AST Code Chunk",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "workspaceId", "language", "locator", "parserVersion", "parseErrorState", "byteRange", "lineRange", "scopeChain", "entities", "imports", "contentHash", "collectedAt", "chunkFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^astchunk_[a-f0-9]{32}$" },
+    "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
+    "language": { "enum": ["javascript", "typescript"] },
+    "locator": { "type": "string", "pattern": "^workspace://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+#L[0-9]+-L[0-9]+$" },
+    "parserVersion": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "parseErrorState": { "enum": ["none", "unbalanced_braces"] },
+    "byteRange": { "$ref": "#/$defs/range" },
+    "lineRange": { "$ref": "#/$defs/range" },
+    "scopeChain": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 128 }, "maxItems": 16 },
+    "entities": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/entity" } },
+    "imports": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/import" } },
+    "exports": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/export" } },
+    "signatureHash": { "$ref": "#/$defs/fingerprint" },
+    "siblingLocators": { "type": "array", "maxItems": 8, "items": { "type": "string", "pattern": "^workspace://(?!/)(?!.*(?:^|/)\\.\\.)(?!.*(?:^|/)Users/)(?!.*(?:^|/)private/)(?!.*(?:^|/)var/folders/)[^\\s]+#L[0-9]+-L[0-9]+$" } },
+    "sourceSnapshotId": { "type": "string", "pattern": "^srcsnap_[a-f0-9]{16}$" },
+    "exactSourceReconstructionHash": { "$ref": "#/$defs/fingerprint" },
+    "calls": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/call" } },
+    "references": { "type": "array", "maxItems": 256, "items": { "$ref": "#/$defs/reference" } },
+    "contentHash": { "$ref": "#/$defs/fingerprint" },
+    "collectedAt": { "type": "string", "format": "date-time" },
+    "chunkFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": { "enum": ["class", "function", "method", "interface", "type"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "import": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "importHash"],
+      "properties": {
+        "module": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])Users[\\\\/])(?!.*(?:^|[\\\\/])private[\\\\/])(?!.*(?:^|[\\\\/])var[\\\\/]folders[\\\\/]).+$" },
+        "importHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "exportHash"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "kind": { "enum": ["class", "function", "method", "interface", "type", "export"] },
+        "exportHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "callHash"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "callHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "referenceHash"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "referenceHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    }
+  }
+}

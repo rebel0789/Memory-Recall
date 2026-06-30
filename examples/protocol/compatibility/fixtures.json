@@ -32,6 +32,42 @@
       "expectedValid": true
     },
     {
+      "id": "memory-profile-report-current-valid",
+      "schema": "packages/protocol/schemas/memory-profile-report.schema.json",
+      "instance": "examples/protocol/memory-profile-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-proposals-report-current-valid",
+      "schema": "packages/protocol/schemas/memory-proposals-report.schema.json",
+      "instance": "examples/protocol/memory-proposals-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-sgrep-report-current-valid",
+      "schema": "packages/protocol/schemas/memory-sgrep-report.schema.json",
+      "instance": "examples/protocol/memory-sgrep-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-workspace-config-current-valid",
+      "schema": "packages/protocol/schemas/memory-workspace-config.schema.json",
+      "instance": "examples/protocol/memory-workspace-config.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-proposal-queue-record-current-valid",
+      "schema": "packages/protocol/schemas/memory-proposal-queue-record.schema.json",
+      "instance": "examples/protocol/memory-proposal-queue-record.json",
+      "expectedValid": true
+    },
+    {
+      "id": "memory-temporal-fact-current-valid",
+      "schema": "packages/protocol/schemas/memory-temporal-fact.schema.json",
+      "instance": "examples/protocol/memory-temporal-fact.json",
+      "expectedValid": true
+    },
+    {
       "id": "artifact-record-current-valid",
       "schema": "packages/protocol/schemas/artifact-record.schema.json",
       "instance": "examples/protocol/artifact-record.json",
@@ -41,6 +77,36 @@
       "id": "source-snapshot-current-valid",
       "schema": "packages/protocol/schemas/source-snapshot.schema.json",
       "instance": "examples/protocol/source-snapshot.json",
+      "expectedValid": true
+    },
+    {
+      "id": "content-observation-current-valid",
+      "schema": "packages/protocol/schemas/content-observation.schema.json",
+      "instance": "examples/protocol/content-observation.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evidence-graph-current-valid",
+      "schema": "packages/protocol/schemas/evidence-graph.schema.json",
+      "instance": "examples/protocol/evidence-graph.json",
+      "expectedValid": true
+    },
+    {
+      "id": "research-ingestion-result-current-valid",
+      "schema": "packages/protocol/schemas/research-ingestion-result.schema.json",
+      "instance": "examples/protocol/research-ingestion-result.json",
+      "expectedValid": true
+    },
+    {
+      "id": "content-pattern-analysis-current-valid",
+      "schema": "packages/protocol/schemas/content-pattern-analysis.schema.json",
+      "instance": "examples/protocol/content-pattern-analysis.json",
+      "expectedValid": true
+    },
+    {
+      "id": "content-local-draft-outcome-current-valid",
+      "schema": "packages/protocol/schemas/content-local-draft-outcome.schema.json",
+      "instance": "examples/protocol/content-local-draft-outcome.json",
       "expectedValid": true
     },
     {
@@ -140,6 +206,348 @@
       "expectedValid": true
     },
     {
+      "id": "policy-principal-current-valid",
+      "schema": "packages/protocol/schemas/policy-principal.schema.json",
+      "instance": "examples/protocol/policy-principal.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-resource-current-valid",
+      "schema": "packages/protocol/schemas/policy-resource.schema.json",
+      "instance": "examples/protocol/policy-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-environment-current-valid",
+      "schema": "packages/protocol/schemas/policy-environment-context.schema.json",
+      "instance": "examples/protocol/policy-environment-context.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-capability-request-current-valid",
+      "schema": "packages/protocol/schemas/policy-capability-request.schema.json",
+      "instance": "examples/protocol/policy-capability-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-effective-capability-current-valid",
+      "schema": "packages/protocol/schemas/policy-effective-capability.schema.json",
+      "instance": "examples/protocol/policy-effective-capability.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-approval-context-current-valid",
+      "schema": "packages/protocol/schemas/policy-approval-context.schema.json",
+      "instance": "examples/protocol/policy-approval-context.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-evaluation-request-current-valid",
+      "schema": "packages/protocol/schemas/policy-evaluation-request.schema.json",
+      "instance": "examples/protocol/policy-evaluation-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-decision-current-valid",
+      "schema": "packages/protocol/schemas/policy-decision.schema.json",
+      "instance": "examples/protocol/policy-decision.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-audit-event-current-valid",
+      "schema": "packages/protocol/schemas/policy-audit-event.schema.json",
+      "instance": "examples/protocol/policy-audit-event.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-registry-descriptor-current-valid",
+      "schema": "packages/protocol/schemas/policy-registry-descriptor.schema.json",
+      "instance": "examples/protocol/policy-registry-descriptor.json",
+      "expectedValid": true
+    },
+    {
+      "id": "policy-reason-code-current-valid",
+      "schema": "packages/protocol/schemas/policy-reason-code.schema.json",
+      "instance": "examples/protocol/policy-reason-code.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-kind-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-kind.schema.json",
+      "instance": "examples/protocol/candidate-source-kind.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-failure-code-current-valid",
+      "schema": "packages/protocol/schemas/candidate-failure-code.schema.json",
+      "instance": "examples/protocol/candidate-failure-code.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-descriptor-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-descriptor.schema.json",
+      "instance": "examples/protocol/candidate-source-descriptor.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-plan-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-plan.schema.json",
+      "instance": "examples/protocol/candidate-source-plan.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-request-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-request.schema.json",
+      "instance": "examples/protocol/candidate-source-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-hit-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-hit.schema.json",
+      "instance": "examples/protocol/candidate-source-hit.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-candidate-current-valid",
+      "schema": "packages/protocol/schemas/context-candidate.schema.json",
+      "instance": "examples/protocol/context-candidate.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-source-report-current-valid",
+      "schema": "packages/protocol/schemas/candidate-source-report.schema.json",
+      "instance": "examples/protocol/candidate-source-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-generation-result-current-valid",
+      "schema": "packages/protocol/schemas/candidate-generation-result.schema.json",
+      "instance": "examples/protocol/candidate-generation-result.json",
+      "expectedValid": true
+    },
+    {
+      "id": "candidate-identity-conflict-current-valid",
+      "schema": "packages/protocol/schemas/candidate-identity-conflict.schema.json",
+      "instance": "examples/protocol/candidate-identity-conflict.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-source-fusion-config-current-valid",
+      "schema": "packages/protocol/schemas/context-source-fusion-config.schema.json",
+      "instance": "examples/protocol/context-source-fusion-config.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-feature-weight-config-current-valid",
+      "schema": "packages/protocol/schemas/context-feature-weight-config.schema.json",
+      "instance": "examples/protocol/context-feature-weight-config.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-category-budget-config-current-valid",
+      "schema": "packages/protocol/schemas/context-category-budget-config.schema.json",
+      "instance": "examples/protocol/context-category-budget-config.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-reason-code-current-valid",
+      "schema": "packages/protocol/schemas/context-selection-reason-code.schema.json",
+      "instance": "examples/protocol/context-selection-reason-code.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-exclusion-reason-code-current-valid",
+      "schema": "packages/protocol/schemas/context-exclusion-reason-code.schema.json",
+      "instance": "examples/protocol/context-exclusion-reason-code.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-decision-current-valid",
+      "schema": "packages/protocol/schemas/context-selection-decision.schema.json",
+      "instance": "examples/protocol/context-selection-decision.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-coverage-summary-current-valid",
+      "schema": "packages/protocol/schemas/context-coverage-summary.schema.json",
+      "instance": "examples/protocol/context-coverage-summary.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-sufficiency-result-current-valid",
+      "schema": "packages/protocol/schemas/context-sufficiency-result.schema.json",
+      "instance": "examples/protocol/context-sufficiency-result.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-score-breakdown-current-valid",
+      "schema": "packages/protocol/schemas/context-score-breakdown.schema.json",
+      "instance": "examples/protocol/context-score-breakdown.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-policy-current-valid",
+      "schema": "packages/protocol/schemas/context-selection-policy.schema.json",
+      "instance": "examples/protocol/context-selection-policy.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-result-current-valid",
+      "schema": "packages/protocol/schemas/context-selection-result.schema.json",
+      "instance": "examples/protocol/context-selection-result.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-use-feedback-current-valid",
+      "schema": "packages/protocol/schemas/context-use-feedback.schema.json",
+      "instance": "examples/protocol/context-use-feedback.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selector-experiment-current-valid",
+      "schema": "packages/protocol/schemas/context-selector-experiment.schema.json",
+      "instance": "examples/protocol/context-selector-experiment.json",
+      "expectedValid": true
+    },
+    {
+      "id": "harness-context-source-valid",
+      "schema": "packages/protocol/schemas/harness-context-source.schema.json",
+      "instance": "examples/protocol/harness-context-source.json",
+      "expectedValid": true
+    },
+    {
+      "id": "harness-context-preview-valid",
+      "schema": "packages/protocol/schemas/harness-context-preview.schema.json",
+      "instance": "examples/protocol/harness-context-preview.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-pack-current-valid",
+      "schema": "packages/protocol/schemas/context-pack.schema.json",
+      "instance": "examples/protocol/context-pack.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-pack-use-plan-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-use-plan.schema.json",
+      "instance": "examples/protocol/context-pack-use-plan.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-pack-registry-status-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-registry-status.schema.json",
+      "instance": "examples/protocol/context-pack-registry-status.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-pack-measurement-report-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-measurement-report.schema.json",
+      "instance": "examples/protocol/context-pack-measurement-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "model-generation-request-current-valid",
+      "schema": "packages/protocol/schemas/model-generation-request.schema.json",
+      "instance": "examples/protocol/model-generation-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "model-generation-result-current-valid",
+      "schema": "packages/protocol/schemas/model-generation-result.schema.json",
+      "instance": "examples/protocol/model-generation-result.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-workflow-definition-current-valid",
+      "schema": "packages/protocol/schemas/durable-workflow-definition.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/definition-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-run-record-current-valid",
+      "schema": "packages/protocol/schemas/durable-run-record.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/run-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-approval-resolution-current-valid",
+      "schema": "packages/protocol/schemas/durable-approval-resolution.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/approval-resolution-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-workflow-history-current-valid",
+      "schema": "packages/protocol/schemas/durable-workflow-history.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/history-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "durable-runtime-error-code-current-valid",
+      "schema": "packages/protocol/schemas/durable-runtime-error-code.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/error-code-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-catalog-current-valid",
+      "schema": "packages/protocol/schemas/tool-catalog.schema.json",
+      "instance": "tools/catalog.json",
+      "expectedValid": true
+    },
+    {
+      "id": "reviewed-tool-manifest-current-valid",
+      "schema": "packages/protocol/schemas/reviewed-tool-manifest.schema.json",
+      "instance": "tools/manifests/brokered-filesystem-read.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-handler-descriptor-current-valid",
+      "schema": "packages/protocol/schemas/tool-handler-descriptor.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/handler-descriptor-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-sandbox-profile-current-valid",
+      "schema": "packages/protocol/schemas/tool-sandbox-profile.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/sandbox-profile-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-invocation-request-current-valid",
+      "schema": "packages/protocol/schemas/tool-invocation-request.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/invocation-request-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-grant-record-current-valid",
+      "schema": "packages/protocol/schemas/tool-grant-record.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/grant-record-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-invocation-result-current-valid",
+      "schema": "packages/protocol/schemas/tool-invocation-result.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/invocation-result-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-reconciliation-result-current-valid",
+      "schema": "packages/protocol/schemas/tool-reconciliation-result.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/reconciliation-result-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-event-payload-current-valid",
+      "schema": "packages/protocol/schemas/tool-event-payload.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/tool-event-payload-valid.json",
+      "expectedValid": true
+    },
+    {
+      "id": "tool-error-code-current-valid",
+      "schema": "packages/protocol/schemas/tool-error-code.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/error-code-valid.json",
+      "expectedValid": true
+    },
+    {
       "id": "agent-pack-valid",
       "schema": "packages/protocol/schemas/agent-pack.schema.json",
       "instance": "examples/agentpacks/content-intelligence.agentpack.json",
@@ -156,6 +564,36 @@
       "schema": "packages/protocol/schemas/adapter-manifest.schema.json",
       "instance": "adapters/tool/graphify/adapter.json",
       "expectedValid": true
+    },
+    {
+      "id": "evaluation-dataset-current-valid",
+      "schema": "packages/protocol/schemas/evaluation-dataset.schema.json",
+      "instance": "examples/protocol/evaluation-dataset.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evaluation-experiment-current-valid",
+      "schema": "packages/protocol/schemas/evaluation-experiment.schema.json",
+      "instance": "examples/protocol/evaluation-experiment.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evaluation-report-current-valid",
+      "schema": "packages/protocol/schemas/evaluation-report.schema.json",
+      "instance": "examples/protocol/evaluation-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evaluation-trace-promotion-current-valid",
+      "schema": "packages/protocol/schemas/evaluation-trace-promotion.schema.json",
+      "instance": "examples/protocol/evaluation-trace-promotion.json",
+      "expectedValid": true
+    },
+    {
+      "id": "evaluation-trace-promotion-raw-prompt-invalid",
+      "schema": "packages/protocol/schemas/evaluation-trace-promotion.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/evaluation-trace-promotion-raw-prompt.json",
+      "expectedValid": false
     },
     {
       "id": "event-missing-run-invalid",
@@ -179,6 +617,348 @@
       "id": "provider-locality-invalid",
       "schema": "packages/protocol/schemas/provider-manifest.schema.json",
       "instance": "examples/protocol/compatibility/invalid/provider-remote-locality.json",
+      "expectedValid": false
+    },
+    {
+      "id": "candidate-source-request-authority-injection-invalid",
+      "schema": "packages/protocol/schemas/candidate-source-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/candidate-source-request-authority-injection.json",
+      "expectedValid": false
+    },
+    {
+      "id": "candidate-source-kind-unknown-invalid",
+      "schema": "packages/protocol/schemas/candidate-source-kind.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/candidate-source-kind-unknown.json",
+      "expectedValid": false
+    },
+    {
+      "id": "candidate-source-hit-secret-path-invalid",
+      "schema": "packages/protocol/schemas/candidate-source-hit.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/candidate-source-hit-secret-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-selection-policy-unknown-field-invalid",
+      "schema": "packages/protocol/schemas/context-selection-policy.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-selection-policy-unknown-field.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-selection-policy-v1-without-ast-code-valid",
+      "schema": "packages/protocol/schemas/context-selection-policy.schema.json",
+      "instance": "examples/protocol/compatibility/valid/context-selection-policy-v1-without-ast-code.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-selection-result-raw-text-invalid",
+      "schema": "packages/protocol/schemas/context-selection-result.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-selection-result-raw-text.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-profile-report-external-writes-invalid",
+      "schema": "packages/protocol/schemas/memory-profile-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-profile-report-external-writes.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-proposals-report-active-memory-invalid",
+      "schema": "packages/protocol/schemas/memory-proposals-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-proposals-report-active-memory.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-sgrep-report-local-path-invalid",
+      "schema": "packages/protocol/schemas/memory-sgrep-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-sgrep-report-local-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-workspace-config-path-escape-invalid",
+      "schema": "packages/protocol/schemas/memory-workspace-config.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-workspace-config-path-escape.json",
+      "expectedValid": false
+    },
+    {
+      "id": "memory-proposal-queue-record-local-path-invalid",
+      "schema": "packages/protocol/schemas/memory-proposal-queue-record.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-proposal-queue-record-local-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "harness-context-source-invalid-raw-body",
+      "schema": "packages/protocol/schemas/harness-context-source.schema.json",
+      "instance": "examples/protocol/compatibility/invalid-harness-context-source.json",
+      "expectedValid": false
+    },
+    {
+      "id": "harness-context-preview-invalid-raw-body",
+      "schema": "packages/protocol/schemas/harness-context-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/harness-context-preview-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-pack-raw-body-invalid",
+      "schema": "packages/protocol/schemas/context-pack.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "model-generation-request-raw-prompt-invalid",
+      "schema": "packages/protocol/schemas/model-generation-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/model-generation-request-raw-prompt.json",
+      "expectedValid": false
+    },
+    {
+      "id": "tool-invocation-request-role-invalid",
+      "schema": "packages/protocol/schemas/tool-invocation-request.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/invocation-request-invalid-role.json",
+      "expectedValid": false
+    },
+    {
+      "id": "tool-grant-record-token-invalid",
+      "schema": "packages/protocol/schemas/tool-grant-record.schema.json",
+      "instance": "examples/protocol/compatibility/bounded-tool/grant-record-invalid-token.json",
+      "expectedValid": false
+    },
+    {
+      "id": "durable-workflow-definition-function-source-invalid",
+      "schema": "packages/protocol/schemas/durable-workflow-definition.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/definition-invalid-function-source.json",
+      "expectedValid": false
+    },
+    {
+      "id": "durable-approval-resolution-extra-field-invalid",
+      "schema": "packages/protocol/schemas/durable-approval-resolution.schema.json",
+      "instance": "examples/protocol/compatibility/durable-workflow/approval-resolution-invalid-extra.json",
+      "expectedValid": false
+    },
+    {
+      "id": "mcp-bridge-request-current-valid",
+      "schema": "packages/protocol/schemas/mcp-bridge-request.schema.json",
+      "instance": "examples/protocol/mcp-bridge-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-readonly-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-readonly-context-pack-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-context-pack-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-readonly-context-pack-use-plan-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-context-pack-use-plan-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-readonly-context-pack-registry-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-context-pack-registry-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-context-pack-smoke-current-valid",
+      "schema": "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
+      "instance": "examples/protocol/mcp-context-pack-smoke.json",
+      "expectedValid": true
+    },
+    {
+      "id": "benchmark-dataset-current-valid",
+      "schema": "packages/protocol/schemas/benchmark-dataset.schema.json",
+      "instance": "examples/protocol/benchmark-dataset.json",
+      "expectedValid": true
+    },
+    {
+      "id": "benchmark-phase-artifact-current-valid",
+      "schema": "packages/protocol/schemas/benchmark-phase-artifact.schema.json",
+      "instance": "examples/protocol/benchmark-phase-artifact.json",
+      "expectedValid": true
+    },
+    {
+      "id": "benchmark-comparison-report-current-valid",
+      "schema": "packages/protocol/schemas/benchmark-comparison-report.schema.json",
+      "instance": "examples/protocol/benchmark-comparison-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "benchmark-comparison-report-raw-body-invalid",
+      "schema": "packages/protocol/schemas/benchmark-comparison-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/benchmark-comparison-report-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "ast-code-chunk-current-valid",
+      "schema": "packages/protocol/schemas/ast-code-chunk.schema.json",
+      "instance": "examples/protocol/ast-code-chunk.json",
+      "expectedValid": true
+    },
+    {
+      "id": "ast-code-chunk-raw-body-invalid",
+      "schema": "packages/protocol/schemas/ast-code-chunk.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/ast-code-chunk-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "ast-code-chunk-local-workspace-path-invalid",
+      "schema": "packages/protocol/schemas/ast-code-chunk.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/ast-code-chunk-local-workspace-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-symbol-index-current-valid",
+      "schema": "packages/protocol/schemas/source-symbol-index.schema.json",
+      "instance": "examples/protocol/source-symbol-index.json",
+      "expectedValid": true
+    },
+    {
+      "id": "source-symbol-index-raw-body-invalid",
+      "schema": "packages/protocol/schemas/source-symbol-index.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-symbol-index-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-current-valid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/source-graph.json",
+      "expectedValid": true
+    },
+    {
+      "id": "source-graph-preview-current-valid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/source-graph-preview.json",
+      "expectedValid": true
+    },
+    {
+      "id": "source-graph-raw-body-invalid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-local-path-invalid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-local-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-preview-raw-body-invalid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-preview-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-preview-local-path-invalid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-preview-local-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "mcp-bridge-request-grant-token-invalid",
+      "schema": "packages/protocol/schemas/mcp-bridge-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/mcp-bridge-request-grant-token.json",
+      "expectedValid": false
+    },
+    {
+      "id": "mcp-context-pack-smoke-raw-body-invalid",
+      "schema": "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/mcp-context-pack-smoke-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-pack-measurement-report-raw-body-invalid",
+      "schema": "packages/protocol/schemas/context-pack-measurement-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-measurement-report-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-pack-handoff-report-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-handoff-report.schema.json",
+      "instance": "examples/protocol/context-pack-handoff-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-pack-receive-report-current-valid",
+      "schema": "packages/protocol/schemas/context-pack-receive-report.schema.json",
+      "instance": "examples/protocol/context-pack-receive-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "context-pack-handoff-report-raw-body-invalid",
+      "schema": "packages/protocol/schemas/context-pack-handoff-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-handoff-report-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-pack-handoff-report-memory-preflight-leak-invalid",
+      "schema": "packages/protocol/schemas/context-pack-handoff-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-handoff-report-memory-preflight-leak.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-pack-receive-report-raw-body-invalid",
+      "schema": "packages/protocol/schemas/context-pack-receive-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-receive-report-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "context-pack-use-plan-private-field-invalid",
+      "schema": "packages/protocol/schemas/context-pack-use-plan.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/context-pack-use-plan-private-field.json",
+      "expectedValid": false
+    },
+    {
+      "id": "loop-plan-current-valid",
+      "schema": "packages/protocol/schemas/loop-plan.schema.json",
+      "instance": "examples/protocol/loop-plan.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-plan-raw-body-invalid",
+      "schema": "packages/protocol/schemas/loop-plan.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "loop-observation-current-valid",
+      "schema": "packages/protocol/schemas/loop-observation.schema.json",
+      "instance": "examples/protocol/loop-observation.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-observation-raw-output-invalid",
+      "schema": "packages/protocol/schemas/loop-observation.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-observation-raw-output.json",
+      "expectedValid": false
+    },
+    {
+      "id": "loop-verification-report-current-valid",
+      "schema": "packages/protocol/schemas/loop-verification-report.schema.json",
+      "instance": "examples/protocol/loop-verification-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-verification-auto-merge-invalid",
+      "schema": "packages/protocol/schemas/loop-verification-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-verification-auto-merge.json",
+      "expectedValid": false
+    },
+    {
+      "id": "loop-run-current-valid",
+      "schema": "packages/protocol/schemas/loop-run.schema.json",
+      "instance": "examples/protocol/loop-run.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-run-auto-merge-invalid",
+      "schema": "packages/protocol/schemas/loop-run.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-run-auto-merge.json",
       "expectedValid": false
     }
   ]

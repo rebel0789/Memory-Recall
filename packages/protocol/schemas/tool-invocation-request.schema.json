@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/tool-invocation-request-1.0.json",
+  "title": "Tool Invocation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "correlationId", "workspaceId", "runId", "stepId", "actorId", "trustedContext", "toolId", "toolVersion", "operation", "input", "dataClass", "trustedTimestamp"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "requestId": { "type": "string", "pattern": "^toolreq_" },
+    "correlationId": { "type": "string", "pattern": "^req_" },
+    "workspaceId": { "type": "string", "pattern": "^ws_" },
+    "runId": { "type": "string", "pattern": "^run_" },
+    "stepId": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "actorId": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "trustedContext": { "type": "object" },
+    "toolId": { "type": "string", "pattern": "^tool:" },
+    "toolVersion": { "type": "string", "minLength": 1, "maxLength": 40 },
+    "manifestFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "operation": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "input": { "type": "object" },
+    "requestedCapability": { "type": ["object", "null"] },
+    "dataClass": { "enum": ["public", "workspace-private", "confidential", "secret"] },
+    "approvalContext": { "type": ["object", "null"] },
+    "idempotencyKey": { "type": ["string", "null"], "maxLength": 200 },
+    "timeoutMs": { "type": "integer", "minimum": 1 },
+    "outputLimitBytes": { "type": "integer", "minimum": 1 },
+    "trustedTimestamp": { "type": "string", "format": "date-time" }
+  }
+}

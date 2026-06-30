@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-source-fusion-config-1.0.json",
+  "title": "Context Source Fusion Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["method", "rrfK"],
+  "properties": {
+    "method": { "enum": ["weighted_rrf"] },
+    "rrfK": { "type": "integer", "minimum": 1, "maximum": 1000 }
+  }
+}

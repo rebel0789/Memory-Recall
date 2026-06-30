@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "1.0.0",
+  "resourceKind": "context-pack-registry-status",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "provenance": {
+    "producer": "open-agent-fabric.protocol-bridges",
+    "producerVersion": "0.1.0",
+    "source": "local-context-pack-registry",
+    "sourceFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "privateContentIncluded": false,
+    "instructionTextIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "remoteEndpointDetailsIncluded": false
+  },
+  "data": {
+    "schemaVersion": "1.0.0",
+    "registryVersion": "0.1.0",
+    "command": "context registry status",
+    "workspaceId": "ws_local",
+    "generatedAt": "2026-06-24T00:00:00.000Z",
+    "registry": {
+      "exists": true,
+      "locator": "workspace://context-packs/registry.json",
+      "currentEntryId": "ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa",
+      "entryCount": 1,
+      "registryFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "fingerprintStatus": "verified"
+    },
+    "currentPointer": {
+      "exists": true,
+      "locator": "workspace://context-packs/current.json",
+      "entryId": "ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa",
+      "pointerFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "fingerprintStatus": "verified"
+    },
+    "current": {
+      "entryId": "ctxpin_aaaaaaaaaaaaaaaaaaaaaaaa",
+      "status": "verified"
+    },
+    "entries": [],
+    "warnings": [],
+    "safeguards": {
+      "readOnly": true,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "externalWritesEnabled": false,
+      "externalAdaptersEnabled": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "activeMemoryCreated": 0,
+      "markdownContentIncluded": false,
+      "sourceContentIncluded": false,
+      "privateContentIncluded": false,
+      "absoluteFilesystemLocationsIncluded": false
+    }
+  },
+  "resourceFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

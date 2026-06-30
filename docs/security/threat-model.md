@@ -24,11 +24,64 @@ External text tries to redefine the objective, request secrets, enable tools, or
 
 A model requests undeclared files, domains, secrets, or operations. Mitigation: manifest, short-lived grant, sandbox, default deny, timeout, output limit, and independent policy.
 
+OAF-015 narrows this path to reviewed checksum-pinned manifests and brokered
+local handlers. The caller cannot supply role, owner status, policy outcome,
+external-write state, filesystem roots, domains, secret values, sandbox
+profiles, or approval validity. Policy denial stops before grant minting and
+handler invocation. Grants are one-use, short-lived, exact-operation, and
+process-local; raw grant tokens are never persisted or logged.
+
+The broker does not claim arbitrary-code sandboxing. It independently mediates
+workspace-relative filesystem access, loopback-only egress, and secret
+references, and write operations must use the OAF-014 durable idempotent effect
+boundary before local state changes are considered reconciled.
+
 ### Malformed API input reaches domain execution
 
 External HTTP requests may be oversized, malformed, ambiguous, compressed, cross-origin, or shaped to trigger parser edge cases before local services execute. Mitigation: the control API validates route contracts at the boundary before stores, workflow runners, Context Compiler, model providers, artifact stores, tool providers, or migration code are called. It enforces body, URL, header, query, path, JSON depth, node, object-key, and array limits; rejects unsupported media types and content encodings; validates responses before sending JSON; and returns stable sanitized error envelopes with correlation IDs.
 
-OAF-008 extends the boundary with native local authentication and deterministic workspace authorization. Non-public routes require an authenticated principal before stores, workflows, the Context Compiler, native providers, or migration code are called. The enforced order is request limits, route matching, path/query/header/body validation, correlation ID, credential extraction, authentication, workspace resolution, authorization, CSRF for cookie-auth unsafe requests, domain handler, and response validation.
+OAF-008 extends the boundary with native local authentication and deterministic workspace authorization. Non-public routes require an authenticated principal before stores, workflows, the Context Compiler, native providers, or migration code are called. OAF-009 then centralizes contextual policy decisions before domain or tool execution. The enforced order is request limits, route matching, path/query/header/body validation, correlation ID, credential extraction, authentication, trusted workspace and membership resolution, contextual policy evaluation, CSRF for cookie-auth unsafe requests, domain or tool handler, policy/audit event recording, and response validation.
+
+Policy denials stop before workflow start, Context Compiler invocation, artifact or memory mutation, model/tool invocation, filesystem write, secret resolution, external network operation, or consequential side effect.
+
+OAF-010 adds an internal candidate-source layer to the Context Compiler.
+Candidate-source requests are server/trusted-service populated and reject
+client-supplied roles, policy outcomes, provider implementation objects, source
+success claims, raw secrets, cookies, authorization headers, signed URL query
+material, absolute paths, database details, and executable values. Source access
+uses the same contextual policy service and `context.compile` action; a denied
+source is not invoked. Candidate-level policy checks filter data class, trust
+class, workspace, and secret records before candidate output.
+
+OAF-011 keeps final context selection deterministic and inspectable. The
+selection policy is checked in, strictly validated, and fingerprinted; clients
+cannot submit alternative weights, source authority, model reranking results,
+or hidden provider state. Required records fail closed when missing,
+inaccessible, conflicting, or over budget. Optional records are excluded before
+scoring for workspace mismatch, denied scopes or data classes, secret data,
+expired or retracted status, quarantine, supersession, temporal invalidity, or
+candidate ineligibility.
+
+The internal selection trace is sanitized. It records IDs, bounded reason
+codes, numeric scores, fingerprints, coverage, and warnings, but not raw source
+bodies, prompts, model reasoning, secrets, authorization material, local
+filesystem paths, SQL, or database configuration.
+
+OAF-012 persists durable context manifests before model invocation. The durable
+manifest stores selected assembly text, safe selected/excluded decisions,
+fingerprints, section order, token accounting, conflicts, and source summaries.
+Excluded records do not store raw text. Persistence emits only safe IDs, counts,
+fingerprints, and timestamps; a persistence or verification failure stops before
+the model provider is invoked.
+
+OAF-013 routes local model calls through a capability-aware gateway. Structured
+calls must reference the persisted context manifest and validate output against
+an explicit schema before downstream use. Repair is bounded to one additional
+call to the same selected local provider and model. Timeouts and cancellation
+abort the provider signal. Model events record provider/model IDs, prompt and
+schema fingerprints, context-manifest fingerprints, usage, validation status,
+and repair counts only; they do not record raw prompts, selected context
+bodies, outputs, credentials, provider URLs, local paths, or hidden reasoning.
 
 ### Local identity and workspace authorization
 
@@ -40,6 +93,18 @@ Workspace context is explicit per protected route. Direct workspace operations r
 
 API tokens are created only from a session protected by CSRF, are returned raw once, are stored as hashes, and are checked against user status, active memberships, allowed workspaces, scopes, expiration, and revocation.
 
+### Contextual policy
+
+Authentication answers who the principal is. Workspace authorization answers which current role the principal holds. Contextual policy answers whether that principal may perform one exact operation on one exact resource with one exact capability and consequence profile.
+
+The policy registry is committed source with a semantic version and deterministic SHA-256 fingerprint. It defines known actions, resource types, role/action permissions, data classes, side-effect classes, budget ceilings, approval and idempotency requirements, tool-capability dimensions, and hard global kill switches. Unknown registry fields fail startup/test validation.
+
+Policy input is strict and server-populated. It can carry safe IDs, membership status, resource type, data class, capability requests, approval metadata, idempotency keys, and trusted timestamps. It cannot carry passwords, cookies, bearer token values, CSRF tokens, secret values, authorization headers, model reasoning, prompts, source bodies, or executable policy text.
+
+Default deny covers missing identity/workspace/membership/action, unknown actions/resources, unsupported roles, workspace mismatch, token-scope mismatch, unregistered tools, undeclared operations, capability requests wider than the manifest, filesystem/network/secret/data-class/sandbox/budget violations, missing or mismatched approval, missing idempotency, and globally disabled external writes.
+
+Models, skills, retrieved content, tool output, and adapter responses may request a capability but cannot grant authority. Approval is necessary for consequential writes but never sufficient by itself; exact operation fingerprints, idempotency, policy permission, and the global external-write switch are still evaluated.
+
 ### Memory poisoning
 
 Untrusted or incorrect inference becomes permanent context. Mitigation: proposals, provenance, confidence, verification, user confirmation, lifecycle, supersession, quarantine, and retention.
@@ -47,6 +112,11 @@ Untrusted or incorrect inference becomes permanent context. Mitigation: proposal
 ### Cross-workspace leakage
 
 Retrieval or storage returns another workspace's records. Mitigation: scope in every repository key and query, policy at service and repository layers, and explicit adversarial tests.
+
+Context candidate sources operate through provider-neutral `getManyByIds` and
+`searchLexical` record-reader operations and never scan all workspaces. Exact ID
+requests do not distinguish inaccessible IDs from nonexistent IDs in public
+candidate output; reports may aggregate denied or unresolved counts only.
 
 Artifact bodies are also scoped by workspace. The native filesystem provider derives object, record, tombstone, and export paths internally under `workspaces/<workspace-id>`, rejects unsupported workspace IDs, and does not deduplicate across workspaces. Exports contain relative paths only and must not reveal absolute local storage paths.
 
@@ -57,6 +127,12 @@ Retries or agent loops publish, delete, or change permissions more than once. Mi
 ### Secret exfiltration
 
 Credentials enter prompts, logs, events, errors, tool output, or source snapshots. Mitigation: secret references, redaction, egress controls, no raw secrets in model context, and test fixtures that contain no real credentials.
+
+Tool execution receives secret references, not raw values. The secret broker
+resolves only declared references after policy allow and grant consumption,
+clears resolved values after use, and fails closed if a handler returns a raw
+secret value. Tool events and results use fingerprints, counts, and stable codes
+instead of secret bodies.
 
 API error mapping must never include raw request bodies, authorization headers, cookies, tokens, SQL, filesystem paths, environment variables, stack traces, or submitted values. Structured API logs are limited to safe codes, operation IDs, statuses, durations, and correlation IDs.
 

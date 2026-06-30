@@ -47,6 +47,37 @@
         "code": "invalid_provider_output",
         "canonicalStateChanged": false
       }
+    },
+    {
+      "id": "timeout-bounded",
+      "kind": "timeout",
+      "input": {
+        "procedureId": "ecc:procedure:agent-sort-review",
+        "timeoutMs": 0
+      },
+      "expected": {
+        "code": "adapter_timeout",
+        "invoked": false
+      }
+    },
+    {
+      "id": "reviewed-proposal",
+      "kind": "success",
+      "input": {
+        "procedureId": "ecc:procedure:agent-sort-review",
+        "grant": {
+          "decision": "allow",
+          "adapterId": "adapter:tool:ecc",
+          "operation": "skills.importProposal",
+          "procedureId": "ecc:procedure:agent-sort-review"
+        }
+      },
+      "expected": {
+        "status": "proposal",
+        "canonicalStateChanged": false,
+        "upstreamCommit": "34faa39bd3cd496a0aece0245f2b7e38b7923abc",
+        "licenseSpdx": "MIT"
+      }
     }
   ]
 }

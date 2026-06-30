@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-coverage-summary-1.0.json",
+  "title": "Context Coverage Summary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requested", "eligible", "selected", "unresolved"],
+  "properties": {
+    "requested": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "eligible": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "selected": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "unresolved": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+  }
+}

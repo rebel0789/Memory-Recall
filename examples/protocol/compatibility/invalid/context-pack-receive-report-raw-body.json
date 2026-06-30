@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "context receive",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "workspaceId": "ws_local",
+  "targetHarness": "codex",
+  "state": "ready",
+  "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "measurementScope": "single pinned context-pack registry/use-plan verification, MCP read-only resource proof, and harness setup status dry-run",
+  "registry": {
+    "registryExists": true,
+    "currentPointerExists": true,
+    "currentEntryId": "ctxpin_111111111111111111111111",
+    "currentStatus": "verified",
+    "registryFingerprintStatus": "verified",
+    "currentPointerFingerprintStatus": "verified",
+    "registryFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "currentPointerFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "entryCount": 1,
+    "currentTargetHarness": "codex",
+    "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "usePlanFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "sourceChecks": {
+      "total": 1,
+      "verified": 1,
+      "stale": 0,
+      "unavailable": 0,
+      "verifiedLocators": ["workspace://AGENTS.md"],
+      "staleLocators": [],
+      "unavailableLocators": []
+    },
+    "artifactChecks": [],
+    "warnings": []
+  },
+  "usePlan": {
+    "exists": true,
+    "resourceUri": "oaf://workspace/ws_local/context-pack/use-plan/current",
+    "id": "ctxuse_222222222222222222222222",
+    "targetHarness": "codex",
+    "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "usePlanFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "requiredReadCount": 1,
+    "requiredLocalReads": [
+      {
+        "locator": "workspace://AGENTS.md",
+        "role": "selected_context",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex.",
+        "reasonCodes": ["selected_context"]
+      }
+    ],
+    "truncatedRequiredReadCount": 0,
+    "coverage": {
+      "changedLocators": { "total": 0, "covered": 0, "ratio": 0, "status": "not_applicable" },
+      "graphHints": { "total": 0, "covered": 0, "ratio": 0, "status": "not_applicable" }
+    },
+    "sourceSelection": {
+      "candidateUnitCount": 100,
+      "selectedUnitCount": 40,
+      "selectedUnitRatio": 0.4,
+      "estimatedReductionRatio": 0.6
+    },
+    "delivery": {
+      "representation": "locator-handoff",
+      "deliveredUnitCount": 32,
+      "deliveredByteSize": 512,
+      "deliveredUnitRatio": 0.32,
+      "observedReductionRatio": 0.68,
+      "sourceContentIncluded": false
+    },
+    "safeguards": {
+      "readOnly": true,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "externalWritesEnabled": false,
+      "externalAdaptersEnabled": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "activeMemoryCreated": 0,
+      "sourceSnapshotsWritten": 0,
+      "objectiveTextIncluded": false,
+      "stepTextIncluded": false,
+      "launchInstructionsIncluded": false,
+      "markdownContentIncluded": false,
+      "sourceContentIncluded": false,
+      "privateContentIncluded": false,
+      "absoluteFilesystemLocationsIncluded": false,
+      "remoteEndpointDetailsIncluded": false
+    }
+  },
+  "mcp": {
+    "mode": "read-only",
+    "resourcesListed": 7,
+    "resourceUris": [
+      "oaf://workspace/ws_local/context/latest",
+      "oaf://workspace/ws_local/context-pack/registry/current",
+      "oaf://workspace/ws_local/context-pack/use-plan/current",
+      "oaf://workspace/ws_local/handoff/latest",
+      "oaf://workspace/ws_local/memory/proposals",
+      "oaf://workspace/ws_local/runs/latest",
+      "oaf://workspace/ws_local/status"
+    ],
+    "toolsExposed": 0,
+    "usePlanResourceRead": true,
+    "registryResourceRead": true,
+    "usePlanResourceFingerprint": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "registryResourceFingerprint": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+  },
+  "setup": {
+    "dryRun": true,
+    "client": "codex",
+    "configRef": "home://.codex/config.toml",
+    "serverStatus": "absent",
+    "desiredServer": {
+      "name": "oaf",
+      "transport": "stdio",
+      "command": "npm",
+      "args": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"],
+      "environmentKeys": [],
+      "resourceMode": "read-only",
+      "externalWrites": false
+    }
+  },
+  "commands": {
+    "checkRegistry": "npm --silent run oaf -- context registry status --read-only --root . --workspace ws_local --format json",
+    "readUsePlan": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
+    "readRegistry": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/registry/current --format json",
+    "previewSetup": "npm --silent run oaf -- harness setup status --client codex --server oaf --dry-run --format json",
+    "startReadOnlyBridge": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --stdio"
+  },
+  "checks": {
+    "registryFingerprintVerified": true,
+    "currentPointerVerified": true,
+    "currentEntryVerified": true,
+    "currentEntryMatchesTarget": true,
+    "usePlanLoaded": true,
+    "usePlanFingerprintMatchesRegistry": true,
+    "contextPackFingerprintMatchesRegistry": true,
+    "noToolsExposed": true,
+    "usePlanResourceRead": true,
+    "registryResourceRead": true,
+    "setupDryRun": true,
+    "setupUsesSilentNpm": true
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "homeConfigMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "rawSourceBodiesIncluded": true,
+    "markdownBodyIncluded": false,
+    "sourceContentIncluded": false,
+    "objectiveTextIncluded": false,
+    "stepTextIncluded": false,
+    "launchInstructionsIncluded": false,
+    "credentialsIncluded": false,
+    "providerUrlsIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "hiddenReasoningIncluded": false
+  },
+  "reportFingerprint": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+}

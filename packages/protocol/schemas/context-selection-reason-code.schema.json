@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-selection-reason-code-1.0.json",
+  "title": "Context Selection Reason Code",
+  "enum": [
+    "required",
+    "explicit_requirement",
+    "mandatory_constraint",
+    "forced_governance",
+    "entity_coverage",
+    "complementary_evidence",
+    "high_task_relevance",
+    "task_relevance",
+    "preference_applicable",
+    "active_working_state",
+    "source_fusion",
+    "entity_relation",
+    "high_authority",
+    "high_confidence",
+    "high_importance",
+    "outcome_evidence",
+    "token_efficient",
+    "diversity_gain",
+    "selected_despite_kind_overlap"
+  ]
+}

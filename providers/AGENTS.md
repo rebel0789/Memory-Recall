@@ -11,4 +11,7 @@ Native providers implement core ports without depending on optional upstream pro
 - Declare health, capabilities, limits, and data paths in `provider.json`.
 - Add behavioral tests and run the shared conformance helper.
 - Provider-specific IDs and payloads must not become canonical public identifiers.
+- Context candidate-source providers discover records only; they must preserve
+  provenance and leave final eligibility, scoring, budgeting, and assembly to
+  the Context Compiler.
 - Changes that broaden filesystem, process, network, or secret access require security review.

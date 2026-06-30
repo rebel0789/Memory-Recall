@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-category-budget-config-1.0.json",
+  "title": "Context Category Budget Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cap", "softReserveRatio"],
+  "properties": {
+    "cap": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "softReserveRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "ctxexp_example",
+  "workspaceId": "ws_local",
+  "status": "review",
+  "reversible": true,
+  "createdAt": "2026-06-20T12:00:00.000Z",
+  "baseline": {
+    "policyVersion": "1.0.0",
+    "policyFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "policy": {
+      "schemaVersion": "1.0.0",
+      "policyVersion": "1.0.0"
+    }
+  },
+  "variant": {
+    "policyVersion": "1.0.1",
+    "policyFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policy": {
+      "schemaVersion": "1.0.0",
+      "policyVersion": "1.0.1"
+    }
+  },
+  "evaluationReport": {
+    "reportId": "eval_context_selector_example",
+    "passed": true,
+    "evaluationCount": 5,
+    "regressionCount": 0,
+    "metrics": {
+      "requiredRecall": 1,
+      "contextUseFeedbackCount": 2
+    },
+    "rollbackPlan": "Restore the baseline policy fingerprint."
+  },
+  "defaultChanged": false,
+  "experimentFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

@@ -28,6 +28,12 @@ export class EmbeddedWorkflowRuntime {
     return ['workflow.start', 'workflow.inspect', 'workflow.cancel', 'workflow.event-checkpoint'];
   }
 
+  async registerWorkflow() {
+    const error = new Error('embedded workflow runtime does not register durable serializable workflows');
+    error.code = 'workflow_capability_unsupported';
+    throw error;
+  }
+
   async start({ runId = prefixedId('run'), workspaceId = 'ws_local', workflowId = 'workflow:anonymous', steps }) {
     await this.#init();
     if (this.controllers.has(runId)) throw new Error(`run already active: ${runId}`);
@@ -79,6 +85,20 @@ export class EmbeddedWorkflowRuntime {
     return { ...run, events: state.events.filter((event) => event.runId === runId && event.workspaceId === workspaceId).sort((a, b) => a.sequence - b.sequence) };
   }
 
+  async list({ workspaceId = 'ws_local', limit = 50 } = {}) {
+    await this.#init();
+    const boundedLimit = Math.max(1, Math.min(100, Number(limit) || 50));
+    const state = await this.store.read();
+    return {
+      schemaVersion: '1.0.0',
+      items: state.runs
+        .filter((item) => item.workspaceId === workspaceId)
+        .slice()
+        .reverse()
+        .slice(0, boundedLimit)
+    };
+  }
+
   async cancel({ runId, workspaceId = 'ws_local', reason = 'cancelled by operator' }) {
     await this.#init();
     const controller = this.controllers.get(runId);
@@ -89,6 +109,34 @@ export class EmbeddedWorkflowRuntime {
     controller.abort(reason);
     return { cancelled: true, reason };
   }
+
+  async signal() {
+    const error = new Error('embedded workflow runtime does not support durable signals');
+    error.code = 'workflow_capability_unsupported';
+    throw error;
+  }
+
+  async resolveApproval() {
+    const error = new Error('embedded workflow runtime does not support durable approval waits');
+    error.code = 'workflow_capability_unsupported';
+    throw error;
+  }
+
+  async tick() {
+    return { claimed: false, reason: 'embedded runtime has no durable worker queue' };
+  }
+
+  async runWorker({ signal } = {}) {
+    if (signal?.aborted) return { ticks: 0, stopped: true };
+    return { ticks: 0, stopped: true };
+  }
+
+  async history({ runId, workspaceId = 'ws_local' }) {
+    const run = await this.get({ runId, workspaceId });
+    return { schemaVersion: '1.0.0', workspaceId, runId, events: run?.events ?? [] };
+  }
+
+  close() {}
 }
 
 export { PROVIDER_ID as EMBEDDED_WORKFLOW_PROVIDER_ID };

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-feature-weight-config-1.0.json",
+  "title": "Context Feature Weight Config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sourceFusion",
+    "objectiveRelevance",
+    "stepRelevance",
+    "entityCoverage",
+    "relationCoverage",
+    "authority",
+    "confidence",
+    "preferenceApplicable",
+    "outcomeEvidence",
+    "temporalApplicability",
+    "kindPriority",
+    "tokenEfficiency"
+  ],
+  "properties": {
+    "sourceFusion": { "type": "number", "minimum": 0, "maximum": 100 },
+    "objectiveRelevance": { "type": "number", "minimum": 0, "maximum": 100 },
+    "stepRelevance": { "type": "number", "minimum": 0, "maximum": 100 },
+    "entityCoverage": { "type": "number", "minimum": 0, "maximum": 100 },
+    "relationCoverage": { "type": "number", "minimum": 0, "maximum": 100 },
+    "authority": { "type": "number", "minimum": 0, "maximum": 100 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 100 },
+    "preferenceApplicable": { "type": "number", "minimum": 0, "maximum": 100 },
+    "outcomeEvidence": { "type": "number", "minimum": 0, "maximum": 100 },
+    "temporalApplicability": { "type": "number", "minimum": 0, "maximum": 100 },
+    "kindPriority": { "type": "number", "minimum": 0, "maximum": 100 },
+    "tokenEfficiency": { "type": "number", "minimum": 0, "maximum": 100 }
+  }
+}

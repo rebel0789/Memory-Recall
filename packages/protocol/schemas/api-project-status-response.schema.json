@@ -9,6 +9,6 @@
     "schemaVersion": { "const": "1.0.0" },
     "project": { "type": "string", "minLength": 1, "maxLength": 128 },
     "release": { "type": "string", "minLength": 1, "maxLength": 64 },
-    "nextTask": { "type": "string", "minLength": 1, "maxLength": 32 }
+    "nextTask": { "type": ["string", "null"], "minLength": 1, "maxLength": 32 }
   }
 }

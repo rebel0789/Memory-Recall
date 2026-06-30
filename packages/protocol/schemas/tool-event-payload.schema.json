@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/tool-event-payload-1.0.json",
+  "title": "Tool Event Payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["toolId", "toolVersion", "manifestFingerprint", "operation"],
+  "properties": {
+    "toolId": { "type": "string", "pattern": "^tool:" },
+    "toolVersion": { "type": "string" },
+    "manifestFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "operation": { "type": "string" },
+    "grantId": { "type": ["string", "null"], "pattern": "^grant_" },
+    "policyDecisionId": { "type": "string" },
+    "policyVersion": { "type": "string" },
+    "policyFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "inputFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "outputFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "operationFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sideEffectClass": { "enum": ["read-only", "reversible-write", "consequential-write"] },
+    "sandbox": { "enum": ["pure-local", "brokered-filesystem-read", "brokered-filesystem-write", "brokered-loopback-http", "brokered-secret-reference"] },
+    "timeoutMs": { "type": "integer", "minimum": 1 },
+    "outputBytes": { "type": "integer", "minimum": 1 },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "reconciliation": { "enum": ["not-required", "effect-boundary"] },
+    "reasonCodes": { "type": "array", "items": { "type": "string" } },
+    "errorCode": { "type": "string" },
+    "idempotencyKeyFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

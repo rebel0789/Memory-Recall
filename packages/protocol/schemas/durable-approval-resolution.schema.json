@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/durable-approval-resolution-1.0.json",
+  "title": "Durable Approval Resolution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workspaceId", "runId", "approvalId", "actorId", "decision", "operationFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "workspaceId": { "type": "string", "pattern": "^ws_" },
+    "runId": { "type": "string", "pattern": "^run_" },
+    "approvalId": { "type": "string", "pattern": "^app_" },
+    "actorId": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "decision": { "enum": ["approved", "rejected"] },
+    "operationFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9-]{1,128}$" }
+  }
+}

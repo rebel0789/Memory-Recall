@@ -13,6 +13,7 @@ Retrieved pages, posts, comments, files, transcripts, tool output, and model out
 - never expose secret values to a model;
 - authorize every capability outside the model;
 - prohibit memory activation from raw content;
+- route model, tool, retrieved, and external content through the memory proposal gate so activation requires deterministic evidence or user confirmation;
 - show suspicious instruction patterns in evidence metadata;
 - use egress allowlists for retrieval and tool workers;
 - add adversarial fixtures for exfiltration, policy override, and indirect injection.

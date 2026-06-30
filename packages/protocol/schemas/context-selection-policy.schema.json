@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-selection-policy-1.0.json",
+  "title": "Context Selection Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "policyVersion", "fusion", "sourceWeights", "featureWeights", "diversity", "similarity", "categoryBudgets", "thresholds", "limits", "tokenEstimation", "tieBreak"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "fusion": { "$ref": "#/$defs/fusion" },
+    "sourceWeights": { "$ref": "#/$defs/sourceWeights" },
+    "featureWeights": { "$ref": "#/$defs/featureWeights" },
+    "diversity": { "$ref": "#/$defs/diversity" },
+    "similarity": { "$ref": "#/$defs/similarity" },
+    "categoryBudgets": { "$ref": "#/$defs/categoryBudgets" },
+    "thresholds": { "$ref": "#/$defs/thresholds" },
+    "limits": { "$ref": "#/$defs/limits" },
+    "tokenEstimation": { "$ref": "#/$defs/tokenEstimation" },
+    "tieBreak": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "type": "string", "minLength": 1 } }
+  },
+  "$defs": {
+    "fusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "rrfK"],
+      "properties": {
+        "method": { "enum": ["weighted_rrf"] },
+        "rrfK": { "type": "integer", "minimum": 1, "maximum": 1000 }
+      }
+    },
+    "sourceWeights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["direct", "exact", "lexical", "vector", "graph", "temporal", "preference", "episode"],
+      "properties": {
+        "direct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "exact": { "type": "number", "minimum": 0, "maximum": 100 },
+        "lexical": { "type": "number", "minimum": 0, "maximum": 100 },
+        "ast-code": { "type": "number", "minimum": 0, "maximum": 100 },
+        "vector": { "type": "number", "minimum": 0, "maximum": 100 },
+        "graph": { "type": "number", "minimum": 0, "maximum": 100 },
+        "temporal": { "type": "number", "minimum": 0, "maximum": 100 },
+        "preference": { "type": "number", "minimum": 0, "maximum": 100 },
+        "episode": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "featureWeights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceFusion", "objectiveRelevance", "stepRelevance", "entityCoverage", "relationCoverage", "authority", "confidence", "preferenceApplicable", "outcomeEvidence", "temporalApplicability", "kindPriority", "tokenEfficiency"],
+      "properties": {
+        "sourceFusion": { "type": "number", "minimum": 0, "maximum": 100 },
+        "objectiveRelevance": { "type": "number", "minimum": 0, "maximum": 100 },
+        "stepRelevance": { "type": "number", "minimum": 0, "maximum": 100 },
+        "entityCoverage": { "type": "number", "minimum": 0, "maximum": 100 },
+        "relationCoverage": { "type": "number", "minimum": 0, "maximum": 100 },
+        "authority": { "type": "number", "minimum": 0, "maximum": 100 },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 100 },
+        "preferenceApplicable": { "type": "number", "minimum": 0, "maximum": 100 },
+        "outcomeEvidence": { "type": "number", "minimum": 0, "maximum": 100 },
+        "temporalApplicability": { "type": "number", "minimum": 0, "maximum": 100 },
+        "kindPriority": { "type": "number", "minimum": 0, "maximum": 100 },
+        "tokenEfficiency": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "diversity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "diversityWeight", "coverageBonus", "kindCoverageBonus", "duplicateSimilarityThreshold", "nearDuplicateSimilarityThreshold"],
+      "properties": {
+        "method": { "enum": ["bounded_mmr"] },
+        "diversityWeight": { "type": "number", "minimum": 0, "maximum": 10 },
+        "coverageBonus": { "type": "number", "minimum": 0, "maximum": 10 },
+        "kindCoverageBonus": { "type": "number", "minimum": 0, "maximum": 10 },
+        "duplicateSimilarityThreshold": { "type": "number", "minimum": 0, "maximum": 10 },
+        "nearDuplicateSimilarityThreshold": { "type": "number", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "similarity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["normalization", "shingleSize", "maxTextBytes", "minTokenLength", "maxTokens", "maxPairwiseComparisons"],
+      "properties": {
+        "normalization": { "enum": ["unicode_nfkc_lower_ascii_terms"] },
+        "shingleSize": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "maxTextBytes": { "type": "integer", "minimum": 128, "maximum": 65536 },
+        "minTokenLength": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "maxTokens": { "type": "integer", "minimum": 16, "maximum": 4096 },
+        "maxPairwiseComparisons": { "type": "integer", "minimum": 1, "maximum": 100000 }
+      }
+    },
+    "categoryBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cap", "softReserveRatio"],
+      "properties": {
+        "cap": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "softReserveRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "categoryBudgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["governance", "workingState", "decisions", "preferences", "evidence", "procedures", "episodes", "artifacts", "negative", "examples", "other"],
+      "properties": {
+        "governance": { "$ref": "#/$defs/categoryBudget" },
+        "workingState": { "$ref": "#/$defs/categoryBudget" },
+        "decisions": { "$ref": "#/$defs/categoryBudget" },
+        "preferences": { "$ref": "#/$defs/categoryBudget" },
+        "evidence": { "$ref": "#/$defs/categoryBudget" },
+        "procedures": { "$ref": "#/$defs/categoryBudget" },
+        "episodes": { "$ref": "#/$defs/categoryBudget" },
+        "artifacts": { "$ref": "#/$defs/categoryBudget" },
+        "negative": { "$ref": "#/$defs/categoryBudget" },
+        "examples": { "$ref": "#/$defs/categoryBudget" },
+        "other": { "$ref": "#/$defs/categoryBudget" }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimumUtility", "marginalUtility", "minimumEvidenceCount"],
+      "properties": {
+        "minimumUtility": { "type": "number", "minimum": 0, "maximum": 100 },
+        "marginalUtility": { "type": "number", "minimum": 0, "maximum": 100 },
+        "minimumEvidenceCount": { "type": "integer", "minimum": 0, "maximum": 20 }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxSelectedCandidates", "maxCandidates", "maxSourceHitsPerCandidate", "maxScoreFactorsPerCandidate", "maxCandidateTokens", "maxTotalCandidateTokens", "requiredBudgetRatio"],
+      "properties": {
+        "maxSelectedCandidates": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "maxCandidates": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "maxSourceHitsPerCandidate": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "maxScoreFactorsPerCandidate": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "maxCandidateTokens": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "maxTotalCandidateTokens": { "type": "integer", "minimum": 1, "maximum": 100000 },
+        "requiredBudgetRatio": { "type": "number", "minimum": 0.01, "maximum": 1 }
+      }
+    },
+    "tokenEstimation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "zeroTokensAllowed"],
+      "properties": {
+        "method": { "enum": ["ceil_chars_div_4"] },
+        "zeroTokensAllowed": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -2,8 +2,8 @@
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
   "release": "0.2.0-dev",
-  "phase": "native-baselines-and-portable-contracts",
-  "nextTask": "OAF-009",
+  "phase": "1.0-release-candidate-readiness",
+  "nextTask": null,
   "defaults": {
     "network": "deny",
     "externalWrites": false,
@@ -14,10 +14,40 @@
     "memoryProvider": "provider:native:memory:sqlite",
     "artifactProvider": "provider:native:artifact:filesystem",
     "workflowProvider": "provider:native:workflow:embedded",
+    "policyProvider": "provider:native:policy:deterministic",
     "agentPackAuthority": "policy-required",
+    "toolProvider": "provider:native:tool:brokered-local",
     "replaySideEffects": "disabled"
   },
   "capabilities": [
+    {
+      "id": "native.local-profile",
+      "name": "Local-first single-developer native core profile",
+      "status": "implemented",
+      "evidence": [
+        "package.json",
+        "scripts/bootstrap.mjs",
+        "scripts/native-smoke.mjs",
+        "apps/cli/oaf.mjs",
+        "providers/native/memory-sqlite/src/index.mjs",
+        "providers/native/identity-local/src/index.mjs",
+        "packages/context-compiler/src/index.mjs",
+        "packages/harness-context/src/index.mjs",
+        "tests/native-core-local-profile-e2e.test.mjs",
+        "tests/cli.test.mjs",
+        "tests/native-identity-store.test.mjs",
+        "docs/operations/local-deployment.md",
+        "README.md"
+      ],
+      "limitations": [
+        "Production-ready only for the local-first single-developer profile exercised by local tests and smoke commands.",
+        "Team/cloud production remains out of scope: no production SSO, MFA, hosted secret manager, reverse proxy/TLS deployment, managed database, external connectors, publishing, signed distribution, or sandbox worker fleet is claimed.",
+        "The one-command local path is `npm run local:run` after dependencies are installed; it bootstraps local files and runs native smoke checks without enabling network, cloud fallback, or external writes.",
+        "The governed memory path is reference-complete for local coding-agent use: ingest creates proposals, approve/reject is explicit, MCP recall/profile prefer ACTIVE facts, and persisted cursors support same-session-plus-restart deltas.",
+        "Verified local benches: temporal correctness/cleanliness 100%, session delta correctness 100% with 76% delivered-token reduction versus full resend, and real repo question sufficiency 100% after structured governed ingest.",
+        "`npm run demo:memory-loop` is an in-repository local proof over native SQLite memory, compressed profile contextBudget, bounded loop observation, and temporal supersession; it does not imply team/cloud memory, hosted retrieval, semantic retrieval, model API calls, or external services."
+      ]
+    },
     {
       "id": "bootstrap.control-api",
       "name": "Local control API",
@@ -39,11 +69,19 @@
       "evidence": [
         "apps/web/index.html",
         "apps/web/app.js",
-        "apps/web/styles.css"
+        "apps/web/styles.css",
+        "apps/web/tokens.css",
+        "tests/web-shell.test.mjs",
+        "docs/implementation/OAF-022-production-web-shell-note.md",
+        "docs/implementation/OAF-023-run-context-inspector-note.md",
+        "docs/implementation/OAF-024-memory-evidence-approval-views-note.md",
+        "docs/implementation/OAF-031-context-intake-preview-note.md"
       ],
       "limitations": [
-        "Dependency-free conformance UI",
-        "Not the target production frontend"
+        "Dependency-free routed shell; no production frontend framework",
+        "Uses the loopback Control API only and does not read storage directly",
+        "OAF-024 views are read-only and do not add approval mutation endpoints",
+        "Fabric Map is a read-only visualization over existing local dashboard state; it does not add telemetry, model calls, external adapters, or external writes"
       ]
     },
     {
@@ -66,12 +104,217 @@
       "evidence": [
         "packages/context-compiler/src/index.mjs",
         "evals/context-selection/cases.json",
-        "tests/context-compiler.test.mjs"
+        "tests/context-selection.test.mjs",
+        "tests/context-compiler.test.mjs",
+        "tests/context-candidate-sources.test.mjs",
+        "tests/native-memory-profile-context.test.mjs",
+        "tests/ast-code-candidate-source.test.mjs",
+        "tests/source-graph-preview.test.mjs",
+        "tests/cli.test.mjs",
+        "tests/control-api-boundary.test.mjs",
+        "packages/protocol/schemas/candidate-source-request.schema.json",
+        "packages/protocol/schemas/ast-code-chunk.schema.json",
+        "packages/protocol/schemas/source-symbol-index.schema.json",
+        "packages/protocol/schemas/source-graph.schema.json",
+        "packages/protocol/schemas/source-graph-preview.schema.json",
+        "packages/source-graph/src/index.mjs",
+        "packages/protocol/schemas/context-candidate.schema.json",
+        "packages/protocol/schemas/context-selection-policy.schema.json",
+        "packages/protocol/schemas/context-selection-result.schema.json",
+        "docs/architecture/context-compiler.md",
+        "tests/context-assembly.test.mjs",
+        "tests/context-manifest-store.test.mjs",
+        "providers/native/context-manifest-local/provider.json",
+        "docs/implementation/OAF-012-context-manifests-note.md"
       ],
       "limitations": [
-        "Exact/lexical scoring only",
+        "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 256 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
+        "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
+        "Compressed memory profile context and oaf measure savings use bounded local before/after delivery-token estimates over a realistic workspace candidate-file and git-history baseline, surfaced in the memory cockpit and MCP stats; MCP stats separates context.profile compression-path savings from memory.recall compaction savings and does not claim provider billing-token savings",
+        "Native source graph is read-only derived metadata; it is not canonical source state, not a graph database, not persisted as memory, and does not emit graph candidate-source records yet",
         "Token estimate is approximate",
-        "Manifest not yet persisted separately"
+        "Manifest persistence is local native or repository-layer only; no production orchestration is implied"
+      ]
+    },
+    {
+      "id": "context.candidate-sources",
+      "name": "Provider-neutral context candidate-source generation",
+      "status": "reference",
+      "evidence": [
+        "packages/context-compiler/src/index.mjs",
+        "providers/native/context-candidate-exact/provider.json",
+        "providers/native/context-candidate-lexical/provider.json",
+        "providers/native/context-candidate-ast-code/provider.json",
+        "providers/native/catalog.json",
+        "tests/context-candidate-sources.test.mjs",
+        "tests/ast-code-candidate-source.test.mjs",
+        "tests/source-graph-preview.test.mjs",
+        "packages/adapter-contracts/src/index.mjs",
+        "packages/protocol/schemas/candidate-source-descriptor.schema.json",
+        "packages/protocol/schemas/candidate-source-hit.schema.json",
+        "packages/protocol/schemas/ast-code-chunk.schema.json",
+        "packages/protocol/schemas/source-symbol-index.schema.json",
+        "packages/protocol/schemas/source-graph.schema.json",
+        "packages/protocol/schemas/source-graph-preview.schema.json",
+        "packages/source-graph/src/index.mjs",
+        "docs/architecture/context-compiler.md"
+      ],
+      "limitations": [
+        "Only native exact, lexical, and AST-code sources are implemented and enabled",
+        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; over-limit files remain hash/read-plan-only and are not treated as symbol-impact coverage; it is not a full semantic parser, language server, graph database, or executor",
+        "Vector, graph, temporal, preference, and episode sources are declared but unavailable",
+        "Sources generate candidates only; final selection remains in the Context Compiler selector",
+        "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
+      ]
+    },
+    {
+      "id": "context.manifests",
+      "name": "Persisted context assembly and manifests",
+      "status": "reference",
+      "evidence": [
+        "packages/context-compiler/src/index.mjs",
+        "providers/native/context-manifest-local/src/index.mjs",
+        "providers/native/context-manifest-local/provider.json",
+        "packages/storage/src/postgres-repositories.mjs",
+        "tests/context-assembly.test.mjs",
+        "tests/context-manifest-store.test.mjs",
+        "docs/implementation/OAF-012-context-manifests-note.md"
+      ],
+      "limitations": [
+        "Native local provider and PostgreSQL repository layer only",
+        "No hosted manifest service, external adapter, vector database, graph database, embedding store, browser automation, or publishing integration",
+        "Production deployment orchestration remains pending"
+      ]
+    },
+    {
+      "id": "context.feedback",
+      "name": "Context-use feedback and selector experiments",
+      "status": "reference",
+      "evidence": [
+        "packages/context-compiler/src/index.mjs",
+        "packages/protocol/schemas/context-use-feedback.schema.json",
+        "packages/protocol/schemas/context-selector-experiment.schema.json",
+        "examples/protocol/context-use-feedback.json",
+        "examples/protocol/context-selector-experiment.json",
+        "tests/context-feedback.test.mjs",
+        "scripts/run-evals.mjs",
+        "docs/implementation/OAF-018-context-use-feedback-note.md"
+      ],
+      "limitations": [
+        "Records selected-record use and outcome references only; it does not infer causality",
+        "Selector experiments are reversible and review-only; defaults are not mutated by assignment",
+        "No online experimentation service, hosted analytics, telemetry upload, external adapters, or model/provider default change"
+      ]
+    },
+    {
+      "id": "context.pack-handoff",
+      "name": "Dry-run context pack handoff builder",
+      "status": "reference",
+      "evidence": [
+        "packages/harness-context/src/index.mjs",
+        "packages/source-graph/src/index.mjs",
+        "packages/protocol/schemas/context-pack.schema.json",
+        "packages/protocol/schemas/context-pack-use-plan.schema.json",
+        "packages/protocol/schemas/context-pack-registry-status.schema.json",
+        "packages/protocol/schemas/context-pack-handoff-report.schema.json",
+        "packages/protocol/schemas/context-pack-measurement-report.schema.json",
+        "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+        "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
+        "packages/protocol-bridges/src/index.mjs",
+        "examples/protocol/context-pack.json",
+        "examples/protocol/context-pack-use-plan.json",
+        "examples/protocol/context-pack-registry-status.json",
+        "examples/protocol/context-pack-handoff-report.json",
+        "examples/protocol/context-pack-measurement-report.json",
+        "examples/protocol/mcp-readonly-context-pack-resource.json",
+        "examples/protocol/mcp-readonly-context-pack-use-plan-resource.json",
+        "examples/protocol/mcp-readonly-context-pack-registry-resource.json",
+        "examples/protocol/mcp-context-pack-smoke.json",
+        "examples/protocol/compatibility/invalid/context-pack-raw-body.json",
+        "examples/protocol/compatibility/invalid/context-pack-use-plan-private-field.json",
+        "examples/protocol/compatibility/invalid/mcp-context-pack-smoke-raw-body.json",
+        "apps/cli/oaf.mjs",
+        "apps/web/app.js",
+        "services/control-api/src/server.mjs",
+        "services/control-api/src/route-contracts.mjs",
+        "tests/harness-context-pack.test.mjs",
+        "tests/cli.test.mjs",
+        "tests/control-api-boundary.test.mjs",
+        "tests/web-shell.test.mjs",
+        "docs/implementation/OAF-031-context-intake-preview-note.md"
+      ],
+      "limitations": [
+        "Generates schema-validated local handoff reports from explicit source-family selections over documented harness project files, explicit user-selected relative files, compact native JS/TS source-graph hints, a utility read plan, and a copyable launch prompt",
+        "Omission refs expose skipped context through safe locators, hashes, token costs, reason codes, and recovery hints without embedding raw bodies",
+        "Utility read plans record required local reads, changed-locator coverage, graph-hint coverage, redacted content hashes for safely readable changed files, aggregate changed-source byte/token counts, unavailable-hash reasons for missing or unsafe changed files, explicit user-selected files omitted by budget, and source-selection reduction without embedding raw source bodies",
+        "Context packs preserve requested source families, user-selected locators, and changed locators in schema-backed requestedInputs, and reject secret-like or absolute-path objective and step text before rendering handoff markdown",
+        "Context-pack Markdown intentionally caps bulky locator, omission, source-graph, affected-symbol, and verification-command rows while complete structured pack, use-plan, registry, and read-only MCP resources retain full required-read, omission-ref, requested-input, and command lists",
+        "Opt-in read-only MCP context-pack summary resource exposes source-family selection, locators, fingerprints, omission counts, source-selection token counts, delivery-budget metrics, changed-file impact, and utility coverage counts without raw objective text, raw step text, markdown bodies, or source bodies",
+        "Read-only context handoff preflight reports combine launch prompt, required local reads, schema-validated use plan, MCP context-pack readback proof, silent npm stdio bridge command, and dry-run setup preview without writing context-pack artifacts or mutating harness config",
+        "Read-only context-pack measurement reports include a schema-backed impact brief with changed-file coverage, affected symbols, required local reads, hash proof, graph hints, source-selection reduction, aggregate changed-source body tokens kept out of the handoff, MCP readback proof, and strict no-body/no-write/no-network/no-model/no-graph-database safeguards; large static JS/TS changed files within the 256 KiB preview ceiling are represented in the source graph while over-limit files stay in review",
+        "The browser Context Pack page starts with a first local handoff flow, reviewed input fields, a practical handoff checklist, session-local current-handoff status across Context Pack, Fabric Map, and Agents & Tools, a copyable read-only preflight command, and no harness install affordance",
+        "Explicit CLI export can write both context-packs/*.md markdown and context-packs/*.use.json sanitized use plans; the use plan carries complete required local reads, content hashes, coverage, delivery metrics, artifact hashes, and pack fingerprints without changing the pack object's dry-run semantics",
+        "Explicit CLI pinning writes context-packs/*.md, context-packs/*.use.json, context-packs/registry.json, and context-packs/current.json, then read-only registry status verifies artifact hashes, required source hashes, registry fingerprints, current-pointer fingerprints, stale source changes, unsafe persisted source locators, and tampered exports without exposing markdown or source content",
+        "Read-only MCP context-pack use-plan resources load only schema-validated context-packs/*.use.json files, reject arbitrary paths, and refuse unsafe direct use-plan data containing private local paths, provider URLs, session/token markers, or secret-like strings before serving the complete required-read plan",
+        "Read-only MCP context-pack registry resources expose schema-validated verification status for pinned local context-pack artifacts without exposing write tools or private content",
+        "The standard read-only MCP stdio bridge uses npm --silent and automatically discovers pinned context-pack use-plan and registry resources from context-packs/current.json and context-packs/registry.json; tampered pins withhold the use-plan resource while still exposing registry status for review",
+        "The local MCP stdio bridge caps stdin bytes, JSON-RPC line bytes, message count, child runtime, and child stdout/stderr; rejects JSON-RPC batch arrays; and redacts unsupported method, unknown resource, unknown tool, and oversized id failures",
+        "The authenticated loopback Control API exposes read-only context-pack registry verification at GET /api/context/pack/registry/status without mutating canonical state",
+        "Control API context-pack builds include an in-process read-only MCP resource readback proof for the freshly built pack, including fingerprint match, byte size, zero exposed tools, and no markdown body",
+        "Local MCP context-pack smoke report proves the stdio resources/list, tools/list, and resources/read path with observed one-run duration, byte sizes, selected/candidate source units, and delivered-handoff units",
+        "Read-only context-pack measurement reports combine current-checkout context-pack build metrics and stdio MCP readback metrics with commit SHA, fingerprints, source-graph coverage counts, byte sizes, zero exposed tools, and explicit no-production-benchmark safeguards",
+        "Raw source bodies, prompts, outputs, credentials, provider URLs, private local paths, and hidden reasoning are omitted",
+        "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, persisted graph database, graph candidate-source integration, publishing, or external write",
+        "The browser Context Pack page reads existing pinned registry/current status through the authenticated loopback API, surfaces the read-only receive command as the primary consume action only for verified pins, and withholds the MCP use-plan read command unless the current pinned entry verifies",
+        "Read-only context receive reports include a compact receiverPacket with ready/review/blocked state, fingerprints, required-read order, local-only proof gates, and next actions without embedding objective text, step text, launch prompts, markdown bodies, source bodies, credentials, provider URLs, absolute local paths, or hidden reasoning",
+        "The only context-pack write paths are explicit CLI outputs under context-packs/*.md, context-packs/*.use.json, context-packs/registry.json, and context-packs/current.json"
+      ]
+    },
+    {
+      "id": "builder.loop-workbench",
+      "name": "Loop Workbench (Plan, observation, verification, run, UI, and skill primitives)",
+      "status": "reference",
+      "evidence": [
+        "packages/protocol/schemas/loop-plan.schema.json",
+        "packages/protocol/schemas/loop-observation.schema.json",
+        "packages/protocol/schemas/loop-verification-report.schema.json",
+        "packages/protocol/schemas/loop-run.schema.json",
+        "examples/protocol/loop-plan.json",
+        "examples/protocol/loop-observation.json",
+        "examples/protocol/loop-verification-report.json",
+        "examples/protocol/loop-run.json",
+        "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
+        "examples/protocol/compatibility/invalid/loop-observation-raw-output.json",
+        "examples/protocol/compatibility/invalid/loop-verification-auto-merge.json",
+        "examples/protocol/compatibility/invalid/loop-run-auto-merge.json",
+        "packages/harness-context/src/index.mjs",
+        "apps/cli/oaf.mjs",
+        "apps/web/app.js",
+        "services/control-api/src/server.mjs",
+        "services/control-api/src/route-contracts.mjs",
+        "docs/api/openapi.yaml",
+        "skills/loop-action-efficiency/manifest.json",
+        "skills/loop-action-efficiency/SKILL.md",
+        "skills/loop-intent-clarification/manifest.json",
+        "skills/loop-intent-clarification/SKILL.md",
+        "tests/harness-context-loop-plan.test.mjs",
+        "tests/harness-context-loop-observation.test.mjs",
+        "tests/harness-context-loop-verification.test.mjs",
+        "tests/harness-context-loop-run.test.mjs",
+        "tests/cli.test.mjs",
+        "tests/control-api-boundary.test.mjs",
+        "tests/skill-catalog.test.mjs",
+        "tests/web-shell.test.mjs",
+        "docs/product/loop-workbench.md"
+      ],
+      "limitations": [
+        "Read-only Loop Plan generator, sanitized observation capture, maker/checker verification report, bounded loop-run projection with structured skill reasoning, and /loop-workbench route only.",
+        "The verifier uses an isolated worktree, injected implementer, plan-limited checker commands, unrelated-diff blocking, replay side-effect disabling, and no auto-merge.",
+        "The run controller bounds iterations/timeouts, projects durable workflow history, aggregates contextBudget estimates, and supports opt-in schedule prompt reports; it is not a background daemon.",
+        "The web route is a dependency-free read surface over the local Control API model; it does not add a production frontend framework.",
+        "Loop Workbench skills are read-only instruction folders with structured maker/checker guidance; they do not execute tools, grant authority, or create an autonomous skill runtime.",
+        "Proof summary and autonomous executor are not implemented.",
+        "contextBudget is an estimate carried from a context-pack measurement; it does not claim provider billing tokens."
       ]
     },
     {
@@ -80,12 +323,80 @@
       "status": "reference",
       "evidence": [
         "workflows/content-intelligence/runner.mjs",
-        "tests/workflow.test.mjs"
+        "workflows/content-intelligence/workflow.json",
+        "tests/workflow.test.mjs",
+        "tests/research-ingestion.test.mjs",
+        "tests/content-intelligence.test.mjs",
+        "packages/protocol/schemas/content-local-draft-outcome.schema.json",
+        "examples/protocol/content-local-draft-outcome.json",
+        "docs/implementation/OAF-021-approval-local-drafting-outcomes-note.md"
       ],
       "limitations": [
-        "Synthetic fixtures",
+        "Synthetic fixtures by default; optional read-only source ingestion remains caller supplied",
         "Deterministic generator",
+        "Local approval and drafting only",
         "No publishing"
+      ]
+    },
+    {
+      "id": "content.ingestion",
+      "name": "Read-only file and feed ingestion",
+      "status": "reference",
+      "evidence": [
+        "packages/evidence/src/index.mjs",
+        "workflows/content-intelligence/runner.mjs",
+        "packages/protocol/schemas/research-ingestion-result.schema.json",
+        "examples/protocol/research-ingestion-result.json",
+        "tests/research-ingestion.test.mjs",
+        "docs/implementation/OAF-019-file-rss-ingestion-note.md"
+      ],
+      "limitations": [
+        "Accepts caller-supplied bounded text, Markdown, JSON, RSS, and Atom bodies only",
+        "No network fetching, cookies, paid APIs, authenticated social connectors, browser automation, external adapters, external writes, or publishing",
+        "RSS and Atom parsing is dependency-free bootstrap coverage, not a full XML feed crawler"
+      ]
+    },
+    {
+      "id": "content.pattern-analysis",
+      "name": "Pattern, saturation, and copying-risk analysis",
+      "status": "reference",
+      "evidence": [
+        "packages/content-intelligence/src/index.mjs",
+        "workflows/content-intelligence/runner.mjs",
+        "packages/protocol/schemas/content-pattern-analysis.schema.json",
+        "examples/protocol/content-pattern-analysis.json",
+        "tests/content-intelligence.test.mjs",
+        "tests/workflow.test.mjs",
+        "scripts/run-evals.mjs",
+        "docs/implementation/OAF-020-pattern-saturation-copying-risk-note.md"
+      ],
+      "limitations": [
+        "Deterministic bootstrap heuristics only; no learned ranking, embeddings, vector database, graph database, hosted analytics, or external telemetry",
+        "Relative performance requires caller-supplied baselines and otherwise reports proof needed",
+        "Similarity and copying risk are lexical safeguards, not legal review or plagiarism certification",
+        "Publishing remains disabled"
+      ]
+    },
+    {
+      "id": "content.local-drafting",
+      "name": "Local approval, drafting, and outcome recording",
+      "status": "reference",
+      "evidence": [
+        "packages/content-intelligence/src/index.mjs",
+        "workflows/content-intelligence/runner.mjs",
+        "workflows/content-intelligence/workflow.json",
+        "packages/protocol/schemas/content-local-draft-outcome.schema.json",
+        "examples/protocol/content-local-draft-outcome.json",
+        "tests/content-intelligence.test.mjs",
+        "tests/workflow.test.mjs",
+        "scripts/run-evals.mjs",
+        "docs/implementation/OAF-021-approval-local-drafting-outcomes-note.md"
+      ],
+      "limitations": [
+        "Approval is a local deterministic record, not a production approval UI",
+        "Draft records are local-only and do not invoke a publisher",
+        "Similarity and copying risk are lexical safeguards, not legal review or plagiarism certification",
+        "No publisher, authenticated social connector, external adapter, external write, browser automation, hosted analytics, vector database, graph database, or embedding store"
       ]
     },
     {
@@ -94,11 +405,13 @@
       "status": "reference",
       "evidence": [
         "packages/content-intelligence/src/index.mjs",
-        "tests/content-intelligence.test.mjs"
+        "tests/content-intelligence.test.mjs",
+        "scripts/run-evals.mjs"
       ],
       "limitations": [
         "Bootstrap heuristics only",
-        "Creator-relative baselines and learned ranking remain planned"
+        "Creator-relative baselines must be supplied by the caller",
+        "Learned ranking remains planned"
       ]
     },
     {
@@ -107,46 +420,91 @@
       "status": "reference",
       "evidence": [
         "packages/policy/src/index.mjs",
-        "tests/policy.test.mjs"
+        "providers/native/policy-deterministic/src/index.mjs",
+        "providers/native/policy-deterministic/provider.json",
+        "tests/policy.test.mjs",
+        "tests/policy-contextual.test.mjs",
+        "packages/protocol/schemas/policy-evaluation-request.schema.json",
+        "packages/protocol/schemas/policy-decision.schema.json"
       ],
       "limitations": [
-        "No production identity or relationship store"
+        "Consumes trusted identity and membership context from OAF-008",
+        "No remote OPA deployment",
+        "No production policy administration UI"
       ]
     },
     {
       "id": "memory.write-gate",
-      "name": "Memory proposal gate",
+      "name": "Native versioned memory write gate",
       "status": "reference",
       "evidence": [
         "packages/memory-core/src/index.mjs",
-        "tests/memory-core.test.mjs"
+        "packages/memory-core/src/filesystem-ux.mjs",
+        "packages/protocol/schemas/memory-record.schema.json",
+        "packages/protocol/schemas/memory-profile-report.schema.json",
+        "packages/protocol/schemas/memory-proposals-report.schema.json",
+        "packages/protocol/schemas/memory-sgrep-report.schema.json",
+        "packages/protocol/schemas/memory-workspace-config.schema.json",
+        "examples/protocol/memory-proposal.json",
+        "examples/protocol/memory-profile-report.json",
+        "examples/protocol/memory-proposals-report.json",
+        "examples/protocol/memory-sgrep-report.json",
+        "tests/memory-core.test.mjs",
+        "tests/memory-filesystem-ux.test.mjs",
+        "tests/cli.test.mjs"
       ],
       "limitations": [
-        "No persistent versioned memory service"
+        "Pure domain lifecycle gate; persistence/search remains delegated to native SQLite memory provider",
+        "Generated memory/profile.md and memory/proposals/*.md are reports only; file edits are not canonical memory writes",
+        "memoryPaths config is an explicit proposal source only and cannot activate memory; diagnostics cover source role, hash, line count, byte size, age, stale-source warnings, and markdown memory-index cap warnings",
+        "No automatic activation from model, tool, external, or retrieved content",
+        "No hosted memory provider, embeddings, vector database, graph database, connector ingestion, or external write"
       ]
     },
     {
       "id": "evidence.citations",
-      "name": "Observation normalization and citation validation",
+      "name": "Evidence service and citation graph",
       "status": "reference",
       "evidence": [
         "packages/evidence/src/index.mjs",
-        "tests/evidence.test.mjs"
+        "packages/protocol/schemas/evidence-graph.schema.json",
+        "packages/protocol/schemas/research-ingestion-result.schema.json",
+        "examples/protocol/evidence-graph.json",
+        "examples/protocol/research-ingestion-result.json",
+        "tests/evidence.test.mjs",
+        "tests/research-ingestion.test.mjs"
       ],
       "limitations": [
-        "No immutable artifact store or citation graph database"
+        "Reference implementation is pure in-memory normalization and graph construction",
+        "No external graph database, adapter ingestion, publishing, authenticated social connector, or automatic memory write"
       ]
     },
     {
       "id": "tool.registry",
-      "name": "Manifest-backed tool registry reference",
+      "name": "Bounded local tool execution and grants",
       "status": "reference",
       "evidence": [
         "packages/tool-registry/src/index.mjs",
-        "tests/tool-registry.test.mjs"
+        "providers/native/tool-brokered-local/src/index.mjs",
+        "providers/native/tool-brokered-local/provider.json",
+        "tools/catalog.json",
+        "tools/manifests/brokered-filesystem-read.json",
+        "tools/manifests/brokered-workspace-write.json",
+        "packages/protocol/schemas/tool-invocation-request.schema.json",
+        "packages/protocol/schemas/tool-grant-record.schema.json",
+        "tests/tool-registry.test.mjs",
+        "tests/tool-manifest-loader.test.mjs",
+        "tests/tool-grants.test.mjs",
+        "tests/tool-executor.test.mjs",
+        "tests/tool-executor-brokers.test.mjs",
+        "tests/tool-durable-integration.test.mjs",
+        "scripts/tool-bounded-smoke.mjs",
+        "docs/adr/0018-native-bounded-tool-execution.md"
       ],
       "limitations": [
-        "No hardened sandbox or short-lived cryptographic grant"
+        "Reviewed in-process local handlers only; no arbitrary-code sandboxing claim",
+        "External adapters, external writes, publishing, arbitrary shell execution, downloaded tools, browser automation, and public internet access remain disabled",
+        "Raw grant tokens are process-local and are not persisted or logged"
       ]
     },
     {
@@ -155,10 +513,15 @@
       "status": "reference",
       "evidence": [
         "packages/model-gateway/src/index.mjs",
-        "workflows/content-intelligence/runner.mjs"
+        "workflows/content-intelligence/runner.mjs",
+        "tests/model-gateway.test.mjs",
+        "tests/workflow.test.mjs",
+        "docs/architecture/model-gateway.md",
+        "docs/implementation/OAF-013-local-model-gateway-note.md"
       ],
       "limitations": [
-        "No real local model adapter in bootstrap"
+        "Deterministic provider is a fixture generator, not a general language model",
+        "No hosted model providers, cloud API keys, LiteLLM deployment, tool calling, embeddings, vector databases, graph databases, browser automation, publishing, or external connectors"
       ]
     },
     {
@@ -226,15 +589,65 @@
       ]
     },
     {
-      "id": "runtime.durable",
-      "name": "Durable workflow runtime",
-      "status": "specified",
+      "id": "observability.otel",
+      "name": "OpenTelemetry-compatible local instrumentation",
+      "status": "reference",
       "evidence": [
-        "docs/architecture/workflow-runtime.md",
-        "planning/backlog.json"
+        "packages/observability/src/index.mjs",
+        "tests/observability.test.mjs",
+        "docs/operations/observability.md",
+        "deploy/otel/collector.yaml",
+        "docs/implementation/OAF-025-otel-compatible-instrumentation-note.md"
       ],
       "limitations": [
-        "In-process bootstrap does not survive process failure"
+        "Default exporter is no-op for offline deterministic bootstrap",
+        "OTLP HTTP export is optional and limited to explicit loopback collector endpoints",
+        "No hosted telemetry service, external collector, raw body capture, prompt capture, output capture, credential capture, local path capture, SQL capture, or hidden-reasoning capture"
+      ]
+    },
+    {
+      "id": "evaluation.laboratory",
+      "name": "Evaluation laboratory",
+      "status": "reference",
+      "evidence": [
+        "packages/evaluation-lab/src/index.mjs",
+        "tests/evaluation-lab.test.mjs",
+        "scripts/run-evals.mjs",
+        "evals/lab/datasets/deterministic-regression.v1.json",
+        "evals/lab/datasets/model-quality-shadow.v1.json",
+        "evals/lab/experiments/oaf-026-selector-smoke.json",
+        "evals/lab/reports/oaf-026-selector-smoke-report.json",
+        "packages/protocol/schemas/evaluation-dataset.schema.json",
+        "packages/protocol/schemas/evaluation-experiment.schema.json",
+        "packages/protocol/schemas/evaluation-report.schema.json",
+        "packages/protocol/schemas/evaluation-trace-promotion.schema.json",
+        "docs/implementation/OAF-026-evaluation-laboratory-note.md"
+      ],
+      "limitations": [
+        "Deterministic regression suite is local and fixture-backed",
+        "Model-quality suites are shadow-only and non-blocking by default",
+        "No hosted judge, external telemetry upload, online experimentation service, external adapter, external write, browser automation, vector database, graph database, or embedding store"
+      ]
+    },
+    {
+      "id": "runtime.durable",
+      "name": "Durable workflow runtime",
+      "status": "reference",
+      "evidence": [
+        "providers/native/workflow-durable-sqlite/src/index.mjs",
+        "providers/native/workflow-durable-sqlite/provider.json",
+        "packages/adapter-contracts/src/index.mjs",
+        "packages/protocol/schemas/durable-workflow-definition.schema.json",
+        "tests/workflow-durable-sqlite.test.mjs",
+        "tests/workflow-durable-crash.test.mjs",
+        "scripts/workflow-durable-smoke.mjs",
+        "docs/adr/0017-native-sqlite-durable-workflows.md",
+        "docs/implementation/OAF-014-durable-workflows-note.md"
+      ],
+      "limitations": [
+        "Native SQLite reference runtime only; not a hosted or team-scale workflow service",
+        "Activity invocation is at least once; non-repetition depends on target-level idempotency",
+        "Temporal, hosted orchestration, external writes, tool execution, and production approval UI remain pending"
       ]
     },
     {
@@ -251,15 +664,80 @@
       ]
     },
     {
+      "id": "operations.recovery",
+      "name": "Local operations backup, restore, upgrade, and rollback rehearsal",
+      "status": "reference",
+      "evidence": [
+        "packages/operations/src/index.mjs",
+        "tests/operations.test.mjs",
+        "scripts/operations-smoke.mjs",
+        "docs/operations/backup-restore.md",
+        "docs/operations/upgrade-rollback.md",
+        "docs/implementation/OAF-029-operations-backup-rollback-note.md"
+      ],
+      "limitations": [
+        "Local reference backup/restore only; PostgreSQL physical dump/restore remains deployment tooling",
+        "No production SSO, hosted secret management, encrypted backup storage, digest-pinned container release, cloud backup service, or managed retention worker",
+        "External writes, publishing, browser automation, public internet connectors, and external adapter execution remain disabled"
+      ]
+    },
+    {
+      "id": "release.readiness",
+      "name": "1.0 open-source release readiness evidence",
+      "status": "reference",
+      "evidence": [
+        "packages/release-readiness/src/index.mjs",
+        "scripts/release-readiness.mjs",
+        "tests/release-readiness.test.mjs",
+        "docs/release/1.0-READINESS-REPORT.md",
+        "docs/release/1.0-NORTH-STAR-GAP-AUDIT.md",
+        "docs/release/1.0-SECURITY-REVIEW.md",
+        "docs/release/1.0-COMPATIBILITY-MATRIX.md",
+        "docs/release/1.0-REPRODUCIBILITY.md",
+        "docs/release/1.0-SBOM.json",
+        "docs/release/1.0-PROVENANCE.json",
+        "docs/release/1.0-ADAPTER-CERTIFICATION.md",
+        "docs/release/1.0-THIRD-PARTY-NOTICE-REVIEW.md",
+        "docs/release/1.0-RELEASE-CHECKLIST.md"
+      ],
+      "limitations": [
+        "Release-candidate readiness evidence only; product 1.0 is not published",
+        "Final merge, tag creation, artifact signing, and product release publication require explicit maintainer approval",
+        "No signing keys, release credentials, hosted publishing automation, external writes, or external adapter activation are added"
+      ]
+    },
+    {
       "id": "adapters.external",
       "name": "External project adapters",
       "status": "disabled",
       "evidence": [
         "adapters/catalog.json",
-        "THIRD_PARTY.md"
+        "THIRD_PARTY.md",
+        "adapters/tool/ecc/adapter.json",
+        "tests/ecc-adapter.test.mjs"
       ],
       "limitations": [
-        "All are unpinned, disabled, and require review"
+        "Catalog-level external adapter execution remains disabled by default",
+        "Only adapter:tool:ecc is experimental, no-install, proposal-only, and disabled by default",
+        "All other external adapters remain planned, unpinned, disabled, and require review"
+      ]
+    },
+    {
+      "id": "adapter.ecc-reviewed-procedures",
+      "name": "ECC reviewed procedure adapter",
+      "status": "experimental",
+      "evidence": [
+        "adapters/tool/ecc/adapter.json",
+        "adapters/tool/ecc/UPSTREAM.lock",
+        "adapters/tool/ecc/src/index.mjs",
+        "adapters/tool/ecc/reviewed-procedures.json",
+        "adapters/tool/ecc/fixtures/conformance.json",
+        "tests/ecc-adapter.test.mjs"
+      ],
+      "limitations": [
+        "No-install adapter boundary only; upstream ECC source is not vendored, installed, executed, or bulk-loaded",
+        "Produces reviewed import proposals only and never mutates canonical state directly",
+        "Requires exact operation grants and remains disabled by default"
       ]
     },
     {
@@ -285,6 +763,45 @@
       ],
       "limitations": [
         "Implements the JSON Schema subset used by OAF v1; not a general replacement for a standards-complete validator"
+      ]
+    },
+    {
+      "id": "protocol.mcp-bridge",
+      "name": "MCP protocol bridge for local read-only memory and context",
+      "status": "reference",
+      "evidence": [
+        "packages/protocol-bridges/src/index.mjs",
+        "packages/protocol/schemas/mcp-bridge-request.schema.json",
+        "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+        "packages/protocol/schemas/context-pack-use-plan.schema.json",
+        "packages/protocol/schemas/context-pack-registry-status.schema.json",
+        "packages/protocol/schemas/context-pack-handoff-report.schema.json",
+        "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
+        "examples/protocol/mcp-bridge-request.json",
+        "examples/protocol/mcp-readonly-resource.json",
+        "examples/protocol/mcp-readonly-context-pack-resource.json",
+        "examples/protocol/mcp-readonly-context-pack-use-plan-resource.json",
+        "examples/protocol/mcp-readonly-context-pack-registry-resource.json",
+        "examples/protocol/context-pack-handoff-report.json",
+        "examples/protocol/mcp-context-pack-smoke.json",
+        "apps/cli/oaf.mjs",
+        "packages/harness-context/src/index.mjs",
+        "tests/protocol-bridges.test.mjs",
+        "tests/cli.test.mjs",
+        "docs/architecture/protocol-bridges.md",
+        "docs/implementation/OAF-028-protocol-bridges-note.md"
+      ],
+      "limitations": [
+        "Reference-complete for the local read-only coding-agent memory profile: Claude Code/Cursor/Codex install previews include an absolute server path, explicit project root, explicit project SQLite memory path, and preview-then-confirm writes.",
+        "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio compositions and the preview-confirm mcp install planner using npm --silent; no HTTP, SSE, hosted bridge, or network listener is started",
+        "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, opt-in current context packs, auto-discovered pinned context-pack use plans, and pinned context-pack registry verification; they do not expose write tools, source bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
+        "MCP memory.recall and context.profile serve active temporal facts first and pending proposal facts separately, include active/proposal count summaries, support since cursors for deltas, and persist last-delivered cursors locally per client/scope",
+        "The read-only bridge never approves proposals or activates memory",
+        "The MCP token-saver install command writes only the selected local client MCP config entry after --apply plus a matching dry-run fingerprint; default dry-run prints exact config only, rejects --write, and does not print raw home config bodies or absolute paths",
+        "The stdio bridge enforces bounded stdin, JSON-RPC line size, message count, child runtime, child stdout/stderr, JSON-RPC id, method, resource URI, and tool name limits; JSON-RPC batch arrays are rejected and request-metadata failures are redacted",
+        "MCP context-pack smoke and measurement reports are observed local single-invocation measurements only; delivery-budget metrics distinguish locator-handoff cost from source-body selection cost but are not production latency benchmarks, provider billing-token claims, or external tool comparisons",
+        "Requires OAF trusted context and server-side exact grants; remote protocol clients do not inherit local authority",
+        "A2A, AG-UI, ACP, and CCCC remain pending until accepted use-case RFCs exist"
       ]
     },
     {
@@ -314,15 +831,33 @@
     },
     {
       "id": "memory.sqlite",
-      "name": "Workspace-scoped SQLite and FTS5 memory provider",
+      "name": "Workspace-scoped SQLite and FTS5 governed memory provider",
       "status": "reference",
       "evidence": [
         "providers/native/memory-sqlite/src/index.mjs",
-        "tests/native-memory-sqlite.test.mjs"
+        "providers/native/memory-sqlite/provider.json",
+        "packages/memory-core/src/index.mjs",
+        "packages/protocol/schemas/memory-proposal-queue-record.schema.json",
+        "packages/protocol/schemas/memory-temporal-fact.schema.json",
+        "examples/protocol/memory-proposal-queue-record.json",
+        "examples/protocol/memory-temporal-fact.json",
+        "tests/native-memory-sqlite.test.mjs",
+        "tests/native-memory-hybrid-retrieval.test.mjs",
+        "tests/native-memory-extraction.test.mjs",
+        "tests/memory-filesystem-ux.test.mjs",
+        "tests/cli.test.mjs"
       ],
       "limitations": [
+        "Reference-complete for local governed coding-agent memory over a real workspace: deterministic ingest, review, approve, reject, ACTIVE recall/profile preference, and proposal separation are covered by CLI, MCP, and cockpit tests.",
         "Node 22 node:sqlite is experimental",
-        "No vector retrieval or evented review service yet"
+        "Search is lexical FTS5 plus report projection; temporal facts add fact/entity/edge/episode tables with FTS5 fact indexing, hybrid FTS5 plus entity-edge graph expansion plus temporal ranking, and scoped digest summaries",
+        "Static lookup can tie keyword search; the verified edge is temporal correctness on evolving facts and cheap repeat delivery through MCP deltas, not generic token savings versus RAG.",
+        "Semantic sqlite-vec ranking is skipped when no local embedder is available; no semantic retrieval, hosted embedding service, network call, model API, or vector database is claimed or required",
+        "Offline extraction is deterministic and heuristic; it enqueues proposal records only and never activates memory without explicit oaf memory approve or review approve",
+        "Temporal fact writes require an applied proposal queue record; oaf memory approve/review approve claims the selected proposal by id or source, marks it applied, and creates an active fact without hard-deleting the proposal",
+        "Contradictory temporal facts are superseded by validUntil and supersededBy instead of hard deletion",
+        "Filesystem memory files are generated reports only and are not authoritative",
+        "No hosted memory provider, external sync, FUSE/NFS mount, API-key storage, automatic activation, or evented review service is claimed"
       ]
     },
     {
@@ -341,7 +876,7 @@
         "packages/protocol/schemas/integrity-verification-result.schema.json"
       ],
       "limitations": [
-        "No restore/import service yet",
+        "OAF-029 adds verified import of provider-owned workspace exports for local restore rehearsal",
         "No background retention worker",
         "No encrypted-at-rest artifact store"
       ]
@@ -364,11 +899,14 @@
       "status": "reference",
       "evidence": [
         "providers/native/model-ollama/src/index.mjs",
-        "tests/native-model-ollama.test.mjs"
+        "tests/native-model-ollama.test.mjs",
+        "tests/model-gateway-local-integration.test.mjs",
+        "docs/architecture/model-gateway.md"
       ],
       "limitations": [
         "Requires separately installed Ollama and selected model",
-        "Disabled by default; no silent fallback"
+        "Disabled by default; no silent fallback",
+        "Loopback-only integration test uses a local fake Ollama-compatible server; no model download or hosted provider is implied"
       ]
     },
     {
@@ -389,26 +927,40 @@
       "status": "reference",
       "evidence": [
         "adapters/CONFORMANCE.md",
-        "tests/adapter-contract-fixtures.test.mjs"
+        "tests/adapter-contract-fixtures.test.mjs",
+        "adapters/tool/ecc/fixtures/conformance.json",
+        "tests/ecc-adapter.test.mjs"
       ],
       "limitations": [
-        "Fixtures are expectations, not evidence that adapters are installed or passing"
+        "Most fixtures are expectations, not evidence that adapters are installed or passing",
+        "adapter:tool:ecc is the single experimental exception with executable conformance evidence"
       ]
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-06-19",
+    "asOf": "2026-06-26",
     "commands": [
-      "npm run check",
+      "npm ci --ignore-scripts --no-audit --no-fund",
+      "npm run local:run",
+      "npm run bootstrap",
+      "npm run doctor",
+      "node --test tests/tool-manifest-loader.test.mjs tests/tool-grants.test.mjs tests/tool-executor.test.mjs tests/tool-executor-brokers.test.mjs tests/tool-durable-integration.test.mjs tests/tool-registry.test.mjs tests/policy-contextual.test.mjs tests/workflow-durable-sqlite.test.mjs tests/workflow-durable-crash.test.mjs",
       "npm run protocol:validate",
-      "npm test",
       "npm run eval",
+      "npm run ci",
+      "npm run demo:memory-loop",
+      "npm run tool:bounded:smoke",
+      "npm run workflow:durable:smoke",
+      "npm run ops:smoke",
+      "npm run release:readiness",
+      "npm run release:readiness:check",
+      "npm run demo",
       "npm run native:smoke",
-      "npm run demo"
+      "npm run verify:handoff"
     ],
-    "testsExpected": 82,
-    "protocolFixturesExpected": 30,
-    "evaluationsExpected": 22,
+    "testsExpected": 435,
+    "protocolFixturesExpected": 160,
+    "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }
 }

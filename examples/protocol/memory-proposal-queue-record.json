@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "mpq_abc123",
+  "workspaceId": "ws_local",
+  "fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "sourceLocator": "workspace://memory/inbox.md",
+  "sourceHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "status": "claimed",
+  "attempts": 1,
+  "maxAttempts": 3,
+  "leaseOwner": "worker_a",
+  "leaseUntil": "2026-06-23T00:01:00.000Z",
+  "payload": {
+    "kind": "episode",
+    "textHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "result": null,
+  "error": null,
+  "enqueuedAt": "2026-06-23T00:00:00.000Z",
+  "updatedAt": "2026-06-23T00:00:01.000Z"
+}

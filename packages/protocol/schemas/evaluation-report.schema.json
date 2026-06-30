@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/evaluation-report.schema.json",
+  "title": "Evaluation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "experiment", "mergeGate", "commitSha", "runner", "versions", "results", "counts", "gateDecision", "generatedAt", "labVersion", "reportFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^evalrep_[A-Za-z0-9._:-]+$" },
+    "experiment": { "$ref": "#/$defs/experimentRef" },
+    "mergeGate": { "type": "boolean" },
+    "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "runner": { "$ref": "#/$defs/runner" },
+    "versions": { "$ref": "#/$defs/versions" },
+    "results": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/result" } },
+    "counts": { "$ref": "#/$defs/counts" },
+    "gateDecision": { "enum": ["pass", "fail", "shadow_passed", "shadow_failed_non_blocking"] },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "labVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "reportFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  },
+  "$defs": {
+    "experimentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "mode", "mergeGate", "experimentFingerprint", "dataset"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^evalexp_[A-Za-z0-9._:-]+$" },
+        "mode": { "enum": ["deterministic", "model-quality"] },
+        "mergeGate": { "type": "boolean" },
+        "experimentFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "dataset": { "$ref": "#/$defs/datasetRef" }
+      }
+    },
+    "datasetRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "suite", "version", "mergeGate", "datasetFingerprint"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^evalds_[A-Za-z0-9._:-]+$" },
+        "suite": { "enum": ["deterministic-regression", "model-quality-shadow"] },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "mergeGate": { "type": "boolean" },
+        "datasetFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compiler", "prompt", "model", "policy"],
+      "properties": {
+        "compiler": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "policy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseId", "status", "metrics"],
+      "properties": {
+        "caseId": { "type": "string", "pattern": "^evalcase_[A-Za-z0-9._:-]+$" },
+        "status": { "enum": ["passed", "failed", "skipped"] },
+        "metrics": { "type": "object", "additionalProperties": { "type": ["string", "number", "integer", "boolean"] } }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "failed", "skipped"],
+      "properties": {
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

@@ -16,6 +16,12 @@ Models are probabilistic processors. Output is constrained, validated, cited, sc
 
 Execution occurs under a short-lived grant narrower than the tool manifest. Network, filesystem, process, secret, cost, and time limits are enforced outside the model.
 
+OAF-015 keeps native bounded tool execution behind a reviewed catalog and local
+brokers. Caller-supplied role, owner, policy, path, domain, secret, sandbox, or
+approval fields are rejected. Filesystem, loopback egress, and secret
+references are mediated separately after policy allow and one-use grant
+consumption. This is not a general arbitrary-code sandbox.
+
 ## Boundary 5: external writes
 
 Publication, deletion, payment, permission changes, and administration require exact preview, deterministic authorization, bounded approval, idempotency, execution reconciliation, and append-only evidence.

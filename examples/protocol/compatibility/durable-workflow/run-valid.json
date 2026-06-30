@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "provider": "provider:native:workflow:durable-sqlite",
+  "workspaceId": "ws_local",
+  "runId": "run_durable",
+  "workflowId": "workflow:durable-smoke",
+  "workflowVersion": "1.0.0",
+  "workflowFingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "waiting_approval",
+  "currentStep": 3,
+  "input": {},
+  "output": null,
+  "error": null,
+  "createdAt": "2026-06-20T00:00:00.000Z",
+  "updatedAt": "2026-06-20T00:00:01.000Z",
+  "completedAt": null,
+  "steps": {
+    "approval": {
+      "stepId": "approval",
+      "kind": "approval",
+      "status": "waiting_approval",
+      "attempt": 0,
+      "handler": null,
+      "output": null,
+      "error": null,
+      "nextAt": null,
+      "approvalId": "app_abc",
+      "idempotencyKey": null,
+      "operationFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  }
+}

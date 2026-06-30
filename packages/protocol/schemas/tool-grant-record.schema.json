@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/tool-grant-record-1.0.json",
+  "title": "Tool Grant Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "grantId", "status", "binding", "issuedAt", "expiresAt", "maxUses", "uses"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "grantId": { "type": "string", "pattern": "^grant_" },
+    "status": { "enum": ["issued", "consumed", "expired", "revoked"] },
+    "binding": { "type": "object" },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "maxUses": { "type": "integer", "minimum": 1, "maximum": 1 },
+    "uses": { "type": "integer", "minimum": 0, "maximum": 1 }
+  }
+}

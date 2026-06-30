@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "gatewayVersion": "1.0.0",
+  "requestId": "modelreq_oaf013_demo",
+  "correlationId": "req_oaf013_demo",
+  "workspaceId": "ws_local",
+  "provider": "provider:native:model:deterministic",
+  "model": "deterministic-v1",
+  "promptFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "outputSchemaFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "prompt": {
+    "version": "content-intelligence.generate-angles.v1",
+    "fingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "assemblyVersion": "1.0.0",
+    "byteLength": 512
+  },
+  "outputSchema": {
+    "name": "content-intelligence.recommendations",
+    "version": "1.0.0",
+    "fingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "contextManifest": {
+    "id": "ctx_oaf013_demo",
+    "manifestFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "assemblyFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "compilerVersion": "0.2.0",
+    "assemblyPolicyVersion": "1.0.0",
+    "assemblyPolicyFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "selectedCount": 4,
+    "excludedCount": 8
+  },
+  "timeoutMs": 120000,
+  "repair": {
+    "maxAttempts": 1
+  },
+  "occurredAt": "2026-06-20T00:00:00.000Z"
+}

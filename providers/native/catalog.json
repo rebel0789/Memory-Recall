@@ -20,6 +20,12 @@
       "purpose": "Bounded local execution with event checkpoints"
     },
     {
+      "id": "provider:native:workflow:durable-sqlite",
+      "path": "providers/native/workflow-durable-sqlite",
+      "enabledByDefault": false,
+      "purpose": "Dependency-free local SQLite durable workflow recovery baseline"
+    },
+    {
       "id": "provider:native:model:deterministic",
       "path": "providers/native/model-deterministic",
       "enabledByDefault": true,
@@ -30,6 +36,42 @@
       "path": "providers/native/identity-local",
       "enabledByDefault": true,
       "purpose": "Local-first users, sessions, API tokens, workspace memberships, and security audit"
+    },
+    {
+      "id": "provider:native:policy:deterministic",
+      "path": "providers/native/policy-deterministic",
+      "enabledByDefault": true,
+      "purpose": "Deterministic contextual policy decisions for resources, tools, data classes, risk, approvals, and budgets"
+    },
+    {
+      "id": "provider:native:tool:brokered-local",
+      "path": "providers/native/tool-brokered-local",
+      "enabledByDefault": true,
+      "purpose": "Dependency-free reviewed local tool execution with one-use grants and independent brokers"
+    },
+    {
+      "id": "provider:native:context-candidate:exact",
+      "path": "providers/native/context-candidate-exact",
+      "enabledByDefault": true,
+      "purpose": "Workspace-scoped exact context candidate lookup by canonical record id"
+    },
+    {
+      "id": "provider:native:context-candidate:lexical",
+      "path": "providers/native/context-candidate-lexical",
+      "enabledByDefault": true,
+      "purpose": "Deterministic lexical context candidate lookup over safe record fields"
+    },
+    {
+      "id": "provider:native:context-candidate:ast-code",
+      "path": "providers/native/context-candidate-ast-code",
+      "enabledByDefault": true,
+      "purpose": "Dependency-free JS/TS static code chunk candidate source"
+    },
+    {
+      "id": "provider:native:context-manifest:local",
+      "path": "providers/native/context-manifest-local",
+      "enabledByDefault": true,
+      "purpose": "Workspace-scoped immutable local context manifest persistence"
     },
     {
       "id": "provider:native:model:ollama",

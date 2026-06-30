@@ -10,6 +10,7 @@ Implemented routes:
 
 - `GET /api/health`
 - `GET /api/auth/bootstrap-status`
+- `POST /api/auth/bootstrap`
 - `POST /api/auth/login`
 - `GET /api/auth/session`
 - `POST /api/auth/logout`
@@ -22,12 +23,17 @@ Implemented routes:
 - `POST /api/runs`
 - `GET /api/runs/{runId}`
 - `POST /api/context/compile`
+- `POST /api/context/pack`
+- `POST /api/context/pack/pin`
+- `POST /api/context/source-preview`
+- `POST /api/context/graph/preview`
+- `POST /api/harness/setup/plan`
 - `POST /api/reset`
 - `GET /api/stream`
 
 ## Request limits
 
-The control API applies a configurable global ceiling plus per-route limits before domain handlers run. The default global body ceiling is 1 MB; `POST /api/runs` is capped more tightly and `POST /api/context/compile` is capped for bounded local context payloads. The boundary also limits URL bytes, path segment length, query parameter count, query value length, header count/bytes, JSON nesting depth, total JSON node count, object key count, and array item count.
+The control API applies a configurable global ceiling plus per-route limits before domain handlers run. The default global body ceiling is 1 MB; `POST /api/runs` is capped more tightly, `POST /api/context/compile` is capped for bounded local context payloads, `POST /api/context/pack` and `POST /api/context/pack/pin` accept at most 16 explicit `userSelectedFiles` and 16 explicit `changedLocators` relative to the server workspace root, `POST /api/context/source-preview` accepts only bounded source-family, objective, step, explicit-file, and token-budget inputs, and `POST /api/context/graph/preview` only accepts bounded search/trace/impact selectors. `POST /api/harness/setup/plan` accepts only `workspaceId` and a known local harness `client`; callers cannot submit arbitrary home paths, config paths, server names, commands, args, or write flags. The context-pack, source-preview, and source-graph preview routes use the server-configured workspace root; callers cannot submit arbitrary filesystem roots. The boundary also limits URL bytes, path segment length, query parameter count, query value length, header count/bytes, JSON nesting depth, total JSON node count, object key count, and array item count.
 
 Both `Content-Length` and streamed byte count are checked. Chunked requests cannot exceed the same route limit.
 

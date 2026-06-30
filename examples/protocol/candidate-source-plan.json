@@ -1,0 +1,14 @@
+[
+  {
+    "kind": "exact",
+    "required": true,
+    "limit": 5,
+    "timeoutMs": 1000
+  },
+  {
+    "kind": "lexical",
+    "required": false,
+    "limit": 10,
+    "timeoutMs": 1000
+  }
+]

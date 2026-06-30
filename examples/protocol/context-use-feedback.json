@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "ctxuse_example",
+  "workspaceId": "ws_local",
+  "runId": "run_example",
+  "taskId": "task_example",
+  "actorId": "usr_example",
+  "createdAt": "2026-06-20T12:00:00.000Z",
+  "contextManifest": {
+    "id": "ctx_example",
+    "requestId": "ctxreq_example",
+    "manifestFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "assemblyFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "compilerVersion": "0.2.0",
+    "selectionPolicyVersion": "1.0.0",
+    "selectionPolicyFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "selectionResultFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "selectedRecordIds": ["policy_example", "obs_example"]
+  },
+  "selectedRecordUse": [
+    {
+      "recordId": "policy_example",
+      "selectedOrder": 1,
+      "useState": "used",
+      "evidenceRefs": ["claim_example"],
+      "outcomeRefs": ["out_example"]
+    },
+    {
+      "recordId": "obs_example",
+      "selectedOrder": 2,
+      "useState": "not_observed",
+      "evidenceRefs": [],
+      "outcomeRefs": []
+    }
+  ],
+  "outcomeReferences": [
+    {
+      "outcomeId": "out_example",
+      "kind": "accepted",
+      "metric": "task_acceptance",
+      "direction": "positive",
+      "observedAt": "2026-06-20T12:01:00.000Z",
+      "evidenceRef": "claim_example"
+    }
+  ],
+  "causalClaim": "none",
+  "feedbackFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

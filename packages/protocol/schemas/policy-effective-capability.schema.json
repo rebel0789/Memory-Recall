@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-effective-capability.schema.json",
+  "title": "Policy Effective Capability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["toolId", "operation", "sideEffectClass", "filesystem", "network", "secretReferences", "dataClasses", "sandbox", "limits"],
+  "properties": {
+    "toolId": { "type": "string", "maxLength": 128 },
+    "operation": { "type": "string", "maxLength": 80 },
+    "sideEffectClass": { "enum": ["read-only", "reversible-write", "consequential-write"] },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read", "write"],
+      "properties": {
+        "read": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 256 } },
+        "write": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 256 } }
+      }
+    },
+    "network": { "type": "array", "maxItems": 16, "items": { "type": "object", "additionalProperties": true } },
+    "secretReferences": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "pattern": "^secret:[A-Za-z0-9_.:-]{1,120}$", "maxLength": 128 } },
+    "dataClasses": { "type": "array", "maxItems": 4, "items": { "enum": ["public", "workspace-private", "confidential", "secret"] } },
+    "sandbox": { "type": "string", "maxLength": 80 },
+    "limits": { "type": "object", "additionalProperties": false, "properties": {
+      "runtimeMs": { "type": "integer", "minimum": 0 },
+      "memoryBytes": { "type": "integer", "minimum": 0 },
+      "outputBytes": { "type": "integer", "minimum": 0 },
+      "inputBytes": { "type": "integer", "minimum": 0 },
+      "invocationCount": { "type": "integer", "minimum": 0 },
+      "costUnits": { "type": "number", "minimum": 0 },
+      "retryCount": { "type": "integer", "minimum": 0 }
+    } }
+  }
+}

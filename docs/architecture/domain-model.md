@@ -18,9 +18,44 @@ A browser session is an opaque server-side credential. Public session responses 
 
 A workflow is an immutable versioned definition. A run references one workflow version and owns step attempts, events, manifests, artifacts, approvals, and outcomes.
 
+Durable workflow definitions are serializable and fingerprinted. Executable
+steps reference local trusted handlers by stable ID and version. Durable runs
+store the exact workflow fingerprint, input fingerprint, state, step attempts,
+timers, approvals, leases, idempotency records, and canonical events needed to
+resume after process death. Handler source, closures, modules, local paths,
+credentials, and raw model prompts are not domain state.
+
 ### Context request and manifest
 
 A request states objective, step, actor, required entities and records, token budget, allowed data classes, and time. A manifest records candidates considered, selections, exclusions, conflicts, assembly order, token accounting, and compiler version.
+
+A context candidate is a canonical record plus provider-neutral candidate
+metadata. It carries workspace ID, data class, scope, trust class, lifecycle
+status, token estimate, confidence, authority, timestamps, content hash or
+fingerprint, provenance references, and one or more source hits. A source hit
+records source ID, source kind, source version, retrieval method, local
+rank/score, bounded reasons, a SHA-256 query fingerprint over non-secret query
+material, an access-decision reference, and retrieval time.
+
+Candidate sources are discovery ports. They do not grant authority, perform
+final selection, or change canonical record identity. The Context Compiler
+selection policy owns weighted source fusion, feature scoring, diversity,
+category caps, token budgeting, sufficiency checks, conflict surfacing, and
+selected/excluded manifest output.
+
+A context selection result is an internal trace separate from the public
+manifest. It records policy version and fingerprint, candidate-generation
+fingerprint, selected and excluded decisions, coverage, sufficiency, conflicts,
+safe score breakdowns, bounded warnings, and deterministic result fingerprint.
+It does not include raw record text, prompts, secrets, local paths, SQL, or
+hidden model reasoning.
+
+OAF-012 persists durable manifests before model calls. A durable manifest adds
+manifest and assembly fingerprints, reserved assembly sections, final selected
+record order, safe source-warning and failure summaries, token accounting, and
+the compiler version. Selected text is present only as assembled model input.
+Excluded records carry IDs, categories, scores, tokens, and reason codes without
+raw excluded text.
 
 ### Evidence
 
@@ -28,19 +63,45 @@ A source snapshot is an immutable body and metadata record. An observation is no
 
 Source snapshot records use the `src_` prefix, carry collection provenance (`collector`, `retrievalMethod`, `sourceLocator`, `capturedAt`), and default to `trust: untrusted-external`. They are not allowed to contain summaries, classifications, hooks, memory decisions, or model conclusions. Those fields are created later as observations, inferences, claims, or memory proposals.
 
+The native evidence service constructs an immutable citation graph from source snapshots, observations, and claims. The graph records deterministic deduplication groups, claim-to-observation citation edges, staleness classifications, and conflict findings. These outputs do not overwrite source snapshots or observations and do not create memory records.
+
+The native research ingestion path accepts bounded caller-supplied text, Markdown, JSON, RSS, and Atom bodies. It does not fetch URLs or authenticate to sources. Each accepted source creates an immutable source snapshot; each usable document, JSON record, RSS item, or Atom entry becomes an observation linked to that snapshot with `inferred: {}`. Malformed, oversized, or credential-bearing sources are reported as ingestion failures rather than executed, retried through the network, or silently skipped.
+
+Content pattern analysis is derived data. Raw observed metrics and caller-supplied baselines remain in a `metrics` object. Relative performance, lifecycle, proof-needed reasons, uncertainty, similarity, and copying risk are separate inference fields with reason codes. Analysis records can be supplied to context as summaries, but they do not overwrite source observations and do not authorize drafting, publishing, or memory writes.
+
 Artifact records use the `art_` prefix. Both artifact records and source snapshots reference immutable stored objects by `hashAlgorithm: sha256`, `contentHash`, and `byteSize`; the stored object itself has no provenance or authority. Deleting a logical record creates an audit tombstone and does not imply that shared object bytes are removable.
 
 ### Memory
 
-A memory record has kind, scope, lifecycle, confidence, provenance, valid time, transaction time, retention, and optional `supersedes`. Models emit proposals; deterministic policy and review activate records.
+A memory record has kind, scope, lifecycle, confidence, provenance, valid time, transaction time, retention, and optional `supersedes`. Models, tools, retrieved content, and external content emit proposals only. The native memory write gate can verify with deterministic evidence, activate reviewed or user-confirmed records, reject, supersede, retract, expire, quarantine likely secrets, and export active non-secret records without silently overwriting durable knowledge.
 
 ### Capability and grant
 
 A tool manifest declares operations and permissions. A grant is short-lived, actor-bound, run-bound, operation-bound, and narrower than the manifest. A tool result cannot broaden its own grant.
 
+OAF-009 policy decisions evaluate the exact tool operation before a provider is
+invoked. Effective capability is the intersection of actor role, current
+membership, action policy, trusted tool manifest, requested operation, workflow
+or run grant, environment policy, data class, sandbox profile, budgets, approval
+context, idempotency, and global kill switches. Requests wider than the manifest
+deny the whole operation rather than silently dropping unsafe scope.
+
+OAF-015 separates reviewed manifests, policy decisions, and grants. A reviewed
+manifest is loaded only from a checksum-pinned catalog. The grant record stores
+safe binding metadata only; the raw token is returned to the broker in memory,
+consumed once, and not persisted or logged. Filesystem, loopback egress, and
+secret-reference access are represented as independent broker capabilities, not
+ambient process authority.
+
 ### Approval
 
 An approval references an exact operation preview, destination, risk, actor, expiry, idempotency key, and policy version. Editing the action invalidates the approval.
+
+The exact operation fingerprint is a SHA-256 digest over stable fields including
+actor, workspace, action, resource, tool operation, requested scopes,
+side-effect class, data class, payload fingerprint, and idempotency key. Approval
+does not replace sandbox enforcement and cannot override the external-write
+kill switch.
 
 ## Identity prefixes
 

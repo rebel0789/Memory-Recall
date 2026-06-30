@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/candidate-failure-code-1.0.json",
+  "title": "Candidate Failure Code",
+  "enum": [
+    "source_unavailable",
+    "candidate_source_failed",
+    "candidate_source_required_failed",
+    "candidate_source_required_denied",
+    "candidate_source_required_unavailable",
+    "candidate_generation_unavailable",
+    "candidate_identity_conflict",
+    "invalid_candidate_output",
+    "candidate_source_cancelled",
+    "candidate_source_timed_out"
+  ]
+}

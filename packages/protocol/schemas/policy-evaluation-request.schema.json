@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-evaluation-request.schema.json",
+  "title": "Policy Evaluation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "correlationId", "operationId", "principal", "workspaceId", "membership", "action", "resource", "environment", "trustedTimestamp"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "requestId": { "type": "string", "pattern": "^polreq_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "correlationId": { "type": "string", "pattern": "^req_[A-Za-z0-9._:-]{8,96}$", "maxLength": 100 },
+    "operationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "principal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["userId", "principalType", "authenticationMethod", "status"],
+      "properties": {
+        "userId": { "type": "string", "pattern": "^usr_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+        "principalType": { "enum": ["user", "agent", "service"] },
+        "authenticationMethod": { "enum": ["session", "bearer", "system"] },
+        "status": { "enum": ["active", "disabled"] },
+        "tokenScopes": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 96 } },
+        "tokenWorkspaceIds": { "type": "array", "maxItems": 32, "uniqueItems": true, "items": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 } },
+        "agentRole": { "type": "string", "minLength": 1, "maxLength": 96 }
+      }
+    },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "membership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspaceId", "role", "status"],
+      "properties": {
+        "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+        "role": { "enum": ["owner", "builder", "operator", "auditor"] },
+        "status": { "enum": ["active", "disabled", "revoked"] }
+      }
+    },
+    "action": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "workspaceId", "dataClass"],
+      "properties": {
+        "type": { "enum": ["system", "workspace", "run", "workflow", "context", "artifact", "source-snapshot", "memory", "tool", "token", "audit"] },
+        "id": { "type": ["string", "null"], "maxLength": 128 },
+        "workspaceId": { "type": ["string", "null"], "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+        "dataClass": { "enum": ["public", "workspace-private", "confidential", "secret"] }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deploymentProfile", "locality", "interactive", "externalWritesEnabled"],
+      "properties": {
+        "deploymentProfile": { "enum": ["local-dev", "test", "production"] },
+        "locality": { "enum": ["local-only", "loopback", "remote"] },
+        "interactive": { "type": "boolean" },
+        "externalWritesEnabled": { "type": "boolean" }
+      }
+    },
+    "capabilityRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "toolId": { "type": "string", "maxLength": 128 },
+        "operation": { "type": "string", "maxLength": 80 },
+        "sideEffectClass": { "enum": ["read-only", "reversible-write", "consequential-write"] },
+        "filesystem": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "read": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 256 } },
+            "write": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 256 } }
+          }
+        },
+        "network": { "type": "array", "maxItems": 16, "items": { "type": "object", "additionalProperties": false, "properties": {
+          "protocol": { "enum": ["http", "https"] },
+          "host": { "type": "string", "maxLength": 253 },
+          "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "methods": { "type": "array", "maxItems": 8, "items": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"] } },
+          "consequence": { "enum": ["read", "write"] },
+          "locality": { "enum": ["loopback", "external"] }
+        } } },
+        "secretReferences": { "type": "array", "maxItems": 16, "items": { "type": "string", "pattern": "^secret:[A-Za-z0-9_.:-]{1,120}$" } },
+        "dataClasses": { "type": "array", "maxItems": 4, "items": { "enum": ["public", "workspace-private", "confidential", "secret"] } },
+        "sandbox": { "type": "string", "maxLength": 80 },
+        "limits": { "type": "object", "additionalProperties": false, "properties": {
+          "runtimeMs": { "type": "integer", "minimum": 0 },
+          "memoryBytes": { "type": "integer", "minimum": 0 },
+          "outputBytes": { "type": "integer", "minimum": 0 },
+          "inputBytes": { "type": "integer", "minimum": 0 },
+          "invocationCount": { "type": "integer", "minimum": 0 },
+          "costUnits": { "type": "number", "minimum": 0 },
+          "retryCount": { "type": "integer", "minimum": 0 }
+        } }
+      }
+    },
+    "approvalContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approvalId": { "type": "string", "maxLength": 128 },
+        "operationFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "workspaceId": { "type": "string", "maxLength": 128 },
+        "actorId": { "type": "string", "maxLength": 128 },
+        "approverId": { "type": "string", "maxLength": 128 },
+        "approvedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "status": { "enum": ["active", "revoked", "consumed"] },
+        "policyVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "serverVerified": { "type": "boolean" }
+      }
+    },
+    "idempotencyKey": { "type": ["string", "null"], "maxLength": 128 },
+    "payloadFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "trustedTimestamp": { "type": "string", "format": "date-time" }
+  }
+}

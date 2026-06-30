@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/tool-reconciliation-result-1.0.json",
+  "title": "Tool Reconciliation Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "strategy", "idempotencyKeyFingerprint", "operationFingerprint", "effectCount", "idempotent"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "strategy": { "const": "durable-effect-boundary" },
+    "idempotencyKeyFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "operationFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "effectCount": { "type": "integer", "minimum": 0 },
+    "idempotent": { "type": "boolean" }
+  }
+}

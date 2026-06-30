@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_ast",
+  "parserVersion": "oaf-js-ts-static-1.0.0",
+  "indexedAt": "2026-06-23T00:00:00.000Z",
+  "symbols": [
+    {
+      "id": "symbol_11111111111111111111111111111111",
+      "workspaceId": "ws_ast",
+      "name": "approveTokenReset",
+      "kind": "method",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "chunkId": "astchunk_11111111111111111111111111111111",
+      "scopeChain": ["TokenResetService"],
+      "signatureHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "sourceSnapshotId": "srcsnap_4444444444444444"
+    }
+  ],
+  "references": [
+    {
+      "id": "ref_55555555555555555555555555555555",
+      "workspaceId": "ws_ast",
+      "targetSymbolId": "symbol_11111111111111111111111111111111",
+      "targetName": "approveTokenReset",
+      "sourceLocator": "workspace://src/workflow.ts#L3-L7",
+      "sourceChunkId": "astchunk_66666666666666666666666666666666",
+      "referenceHash": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    }
+  ],
+  "imports": [
+    {
+      "id": "import_88888888888888888888888888888888",
+      "workspaceId": "ws_ast",
+      "module": "zod",
+      "moduleHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "chunkId": "astchunk_11111111111111111111111111111111"
+    }
+  ],
+  "exports": [
+    {
+      "id": "export_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "workspaceId": "ws_ast",
+      "name": "TokenResetService",
+      "kind": "class",
+      "locator": "workspace://src/auth.ts#L4-L8",
+      "chunkId": "astchunk_11111111111111111111111111111111",
+      "exportHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "callEdges": [
+    {
+      "id": "call_cccccccccccccccccccccccccccccccc",
+      "workspaceId": "ws_ast",
+      "callerSymbolId": "symbol_dddddddddddddddddddddddddddddddd",
+      "callerName": "runWorkflow",
+      "calleeSymbolId": "symbol_11111111111111111111111111111111",
+      "calleeName": "approveTokenReset",
+      "sourceLocator": "workspace://src/workflow.ts#L3-L7",
+      "callHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+  ],
+  "fileLocators": [
+    "workspace://src/auth.ts",
+    "workspace://src/workflow.ts"
+  ],
+  "symbolIndexFingerprint": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+}

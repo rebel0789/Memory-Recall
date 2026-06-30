@@ -1,0 +1,624 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-pack-1.0.json",
+  "title": "Context Pack",
+  "description": "Sanitized, local-first handoff pack for a target agent harness. It contains locators, hashes, reason codes, warnings, and instructions; raw context bodies, prompts, outputs, credentials, provider URLs, hidden reasoning, and private local paths are not represented.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packVersion",
+    "id",
+    "workspaceId",
+    "createdAt",
+    "dryRun",
+    "targetHarness",
+    "sourceHarnesses",
+    "requestedInputs",
+    "objective",
+    "step",
+    "scannerVersion",
+    "compilerVersion",
+    "preview",
+    "delivery",
+    "readFirst",
+    "excluded",
+    "omissions",
+    "memoryPlan",
+    "sourceGraph",
+    "utility",
+    "warnings",
+    "handoff",
+    "files",
+    "safeguards",
+    "contextPackFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "packVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "id": { "type": "string", "pattern": "^ctxpack_[a-f0-9]{16,64}$" },
+    "workspaceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "dryRun": { "const": true },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "sourceHarnesses": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": { "enum": ["codex", "claude-code", "cursor"] }
+    },
+    "requestedInputs": { "$ref": "#/$defs/requestedInputs" },
+    "objective": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "step": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "prompt": { "$ref": "#/$defs/promptMetadata" },
+    "scannerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "compilerVersion": { "type": "string", "minLength": 1, "maxLength": 32 },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "previewFingerprint",
+        "requestId",
+        "selectionPolicyFingerprint",
+        "resultFingerprint",
+        "budget",
+        "selectedCount",
+        "excludedCount",
+        "candidateTokenCount",
+        "selectedTokenCount",
+        "selectedTokenRatio"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^hctxprev_[a-f0-9]{16,64}$" },
+        "previewFingerprint": { "$ref": "#/$defs/hash" },
+        "requestId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "selectionPolicyFingerprint": { "$ref": "#/$defs/hash" },
+        "resultFingerprint": { "$ref": "#/$defs/hash" },
+        "budget": { "$ref": "#/$defs/budget" },
+        "selectedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "excludedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "candidateTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "selectedTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "selectedTokenRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "delivery": { "$ref": "#/$defs/deliveryBudget" },
+    "readFirst": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "excluded": {
+      "type": "array",
+      "maxItems": 128,
+      "items": { "$ref": "#/$defs/decision" }
+    },
+    "omissions": { "$ref": "#/$defs/omissions" },
+    "memoryPlan": { "$ref": "#/$defs/memoryPlan" },
+    "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
+    "repository": { "$ref": "#/$defs/repositoryIdentity" },
+    "utility": { "$ref": "#/$defs/utilityReport" },
+    "warnings": { "$ref": "#/$defs/stringList" },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "summary", "instructions", "commands", "launchPrompt", "limitations"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "instructions": { "$ref": "#/$defs/stringList" },
+        "commands": { "$ref": "#/$defs/commandList" },
+        "launchPrompt": { "type": "string", "minLength": 1, "maxLength": 8000 },
+        "limitations": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "role", "contentType", "contentHash", "byteSize"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^[A-Za-z0-9._/-]{1,160}$" },
+          "role": { "enum": ["agent-handoff", "manifest", "machine-readable"] },
+          "contentType": { "enum": ["text/markdown", "application/json"] },
+          "contentHash": { "$ref": "#/$defs/hash" },
+          "byteSize": { "type": "integer", "minimum": 1, "maximum": 1000000 }
+        }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "persisted",
+        "modelCalls",
+        "networkCalls",
+        "sourceSnapshotsWritten",
+        "activeMemoryCreated",
+        "externalWritesEnabled",
+        "externalAdaptersEnabled",
+        "rawBodyIncluded",
+        "contextPackWritten",
+        "sourceGraphPreviewed",
+        "graphDatabaseUsed",
+        "sourceSlicesRead"
+      ],
+      "properties": {
+        "persisted": { "const": false },
+        "modelCalls": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "sourceSnapshotsWritten": { "const": 0 },
+        "activeMemoryCreated": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 },
+        "rawBodyIncluded": { "const": false },
+        "contextPackWritten": { "const": false },
+        "sourceGraphPreviewed": { "type": "boolean" },
+        "graphDatabaseUsed": { "const": false },
+        "sourceSlicesRead": { "const": false }
+      }
+    },
+    "contextPackFingerprint": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "promptMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objectiveFingerprint",
+        "objectiveLength",
+        "objectiveByteSize",
+        "stepFingerprint",
+        "stepLength",
+        "stepByteSize",
+        "rawPromptIncluded",
+        "redactionReason"
+      ],
+      "properties": {
+        "objectiveFingerprint": { "$ref": "#/$defs/hash" },
+        "objectiveLength": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "objectiveByteSize": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "stepFingerprint": { "$ref": "#/$defs/hash" },
+        "stepLength": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "stepByteSize": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "rawPromptIncluded": { "const": false },
+        "redactionReason": { "const": "raw_prompt_omitted_from_api_transport" }
+      }
+    },
+    "repositoryIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "generatedAt", "branch", "commitSha", "dirtyCount", "gitStatusAvailable", "source", "reason", "warnings", "safeguards"],
+      "properties": {
+        "provider": { "const": "git" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "branch": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9._/@-]{1,160}$" },
+        "commitSha": { "type": ["string", "null"], "pattern": "^[a-f0-9]{40}$" },
+        "dirtyCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "gitStatusAvailable": { "type": "boolean" },
+        "source": { "enum": ["git-status-porcelain", "unavailable"] },
+        "reason": { "enum": [null, "not_git_repository", "git_unavailable", "git_status_failed", "git_status_timeout"] },
+        "warnings": { "$ref": "#/$defs/reasonCodes" },
+        "safeguards": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["localOnly", "diffBodiesIncluded", "changedPathsIncluded", "absoluteFilesystemLocationsIncluded", "remoteUrlsIncluded"],
+          "properties": {
+            "localOnly": { "const": true },
+            "diffBodiesIncluded": { "const": false },
+            "changedPathsIncluded": { "const": false },
+            "absoluteFilesystemLocationsIncluded": { "const": false },
+            "remoteUrlsIncluded": { "const": false }
+          }
+        }
+      }
+    },
+    "locator": {
+      "type": "string",
+      "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
+      "maxLength": 640
+    },
+    "stringList": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "reasonCodes": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "commandList": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["available", "used"],
+      "properties": {
+        "available": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "used": { "type": "integer", "minimum": 0, "maximum": 200000 }
+      }
+    },
+    "deliveryBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "representation",
+        "sourceCandidateTokenCount",
+        "sourceSelectedTokenCount",
+        "sourceSelectedTokenRatio",
+        "deliveredTokenCount",
+        "deliveredByteSize",
+        "deliveredTokenRatio",
+        "observedTokenReductionRatio",
+        "sourceContentTokenCountIncluded",
+        "sourceContentsIncluded"
+      ],
+      "properties": {
+        "representation": { "const": "locator-handoff" },
+        "sourceCandidateTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "sourceSelectedTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "sourceSelectedTokenRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "deliveredTokenCount": { "type": "integer", "minimum": 1, "maximum": 200000 },
+        "deliveredByteSize": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "deliveredTokenRatio": { "type": "number", "minimum": 0, "maximum": 1000 },
+        "observedTokenReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sourceContentTokenCountIncluded": { "type": "integer", "minimum": 0, "maximum": 0 },
+        "sourceContentsIncluded": { "const": false }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "locator",
+        "harness",
+        "sourceKind",
+        "tokens",
+        "score",
+        "reasonCodes",
+        "contentHash",
+        "readHint"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "locator": { "$ref": "#/$defs/locator" },
+        "harness": { "enum": ["codex", "claude-code", "cursor", "generic-mcp"] },
+        "sourceKind": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "tokens": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "score": { "type": ["number", "null"] },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "contentHash": { "$ref": "#/$defs/hash" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "memoryPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activeMemoryCreated", "proposedCount", "quarantinedCount", "items"],
+      "properties": {
+        "activeMemoryCreated": { "const": 0 },
+        "proposedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "quarantinedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "items": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sourceId", "locator", "harness", "sourceKind", "action", "reasonCodes"],
+            "properties": {
+              "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+              "locator": { "$ref": "#/$defs/locator" },
+              "harness": { "enum": ["codex", "claude-code", "cursor", "generic-mcp"] },
+              "sourceKind": { "type": "string", "minLength": 1, "maxLength": 64 },
+              "action": { "enum": ["would_propose", "would_quarantine"] },
+              "reasonCodes": { "$ref": "#/$defs/reasonCodes" }
+            }
+          }
+        }
+      }
+    },
+    "omissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["excludedCount", "excludedTokenCount", "sourceGraphOmittedCount", "refs"],
+      "properties": {
+        "excludedCount": { "type": "integer", "minimum": 0, "maximum": 128 },
+        "excludedTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "sourceGraphOmittedCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "refs": {
+          "type": "array",
+          "maxItems": 128,
+          "items": { "$ref": "#/$defs/omissionRef" }
+        }
+      }
+    },
+    "omissionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "locator", "harness", "sourceKind", "tokens", "contentHash", "reasonCodes", "recoveryHint"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^omit_[a-f0-9]{16,64}$" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "harness": { "enum": ["codex", "claude-code", "cursor", "generic-mcp"] },
+        "sourceKind": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "tokens": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "contentHash": { "$ref": "#/$defs/hash" },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "recoveryHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "utilityReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "requiredLocalReads",
+        "changedLocatorCoverage",
+        "graphHintCoverage",
+        "sourceSelection",
+        "delivery"
+      ],
+      "properties": {
+        "status": { "enum": ["ready", "review"] },
+        "requiredLocalReads": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "$ref": "#/$defs/requiredLocalRead" }
+        },
+        "changedLocatorCoverage": { "$ref": "#/$defs/coverageRatio" },
+        "graphHintCoverage": { "$ref": "#/$defs/coverageRatio" },
+        "changedSourceBudget": { "$ref": "#/$defs/changedSourceBudget" },
+        "sourceSelection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["candidateTokenCount", "selectedTokenCount", "selectedTokenRatio", "estimatedReductionRatio"],
+          "properties": {
+            "candidateTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+            "selectedTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+            "selectedTokenRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "estimatedReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "delivery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["representation", "sourceContentsIncluded"],
+          "properties": {
+            "representation": { "const": "locator-handoff" },
+            "sourceContentsIncluded": { "const": false }
+          }
+        }
+      }
+    },
+    "changedSourceBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locatorCount",
+        "measuredLocatorCount",
+        "contentByteCount",
+        "contentTokenCount",
+        "contentTokenCountIncluded",
+        "observedAvoidanceRatio",
+        "sourceContentIncluded"
+      ],
+      "properties": {
+        "locatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "measuredLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "contentByteCount": { "type": "integer", "minimum": 0, "maximum": 2000000 },
+        "contentTokenCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "contentTokenCountIncluded": { "const": 0 },
+        "observedAvoidanceRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sourceContentIncluded": { "const": false }
+      }
+    },
+    "requiredLocalRead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "role", "required", "represented", "contentHash", "reasonCodes", "readHint"],
+      "properties": {
+        "locator": { "$ref": "#/$defs/readLocator" },
+        "role": { "enum": ["selected_context", "explicit_user_selected", "changed_locator", "source_graph_hint"] },
+        "required": { "type": "boolean" },
+        "represented": { "type": "boolean" },
+        "contentHash": { "$ref": "#/$defs/hashOrNull" },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "requestedInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceHarnesses", "userSelectedLocators", "changedLocators", "userSelectedCount", "changedLocatorCount"],
+      "properties": {
+        "sourceHarnesses": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": { "enum": ["codex", "claude-code", "cursor"] }
+        },
+        "userSelectedLocators": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/userSelectedLocator" }
+        },
+        "changedLocators": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sourceGraphLocator" }
+        },
+        "userSelectedCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "changedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 }
+      }
+    },
+    "coverageRatio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "covered", "ratio", "status"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "covered": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "status": { "enum": ["covered", "partial", "not_applicable"] }
+      }
+    },
+    "readLocator": {
+      "type": "string",
+      "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
+      "maxLength": 640
+    },
+    "userSelectedLocator": {
+      "type": "string",
+      "pattern": "^user-selected://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$",
+      "maxLength": 640
+    },
+    "sourceGraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "previewVersion",
+        "generatedAt",
+        "sourceIndexFingerprint",
+        "graphFingerprint",
+        "summary",
+        "queryFingerprint",
+        "resultCount",
+        "omittedCount",
+        "results",
+        "impact",
+        "warnings",
+        "safeguards"
+      ],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "previewVersion": { "type": ["string", "null"], "minLength": 1, "maxLength": 64 },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "sourceIndexFingerprint": { "$ref": "#/$defs/hashOrNull" },
+        "graphFingerprint": { "$ref": "#/$defs/hashOrNull" },
+        "summary": { "$ref": "#/$defs/sourceGraphSummary" },
+        "queryFingerprint": { "$ref": "#/$defs/hashOrNull" },
+        "resultCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "omittedCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "results": {
+          "type": "array",
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/sourceGraphHint" }
+        },
+        "impact": { "$ref": "#/$defs/sourceGraphImpact" },
+        "warnings": { "$ref": "#/$defs/stringList" },
+        "safeguards": { "$ref": "#/$defs/sourceGraphSafeguards" }
+      }
+    },
+    "sourceGraphImpact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changedLocators", "representedChangedLocators", "affectedSymbolCount", "omittedAffectedSymbolCount", "affectedSymbols"],
+      "properties": {
+        "changedLocators": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sourceGraphLocator" }
+        },
+        "representedChangedLocators": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sourceGraphLocator" }
+        },
+        "affectedSymbolCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "omittedAffectedSymbolCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "affectedSymbols": {
+          "type": "array",
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/sourceGraphImpactSymbol" }
+        }
+      }
+    },
+    "sourceGraphImpactSymbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "symbolKind", "locator", "depth", "reasonCodes", "readHint"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "symbolKind": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+        "locator": { "$ref": "#/$defs/sourceGraphLocator" },
+        "depth": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "sourceGraphSummary": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["fileCount", "symbolCount", "moduleCount", "nodeCount", "edgeCount", "diagnosticCount", "hotspotCount", "entryPointCount"],
+      "properties": {
+        "fileCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "symbolCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "moduleCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "nodeCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "edgeCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "diagnosticCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "hotspotCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "entryPointCount": { "type": "integer", "minimum": 0, "maximum": 200000 }
+      }
+    },
+    "hashOrNull": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "sourceGraphHint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resultType", "kind", "label", "locator", "score", "reasonCodes", "readHint"],
+      "properties": {
+        "resultType": { "enum": ["node", "edge"] },
+        "kind": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "locator": { "$ref": "#/$defs/sourceGraphLocator" },
+        "score": { "type": "number", "minimum": 0 },
+        "reasonCodes": { "$ref": "#/$defs/reasonCodes" },
+        "readHint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      }
+    },
+    "sourceGraphLocator": {
+      "type": "string",
+      "pattern": "^workspace://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
+      "maxLength": 640
+    },
+    "sourceGraphSafeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dryRun", "persisted", "canonicalStateMutated", "localFilesWritten", "modelCalls", "networkCalls", "externalAdaptersEnabled", "externalWritesEnabled", "graphDatabaseUsed", "rawBodyIncluded", "sourceSlicesRead"],
+      "properties": {
+        "dryRun": { "const": true },
+        "persisted": { "const": false },
+        "canonicalStateMutated": { "const": false },
+        "localFilesWritten": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "externalAdaptersEnabled": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "graphDatabaseUsed": { "const": false },
+        "rawBodyIncluded": { "const": false },
+        "sourceSlicesRead": { "const": false }
+      }
+    }
+  }
+}

@@ -1,11 +1,46 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Local-first control plane for inspectable AI agents."><title>Open Agent Fabric</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/tokens.css"><link rel="stylesheet" href="/styles.css"></head>
-<body><a class="skip-link" href="#main">Skip to main content</a>
-<div class="app-shell">
-  <aside class="sidebar" aria-label="Primary navigation">
-    <a class="brand" href="/?view=home"><img src="/favicon.svg" alt="" width="36" height="36"><span><strong>Open Agent</strong><small>Fabric</small></span></a>
-    <nav><a href="/?view=home" data-view="home">Home</a><a href="/?view=runs" data-view="runs">Runs</a><a href="/?view=context" data-view="context">Context</a><a href="/?view=evidence" data-view="evidence">Evidence</a><a href="/?view=memory" data-view="memory">Memory</a><a href="/?view=design" data-view="design">Design</a></nav>
-    <div class="local-card"><span class="status-dot" aria-hidden="true"></span><div><strong>Local bootstrap</strong><small>No external writes</small></div></div>
-  </aside>
-  <main id="main"><header class="topbar"><div><p class="eyebrow">Workspace / local</p><h1 id="page-title">Home</h1></div><div class="top-actions"><button id="reset-button" class="button secondary" type="button">Reset demo</button><button id="run-button" class="button primary" type="button">Run local demo</button></div></header><div id="live-status" class="sr-only" aria-live="polite"></div><div id="view-root"><div class="loading-card">Loading local state…</div></div></main>
-</div><script type="module" src="/app.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Local-first control plane for inspectable AI agents.">
+  <title>Open Agent Fabric</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <a class="brand" href="/" data-route="home">
+        <img src="/favicon.svg" alt="" width="36" height="36">
+        <span><strong>Open Agent</strong><small>Fabric</small></span>
+      </a>
+      <nav id="primary-nav" aria-label="Primary navigation"></nav>
+      <div class="local-card">
+        <span class="status-dot" aria-hidden="true"></span>
+        <div><strong>Local bootstrap</strong><small>No external writes</small></div>
+      </div>
+    </aside>
+    <main id="main" tabindex="-1">
+      <header class="topbar">
+        <div class="title-block">
+          <p id="page-eyebrow" class="eyebrow">Workspace / local</p>
+          <h1 id="page-title">Home</h1>
+          <p id="page-description" class="page-description">Health, active work, approvals, residency, and the next local action.</p>
+        </div>
+        <div class="top-actions">
+          <a id="context-pack-button" class="button primary" href="/context-pack" data-route="context-pack">Build context pack</a>
+          <button id="run-button" class="button secondary" type="button">Run demo</button>
+        </div>
+      </header>
+      <div id="shell-status" class="shell-status" aria-label="Local shell status"></div>
+      <div id="live-status" class="sr-only" aria-live="polite"></div>
+      <div id="view-root"><section class="state-panel state-loading"><h2>Loading local state</h2><p>Checking the loopback control API for workspace data.</p></section></div>
+    </main>
+    <nav id="mobile-nav" class="bottom-nav" aria-label="Mobile navigation"></nav>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

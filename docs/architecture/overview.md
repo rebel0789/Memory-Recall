@@ -105,7 +105,7 @@ Each step has typed input and output, context policy, allowed tools, side-effect
 
 The core always has a local baseline. `providers/native/` implements the same ports that future PostgreSQL, Temporal, Mem0, Graphify, or other integrations implement. Workflows and UI code do not know which provider is active.
 
-The local baseline includes SQLite/FTS5 memory, content-addressed filesystem artifacts, an embedded workflow runtime, deterministic generation, and an explicit loopback-only Ollama option. Read `native-providers.md` for limitations.
+The local baseline includes SQLite/FTS5 memory, content-addressed filesystem artifacts, an embedded workflow runtime, deterministic generation behind the local model gateway, and an explicit loopback-only Ollama option. Read `native-providers.md` and `model-gateway.md` for limitations.
 
 ## Portable execution contract
 

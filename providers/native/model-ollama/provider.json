@@ -7,15 +7,21 @@
   "enabledByDefault": false,
   "locality": "loopback-process",
   "contract": "ModelGatewayPort",
+  "contractVersion": "1.0.0",
   "capabilities": [
     "model.generate.text",
     "model.structured-output",
-    "model.local-loopback"
+    "model.local-loopback",
+    "model.safe-events",
+    "model.bounded-repair"
   ],
   "limits": {
     "defaultTimeoutMs": 120000,
     "baseUrlPolicy": "loopback HTTP only unless explicitly overridden",
-    "silentFallback": false
+    "silentFallback": false,
+    "requiresPersistedContextManifest": true,
+    "maxRepairAttempts": 1,
+    "recordsRawPromptOrOutput": false
   },
   "dataPaths": [],
   "experimental": true,

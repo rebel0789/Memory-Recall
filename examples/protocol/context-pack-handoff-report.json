@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "context handoff",
+  "generatedAt": "2026-06-24T00:00:00.000Z",
+  "workspaceId": "ws_local",
+  "targetHarness": "codex",
+  "state": "ready",
+  "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "measurementScope": "single local context-pack build, MCP readback, and harness setup dry-run",
+  "launchPrompt": "Continue this local repository work in codex.\nObjective: Ship safely\nCurrent step: handoff\n\nUse the attached Context Pack as a locator handoff.",
+  "request": {
+    "objectiveFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "objectiveLength": 32,
+    "stepFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "stepLength": 16,
+    "sourceHarnesses": ["codex"],
+    "userSelectedLocatorCount": 1,
+    "changedLocatorCount": 1,
+    "changedFromGit": false,
+    "unitBudget": 4096
+  },
+  "contextPack": {
+    "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "utilityStatus": "ready",
+    "readFirstCount": 3,
+    "omittedRefCount": 1,
+    "candidateUnitCount": 2400,
+    "selectedUnitCount": 960,
+    "selectedUnitRatio": 0.4,
+    "estimatedSelectionReductionRatio": 0.6,
+    "deliveredUnitCount": 720,
+    "deliveredUnitRatio": 0.3,
+    "observedDeliveryReductionRatio": 0.7,
+    "changedLocatorCoverage": {
+      "total": 1,
+      "covered": 1,
+      "ratio": 1,
+      "status": "covered"
+    },
+    "graphHintCoverage": {
+      "total": 4,
+      "covered": 3,
+      "ratio": 0.75,
+      "status": "partial"
+    }
+  },
+  "usePlan": {
+    "resourceUri": "oaf://workspace/ws_local/context-pack/use-plan/current",
+    "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "requiredReadCount": 3,
+    "requiredLocalReads": [
+      {
+        "locator": "workspace://AGENTS.md",
+        "role": "selected_context",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex.",
+        "reasonCodes": ["explicit_requirement", "selected_context", "token_efficient"]
+      },
+      {
+        "locator": "user-selected://notes/handoff.md",
+        "role": "explicit_user_selected",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "readHint": "Read user-selected://notes/handoff.md from the local workspace because it was explicitly included for this handoff.",
+        "reasonCodes": ["content_hash_verified", "explicit_user_file", "read_before_handoff"]
+      },
+      {
+        "locator": "workspace://src/auth.ts",
+        "role": "changed_locator",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "readHint": "Read workspace://src/auth.ts from the local workspace before editing or reviewing this changed file.",
+        "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"]
+      }
+    ],
+    "truncatedRequiredReadCount": 0,
+    "markdownContentIncluded": false,
+    "sourceContentIncluded": false
+  },
+  "memoryProposalPreflight": {
+    "state": "not_configured",
+    "configured": false,
+    "configRef": null,
+    "command": "npm --silent run oaf -- memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json",
+    "dryRun": true,
+    "summary": {
+      "proposalCount": 0,
+      "quarantinedCount": 0,
+      "skippedCount": 0,
+      "reviewItemCount": 0
+    },
+    "diagnostics": {
+      "sourceCount": 0,
+      "memoryIndexCount": 0,
+      "staleSourceCount": 0,
+      "indexCliffRiskCount": 0,
+      "warningCodes": []
+    },
+    "reportFingerprint": null,
+    "safeguards": {
+      "dryRun": true,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "externalWritesEnabled": false,
+      "externalAdaptersEnabled": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "activeMemoryCreated": 0,
+      "sourceSnapshotsWritten": 0,
+      "rawSourceBodiesIncluded": false,
+      "proposalTextIncluded": false,
+      "proposalMarkdownIncluded": false,
+      "sourceContentIncluded": false,
+      "credentialsIncluded": false,
+      "providerUrlsIncluded": false,
+      "hiddenReasoningIncluded": false,
+      "absoluteFilesystemLocationsIncluded": false
+    }
+  },
+  "mcp": {
+    "resourceUri": "oaf://workspace/ws_local/context-pack/current",
+    "setup": {
+      "dryRun": true,
+      "client": "codex",
+      "configRef": "home://.codex/config.toml",
+      "serverStatus": "absent",
+      "desiredServer": {
+        "name": "oaf",
+        "transport": "stdio",
+        "command": "npm",
+        "args": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"],
+        "environmentKeys": [],
+        "resourceMode": "read-only",
+        "externalWrites": false
+      },
+      "manualConfigSnippet": {
+        "format": "toml",
+        "configRef": "home://.codex/config.toml",
+        "applyMode": "manual-copy",
+        "content": "[mcp_servers.oaf]\ncommand = \"npm\"\nargs = [\"--silent\", \"run\", \"oaf\", \"--\", \"mcp\", \"resources\", \"--read-only\", \"--stdio\"]",
+        "warning": "Preview only. Review and paste manually; OAF does not write home config files."
+      }
+    },
+    "smoke": {
+      "durationMs": 64,
+      "stdoutByteSize": 8192,
+      "stderrByteSize": 0,
+      "resourceByteSize": 4096,
+      "resourcesListed": 6,
+      "toolsExposed": 0,
+      "resourceFingerprint": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  },
+  "commands": {
+    "previewSetup": "npm --silent run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
+    "startMcpBridge": "npm --silent run oaf -- mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --stdio",
+    "readCurrentContextPack": "npm --silent run oaf -- mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --uri oaf://workspace/ws_local/context-pack/current --format json",
+    "renderMarkdown": "npm --silent run oaf -- context pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --dry-run --format markdown"
+  },
+  "checks": {
+    "contextPackFingerprintMatchesMcp": true,
+    "contextPackFingerprintMatchesUsePlan": true,
+    "resourceRead": true,
+    "noToolsExposed": true,
+    "noMarkdownBody": true,
+    "setupDryRun": true,
+    "setupUsesSilentNpm": true
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "homeConfigMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "rawSourceBodiesIncluded": false,
+    "markdownBodyIncluded": false,
+    "sourceContentIncluded": false,
+    "credentialsIncluded": false,
+    "providerUrlsIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "hiddenReasoningIncluded": false
+  },
+  "reportFingerprint": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+}

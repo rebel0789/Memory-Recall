@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "1.0.0",
+  "id": "memsgrep_cccccccccccccccc",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "dryRun": true,
+  "query": "context manifest",
+  "summary": {
+    "searchedCount": 2,
+    "resultCount": 1,
+    "manifestState": "provided"
+  },
+  "results": [
+    {
+      "id": "mem_sgrep_selected",
+      "kind": "decision",
+      "lifecycle": {
+        "status": "active",
+        "latestEvent": "memory.activated",
+        "latestAt": "2026-06-23T00:00:00.000Z"
+      },
+      "source": "evidence:ev_context",
+      "confidence": 0.9,
+      "supersedes": null,
+      "evidenceIds": ["ev_context"],
+      "snippet": "Every model call must reference a persisted context manifest.",
+      "redactions": {
+        "secretCount": 0,
+        "localPathCount": 0,
+        "reasonCodes": []
+      },
+      "contextManifest": {
+        "state": "matched",
+        "selected": true,
+        "reasonCodes": ["active_memory", "query_match"]
+      }
+    }
+  ],
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false,
+    "localFilesWritten": 0
+  }
+}

@@ -5,6 +5,8 @@
 - repository checks;
 - unit and contract tests;
 - relevant deterministic evaluations;
+- versioned evaluation report for any default-changing model, prompt, selector,
+  tool, or workflow behavior;
 - documentation and status consistency;
 - no secret patterns;
 - no enabled unpinned adapter;

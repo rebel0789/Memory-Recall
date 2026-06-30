@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/durable-run-record-1.0.json",
+  "title": "Durable Run Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "provider", "workspaceId", "runId", "workflowId", "workflowVersion", "workflowFingerprint", "status", "currentStep", "createdAt", "updatedAt", "steps"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "provider": { "const": "provider:native:workflow:durable-sqlite" },
+    "workspaceId": { "type": "string", "pattern": "^ws_" },
+    "runId": { "type": "string", "pattern": "^run_" },
+    "workflowId": { "type": "string", "pattern": "^workflow:" },
+    "workflowVersion": { "type": "string", "minLength": 1 },
+    "workflowFingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "status": { "enum": ["queued", "running", "waiting_timer", "waiting_retry", "waiting_approval", "completed", "failed", "cancelled"] },
+    "currentStep": { "type": "integer", "minimum": 0 },
+    "input": { "type": "object" },
+    "output": { "type": ["object", "null"] },
+    "error": { "type": ["object", "null"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": ["string", "null"], "format": "date-time" },
+    "steps": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stepId", "kind", "status", "attempt"],
+        "properties": {
+          "stepId": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["deterministic", "model", "activity", "timer", "approval"] },
+          "status": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "attempt": { "type": "integer", "minimum": 0 },
+          "handler": { "type": ["object", "null"] },
+          "output": { "type": ["object", "null"] },
+          "error": { "type": ["object", "null"] },
+          "nextAt": { "type": ["string", "null"], "format": "date-time" },
+          "approvalId": { "type": ["string", "null"] },
+          "idempotencyKey": { "type": ["string", "null"] },
+          "operationFingerprint": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

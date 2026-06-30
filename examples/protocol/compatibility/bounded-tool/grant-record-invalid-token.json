@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "grantId": "grant_protocol",
+  "status": "issued",
+  "binding": {},
+  "issuedAt": "2026-06-20T00:00:00.000Z",
+  "expiresAt": "2026-06-20T00:00:30.000Z",
+  "maxUses": 1,
+  "uses": 0,
+  "tokenHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

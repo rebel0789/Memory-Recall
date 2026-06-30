@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/OWNER/open-agent-fabric/security/advisories/new
-    about: Report vulnerabilities privately. Replace OWNER before public launch.
+    url: https://github.com/rebel0789/open-agent-fabric/security/advisories/new
+    about: Report vulnerabilities privately through GitHub Security Advisories.

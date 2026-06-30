@@ -42,6 +42,22 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BootstrapStatusResponse' }
+  /api/auth/bootstrap:
+    post:
+      operationId: bootstrapOwner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BootstrapOwnerRequest' }
+      responses:
+        '201':
+          description: Creates the first local owner and returns an authenticated browser session summary. Sets httpOnly session and readable CSRF cookies.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '409': { $ref: '#/components/responses/BoundaryError' }
   /api/auth/login:
     post:
       operationId: login
@@ -131,6 +147,74 @@ paths:
           description: Local dashboard projection.
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/loop/workbench:
+    get:
+      operationId: getLoopWorkbench
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Loop Workbench read model for plan, runs, observation, verification, budget, stop reasons, and the native memory-loop flow.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/cockpit:
+    get:
+      operationId: getMemoryCockpit
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Read-only native SQLite memory cockpit with temporal facts, proposal queue, and compressed profile token budget.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/graph:
+    get:
+      operationId: getMemoryGraph
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - name: history
+          in: query
+          required: false
+          schema: { enum: ['true', 'false'] }
+        - name: entity
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 512 }
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 512 }
+      responses:
+        '200':
+          description: Read-only governed memory graph projection with current-truth and historical temporal edges.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/proposals/{proposalId}/approve:
+    post:
+      operationId: approveMemoryProposal
+      parameters:
+        - name: proposalId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^mpq_[A-Za-z0-9._-]{1,128}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [workspaceId, confirm]
+              properties:
+                workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+                confirm: { const: true }
+      responses:
+        '201':
+          description: Explicitly promotes one pending memory proposal to an active temporal fact.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
   /api/runs:
     get:
       operationId: listRuns
@@ -195,6 +279,185 @@ paths:
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
         '400': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack:
+    post:
+      operationId: buildContextPack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextPackRequest' }
+      responses:
+        '200':
+          description: Sanitized local context handoff pack and markdown.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPackResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack/pin:
+    post:
+      operationId: pinContextPack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextPackRequest' }
+      responses:
+        '200':
+          description: Writes the reviewed context pack to fixed local artifacts and verifies the registry.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPackPinResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack/registry/status:
+    get:
+      operationId: getContextPackRegistryStatus
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Read-only verification status for explicitly pinned local context-pack artifacts.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPackRegistryStatusResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack/receive:
+    get:
+      operationId: getContextPackReceiveReport
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Read-only receiver packet for the currently pinned local context pack.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextPackReceiveReportResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/pack/memory-preflight:
+    post:
+      operationId: preflightContextPackMemory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextPackMemoryPreflightRequest' }
+      responses:
+        '200':
+          description: Read-only memory proposal preflight for explicit local memory source files.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryProposalPreflightResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/source-preview:
+    post:
+      operationId: previewContextSources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextSourcePreviewRequest' }
+      responses:
+        '200':
+          description: Sanitized dry-run preview of selected harness context sources.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HarnessContextPreviewResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/git-changes:
+    post:
+      operationId: detectGitChanges
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GitChangedLocatorsRequest' }
+      responses:
+        '200':
+          description: Opt-in read-only local git changed-file locator report.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GitChangedLocatorsResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/context/graph/preview:
+    post:
+      operationId: previewContextGraph
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContextGraphPreviewRequest' }
+      responses:
+        '200':
+          description: Bounded read-only native JS/TS source graph preview.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContextGraphPreviewResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '413': { $ref: '#/components/responses/BoundaryError' }
+        '415': { $ref: '#/components/responses/BoundaryError' }
+  /api/harness/setup/plan:
+    post:
+      operationId: planHarnessSetup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HarnessSetupPlanRequest' }
+      responses:
+        '200':
+          description: Redacted dry-run setup plan for connecting a local harness client to OAF read-only MCP resources.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HarnessSetupPlanResponse' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/BoundaryError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
         '413': { $ref: '#/components/responses/BoundaryError' }
         '415': { $ref: '#/components/responses/BoundaryError' }
   /api/reset:
@@ -327,7 +590,10 @@ components:
         schemaVersion: { const: '1.0.0' }
         project: { type: string, maxLength: 128 }
         release: { type: string, maxLength: 64 }
-        nextTask: { type: string, maxLength: 32 }
+        nextTask:
+          oneOf:
+            - { type: string, maxLength: 32 }
+            - { type: 'null' }
     StartRunRequest:
       type: object
       additionalProperties: false
@@ -344,6 +610,16 @@ components:
       properties:
         schemaVersion: { const: '1.0.0' }
         bootstrapRequired: { type: boolean }
+    BootstrapOwnerRequest:
+      type: object
+      additionalProperties: false
+      required: [username, displayName, password]
+      properties:
+        username: { type: string, pattern: '^[a-zA-Z0-9._:-]{1,80}$', maxLength: 80 }
+        displayName: { type: string, minLength: 1, maxLength: 120 }
+        password: { type: string, minLength: 1, maxLength: 256 }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        workspaceName: { type: string, minLength: 1, maxLength: 160 }
     LoginRequest:
       type: object
       additionalProperties: false
@@ -466,6 +742,533 @@ components:
       properties:
         request: { type: object }
         records: { type: array, maxItems: 100 }
+    ContextPackRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, objective, step]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        objective: { type: string, minLength: 1, maxLength: 2000 }
+        step: { type: string, minLength: 1, maxLength: 256 }
+        targetHarness: { enum: [codex, claude-code, claude, cursor, generic] }
+        from: { type: string, minLength: 1, maxLength: 80 }
+        userSelectedFiles:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 240 }
+        changedLocators:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: "^(workspace://)?(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+        tokenBudget: { type: integer, minimum: 1, maximum: 100000 }
+    ContextPackResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, pack, markdown, usePlan, readback]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        pack: { type: object }
+        markdown: { type: string, minLength: 1, maxLength: 200000 }
+        usePlan:
+          type: object
+          additionalProperties: true
+          required: [schemaVersion, usePlanVersion, id, workspaceId, contextPack, resource, requiredLocalReads, safeguards, usePlanFingerprint]
+          properties:
+            schemaVersion: { const: '1.0.0' }
+            usePlanVersion: { type: string, minLength: 1, maxLength: 32 }
+            id: { type: string, pattern: '^ctxuse_[A-Za-z0-9._:-]{1,120}$' }
+            workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+            contextPack: { type: object, additionalProperties: true }
+            resource: { type: object, additionalProperties: true }
+            requiredLocalReads: { type: array, maxItems: 64, items: { type: object, additionalProperties: true } }
+            safeguards: { type: object, additionalProperties: true }
+            usePlanFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        readback: { type: object, additionalProperties: true }
+    ContextPackPinResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, pack, markdown, usePlan, pin, registryStatus, readback]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        pack: { type: object, additionalProperties: true }
+        markdown: { type: string, minLength: 1, maxLength: 200000 }
+        usePlan: { type: object, additionalProperties: true }
+        pin:
+          type: object
+          additionalProperties: true
+          required: [schemaVersion, command, pinned, workspaceId, generatedAt, targetHarness, artifacts, registryEntry, registry, current, localFilesWritten, registryStatus, safeguards]
+          properties:
+            schemaVersion: { const: '1.0.0' }
+            command: { const: context pack pin }
+            pinned: { const: true }
+            workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+            generatedAt: { type: string, format: date-time }
+            targetHarness: { enum: [codex, claude-code, cursor, generic] }
+            artifacts:
+              type: array
+              minItems: 4
+              maxItems: 4
+              items: { type: object, additionalProperties: true }
+            registryEntry: { type: object, additionalProperties: true }
+            registry: { type: object, additionalProperties: true }
+            current: { type: object, additionalProperties: true }
+            localFilesWritten: { const: 4 }
+            registryStatus: { $ref: '#/components/schemas/ContextPackRegistryStatusResponse' }
+            safeguards: { type: object, additionalProperties: true }
+        registryStatus: { $ref: '#/components/schemas/ContextPackRegistryStatusResponse' }
+        readback: { type: object, additionalProperties: true }
+    ContextPackRegistryStatusResponse:
+      type: object
+      additionalProperties: true
+      required: [schemaVersion, registryVersion, command, workspaceId, generatedAt, registry, currentPointer, current, entries, warnings, safeguards]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        registryVersion: { type: string, minLength: 1, maxLength: 32 }
+        command: { const: context registry status }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        generatedAt: { type: string, format: date-time }
+        registry: { type: object, additionalProperties: true }
+        currentPointer: { type: object, additionalProperties: true }
+        current: { type: object, additionalProperties: true }
+        entries:
+          type: array
+          maxItems: 50
+          items: { type: object, additionalProperties: true }
+        warnings:
+          type: array
+          maxItems: 16
+          items: { type: string, minLength: 1, maxLength: 128 }
+        safeguards:
+          type: object
+          additionalProperties: true
+          required: [readOnly, canonicalStateMutated, localFilesWritten, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, activeMemoryCreated, markdownContentIncluded, sourceContentIncluded, privateContentIncluded, absoluteFilesystemLocationsIncluded]
+          properties:
+            readOnly: { const: true }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            markdownContentIncluded: { const: false }
+            sourceContentIncluded: { const: false }
+            privateContentIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
+    ContextPackReceiveReportResponse:
+      type: object
+      additionalProperties: true
+      required: [schemaVersion, command, generatedAt, workspaceId, targetHarness, state, registry, usePlan, receiverPacket, mcp, setup, commands, checks, safeguards, reportFingerprint]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        command: { const: context receive }
+        generatedAt: { type: string, format: date-time }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        targetHarness: { enum: [codex, claude-code, cursor, generic] }
+        state: { enum: [ready, review, blocked] }
+        registry: { type: object, additionalProperties: true }
+        usePlan: { type: object, additionalProperties: true }
+        receiverPacket: { type: object, additionalProperties: true }
+        mcp: { type: object, additionalProperties: true }
+        setup: { type: object, additionalProperties: true }
+        commands: { type: object, additionalProperties: true }
+        checks: { type: object, additionalProperties: true }
+        safeguards:
+          type: object
+          additionalProperties: true
+          required: [readOnly, canonicalStateMutated, localFilesWritten, homeConfigMutated, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, activeMemoryCreated, rawSourceBodiesIncluded, markdownBodyIncluded, sourceContentIncluded, objectiveTextIncluded, stepTextIncluded, credentialsIncluded, providerUrlsIncluded, absoluteFilesystemLocationsIncluded, hiddenReasoningIncluded]
+          properties:
+            readOnly: { const: true }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            homeConfigMutated: { const: false }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            rawSourceBodiesIncluded: { const: false }
+            markdownBodyIncluded: { const: false }
+            sourceContentIncluded: { const: false }
+            objectiveTextIncluded: { const: false }
+            stepTextIncluded: { const: false }
+            credentialsIncluded: { const: false }
+            providerUrlsIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
+            hiddenReasoningIncluded: { const: false }
+        reportFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+    ContextPackMemoryPreflightRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, memoryConfig]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        memoryConfig:
+          type: object
+          additionalProperties: false
+          required: [schemaVersion, memoryPaths]
+          properties:
+            schemaVersion: { const: '1.0.0' }
+            memoryPaths:
+              type: array
+              minItems: 1
+              maxItems: 32
+              items:
+                type: object
+                additionalProperties: false
+                required: [path]
+                properties:
+                  path:
+                    type: string
+                    minLength: 1
+                    maxLength: 512
+                    pattern: '^(?!/)(?!.*\.\.)(?!.*\\)(?!.*\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\.git(?:/|$))(?!.*(?:^|/)\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&''()*+,;=:@%/-]{1,512}$'
+                  kind: { enum: [fact, decision, preference, procedure, episode] }
+                  sourceTrust: { enum: [verified, unverified, external] }
+                  dataClass: { enum: [public, workspace-private, sensitive] }
+                  sourceRole: { type: string, minLength: 1, maxLength: 64 }
+    MemoryProposalPreflightResponse:
+      type: object
+      additionalProperties: false
+      required: [state, configured, configRef, command, dryRun, summary, diagnostics, reportFingerprint, safeguards]
+      properties:
+        state: { enum: [ready, review] }
+        configured: { const: true }
+        configRef:
+          type: string
+          maxLength: 540
+          pattern: '^workspace://[A-Za-z0-9._~!$&''()*+,;=:@%/-]{1,512}$'
+        command:
+          type: string
+          maxLength: 1000
+          pattern: '^(?![\s\S]*(?:/Users|/private|/var/folders|OPENAI_API_KEY|authorization|cookie|secret=|token=|api[_-]?key=|curl|https?://))[\s\S]*memory proposals --from memoryPaths[\s\S]*--dry-run[\s\S]*$'
+        dryRun: { const: true }
+        summary:
+          type: object
+          additionalProperties: false
+          required: [proposalCount, quarantinedCount, skippedCount, reviewItemCount]
+          properties:
+            proposalCount: { type: integer, minimum: 0, maximum: 128 }
+            quarantinedCount: { type: integer, minimum: 0, maximum: 128 }
+            skippedCount: { type: integer, minimum: 0, maximum: 128 }
+            reviewItemCount: { type: integer, minimum: 0, maximum: 256 }
+        diagnostics:
+          type: object
+          additionalProperties: false
+          required: [sourceCount, memoryIndexCount, staleSourceCount, indexCliffRiskCount, warningCodes]
+          properties:
+            sourceCount: { type: integer, minimum: 0, maximum: 32 }
+            memoryIndexCount: { type: integer, minimum: 0, maximum: 128 }
+            staleSourceCount: { type: integer, minimum: 0, maximum: 128 }
+            indexCliffRiskCount: { type: integer, minimum: 0, maximum: 128 }
+            warningCodes:
+              type: array
+              maxItems: 32
+              uniqueItems: true
+              items: { type: string, minLength: 1, maxLength: 80 }
+        reportFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [dryRun, canonicalStateMutated, localFilesWritten, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, activeMemoryCreated, sourceSnapshotsWritten, rawSourceBodiesIncluded, proposalTextIncluded, proposalMarkdownIncluded, sourceContentIncluded, credentialsIncluded, providerUrlsIncluded, hiddenReasoningIncluded, absoluteFilesystemLocationsIncluded]
+          properties:
+            dryRun: { const: true }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            sourceSnapshotsWritten: { const: 0 }
+            rawSourceBodiesIncluded: { const: false }
+            proposalTextIncluded: { const: false }
+            proposalMarkdownIncluded: { const: false }
+            sourceContentIncluded: { const: false }
+            credentialsIncluded: { const: false }
+            providerUrlsIncluded: { const: false }
+            hiddenReasoningIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
+    ContextSourcePreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, objective, step]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        objective: { type: string, minLength: 1, maxLength: 2000 }
+        step: { type: string, minLength: 1, maxLength: 256 }
+        from: { type: string, minLength: 1, maxLength: 80 }
+        userSelectedFiles:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 240 }
+        tokenBudget: { type: integer, minimum: 1, maximum: 100000 }
+    HarnessContextPreviewResponse:
+      type: object
+      additionalProperties: true
+      required: [schemaVersion, previewVersion, id, workspaceId, createdAt, dryRun, scannerVersion, scan, candidates, manifest, memoryPlan, metrics, safeguards, previewFingerprint]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        previewVersion: { type: string, minLength: 1, maxLength: 32 }
+        id: { type: string, pattern: '^hctxprev_[a-f0-9]{16,64}$' }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        createdAt: { type: string, format: date-time }
+        dryRun: { const: true }
+        scannerVersion: { type: string, minLength: 1, maxLength: 32 }
+        scan: { type: object }
+        candidates: { type: object }
+        manifest: { type: object }
+        memoryPlan: { type: object }
+        metrics: { type: object }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [persisted, modelCalls, networkCalls, sourceSnapshotsWritten, activeMemoryCreated, externalWritesEnabled, externalAdaptersEnabled, rawBodyIncluded]
+          properties:
+            persisted: { const: false }
+            modelCalls: { const: 0 }
+            networkCalls: { const: 0 }
+            sourceSnapshotsWritten: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            rawBodyIncluded: { const: false }
+        previewFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    GitChangedLocatorsRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId]
+      maxProperties: 1
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+    GitChangedLocatorsResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, command, generatedAt, workspaceId, status, source, reason, changedLocators, totalChangedLocatorCount, omittedChangedLocatorCount, skippedCount, truncated, warnings, safeguards, reportFingerprint]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        command: { const: 'git changed locators' }
+        generatedAt: { type: string, format: date-time }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        status: { enum: [available, unavailable] }
+        source: { enum: [git-status-porcelain, unavailable] }
+        reason: { enum: [null, not_git_repository, git_unavailable, git_status_failed, git_status_timeout] }
+        changedLocators:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+        totalChangedLocatorCount: { type: integer, minimum: 0, maximum: 200000 }
+        omittedChangedLocatorCount: { type: integer, minimum: 0, maximum: 200000 }
+        skippedCount: { type: integer, minimum: 0, maximum: 200000 }
+        truncated: { type: boolean }
+        warnings:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 128 }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [readOnly, canonicalStateMutated, localFilesWritten, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, activeMemoryCreated, sourceSnapshotsWritten, privateBodiesIncluded, diffBodiesIncluded, rawBodyIncluded, absoluteFilesystemLocationsIncluded]
+          properties:
+            readOnly: { const: true }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            activeMemoryCreated: { const: 0 }
+            sourceSnapshotsWritten: { const: 0 }
+            privateBodiesIncluded: { const: false }
+            diffBodiesIncluded: { const: false }
+            rawBodyIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
+        reportFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    ContextGraphPreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId]
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        query: { type: string, minLength: 1, maxLength: 512 }
+        startName: { type: string, minLength: 1, maxLength: 240 }
+        startNodeId: { type: string, minLength: 1, maxLength: 128 }
+        changedLocators:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+            pattern: "^(workspace://)?(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+        nodeKinds:
+          type: array
+          maxItems: 4
+          items: { enum: [file, chunk, symbol, module] }
+        edgeKinds:
+          type: array
+          maxItems: 6
+          items: { enum: [contains, defined_in, imports, exports, references, calls] }
+        labelPattern: { type: string, minLength: 1, maxLength: 240 }
+        locatorPrefix: { type: string, minLength: 1, maxLength: 512 }
+        direction: { enum: [outbound, inbound, both] }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        offset: { type: integer, minimum: 0, maximum: 10000 }
+        depth: { type: integer, minimum: 1, maximum: 5 }
+        sampleLimit: { type: integer, minimum: 1, maximum: 50 }
+        maxFiles: { type: integer, minimum: 1, maximum: 1000 }
+        maxFileBytes: { type: integer, minimum: 1024, maximum: 1048576 }
+    ContextGraphPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, previewVersion, workspaceId, generatedAt, graph, search, trace, impact, safeguards]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        previewVersion: { const: oaf-source-graph-preview-1.0.0 }
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        generatedAt: { type: string, format: date-time }
+        graph: { type: object }
+        search: { type: object }
+        trace: { type: [object, 'null'] }
+        impact: { type: [object, 'null'] }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [dryRun, persisted, canonicalStateMutated, localFilesWritten, modelCalls, networkCalls, externalAdaptersEnabled, externalWritesEnabled, graphDatabaseUsed, rawBodyIncluded, sourceSlicesRead]
+          properties:
+            dryRun: { const: true }
+            persisted: { const: false }
+            canonicalStateMutated: { const: false }
+            localFilesWritten: { const: 0 }
+            modelCalls: { const: 0 }
+            networkCalls: { const: 0 }
+            externalAdaptersEnabled: { const: 0 }
+            externalWritesEnabled: { const: false }
+            graphDatabaseUsed: { const: false }
+            rawBodyIncluded: { const: false }
+            sourceSlicesRead: { const: false }
+    HarnessSetupPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, client]
+      maxProperties: 2
+      properties:
+        workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+        client:
+          enum: [codex, cursor, claude-code, opencode, openclaw, gemini-cli, zed, aider, goose, vscode, cline, roo, windsurf, generic-mcp]
+    HarnessSetupPlanResponse:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, plannerVersion, command, dryRun, generatedAt, client, clientLabel, server, config, status, desiredServer, manualConfigSnippet, diff, safeguards, planFingerprint]
+      properties:
+        schemaVersion: { const: '1.0.0' }
+        plannerVersion: { type: string, maxLength: 32 }
+        command: { const: harness setup plan }
+        dryRun: { const: true }
+        generatedAt: { type: string, format: date-time }
+        client: { type: string, maxLength: 32 }
+        clientLabel: { type: string, maxLength: 80 }
+        server: { const: oaf }
+        config:
+          type: object
+          additionalProperties: false
+          required: [ref, format, exists, serverCount]
+          properties:
+            ref: { type: string, pattern: '^home://[A-Za-z0-9._/-]{1,240}$', maxLength: 256 }
+            format: { enum: [json, jsonc, toml, yaml] }
+            exists: { type: boolean }
+            serverCount: { type: integer, minimum: 0, maximum: 1000 }
+        status:
+          type: object
+          additionalProperties: false
+          required: [config, server]
+          properties:
+            config: { enum: [present, absent] }
+            server: { enum: [installed, absent, drifted] }
+        desiredServer:
+          type: object
+          additionalProperties: false
+          required: [name, transport, command, args, environmentKeys, resourceMode, externalWrites]
+          properties:
+            name: { const: oaf }
+            transport: { const: stdio }
+            command: { const: npm }
+            args:
+              type: array
+              minItems: 8
+              maxItems: 8
+              items: { type: string, maxLength: 32 }
+            environmentKeys:
+              type: array
+              maxItems: 0
+            resourceMode: { const: read-only }
+            externalWrites: { const: false }
+        manualConfigSnippet:
+          type: object
+          additionalProperties: false
+          required: [format, configRef, applyMode, content, warning]
+          properties:
+            format: { enum: [json, jsonc, toml, yaml] }
+            configRef: { type: string, pattern: '^home://[A-Za-z0-9._/-]{1,240}$', maxLength: 256 }
+            applyMode: { const: manual-copy }
+            content:
+              type: string
+              minLength: 1
+              maxLength: 4000
+              pattern: '^(?![\s\S]*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\s\S]*$'
+            warning: { type: string, minLength: 1, maxLength: 200 }
+        diff:
+          type: object
+          additionalProperties: false
+          required: [redacted, operations, preview]
+          properties:
+            redacted: { const: true }
+            operations:
+              type: array
+              maxItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                required: [op, target, before, after, summary]
+                properties:
+                  op: { enum: [add, replace, remove] }
+                  target: { const: mcpServers.oaf }
+                  before: { enum: [installed, absent, drifted] }
+                  after: { enum: [read-only-oaf-mcp-stdio, absent] }
+                  summary: { type: string, maxLength: 160 }
+            preview:
+              type: array
+              maxItems: 1
+              items: { type: string, maxLength: 160 }
+        safeguards:
+          type: object
+          additionalProperties: false
+          required: [localFilesWritten, canonicalStateMutated, homeConfigMutated, externalWritesEnabled, externalAdaptersEnabled, networkCalls, modelCalls, rawConfigBodyIncluded, absoluteFilesystemLocationsIncluded, credentialsIncluded]
+          properties:
+            localFilesWritten: { const: 0 }
+            canonicalStateMutated: { const: false }
+            homeConfigMutated: { const: false }
+            externalWritesEnabled: { const: false }
+            externalAdaptersEnabled: { const: 0 }
+            networkCalls: { const: 0 }
+            modelCalls: { const: 0 }
+            rawConfigBodyIncluded: { const: false }
+            absoluteFilesystemLocationsIncluded: { const: false }
+            credentialsIncluded: { const: false }
+        planFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
     ResetResponse:
       type: object
       additionalProperties: false

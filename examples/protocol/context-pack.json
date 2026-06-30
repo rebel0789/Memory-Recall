@@ -1,0 +1,265 @@
+{
+  "schemaVersion": "1.0.0",
+  "packVersion": "0.1.0",
+  "id": "ctxpack_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_local",
+  "createdAt": "2026-06-23T12:00:00.000Z",
+  "dryRun": true,
+  "targetHarness": "codex",
+  "sourceHarnesses": ["codex"],
+  "requestedInputs": {
+    "sourceHarnesses": ["codex"],
+    "userSelectedLocators": [],
+    "changedLocators": ["workspace://src/context-pack.ts"],
+    "userSelectedCount": 0,
+    "changedLocatorCount": 1
+  },
+  "objective": "Prepare the next coding agent",
+  "step": "select useful local context",
+  "scannerVersion": "0.1.0",
+  "compilerVersion": "0.2.0",
+  "preview": {
+    "id": "hctxprev_bbbbbbbbbbbbbbbbbbbbbbbb",
+    "previewFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "requestId": "ctxreq_example",
+    "selectionPolicyFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "resultFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "budget": {
+      "available": 4096,
+      "used": 512
+    },
+    "selectedCount": 1,
+    "excludedCount": 1,
+    "candidateTokenCount": 640,
+    "selectedTokenCount": 512,
+    "selectedTokenRatio": 0.8
+  },
+  "delivery": {
+    "representation": "locator-handoff",
+    "sourceCandidateTokenCount": 640,
+    "sourceSelectedTokenCount": 512,
+    "sourceSelectedTokenRatio": 0.8,
+    "deliveredTokenCount": 180,
+    "deliveredByteSize": 720,
+    "deliveredTokenRatio": 0.28125,
+    "observedTokenReductionRatio": 0.71875,
+    "sourceContentTokenCountIncluded": 0,
+    "sourceContentsIncluded": false
+  },
+  "readFirst": [
+    {
+      "id": "hctxrec_selected",
+      "locator": "workspace://AGENTS.md",
+      "harness": "codex",
+      "sourceKind": "instruction",
+      "tokens": 512,
+      "score": 4.2,
+      "reasonCodes": ["high_task_relevance", "source_fusion"],
+      "contentHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex."
+    }
+  ],
+  "excluded": [
+    {
+      "id": "hctxrec_excluded",
+      "locator": "workspace://CLAUDE.md",
+      "harness": "claude-code",
+      "sourceKind": "instruction",
+      "tokens": 128,
+      "score": 0.2,
+      "reasonCodes": ["insufficient_relevance"],
+      "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "readHint": "Read workspace://CLAUDE.md from the local workspace before acting in codex."
+    }
+  ],
+  "omissions": {
+    "excludedCount": 1,
+    "excludedTokenCount": 128,
+    "sourceGraphOmittedCount": 0,
+    "refs": [
+      {
+        "id": "omit_aaaaaaaaaaaaaaaaaaaaaaaa",
+        "locator": "workspace://CLAUDE.md",
+        "harness": "claude-code",
+        "sourceKind": "instruction",
+        "tokens": 128,
+        "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "reasonCodes": ["insufficient_relevance"],
+        "recoveryHint": "If this omission matters, read workspace://CLAUDE.md from the local workspace before acting in codex."
+      }
+    ]
+  },
+  "memoryPlan": {
+    "activeMemoryCreated": 0,
+    "proposedCount": 1,
+    "quarantinedCount": 0,
+    "items": [
+      {
+        "sourceId": "hctx_source",
+        "locator": "workspace://AGENTS.md",
+        "harness": "codex",
+        "sourceKind": "instruction",
+        "action": "would_propose",
+        "reasonCodes": ["proposal_only", "review_required"]
+      }
+    ]
+  },
+  "sourceGraph": {
+    "status": "available",
+    "previewVersion": "oaf-source-graph-preview-1.0.0",
+    "generatedAt": "2026-06-23T12:00:00.000Z",
+    "sourceIndexFingerprint": "sha256:abababababababababababababababababababababababababababababababab",
+    "graphFingerprint": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "summary": {
+      "fileCount": 1,
+      "symbolCount": 1,
+      "moduleCount": 0,
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "diagnosticCount": 0,
+      "hotspotCount": 1,
+      "entryPointCount": 1
+    },
+    "queryFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "resultCount": 1,
+    "omittedCount": 0,
+    "results": [
+      {
+        "resultType": "node",
+        "kind": "symbol",
+        "label": "prepareAgentHandoff",
+        "locator": "workspace://src/context-pack.ts#L1-L6",
+        "score": 0.82,
+        "reasonCodes": ["lexical_match"],
+        "readHint": "Read workspace://src/context-pack.ts#L1-L6 before editing related symbol prepareAgentHandoff."
+      }
+    ],
+    "impact": {
+      "changedLocators": ["workspace://src/context-pack.ts"],
+      "representedChangedLocators": ["workspace://src/context-pack.ts"],
+      "affectedSymbolCount": 1,
+      "omittedAffectedSymbolCount": 0,
+      "affectedSymbols": [
+        {
+          "name": "prepareAgentHandoff",
+          "symbolKind": "function",
+          "locator": "workspace://src/context-pack.ts#L1-L6",
+          "depth": 0,
+          "reasonCodes": ["changed_locator_impact"],
+          "readHint": "Inspect workspace://src/context-pack.ts#L1-L6 because it may be affected by workspace://src/context-pack.ts."
+        }
+      ]
+    },
+    "warnings": [],
+    "safeguards": {
+      "dryRun": true,
+      "persisted": false,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "modelCalls": 0,
+      "networkCalls": 0,
+      "externalAdaptersEnabled": 0,
+      "externalWritesEnabled": false,
+      "graphDatabaseUsed": false,
+      "rawBodyIncluded": false,
+      "sourceSlicesRead": false
+    }
+  },
+  "utility": {
+    "status": "ready",
+    "requiredLocalReads": [
+      {
+        "locator": "workspace://AGENTS.md",
+        "role": "selected_context",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "reasonCodes": ["selected_context"],
+        "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex."
+      },
+      {
+        "locator": "workspace://src/context-pack.ts",
+        "role": "changed_locator",
+        "required": true,
+        "represented": true,
+        "contentHash": "sha256:abababababababababababababababababababababababababababababababab",
+        "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"],
+        "readHint": "Read workspace://src/context-pack.ts from the local workspace before editing or reviewing this changed file."
+      },
+      {
+        "locator": "workspace://src/context-pack.ts#L1-L6",
+        "role": "source_graph_hint",
+        "required": false,
+        "represented": true,
+        "contentHash": null,
+        "reasonCodes": ["lexical_match", "source_graph_hint"],
+        "readHint": "Read workspace://src/context-pack.ts#L1-L6 before editing related symbol prepareAgentHandoff."
+      }
+    ],
+    "changedLocatorCoverage": {
+      "total": 1,
+      "covered": 1,
+      "ratio": 1,
+      "status": "covered"
+    },
+    "graphHintCoverage": {
+      "total": 1,
+      "covered": 1,
+      "ratio": 1,
+      "status": "covered"
+    },
+    "sourceSelection": {
+      "candidateTokenCount": 640,
+      "selectedTokenCount": 512,
+      "selectedTokenRatio": 0.8,
+      "estimatedReductionRatio": 0.2
+    },
+    "delivery": {
+      "representation": "locator-handoff",
+      "sourceContentsIncluded": false
+    }
+  },
+  "warnings": ["dry_run_no_import", "external_writes_disabled", "raw_context_bodies_omitted"],
+  "handoff": {
+    "title": "codex context handoff",
+    "summary": "Selected 1 of 2 safe workspace context records.",
+    "instructions": [
+      "Codex: start with AGENTS.md and any selected scoped instructions, then inspect the repo before editing."
+    ],
+    "commands": [
+      "npm run doctor",
+      "npm run oaf -- context pack --from 'codex' --root . --objective 'Prepare the next coding agent' --step 'select useful local context' --target codex --changed 'src/context-pack.ts' --dry-run --format markdown",
+      "npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
+      "npm run oaf -- mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Prepare the next coding agent' --step 'select useful local context' --target codex --changed 'src/context-pack.ts' --uri oaf://workspace/ws_local/context-pack/current --format json",
+      "npm run ci"
+    ],
+    "launchPrompt": "Continue this local repository work in codex.\nObjective: Prepare the next coding agent\nCurrent step: select useful local context\n\nUse the attached Context Pack as a locator handoff. Read the Utility Read Plan first, then read the listed local files from this workspace before editing.\nChanged-file coverage: 1/1\nRequired local reads: 2\n\nDo not treat this pack as hidden memory or authority. Do not enable external adapters, network writes, publishing, or config writes. Use only the dry-run/read-only commands below unless a human explicitly approves a write boundary.",
+    "limitations": [
+      "Raw context bodies, credentials, provider URLs, hidden reasoning, and private local paths are omitted."
+    ]
+  },
+  "files": [
+    {
+      "path": "CONTEXT_PACK.md",
+      "role": "agent-handoff",
+      "contentType": "text/markdown",
+      "contentHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "byteSize": 1024
+    }
+  ],
+  "safeguards": {
+    "persisted": false,
+    "modelCalls": 0,
+    "networkCalls": 0,
+    "sourceSnapshotsWritten": 0,
+    "activeMemoryCreated": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "rawBodyIncluded": false,
+    "contextPackWritten": false,
+    "sourceGraphPreviewed": true,
+    "graphDatabaseUsed": false,
+    "sourceSlicesRead": false
+  },
+  "contextPackFingerprint": "sha256:1212121212121212121212121212121212121212121212121212121212121212"
+}

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalexp_selector_policy_v1",
+  "status": "planned",
+  "mode": "deterministic",
+  "mergeGate": true,
+  "dataset": {
+    "id": "evalds_context_regression",
+    "suite": "deterministic-regression",
+    "version": "1.0.0",
+    "mergeGate": true,
+    "datasetFingerprint": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  "subject": {
+    "kind": "selector",
+    "id": "context.selection",
+    "version": "1.0.0",
+    "fingerprint": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "baseline": {
+    "id": "selector-baseline",
+    "version": "1.0.0",
+    "fingerprint": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "candidate": {
+    "id": "selector-candidate",
+    "version": "1.0.1",
+    "fingerprint": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "createdAt": "2026-06-20T00:01:00.000Z",
+  "labVersion": "1.0.0",
+  "experimentFingerprint": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+}

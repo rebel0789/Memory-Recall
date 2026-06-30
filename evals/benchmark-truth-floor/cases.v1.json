@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalds_benchmark_truth_floor",
+  "suite": "benchmark-truth-floor",
+  "version": "1.0.0",
+  "owner": "agent:evaluator",
+  "description": "Synthetic gold-evidence benchmark for native context baselines.",
+  "mergeGate": true,
+  "sourceRefs": ["evals/benchmark-truth-floor/cases.v1.json"],
+  "thresholds": {
+    "requiredEvidenceRecall": 1,
+    "distractorExclusionRate": 0.9,
+    "selectedTokenRatioMax": 0.7,
+    "deterministicMismatchCount": 0
+  },
+  "cases": [
+    {
+      "id": "evalcase_benchmark_auth_incident",
+      "workspaceId": "ws_benchmark",
+      "question": "Which local-first auth incident evidence should be selected?",
+      "objective": "auth incident token reset local-first evidence",
+      "step": "select gold auth incident evidence and exclude noisy or secret records",
+      "expectedAnswer": "Use the policy and runbook evidence, exclude noise and secret material.",
+      "abstainWhenMissing": true,
+      "tokenBudget": 160,
+      "requiredEntities": ["topic:auth", "topic:incident"],
+      "requiredEvidenceIds": ["ev_auth_policy", "ev_auth_runbook"],
+      "distractorIds": ["ev_marketing_noise"],
+      "forbiddenIds": ["ev_secret_credentials", "ev_other_workspace"],
+      "records": [
+        {
+          "id": "ev_auth_policy",
+          "version": "1.0.0",
+          "kind": "policy",
+          "workspaceId": "ws_benchmark",
+          "text": "Auth incident policy requires local-first evidence before a token reset.",
+          "tags": ["topic:auth", "topic:incident"],
+          "relations": ["topic:auth"],
+          "scope": "workspace-private",
+          "dataClass": "workspace-private",
+          "trustClass": "verified",
+          "status": "active",
+          "source": "fixture",
+          "tokens": 16,
+          "confidence": 1,
+          "authority": 1,
+          "updatedAt": "2026-06-23T00:00:00.000Z",
+          "contentHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "id": "ev_auth_runbook",
+          "version": "1.0.0",
+          "kind": "procedure",
+          "workspaceId": "ws_benchmark",
+          "text": "Auth incident runbook links token reset approval to verified audit evidence.",
+          "tags": ["topic:auth", "topic:incident"],
+          "relations": ["topic:incident"],
+          "scope": "workspace-private",
+          "dataClass": "workspace-private",
+          "trustClass": "verified",
+          "status": "active",
+          "source": "fixture",
+          "tokens": 18,
+          "confidence": 0.94,
+          "authority": 0.9,
+          "updatedAt": "2026-06-23T00:00:00.000Z",
+          "contentHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "id": "ev_marketing_noise",
+          "version": "1.0.0",
+          "kind": "observation",
+          "workspaceId": "ws_benchmark",
+          "text": "Marketing launch copy about colorful onboarding screens and unrelated announcements.",
+          "tags": ["topic:marketing"],
+          "relations": ["topic:marketing"],
+          "scope": "workspace-private",
+          "dataClass": "workspace-private",
+          "trustClass": "observed",
+          "status": "active",
+          "source": "fixture",
+          "tokens": 80,
+          "confidence": 0.5,
+          "authority": 0.1,
+          "updatedAt": "2026-06-23T00:00:00.000Z",
+          "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        {
+          "id": "ev_secret_credentials",
+          "version": "1.0.0",
+          "kind": "observation",
+          "workspaceId": "ws_benchmark",
+          "text": "credential-sentinel-value and /Users/rebel/private/auth.txt must never leak.",
+          "tags": ["topic:auth"],
+          "relations": ["topic:auth"],
+          "scope": "workspace-private",
+          "dataClass": "secret",
+          "trustClass": "verified",
+          "status": "active",
+          "source": "fixture",
+          "tokens": 12,
+          "confidence": 1,
+          "authority": 1,
+          "updatedAt": "2026-06-23T00:00:00.000Z",
+          "contentHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+        },
+        {
+          "id": "ev_other_workspace",
+          "version": "1.0.0",
+          "kind": "policy",
+          "workspaceId": "ws_other",
+          "text": "Other workspace auth policy must not cross the workspace boundary.",
+          "tags": ["topic:auth"],
+          "relations": ["topic:auth"],
+          "scope": "workspace-private",
+          "dataClass": "workspace-private",
+          "trustClass": "verified",
+          "status": "active",
+          "source": "fixture",
+          "tokens": 14,
+          "confidence": 1,
+          "authority": 1,
+          "updatedAt": "2026-06-23T00:00:00.000Z",
+          "contentHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+        }
+      ],
+      "harnessContext": {
+        "harnesses": ["codex", "claude-code"],
+        "files": [
+          {
+            "path": "AGENTS.md",
+            "body": "Auth incident local-first evidence: select the policy and runbook locators, not credentials."
+          },
+          {
+            "path": "CLAUDE.md",
+            "body": "Marketing launch copy and unrelated onboarding notes. Marketing launch copy and unrelated onboarding notes. Marketing launch copy and unrelated onboarding notes."
+          },
+          {
+            "path": ".codex/private.md",
+            "body": "credential-sentinel-value\n/Users/rebel/private/auth.txt"
+          }
+        ],
+        "expect": {
+          "selectedLocators": ["workspace://AGENTS.md"],
+          "excludedLocators": ["workspace://CLAUDE.md", "workspace://.codex/private.md"],
+          "forbiddenStrings": ["Auth incident local-first evidence", "credential-sentinel-value", "/Users/rebel/private/auth.txt"]
+        }
+      }
+    }
+  ],
+  "createdAt": "2026-06-23T00:00:00.000Z",
+  "labVersion": "1.0.0",
+  "datasetFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

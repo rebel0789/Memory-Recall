@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/candidate-source-kind-1.0.json",
+  "title": "Candidate Source Kind",
+  "enum": [
+    "exact",
+    "lexical",
+    "ast-code",
+    "vector",
+    "graph",
+    "temporal",
+    "preference",
+    "episode"
+  ]
+}

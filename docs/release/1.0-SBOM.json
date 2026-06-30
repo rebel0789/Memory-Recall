@@ -1,0 +1,550 @@
+{
+  "schemaVersion": "1.0.0",
+  "format": "oaf-release-readiness-sbom",
+  "releaseCandidate": "1.0-readiness",
+  "project": "open-agent-fabric",
+  "packageVersion": "0.2.0-dev",
+  "dependencyPolicy": "bootstrap dependency-free; optional integrations remain disabled adapters",
+  "packages": [
+    {
+      "path": "package.json",
+      "name": "open-agent-fabric",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/adapter-contracts/package.json",
+      "name": "@open-agent-fabric/adapter-contracts",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/agentpack/package.json",
+      "name": "@open-agent-fabric/agentpack",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/content-intelligence/package.json",
+      "name": "@open-agent-fabric/content-intelligence",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/context-compiler/package.json",
+      "name": "@open-agent-fabric/context-compiler",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/evaluation-lab/package.json",
+      "name": "@open-agent-fabric/evaluation-lab",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/evidence/package.json",
+      "name": "@open-agent-fabric/evidence",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/harness-context/package.json",
+      "name": "@open-agent-fabric/harness-context",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/memory-core/package.json",
+      "name": "@open-agent-fabric/memory-core",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/model-gateway/package.json",
+      "name": "@open-agent-fabric/model-gateway",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/observability/package.json",
+      "name": "@open-agent-fabric/observability",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/operations/package.json",
+      "name": "@open-agent-fabric/operations",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/policy/package.json",
+      "name": "@open-agent-fabric/policy",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/protocol-bridges/package.json",
+      "name": "@open-agent-fabric/protocol-bridges",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/protocol/package.json",
+      "name": "@open-agent-fabric/protocol",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/release-readiness/package.json",
+      "name": "@open-agent-fabric/release-readiness",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/replay/package.json",
+      "name": "@open-agent-fabric/replay",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/source-graph/package.json",
+      "name": "@open-agent-fabric/source-graph",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/storage/package.json",
+      "name": "@open-agent-fabric/storage",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/tool-registry/package.json",
+      "name": "@open-agent-fabric/tool-registry",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/ui/package.json",
+      "name": "@open-agent-fabric/ui",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "packages/workflow-runtime/package.json",
+      "name": "@open-agent-fabric/workflow-runtime",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/artifact-filesystem/package.json",
+      "name": "@open-agent-fabric/native-artifact-filesystem",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/context-candidate-ast-code/package.json",
+      "name": "@open-agent-fabric/native-context-candidate-ast-code",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/context-candidate-exact/package.json",
+      "name": "@open-agent-fabric/native-context-candidate-exact",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/context-candidate-lexical/package.json",
+      "name": "@open-agent-fabric/native-context-candidate-lexical",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/context-manifest-local/package.json",
+      "name": "@open-agent-fabric/provider-native-context-manifest-local",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/identity-local/package.json",
+      "name": "@open-agent-fabric/identity-local",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/memory-sqlite/package.json",
+      "name": "@open-agent-fabric/native-memory-sqlite",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/model-deterministic/package.json",
+      "name": "@open-agent-fabric/native-model-deterministic",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/model-ollama/package.json",
+      "name": "@open-agent-fabric/native-model-ollama",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/policy-deterministic/package.json",
+      "name": "@open-agent-fabric/policy-deterministic",
+      "version": "0.1.0",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/tool-brokered-local/package.json",
+      "name": "@open-agent-fabric/provider-tool-brokered-local",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/workflow-durable-sqlite/package.json",
+      "name": "@open-agent-fabric/native-workflow-durable-sqlite",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "providers/native/workflow-embedded/package.json",
+      "name": "@open-agent-fabric/native-workflow-embedded",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    },
+    {
+      "path": "services/control-api/package.json",
+      "name": "@open-agent-fabric/control-api",
+      "version": "0.2.0-dev",
+      "license": "Apache-2.0",
+      "private": true,
+      "dependencyCount": 0,
+      "devDependencyCount": 0
+    }
+  ],
+  "nativeProviders": [
+    {
+      "id": "provider:native:artifact:filesystem",
+      "category": "artifact",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "ArtifactStorePort"
+    },
+    {
+      "id": "provider:native:context-candidate:ast-code",
+      "category": "context-candidate",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "CandidateSourcePort"
+    },
+    {
+      "id": "provider:native:context-candidate:exact",
+      "category": "context-candidate",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "CandidateSourcePort"
+    },
+    {
+      "id": "provider:native:context-candidate:lexical",
+      "category": "context-candidate",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "CandidateSourcePort"
+    },
+    {
+      "id": "provider:native:context-manifest:local",
+      "category": "context-manifest",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "ContextManifestRepositoryPort@1.0.0"
+    },
+    {
+      "id": "provider:native:identity:local",
+      "category": "identity",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "IdentityStorePort"
+    },
+    {
+      "id": "provider:native:memory:sqlite",
+      "category": "memory",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "MemoryBackendPort"
+    },
+    {
+      "id": "provider:native:model:deterministic",
+      "category": "model",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "ModelGatewayPort"
+    },
+    {
+      "id": "provider:native:model:ollama",
+      "category": "model",
+      "locality": "loopback-process",
+      "enabledByDefault": false,
+      "contract": "ModelGatewayPort"
+    },
+    {
+      "id": "provider:native:policy:deterministic",
+      "category": "policy",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "PolicyEvaluatorPort"
+    },
+    {
+      "id": "provider:native:tool:brokered-local",
+      "category": "tool",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "ToolExecutionPort"
+    },
+    {
+      "id": "provider:native:workflow:durable-sqlite",
+      "category": "workflow",
+      "locality": "in-process",
+      "enabledByDefault": false,
+      "contract": "WorkflowRuntimePort"
+    },
+    {
+      "id": "provider:native:workflow:embedded",
+      "category": "workflow",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "WorkflowRuntimePort"
+    }
+  ],
+  "externalAdapters": [
+    {
+      "id": "adapter:memory:claude-mem",
+      "path": "adapters/memory/claude-mem",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:tool:graphify",
+      "path": "adapters/tool/graphify",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:design:open-design",
+      "path": "adapters/design/open-design",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:research:last30days",
+      "path": "adapters/research/last30days",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:model:oracle",
+      "path": "adapters/model/oracle",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:research:agent-reach",
+      "path": "adapters/research/agent-reach",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:collaboration:cccc",
+      "path": "adapters/collaboration/cccc",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:tool:understand-anything",
+      "path": "adapters/tool/understand-anything",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:memory:mem0",
+      "path": "adapters/memory/mem0",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:tool:ecc",
+      "path": "adapters/tool/ecc",
+      "status": "experimental",
+      "enabledByDefault": false,
+      "license": "MIT",
+      "upstreamCommit": "34faa39bd3cd496a0aece0245f2b7e38b7923abc",
+      "archiveSha256": "sha256:c4a147dfb3766ee4eaedf74efbbc62cb5cdab014a5df98bee67020fb05871ae0",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:memory:openviking",
+      "path": "adapters/memory/openviking",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    },
+    {
+      "id": "adapter:publishing:postiz",
+      "path": "adapters/publishing/postiz",
+      "status": "planned",
+      "enabledByDefault": false,
+      "license": "UNVERIFIED",
+      "upstreamCommit": "UNPINNED",
+      "archiveSha256": "UNVERIFIED",
+      "conformanceFixture": "fixtures/conformance.json"
+    }
+  ],
+  "generatedBy": "@open-agent-fabric/release-readiness 1.0.0-rc-readiness"
+}

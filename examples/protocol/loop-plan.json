@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "loop plan",
+  "id": "loopplan_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_loop",
+  "createdAt": "2026-06-26T00:00:00.000Z",
+  "loopPlanFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "objective": "Fix source graph report filtering",
+  "stopCondition": "focused tests pass and no unrelated diff",
+  "nonGoals": ["Do not build the UI"],
+  "riskClass": "low",
+  "sideEffectClass": "read-only",
+  "maxIterations": 3,
+  "timeoutSeconds": 1800,
+  "approvalRequired": false,
+  "sourceGraph": {
+    "status": "available",
+    "sourceIndexFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "graphFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "changedLocators": ["workspace://src/auth.ts"]
+  },
+  "contextPack": {
+    "contextPackId": "ctxpack_demo",
+    "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "usePlanId": "ctxuse_demo",
+    "usePlanFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "requiredLocalReads": [
+    {
+      "locator": "workspace://AGENTS.md",
+      "role": "selected_context",
+      "required": true,
+      "contentHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "reasonCodes": ["selected_context"]
+    },
+    {
+      "locator": "workspace://src/auth.ts",
+      "role": "changed_locator",
+      "required": true,
+      "contentHash": null,
+      "reasonCodes": ["changed_locator_supplied", "read_before_edit"]
+    }
+  ],
+  "validationCommands": ["node --test tests/web-shell.test.mjs"],
+  "contextBudget": {
+    "estimatedDeliveryTokens": 123,
+    "sourceBodyTokensExcluded": 456,
+    "deliveryReductionRatio": 0.75,
+    "basis": "context-pack-measurement"
+  },
+  "stopReasons": [
+    "completed",
+    "validation_failed",
+    "blocked_needs_human",
+    "unsafe_action_required",
+    "max_iterations",
+    "timeout",
+    "unrelated_changes",
+    "out_of_scope"
+  ],
+  "rollback": "Discard the loop plan branch or worktree; no workspace state was mutated.",
+  "safeguards": {
+    "readOnly": true,
+    "commandsExecuted": 0,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceContentIncluded": false,
+    "rawOutputIncluded": false,
+    "hiddenReasoningIncluded": false
+  }
+}

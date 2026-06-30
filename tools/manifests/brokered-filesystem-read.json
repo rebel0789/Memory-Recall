@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.1.0",
+  "contractVersion": "1.0.0",
+  "id": "tool:filesystem-read",
+  "name": "Read bounded workspace files",
+  "version": "1.0.0",
+  "handlerBindingId": "handler:brokered:workspace-file-read@1.0.0",
+  "operations": {
+    "readFile": {
+      "sideEffectClass": "read-only",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 240 }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256", "byteSize"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 240 },
+          "sha256": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "byteSize": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "filesystem": { "read": ["workspace:root"], "write": [] },
+      "network": [],
+      "secretReferences": [],
+      "dataClasses": ["workspace-private"],
+      "sandbox": "brokered-filesystem-read",
+      "limits": { "runtimeMs": 1000, "inputBytes": 1024, "outputBytes": 4096, "costUnits": 0 },
+      "approval": { "required": false },
+      "idempotency": { "required": false }
+    }
+  }
+}

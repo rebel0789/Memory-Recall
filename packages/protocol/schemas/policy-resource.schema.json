@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/policy-resource.schema.json",
+  "title": "Policy Resource",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "workspaceId", "dataClass"],
+  "properties": {
+    "type": { "enum": ["system", "workspace", "run", "workflow", "context", "artifact", "source-snapshot", "memory", "tool", "token", "audit"] },
+    "id": { "type": ["string", "null"], "maxLength": 128 },
+    "workspaceId": { "type": ["string", "null"], "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$", "maxLength": 128 },
+    "dataClass": { "enum": ["public", "workspace-private", "confidential", "secret"] }
+  }
+}

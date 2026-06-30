@@ -1,0 +1,46 @@
+{
+  "id": "evidence_context_manifest",
+  "category": "evidence",
+  "fusion": {
+    "score": 0.032787,
+    "contributions": [
+      {
+        "sourceId": "provider:native:context-selection:direct",
+        "sourceKind": "direct",
+        "localRank": 1,
+        "contribution": 0.032787
+      }
+    ]
+  },
+  "featureValues": {
+    "sourceFusion": 0.032787,
+    "objectiveRelevance": 0.408248,
+    "stepRelevance": 0.333333,
+    "entityCoverage": 1,
+    "relationCoverage": 1,
+    "authority": 0.7,
+    "confidence": 0.81,
+    "preferenceApplicable": 0,
+    "outcomeEvidence": 0,
+    "temporalApplicability": 1,
+    "kindPriority": 0.65,
+    "tokenEfficiency": 1
+  },
+  "weightedContributions": {
+    "sourceFusion": 0.393444,
+    "objectiveRelevance": 1.632992,
+    "stepRelevance": 0.666666,
+    "entityCoverage": 4,
+    "relationCoverage": 2,
+    "authority": 0.7,
+    "confidence": 0.81,
+    "preferenceApplicable": 0,
+    "outcomeEvidence": 0,
+    "temporalApplicability": 0.5,
+    "kindPriority": 0.975,
+    "tokenEfficiency": 1
+  },
+  "preDiversityUtility": 12.678102,
+  "selectedOrExcluded": "selected",
+  "reasonCodes": ["entity_coverage", "entity_relation", "source_fusion", "task_relevance"]
+}

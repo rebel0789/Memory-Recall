@@ -217,7 +217,7 @@
       "id": "OAF-009",
       "title": "Implement authorization and contextual policy ports",
       "milestone": "Milestone 2",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:security-auditor",
       "dependsOn": [
         "OAF-003",
@@ -243,7 +243,7 @@
       "id": "OAF-010",
       "title": "Add context candidate-source ports",
       "milestone": "Milestone 3",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:context-curator",
       "dependsOn": [
         "OAF-003",
@@ -268,7 +268,7 @@
       "id": "OAF-011",
       "title": "Implement hybrid fusion, reranking, diversity, and budgets",
       "milestone": "Milestone 3",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:context-curator",
       "dependsOn": [
         "OAF-010"
@@ -293,7 +293,7 @@
       "id": "OAF-012",
       "title": "Persist context assembly and manifests",
       "milestone": "Milestone 3",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:context-curator",
       "dependsOn": [
         "OAF-004",
@@ -319,7 +319,7 @@
       "id": "OAF-013",
       "title": "Complete model gateway and local integration tests",
       "milestone": "Milestone 4",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:backend-builder",
       "dependsOn": [
         "OAF-003",
@@ -343,7 +343,7 @@
       "id": "OAF-014",
       "title": "Add durable workflow adapter and crash recovery",
       "milestone": "Milestone 4",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:backend-builder",
       "dependsOn": [
         "OAF-003",
@@ -369,7 +369,7 @@
       "id": "OAF-015",
       "title": "Implement bounded tool execution and grants",
       "milestone": "Milestone 4",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:security-auditor",
       "dependsOn": [
         "OAF-009",
@@ -394,7 +394,7 @@
       "id": "OAF-016",
       "title": "Implement evidence service and citation graph",
       "milestone": "Milestone 5",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:researcher",
       "dependsOn": [
         "OAF-006",
@@ -419,7 +419,7 @@
       "id": "OAF-017",
       "title": "Implement native versioned memory and write gate",
       "milestone": "Milestone 5",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:context-curator",
       "dependsOn": [
         "OAF-004",
@@ -446,7 +446,7 @@
       "id": "OAF-018",
       "title": "Add context-use and outcome feedback",
       "milestone": "Milestone 5",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:evaluator",
       "dependsOn": [
         "OAF-012",
@@ -472,7 +472,7 @@
       "id": "OAF-019",
       "title": "Implement file and RSS ingestion",
       "milestone": "Milestone 6",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:researcher",
       "dependsOn": [
         "OAF-006",
@@ -497,7 +497,7 @@
       "id": "OAF-020",
       "title": "Implement pattern, saturation, and copying-risk pipeline",
       "milestone": "Milestone 6",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:researcher",
       "dependsOn": [
         "OAF-011",
@@ -523,7 +523,7 @@
       "id": "OAF-021",
       "title": "Implement approval, local drafting, and outcomes",
       "milestone": "Milestone 6",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:orchestrator",
       "dependsOn": [
         "OAF-009",
@@ -550,7 +550,7 @@
       "id": "OAF-022",
       "title": "Build production web shell",
       "milestone": "Milestone 7",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:frontend-builder",
       "dependsOn": [
         "OAF-007",
@@ -575,7 +575,7 @@
       "id": "OAF-023",
       "title": "Build Run and Context Inspector views",
       "milestone": "Milestone 7",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:frontend-builder",
       "dependsOn": [
         "OAF-012",
@@ -600,7 +600,7 @@
       "id": "OAF-024",
       "title": "Build Memory, Evidence, and Approval views",
       "milestone": "Milestone 7",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:frontend-builder",
       "dependsOn": [
         "OAF-016",
@@ -626,7 +626,7 @@
       "id": "OAF-025",
       "title": "Add OpenTelemetry-compatible instrumentation",
       "milestone": "Milestone 8",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:evaluator",
       "dependsOn": [
         "OAF-007",
@@ -653,7 +653,7 @@
       "id": "OAF-026",
       "title": "Build evaluation laboratory",
       "milestone": "Milestone 8",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:evaluator",
       "dependsOn": [
         "OAF-011",
@@ -679,7 +679,7 @@
       "id": "OAF-027",
       "title": "Promote one low-risk read-only adapter",
       "milestone": "Milestone 9",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:security-auditor",
       "dependsOn": [
         "OAF-015",
@@ -705,7 +705,7 @@
       "id": "OAF-028",
       "title": "Add protocol bridges through accepted RFCs",
       "milestone": "Milestone 9",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:backend-builder",
       "dependsOn": [
         "OAF-015",
@@ -730,7 +730,7 @@
       "id": "OAF-029",
       "title": "Complete operations, backup, upgrade, and rollback",
       "milestone": "Milestone 10",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:release-manager",
       "dependsOn": [
         "OAF-025",
@@ -755,7 +755,7 @@
       "id": "OAF-030",
       "title": "Complete 1.0 open-source release readiness",
       "milestone": "Milestone 10",
-      "status": "planned",
+      "status": "completed",
       "ownerAgent": "agent:release-manager",
       "dependsOn": [
         "OAF-027",

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "workflow:durable-smoke",
+  "version": "1.0.0",
+  "fingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "name": "Durable smoke",
+  "description": "Serializable durable workflow fixture.",
+  "steps": [
+    {
+      "id": "activity",
+      "kind": "activity",
+      "handler": {
+        "id": "handler:smoke:activity",
+        "version": "1.0.0"
+      },
+      "timeoutMs": 1000,
+      "retry": {
+        "maxAttempts": 2,
+        "initialDelayMs": 10,
+        "maxDelayMs": 50
+      },
+      "approval": {
+        "required": false
+      },
+      "idempotency": {
+        "required": true,
+        "operationFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "riskClass": "read-only",
+      "inputSchema": {},
+      "outputSchema": {},
+      "compensation": null
+    }
+  ]
+}

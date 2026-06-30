@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_local",
+  "actorId": "usr_creator",
+  "generatedAt": "2026-06-20T00:00:00.000Z",
+  "approval": {
+    "schemaVersion": "1.0.0",
+    "id": "app_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "workspaceId": "ws_local",
+    "actorId": "usr_creator",
+    "status": "approved",
+    "approved": true,
+    "decidedAt": "2026-06-20T00:00:00.000Z",
+    "expiresAt": "2026-06-20T00:15:00.000Z",
+    "sideEffectClass": "local-only",
+    "operationFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "candidate": {
+      "id": "cand_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "rank": 1,
+      "angle": "Turn one agent failure into a checklist people can reuse",
+      "hook": "The polished demo was not the useful part. The recovery checklist was.",
+      "evidenceIds": ["obs_alpha", "obs_beta"]
+    },
+    "preview": {
+      "format": "plain-text",
+      "editableText": "Turn one agent failure into a checklist people can reuse\n\nThe polished demo was not the useful part. The recovery checklist was.",
+      "previewFingerprint": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    "binding": {
+      "candidateId": "cand_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "candidateRank": 1,
+      "candidateFingerprint": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "evidenceIds": ["obs_alpha", "obs_beta"],
+      "evidenceFingerprint": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "contextManifest": {
+        "id": "ctx_manifest_local",
+        "manifestFingerprint": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "compilerVersion": "1.0.0"
+      },
+      "promptVersion": "content-intelligence.generate-angles.v1",
+      "outputSchemaName": "content-intelligence.recommendations",
+      "outputSchemaVersion": "1.0.0",
+      "provider": "provider:native:model:deterministic",
+      "model": "deterministic-v1"
+    },
+    "publisher": {
+      "enabled": false,
+      "reason": "publisher_disabled"
+    },
+    "reasonCodes": [
+      "candidate_approved",
+      "evidence_available",
+      "context_manifest_bound",
+      "schema_version_bound",
+      "prompt_version_bound",
+      "publisher_disabled"
+    ]
+  },
+  "draft": {
+    "schemaVersion": "1.0.0",
+    "id": "draft_cccccccccccccccccccccccccccccccc",
+    "workspaceId": "ws_local",
+    "actorId": "usr_creator",
+    "approvalId": "app_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "candidateId": "cand_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "status": "local-draft",
+    "format": "plain-text",
+    "editedText": "Turn one agent failure into a checklist people can reuse.\n\nShow the retry boundary, the denied action, and the evidence IDs before asking anyone to trust the agent.",
+    "draftFingerprint": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "evidenceIds": ["obs_alpha", "obs_beta"],
+    "createdAt": "2026-06-20T00:00:00.000Z",
+    "editDistance": {
+      "source": "approval_preview_to_edited_draft",
+      "distance": 83,
+      "ratio": 0.56
+    },
+    "binding": {
+      "operationFingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "approvalFingerprint": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+      "contextManifest": {
+        "id": "ctx_manifest_local",
+        "manifestFingerprint": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "candidateFingerprint": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "publisher": {
+      "enabled": false,
+      "reason": "publisher_disabled"
+    },
+    "sideEffectClass": "local-only"
+  },
+  "verification": {
+    "schemaVersion": "1.0.0",
+    "draftId": "draft_cccccccccccccccccccccccccccccccc",
+    "verifiedAt": "2026-06-20T00:00:00.000Z",
+    "valid": true,
+    "citations": {
+      "valid": true,
+      "evidenceIds": ["obs_alpha", "obs_beta"],
+      "missingEvidenceIds": []
+    },
+    "similarity": {
+      "maxScore": 0.33,
+      "nearestEvidenceId": "obs_alpha",
+      "copyingRisk": {
+        "level": "low",
+        "reasonCodes": ["edited_text_differentiated"]
+      }
+    },
+    "publisher": {
+      "enabled": false,
+      "reason": "publisher_disabled"
+    },
+    "reasonCodes": [
+      "citations_verified",
+      "copying_risk_low",
+      "local_draft_verified",
+      "publisher_disabled"
+    ]
+  },
+  "outcome": {
+    "schemaVersion": "1.0.0",
+    "id": "out_dddddddddddddddddddddddddddddddd",
+    "workspaceId": "ws_local",
+    "actorId": "usr_creator",
+    "draftId": "draft_cccccccccccccccccccccccccccccccc",
+    "approvalId": "app_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "objective": "Find evidence-backed content angles about reliable local agents",
+    "objectiveMetric": {
+      "name": "creator_judgment",
+      "value": "accepted_for_local_review",
+      "direction": "positive",
+      "unit": null
+    },
+    "qualitative": "Needs final voice pass before any separate publishing workflow.",
+    "observedAt": "2026-06-20T00:00:00.000Z",
+    "verification": {
+      "valid": true,
+      "copyingRisk": "low",
+      "citationsValid": true
+    },
+    "editDistance": {
+      "source": "approval_preview_to_edited_draft",
+      "distance": 83,
+      "ratio": 0.56
+    },
+    "causalClaim": "none",
+    "sideEffectClass": "local-only",
+    "publisher": {
+      "enabled": false,
+      "reason": "publisher_disabled"
+    },
+    "reasonCodes": [
+      "objective_metric_recorded",
+      "edit_distance_recorded",
+      "no_causal_claim",
+      "publisher_disabled"
+    ]
+  },
+  "safeguards": {
+    "localDraftOnly": true,
+    "publisherEnabled": false,
+    "externalWrites": false,
+    "causalClaim": "none",
+    "rawSourceTextExcludedFromVerification": true
+  }
+}

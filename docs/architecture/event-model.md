@@ -20,6 +20,7 @@ Every event includes schema version, event ID, workspace ID, run ID when applica
 
 - `run.*`
 - `step.*`
+- `timer.*`
 - `context.*`
 - `memory.*`
 - `tool.*`
@@ -28,6 +29,18 @@ Every event includes schema version, event ID, workspace ID, run ID when applica
 - `evaluation.*`
 - `adapter.*`
 - `policy.*`
+
+## Durable workflow events
+
+The durable SQLite runtime appends projection changes and events in one SQLite
+transaction. Recovery uses monotonic workspace/run sequence numbers and never
+re-emits `run.created` or completed-step events after restart.
+
+OAF-014 adds `run.suspended`, `run.resumed`, `step.retry_scheduled`,
+`timer.scheduled`, and `timer.fired`. Payloads contain bounded IDs, state
+reasons, due times, attempts, and fingerprints only. They do not contain raw
+workflow outputs, prompts, context bodies, credentials, local paths, SQL, stack
+traces, or hidden reasoning.
 
 ## Compatibility
 

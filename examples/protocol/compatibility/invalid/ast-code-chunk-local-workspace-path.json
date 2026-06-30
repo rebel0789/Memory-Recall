@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "astchunk_11111111111111111111111111111111",
+  "workspaceId": "ws_ast",
+  "language": "typescript",
+  "locator": "workspace:///Users/rebel/private.ts#L1-L1",
+  "parserVersion": "oaf-js-ts-static-1.0.0",
+  "parseErrorState": "none",
+  "byteRange": {
+    "start": 0,
+    "end": 10
+  },
+  "lineRange": {
+    "start": 1,
+    "end": 1
+  },
+  "scopeChain": [],
+  "entities": [
+    {
+      "kind": "function",
+      "name": "privateFn"
+    }
+  ],
+  "imports": [
+    {
+      "module": "/Users/rebel/private/secret",
+      "importHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ],
+  "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "collectedAt": "2026-06-23T00:00:00.000Z",
+  "chunkFingerprint": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+}

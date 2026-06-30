@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/tool-handler-descriptor-1.0.json",
+  "title": "Tool Handler Descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "handlerBindingId", "providerId", "locality", "arbitraryShell", "downloadedCode"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "handlerBindingId": { "type": "string", "pattern": "^handler:" },
+    "providerId": { "type": "string", "pattern": "^provider:native:tool:" },
+    "locality": { "enum": ["local-only"] },
+    "arbitraryShell": { "const": false },
+    "downloadedCode": { "const": false },
+    "brokeredSurfaces": {
+      "type": "array",
+      "items": { "enum": ["filesystem", "loopback-egress", "secret-reference"] }
+    }
+  }
+}

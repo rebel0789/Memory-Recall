@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/context-sufficiency-result-1.0.json",
+  "title": "Context Sufficiency Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["state", "requiredIds", "entities", "evidenceCount", "conflictCount"],
+  "properties": {
+    "state": { "enum": ["sufficient", "insufficient"] },
+    "requiredIds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested", "resolved", "unresolvedCount"],
+      "properties": {
+        "requested": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "resolved": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "unresolvedCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "entities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested", "eligible", "selected", "unresolved"],
+      "properties": {
+        "requested": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "eligible": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "selected": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "unresolved": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "evidenceCount": { "type": "integer", "minimum": 0 },
+    "conflictCount": { "type": "integer", "minimum": 0 }
+  }
+}

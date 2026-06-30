@@ -67,7 +67,7 @@
     {
       "id": "adapter:tool:ecc",
       "path": "adapters/tool/ecc",
-      "status": "planned",
+      "status": "experimental",
       "enabledByDefault": false,
       "purpose": "Source of individually reviewed procedures"
     },

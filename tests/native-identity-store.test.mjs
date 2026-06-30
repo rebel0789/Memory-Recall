@@ -117,6 +117,28 @@ test('sessions, csrf secrets, and API tokens are hashed at rest and revocable', 
   assert.equal(await store.authenticateApiToken({ token: apiToken.token, now: '2026-06-19T10:00:00.000Z' }), null);
 });
 
+test('local owner API-token minting is workspace-scoped and role-gated', async (t) => {
+  const { store } = await tempStore(t);
+  const bootstrap = await store.bootstrapOwner({ username: 'owner', displayName: 'Local Owner', password, workspaceId: 'ws_local' });
+  const builder = await store.createUser({ username: 'builder', displayName: 'Builder', password });
+  await store.putWorkspace({ id: 'ws_other', name: 'Other Workspace' });
+  await store.putMembership({ userId: builder.user.id, workspaceId: 'ws_local', role: 'builder' });
+
+  await assert.rejects(
+    () => store.createApiToken({ actorUserId: builder.user.id, name: 'builder token', workspaceIds: ['ws_local'], scopes: ['run.read'] }),
+    /owner membership required/
+  );
+  await assert.rejects(
+    () => store.createApiToken({ actorUserId: bootstrap.user.id, name: 'cross workspace', workspaceIds: ['ws_other'], scopes: ['run.read'] }),
+    /owner membership required/
+  );
+  assert.equal((await store.listApiTokens({ userId: builder.user.id })).length, 0);
+
+  await store.putMembership({ userId: bootstrap.user.id, workspaceId: 'ws_other', role: 'owner' });
+  const allowed = await store.createApiToken({ actorUserId: bootstrap.user.id, name: 'owner other', workspaceIds: ['ws_other'], scopes: ['run.read'] });
+  assert.deepEqual(allowed.apiToken.workspaceIds, ['ws_other']);
+});
+
 test('auth bootstrap CLI accepts only stdin passwords and fails after bootstrap', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'oaf-auth-cli-'));
   t.after(async () => rm(root, { recursive: true, force: true }));

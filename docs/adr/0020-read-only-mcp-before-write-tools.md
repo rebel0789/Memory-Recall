@@ -1,0 +1,3 @@
+# Read-Only MCP Before Write Tools
+
+OAF will expose read-only MCP resources before MCP write tools. Harnesses may inspect status, context packs, context manifests, source graph results, memory proposals, accepted-memory summaries, benchmark reports, and handoff bundles without mutating OAF state; any future write tool must require an exact operation grant, deterministic policy evaluation, event recording, and approval where the side effect is consequential. This preserves the cross-client usefulness of MCP without copying proactive memory-write patterns that let a model silently change canonical state.

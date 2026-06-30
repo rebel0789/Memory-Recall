@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/harness-context-source-1.0.json",
+  "title": "Harness Context Source",
+  "description": "Sanitized scanner output for documented developer-harness context sources. Raw bodies, prompts, outputs, transcripts, credentials, and private local paths are not represented.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "workspaceId",
+    "harness",
+    "sourceKind",
+    "scope",
+    "trust",
+    "dataClass",
+    "provenance",
+    "reviewStatus",
+    "retention",
+    "bodyHash",
+    "summary",
+    "redactions",
+    "createdAt",
+    "metadata"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^hctx_[a-f0-9]{16,64}$" },
+    "workspaceId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$" },
+    "harness": { "enum": ["codex", "claude-code", "cursor", "opencode", "windsurf", "generic-mcp"] },
+    "sourceKind": { "enum": ["instruction", "rule", "memory", "skill", "mcp-config", "command", "profile", "handoff"] },
+    "scope": { "enum": ["user", "workspace", "repository", "team", "unknown"] },
+    "trust": { "enum": ["user-authored", "tool-generated", "external", "unknown"] },
+    "dataClass": { "enum": ["public", "workspace-private", "sensitive"] },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "contentHash", "byteSize"],
+      "properties": {
+        "locator": {
+          "type": "string",
+          "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$",
+          "maxLength": 640
+        },
+        "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "byteSize": { "type": "integer", "minimum": 0, "maximum": 65536 }
+      }
+    },
+    "reviewStatus": { "enum": ["scan-only", "proposed", "accepted", "rejected", "quarantined"] },
+    "retention": { "enum": ["session", "workspace", "durable", "unknown"] },
+    "bodyHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 240 },
+    "redactions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secretCount", "localPathCount", "reasonCodes"],
+      "properties": {
+        "secretCount": { "type": "integer", "minimum": 0, "maximum": 1024 },
+        "localPathCount": { "type": "integer", "minimum": 0, "maximum": 1024 },
+        "reasonCodes": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "secret_like_value",
+              "local_path",
+              "oversized",
+              "binary",
+              "symlink_escape",
+              "unsupported_file"
+            ]
+          }
+        }
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scannerVersion"],
+      "maxProperties": 1,
+      "properties": {
+        "scannerVersion": { "type": "string", "minLength": 1, "maxLength": 32 }
+      }
+    }
+  }
+}

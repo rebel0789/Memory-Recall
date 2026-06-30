@@ -19,7 +19,7 @@
       "minItems": 1,
       "maxItems": 16,
       "uniqueItems": true,
-      "items": { "enum": ["run.read", "run.execute", "context.compile", "stream.read", "dashboard.read", "workspace.read"] }
+      "items": { "enum": ["run.read", "run.execute", "context.compile", "memory.approve", "stream.read", "dashboard.read", "workspace.read"] }
     },
     "expiresAt": { "type": ["string", "null"], "format": "date-time" }
   }

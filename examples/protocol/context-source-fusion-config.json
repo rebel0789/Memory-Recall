@@ -1,0 +1,4 @@
+{
+  "method": "weighted_rrf",
+  "rrfK": 60
+}
