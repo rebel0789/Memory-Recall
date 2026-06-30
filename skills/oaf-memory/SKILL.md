@@ -17,6 +17,19 @@ extractor. The difference is the output — instead of a static graph, you produ
 **governed, temporally-correct facts** that OAF keeps current and serves to coding
 agents over MCP.
 
+OAF also has a deterministic Rust structural pass for local documents:
+
+```bash
+oaf ingest-docs --root . --sqlite .local/memory.sqlite --format json
+```
+
+Use that pass first when the user asks for broad docs ingestion. It extracts
+markdown/text/PDF document structure, ADR status/decision lines, and explicit ADR
+supersession into proposal-gated facts without model calls. Then use this skill
+only for semantic facts the structural pass cannot know: rationale, cross-file
+meaning, changed defaults, unresolved conflicts, and project-specific intent.
+Do not duplicate structural facts already proposed by `ingest-docs`.
+
 ## When to use
 
 - The user asks to "map this project into OAF", "remember my decisions", "set up

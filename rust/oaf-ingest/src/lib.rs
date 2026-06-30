@@ -78,6 +78,22 @@ pub struct IngestReport {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentIngestReport {
+    pub scanned_file_count: usize,
+    pub parsed_file_count: usize,
+    pub skipped_file_count: usize,
+    pub generated_fact_count: usize,
+    pub generated_decision_count: usize,
+    pub generated_supersession_count: usize,
+    pub parsed_bytes: u64,
+    pub elapsed_ms: u128,
+    pub skipped_files: Vec<SkippedFile>,
+    #[serde(skip)]
+    pub facts: Vec<BatchFact>,
+    pub format_counts: BTreeMap<String, usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkippedFile {
     pub workspace_ref: String,
     pub reason: String,
@@ -722,6 +738,650 @@ fn discover_jobs(
         jobs.push(candidate);
     }
     Ok((jobs, skipped_files, scanned_file_count))
+}
+
+pub fn extract_documents(options: &IngestOptions) -> Result<DocumentIngestReport> {
+    let started = Instant::now();
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "canonicalize document ingest root {}",
+            options.root.display()
+        )
+    })?;
+    let (jobs, mut skipped_files, scanned_file_count) = discover_document_jobs(&root, options)?;
+    let mut facts = Vec::new();
+    let mut parsed_file_count = 0usize;
+    let mut parsed_bytes = 0u64;
+    let mut generated_decision_count = 0usize;
+    let mut format_counts = BTreeMap::new();
+
+    for job in jobs {
+        let text = match job.kind {
+            DocumentKind::Pdf => match pdf_extract::extract_text(&job.path) {
+                Ok(text) => text,
+                Err(error) => {
+                    skipped_files.push(SkippedFile {
+                        workspace_ref: job.source,
+                        reason: format!("pdf text extraction failed: {error}"),
+                        bytes: job.bytes,
+                    });
+                    continue;
+                }
+            },
+            DocumentKind::Markdown | DocumentKind::Text => match fs::read_to_string(&job.path) {
+                Ok(text) => text,
+                Err(error) => {
+                    skipped_files.push(SkippedFile {
+                        workspace_ref: job.source,
+                        reason: format!("read document failed: {error}"),
+                        bytes: job.bytes,
+                    });
+                    continue;
+                }
+            },
+        };
+        parsed_file_count += 1;
+        parsed_bytes += job.bytes;
+        *format_counts
+            .entry(job.kind.name().to_string())
+            .or_insert(0) += 1;
+        let before = facts.len();
+        let stats = parse_document_text(&job, &text, &mut facts);
+        generated_decision_count += stats.decision_count;
+        if facts.len() == before {
+            push_doc_fact(
+                &mut facts,
+                doc_subject(&job.rel),
+                "HAS_CONTENT",
+                format!("empty {}", job.kind.name()),
+                &job.source,
+                "oaf.ingest:doc-empty; lines=0-0".to_string(),
+                None,
+            );
+        }
+    }
+
+    facts.sort_by(|left, right| {
+        left.subject
+            .cmp(&right.subject)
+            .then_with(|| left.predicate.cmp(&right.predicate))
+            .then_with(|| left.object.cmp(&right.object))
+            .then_with(|| left.source.cmp(&right.source))
+    });
+    facts.dedup_by(|left, right| {
+        left.subject == right.subject
+            && left.predicate == right.predicate
+            && left.object == right.object
+            && left.source == right.source
+    });
+    let generated_supersession_count = facts
+        .iter()
+        .filter(|fact| fact.supersedes.is_some())
+        .count();
+    Ok(DocumentIngestReport {
+        scanned_file_count,
+        parsed_file_count,
+        skipped_file_count: skipped_files.len(),
+        generated_fact_count: facts.len(),
+        generated_decision_count,
+        generated_supersession_count,
+        parsed_bytes,
+        elapsed_ms: started.elapsed().as_millis(),
+        skipped_files,
+        facts,
+        format_counts,
+    })
+}
+
+#[derive(Debug, Clone)]
+struct DocumentJob {
+    path: PathBuf,
+    rel: String,
+    source: String,
+    kind: DocumentKind,
+    bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DocumentKind {
+    Markdown,
+    Text,
+    Pdf,
+}
+
+impl DocumentKind {
+    fn name(self) -> &'static str {
+        match self {
+            DocumentKind::Markdown => "markdown",
+            DocumentKind::Text => "text",
+            DocumentKind::Pdf => "pdf",
+        }
+    }
+
+    fn entity_kind(self, rel: &str) -> &'static str {
+        if is_adr_source(rel) {
+            "ADR"
+        } else {
+            match self {
+                DocumentKind::Markdown | DocumentKind::Text => "Document",
+                DocumentKind::Pdf => "PDF",
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct DocumentParseStats {
+    decision_count: usize,
+}
+
+fn discover_document_jobs(
+    root: &Path,
+    options: &IngestOptions,
+) -> Result<(Vec<DocumentJob>, Vec<SkippedFile>, usize)> {
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+
+    let mut candidates = Vec::new();
+    let mut skipped_files = Vec::new();
+    let mut scanned_file_count = 0usize;
+    for entry in builder.build() {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                skipped_files.push(SkippedFile {
+                    workspace_ref: "workspace://.".to_string(),
+                    reason: format!("walk error: {error}"),
+                    bytes: 0,
+                });
+                continue;
+            }
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(kind) = document_kind_for_path(path) else {
+            continue;
+        };
+        scanned_file_count += 1;
+        let rel = workspace_rel(root, path)?;
+        let source = format!("workspace://{rel}");
+        if options
+            .only_sources
+            .as_ref()
+            .is_some_and(|sources| !sources.contains(&source))
+        {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {source}"))?;
+        let bytes = metadata.len();
+        if bytes > options.max_file_bytes {
+            skipped_files.push(SkippedFile {
+                workspace_ref: source,
+                reason: "file exceeds max-file-bytes and was not truncated".to_string(),
+                bytes,
+            });
+            continue;
+        }
+        let canonical = path
+            .canonicalize()
+            .with_context(|| format!("canonicalize {source}"))?;
+        if !canonical.starts_with(root) {
+            skipped_files.push(SkippedFile {
+                workspace_ref: source,
+                reason: "path resolves outside workspace root".to_string(),
+                bytes,
+            });
+            continue;
+        }
+        candidates.push(DocumentJob {
+            path: canonical,
+            rel,
+            source,
+            kind,
+            bytes,
+        });
+    }
+    candidates.sort_by(|left, right| left.rel.cmp(&right.rel));
+    let mut jobs = Vec::new();
+    let mut planned_bytes = 0u64;
+    for candidate in candidates {
+        if planned_bytes.saturating_add(candidate.bytes) > options.max_memory_bytes {
+            skipped_files.push(SkippedFile {
+                workspace_ref: candidate.source,
+                reason: "max-memory cap reached before reading file".to_string(),
+                bytes: candidate.bytes,
+            });
+            continue;
+        }
+        planned_bytes += candidate.bytes;
+        jobs.push(candidate);
+    }
+    Ok((jobs, skipped_files, scanned_file_count))
+}
+
+fn document_kind_for_path(path: &Path) -> Option<DocumentKind> {
+    match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "md" | "markdown" | "mdx" => Some(DocumentKind::Markdown),
+        "txt" | "text" => Some(DocumentKind::Text),
+        "pdf" => Some(DocumentKind::Pdf),
+        _ => None,
+    }
+}
+
+fn parse_document_text(
+    job: &DocumentJob,
+    text: &str,
+    facts: &mut Vec<BatchFact>,
+) -> DocumentParseStats {
+    let doc = doc_subject(&job.rel);
+    let mut stats = DocumentParseStats::default();
+    push_doc_fact(
+        facts,
+        doc.clone(),
+        "IS_A",
+        job.kind.entity_kind(&job.rel).to_string(),
+        &job.source,
+        "oaf.ingest:doc-entity; lines=1-1".to_string(),
+        None,
+    );
+    if is_adr_source(&job.rel) {
+        let decision = decision_subject(&job.rel);
+        stats.decision_count += 1;
+        push_doc_fact(
+            facts,
+            decision.clone(),
+            "IS_A",
+            "Decision".to_string(),
+            &job.source,
+            "oaf.ingest:adr-decision; lines=1-1".to_string(),
+            None,
+        );
+        push_doc_fact(
+            facts,
+            doc.clone(),
+            "DEFINES",
+            decision,
+            &job.source,
+            "oaf.ingest:adr-defines; lines=1-1".to_string(),
+            None,
+        );
+    }
+
+    let mut current_heading = String::new();
+    let mut snippet_count = 0usize;
+    let mut decision_heading_line = None;
+    for (index, raw_line) in text.lines().enumerate() {
+        let line_no = index + 1;
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(title) = markdown_heading(line) {
+            current_heading = title.to_string();
+            let section = format!("section:{}:{}", stable_token(&doc), stable_token(title));
+            push_doc_fact(
+                facts,
+                section.clone(),
+                "IS_A",
+                "Section".to_string(),
+                &job.source,
+                format!("oaf.ingest:doc-section; lines={line_no}-{line_no}"),
+                None,
+            );
+            if let Some(object) = safe_doc_object(title) {
+                push_doc_fact(
+                    facts,
+                    section.clone(),
+                    "HAS_TITLE",
+                    object,
+                    &job.source,
+                    format!("oaf.ingest:doc-heading; lines={line_no}-{line_no}"),
+                    None,
+                );
+            }
+            push_doc_fact(
+                facts,
+                section,
+                "PART_OF",
+                doc.clone(),
+                &job.source,
+                format!("oaf.ingest:doc-section-parent; lines={line_no}-{line_no}"),
+                None,
+            );
+            if is_decision_heading(title) {
+                decision_heading_line = Some(line_no);
+            }
+            continue;
+        }
+
+        if is_adr_source(&job.rel) {
+            parse_adr_line(job, line, line_no, decision_heading_line, facts, &mut stats);
+        }
+
+        if snippet_count < 64 {
+            let cleaned = line
+                .trim_start_matches(['-', '*', '+', '>', ' '])
+                .trim_start_matches(|ch: char| ch.is_ascii_digit() || ch == '.')
+                .trim();
+            if cleaned.len() >= 12 {
+                if let Some(object) = safe_doc_object(cleaned) {
+                    let predicate = if current_heading.is_empty() {
+                        "HAS_CONTENT"
+                    } else {
+                        "MENTIONS"
+                    };
+                    push_doc_fact(
+                        facts,
+                        doc.clone(),
+                        predicate,
+                        object,
+                        &job.source,
+                        format!("oaf.ingest:doc-snippet; lines={line_no}-{line_no}"),
+                        None,
+                    );
+                    snippet_count += 1;
+                }
+            }
+        }
+    }
+    stats
+}
+
+fn parse_adr_line(
+    job: &DocumentJob,
+    line: &str,
+    line_no: usize,
+    decision_heading_line: Option<usize>,
+    facts: &mut Vec<BatchFact>,
+    stats: &mut DocumentParseStats,
+) {
+    let decision = decision_subject(&job.rel);
+    if let Some(value) = field_value(line, "status") {
+        if let Some(object) = safe_doc_object(value) {
+            push_doc_fact(
+                facts,
+                decision.clone(),
+                "HAS_STATUS",
+                object,
+                &job.source,
+                format!("oaf.ingest:adr-status; lines={line_no}-{line_no}"),
+                None,
+            );
+        }
+    }
+    if let Some(value) = field_value(line, "decision") {
+        if let Some(object) = safe_doc_object(value) {
+            stats.decision_count += 1;
+            push_doc_fact(
+                facts,
+                decision.clone(),
+                "DECISION",
+                object,
+                &job.source,
+                format!("oaf.ingest:adr-decision-text; lines={line_no}-{line_no}"),
+                None,
+            );
+        }
+    } else if decision_heading_line
+        .is_some_and(|heading_line| line_no > heading_line && line_no <= heading_line + 6)
+    {
+        if let Some(object) = safe_doc_object(line) {
+            stats.decision_count += 1;
+            push_doc_fact(
+                facts,
+                decision.clone(),
+                "DECISION",
+                object,
+                &job.source,
+                format!("oaf.ingest:adr-decision-text; lines={line_no}-{line_no}"),
+                None,
+            );
+        }
+    }
+    if let Some(value) = field_value(line, "supersedes").or_else(|| field_value(line, "replaces")) {
+        for old in split_references(value) {
+            add_decision_supersession(job, &decision, &old, line_no, facts);
+        }
+    } else if line.to_ascii_lowercase().contains("supersedes") {
+        for old in split_references(line) {
+            if normalize_decision_ref(&old) != decision {
+                add_decision_supersession(job, &decision, &old, line_no, facts);
+            }
+        }
+    }
+}
+
+fn add_decision_supersession(
+    job: &DocumentJob,
+    decision: &str,
+    old: &str,
+    line_no: usize,
+    facts: &mut Vec<BatchFact>,
+) {
+    let old_decision = normalize_decision_ref(old);
+    if old_decision == decision {
+        return;
+    }
+    push_doc_fact(
+        facts,
+        decision.to_string(),
+        "SUPERSEDES",
+        old_decision.clone(),
+        &job.source,
+        format!("oaf.ingest:adr-supersedes; lines={line_no}-{line_no}"),
+        None,
+    );
+    push_doc_fact(
+        facts,
+        old_decision.clone(),
+        "HAS_STATUS",
+        format!("retired_by_{}", stable_token(decision)),
+        &job.source,
+        format!("oaf.ingest:adr-retired; lines={line_no}-{line_no}"),
+        Some(Supersedes {
+            subject: old_decision,
+            predicate: "HAS_STATUS".to_string(),
+            object: None,
+        }),
+    );
+}
+
+fn markdown_heading(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    let level = trimmed.chars().take_while(|ch| *ch == '#').count();
+    if (1..=6).contains(&level) && trimmed.chars().nth(level) == Some(' ') {
+        Some(trimmed[level..].trim())
+    } else {
+        None
+    }
+}
+
+fn field_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {
+    let trimmed = line
+        .trim_start_matches(['-', '*', '+', ' '])
+        .trim_start_matches(|ch: char| ch.is_ascii_digit() || ch == '.')
+        .trim();
+    let (left, right) = trimmed.split_once(':')?;
+    if left.trim().eq_ignore_ascii_case(key) {
+        Some(right.trim())
+    } else {
+        None
+    }
+}
+
+fn split_references(value: &str) -> Vec<String> {
+    value
+        .split(|ch: char| ch == ',' || ch == ';' || ch.is_whitespace())
+        .filter_map(|part| {
+            let clean = part
+                .trim_matches(|ch: char| {
+                    !(ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == ':')
+                })
+                .trim();
+            let lower = clean.to_ascii_lowercase();
+            if clean.len() >= 3
+                && lower != "supersedes"
+                && lower != "replaces"
+                && (lower.contains("adr")
+                    || lower.contains("decision")
+                    || clean.chars().any(|ch| ch.is_ascii_digit()))
+            {
+                Some(clean.to_string())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn is_decision_heading(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower == "decision" || lower == "decisions" || lower.contains("decision")
+}
+
+fn is_adr_source(rel: &str) -> bool {
+    let lower = rel.to_ascii_lowercase();
+    lower.contains("/adr/")
+        || lower.starts_with("adr/")
+        || lower.contains("decision")
+        || lower.contains("/architecture/")
+}
+
+fn doc_subject(rel: &str) -> String {
+    format!("doc:{}", stable_token(rel.trim_end_matches(".md")))
+}
+
+fn decision_subject(rel: &str) -> String {
+    let stem = Path::new(rel)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(rel);
+    normalize_decision_ref(stem)
+}
+
+fn normalize_decision_ref(value: &str) -> String {
+    let clean = value
+        .trim()
+        .trim_start_matches("workspace://")
+        .trim_end_matches(".md")
+        .trim_end_matches(".markdown");
+    let token = if clean.starts_with("decision:") {
+        stable_token(clean.trim_start_matches("decision:"))
+    } else {
+        stable_token(clean)
+    };
+    format!("decision:{token}")
+}
+
+fn stable_token(value: &str) -> String {
+    let mut out = String::new();
+    let mut last_was_sep = false;
+    for ch in value.chars() {
+        let next = if ch.is_ascii_alphanumeric() {
+            last_was_sep = false;
+            Some(ch.to_ascii_lowercase())
+        } else if !last_was_sep {
+            last_was_sep = true;
+            Some('_')
+        } else {
+            None
+        };
+        if let Some(ch) = next {
+            out.push(ch);
+        }
+        if out.len() >= 80 {
+            break;
+        }
+    }
+    let out = out.trim_matches('_').to_string();
+    if out.is_empty() {
+        format!("item_{}", short_hash(value))
+    } else {
+        out
+    }
+}
+
+fn safe_doc_object(value: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut last_space = false;
+    for ch in value
+        .trim()
+        .trim_matches(['`', '"', '\'', '*', '_', '[', ']'])
+        .chars()
+    {
+        let allowed = ch.is_ascii_alphanumeric()
+            || matches!(
+                ch,
+                ' ' | '_' | '.' | ':' | '/' | '=' | ',' | ';' | '(' | ')' | '\'' | '-'
+            );
+        if allowed {
+            if ch.is_whitespace() {
+                if !last_space {
+                    out.push(' ');
+                }
+                last_space = true;
+            } else {
+                out.push(ch);
+                last_space = false;
+            }
+        } else if !last_space {
+            out.push(' ');
+            last_space = true;
+        }
+        if out.len() >= 220 {
+            break;
+        }
+    }
+    let out = out
+        .trim()
+        .trim_end_matches(['.', ';', ':', ','])
+        .trim()
+        .to_string();
+    if out
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_alphanumeric())
+        && out.len() >= 2
+    {
+        Some(out)
+    } else {
+        None
+    }
+}
+
+fn push_doc_fact(
+    facts: &mut Vec<BatchFact>,
+    subject: String,
+    predicate: &str,
+    object: String,
+    source: &str,
+    notes: String,
+    supersedes: Option<Supersedes>,
+) {
+    facts.push(BatchFact {
+        subject,
+        predicate: predicate.to_string(),
+        object,
+        source: source.to_string(),
+        source_trust: Some("verified".to_string()),
+        confidence: Some("extracted".to_string()),
+        notes: Some(notes),
+        supersedes,
+    });
 }
 
 fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {

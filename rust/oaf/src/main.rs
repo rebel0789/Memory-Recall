@@ -3,9 +3,9 @@
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{SecondsFormat, Utc};
 use oaf_ingest::{
-    discover_file_hashes, extract_code_fingerprints, extract_repo, report_quality_fields,
-    retirement_facts, CodeFingerprint, IngestFileHash, IngestOptions, CODE_MINHASH_K,
-    DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_MEMORY_BYTES,
+    discover_file_hashes, extract_code_fingerprints, extract_documents, extract_repo,
+    report_quality_fields, retirement_facts, CodeFingerprint, IngestFileHash, IngestOptions,
+    CODE_MINHASH_K, DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_MEMORY_BYTES,
 };
 use oaf_store::{
     ActiveFactSnapshot, ApproveReport, BatchFact, BatchReport, SearchMode, Store, StoreOptions,
@@ -42,6 +42,7 @@ fn run() -> Result<()> {
         Some("memory") => memory_command(&args[1..]),
         Some("mcp") => mcp_command(&args[1..]),
         Some("ingest") => ingest_command(&args[1..]),
+        Some("ingest-docs") => ingest_docs_command(&args[1..]),
         Some("cross-repo") => cross_repo_command(&args[1..]),
         Some("similarity") => similarity_command(&args[1..]),
         Some("dead-code") => dead_code_command(&args[1..]),
@@ -1076,6 +1077,47 @@ fn ingest_command(args: &[String]) -> Result<()> {
         unchanged_source_count,
     ));
     Ok(())
+}
+
+fn ingest_docs_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let mut options = IngestOptions::new(config.root.clone());
+    options.max_memory_bytes = parse_memory_bytes(args)?;
+    options.max_file_bytes = parse_file_bytes(args)?;
+    let mut extraction = extract_documents(&options)?;
+    if extraction.parsed_file_count == 0 {
+        bail!("ingest-docs parsed no supported document files");
+    }
+    let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    let active = store
+        .active_ingest_facts(&config.scope)?
+        .into_iter()
+        .filter(|fact| is_document_source(&fact.source))
+        .collect::<Vec<_>>();
+    let retirements = retirement_facts(&active, &extraction.facts);
+    let retired_proposal_count = retirements.len();
+    extraction.facts.extend(retirements);
+    let report = store.remember_batch(&config.root, &config.scope, &extraction.facts)?;
+    print_json(docs_ingest_report(
+        &config,
+        &extraction,
+        report,
+        retired_proposal_count,
+        options.max_memory_bytes,
+        options.max_file_bytes,
+    ));
+    Ok(())
+}
+
+fn is_document_source(source: &str) -> bool {
+    let lower = source.to_ascii_lowercase();
+    lower.ends_with(".md")
+        || lower.ends_with(".markdown")
+        || lower.ends_with(".mdx")
+        || lower.ends_with(".txt")
+        || lower.ends_with(".text")
+        || lower.ends_with(".pdf")
 }
 
 fn cross_repo_command(args: &[String]) -> Result<()> {
@@ -2500,6 +2542,84 @@ fn ingest_report(
             "fdStrategy": "bounded-worker-files",
             "largeFilesTruncated": false,
             "incremental": incremental
+        },
+        "reportFingerprint": Value::Null
+    }))
+}
+
+fn docs_ingest_report(
+    config: &CliConfig,
+    extraction: &oaf_ingest::DocumentIngestReport,
+    report: BatchReport,
+    retired_proposal_count: usize,
+    max_memory_bytes: u64,
+    max_file_bytes: u64,
+) -> Value {
+    let proposal_fact_count = report.recorded_count;
+    let proposal_preview = report
+        .proposal_facts
+        .iter()
+        .take(50)
+        .cloned()
+        .collect::<Vec<_>>();
+    with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "ingest-docs",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": source_block(config),
+        "summary": {
+            "scannedFileCount": extraction.scanned_file_count,
+            "parsedFileCount": extraction.parsed_file_count,
+            "skippedFileCount": extraction.skipped_file_count,
+            "generatedFactCount": extraction.generated_fact_count,
+            "generatedDecisionCount": extraction.generated_decision_count,
+            "generatedSupersessionCount": extraction.generated_supersession_count,
+            "inputFactCount": report.recorded_count + report.skipped_unsafe_count + report.skipped_duplicate_count,
+            "recordedCount": report.recorded_count,
+            "proposalCount": report.recorded_count,
+            "pendingProposalCount": report.recorded_count,
+            "retiredProposalCount": retired_proposal_count,
+            "skippedUnsafeCount": report.skipped_unsafe_count,
+            "skippedDuplicateCount": report.skipped_duplicate_count,
+            "activeMemoryCreated": 0,
+            "supersededFactCount": 0,
+            "parsedBytes": extraction.parsed_bytes,
+            "elapsedMs": extraction.elapsed_ms,
+            "formatCounts": extraction.format_counts
+        },
+        "quality": {
+            "documentsParsed": extraction.parsed_file_count,
+            "decisionsExtracted": extraction.generated_decision_count,
+            "supersessionsExtracted": extraction.generated_supersession_count,
+            "formats": extraction.format_counts,
+            "structuralExtractor": "deterministic",
+            "semanticExtractor": "host-agent-skill",
+            "requiredModelCalls": 0,
+            "externalDatabases": 0
+        },
+        "proposalFacts": proposal_preview,
+        "proposalFactsOmittedCount": proposal_fact_count.saturating_sub(50),
+        "skipped": report.skipped,
+        "skippedFiles": extraction.skipped_files,
+        "safeguards": {
+            "readOnly": false,
+            "proposalGated": true,
+            "canonicalStateMutated": true,
+            "activeMemoryCreated": 0,
+            "hardDeleted": false,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "externalWritesEnabled": false,
+            "rawSourceBodiesIncluded": false,
+            "absoluteFilesystemLocationsIncluded": false,
+            "maxMemoryBytes": max_memory_bytes,
+            "maxFileBytes": max_file_bytes,
+            "largeFilesTruncated": false,
+            "unsafeBlocks": 0,
+            "offline": true,
+            "externalVectorDatabase": false,
+            "externalGraphDatabase": false
         },
         "reportFingerprint": Value::Null
     }))
