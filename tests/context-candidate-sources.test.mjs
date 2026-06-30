@@ -201,6 +201,48 @@ test('registry validates source descriptors and reports unavailable future sourc
   assert.equal(unavailable.failureCode, 'source_unavailable');
 });
 
+test('invalid optional source output does not leak earlier candidates', async () => {
+  const leakySource = {
+    descriptor: () => ({
+      schemaVersion: '1.0.0',
+      id: 'provider:native:context-candidate:leaky',
+      kind: 'temporal',
+      version: '1.0.0',
+      enabled: true,
+      methods: ['fixture']
+    }),
+    health: async () => ({ status: 'healthy' }),
+    query: async (_request, context) => ({
+      candidates: [
+        {
+          record: records()[1],
+          sourceHit: {
+            sourceId: 'provider:native:context-candidate:leaky',
+            sourceKind: 'temporal',
+            sourceVersion: '1.0.0',
+            retrievalMethod: 'fixture',
+            localRank: 1,
+            localScore: 0.8,
+            reasonCodes: ['fixture_match'],
+            queryFingerprint: context.queryFingerprint,
+            accessDecisionRef: context.accessDecisionRef,
+            retrievedAt: fixedNow
+          }
+        },
+        { record: { id: 'bad id', text: 'malformed' } }
+      ]
+    })
+  };
+  const result = await generateContextCandidates(request({ requiredIds: ['mem_required'], sourcePlan: [{ kind: 'exact', required: true }, { kind: 'temporal', required: false }] }), {
+    registry: registry([leakySource]),
+    recordReader: createFixtureRecordReader(records()),
+    policyService: createPolicyService({ decisionIdFactory: () => 'poldet_candidate_allow', clock: () => fixedNow }),
+    trustedContext: trustedContext()
+  });
+  assert.equal(result.reports.find((report) => report.sourceKind === 'temporal').status, 'invalid_output');
+  assert.deepEqual(result.candidates.map((candidate) => candidate.record.id), ['mem_required']);
+});
+
 test('trusted policy denial prevents provider invocation and hides denied exact ids', async () => {
   let invoked = false;
   const deniedSource = {
