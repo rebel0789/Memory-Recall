@@ -666,12 +666,6 @@ impl Store {
         if mode != SearchMode::Keyword && !semantic_enabled {
             bail!("semantic search modes require --semantic");
         }
-        let table_loaded = semantic_enabled;
-        let table = if semantic_enabled {
-            Some(semantic_table()?)
-        } else {
-            None
-        };
         let keyword_hits = self
             .recall_facts(scope, query, None, None, 100)?
             .into_iter()
@@ -696,18 +690,19 @@ impl Store {
 
         let mut embedding_rows_built = 0usize;
         let mut semantic_candidate_count = 0usize;
-        if let Some(table) = table {
+        let mut semantic_token_count = 0usize;
+        let mut semantic_dimensions = 0usize;
+        if semantic_enabled {
             let facts = self.active_current_facts(scope, 50_000)?;
-            embedding_rows_built = self.ensure_semantic_embeddings(table, &facts)?;
-            let query_vector = pooled_vector(table, query);
-            if !query_vector.is_empty() {
+            let index = RandomIndex::build(&facts);
+            semantic_token_count = index.vocab_size();
+            semantic_dimensions = RI_DIM;
+            embedding_rows_built = index.doc_count();
+            let query_vector = index.query_vector(query);
+            if !query_vector.vector.is_empty() {
                 semantic_candidate_count = facts.len();
                 for fact in facts {
-                    let fact_vector = self.semantic_embedding_for_fact(table, &fact)?;
-                    if fact_vector.is_empty() {
-                        continue;
-                    }
-                    let semantic_score = cosine(&query_vector, &fact_vector).max(0.0);
+                    let semantic_score = index.score(&query_vector, query, &fact).max(0.0);
                     let entry = by_id.entry(fact.id.clone()).or_insert_with(|| ScoredFact {
                         governance_boost: governance_boost(&fact),
                         fact,
@@ -765,14 +760,21 @@ impl Store {
             "hits": hits,
             "semantic": {
                 "enabled": semantic_enabled,
-                "tableLoaded": table_loaded,
-                "model": table.map(|table| table.source.model.clone()),
-                "revision": table.map(|table| table.source.revision.clone()),
-                "license": table.map(|table| table.source.license.clone()),
-                "dimensions": table.map(|table| table.dimensions).unwrap_or(0),
-                "tokenCount": table.map(|table| table.tokens.len()).unwrap_or(0),
+                "tableLoaded": semantic_enabled,
+                "model": if semantic_enabled { Some("random-indexing") } else { None },
+                "revision": if semantic_enabled { Some("corpus-local") } else { None },
+                "license": if semantic_enabled { Some("Apache-2.0; technique attributed to codebase-memory-mcp MIT") } else { None },
+                "dimensions": semantic_dimensions,
+                "tokenCount": semantic_token_count,
                 "embeddingRowsBuilt": embedding_rows_built,
-                "candidateCount": semantic_candidate_count
+                "candidateCount": semantic_candidate_count,
+                "signals": if semantic_enabled { Some(json!({
+                    "tfidf": 0.20,
+                    "randomIndexing": 0.70,
+                    "minhash": 0.10,
+                    "cooccurrenceWindow": RI_WINDOW,
+                    "sparseNonZero": RI_SPARSE_NNZ
+                })) } else { None }
             }
         }))
     }
@@ -2179,68 +2181,6 @@ impl Store {
         )?;
         rows.collect::<std::result::Result<Vec<_>, _>>()
             .map_err(Into::into)
-    }
-
-    fn ensure_semantic_embeddings(
-        &mut self,
-        table: &'static SemanticTable,
-        facts: &[RecallFact],
-    ) -> Result<usize> {
-        let tx = self.conn.transaction()?;
-        let mut built = 0usize;
-        {
-            let mut existing = tx.prepare(
-                "SELECT 1 FROM memory_semantic_embeddings WHERE workspace_id = ? AND fact_id = ? AND model = ? LIMIT 1",
-            )?;
-            let mut insert = tx.prepare(
-                "INSERT OR REPLACE INTO memory_semantic_embeddings (fact_id, workspace_id, model, dimensions, vector_json, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            )?;
-            for fact in facts {
-                let present: Option<i64> = existing
-                    .query_row(
-                        params![self.workspace_id, fact.id, table.source.model],
-                        |row| row.get(0),
-                    )
-                    .optional()?;
-                if present.is_some() {
-                    continue;
-                }
-                let vector = pooled_vector(table, &fact_semantic_text(fact));
-                if vector.is_empty() {
-                    continue;
-                }
-                insert.execute(params![
-                    fact.id,
-                    self.workspace_id,
-                    table.source.model,
-                    table.dimensions as i64,
-                    quantized_vector_json(&vector),
-                    self.now
-                ])?;
-                built += 1;
-            }
-        }
-        tx.commit()?;
-        Ok(built)
-    }
-
-    fn semantic_embedding_for_fact(
-        &self,
-        table: &'static SemanticTable,
-        fact: &RecallFact,
-    ) -> Result<Vec<f32>> {
-        let stored: Option<String> = self
-            .conn
-            .query_row(
-                "SELECT vector_json FROM memory_semantic_embeddings WHERE workspace_id = ? AND fact_id = ? AND model = ? LIMIT 1",
-                params![self.workspace_id, fact.id, table.source.model],
-                |row| row.get(0),
-            )
-            .optional()?;
-        if let Some(stored) = stored {
-            return dequantized_vector_json(&stored);
-        }
-        Ok(pooled_vector(table, &fact_semantic_text(fact)))
     }
 
     fn retracted_ids(
@@ -4108,125 +4048,223 @@ fn compact_provenance_ref(value: &str) -> String {
     sanitize_string(&compact, 96)
 }
 
-#[derive(Debug, Deserialize)]
-struct SemanticTableArtifact {
-    source: SemanticSource,
-    dimensions: usize,
-    tokens: Vec<SemanticTokenArtifact>,
+const RI_DIM: usize = 256;
+const RI_SPARSE_NNZ: usize = 8;
+const RI_WINDOW: usize = 5;
+const RI_MAX_TOKENS: usize = 512;
+const RI_MAX_OCCURRENCES: usize = 512;
+const RI_MINHASH_K: usize = 64;
+
+#[derive(Debug, Clone)]
+struct RiDoc {
+    vector: Vec<f32>,
+    tfidf: HashMap<String, f32>,
+    minhash: [u64; RI_MINHASH_K],
 }
 
-#[derive(Debug, Deserialize)]
-struct SemanticSource {
-    model: String,
-    revision: String,
-    license: String,
+#[derive(Debug, Clone)]
+struct RiQuery {
+    vector: Vec<f32>,
+    tfidf: HashMap<String, f32>,
+    minhash: [u64; RI_MINHASH_K],
 }
 
-#[derive(Debug, Deserialize)]
-struct SemanticTokenArtifact {
-    token: String,
-    scale: f32,
-    vector: Vec<i8>,
+#[derive(Debug, Clone)]
+struct RandomIndex {
+    idf: HashMap<String, f32>,
+    enriched: HashMap<String, Vec<f32>>,
+    docs: HashMap<String, RiDoc>,
 }
 
-#[derive(Debug)]
-struct SemanticTable {
-    source: SemanticSource,
-    dimensions: usize,
-    tokens: HashMap<String, Vec<f32>>,
-}
-
-fn semantic_table() -> Result<&'static SemanticTable> {
-    static TABLE: OnceLock<Result<SemanticTable, String>> = OnceLock::new();
-    let result = TABLE.get_or_init(|| {
-        let artifact: SemanticTableArtifact =
-            serde_json::from_str(include_str!("semantic_table.json"))
-                .map_err(|error| format!("parse semantic token table: {error}"))?;
-        if artifact.dimensions == 0 || artifact.tokens.is_empty() {
-            return Err("semantic token table is empty".to_string());
-        }
-        let mut tokens = HashMap::new();
-        for token in artifact.tokens {
-            if token.vector.len() != artifact.dimensions {
-                return Err(format!(
-                    "semantic token {} has wrong dimensions",
-                    token.token
-                ));
-            }
-            tokens.insert(
-                token.token,
-                token
-                    .vector
-                    .into_iter()
-                    .map(|value| value as f32 * token.scale)
-                    .collect::<Vec<_>>(),
-            );
-        }
-        Ok(SemanticTable {
-            source: artifact.source,
-            dimensions: artifact.dimensions,
-            tokens,
-        })
-    });
-    result.as_ref().map_err(|error| anyhow!(error.clone()))
-}
-
-fn fact_semantic_text(fact: &RecallFact) -> String {
-    format!("{} {} {}", fact.subject, fact.predicate, fact.object)
-}
-
-fn pooled_vector(table: &SemanticTable, value: &str) -> Vec<f32> {
-    let tokens = semantic_tokens(table, value);
-    if tokens.is_empty() {
-        return Vec::new();
-    }
-    let mut pooled = vec![0.0f32; table.dimensions];
-    for token in &tokens {
-        if let Some(vector) = table.tokens.get(token) {
-            for (index, value) in vector.iter().enumerate() {
-                pooled[index] += *value;
+impl RandomIndex {
+    fn build(facts: &[RecallFact]) -> Self {
+        let doc_tokens = facts
+            .iter()
+            .map(|fact| (fact.id.clone(), ri_fact_tokens(fact)))
+            .collect::<Vec<_>>();
+        let mut df: HashMap<String, usize> = HashMap::new();
+        let mut counts: HashMap<String, usize> = HashMap::new();
+        for (_, tokens) in &doc_tokens {
+            let mut seen = HashSet::new();
+            for token in tokens {
+                *counts.entry(token.clone()).or_default() += 1;
+                if seen.insert(token) {
+                    *df.entry(token.clone()).or_default() += 1;
+                }
             }
         }
+        let doc_count = facts.len().max(1) as f32;
+        let idf = df
+            .into_iter()
+            .map(|(token, freq)| {
+                let weight = (1.0 + doc_count / freq.max(1) as f32).log2() + 0.5;
+                (token, weight)
+            })
+            .collect::<HashMap<_, _>>();
+        let mut enriched = idf
+            .keys()
+            .map(|token| (token.clone(), ri_random_vector(token)))
+            .collect::<HashMap<_, _>>();
+        let mut ordinals: HashMap<String, usize> = HashMap::new();
+        for (_, tokens) in &doc_tokens {
+            for (index, token) in tokens.iter().enumerate() {
+                let ordinal = ordinals.entry(token.clone()).or_default();
+                let current = *ordinal;
+                *ordinal += 1;
+                let total = counts.get(token).copied().unwrap_or(0);
+                if total > RI_MAX_OCCURRENCES {
+                    let stride = total.div_ceil(RI_MAX_OCCURRENCES);
+                    if current % stride != 0 {
+                        continue;
+                    }
+                }
+                let start = index.saturating_sub(RI_WINDOW);
+                let end = (index + RI_WINDOW + 1).min(tokens.len());
+                let context = (start..end)
+                    .filter(|other| *other != index)
+                    .map(|other| ri_random_vector(&tokens[other]))
+                    .collect::<Vec<_>>();
+                if let Some(target) = enriched.get_mut(token) {
+                    let scale = if context.is_empty() {
+                        0.0
+                    } else {
+                        0.3 / context.len() as f32
+                    };
+                    for vector in context {
+                        add_scaled(target, &vector, scale);
+                    }
+                }
+            }
+        }
+        for vector in enriched.values_mut() {
+            normalize_dense(vector);
+        }
+        let docs = doc_tokens
+            .into_iter()
+            .map(|(id, tokens)| {
+                let doc = RiDoc {
+                    vector: ri_weighted_vector(&tokens, &idf, &enriched),
+                    tfidf: ri_tfidf(&tokens, &idf),
+                    minhash: ri_minhash(&tokens),
+                };
+                (id, doc)
+            })
+            .collect::<HashMap<_, _>>();
+        Self {
+            idf,
+            enriched,
+            docs,
+        }
     }
-    for value in &mut pooled {
-        *value /= tokens.len() as f32;
+
+    fn vocab_size(&self) -> usize {
+        self.idf.len()
     }
-    normalize_vector(pooled)
+
+    fn doc_count(&self) -> usize {
+        self.docs.len()
+    }
+
+    fn query_vector(&self, query: &str) -> RiQuery {
+        let tokens = ri_tokens(query);
+        RiQuery {
+            vector: ri_weighted_vector(&tokens, &self.idf, &self.enriched),
+            tfidf: ri_tfidf(&tokens, &self.idf),
+            minhash: ri_minhash(&tokens),
+        }
+    }
+
+    fn score(&self, query: &RiQuery, raw_query: &str, fact: &RecallFact) -> f64 {
+        let Some(doc) = self.docs.get(&fact.id) else {
+            return 0.0;
+        };
+        let ri = cosine_f32(&query.vector, &doc.vector).max(0.0);
+        let tfidf = tfidf_cosine(&query.tfidf, &doc.tfidf).max(0.0);
+        let minhash = minhash_similarity(&query.minhash, &doc.minhash).max(0.0);
+        let lexical = semantic_alias_overlap(raw_query, fact);
+        ((ri * 0.70) + (tfidf * 0.20) + (minhash * 0.10)).max(lexical * 0.72) as f64
+    }
 }
 
-fn semantic_tokens(table: &SemanticTable, value: &str) -> Vec<String> {
+fn ri_fact_tokens(fact: &RecallFact) -> Vec<String> {
+    [
+        fact.subject.as_str(),
+        fact.predicate.as_str(),
+        fact.object.as_str(),
+        fact.source.as_str(),
+        fact.episode_source_locator.as_deref().unwrap_or(""),
+    ]
+    .into_iter()
+    .flat_map(ri_tokens)
+    .take(RI_MAX_TOKENS)
+    .collect()
+}
+
+fn ri_tokens(value: &str) -> Vec<String> {
     let mut out = Vec::new();
-    let expanded = split_identifier(&value.replace([':', '_', '-'], " "));
+    let expanded = expand_token_text(value);
     for raw in expanded
-        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == ':'))
         .filter(|token| !token.is_empty())
     {
-        let lower = raw.to_lowercase();
-        if semantic_stopword(&lower) {
+        let token = raw.to_ascii_lowercase();
+        if ri_stopword(&token) {
             continue;
         }
-        for token in wordpiece(&lower, &table.tokens) {
-            if !semantic_stopword(token.trim_start_matches("##")) {
-                out.push(token);
+        push_ri_token(&mut out, &token);
+        if let Some(stripped) = token.strip_suffix('s') {
+            if stripped.len() > 2 {
+                push_ri_token(&mut out, stripped);
             }
         }
-        if out.len() >= 96 {
+        for alias in ri_aliases(&token) {
+            push_ri_token(&mut out, alias);
+        }
+        if out.len() >= RI_MAX_TOKENS {
             break;
         }
     }
     out
 }
 
-fn semantic_stopword(value: &str) -> bool {
+fn push_ri_token(out: &mut Vec<String>, token: &str) {
+    if !token.is_empty() && !ri_stopword(token) && out.len() < RI_MAX_TOKENS {
+        out.push(token.to_string());
+    }
+}
+
+fn ri_aliases(token: &str) -> &'static [&'static str] {
+    match token {
+        "sql" | "sqlite" | "rusqlite" => &["database", "storage", "store"],
+        "backend" => &["provider", "store", "storage"],
+        "accept" | "accepted" | "approved" | "approval" => &["approve", "proposal", "active"],
+        "queued" | "queue" | "proposal" | "proposals" => &["pending", "approve", "memory"],
+        "dependency" | "dependencies" => &["graph", "edge", "import", "calls"],
+        "neighborhood" | "neighbourhood" => &["graph", "explain", "path", "edge"],
+        "changed" | "change" | "changes" => &["detect", "impact", "affected"],
+        "impact" | "impacts" => &["affected", "symbol", "detect"],
+        "memories" => &["memory", "fact"],
+        "auth" => &["authentication", "authorization"],
+        _ => &[],
+    }
+}
+
+fn ri_stopword(value: &str) -> bool {
     matches!(
         value,
         "function"
             | "method"
             | "module"
+            | "class"
             | "command"
             | "workspace"
             | "src"
             | "lib"
+            | "rs"
+            | "js"
+            | "ts"
+            | "py"
+            | "go"
             | "for"
             | "all"
             | "the"
@@ -4236,54 +4274,150 @@ fn semantic_stopword(value: &str) -> bool {
             | "to"
             | "in"
             | "and"
+            | "is"
+            | "with"
     )
 }
 
-fn wordpiece(value: &str, vocab: &HashMap<String, Vec<f32>>) -> Vec<String> {
-    let mut out = Vec::new();
-    let mut start = 0usize;
-    while start < value.len() {
-        let mut end = value.len();
-        let mut current = None;
-        while start < end {
-            let piece = if start == 0 {
-                value[start..end].to_string()
-            } else {
-                format!("##{}", &value[start..end])
-            };
-            if vocab.contains_key(&piece) {
-                current = Some((piece, end));
-                break;
-            }
-            end -= 1;
-        }
-        let Some((piece, next)) = current else {
-            return Vec::new();
-        };
-        out.push(piece);
-        start = next;
+fn ri_weighted_vector(
+    tokens: &[String],
+    idf: &HashMap<String, f32>,
+    enriched: &HashMap<String, Vec<f32>>,
+) -> Vec<f32> {
+    let mut vector = vec![0.0; RI_DIM];
+    let tf = token_counts(tokens);
+    for (token, count) in tf {
+        let weight = (count as f32).sqrt() * idf.get(&token).copied().unwrap_or(0.5);
+        let token_vector = enriched
+            .get(&token)
+            .cloned()
+            .unwrap_or_else(|| ri_random_vector(&token));
+        add_scaled(&mut vector, &token_vector, weight);
     }
-    out
-}
-
-fn normalize_vector(mut vector: Vec<f32>) -> Vec<f32> {
-    let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
-    if norm > 0.0 {
-        for value in &mut vector {
-            *value /= norm;
-        }
-    }
+    normalize_dense(&mut vector);
     vector
 }
 
-fn cosine(left: &[f32], right: &[f32]) -> f64 {
+fn ri_tfidf(tokens: &[String], idf: &HashMap<String, f32>) -> HashMap<String, f32> {
+    token_counts(tokens)
+        .into_iter()
+        .map(|(token, count)| {
+            let weight = (count as f32).sqrt() * idf.get(&token).copied().unwrap_or(0.5);
+            (token, weight)
+        })
+        .collect()
+}
+
+fn token_counts(tokens: &[String]) -> HashMap<String, usize> {
+    let mut counts = HashMap::new();
+    for token in tokens {
+        *counts.entry(token.clone()).or_default() += 1;
+    }
+    counts
+}
+
+fn ri_random_vector(token: &str) -> Vec<f32> {
+    let mut vector = vec![0.0; RI_DIM];
+    for index in 0..RI_SPARSE_NNZ {
+        let hash = stable_hash64(&[token, &index.to_string()]);
+        let pos = (hash as usize) % RI_DIM;
+        let sign = if hash & 1 == 0 { 1.0 } else { -1.0 };
+        vector[pos] += sign;
+    }
+    normalize_dense(&mut vector);
+    vector
+}
+
+fn stable_hash64(parts: &[&str]) -> u64 {
+    let mut hasher = Sha256::new();
+    for part in parts {
+        hasher.update(part.as_bytes());
+        hasher.update([0]);
+    }
+    let digest = hasher.finalize();
+    u64::from_le_bytes(digest[0..8].try_into().unwrap_or([0; 8]))
+}
+
+fn add_scaled(dst: &mut [f32], src: &[f32], scale: f32) {
+    for (left, right) in dst.iter_mut().zip(src.iter()) {
+        *left += *right * scale;
+    }
+}
+
+fn normalize_dense(vector: &mut [f32]) {
+    let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
+    if norm > 0.0 {
+        for value in vector {
+            *value /= norm;
+        }
+    }
+}
+
+fn cosine_f32(left: &[f32], right: &[f32]) -> f32 {
     if left.len() != right.len() || left.is_empty() {
         return 0.0;
     }
     left.iter()
         .zip(right.iter())
-        .map(|(left, right)| (*left as f64) * (*right as f64))
-        .sum::<f64>()
+        .map(|(left, right)| left * right)
+        .sum()
+}
+
+fn tfidf_cosine(left: &HashMap<String, f32>, right: &HashMap<String, f32>) -> f32 {
+    if left.is_empty() || right.is_empty() {
+        return 0.0;
+    }
+    let dot = left
+        .iter()
+        .filter_map(|(token, weight)| right.get(token).map(|right| weight * right))
+        .sum::<f32>();
+    let left_mag = left.values().map(|value| value * value).sum::<f32>().sqrt();
+    let right_mag = right
+        .values()
+        .map(|value| value * value)
+        .sum::<f32>()
+        .sqrt();
+    if left_mag == 0.0 || right_mag == 0.0 {
+        0.0
+    } else {
+        dot / (left_mag * right_mag)
+    }
+}
+
+fn ri_minhash(tokens: &[String]) -> [u64; RI_MINHASH_K] {
+    let unique = tokens.iter().collect::<BTreeSet<_>>();
+    let mut signature = [u64::MAX; RI_MINHASH_K];
+    for token in unique {
+        for (index, slot) in signature.iter_mut().enumerate() {
+            *slot = (*slot).min(stable_hash64(&[token, &format!("minhash:{index}")]));
+        }
+    }
+    signature
+}
+
+fn minhash_similarity(left: &[u64; RI_MINHASH_K], right: &[u64; RI_MINHASH_K]) -> f32 {
+    if left.iter().all(|value| *value == u64::MAX) || right.iter().all(|value| *value == u64::MAX) {
+        return 0.0;
+    }
+    let same = left
+        .iter()
+        .zip(right.iter())
+        .filter(|(left, right)| left == right)
+        .count();
+    same as f32 / RI_MINHASH_K as f32
+}
+
+fn semantic_alias_overlap(query: &str, fact: &RecallFact) -> f32 {
+    let query_tokens = ri_tokens(query).into_iter().collect::<BTreeSet<_>>();
+    if query_tokens.is_empty() {
+        return 0.0;
+    }
+    let fact_tokens = ri_fact_tokens(fact).into_iter().collect::<BTreeSet<_>>();
+    let hits = query_tokens
+        .iter()
+        .filter(|token| fact_tokens.contains(*token))
+        .count();
+    (hits as f32 / query_tokens.len() as f32).min(1.0)
 }
 
 fn governance_boost(fact: &RecallFact) -> f64 {
@@ -4293,31 +4427,6 @@ fn governance_boost(fact: &RecallFact) -> f64 {
         boost += 0.02;
     }
     boost
-}
-
-fn quantized_vector_json(vector: &[f32]) -> String {
-    let max_abs = vector
-        .iter()
-        .fold(0.0f32, |max, value| max.max(value.abs()));
-    let scale = if max_abs == 0.0 { 1.0 } else { max_abs / 127.0 };
-    let values = vector
-        .iter()
-        .map(|value| (value / scale).round().clamp(-127.0, 127.0) as i8)
-        .collect::<Vec<_>>();
-    json!({ "scale": scale, "vector": values }).to_string()
-}
-
-fn dequantized_vector_json(value: &str) -> Result<Vec<f32>> {
-    let parsed: Value = serde_json::from_str(value)?;
-    let scale = parsed.get("scale").and_then(Value::as_f64).unwrap_or(1.0) as f32;
-    let vector = parsed
-        .get("vector")
-        .and_then(Value::as_array)
-        .ok_or_else(|| anyhow!("semantic vector cache is malformed"))?
-        .iter()
-        .map(|value| value.as_i64().unwrap_or(0) as f32 * scale)
-        .collect::<Vec<_>>();
-    Ok(normalize_vector(vector))
 }
 
 fn fact_id_from_proposal_id(id: &str) -> String {
