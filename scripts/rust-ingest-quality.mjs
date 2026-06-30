@@ -706,6 +706,197 @@ function languageFixtures() {
         { source: 'function:boot', target: 'function:helperGlobal' },
         { source: 'method:Worker_run', target: 'method:Worker_helper' }
       ]
+    }),
+    assertLanguageFixture({
+      language: 'solidity',
+      filename: 'Worker.sol',
+      source: [
+        'import "./Dep.sol";',
+        'contract Worker {',
+        '  function run() public returns (uint) {',
+        '    return helper();',
+        '  }',
+        '  function helper() public returns (uint) {',
+        '    return 1;',
+        '  }',
+        '}',
+        'function boot() returns (uint) {',
+        '  return setup();',
+        '}',
+        'function setup() returns (uint) { return 1; }'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:Dep' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'haskell',
+      filename: 'Worker.hs',
+      source: [
+        'module Worker where',
+        'import Data.List',
+        'helper () = 1',
+        'run () = helper ()',
+        'boot () = setup ()',
+        'setup () = 1'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_Worker', predicate: 'IMPORTS', object: 'module:Data' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'function:run', target: 'function:helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'erlang',
+      filename: 'worker.erl',
+      source: [
+        '-module(worker).',
+        '-import(lists, [map/2]).',
+        'run() -> helper().',
+        'helper() -> 1.',
+        'boot() -> setup().',
+        'setup() -> 1.'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:lists' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'function:run', target: 'function:helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'perl',
+      filename: 'worker.pl',
+      source: [
+        'package Worker {',
+        'use strict;',
+        'sub run {',
+        '  return helper();',
+        '}',
+        'sub helper {',
+        '  return 1;',
+        '}',
+        '}',
+        'package main;',
+        'sub boot {',
+        '  return setup();',
+        '}',
+        'sub setup { return 1; }'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'elixir',
+      filename: 'worker.ex',
+      source: [
+        'defmodule Worker do',
+        '  import Enum',
+        '  def run do',
+        '    helper()',
+        '  end',
+        '  def helper do',
+        '    1',
+        '  end',
+        'end',
+        'defmodule Utility do',
+        '  def boot do',
+        '    setup()',
+        '  end',
+        '  def setup do',
+        '    1',
+        '  end',
+        'end'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:Worker', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Worker_run', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Worker_helper', predicate: 'IS_A', object: 'Method' },
+        { subject: 'class:Utility', predicate: 'IS_A', object: 'Class' },
+        { subject: 'method:Utility_boot', predicate: 'IS_A', object: 'Method' },
+        { subject: 'method:Utility_setup', predicate: 'IS_A', object: 'Method' },
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:Enum' }
+      ],
+      expectedCalls: [
+        { source: 'method:Utility_boot', target: 'method:Utility_setup' },
+        { source: 'method:Worker_run', target: 'method:Worker_helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'ocaml',
+      filename: 'worker.ml',
+      source: [
+        'open List',
+        'let helper () = 1',
+        'let run () = helper ()',
+        'let setup () = 1',
+        'let boot () = setup ()'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:List' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'function:run', target: 'function:helper' }
+      ]
+    }),
+    assertLanguageFixture({
+      language: 'clojure',
+      filename: 'worker.clj',
+      source: [
+        '(ns worker.core',
+        '  (:require [clojure.string :as str]))',
+        '(defn helper [] 1)',
+        '(defn run [] (helper))',
+        '(defn setup [] 1)',
+        '(defn boot [] (setup))'
+      ].join('\n'),
+      expectedFacts: [
+        { subject: 'class:workercore', predicate: 'IS_A', object: 'Class' },
+        { subject: 'function:boot', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:helper', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:run', predicate: 'IS_A', object: 'Function' },
+        { subject: 'function:setup', predicate: 'IS_A', object: 'Function' },
+        { subject: 'module:src_worker', predicate: 'IMPORTS', object: 'module:clojure' }
+      ],
+      expectedCalls: [
+        { source: 'function:boot', target: 'function:setup' },
+        { source: 'function:run', target: 'function:helper' }
+      ]
     })
   ];
 }

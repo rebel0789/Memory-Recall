@@ -453,6 +453,13 @@ enum LangKind {
     R,
     Julia,
     Zig,
+    Solidity,
+    Haskell,
+    Erlang,
+    Perl,
+    Elixir,
+    Ocaml,
+    Clojure,
 }
 
 impl LangKind {
@@ -480,6 +487,13 @@ impl LangKind {
             LangKind::R => "r",
             LangKind::Julia => "julia",
             LangKind::Zig => "zig",
+            LangKind::Solidity => "solidity",
+            LangKind::Haskell => "haskell",
+            LangKind::Erlang => "erlang",
+            LangKind::Perl => "perl",
+            LangKind::Elixir => "elixir",
+            LangKind::Ocaml => "ocaml",
+            LangKind::Clojure => "clojure",
         }
     }
 
@@ -508,6 +522,13 @@ impl LangKind {
             LangKind::R => tree_sitter_r::LANGUAGE.into(),
             LangKind::Julia => tree_sitter_julia::LANGUAGE.into(),
             LangKind::Zig => tree_sitter_zig::LANGUAGE.into(),
+            LangKind::Solidity => tree_sitter_solidity::LANGUAGE.into(),
+            LangKind::Haskell => tree_sitter_haskell::LANGUAGE.into(),
+            LangKind::Erlang => tree_sitter_erlang::LANGUAGE.into(),
+            LangKind::Perl => ts_parser_perl::LANGUAGE.into(),
+            LangKind::Elixir => tree_sitter_elixir::LANGUAGE.into(),
+            LangKind::Ocaml => tree_sitter_ocaml::LANGUAGE_OCAML.into(),
+            LangKind::Clojure => tree_sitter_clojure::LANGUAGE.into(),
         }
     }
 }
@@ -1894,9 +1915,17 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         node.kind(),
         "call_expression"
             | "call"
+            | "apply"
+            | "list_lit"
+            | "application_expression"
             | "method_invocation"
             | "function_call"
             | "function_call_expression"
+            | "call_expression_with_args_with_brackets"
+            | "call_expression_with_bareword"
+            | "call_expression_with_spaced_args"
+            | "call_expression_recursive"
+            | "ambiguous_function_call_expression"
             | "member_call_expression"
             | "nullsafe_member_call_expression"
             | "scoped_call_expression"
@@ -2008,10 +2037,14 @@ fn callable_definition(
     if context.lang == LangKind::R && kind == "function_definition" {
         return None;
     }
+    if let Some(definition) = language_specific_callable_definition(node, source, context) {
+        return Some(definition);
+    }
     match kind {
         "function_declaration"
         | "function_definition"
         | "function_item"
+        | "subroutine_declaration_statement"
         | "create_function"
         | "method" => {
             let name = callable_node_name(node, source, context)?;
@@ -2036,6 +2069,10 @@ fn callable_definition(
                         | LangKind::Lua
                         | LangKind::Scala
                         | LangKind::Zig
+                        | LangKind::Solidity
+                        | LangKind::Perl
+                        | LangKind::Elixir
+                        | LangKind::Ocaml
                 )
             {
                 let class_name = context.class_name.as_deref().unwrap();
@@ -2100,6 +2137,130 @@ fn callable_definition(
     }
 }
 
+fn language_specific_callable_definition(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<(String, String, &'static str)> {
+    let raw = match context.lang {
+        LangKind::Haskell if matches!(node.kind(), "function" | "bind") => node
+            .child_by_field_name("name")
+            .map(|child| node_text(child, source).to_string()),
+        LangKind::Erlang if node.kind() == "function_clause" => node
+            .child_by_field_name("name")
+            .map(|child| node_text(child, source).to_string()),
+        LangKind::Ocaml if node.kind() == "let_binding" => node
+            .child_by_field_name("pattern")
+            .and_then(|child| descendant_identifier_name(child, source)),
+        LangKind::Elixir if node.kind() == "call" => elixir_def_name(node, source),
+        LangKind::Clojure if node.kind() == "list_lit" => clojure_def_name(node, source),
+        _ => None,
+    }?;
+    let sanitized = sanitize_symbol(&raw)?;
+    Some(language_specific_subject(&sanitized, context))
+}
+
+fn language_specific_subject(
+    sanitized: &str,
+    context: &WalkContext,
+) -> (String, String, &'static str) {
+    if let Some(class_name) = context.class_name.as_deref() {
+        let method_name = format!("{class_name}_{sanitized}");
+        (
+            method_name.clone(),
+            format!("method:{method_name}"),
+            "Method",
+        )
+    } else {
+        (
+            sanitized.to_string(),
+            format!("function:{sanitized}"),
+            "Function",
+        )
+    }
+}
+
+fn elixir_module_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let text = node_text(node, source).trim();
+    let raw = text.strip_prefix("defmodule ")?;
+    raw.split_whitespace()
+        .next()
+        .and_then(|name| sanitize_symbol(name.trim_end_matches(" do")))
+}
+
+fn elixir_def_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let text = node_text(node, source).trim();
+    let raw = text
+        .strip_prefix("defp ")
+        .or_else(|| text.strip_prefix("def "))
+        .or_else(|| text.strip_prefix("defmacro "))?;
+    raw.split(|ch: char| ch == '(' || ch.is_whitespace())
+        .next()
+        .map(str::to_string)
+}
+
+fn clojure_ns_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let text = node_text(node, source).trim();
+    if !text.starts_with("(ns ") {
+        return None;
+    }
+    text.trim_start_matches("(ns ")
+        .split_whitespace()
+        .next()
+        .and_then(sanitize_symbol)
+}
+
+fn clojure_def_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let mut tokens = clojure_list_tokens(node_text(node, source));
+    let head = tokens.next()?;
+    if !matches!(head, "defn" | "defn-" | "defmacro") {
+        return None;
+    }
+    tokens.next().map(str::to_string)
+}
+
+fn clojure_call_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let mut tokens = clojure_list_tokens(node_text(node, source));
+    let head = tokens.next()?;
+    if matches!(
+        head,
+        "def"
+            | "defn"
+            | "defn-"
+            | "defmacro"
+            | "ns"
+            | "let"
+            | "fn"
+            | "if"
+            | "do"
+            | "quote"
+            | "require"
+            | ":require"
+    ) {
+        return None;
+    }
+    head.rsplit('/').next().and_then(sanitize_symbol)
+}
+
+fn clojure_require_target(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let text = node_text(node, source);
+    let (_, after) = text.split_once(":require")?;
+    after
+        .split(|ch: char| ch == '[' || ch == '(' || ch.is_whitespace())
+        .find(|token| token.contains('.') && token.chars().any(char::is_alphabetic))
+        .map(|token| {
+            token
+                .trim_matches(|ch| ch == '[' || ch == ']' || ch == ')')
+                .to_string()
+        })
+}
+
+fn clojure_list_tokens(text: &str) -> impl Iterator<Item = &str> {
+    text.trim_matches(|ch: char| ch == '(' || ch == ')' || ch == '[' || ch == ']')
+        .split(|ch: char| ch.is_whitespace() || ch == '[' || ch == ']' || ch == '(' || ch == ')')
+        .filter(|token| !token.is_empty())
+}
+
 fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
     match node.kind() {
         "class_declaration"
@@ -2109,7 +2270,12 @@ fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
         | "class_implementation"
         | "class_interface"
         | "object_definition"
+        | "contract_declaration"
+        | "package_statement"
         | "trait_definition" => node_name(node, source).and_then(|name| sanitize_symbol(&name)),
+        "module_attribute" if lang == LangKind::Erlang => {
+            node_name(node, source).and_then(|name| sanitize_symbol(&name))
+        }
         "struct_definition" if lang == LangKind::Julia => {
             descendant_identifier_name(node, source).and_then(|name| sanitize_symbol(&name))
         }
@@ -2132,6 +2298,8 @@ fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
             }
             node_name(node, source).and_then(|name| sanitize_symbol(&name))
         }
+        "call" if lang == LangKind::Elixir => elixir_module_name(node, source),
+        "list_lit" if lang == LangKind::Clojure => clojure_ns_name(node, source),
         _ => None,
     }
 }
@@ -2152,6 +2320,13 @@ fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
                             | "constant"
                             | "simple_identifier"
                             | "variable_name"
+                            | "value_name"
+                            | "module_name"
+                            | "package_name"
+                            | "bareword"
+                            | "package"
+                            | "function"
+                            | "sym_lit"
                             | "name"
                             | "method_identifier"
                             | "word"
@@ -2217,6 +2392,13 @@ fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
             | "constant"
             | "simple_identifier"
             | "variable_name"
+            | "value_name"
+            | "module_name"
+            | "package_name"
+            | "bareword"
+            | "package"
+            | "function"
+            | "sym_lit"
             | "name"
             | "method_identifier"
             | "operator_identifier"
@@ -2235,6 +2417,44 @@ fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
 }
 
 fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    match node.kind() {
+        "call" => {
+            if let Some(expr) = node.child_by_field_name("expr") {
+                return last_identifier(node_text(expr, source))
+                    .and_then(|name| sanitize_symbol(&name));
+            }
+            if let Some(target) = node.child_by_field_name("target") {
+                let target_text = node_text(target, source);
+                if !matches!(
+                    target_text,
+                    "def"
+                        | "defp"
+                        | "defmodule"
+                        | "defmacro"
+                        | "alias"
+                        | "import"
+                        | "require"
+                        | "use"
+                ) {
+                    return last_identifier(target_text).and_then(|name| sanitize_symbol(&name));
+                }
+            }
+        }
+        "apply" => {
+            let function = node.child_by_field_name("function")?;
+            return last_identifier(node_text(function, source))
+                .and_then(|name| sanitize_symbol(&name));
+        }
+        "list_lit" => {
+            return clojure_call_name(node, source);
+        }
+        "application_expression" => {
+            let function = node.named_child(0)?;
+            return last_identifier(node_text(function, source))
+                .and_then(|name| sanitize_symbol(&name));
+        }
+        _ => {}
+    }
     if matches!(
         node.kind(),
         "member_call_expression"
@@ -2242,6 +2462,11 @@ fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
             | "scoped_call_expression"
             | "method_invocation"
             | "message_expression"
+            | "call_expression_with_args_with_brackets"
+            | "call_expression_with_bareword"
+            | "call_expression_with_spaced_args"
+            | "call_expression_recursive"
+            | "ambiguous_function_call_expression"
     ) {
         return last_identifier(node_text(node, source)).and_then(|name| sanitize_symbol(&name));
     }
@@ -2549,6 +2774,16 @@ fn is_import_node(kind: &str) -> bool {
             | "import"
             | "library_import"
             | "use_declaration"
+            | "import_directive"
+            | "import_attribute"
+            | "open_module"
+            | "call"
+            | "list_lit"
+            | "package_statement"
+            | "require_statement"
+            | "use_statement"
+            | "use_no_statement"
+            | "use_parent_statement"
             | "preproc_include"
             | "include_expression"
             | "include_once_expression"
@@ -2604,11 +2839,36 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
             | LangKind::CSharp
             | LangKind::Scala
             | LangKind::Dart
-            | LangKind::Julia => {
+            | LangKind::Julia
+            | LangKind::Solidity
+            | LangKind::Perl
+            | LangKind::Elixir
+            | LangKind::Ocaml => {
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
+                    .or_else(|| text.trim().strip_prefix("open "))
+                    .or_else(|| text.trim().strip_prefix("use "))
+                    .or_else(|| text.trim().strip_prefix("require "))
                     .or_else(|| text.trim().strip_prefix("include "))
+                    .and_then(import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Haskell | LangKind::Erlang => {
+                if let Some(raw) = node
+                    .child_by_field_name("module")
+                    .or_else(|| node.child_by_field_name("name"))
+                    .map(|child| node_text(child, source))
+                    .and_then(import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Clojure => {
+                if let Some(raw) = clojure_require_target(node, source)
+                    .as_deref()
                     .and_then(import_target_from_raw)
                 {
                     out.push(raw);
@@ -2736,7 +2996,8 @@ fn strip_known_extension(path: &str) -> &str {
         ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py", ".rs", ".go", ".java", ".c", ".h",
         ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx", ".rb", ".php", ".cs", ".swift", ".kt",
         ".kts", ".lua", ".sh", ".bash", ".zsh", ".sql", ".m", ".mm", ".scala", ".sc", ".dart",
-        ".r", ".R", ".jl", ".zig",
+        ".r", ".R", ".jl", ".zig", ".sol", ".hs", ".lhs", ".erl", ".hrl", ".pl", ".pm", ".t",
+        ".ex", ".exs", ".ml", ".clj", ".cljs", ".cljc",
     ] {
         if let Some(stem) = path.strip_suffix(ext) {
             return stem;
@@ -2934,6 +3195,13 @@ fn language_for_path(path: &Path) -> Option<LangKind> {
         "r" | "R" => Some(LangKind::R),
         "jl" => Some(LangKind::Julia),
         "zig" => Some(LangKind::Zig),
+        "sol" => Some(LangKind::Solidity),
+        "hs" | "lhs" => Some(LangKind::Haskell),
+        "erl" | "hrl" => Some(LangKind::Erlang),
+        "pl" | "pm" | "t" => Some(LangKind::Perl),
+        "ex" | "exs" => Some(LangKind::Elixir),
+        "ml" => Some(LangKind::Ocaml),
+        "clj" | "cljs" | "cljc" => Some(LangKind::Clojure),
         _ => None,
     }
 }
