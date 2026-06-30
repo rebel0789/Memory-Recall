@@ -52,6 +52,7 @@ function graphSignature(sqlite) {
     WHERE status = 'active'
       AND superseded_by IS NULL
       AND object NOT LIKE 'retired_%'
+      AND predicate != 'HAS_CONTENT_HASH'
     ORDER BY subject, predicate, object, source
   `));
 }
@@ -112,13 +113,15 @@ function approve(root, sqlite) {
 const root = makeRepo();
 const sqlite = path.join(root, '.local/memory.sqlite');
 try {
-  const initial = oaf(root, sqlite, ['ingest', '--incremental', '--workers', '1']);
+  const initial = oaf(root, sqlite, ['ingest', '--workers', '1']);
+  assert.equal(initial.value.summary.incremental, true);
   assert.equal(initial.value.summary.parsedFileCount, 33);
   assert.equal(initial.value.summary.incrementalChangedSourceCount, 33);
   approve(root, sqlite);
 
   applySmallChange(root);
-  const incremental = oaf(root, sqlite, ['ingest', '--incremental', '--workers', '1']);
+  const incremental = oaf(root, sqlite, ['ingest', '--workers', '1']);
+  assert.equal(incremental.value.summary.incremental, true);
   assert.equal(incremental.value.summary.parsedFileCount, 2, JSON.stringify(incremental.value.summary));
   assert.equal(incremental.value.summary.incrementalChangedSourceCount, 2);
   assert.equal(incremental.value.summary.incrementalDeletedSourceCount, 1);
@@ -139,14 +142,15 @@ try {
   );
 
   const fullSqlite = path.join(root, '.local/full.sqlite');
-  const full = oaf(root, fullSqlite, ['ingest', '--incremental', '--workers', '1']);
+  const full = oaf(root, fullSqlite, ['ingest', '--full', '--workers', '1']);
+  assert.equal(full.value.summary.incremental, false);
   approve(root, fullSqlite);
   assert.equal(graphSignature(sqlite), graphSignature(fullSqlite));
 
   console.log(JSON.stringify({
     schemaVersion: '1.0.0',
     command: 'rust incremental quality',
-    methodology: 'Git fixture with content-hash governed incremental cursor facts. The second ingest parses only changed and added files, retires deleted/changed-file stale facts through approval, and compares active non-retired graph facts with a fresh full ingest of the final tree.',
+    methodology: 'Git fixture proving default ingest uses content-hash incremental cursor facts. The second default ingest parses only changed and added files, retires deleted/changed-file stale facts through approval, and compares active non-retired graph facts with an explicit --full ingest of the final tree.',
     initial: {
       parsedFileCount: initial.value.summary.parsedFileCount,
       proposalCount: initial.value.summary.proposalCount,

@@ -1055,7 +1055,7 @@ fn ingest_command(args: &[String]) -> Result<()> {
     options.max_memory_bytes = parse_memory_bytes(args)?;
     options.max_file_bytes = parse_file_bytes(args)?;
     options.workers = parse_workers(args)?;
-    let incremental = flag(args, "--incremental");
+    let incremental = !flag(args, "--full");
     let (file_hashes, changed_sources, deleted_sources, unchanged_source_count) = if incremental {
         let hash_options = options.clone();
         let current_hashes = discover_file_hashes(&hash_options)?;
