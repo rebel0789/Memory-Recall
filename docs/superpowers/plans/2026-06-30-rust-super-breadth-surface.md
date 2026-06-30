@@ -34,6 +34,30 @@ Gemini-CLI/etc.) — NOT a bundled or local model. OAF makes NO model calls; the
 model and drives OAF via the skill + MCP tools, and every result is routed through OAF's governed proposal
 gate. This is OAF's unique combo: the harness's frontier model THINKS; OAF's governance DECIDES.
 
+ALREADY EXISTS — EXTEND, do NOT rebuild: `skills/oaf-memory/SKILL.md` already implements the graphify
+pattern (agent is the extractor) and is already token-smart (deterministic `ingest-docs`/AST/RI do the
+bulk; the agent's LLM only fills semantic gaps; chunked; `memory consolidate` does ADD/UPDATE/DELETE/NOOP;
+governed throughout). So the brain is largely DONE. The real NEW work in this phase is: (A.1) best-in-class
+harness detection + one-command setup, and (A.2) EXTENDING that skill with explicit graph organization/
+curation tasks. Keep A.0 token-smart as the law.
+
+### A.0 TOKEN-SMART orchestration (governing principle — like graphify/graphiti; do NOT burn tokens)
+The harness LLM is expensive. The brain must be SPARING and is the LAST resort, not the default:
+- DETERMINISTIC-FIRST: do everything possible with NO LLM — tree-sitter AST (code), structural parsing
+  (docs/ADR/transcript), RI semantic + BM25, graph queries, Louvain communities. Invoke the brain ONLY
+  for what deterministic provably cannot do (rationale/WHY, cross-cutting organization, conflict-resolution
+  judgement, NL summaries).
+- INCREMENTAL: invoke the brain only on NEW/CHANGED content (reuse CI-6 incremental + content hashes);
+  never re-process unchanged data (graphiti's episode model). Cache brain outputs keyed by content hash —
+  identical input never re-calls.
+- BATCHED + CHUNKED: when the LLM is used, batch/chunk the work into few large calls (graphify's parallel
+  chunked extraction), not many small ones.
+- CHEAP CONTEXT: build the LLM's prompt from OAF's OWN compact context (context-delta + targeted graph
+  queries + the omission/provenance views) — feed minimal fact slices, NEVER raw whole files. Apply OAF's
+  token-saver to its own brain.
+- ACCOUNTED + BUDGETED: track and REPORT brain token usage per run; enforce a per-operation budget; a
+  brain-assisted session must cost a small fraction of naive per-item LLM extraction. Report the number.
+
 ### A.1 Best-in-class detection + one-command setup (the "best easiest detection and setup" ask)
 - `oaf setup` (and `oaf setup --detect`): AUTO-DETECT every installed coding-agent harness on the machine
   (Claude Code, Codex CLI, Cursor, Gemini CLI, VS Code/Copilot, Windsurf, Zed, Aider, Cline, Continue,
@@ -53,7 +77,11 @@ GATE (`scripts/rust-ai-brain-setup-quality.mjs`): on a temp fake multi-harness c
 detection lists the present harnesses correctly; `oaf setup --confirm` writes the MCP+skill entries with a
 receipt, idempotently, touching ONLY those dirs, NO creds, NO network; assert a skill/MCP-driven brain
 proposal (e.g. a graph-organization fact) lands PENDING/governed (ai_proposed, untrusted, needs approval),
-and that OAF itself makes zero model calls. Commit: `feat: harness detection + governed brain integration`.
+and that OAF itself makes zero model calls. TOKEN-SMART assertions (A.0): assert the brain is NOT invoked
+for tasks the deterministic path handles (a code-only / unchanged ingest triggers ZERO brain calls);
+assert caching (identical brain input does not re-call); assert incremental (only changed content can
+trigger the brain); assert brain token usage is tracked + reported + within a budget, and is a small
+fraction of a naive per-item baseline. Commit: `feat: harness detection + token-smart governed brain`.
 
 ## Phase L — Almost all languages
 Extend governed tree-sitter ingest toward broad coverage (currently ~17). Use your judgement to add as
