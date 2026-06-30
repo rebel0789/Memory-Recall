@@ -200,7 +200,7 @@ impl ParsedRepo {
         &mut self,
         caller: &str,
         callee_name: &str,
-        typed_target_name: Option<String>,
+        typed_target: Option<TypedCallHint>,
         source: &str,
     ) {
         if callee_name.is_empty()
@@ -215,7 +215,7 @@ impl ParsedRepo {
         self.calls.push(CallRef {
             caller: caller.to_string(),
             callee_name: callee_name.to_string(),
-            typed_target_name,
+            typed_target,
             source: source.to_string(),
         });
     }
@@ -305,9 +305,9 @@ impl ParsedRepo {
     }
 
     fn resolve_call(&self, call: &CallRef) -> (String, &'static str) {
-        if let Some(target_name) = call.typed_target_name.as_deref() {
-            if let Some(target) = self.resolve_exact_symbol_name(target_name) {
-                return (target, "oaf.ingest:typed-call-python");
+        if let Some(hint) = call.typed_target.as_ref() {
+            if let Some(target) = self.resolve_exact_symbol_name(&hint.target_name) {
+                return (target, hint.note);
             }
         }
         (
@@ -394,8 +394,14 @@ struct RouteRef {
 struct CallRef {
     caller: String,
     callee_name: String,
-    typed_target_name: Option<String>,
+    typed_target: Option<TypedCallHint>,
     source: String,
+}
+
+#[derive(Debug, Clone)]
+struct TypedCallHint {
+    target_name: String,
+    note: &'static str,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -1905,8 +1911,8 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         if let Some(caller) = context.caller.as_deref() {
             if let Some(callee) = callee_name(node, source) {
                 if !is_declaration_signature_call(node, context.lang, caller, &callee) {
-                    let typed_target_name = typed_call_target(node, source, context);
-                    parsed.add_call_with_hint(caller, &callee, typed_target_name, &context.source);
+                    let typed_target = typed_call_target(node, source, context);
+                    parsed.add_call_with_hint(caller, &callee, typed_target, &context.source);
                 }
             }
         }
@@ -1969,15 +1975,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             }
         }
         next.caller = Some(subject);
-        next.type_bindings = if context.lang == LangKind::Python {
-            let mut bindings = python_type_bindings(node, source);
-            if let Some(class_name) = context.class_name.as_deref() {
-                bindings.insert("self".to_string(), class_name.to_string());
-            }
-            bindings
-        } else {
-            BTreeMap::new()
-        };
+        next.type_bindings = local_type_bindings(node, source, context);
         if let Some(route) = callable_route(node, source, context, &next.caller.clone().unwrap()) {
             parsed.routes.push(route);
         }
@@ -2242,6 +2240,7 @@ fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
         "member_call_expression"
             | "nullsafe_member_call_expression"
             | "scoped_call_expression"
+            | "method_invocation"
             | "message_expression"
     ) {
         return last_identifier(node_text(node, source)).and_then(|name| sanitize_symbol(&name));
@@ -2253,16 +2252,105 @@ fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
     last_identifier(text).and_then(|name| sanitize_symbol(&name))
 }
 
-fn typed_call_target(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
-    if context.lang != LangKind::Python {
-        return None;
-    }
+fn typed_call_target(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<TypedCallHint> {
     let function = node
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
-    let (receiver, method) = receiver_method(node_text(function, source))?;
-    let receiver_type = context.type_bindings.get(&receiver)?;
-    Some(format!("{receiver_type}_{method}"))
+    let function_text = if node.kind() == "method_invocation" {
+        node_text(node, source)
+    } else {
+        node_text(function, source)
+    };
+    let (receiver_type, method) = if let Some((receiver, method)) = receiver_method(function_text) {
+        (context.type_bindings.get(&receiver)?.clone(), method)
+    } else if let Some(class_name) = context.class_name.as_ref() {
+        let method = sanitize_symbol(function_text)?;
+        (class_name.clone(), method)
+    } else {
+        return None;
+    };
+    Some(TypedCallHint {
+        target_name: format!("{receiver_type}_{method}"),
+        note: typed_call_note(context.lang)?,
+    })
+}
+
+fn typed_call_note(lang: LangKind) -> Option<&'static str> {
+    match lang {
+        LangKind::Python => Some("oaf.ingest:typed-call-python"),
+        LangKind::Java => Some("oaf.ingest:typed-call-java"),
+        LangKind::CSharp => Some("oaf.ingest:typed-call-csharp"),
+        LangKind::Swift => Some("oaf.ingest:typed-call-swift"),
+        LangKind::Kotlin => Some("oaf.ingest:typed-call-kotlin"),
+        _ => None,
+    }
+}
+
+fn local_type_bindings(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> BTreeMap<String, String> {
+    if context.lang == LangKind::Python {
+        let mut bindings = python_type_bindings(node, source);
+        if let Some(class_name) = context.class_name.as_deref() {
+            bindings.insert("self".to_string(), class_name.to_string());
+        }
+        return bindings;
+    }
+    if matches!(
+        context.lang,
+        LangKind::Java | LangKind::CSharp | LangKind::Swift | LangKind::Kotlin
+    ) {
+        return constructor_type_bindings(node_text(node, source));
+    }
+    BTreeMap::new()
+}
+
+fn constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    for line in text.lines() {
+        let line = line.split("//").next().unwrap_or("").trim();
+        let Some((lhs, rhs)) = line.split_once('=') else {
+            continue;
+        };
+        let Some(variable) = last_identifier(lhs) else {
+            continue;
+        };
+        let type_name = if let Some((_, after_new)) = rhs.split_once("new ") {
+            constructor_name(after_new)
+        } else if starts_with_binding_keyword(lhs) {
+            constructor_name(rhs)
+        } else {
+            None
+        };
+        let Some(type_name) = type_name else {
+            continue;
+        };
+        if looks_like_type_name(&type_name) {
+            bindings.insert(variable, type_name);
+        }
+    }
+    bindings
+}
+
+fn starts_with_binding_keyword(lhs: &str) -> bool {
+    lhs.split_whitespace()
+        .next()
+        .is_some_and(|token| matches!(token, "let" | "var" | "val" | "final" | "const"))
+}
+
+fn constructor_name(rhs: &str) -> Option<String> {
+    let before_paren = rhs.split_once('(')?.0;
+    last_identifier(before_paren)
+}
+
+fn looks_like_type_name(name: &str) -> bool {
+    name.chars().next().is_some_and(char::is_uppercase)
 }
 
 fn receiver_method(value: &str) -> Option<(String, String)> {

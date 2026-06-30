@@ -129,6 +129,97 @@ function typedFixtureScenario() {
   }
 }
 
+function makeMultiLanguageTypedFixture() {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-rust-ci2-multilang-'));
+  mkdirSync(path.join(root, '.local'), { recursive: true });
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  writeFileSync(path.join(root, 'src/Worker.java'), [
+    'class Worker {',
+    '  void run() { helper(); }',
+    '  void helper() {}',
+    '}',
+    'class Runner {',
+    '  void run() {',
+    '    Worker worker = new Worker();',
+    '    worker.run();',
+    '  }',
+    '}'
+  ].join('\n'));
+  writeFileSync(path.join(root, 'src/Worker.cs'), [
+    'class WorkerCs {',
+    '  void Run() { Helper(); }',
+    '  void Helper() {}',
+    '}',
+    'class RunnerCs {',
+    '  void Run() {',
+    '    var worker = new WorkerCs();',
+    '    worker.Run();',
+    '  }',
+    '}'
+  ].join('\n'));
+  writeFileSync(path.join(root, 'src/Worker.swift'), [
+    'class WorkerSwift {',
+    '  func run() { helper() }',
+    '  func helper() {}',
+    '}',
+    'func bootSwift() {',
+    '  let worker = WorkerSwift()',
+    '  worker.run()',
+    '}'
+  ].join('\n'));
+  writeFileSync(path.join(root, 'src/Worker.kt'), [
+    'class WorkerKotlin {',
+    '  fun run() { helper() }',
+    '  fun helper() {}',
+    '}',
+    'fun bootKotlin() {',
+    '  val worker = WorkerKotlin()',
+    '  worker.run()',
+    '}'
+  ].join('\n'));
+  return root;
+}
+
+function multiLanguageTypedScenario() {
+  const root = makeMultiLanguageTypedFixture();
+  const sqlite = path.join(root, '.local', 'memory.sqlite');
+  try {
+    const ingest = oaf(root, sqlite, ['ingest', '--max-file-bytes', '4096']);
+    assert.equal(ingest.summary.parsedFileCount, 4);
+    oaf(root, sqlite, ['memory', 'approve', '--all']);
+    const edges = activeCallEdges(sqlite);
+    const typedEdges = edges.filter((edge) => edge.notes?.startsWith('oaf.ingest:typed-call-'));
+    const expected = [
+      { source: 'function:bootKotlin', target: 'method:WorkerKotlin_run', notes: 'oaf.ingest:typed-call-kotlin' },
+      { source: 'function:bootSwift', target: 'method:WorkerSwift_run', notes: 'oaf.ingest:typed-call-swift' },
+      { source: 'method:Runner_run', target: 'method:Worker_run', notes: 'oaf.ingest:typed-call-java' },
+      { source: 'method:RunnerCs_Run', target: 'method:WorkerCs_Run', notes: 'oaf.ingest:typed-call-csharp' },
+      { source: 'method:Worker_run', target: 'method:Worker_helper', notes: 'oaf.ingest:typed-call-java' },
+      { source: 'method:WorkerCs_Run', target: 'method:WorkerCs_Helper', notes: 'oaf.ingest:typed-call-csharp' },
+      { source: 'method:WorkerSwift_run', target: 'method:WorkerSwift_helper', notes: 'oaf.ingest:typed-call-swift' },
+      { source: 'method:WorkerKotlin_run', target: 'method:WorkerKotlin_helper', notes: 'oaf.ingest:typed-call-kotlin' }
+    ];
+    const expectedKeys = new Set(expected.map((edge) => `${edgeKey(edge)}\t${edge.notes}`));
+    const predictedKeys = new Set(typedEdges.map((edge) => `${edgeKey(edge)}\t${edge.notes}`));
+    const falsePositiveEdges = typedEdges.filter((edge) => !expectedKeys.has(`${edgeKey(edge)}\t${edge.notes}`));
+    const missedEdges = expected.filter((edge) => !predictedKeys.has(`${edgeKey(edge)}\t${edge.notes}`));
+    assert.deepEqual(falsePositiveEdges, []);
+    assert.deepEqual(missedEdges, []);
+    assert.equal(edges.filter((edge) => edge.target.startsWith('module:')).length, 0);
+    return {
+      parsedFileCount: ingest.summary.parsedFileCount,
+      generatedFactCount: ingest.summary.recordedCount,
+      expectedTypedCallEdges: expected.length,
+      predictedTypedCallEdges: typedEdges.length,
+      typedCallPrecision: 1,
+      typedCallRecall: 1,
+      typedEdges
+    };
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function realPythonRepoScenario() {
   const temp = mkdtempSync(path.join(os.tmpdir(), 'oaf-rust-ci2-real-'));
   const repo = path.join(temp, 'requests');
@@ -161,13 +252,15 @@ function realPythonRepoScenario() {
 const fixture = typedFixtureScenario();
 assert.equal(fixture.typedCallPrecision, 1);
 assert.equal(fixture.typedCallRecall, 1);
+const multiLanguageFixture = multiLanguageTypedScenario();
 const realPythonRepo = realPythonRepoScenario();
 
 console.log(JSON.stringify({
   schemaVersion: '1.0.0',
   command: 'rust typed calls quality',
-  methodology: 'CI-2 measures Python receiver-call resolution after proposal approval. Type hints are used only when constructor/self inference resolves to an existing symbol; otherwise the prior name resolver is used.',
+  methodology: 'CI-2 measures Python plus Java/C#/Swift/Kotlin receiver-call resolution after proposal approval. Type hints are used only when constructor/self inference resolves to an existing symbol; otherwise the prior name resolver is used.',
   fixture,
+  multiLanguageFixture,
   realPythonRepo,
   status: 'PASS'
 }, null, 2));
