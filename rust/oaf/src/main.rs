@@ -38,6 +38,7 @@ fn run() -> Result<()> {
     match args.first().map(String::as_str) {
         Some("--version") | Some("-V") => version_command(),
         Some("install") => install_command(&args[1..]),
+        Some("setup") => setup_command(&args[1..]),
         Some("ui") => ui_command(&args[1..]),
         Some("memory") => memory_command(&args[1..]),
         Some("mcp") => mcp_command(&args[1..]),
@@ -71,9 +72,36 @@ enum InstallFormat {
     Toml,
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum FeatureTier {
+    Lite,
+    Full,
+    Ultra,
+}
+
+impl FeatureTier {
+    fn parse(value: &str) -> Result<Self> {
+        match value {
+            "lite" => Ok(Self::Lite),
+            "full" => Ok(Self::Full),
+            "ultra" => Ok(Self::Ultra),
+            _ => bail!("--tier must be lite|full|ultra"),
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Lite => "lite",
+            Self::Full => "full",
+            Self::Ultra => "ultra",
+        }
+    }
+}
+
 #[derive(Clone)]
 struct InstallTarget {
     client: &'static str,
+    model: &'static str,
     format: InstallFormat,
     path: PathBuf,
 }
@@ -87,6 +115,7 @@ struct InstallOutcome {
 fn install_command(args: &[String]) -> Result<()> {
     ensure_json(args)?;
     let config_home = install_config_home()?;
+    let tier = setup_tier(args)?;
     let targets = install_targets(
         option(args, "--client")
             .unwrap_or_else(|| "all".to_string())
@@ -99,7 +128,7 @@ fn install_command(args: &[String]) -> Result<()> {
         .to_string();
     let uninstall = has(args, "--uninstall");
     let dry_run = has(args, "--dry-run");
-    let server = json!({ "command": command, "args": ["mcp", "server", "--stdio"], "env": {} });
+    let server = mcp_server_config(&command, tier);
     let touched_files = install_touched_files(&targets);
     let plan = json!({
         "command": "install",
@@ -156,11 +185,12 @@ fn install_command(args: &[String]) -> Result<()> {
         "planFingerprint": plan_fingerprint,
         "receipt": {
             "serverName": INSTALL_SERVER_NAME,
+            "tier": tier.as_str(),
             "configHome": config_home.display().to_string(),
             "clients": targets.iter().map(|target| target.client).collect::<Vec<_>>(),
             "touchedFiles": touched,
             "entries": entries,
-            "confirmCommand": format!("oaf install --client {}{} --confirm {} --format json", option(args, "--client").unwrap_or_else(|| "all".to_string()), if uninstall { " --uninstall" } else { "" }, plan_fingerprint)
+            "confirmCommand": format!("oaf install --client {} --tier {}{} --confirm {} --format json", option(args, "--client").unwrap_or_else(|| "all".to_string()), tier.as_str(), if uninstall { " --uninstall" } else { "" }, plan_fingerprint)
         },
         "safeguards": {
             "dryRunBeforeWrite": true,
@@ -175,6 +205,143 @@ fn install_command(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+fn setup_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config_home = install_config_home()?;
+    let tier = setup_tier(args)?;
+    let explicit_client = option(args, "--client");
+    let mut targets = if let Some(client) = explicit_client.as_deref() {
+        setup_targets(client, &config_home)?
+    } else {
+        detect_install_targets(&config_home)
+    };
+    if targets.is_empty() {
+        targets = install_targets("all", &config_home)?;
+    }
+    let command = env::current_exe()
+        .context("resolve current executable")?
+        .display()
+        .to_string();
+    let dry_run = has(args, "--dry-run");
+    let uninstall = has(args, "--uninstall");
+    let server = mcp_server_config(&command, tier);
+    let manifest_files = setup_manifest_files(&config_home, tier, &targets);
+    let mut touched_files = setup_touched_files(&targets);
+    touched_files.extend(manifest_files.iter().map(|file| file.path.display().to_string()));
+    touched_files.sort();
+    touched_files.dedup();
+    let plan = json!({
+        "command": "setup",
+        "serverName": INSTALL_SERVER_NAME,
+        "tier": tier.as_str(),
+        "server": server,
+        "clients": targets.iter().map(|target| target.client).collect::<Vec<_>>(),
+        "touchedFiles": touched_files,
+        "uninstall": uninstall
+    });
+    let plan_fingerprint = fingerprint_json(&plan);
+    if !dry_run && option(args, "--confirm").as_deref() != Some(plan_fingerprint.as_str()) {
+        bail!("setup requires --dry-run first, then --confirm {plan_fingerprint}");
+    }
+
+    let mut entries = Vec::new();
+    let mut manifest_entries = Vec::new();
+    let mut changed = false;
+    if dry_run {
+        entries = targets
+            .iter()
+            .map(|target| install_entry(target, &server, "would-setup"))
+            .collect();
+        manifest_entries = manifest_files
+            .iter()
+            .map(|file| setup_manifest_entry(file, "would-write"))
+            .collect();
+    } else {
+        for target in &targets {
+            let outcome = apply_install_target(target, &server, uninstall)?;
+            changed |= outcome.changed;
+            entries.push(install_entry(target, &server, &outcome.action));
+        }
+        for file in &manifest_files {
+            let next = format!("{}\n", file.content);
+            let action = if file.path.exists()
+                && fs::read_to_string(&file.path).ok().as_deref() == Some(next.as_str())
+            {
+                "already-written"
+            } else {
+                atomic_write(&file.path, &next)?;
+                changed = true;
+                "written"
+            };
+            manifest_entries.push(setup_manifest_entry(file, action));
+        }
+    }
+
+    print_json(json!({
+        "schemaVersion": "1.0.0",
+        "command": "setup",
+        "generatedAt": fixed_now(),
+        "dryRun": dry_run,
+        "uninstall": uninstall,
+        "changed": changed,
+        "idempotent": !dry_run && !changed,
+        "confirmationRequired": dry_run,
+        "planFingerprint": plan_fingerprint,
+        "detectedHarnesses": targets.iter().map(|target| json!({
+            "client": target.client,
+            "model": target.model,
+            "configPath": target.path.display().to_string(),
+            "installed": target.path.parent().is_some_and(Path::exists) || target.path.exists()
+        })).collect::<Vec<_>>(),
+        "tier": setup_tier_report(tier),
+        "receipt": {
+            "serverName": INSTALL_SERVER_NAME,
+            "configHome": config_home.display().to_string(),
+            "clients": targets.iter().map(|target| target.client).collect::<Vec<_>>(),
+            "touchedFiles": touched_files,
+            "entries": entries,
+            "pluginManifests": manifest_entries,
+            "confirmCommand": format!("oaf setup --tier {}{} --confirm {} --format json", tier.as_str(), explicit_client.map(|client| format!(" --client {client}")).unwrap_or_default(), plan_fingerprint)
+        },
+        "safeguards": {
+            "dryRunBeforeWrite": true,
+            "confirmationRequired": true,
+            "idempotent": true,
+            "writesOutsideConfigHome": false,
+            "credentialsStored": false,
+            "networkCalls": 0,
+            "modelCallsByOaf": 0
+        }
+    }));
+    Ok(())
+}
+
+fn setup_tier(args: &[String]) -> Result<FeatureTier> {
+    FeatureTier::parse(
+        option(args, "--tier")
+            .unwrap_or_else(|| "full".to_string())
+            .as_str(),
+    )
+}
+
+fn mcp_server_config(command: &str, tier: FeatureTier) -> Value {
+    json!({
+        "command": command,
+        "args": ["mcp", "server", "--stdio"],
+        "env": { "OAF_FEATURE_TIER": tier.as_str() }
+    })
+}
+
+fn setup_tier_report(tier: FeatureTier) -> Value {
+    json!({
+        "name": tier.as_str(),
+        "features": mcp_tool_names_for_tier(tier),
+        "lite": tier == FeatureTier::Lite,
+        "full": tier == FeatureTier::Full,
+        "ultra": tier == FeatureTier::Ultra
+    })
+}
+
 fn install_config_home() -> Result<PathBuf> {
     if let Ok(home) = env::var("OAF_CONFIG_HOME") {
         return Ok(PathBuf::from(home));
@@ -185,47 +352,237 @@ fn install_config_home() -> Result<PathBuf> {
 }
 
 fn install_targets(client: &str, home: &Path) -> Result<Vec<InstallTarget>> {
-    let all = vec![
-        InstallTarget {
-            client: "claude-code",
-            format: InstallFormat::Json,
-            path: home.join(".claude/mcp.json"),
-        },
-        InstallTarget {
-            client: "codex",
-            format: InstallFormat::Toml,
-            path: home.join(".codex/config.toml"),
-        },
-        InstallTarget {
-            client: "cursor",
-            format: InstallFormat::Json,
-            path: home.join(".cursor/mcp.json"),
-        },
-        InstallTarget {
-            client: "vscode",
-            format: InstallFormat::Json,
-            path: home.join(".vscode/mcp.json"),
-        },
-    ];
+    let all = legacy_install_targets(home);
     let normalized = match client {
         "all" => return Ok(all),
         "claude" => "claude-code",
         other => other,
     };
     let Some(target) = all.into_iter().find(|target| target.client == normalized) else {
-        bail!("install --client must be all|claude-code|codex|cursor|vscode");
+        bail!("install --client must be all|claude-code|codex|cursor|vscode|gemini-cli|opencode|windsurf|kiro");
     };
     Ok(vec![target])
+}
+
+fn setup_targets(client: &str, home: &Path) -> Result<Vec<InstallTarget>> {
+    let all = known_setup_targets(home);
+    let normalized = match client {
+        "all" => return Ok(all),
+        "claude" => "claude-code",
+        other => other,
+    };
+    let Some(target) = all.into_iter().find(|target| target.client == normalized) else {
+        bail!("setup --client must be all|claude-code|codex|cursor|vscode|gemini-cli|opencode|windsurf|kiro");
+    };
+    Ok(vec![target])
+}
+
+fn legacy_install_targets(home: &Path) -> Vec<InstallTarget> {
+    vec![
+        InstallTarget {
+            client: "claude-code",
+            model: "Claude Code configured model",
+            format: InstallFormat::Json,
+            path: home.join(".claude/mcp.json"),
+        },
+        InstallTarget {
+            client: "codex",
+            model: "Codex configured model",
+            format: InstallFormat::Toml,
+            path: home.join(".codex/config.toml"),
+        },
+        InstallTarget {
+            client: "cursor",
+            model: "Cursor configured model",
+            format: InstallFormat::Json,
+            path: home.join(".cursor/mcp.json"),
+        },
+        InstallTarget {
+            client: "vscode",
+            model: "GitHub Copilot configured model",
+            format: InstallFormat::Json,
+            path: home.join(".vscode/mcp.json"),
+        },
+    ]
+}
+
+fn known_setup_targets(home: &Path) -> Vec<InstallTarget> {
+    let mut all = legacy_install_targets(home);
+    all.extend([
+        InstallTarget {
+            client: "gemini-cli",
+            model: "Gemini CLI configured model",
+            format: InstallFormat::Json,
+            path: home.join(".gemini/settings.json"),
+        },
+        InstallTarget {
+            client: "opencode",
+            model: "OpenCode configured model",
+            format: InstallFormat::Json,
+            path: home.join(".config/opencode/opencode.json"),
+        },
+        InstallTarget {
+            client: "windsurf",
+            model: "Windsurf configured model",
+            format: InstallFormat::Json,
+            path: home.join(".windsurf/mcp.json"),
+        },
+        InstallTarget {
+            client: "kiro",
+            model: "Kiro configured model",
+            format: InstallFormat::Json,
+            path: home.join(".kiro/mcp.json"),
+        },
+    ]);
+    all
+}
+
+fn detect_install_targets(home: &Path) -> Vec<InstallTarget> {
+    known_setup_targets(home)
+        .into_iter()
+        .filter(|target| target.path.exists() || target.path.parent().is_some_and(Path::exists))
+        .collect()
 }
 
 fn install_entry(target: &InstallTarget, server: &Value, action: &str) -> Value {
     json!({
         "client": target.client,
+        "model": target.model,
         "configPath": target.path.display().to_string(),
         "format": match target.format { InstallFormat::Json => "json", InstallFormat::Toml => "toml" },
         "target": match target.format { InstallFormat::Json => "mcpServers.open-agent-fabric", InstallFormat::Toml => "mcp_servers.open-agent-fabric" },
         "action": action,
         "server": server
+    })
+}
+
+struct SetupManifestFile {
+    kind: &'static str,
+    path: PathBuf,
+    content: String,
+}
+
+fn setup_manifest_files(
+    home: &Path,
+    tier: FeatureTier,
+    targets: &[InstallTarget],
+) -> Vec<SetupManifestFile> {
+    let tools = mcp_tool_names_for_tier(tier);
+    let tier = tier.as_str();
+    let clients = targets
+        .iter()
+        .map(|target| target.client)
+        .collect::<BTreeSet<_>>();
+    let mut files = vec![
+        SetupManifestFile {
+            kind: "claude-marketplace",
+            path: home.join(".claude-plugin/marketplace.json"),
+            content: serde_json::to_string_pretty(&json!({
+                "schemaVersion": "1.0.0",
+                "plugins": [{ "name": "open-agent-fabric", "description": "Local governed OAF memory MCP and skill", "path": "./plugin.json", "license": "Apache-2.0" }]
+            })).unwrap(),
+        },
+        SetupManifestFile {
+            kind: "claude-plugin",
+            path: home.join(".claude-plugin/plugin.json"),
+            content: serde_json::to_string_pretty(&json!({
+                "schemaVersion": "1.0.0",
+                "name": "open-agent-fabric",
+                "tier": tier,
+                "mcp": { "server": INSTALL_SERVER_NAME, "tools": tools },
+                "skills": ["oaf-memory"],
+                "commands": ["/oaf", "/oaf-memory"]
+            })).unwrap(),
+        },
+        SetupManifestFile {
+            kind: "codex-plugin",
+            path: home.join(".codex-plugin/plugin.json"),
+            content: serde_json::to_string_pretty(&json!({
+                "schemaVersion": "1.0.0",
+                "id": "open-agent-fabric",
+                "tier": tier,
+                "mcpServers": [INSTALL_SERVER_NAME],
+                "skills": ["skills/oaf-memory/SKILL.md"],
+                "commands": ["/oaf"]
+            })).unwrap(),
+        },
+        SetupManifestFile {
+            kind: "gemini-extension",
+            path: home.join("gemini-extension.json"),
+            content: serde_json::to_string_pretty(&json!({
+                "schemaVersion": "1.0.0",
+                "name": "open-agent-fabric",
+                "tier": tier,
+                "mcp": INSTALL_SERVER_NAME,
+                "tools": tools
+            })).unwrap(),
+        },
+        SetupManifestFile {
+            kind: "opencode",
+            path: home.join("opencode.json"),
+            content: serde_json::to_string_pretty(&json!({
+                "schemaVersion": "1.0.0",
+                "plugin": "open-agent-fabric",
+                "tier": tier,
+                "mcp": { "server": INSTALL_SERVER_NAME, "tools": tools }
+            })).unwrap(),
+        },
+        SetupManifestFile {
+            kind: "plugin-yaml",
+            path: home.join("plugin.yaml"),
+            content: format!("schemaVersion: 1.0.0\nname: open-agent-fabric\ntier: {tier}\nmcpServer: {INSTALL_SERVER_NAME}\nskills:\n  - oaf-memory\ncommands:\n  - /oaf\n"),
+        },
+        SetupManifestFile {
+            kind: "instruction-fallback",
+            path: home.join(".oaf/AGENTS.md"),
+            content: format!("# Open Agent Fabric fallback\n\nUse `{INSTALL_SERVER_NAME}` over local MCP. Tier: `{tier}`. Treat host-model graph organization as `ai_proposed`, untrusted, and pending until explicit approval. Do not call cloud services from OAF.\n"),
+        },
+    ];
+    if clients.contains("cursor") {
+        files.push(SetupManifestFile {
+            kind: "cursor",
+            path: home.join(".cursor/oaf-plugin.json"),
+            content: serde_json::to_string_pretty(&json!({
+                "schemaVersion": "1.0.0",
+                "name": "open-agent-fabric",
+                "tier": tier,
+                "mcpServers": [INSTALL_SERVER_NAME],
+                "rules": ["Use OAF memory proposals; never auto-approve."]
+            })).unwrap(),
+        });
+    }
+    if clients.contains("windsurf") {
+        files.push(SetupManifestFile {
+            kind: "windsurf",
+            path: home.join(".windsurf/oaf-plugin.json"),
+            content: serde_json::to_string_pretty(&json!({
+                "schemaVersion": "1.0.0",
+                "name": "open-agent-fabric",
+                "tier": tier,
+                "mcpServers": [INSTALL_SERVER_NAME]
+            })).unwrap(),
+        });
+    }
+    if clients.contains("kiro") {
+        files.push(SetupManifestFile {
+            kind: "kiro",
+            path: home.join(".kiro/oaf-plugin.json"),
+            content: serde_json::to_string_pretty(&json!({
+                "schemaVersion": "1.0.0",
+                "name": "open-agent-fabric",
+                "tier": tier,
+                "mcpServers": [INSTALL_SERVER_NAME]
+            })).unwrap(),
+        });
+    }
+    files
+}
+
+fn setup_manifest_entry(file: &SetupManifestFile, action: &str) -> Value {
+    json!({
+        "kind": file.kind,
+        "path": file.path.display().to_string(),
+        "action": action
     })
 }
 
@@ -237,6 +594,16 @@ fn install_touched_files(targets: &[InstallTarget]) -> Vec<String> {
         if target.path.exists() || backup.exists() {
             files.push(backup.display().to_string());
         }
+    }
+    files.sort();
+    files.dedup();
+    files
+}
+
+fn setup_touched_files(targets: &[InstallTarget]) -> Vec<String> {
+    let mut files = install_touched_files(targets);
+    for target in targets {
+        files.push(install_backup_path(&target.path).display().to_string());
     }
     files.sort();
     files.dedup();
@@ -2193,6 +2560,10 @@ impl McpSession {
             .get("name")
             .and_then(Value::as_str)
             .context("MCP tool name is invalid")?;
+        let allowed = mcp_tool_names_for_tier(active_feature_tier());
+        if !allowed.contains(&name) {
+            bail!("unknown MCP tool");
+        }
         let args = params
             .get("arguments")
             .and_then(Value::as_object)
@@ -2209,18 +2580,24 @@ impl McpSession {
             "query.graph" => query_graph_payload(&self.config, &args)?,
             "architecture.overview" => architecture_overview_payload(&self.config, &args)?,
             "detect.changes" => detect_changes_payload(&self.config, &args)?,
+            "brain.propose_graph_organization" => brain_propose_graph_payload(&self.config, &args)?,
             _ => bail!("unknown MCP tool"),
         };
         self.persist_cursor(name, &args, &payload)?;
-        let payload = if name == "context.pack" {
+        let payload = if name == "context.pack" || name.starts_with("brain.") {
             payload
         } else {
             self.decorate_delivery(payload, name)?
         };
+        let side_effect_class = if name.starts_with("brain.") {
+            "proposal-write"
+        } else {
+            "read-only"
+        };
         Ok(json!({
             "content": [{ "type": "text", "text": serde_json::to_string(&payload)? }],
             "isError": false,
-            "_meta": { "oaf": { "toolName": name, "operation": name, "sideEffectClass": "read-only", "grantId": "grant_readonly_implicit" } }
+            "_meta": { "oaf": { "toolName": name, "operation": name, "sideEffectClass": side_effect_class, "grantId": if name.starts_with("brain.") { "grant_proposal_write_local" } else { "grant_readonly_implicit" } } }
         }))
     }
 
@@ -2935,6 +3312,113 @@ fn detect_changes_payload(
         object.insert("safeguards".to_string(), safeguards(true, false, 0));
     }
     Ok(report)
+}
+
+fn brain_propose_graph_payload(
+    config: &CliConfig,
+    args: &serde_json::Map<String, Value>,
+) -> Result<Value> {
+    let kind = json_string(args.get("kind"), "inferred_relationship", 80);
+    if !matches!(
+        kind.as_str(),
+        "community_label"
+            | "entity_alias"
+            | "entity_merge"
+            | "inferred_relationship"
+            | "conflict_resolution"
+            | "wiki_summary"
+    ) {
+        bail!("brain proposal kind is invalid");
+    }
+    let subject = required_json_string(args, "subject", 160)?;
+    let predicate = required_json_string(args, "predicate", 160)?;
+    let object = required_json_string(args, "object", 500)?;
+    let source = args
+        .get("source")
+        .and_then(Value::as_str)
+        .map(workspace_locator)
+        .unwrap_or_else(|| "workspace://host-agent/brain".to_string());
+    let notes = optional_json_string(args.get("notes"), 500)
+        .unwrap_or_else(|| format!("ai_proposed:{kind}; host-agent graph curation"));
+    let budget_tokens = json_i64(
+        args.get("budgetTokens").or_else(|| args.get("budget_tokens")),
+        2048,
+        1,
+        20000,
+    );
+    let prompt_tokens = json_i64(
+        args.get("promptTokens").or_else(|| args.get("prompt_tokens")),
+        estimate_tokens(&format!("{subject} {predicate} {object}")),
+        0,
+        budget_tokens,
+    );
+    let completion_tokens = json_i64(
+        args.get("completionTokens")
+            .or_else(|| args.get("completion_tokens")),
+        estimate_tokens(&object),
+        0,
+        budget_tokens,
+    );
+    let total_tokens = prompt_tokens + completion_tokens;
+    if total_tokens > budget_tokens {
+        bail!("brain token usage exceeds budget");
+    }
+    let fact = BatchFact {
+        subject,
+        predicate,
+        object,
+        source: source.clone(),
+        source_trust: Some("untrusted".to_string()),
+        confidence: Some("inferred".to_string()),
+        notes: Some(notes),
+        supersedes: None,
+    };
+    let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    let report = store.remember_batch(&config.root, &config.scope, &[fact])?;
+    Ok(with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "brain.propose_graph_organization",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": {
+            "provider": PROVIDER,
+            "sqliteRef": config.sqlite_ref,
+            "sourceLocator": source,
+            "sourceTrust": "untrusted",
+            "provenance": "ai_proposed"
+        },
+        "summary": {
+            "kind": kind,
+            "proposalCount": report.recorded_count,
+            "pendingProposalCount": report.recorded_count,
+            "activeMemoryCreated": 0,
+            "skippedDuplicateCount": report.skipped_duplicate_count,
+            "skippedUnsafeCount": report.skipped_unsafe_count
+        },
+        "proposalFacts": report.proposal_facts,
+        "brainTokenUsage": {
+            "modelCallsByOaf": 0,
+            "hostModelCallsReported": if total_tokens > 0 { 1 } else { 0 },
+            "promptTokens": prompt_tokens,
+            "completionTokens": completion_tokens,
+            "totalTokens": total_tokens,
+            "budgetTokens": budget_tokens,
+            "withinBudget": total_tokens <= budget_tokens,
+            "contextPolicy": "compact-oaf-slices-only"
+        },
+        "safeguards": {
+            "proposalGated": true,
+            "approvalRequired": true,
+            "activeMemoryCreated": 0,
+            "modelCallsByOaf": 0,
+            "networkCalls": 0,
+            "externalDatabase": false,
+            "externalWritesEnabled": false,
+            "rawSourceBodiesIncluded": false,
+            "sourceTrust": "untrusted"
+        },
+        "reportFingerprint": Value::Null
+    })))
 }
 
 #[derive(Clone)]
@@ -3898,18 +4382,60 @@ fn mcp_request_fingerprint(payload: &Value, tool_name: &str) -> String {
     }))
 }
 
+fn active_feature_tier() -> FeatureTier {
+    env::var("OAF_FEATURE_TIER")
+        .ok()
+        .and_then(|value| FeatureTier::parse(&value).ok())
+        .unwrap_or(FeatureTier::Full)
+}
+
+fn mcp_tool_names_for_tier(tier: FeatureTier) -> Vec<&'static str> {
+    match tier {
+        FeatureTier::Lite => vec!["memory.recall", "memory.why"],
+        FeatureTier::Full => vec![
+            "memory.recall",
+            "memory.why",
+            "context.profile",
+            "context.pack",
+            "graph.path",
+            "graph.explain",
+            "query.graph",
+            "architecture.overview",
+            "detect.changes",
+        ],
+        FeatureTier::Ultra => vec![
+            "memory.recall",
+            "memory.why",
+            "context.profile",
+            "context.pack",
+            "graph.path",
+            "graph.explain",
+            "query.graph",
+            "architecture.overview",
+            "detect.changes",
+            "brain.propose_graph_organization",
+        ],
+    }
+}
+
 fn mcp_tools() -> Value {
-    json!([
-        memory_recall_tool(),
-        memory_why_tool(),
-        context_profile_tool(),
-        context_pack_tool(),
-        graph_path_tool(),
-        graph_explain_tool(),
-        query_graph_tool(),
-        architecture_overview_tool(),
-        detect_changes_tool()
-    ])
+    let tools = mcp_tool_names_for_tier(active_feature_tier())
+        .into_iter()
+        .map(|name| match name {
+            "memory.recall" => memory_recall_tool(),
+            "memory.why" => memory_why_tool(),
+            "context.profile" => context_profile_tool(),
+            "context.pack" => context_pack_tool(),
+            "graph.path" => graph_path_tool(),
+            "graph.explain" => graph_explain_tool(),
+            "query.graph" => query_graph_tool(),
+            "architecture.overview" => architecture_overview_tool(),
+            "detect.changes" => detect_changes_tool(),
+            "brain.propose_graph_organization" => brain_propose_graph_tool(),
+            _ => json!({}),
+        })
+        .collect::<Vec<_>>();
+    Value::Array(tools)
 }
 
 fn memory_recall_tool() -> Value {
@@ -4085,6 +4611,30 @@ fn detect_changes_tool() -> Value {
             }
         },
         "annotations": { "sideEffectClass": "read-only", "oafOperation": "detect.changes" }
+    })
+}
+
+fn brain_propose_graph_tool() -> Value {
+    json!({
+        "name": "brain.propose_graph_organization",
+        "description": "Queue a host-agent graph organization proposal as untrusted ai_proposed governed memory; OAF makes no model calls and never auto-approves it.",
+        "inputSchema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["subject", "predicate", "object"],
+            "properties": {
+                "kind": { "type": "string", "enum": ["community_label", "entity_alias", "entity_merge", "inferred_relationship", "conflict_resolution", "wiki_summary"], "default": "inferred_relationship" },
+                "subject": { "type": "string", "minLength": 1, "maxLength": 160 },
+                "predicate": { "type": "string", "minLength": 1, "maxLength": 160 },
+                "object": { "type": "string", "minLength": 1, "maxLength": 500 },
+                "source": { "type": "string", "maxLength": 240 },
+                "notes": { "type": "string", "maxLength": 500 },
+                "promptTokens": { "type": "integer", "minimum": 0, "maximum": 20000 },
+                "completionTokens": { "type": "integer", "minimum": 0, "maximum": 20000 },
+                "budgetTokens": { "type": "integer", "minimum": 1, "maximum": 20000, "default": 2048 }
+            }
+        },
+        "annotations": { "sideEffectClass": "proposal-write", "oafOperation": "brain.propose_graph_organization", "approvalRequired": true }
     })
 }
 

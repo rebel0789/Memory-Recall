@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "plugins": [
+    {
+      "name": "open-agent-fabric",
+      "description": "Local governed OAF memory MCP server and oaf-memory skill.",
+      "path": "./plugin.json",
+      "license": "Apache-2.0"
+    }
+  ]
+}

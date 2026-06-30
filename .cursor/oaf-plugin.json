@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "open-agent-fabric",
+  "mcpServers": ["open-agent-fabric"],
+  "rules": ["Use OAF memory proposals; never auto-approve model output."],
+  "tiers": ["lite", "full", "ultra"]
+}

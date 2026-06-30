@@ -1,0 +1,6 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "open-agent-fabric",
+  "mcpServers": ["open-agent-fabric"],
+  "tiers": ["lite", "full", "ultra"]
+}

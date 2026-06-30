@@ -30,6 +30,12 @@ only for semantic facts the structural pass cannot know: rationale, cross-file
 meaning, changed defaults, unresolved conflicts, and project-specific intent.
 Do not duplicate structural facts already proposed by `ingest-docs`.
 
+For graph organization, deterministic OAF tools go first: `detect.changes`,
+`graph.explain`, `query.graph`, `architecture.overview`, local BM25/RI search,
+and existing community IDs. Use the host model only for judgment that these
+cannot provide: community labels, alias/merge suggestions, inferred
+relationships, wiki summaries, and conflict-resolution proposals.
+
 ## When to use
 
 - The user asks to "map this project into OAF", "remember my decisions", "set up
@@ -46,6 +52,10 @@ Do not duplicate structural facts already proposed by `ingest-docs`.
 - **Provenance always.** Every fact cites a workspace-relative source.
 - **Safe.** Workspace-relative locators only. Never record secrets, tokens, keys,
   credentials, absolute paths, or raw file bodies. Skip anything unsafe.
+- **Token-smart.** The host model is the last resort. Work incrementally on
+  changed graph slices, cache by content hash in the harness, batch related
+  proposals, feed compact OAF slices rather than raw files, and report
+  prompt/completion/budget tokens.
 
 ## Procedure
 
@@ -186,6 +196,32 @@ oaf memory consolidate --batch facts.json --root . --sqlite .local/memory.sqlite
 ADD / UPDATE / DELETE / NOOP per candidate, emits a consolidation receipt, and
 queues only consequential proposals. Transcript content is always treated as
 `untrusted_external`; do not mark conversational candidates as verified.
+
+For graph curation in ultra tier, call OAF's proposal tool with the host model's
+output. OAF does not call a model; it only queues the proposal as governed,
+untrusted, `ai_proposed` memory:
+
+```json
+{
+  "name": "brain.propose_graph_organization",
+  "arguments": {
+    "kind": "community_label",
+    "subject": "community:7",
+    "predicate": "LABEL",
+    "object": "memory governance and approval flow",
+    "source": "workspace://.local/oaf-brain/community-7.json",
+    "notes": "ai_proposed: derived from graph.explain + architecture.overview",
+    "promptTokens": 320,
+    "completionTokens": 24,
+    "budgetTokens": 1024
+  }
+}
+```
+
+Allowed `kind` values are `community_label`, `entity_alias`, `entity_merge`,
+`inferred_relationship`, `conflict_resolution`, and `wiki_summary`. Every result
+must remain pending until reviewed with `oaf memory review` and explicitly
+approved.
 
 This routes every fact through OAF's proposal gate. Then, only with the user's
 approval, promote them:

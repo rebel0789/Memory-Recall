@@ -1,0 +1,12 @@
+schemaVersion: 1.0.0
+name: open-agent-fabric
+mcpServer: open-agent-fabric
+skills:
+  - skills/oaf-memory/SKILL.md
+commands:
+  - /oaf
+  - /oaf-memory
+tiers:
+  - lite
+  - full
+  - ultra

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "open-agent-fabric",
+  "name": "Open Agent Fabric",
+  "mcpServers": [
+    {
+      "name": "open-agent-fabric",
+      "command": "oaf",
+      "args": ["mcp", "server", "--stdio"]
+    }
+  ],
+  "skills": ["skills/oaf-memory/SKILL.md"],
+  "commands": ["/oaf", "/oaf-memory"],
+  "tiers": ["lite", "full", "ultra"]
+}
