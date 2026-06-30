@@ -6,11 +6,13 @@ use oaf_ingest::{
     extract_repo, report_quality_fields, retirement_facts, IngestOptions, DEFAULT_MAX_FILE_BYTES,
     DEFAULT_MAX_MEMORY_BYTES,
 };
-use oaf_store::{ApproveReport, BatchFact, BatchReport, SearchMode, Store, StoreOptions};
+use oaf_store::{
+    ActiveFactSnapshot, ApproveReport, BatchFact, BatchReport, SearchMode, Store, StoreOptions,
+};
 use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -39,6 +41,7 @@ fn run() -> Result<()> {
         Some("memory") => memory_command(&args[1..]),
         Some("mcp") => mcp_command(&args[1..]),
         Some("ingest") => ingest_command(&args[1..]),
+        Some("cross-repo") => cross_repo_command(&args[1..]),
         Some("search") => search_command(&args[1..]),
         Some("graph") => graph_command(&args[1..]),
         Some("query") => query_command(&args[1..]),
@@ -1015,6 +1018,130 @@ fn ingest_command(args: &[String]) -> Result<()> {
         options.max_file_bytes,
     ));
     Ok(())
+}
+
+fn cross_repo_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    let active = store.active_ingest_facts(&config.scope)?;
+    let (facts, edges, stats) = cross_repo_facts(&active);
+    let report = store.remember_batch(&config.root, &config.scope, &facts)?;
+    print_json(cross_repo_report(&config, report, edges, stats));
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct CrossRepoEdge {
+    subject: String,
+    object: String,
+    from_repo: String,
+    to_repo: String,
+    source: String,
+    target_source: String,
+}
+
+#[derive(Debug, Default, Clone)]
+struct CrossRepoStats {
+    active_ingest_fact_count: usize,
+    indexed_symbol_count: usize,
+    repo_count: usize,
+    call_fact_count: usize,
+    same_repo_call_count: usize,
+    unresolved_target_count: usize,
+    cross_call_count: usize,
+}
+
+fn cross_repo_facts(
+    active: &[ActiveFactSnapshot],
+) -> (Vec<BatchFact>, Vec<CrossRepoEdge>, CrossRepoStats) {
+    let mut symbol_sources = BTreeMap::<String, String>::new();
+    let mut repos = BTreeSet::<String>::new();
+    for fact in active {
+        if fact.predicate == "IS_A" && source_repo(&fact.source).is_some() {
+            symbol_sources
+                .entry(fact.subject.clone())
+                .or_insert_with(|| fact.source.clone());
+        }
+        if fact.predicate == "DEFINES" && source_repo(&fact.source).is_some() {
+            symbol_sources.insert(fact.object.clone(), fact.source.clone());
+        }
+        if let Some(repo) = source_repo(&fact.source) {
+            repos.insert(repo.to_string());
+        }
+    }
+
+    let mut stats = CrossRepoStats {
+        active_ingest_fact_count: active.len(),
+        indexed_symbol_count: symbol_sources.len(),
+        repo_count: repos.len(),
+        ..CrossRepoStats::default()
+    };
+    let mut seen = BTreeSet::<(String, String)>::new();
+    let mut facts = Vec::new();
+    let mut edges = Vec::new();
+    for fact in active {
+        if fact.predicate != "CALLS" {
+            continue;
+        }
+        stats.call_fact_count += 1;
+        let Some(source) = symbol_sources
+            .get(&fact.subject)
+            .map(String::as_str)
+            .or_else(|| Some(fact.source.as_str()))
+        else {
+            continue;
+        };
+        let Some(target_source) = symbol_sources.get(&fact.object).map(String::as_str) else {
+            stats.unresolved_target_count += 1;
+            continue;
+        };
+        let Some(from_repo) = source_repo(source) else {
+            stats.unresolved_target_count += 1;
+            continue;
+        };
+        let Some(to_repo) = source_repo(target_source) else {
+            stats.unresolved_target_count += 1;
+            continue;
+        };
+        if from_repo == to_repo {
+            stats.same_repo_call_count += 1;
+            continue;
+        }
+        let key = (fact.subject.clone(), fact.object.clone());
+        if !seen.insert(key) {
+            continue;
+        }
+        stats.cross_call_count += 1;
+        facts.push(BatchFact {
+            subject: fact.subject.clone(),
+            predicate: "CROSS_CALLS".to_string(),
+            object: fact.object.clone(),
+            source: source.to_string(),
+            source_trust: Some("verified".to_string()),
+            confidence: Some("extracted".to_string()),
+            notes: Some("oaf.cross-repo:call".to_string()),
+            supersedes: None,
+        });
+        edges.push(CrossRepoEdge {
+            subject: fact.subject.clone(),
+            object: fact.object.clone(),
+            from_repo: from_repo.to_string(),
+            to_repo: to_repo.to_string(),
+            source: source.to_string(),
+            target_source: target_source.to_string(),
+        });
+    }
+    (facts, edges, stats)
+}
+
+fn source_repo(source: &str) -> Option<&str> {
+    let rest = source.strip_prefix("workspace://")?;
+    let (repo, remaining) = rest.split_once('/')?;
+    if repo.is_empty() || remaining.is_empty() {
+        return None;
+    }
+    Some(repo)
 }
 
 fn memory_command(args: &[String]) -> Result<()> {
@@ -2236,6 +2363,65 @@ fn ingest_report(
             "fdStrategy": "bounded-worker-files",
             "largeFilesTruncated": false
         },
+        "reportFingerprint": Value::Null
+    }))
+}
+
+fn cross_repo_report(
+    config: &CliConfig,
+    report: BatchReport,
+    edges: Vec<CrossRepoEdge>,
+    stats: CrossRepoStats,
+) -> Value {
+    let proposal_preview = report
+        .proposal_facts
+        .iter()
+        .take(50)
+        .cloned()
+        .collect::<Vec<_>>();
+    let edge_preview = edges
+        .iter()
+        .take(50)
+        .map(|edge| {
+            json!({
+                "predicate": "CROSS_CALLS",
+                "subject": edge.subject,
+                "object": edge.object,
+                "fromRepo": edge.from_repo,
+                "toRepo": edge.to_repo,
+                "source": edge.source,
+                "targetSource": edge.target_source,
+                "notes": "oaf.cross-repo:call"
+            })
+        })
+        .collect::<Vec<_>>();
+    with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "cross-repo",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": source_block(config),
+        "summary": {
+            "activeIngestFactCount": stats.active_ingest_fact_count,
+            "indexedSymbolCount": stats.indexed_symbol_count,
+            "repoCount": stats.repo_count,
+            "callFactCount": stats.call_fact_count,
+            "sameRepoCallCount": stats.same_repo_call_count,
+            "unresolvedTargetCount": stats.unresolved_target_count,
+            "crossCallCount": stats.cross_call_count,
+            "recordedCount": report.recorded_count,
+            "proposalCount": report.recorded_count,
+            "pendingProposalCount": report.recorded_count,
+            "skippedUnsafeCount": report.skipped_unsafe_count,
+            "skippedDuplicateCount": report.skipped_duplicate_count,
+            "activeMemoryCreated": 0
+        },
+        "crossEdges": edge_preview,
+        "crossEdgesOmittedCount": edges.len().saturating_sub(50),
+        "proposalFacts": proposal_preview,
+        "proposalFactsOmittedCount": report.recorded_count.saturating_sub(50),
+        "skipped": report.skipped,
+        "safeguards": safeguards(false, report.recorded_count > 0, 0),
         "reportFingerprint": Value::Null
     }))
 }
