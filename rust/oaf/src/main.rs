@@ -1318,6 +1318,7 @@ fn sanitize_token(value: &str) -> Option<String> {
 fn memory_command(args: &[String]) -> Result<()> {
     match args.first().map(String::as_str) {
         Some("remember") => memory_remember(&args[1..]),
+        Some("consolidate") => memory_consolidate(&args[1..]),
         Some("approve") => memory_approve(&args[1..]),
         Some("reject") => memory_reject(&args[1..]),
         Some("review") => memory_review(&args[1..]),
@@ -1370,6 +1371,194 @@ fn memory_remember(args: &[String]) -> Result<()> {
     )?;
     print_json(remember_report(&config, &source, report));
     Ok(())
+}
+
+fn memory_consolidate(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let batch = required(args, "--batch")?;
+    let batch_path = config.root.join(&batch);
+    let parsed: Value = serde_json::from_str(
+        &fs::read_to_string(&batch_path)
+            .with_context(|| format!("read batch {}", batch_path.display()))?,
+    )?;
+    let transcript_source = option(args, "--transcript-source")
+        .or_else(|| {
+            parsed
+                .get("transcriptSource")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+        .unwrap_or_else(|| "workspace://conversation.json".to_string());
+    let facts_value = parsed
+        .get("facts")
+        .or_else(|| parsed.get("candidates"))
+        .cloned()
+        .ok_or_else(|| anyhow!("memory consolidate --batch requires facts or candidates"))?;
+    let candidates: Vec<BatchFact> = serde_json::from_value(facts_value)?;
+    let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    let mut proposals = Vec::new();
+    let mut receipts = Vec::new();
+    let mut operation_counts: BTreeMap<String, usize> = BTreeMap::new();
+    let mut semantic_candidate_count = 0usize;
+    let mut semantic_token_count = 0usize;
+
+    for (index, candidate) in candidates.iter().enumerate() {
+        let query = format!(
+            "{} {} {}",
+            candidate.subject, candidate.predicate, candidate.object
+        );
+        let search =
+            store.search_current_truth(&config.scope, &query, SearchMode::Hybrid, true, 5)?;
+        semantic_candidate_count = search
+            .pointer("/semantic/candidateCount")
+            .and_then(Value::as_u64)
+            .unwrap_or(semantic_candidate_count as u64) as usize;
+        semantic_token_count = search
+            .pointer("/semantic/tokenCount")
+            .and_then(Value::as_u64)
+            .unwrap_or(semantic_token_count as u64) as usize;
+        let similar = search
+            .get("hits")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let existing =
+            store.active_facts_for_key(&config.scope, &candidate.subject, &candidate.predicate)?;
+        let (operation, reason) = conversation_operation(candidate, &existing);
+        *operation_counts.entry(operation.to_string()).or_insert(0) += 1;
+        let before = proposals.len();
+        match operation {
+            "ADD" => proposals.push(conversation_candidate_fact(
+                candidate,
+                &transcript_source,
+                operation,
+                None,
+            )),
+            "UPDATE" => proposals.push(conversation_candidate_fact(
+                candidate,
+                &transcript_source,
+                operation,
+                Some(oaf_store::Supersedes {
+                    subject: candidate.subject.clone(),
+                    predicate: candidate.predicate.clone(),
+                    object: if existing.len() == 1 {
+                        Some(existing[0].object.clone())
+                    } else {
+                        None
+                    },
+                }),
+            )),
+            "DELETE" => {
+                for fact in &existing {
+                    proposals.push(BatchFact {
+                        subject: fact.subject.clone(),
+                        predicate: fact.predicate.clone(),
+                        object: format!("retired_{}", short_hash(&fact.object)),
+                        source: transcript_source.clone(),
+                        source_trust: Some("untrusted".to_string()),
+                        confidence: Some("extracted".to_string()),
+                        notes: Some(conversation_note(operation, &transcript_source)),
+                        supersedes: Some(oaf_store::Supersedes {
+                            subject: fact.subject.clone(),
+                            predicate: fact.predicate.clone(),
+                            object: Some(fact.object.clone()),
+                        }),
+                    });
+                }
+            }
+            "NOOP" => {}
+            _ => unreachable!("conversation operation is closed"),
+        }
+        receipts.push(json!({
+            "index": index,
+            "operation": operation,
+            "reason": reason,
+            "candidate": {
+                "subject": candidate.subject,
+                "predicate": candidate.predicate,
+                "object": candidate.object,
+                "sourceLocator": transcript_source,
+                "sourceTrust": "untrusted_external"
+            },
+            "similarExisting": similar,
+            "matchedSameKeyCount": existing.len(),
+            "proposalCount": proposals.len().saturating_sub(before)
+        }));
+    }
+
+    let report = store.remember_batch(&config.root, &config.scope, &proposals)?;
+    print_json(consolidation_report(
+        &config,
+        &batch,
+        &transcript_source,
+        report,
+        receipts,
+        operation_counts,
+        candidates.len(),
+        semantic_candidate_count,
+        semantic_token_count,
+    ));
+    Ok(())
+}
+
+fn conversation_operation(
+    candidate: &BatchFact,
+    existing: &[ActiveFactSnapshot],
+) -> (&'static str, &'static str) {
+    if is_delete_candidate(&candidate.object) {
+        return if existing.is_empty() {
+            ("NOOP", "delete_without_existing_fact")
+        } else {
+            ("DELETE", "candidate_requests_removal_of_existing_key")
+        };
+    }
+    if existing
+        .iter()
+        .any(|fact| fact.object.trim() == candidate.object.trim())
+    {
+        ("NOOP", "same_subject_predicate_object_already_current")
+    } else if existing.is_empty() {
+        ("ADD", "new_subject_predicate_key")
+    } else {
+        ("UPDATE", "same_subject_predicate_with_different_object")
+    }
+}
+
+fn is_delete_candidate(object: &str) -> bool {
+    let lower = object.trim().to_ascii_lowercase();
+    lower.starts_with("delete ")
+        || lower.starts_with("remove ")
+        || lower.starts_with("removed ")
+        || lower.starts_with("no longer ")
+        || lower.starts_with("stop ")
+        || lower.contains(" no longer ")
+}
+
+fn conversation_candidate_fact(
+    candidate: &BatchFact,
+    transcript_source: &str,
+    operation: &str,
+    supersedes: Option<oaf_store::Supersedes>,
+) -> BatchFact {
+    BatchFact {
+        subject: candidate.subject.clone(),
+        predicate: candidate.predicate.clone(),
+        object: candidate.object.clone(),
+        source: transcript_source.to_string(),
+        source_trust: Some("untrusted".to_string()),
+        confidence: candidate
+            .confidence
+            .clone()
+            .or_else(|| Some("extracted".to_string())),
+        notes: Some(conversation_note(operation, transcript_source)),
+        supersedes,
+    }
+}
+
+fn conversation_note(operation: &str, transcript_source: &str) -> String {
+    let source_hash = short_hash(transcript_source);
+    format!("oaf.conversation:{operation}; transcript={source_hash}")
 }
 
 fn memory_approve(args: &[String]) -> Result<()> {
@@ -2383,6 +2572,82 @@ fn batch_report(config: &CliConfig, batch: &str, report: BatchReport) -> Value {
         "proposalFacts": report.proposal_facts,
         "skipped": report.skipped,
         "safeguards": safeguards(false, true, 0),
+        "reportFingerprint": Value::Null
+    }))
+}
+
+fn consolidation_report(
+    config: &CliConfig,
+    batch: &str,
+    transcript_source: &str,
+    report: BatchReport,
+    receipts: Vec<Value>,
+    operation_counts: BTreeMap<String, usize>,
+    candidate_count: usize,
+    semantic_candidate_count: usize,
+    semantic_token_count: usize,
+) -> Value {
+    let proposal_preview = report
+        .proposal_facts
+        .iter()
+        .take(50)
+        .cloned()
+        .collect::<Vec<_>>();
+    with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "memory consolidate",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": {
+            "provider": PROVIDER,
+            "sqliteRef": config.sqlite_ref,
+            "batchRef": format!("workspace://{}", batch),
+            "transcriptSource": transcript_source,
+            "trustClass": "untrusted_external"
+        },
+        "summary": {
+            "candidateCount": candidate_count,
+            "operationCounts": operation_counts,
+            "inputFactCount": report.recorded_count + report.skipped_unsafe_count + report.skipped_duplicate_count,
+            "recordedCount": report.recorded_count,
+            "proposalCount": report.recorded_count,
+            "pendingProposalCount": report.recorded_count,
+            "skippedUnsafeCount": report.skipped_unsafe_count,
+            "skippedDuplicateCount": report.skipped_duplicate_count,
+            "activeMemoryCreated": 0,
+            "supersededFactCount": 0
+        },
+        "consolidationReceipt": {
+            "schemaVersion": "1.0.0",
+            "operations": receipts,
+            "semanticRetrieval": {
+                "enabled": true,
+                "mode": "hybrid",
+                "model": "random-indexing",
+                "candidateCount": semantic_candidate_count,
+                "tokenCount": semantic_token_count,
+                "modelCalls": 0
+            }
+        },
+        "proposalFacts": proposal_preview,
+        "proposalFactsOmittedCount": report.recorded_count.saturating_sub(50),
+        "skipped": report.skipped,
+        "safeguards": {
+            "readOnly": false,
+            "proposalGated": true,
+            "canonicalStateMutated": report.recorded_count > 0,
+            "activeMemoryCreated": 0,
+            "hardDeleted": false,
+            "networkCalls": 0,
+            "modelCalls": 0,
+            "externalWritesEnabled": false,
+            "rawSourceBodiesIncluded": false,
+            "absoluteFilesystemLocationsIncluded": false,
+            "transcriptContentTrusted": false,
+            "untrustedExternalInput": true,
+            "externalVectorDatabase": false,
+            "externalGraphDatabase": false
+        },
         "reportFingerprint": Value::Null
     }))
 }
@@ -4044,6 +4309,10 @@ fn estimate_tokens(text: &str) -> i64 {
 
 fn sha256_hex(value: &str) -> String {
     hex::encode(Sha256::digest(value.as_bytes()))
+}
+
+fn short_hash(value: &str) -> String {
+    sha256_hex(value).chars().take(16).collect()
 }
 
 fn canonical_json(value: &Value) -> String {

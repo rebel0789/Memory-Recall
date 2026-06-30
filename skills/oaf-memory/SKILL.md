@@ -159,6 +159,34 @@ Record the reviewed facts in one governed batch:
 oaf memory remember --batch facts.json --root . --sqlite .local/memory.sqlite --format json
 ```
 
+For conversational memory, write host-extracted candidates to a batch with a
+workspace-relative transcript source and let OAF consolidate them against current
+memory:
+
+```json
+{
+  "transcriptSource": "workspace://chat-export.json",
+  "facts": [
+    {
+      "subject": "user:local",
+      "predicate": "default",
+      "object": "editor = vim",
+      "source": "workspace://chat-export.json",
+      "confidence": "extracted"
+    }
+  ]
+}
+```
+
+```bash
+oaf memory consolidate --batch facts.json --root . --sqlite .local/memory.sqlite --format json
+```
+
+`consolidate` retrieves similar current facts with local Random Indexing, decides
+ADD / UPDATE / DELETE / NOOP per candidate, emits a consolidation receipt, and
+queues only consequential proposals. Transcript content is always treated as
+`untrusted_external`; do not mark conversational candidates as verified.
+
 This routes every fact through OAF's proposal gate. Then, only with the user's
 approval, promote them:
 

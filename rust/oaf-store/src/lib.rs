@@ -1130,6 +1130,41 @@ impl Store {
             .map_err(Into::into)
     }
 
+    pub fn active_facts_for_key(
+        &self,
+        scope: &str,
+        subject: &str,
+        predicate: &str,
+    ) -> Result<Vec<ActiveFactSnapshot>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT subject, predicate, object, source
+            FROM memory_facts
+            WHERE workspace_id = ?1
+              AND scope = ?2
+              AND subject = ?3
+              AND predicate = ?4
+              AND status = 'active'
+              AND superseded_by IS NULL
+              AND object NOT LIKE 'retired_%'
+            ORDER BY object, source
+            "#,
+        )?;
+        let rows = stmt.query_map(
+            params![self.workspace_id, scope, subject, predicate],
+            |row| {
+                Ok(ActiveFactSnapshot {
+                    subject: row.get(0)?,
+                    predicate: row.get(1)?,
+                    object: row.get(2)?,
+                    source: row.get(3)?,
+                })
+            },
+        )?;
+        rows.collect::<std::result::Result<Vec<_>, _>>()
+            .map_err(Into::into)
+    }
+
     pub fn graph_path(
         &self,
         scope: &str,
