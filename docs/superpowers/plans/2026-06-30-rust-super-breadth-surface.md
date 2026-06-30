@@ -17,13 +17,41 @@ real repos.
    Phase L and AFTER every checkpoint (no regression).
 2. Build isolation: `/rust` (+ in-binary UI assets) + new harness scripts only. NO other Node product
    files. `npm run ci` (435) green every checkpoint. Own CI job.
-3. Governed + local-first at RUNTIME: no model/network/cloud/external DB. UI is 100% OFFLINE — assets
-   compiled into the binary, ZERO CDN / external requests (cbm's UI broke offline via a troika-three-
-   text CDN call, issue #453 — do NOT repeat that; vendor everything). External build-time crates/JS
-   libs are fine (vendor + pin). Cloning repos for tests is fine.
+3. Governed + local-first at RUNTIME: no cloud, no external DB, no EXTERNAL network. UI is 100% OFFLINE
+   — assets compiled into the binary, ZERO CDN / external requests (cbm's UI broke offline via a
+   troika-three-text CDN call, issue #453 — do NOT repeat that; vendor everything). External build-time
+   crates/JS libs are fine (vendor + pin). Cloning repos for tests is fine. EXCEPTION (Phase A only): a
+   LOCAL model — a localhost endpoint (Ollama-compatible) OR a bundled small model — is allowed when AI
+   is EXPLICITLY enabled; localhost is not "external network." Default OFF; privacy preserved (nothing
+   leaves the machine).
 4. NEVER weaken/delete an assertion; NEVER game a benchmark (realistic baselines, real inputs, report
    failures, label methodology). Can't do it well → STOP and report (partial fine, faked/broken not).
 5. No `unsafe` without justification + test. Commit per green build+test+gate.
+
+## Phase A — Optional GOVERNED AI brain (small local model) — the "thinking buddy"
+Give OAF an OPTIONAL self-contained thinking brain: a SMALL LOCAL model that helps organize and enrich
+the governed graph — without ever becoming authority. This is OAF's unique combo (AI proposes, governance
+decides); no other tool has it.
+- Integration: when enabled (`--ai` flag / config + a local model: an Ollama-compatible localhost
+  endpoint OR a bundled small GGUF via a vendored Rust llama/candle binding), OAF can call a small local
+  model. DEFAULT OFF — with AI off, OAF behaves byte-identically to today (deterministic + host-agent
+  skill); assert default-off parity (no model loaded, no localhost call). Pick a SMALL model (~1-3B) and
+  keep inference OFF the hot query path (brain tasks only).
+- GOVERNANCE INVARIANT (non-negotiable): every AI output goes through the proposal gate — PENDING, never
+  auto-active; tagged provenance `ai_proposed` + an untrusted-grade trust_level so it cannot auto-commit
+  (S3). The human/policy approves. Model output is NEVER authority.
+- Brain tasks (all governed proposals): (a) graph organization — suggest community labels, entity
+  aliases/merges, inferred relationships; (b) self-contained semantic extraction — extract governed facts
+  from docs/conversations when no host-agent skill is driving (a local alternative to the skill); (c)
+  entity/community summaries for the wiki; (d) conflict-resolution SUGGESTIONS for surfaced S4 conflicts
+  (proposed, not auto-applied).
+- Pluggable + honest: architecture must allow swapping the local backend; if a task's local-model quality
+  is poor, report it honestly (graded) and keep the deterministic/skill path as the default.
+GATE (`scripts/rust-ai-brain-quality.mjs`): run with AI enabled against a local test model (or a
+deterministic stub backend) — assert AI-proposed facts are PENDING (never auto-active), carry
+`ai_proposed` provenance + untrusted trust, require approval to activate; assert default-OFF is
+byte-identical (no model load, no localhost request); report a graded quality sample (does the brain's
+organization/extraction actually help). Commit: `feat: optional governed local AI brain`.
 
 ## Phase L — Almost all languages
 Extend governed tree-sitter ingest toward broad coverage (currently ~17). Use your judgement to add as
@@ -69,7 +97,9 @@ extract on real code and the UI renders a real, non-trivial graph offline. Repor
 image/OCR. Out of scope.
 
 ## Definition of done
-- [ ] Based on banger branch; ALL prior harnesses still pass before Phase L and after every checkpoint.
+- [ ] Based on banger branch; ALL prior harnesses still pass before Phase A and after every checkpoint.
+- [ ] Phase A: optional governed AI brain — AI proposals are PENDING/governed (never auto-active),
+      default-OFF byte-identical, local-only; graded quality sample reported honestly.
 - [ ] Phase L: a per-language precision/recall table + final count (honest, with any language stopped + why).
 - [ ] Phase V: the redesigned `oaf ui` graph passes its gate — renders graph, search/filter/focus/detail/
       history all wired, governed encodings present, ZERO CDN/external requests; works on a real repo.
