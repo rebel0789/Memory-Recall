@@ -300,10 +300,13 @@ function exerciseImpact() {
 
 function timed(label, command, args, options = {}) {
   const started = performance.now();
-  const result = spawnSync('/usr/bin/time', ['-l', command, ...args], { cwd: ROOT, encoding: 'utf8', ...options });
+  const timeArgs = process.platform === 'darwin' ? ['-l', command, ...args] : ['-v', command, ...args];
+  const result = spawnSync('/usr/bin/time', timeArgs, { cwd: ROOT, encoding: 'utf8', ...options });
   assert.equal(result.status, options.expectedStatus ?? 0, `${label}\n${result.stderr || result.stdout}`);
   const elapsedMs = performance.now() - started;
-  const rssBytes = Number(result.stderr.match(/(\d+)\s+maximum resident set size/u)?.[1] ?? 0);
+  const darwinRss = result.stderr.match(/(\d+)\s+maximum resident set size/u);
+  const linuxRss = result.stderr.match(/Maximum resident set size \(kbytes\):\s*(\d+)/u);
+  const rssBytes = darwinRss ? Number(darwinRss[1]) : Number(linuxRss?.[1] ?? 0) * 1024;
   return { ms: Number(elapsedMs.toFixed(3)), peakRssMb: Number((rssBytes / 1024 / 1024).toFixed(1)) };
 }
 
