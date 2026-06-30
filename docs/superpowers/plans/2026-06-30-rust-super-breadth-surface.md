@@ -17,41 +17,43 @@ real repos.
    Phase L and AFTER every checkpoint (no regression).
 2. Build isolation: `/rust` (+ in-binary UI assets) + new harness scripts only. NO other Node product
    files. `npm run ci` (435) green every checkpoint. Own CI job.
-3. Governed + local-first at RUNTIME: no cloud, no external DB, no EXTERNAL network. UI is 100% OFFLINE
-   — assets compiled into the binary, ZERO CDN / external requests (cbm's UI broke offline via a
-   troika-three-text CDN call, issue #453 — do NOT repeat that; vendor everything). External build-time
-   crates/JS libs are fine (vendor + pin). Cloning repos for tests is fine. EXCEPTION (Phase A only): a
-   LOCAL model — a localhost endpoint (Ollama-compatible) OR a bundled small model — is allowed when AI
-   is EXPLICITLY enabled; localhost is not "external network." Default OFF; privacy preserved (nothing
-   leaves the machine).
+3. Governed + local-first at RUNTIME: no cloud, no external DB, no external network, and OAF ITSELF makes
+   NO model calls. UI is 100% OFFLINE — assets compiled into the binary, ZERO CDN / external requests
+   (cbm's UI broke offline via a troika-three-text CDN call, issue #453 — do NOT repeat that; vendor
+   everything). External build-time crates/JS libs are fine (vendor + pin). Cloning repos for tests is
+   fine. The "AI brain" (Phase A) is the HOST HARNESS's own LLM (GPT in Codex, Opus/Sonnet in Claude
+   Code, etc.) driving OAF via the skill + MCP tools — OAF provides governed tools and never calls a
+   model itself; this preserves no-model purity.
 4. NEVER weaken/delete an assertion; NEVER game a benchmark (realistic baselines, real inputs, report
    failures, label methodology). Can't do it well → STOP and report (partial fine, faked/broken not).
 5. No `unsafe` without justification + test. Commit per green build+test+gate.
 
-## Phase A — Optional GOVERNED AI brain (small local model) — the "thinking buddy"
-Give OAF an OPTIONAL self-contained thinking brain: a SMALL LOCAL model that helps organize and enrich
-the governed graph — without ever becoming authority. This is OAF's unique combo (AI proposes, governance
-decides); no other tool has it.
-- Integration: when enabled (`--ai` flag / config + a local model: an Ollama-compatible localhost
-  endpoint OR a bundled small GGUF via a vendored Rust llama/candle binding), OAF can call a small local
-  model. DEFAULT OFF — with AI off, OAF behaves byte-identically to today (deterministic + host-agent
-  skill); assert default-off parity (no model loaded, no localhost call). Pick a SMALL model (~1-3B) and
-  keep inference OFF the hot query path (brain tasks only).
-- GOVERNANCE INVARIANT (non-negotiable): every AI output goes through the proposal gate — PENDING, never
-  auto-active; tagged provenance `ai_proposed` + an untrusted-grade trust_level so it cannot auto-commit
-  (S3). The human/policy approves. Model output is NEVER authority.
-- Brain tasks (all governed proposals): (a) graph organization — suggest community labels, entity
-  aliases/merges, inferred relationships; (b) self-contained semantic extraction — extract governed facts
-  from docs/conversations when no host-agent skill is driving (a local alternative to the skill); (c)
-  entity/community summaries for the wiki; (d) conflict-resolution SUGGESTIONS for surfaced S4 conflicts
-  (proposed, not auto-applied).
-- Pluggable + honest: architecture must allow swapping the local backend; if a task's local-model quality
-  is poor, report it honestly (graded) and keep the deterministic/skill path as the default.
-GATE (`scripts/rust-ai-brain-quality.mjs`): run with AI enabled against a local test model (or a
-deterministic stub backend) — assert AI-proposed facts are PENDING (never auto-active), carry
-`ai_proposed` provenance + untrusted trust, require approval to activate; assert default-OFF is
-byte-identical (no model load, no localhost request); report a graded quality sample (does the brain's
-organization/extraction actually help). Commit: `feat: optional governed local AI brain`.
+## Phase A — Harness-LLM thinking brain (governed) + best-in-class auto-detection & setup
+The "brain" is the HOST HARNESS's own LLM (GPT in Codex, Opus/Sonnet in Claude Code, the model in Cursor/
+Gemini-CLI/etc.) — NOT a bundled or local model. OAF makes NO model calls; the host AGENT calls its own
+model and drives OAF via the skill + MCP tools, and every result is routed through OAF's governed proposal
+gate. This is OAF's unique combo: the harness's frontier model THINKS; OAF's governance DECIDES.
+
+### A.1 Best-in-class detection + one-command setup (the "best easiest detection and setup" ask)
+- `oaf setup` (and `oaf setup --detect`): AUTO-DETECT every installed coding-agent harness on the machine
+  (Claude Code, Codex CLI, Cursor, Gemini CLI, VS Code/Copilot, Windsurf, Zed, Aider, Cline, Continue,
+  etc.) by their config files / env / known paths — print exactly what was found.
+- One command wires each detected harness: install the OAF MCP server entry + the oaf-memory skill +
+  instruction snippet + (where supported) a pre-tool hook — RECEIPT-FIRST + `--confirm`, idempotent,
+  exact uninstall, touches ONLY the agent's own config dirs, NO credential storage, NO external network
+  (the M6 / UI-3 install discipline). Support a `--dry-run`. Detect AND report which model each harness
+  uses (Codex→GPT, Claude Code→Opus/Sonnet, …) so the user sees which brain is linked.
+### A.2 Governed brain tasks (driven by the harness LLM via skill + MCP)
+Extend the oaf-memory skill + MCP tools so the host agent's model can: (a) ORGANIZE the graph — propose
+community labels, entity aliases/merges, inferred relationships; (b) extract governed facts from docs/
+conversations; (c) write entity/community summaries for the wiki; (d) propose conflict-resolution for
+surfaced S4 conflicts. EVERY such output goes through the proposal gate — PENDING, never auto-active,
+tagged provenance `ai_proposed` + untrusted trust (S3), requires approval. Model output is NEVER authority.
+GATE (`scripts/rust-ai-brain-setup-quality.mjs`): on a temp fake multi-harness config dir, assert
+detection lists the present harnesses correctly; `oaf setup --confirm` writes the MCP+skill entries with a
+receipt, idempotently, touching ONLY those dirs, NO creds, NO network; assert a skill/MCP-driven brain
+proposal (e.g. a graph-organization fact) lands PENDING/governed (ai_proposed, untrusted, needs approval),
+and that OAF itself makes zero model calls. Commit: `feat: harness detection + governed brain integration`.
 
 ## Phase L — Almost all languages
 Extend governed tree-sitter ingest toward broad coverage (currently ~17). Use your judgement to add as
@@ -98,8 +100,9 @@ image/OCR. Out of scope.
 
 ## Definition of done
 - [ ] Based on banger branch; ALL prior harnesses still pass before Phase A and after every checkpoint.
-- [ ] Phase A: optional governed AI brain — AI proposals are PENDING/governed (never auto-active),
-      default-OFF byte-identical, local-only; graded quality sample reported honestly.
+- [ ] Phase A: harness auto-detection lists installed agents + their models; `oaf setup` wires MCP+skill
+      receipt-first/idempotent/no-creds/no-network; brain proposals (harness-LLM driven) land PENDING/
+      governed (ai_proposed, untrusted, needs approval); OAF makes zero model calls.
 - [ ] Phase L: a per-language precision/recall table + final count (honest, with any language stopped + why).
 - [ ] Phase V: the redesigned `oaf ui` graph passes its gate — renders graph, search/filter/focus/detail/
       history all wired, governed encodings present, ZERO CDN/external requests; works on a real repo.
