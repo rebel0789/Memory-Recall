@@ -3,8 +3,9 @@
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{SecondsFormat, Utc};
 use oaf_ingest::{
-    discover_file_hashes, extract_repo, report_quality_fields, retirement_facts, IngestFileHash,
-    IngestOptions, DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_MEMORY_BYTES,
+    discover_file_hashes, extract_code_fingerprints, extract_repo, report_quality_fields,
+    retirement_facts, CodeFingerprint, IngestFileHash, IngestOptions, CODE_MINHASH_K,
+    DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_MEMORY_BYTES,
 };
 use oaf_store::{
     ActiveFactSnapshot, ApproveReport, BatchFact, BatchReport, SearchMode, Store, StoreOptions,
@@ -42,6 +43,8 @@ fn run() -> Result<()> {
         Some("mcp") => mcp_command(&args[1..]),
         Some("ingest") => ingest_command(&args[1..]),
         Some("cross-repo") => cross_repo_command(&args[1..]),
+        Some("similarity") => similarity_command(&args[1..]),
+        Some("dead-code") => dead_code_command(&args[1..]),
         Some("search") => search_command(&args[1..]),
         Some("graph") => graph_command(&args[1..]),
         Some("query") => query_command(&args[1..]),
@@ -2559,6 +2562,360 @@ fn cross_repo_report(
         "safeguards": safeguards(false, report.recorded_count > 0, 0),
         "reportFingerprint": Value::Null
     }))
+}
+
+fn similarity_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let mut options = IngestOptions::new(&config.root);
+    options.max_memory_bytes = parse_memory_bytes(args)?;
+    options.max_file_bytes = parse_file_bytes(args)?;
+    let fingerprints = extract_code_fingerprints(&options)?;
+    let (facts, edges, stats) = similar_to_facts(&fingerprints);
+    let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    let report = store.remember_batch(&config.root, &config.scope, &facts)?;
+    print_json(similarity_report(
+        &config,
+        report,
+        edges,
+        stats,
+        fingerprints.len(),
+    ));
+    Ok(())
+}
+
+fn dead_code_command(args: &[String]) -> Result<()> {
+    ensure_json(args)?;
+    let config = CliConfig::from_args(args)?;
+    let limit = parse_usize_option(args, "--limit", 50, 1, 500);
+    let store = Store::open_read_only(&config.sqlite_abs, config.store_options())?;
+    let active = store.active_ingest_facts(&config.scope)?;
+    print_json(dead_code_report(&config, &active, limit));
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct SimilarEdge {
+    subject: String,
+    object: String,
+    source: String,
+    target_source: String,
+    language: String,
+    jaccard: f64,
+}
+
+#[derive(Debug, Default, Clone)]
+struct SimilarStats {
+    bucket_count: usize,
+    candidate_pair_count: usize,
+    cross_language_candidate_count: usize,
+    below_threshold_count: usize,
+    similar_edge_count: usize,
+}
+
+const SIMILAR_JACCARD_THRESHOLD: f64 = 0.95;
+const SIMILAR_LSH_BANDS: usize = 32;
+const SIMILAR_LSH_ROWS: usize = 2;
+const SIMILAR_MAX_BUCKET: usize = 200;
+const SIMILAR_MAX_EDGES_PER_SYMBOL: usize = 10;
+
+fn similar_to_facts(
+    fingerprints: &[CodeFingerprint],
+) -> (Vec<BatchFact>, Vec<SimilarEdge>, SimilarStats) {
+    let mut stats = SimilarStats::default();
+    if fingerprints.len() < 2 {
+        return (Vec::new(), Vec::new(), stats);
+    }
+
+    let mut buckets = BTreeMap::<(usize, u64), Vec<usize>>::new();
+    for (index, fingerprint) in fingerprints.iter().enumerate() {
+        for band in 0..SIMILAR_LSH_BANDS {
+            buckets
+                .entry((band, lsh_band_hash(&fingerprint.minhash, band)))
+                .or_default()
+                .push(index);
+        }
+    }
+    stats.bucket_count = buckets.len();
+
+    let mut pairs = BTreeSet::<(usize, usize)>::new();
+    for bucket in buckets.values() {
+        if bucket.len() < 2 || bucket.len() > SIMILAR_MAX_BUCKET {
+            continue;
+        }
+        for left_index in 0..bucket.len() {
+            for right_index in (left_index + 1)..bucket.len() {
+                let left = bucket[left_index];
+                let right = bucket[right_index];
+                pairs.insert((left.min(right), left.max(right)));
+            }
+        }
+    }
+    stats.candidate_pair_count = pairs.len();
+
+    let mut facts = Vec::new();
+    let mut edges = Vec::new();
+    let mut edge_counts = BTreeMap::<String, usize>::new();
+    for (left_index, right_index) in pairs {
+        let left = &fingerprints[left_index];
+        let right = &fingerprints[right_index];
+        if left.subject == right.subject {
+            continue;
+        }
+        if left.language != right.language {
+            stats.cross_language_candidate_count += 1;
+            continue;
+        }
+        if edge_counts.get(&left.subject).copied().unwrap_or(0) >= SIMILAR_MAX_EDGES_PER_SYMBOL
+            || edge_counts.get(&right.subject).copied().unwrap_or(0) >= SIMILAR_MAX_EDGES_PER_SYMBOL
+        {
+            continue;
+        }
+        let jaccard = minhash_jaccard(&left.minhash, &right.minhash);
+        if jaccard < SIMILAR_JACCARD_THRESHOLD {
+            stats.below_threshold_count += 1;
+            continue;
+        }
+        *edge_counts.entry(left.subject.clone()).or_default() += 1;
+        *edge_counts.entry(right.subject.clone()).or_default() += 1;
+        stats.similar_edge_count += 1;
+        facts.push(BatchFact {
+            subject: left.subject.clone(),
+            predicate: "SIMILAR_TO".to_string(),
+            object: right.subject.clone(),
+            source: left.source.clone(),
+            source_trust: Some("verified".to_string()),
+            confidence: Some("extracted".to_string()),
+            notes: Some(format!(
+                "oaf.similarity:minhash-lsh:jaccard={:.3}:target_source={}",
+                jaccard, right.source
+            )),
+            supersedes: None,
+        });
+        edges.push(SimilarEdge {
+            subject: left.subject.clone(),
+            object: right.subject.clone(),
+            source: left.source.clone(),
+            target_source: right.source.clone(),
+            language: left.language.clone(),
+            jaccard,
+        });
+    }
+    (facts, edges, stats)
+}
+
+fn lsh_band_hash(signature: &[u64; CODE_MINHASH_K], band: usize) -> u64 {
+    let start = band * SIMILAR_LSH_ROWS;
+    let mut hasher = Sha256::new();
+    for value in &signature[start..start + SIMILAR_LSH_ROWS] {
+        hasher.update(value.to_le_bytes());
+    }
+    let digest = hasher.finalize();
+    u64::from_le_bytes(digest[..8].try_into().unwrap())
+}
+
+fn minhash_jaccard(left: &[u64; CODE_MINHASH_K], right: &[u64; CODE_MINHASH_K]) -> f64 {
+    let matches = left
+        .iter()
+        .zip(right.iter())
+        .filter(|(left, right)| left == right)
+        .count();
+    matches as f64 / CODE_MINHASH_K as f64
+}
+
+fn similarity_report(
+    config: &CliConfig,
+    report: BatchReport,
+    edges: Vec<SimilarEdge>,
+    stats: SimilarStats,
+    fingerprint_count: usize,
+) -> Value {
+    let edge_preview = edges
+        .iter()
+        .take(50)
+        .map(|edge| {
+            json!({
+                "subject": edge.subject,
+                "predicate": "SIMILAR_TO",
+                "object": edge.object,
+                "source": edge.source,
+                "targetSource": edge.target_source,
+                "language": edge.language,
+                "jaccard": round3(edge.jaccard)
+            })
+        })
+        .collect::<Vec<_>>();
+    let proposal_preview = report
+        .proposal_facts
+        .iter()
+        .take(50)
+        .cloned()
+        .collect::<Vec<_>>();
+    with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "similarity",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": source_block(config),
+        "summary": {
+            "fingerprintCount": fingerprint_count,
+            "candidatePairCount": stats.candidate_pair_count,
+            "similarEdgeCount": stats.similar_edge_count,
+            "proposalCount": report.recorded_count,
+            "skippedDuplicateCount": report.skipped_duplicate_count,
+            "activeMemoryCreated": 0
+        },
+        "quality": {
+            "minhashK": CODE_MINHASH_K,
+            "lshBands": SIMILAR_LSH_BANDS,
+            "lshRows": SIMILAR_LSH_ROWS,
+            "jaccardThreshold": SIMILAR_JACCARD_THRESHOLD,
+            "bucketCount": stats.bucket_count,
+            "crossLanguageCandidateCount": stats.cross_language_candidate_count,
+            "belowThresholdCount": stats.below_threshold_count,
+            "maxEdgesPerSymbol": SIMILAR_MAX_EDGES_PER_SYMBOL
+        },
+        "similarEdges": edge_preview,
+        "similarEdgesOmittedCount": edges.len().saturating_sub(50),
+        "proposalFacts": proposal_preview,
+        "proposalFactsOmittedCount": report.recorded_count.saturating_sub(50),
+        "safeguards": safeguards(false, report.recorded_count > 0, 0),
+        "reportFingerprint": Value::Null
+    }))
+}
+
+fn dead_code_report(config: &CliConfig, active: &[ActiveFactSnapshot], limit: usize) -> Value {
+    let mut symbols = BTreeMap::<String, (String, String)>::new();
+    let mut incoming = BTreeMap::<String, usize>::new();
+    let mut outgoing = BTreeMap::<String, usize>::new();
+    let mut handlers = BTreeSet::<String>::new();
+    let mut exports = BTreeSet::<String>::new();
+
+    for fact in active {
+        if fact.predicate == "IS_A" && matches!(fact.object.as_str(), "Function" | "Method") {
+            symbols
+                .entry(fact.subject.clone())
+                .or_insert_with(|| (fact.object.clone(), fact.source.clone()));
+        }
+        if fact.predicate == "DEFINES"
+            && (fact.object.starts_with("function:") || fact.object.starts_with("method:"))
+        {
+            symbols.entry(fact.object.clone()).or_insert_with(|| {
+                (
+                    ci_symbol_kind(&fact.object).to_string(),
+                    fact.source.clone(),
+                )
+            });
+            if fact.subject == "module:index" || fact.subject.ends_with("_index") {
+                exports.insert(fact.object.clone());
+            }
+        }
+        if fact.predicate == "CALLS" {
+            *outgoing.entry(fact.subject.clone()).or_default() += 1;
+            *incoming.entry(fact.object.clone()).or_default() += 1;
+        }
+        if fact.predicate == "HANDLES" {
+            handlers.insert(fact.subject.clone());
+        }
+    }
+
+    let mut rows = Vec::new();
+    let mut excluded_entry_points = 0usize;
+    for (symbol, (kind, source)) in symbols {
+        let incoming_count = incoming.get(&symbol).copied().unwrap_or(0);
+        let outgoing_count = outgoing.get(&symbol).copied().unwrap_or(0);
+        if incoming_count > 0 {
+            continue;
+        }
+        let exclusion =
+            dead_code_entrypoint_reason(&symbol, &source, outgoing_count, &handlers, &exports);
+        if exclusion.is_some() {
+            excluded_entry_points += 1;
+            continue;
+        }
+        rows.push(json!({
+            "symbol": symbol,
+            "kind": kind.to_ascii_lowercase(),
+            "sourceRef": source,
+            "incomingCallCount": incoming_count,
+            "outgoingCallCount": outgoing_count,
+            "reasonCodes": ["zero_incoming_calls", "entrypoint_exclusions_passed"]
+        }));
+    }
+    rows.sort_by(|left, right| {
+        value_str(left, "sourceRef")
+            .cmp(value_str(right, "sourceRef"))
+            .then_with(|| value_str(left, "symbol").cmp(value_str(right, "symbol")))
+    });
+    let total = rows.len();
+    let rows = rows.into_iter().take(limit).collect::<Vec<_>>();
+    with_fingerprint(json!({
+        "schemaVersion": "1.0.0",
+        "command": "dead-code",
+        "generatedAt": config.now,
+        "workspaceId": config.workspace_id,
+        "source": source_block(config),
+        "summary": {
+            "candidateCount": total,
+            "returnedCount": rows.len(),
+            "excludedEntryPointCount": excluded_entry_points,
+            "activeMemoryCreated": 0
+        },
+        "deadCode": rows,
+        "deadCodeOmittedCount": total.saturating_sub(limit),
+        "safeguards": safeguards(true, false, 0),
+        "reportFingerprint": Value::Null
+    }))
+}
+
+fn dead_code_entrypoint_reason(
+    symbol: &str,
+    source: &str,
+    outgoing_count: usize,
+    handlers: &BTreeSet<String>,
+    exports: &BTreeSet<String>,
+) -> Option<&'static str> {
+    let lower_symbol = symbol.to_ascii_lowercase();
+    let lower_source = source.to_ascii_lowercase();
+    if matches!(
+        lower_symbol.as_str(),
+        "function:main" | "function:run" | "function:start"
+    ) || (lower_symbol.ends_with(":main") || lower_symbol.ends_with("_main"))
+    {
+        return Some("entrypoint_main");
+    }
+    if handlers.contains(symbol) {
+        return Some("entrypoint_route_handler");
+    }
+    if exports.contains(symbol)
+        || lower_source.ends_with("/index.js")
+        || lower_source.ends_with("/index.ts")
+    {
+        return Some("entrypoint_export");
+    }
+    if lower_symbol.contains("test")
+        || lower_source.contains("/test")
+        || lower_source.contains(".test.")
+        || lower_source.contains("_test.")
+    {
+        return Some("entrypoint_test");
+    }
+    if outgoing_count > 0 {
+        return Some("entrypoint_root_caller");
+    }
+    None
+}
+
+fn ci_symbol_kind(subject: &str) -> &'static str {
+    if subject.starts_with("method:") {
+        "Method"
+    } else {
+        "Function"
+    }
+}
+
+fn round3(value: f64) -> f64 {
+    (value * 1000.0).round() / 1000.0
 }
 
 fn source_block(config: &CliConfig) -> Value {

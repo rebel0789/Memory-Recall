@@ -45,6 +45,18 @@ pub struct IngestFileHash {
     pub bytes: u64,
 }
 
+pub const CODE_MINHASH_K: usize = 64;
+
+#[derive(Debug, Clone)]
+pub struct CodeFingerprint {
+    pub subject: String,
+    pub source: String,
+    pub language: String,
+    pub minhash: [u64; CODE_MINHASH_K],
+    pub token_count: usize,
+    pub feature_count: usize,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IngestReport {
     pub scanned_file_count: usize,
@@ -520,6 +532,26 @@ pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHas
     Ok(hashes)
 }
 
+pub fn extract_code_fingerprints(options: &IngestOptions) -> Result<Vec<CodeFingerprint>> {
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "fingerprint root must point at a local workspace directory: {}",
+            options.root.display()
+        )
+    })?;
+    let (jobs, _skipped_files, _scanned_file_count) = discover_jobs(&root, options)?;
+    let mut fingerprints = Vec::new();
+    for job in jobs {
+        fingerprints.extend(extract_file_fingerprints(job)?);
+    }
+    fingerprints.sort_by(|left, right| {
+        left.subject
+            .cmp(&right.subject)
+            .then_with(|| left.source.cmp(&right.source))
+    });
+    Ok(fingerprints)
+}
+
 pub fn retirement_facts(active: &[ActiveFactSnapshot], extracted: &[BatchFact]) -> Vec<BatchFact> {
     let current = extracted
         .iter()
@@ -983,6 +1015,134 @@ fn parse_file_job(job: FileJob) -> Result<FileParse> {
         parsed: Some(parsed),
         skipped: None,
     })
+}
+
+fn extract_file_fingerprints(job: FileJob) -> Result<Vec<CodeFingerprint>> {
+    let bytes = fs::read(&job.path).with_context(|| format!("read {}", job.source))?;
+    let mut parser = Parser::new();
+    parser
+        .set_language(&job.lang.language())
+        .with_context(|| format!("load parser for {}", job.source))?;
+    let tree = parser
+        .parse(&bytes, None)
+        .with_context(|| format!("parse {}", job.source))?;
+    if tree.root_node().has_error() {
+        return Ok(Vec::new());
+    }
+    let module = format!("module:{}", module_token(&job.rel));
+    let context = WalkContext {
+        module,
+        source: job.source,
+        lang: job.lang,
+        class_name: None,
+        impl_name: None,
+        caller: None,
+        type_bindings: BTreeMap::new(),
+    };
+    let mut out = Vec::new();
+    walk_fingerprint_nodes(tree.root_node(), &bytes, &context, &mut out);
+    Ok(out)
+}
+
+fn walk_fingerprint_nodes(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+    out: &mut Vec<CodeFingerprint>,
+) {
+    let mut next = context.clone();
+    if let Some(class_name) = class_name(node, source, context.lang) {
+        next.class_name = Some(class_name);
+    }
+    if context.lang == LangKind::Rust && node.kind() == "impl_item" {
+        next.impl_name = rust_impl_name(node, source);
+    }
+    if let Some((_name, subject, _kind)) = callable_definition(node, source, context) {
+        if let Some((minhash, token_count, feature_count)) = code_minhash(node) {
+            out.push(CodeFingerprint {
+                subject,
+                source: context.source.clone(),
+                language: context.lang.group().to_string(),
+                minhash,
+                token_count,
+                feature_count,
+            });
+        }
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            walk_fingerprint_nodes(child, source, &next, out);
+        }
+    }
+}
+
+fn code_minhash(node: Node<'_>) -> Option<([u64; CODE_MINHASH_K], usize, usize)> {
+    let mut tokens = Vec::new();
+    collect_leaf_tokens(node, &mut tokens);
+    if tokens.len() < 30 {
+        return None;
+    }
+    let mut features = BTreeSet::new();
+    for window in tokens.windows(3) {
+        let weight = window
+            .iter()
+            .filter(|token| !matches!(token.as_str(), "I" | "S" | "N" | "T"))
+            .count();
+        if weight == 0 {
+            continue;
+        }
+        features.insert(format!("{}|{}|{}", window[0], window[1], window[2]));
+    }
+    if features.len() < 16 {
+        return None;
+    }
+    let mut signature = [u64::MAX; CODE_MINHASH_K];
+    for feature in &features {
+        for (index, slot) in signature.iter_mut().enumerate() {
+            *slot = (*slot).min(stable_hash64(&[feature, &format!("code-minhash:{index}")]));
+        }
+    }
+    Some((signature, tokens.len(), features.len()))
+}
+
+fn collect_leaf_tokens(node: Node<'_>, out: &mut Vec<String>) {
+    if node.child_count() == 0 {
+        let kind = normalize_node_kind(node.kind());
+        if !kind.is_empty() {
+            out.push(kind.to_string());
+        }
+        return;
+    }
+    for index in 0..node.child_count() {
+        if let Some(child) = node.child(index) {
+            collect_leaf_tokens(child, out);
+        }
+    }
+}
+
+fn normalize_node_kind(kind: &str) -> &str {
+    match kind {
+        "identifier"
+        | "field_identifier"
+        | "property_identifier"
+        | "type_identifier"
+        | "shorthand_property_identifier"
+        | "shorthand_field_identifier"
+        | "variable_name"
+        | "name" => "I",
+        "string"
+        | "string_literal"
+        | "interpreted_string_literal"
+        | "raw_string_literal"
+        | "template_string"
+        | "string_content"
+        | "escape_sequence" => "S",
+        "number" | "integer" | "float" | "integer_literal" | "float_literal" | "int_literal"
+        | "number_literal" => "N",
+        "predefined_type" | "primitive_type" | "builtin_type" | "type_annotation"
+        | "simple_type" => "T",
+        other => other,
+    }
 }
 
 fn effective_worker_count(
@@ -1848,6 +2008,16 @@ fn short_hash(value: &str) -> String {
         .chars()
         .take(16)
         .collect()
+}
+
+fn stable_hash64(parts: &[&str]) -> u64 {
+    let mut hasher = Sha256::new();
+    for part in parts {
+        hasher.update((part.len() as u64).to_le_bytes());
+        hasher.update(part.as_bytes());
+    }
+    let digest = hasher.finalize();
+    u64::from_le_bytes(digest[..8].try_into().unwrap())
 }
 
 #[cfg(test)]
