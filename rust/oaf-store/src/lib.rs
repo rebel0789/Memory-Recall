@@ -486,7 +486,7 @@ impl Store {
                     fingerprint,
                     proposal.source_locator,
                     proposal.source_hash,
-                    serde_json::to_string(&proposal.payload)?,
+                    proposal.payload_json.clone(),
                     proposal.enqueued_at,
                     self.now
                 ])?;
@@ -1819,7 +1819,7 @@ impl Store {
                 fingerprint,
                 proposal.source_locator,
                 proposal.source_hash,
-                serde_json::to_string(&proposal.payload)?,
+                proposal.payload_json.clone(),
                 proposal.enqueued_at,
                 self.now
             ],
@@ -3611,9 +3611,11 @@ struct NormalizedBatchFact {
 #[derive(Debug, Clone)]
 struct ProposalInput {
     id: String,
+    fingerprint: String,
     source_locator: String,
     source_hash: String,
     enqueued_at: String,
+    payload_json: String,
     payload: Value,
 }
 
@@ -3679,30 +3681,9 @@ fn build_proposal_input(
     supersedes_object: Option<&str>,
 ) -> Result<ProposalInput> {
     let text = format!("{subject} {predicate} {object}");
-    let source_hash = format!(
-        "sha256:{}",
-        sha256_hex(&canonical_json(&json!({
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "source": source
-        })))
-    );
-    let id = format!(
-        "mpq_{}",
-        &sha256_hex(&canonical_json(&json!({
-            "workspaceId": workspace_id,
-            "scope": scope,
-            "subject": subject,
-            "predicate": predicate,
-            "object": object,
-            "sourceHash": source_hash
-        })))[..32]
-    );
-    let episode_id = deterministic_id(
-        "mep",
-        &json!({ "workspaceId": workspace_id, "source": source, "sourceHash": source_hash, "text": text }),
-    );
+    let source_hash = source_hash_for_fact(subject, predicate, object, source);
+    let id = proposal_id_from_parts(workspace_id, scope, subject, predicate, object, &source_hash);
+    let episode_id = episode_id_from_parts(workspace_id, source, &source_hash, &text);
     let mut payload = json!({
         "kind": "fact",
         "scope": scope,
@@ -3732,11 +3713,20 @@ fn build_proposal_input(
             source_trust,
         );
     }
+    let payload_json = serde_json::to_string(&payload)?;
+    let fingerprint = proposal_fingerprint_from_parts(
+        workspace_id,
+        source,
+        &source_hash,
+        &canonical_json(&payload),
+    );
     Ok(ProposalInput {
         id,
+        fingerprint,
         source_locator: source.to_string(),
         source_hash: source_hash.clone(),
         enqueued_at: enqueued_at.to_string(),
+        payload_json,
         payload,
     })
 }
@@ -3766,12 +3756,81 @@ fn proposal_row_to_value(row: &rusqlite::Row<'_>) -> rusqlite::Result<Value> {
 }
 
 fn proposal_fingerprint(workspace_id: &str, proposal: &ProposalInput) -> String {
-    sha256_hex(&canonical_json(&json!({
-        "workspaceId": workspace_id,
-        "sourceLocator": proposal.source_locator,
-        "sourceHash": proposal.source_hash,
-        "payload": proposal.payload
-    })))
+    debug_assert_eq!(
+        proposal.fingerprint,
+        proposal_fingerprint_from_parts(
+            workspace_id,
+            &proposal.source_locator,
+            &proposal.source_hash,
+            &canonical_json(&proposal.payload),
+        )
+    );
+    proposal.fingerprint.clone()
+}
+
+fn proposal_fingerprint_from_parts(
+    workspace_id: &str,
+    source_locator: &str,
+    source_hash: &str,
+    payload_canonical_json: &str,
+) -> String {
+    sha256_hex(&format!(
+        "{{\"payload\":{},\"sourceHash\":{},\"sourceLocator\":{},\"workspaceId\":{}}}",
+        payload_canonical_json,
+        serde_json::to_string(source_hash).unwrap(),
+        serde_json::to_string(source_locator).unwrap(),
+        serde_json::to_string(workspace_id).unwrap()
+    ))
+}
+
+fn source_hash_for_fact(subject: &str, predicate: &str, object: &str, source: &str) -> String {
+    format!(
+        "sha256:{}",
+        sha256_hex(&canonical_string_object(&[
+            ("object", object),
+            ("predicate", predicate),
+            ("source", source),
+            ("subject", subject),
+        ]))
+    )
+}
+
+fn proposal_id_from_parts(
+    workspace_id: &str,
+    scope: &str,
+    subject: &str,
+    predicate: &str,
+    object: &str,
+    source_hash: &str,
+) -> String {
+    format!(
+        "mpq_{}",
+        &sha256_hex(&canonical_string_object(&[
+            ("object", object),
+            ("predicate", predicate),
+            ("scope", scope),
+            ("sourceHash", source_hash),
+            ("subject", subject),
+            ("workspaceId", workspace_id),
+        ]))[..32]
+    )
+}
+
+fn episode_id_from_parts(
+    workspace_id: &str,
+    source: &str,
+    source_hash: &str,
+    text: &str,
+) -> String {
+    format!(
+        "mep_{}",
+        &sha256_hex(&canonical_string_object(&[
+            ("source", source),
+            ("sourceHash", source_hash),
+            ("text", text),
+            ("workspaceId", workspace_id),
+        ]))[..32]
+    )
 }
 
 fn summarize_proposal_input(
@@ -4753,6 +4812,21 @@ fn canonical_json(value: &Value) -> String {
     }
 }
 
+fn canonical_string_object(fields: &[(&str, &str)]) -> String {
+    format!(
+        "{{{}}}",
+        fields
+            .iter()
+            .map(|(key, value)| format!(
+                "{}:{}",
+                serde_json::to_string(key).unwrap(),
+                serde_json::to_string(value).unwrap()
+            ))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
 fn add_milliseconds(iso: &str, amount: i64) -> Result<String> {
     let parsed = chrono::DateTime::parse_from_rfc3339(iso)?;
     Ok((parsed + chrono::Duration::milliseconds(amount))
@@ -4786,4 +4860,78 @@ fn policy_receipt(decision: &str, reason: &str, source_trust: &str) -> Value {
         "modelCalls": 0,
         "networkCalls": 0
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn proposal_cached_serializations_match_canonical_paths() {
+        let proposal = build_proposal_input(
+            "ws_local",
+            "workspace",
+            "method:Runner_run",
+            "CALLS",
+            "method:Worker_run",
+            "workspace://src/Worker.java",
+            "2026-06-29T00:00:00.000Z",
+            "2026-06-29T00:00:00.001Z",
+            "extracted",
+            Some("oaf.ingest:typed-call-java"),
+            "verified",
+            false,
+            None,
+        )
+        .unwrap();
+
+        let old_fingerprint = sha256_hex(&canonical_json(&json!({
+            "workspaceId": "ws_local",
+            "sourceLocator": proposal.source_locator,
+            "sourceHash": proposal.source_hash,
+            "payload": proposal.payload
+        })));
+        let old_source_hash = format!(
+            "sha256:{}",
+            sha256_hex(&canonical_json(&json!({
+                "subject": "method:Runner_run",
+                "predicate": "CALLS",
+                "object": "method:Worker_run",
+                "source": "workspace://src/Worker.java"
+            })))
+        );
+        let old_id = format!(
+            "mpq_{}",
+            &sha256_hex(&canonical_json(&json!({
+                "workspaceId": "ws_local",
+                "scope": "workspace",
+                "subject": "method:Runner_run",
+                "predicate": "CALLS",
+                "object": "method:Worker_run",
+                "sourceHash": old_source_hash
+            })))[..32]
+        );
+        let old_episode_id = deterministic_id(
+            "mep",
+            &json!({
+                "workspaceId": "ws_local",
+                "source": "workspace://src/Worker.java",
+                "sourceHash": old_source_hash,
+                "text": "method:Runner_run CALLS method:Worker_run"
+            }),
+        );
+
+        assert_eq!(proposal.payload_json, serde_json::to_string(&proposal.payload).unwrap());
+        assert_eq!(proposal.source_hash, old_source_hash);
+        assert_eq!(proposal.id, old_id);
+        assert_eq!(
+            proposal
+                .payload
+                .get("provenanceEpisodeId")
+                .and_then(Value::as_str),
+            Some(old_episode_id.as_str())
+        );
+        assert_eq!(proposal.fingerprint, old_fingerprint);
+        assert_eq!(proposal_fingerprint("ws_local", &proposal), old_fingerprint);
+    }
 }
