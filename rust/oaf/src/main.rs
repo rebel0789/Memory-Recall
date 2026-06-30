@@ -3,8 +3,8 @@
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{SecondsFormat, Utc};
 use oaf_ingest::{
-    extract_repo, report_quality_fields, retirement_facts, IngestOptions, DEFAULT_MAX_FILE_BYTES,
-    DEFAULT_MAX_MEMORY_BYTES,
+    discover_file_hashes, extract_repo, report_quality_fields, retirement_facts, IngestFileHash,
+    IngestOptions, DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_MEMORY_BYTES,
 };
 use oaf_store::{
     ActiveFactSnapshot, ApproveReport, BatchFact, BatchReport, SearchMode, Store, StoreOptions,
@@ -999,13 +999,64 @@ fn ingest_command(args: &[String]) -> Result<()> {
     options.max_memory_bytes = parse_memory_bytes(args)?;
     options.max_file_bytes = parse_file_bytes(args)?;
     options.workers = parse_workers(args)?;
+    let incremental = flag(args, "--incremental");
+    let (file_hashes, changed_sources, deleted_sources, unchanged_source_count) = if incremental {
+        let hash_options = options.clone();
+        let current_hashes = discover_file_hashes(&hash_options)?;
+        let store = Store::open(&config.sqlite_abs, config.store_options())?;
+        let active = store.active_ingest_facts(&config.scope)?;
+        let previous_hashes = active_hash_facts(&active);
+        let current_by_source = current_hashes
+            .iter()
+            .map(|hash| (hash.source.clone(), hash.sha256.clone()))
+            .collect::<BTreeMap<_, _>>();
+        let changed = current_hashes
+            .iter()
+            .filter(|hash| previous_hashes.get(&hash.source) != Some(&hash.sha256))
+            .map(|hash| hash.source.clone())
+            .collect::<BTreeSet<_>>();
+        let deleted = previous_hashes
+            .keys()
+            .filter(|source| !current_by_source.contains_key(*source))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let unchanged = current_hashes.len().saturating_sub(changed.len());
+        if !previous_hashes.is_empty() {
+            options.only_sources = Some(changed.clone());
+        }
+        (current_hashes, changed, deleted, unchanged)
+    } else {
+        (Vec::new(), BTreeSet::new(), BTreeSet::new(), 0)
+    };
     let mut extraction = extract_repo(&options)?;
-    if extraction.parsed_file_count == 0 {
+    if extraction.parsed_file_count == 0 && (!incremental || !changed_sources.is_empty()) {
         bail!("ingest parsed no supported source files");
     }
     let mut store = Store::open(&config.sqlite_abs, config.store_options())?;
+    if incremental {
+        let changed_hashes = file_hashes
+            .iter()
+            .filter(|hash| changed_sources.contains(&hash.source))
+            .cloned()
+            .collect::<Vec<_>>();
+        extraction
+            .facts
+            .extend(incremental_hash_facts(&changed_hashes));
+    }
     let active = store.active_ingest_facts(&config.scope)?;
-    let retirements = retirement_facts(&active, &extraction.facts);
+    let active_for_retirement = if incremental {
+        active
+            .iter()
+            .filter(|fact| {
+                deleted_sources.contains(&fact.source)
+                    || (changed_sources.contains(&fact.source) && !is_content_hash_fact(fact))
+            })
+            .cloned()
+            .collect::<Vec<_>>()
+    } else {
+        active
+    };
+    let retirements = retirement_facts(&active_for_retirement, &extraction.facts);
     let retired_proposal_count = retirements.len();
     extraction.facts.extend(retirements);
     let report = store.remember_batch(&config.root, &config.scope, &extraction.facts)?;
@@ -1016,6 +1067,10 @@ fn ingest_command(args: &[String]) -> Result<()> {
         retired_proposal_count,
         options.max_memory_bytes,
         options.max_file_bytes,
+        incremental,
+        changed_sources.len(),
+        deleted_sources.len(),
+        unchanged_source_count,
     ));
     Ok(())
 }
@@ -1142,6 +1197,77 @@ fn source_repo(source: &str) -> Option<&str> {
         return None;
     }
     Some(repo)
+}
+
+fn active_hash_facts(active: &[ActiveFactSnapshot]) -> BTreeMap<String, String> {
+    active
+        .iter()
+        .filter(|fact| is_content_hash_fact(fact))
+        .map(|fact| (fact.source.clone(), fact.object.clone()))
+        .collect()
+}
+
+fn is_content_hash_fact(fact: &ActiveFactSnapshot) -> bool {
+    fact.subject.starts_with("file:")
+        && fact.predicate == "HAS_CONTENT_HASH"
+        && fact.object.len() == 64
+        && fact.object.chars().all(|ch| ch.is_ascii_hexdigit())
+}
+
+fn incremental_hash_facts(hashes: &[IngestFileHash]) -> Vec<BatchFact> {
+    hashes
+        .iter()
+        .map(|hash| BatchFact {
+            subject: file_subject_from_source(&hash.source),
+            predicate: "HAS_CONTENT_HASH".to_string(),
+            object: hash.sha256.clone(),
+            source: hash.source.clone(),
+            source_trust: Some("verified".to_string()),
+            confidence: Some("extracted".to_string()),
+            notes: Some("oaf.ingest:incremental-hash".to_string()),
+            supersedes: Some(oaf_store::Supersedes {
+                subject: file_subject_from_source(&hash.source),
+                predicate: "HAS_CONTENT_HASH".to_string(),
+                object: None,
+            }),
+        })
+        .collect()
+}
+
+fn file_subject_from_source(source: &str) -> String {
+    let rel = source.strip_prefix("workspace://").unwrap_or(source);
+    format!("file:{}", path_token(rel))
+}
+
+fn path_token(rel: &str) -> String {
+    sanitize_token(&rel.replace(['/', '.', '-'], "_")).unwrap_or_else(|| "root".to_string())
+}
+
+fn sanitize_token(value: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut last_underscore = false;
+    for ch in value.trim().chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch);
+            last_underscore = false;
+        } else if (ch == '_' || ch == '-') && !last_underscore && !out.is_empty() {
+            out.push('_');
+            last_underscore = true;
+        }
+    }
+    while out.ends_with('_') {
+        out.pop();
+    }
+    if out.is_empty() {
+        return None;
+    }
+    if out.chars().next().is_some_and(|ch| ch.is_ascii_digit()) {
+        out.insert(0, 'n');
+    }
+    if out.len() > 96 {
+        out.truncate(96);
+    }
+    Some(out)
 }
 
 fn memory_command(args: &[String]) -> Result<()> {
@@ -2300,6 +2426,10 @@ fn ingest_report(
     retired_proposal_count: usize,
     max_memory_bytes: u64,
     max_file_bytes: u64,
+    incremental: bool,
+    incremental_changed_source_count: usize,
+    incremental_deleted_source_count: usize,
+    incremental_unchanged_source_count: usize,
 ) -> Value {
     let proposal_fact_count = report.recorded_count;
     let proposal_preview = report
@@ -2334,7 +2464,11 @@ fn ingest_report(
             "parsedBytes": extraction.parsed_bytes,
             "requestedWorkerCount": extraction.requested_worker_count,
             "effectiveWorkerCount": extraction.effective_worker_count,
-            "elapsedMs": extraction.elapsed_ms
+            "elapsedMs": extraction.elapsed_ms,
+            "incremental": incremental,
+            "incrementalChangedSourceCount": incremental_changed_source_count,
+            "incrementalDeletedSourceCount": incremental_deleted_source_count,
+            "incrementalUnchangedSourceCount": incremental_unchanged_source_count
         },
         "quality": report_quality_fields(extraction),
         "proposalFacts": proposal_preview,
@@ -2361,7 +2495,8 @@ fn ingest_report(
             "unsafeBlocks": 0,
             "fdCap": extraction.effective_worker_count,
             "fdStrategy": "bounded-worker-files",
-            "largeFilesTruncated": false
+            "largeFilesTruncated": false,
+            "incremental": incremental
         },
         "reportFingerprint": Value::Null
     }))
@@ -2975,6 +3110,10 @@ fn parse_usize_option(
 fn option(args: &[String], flag: &str) -> Option<String> {
     args.windows(2)
         .find_map(|pair| (pair[0] == flag).then(|| pair[1].clone()))
+}
+
+fn flag(args: &[String], flag: &str) -> bool {
+    args.iter().any(|arg| arg == flag)
 }
 
 fn semantic_enabled(args: &[String]) -> bool {

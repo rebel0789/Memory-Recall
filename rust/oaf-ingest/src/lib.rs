@@ -23,6 +23,7 @@ pub struct IngestOptions {
     pub max_memory_bytes: u64,
     pub max_file_bytes: u64,
     pub workers: usize,
+    pub only_sources: Option<BTreeSet<String>>,
 }
 
 impl IngestOptions {
@@ -32,8 +33,16 @@ impl IngestOptions {
             max_memory_bytes: DEFAULT_MAX_MEMORY_BYTES,
             max_file_bytes: DEFAULT_MAX_FILE_BYTES,
             workers: 1,
+            only_sources: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngestFileHash {
+    pub source: String,
+    pub sha256: String,
+    pub bytes: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -226,12 +235,14 @@ impl ParsedRepo {
         let calls = std::mem::take(&mut self.calls);
         for call in calls {
             let (target, note) = self.resolve_call(&call);
-            self.add_entity(
-                target.clone(),
-                symbol_kind(&target),
-                &call.source,
-                "oaf.ingest:call-target",
-            );
+            if !self.has_definition_subject(&target) {
+                self.add_entity(
+                    target.clone(),
+                    symbol_kind(&target),
+                    &call.source,
+                    "oaf.ingest:call-target",
+                );
+            }
             self.add_fact(call.caller, "CALLS", target, &call.source, note);
         }
         self.facts
@@ -296,6 +307,12 @@ impl ParsedRepo {
                 .unwrap_or_else(|| format!("function:{name}")),
             None => format!("function:{name}"),
         }
+    }
+
+    fn has_definition_subject(&self, subject: &str) -> bool {
+        self.definitions_by_name
+            .values()
+            .any(|subjects| subjects.contains(subject))
     }
 
     fn merge(&mut self, other: ParsedRepo) {
@@ -487,6 +504,22 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
     })
 }
 
+pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHash>> {
+    let (jobs, _skipped, _scanned) = discover_jobs(&options.root, options)?;
+    let mut hashes = Vec::with_capacity(jobs.len());
+    for job in jobs {
+        let bytes = fs::read(&job.path).with_context(|| format!("read {}", job.source))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        hashes.push(IngestFileHash {
+            source: job.source,
+            sha256: hex::encode(hasher.finalize()),
+            bytes: bytes.len() as u64,
+        });
+    }
+    Ok(hashes)
+}
+
 pub fn retirement_facts(active: &[ActiveFactSnapshot], extracted: &[BatchFact]) -> Vec<BatchFact> {
     let current = extracted
         .iter()
@@ -602,6 +635,13 @@ fn discover_jobs(
         scanned_file_count += 1;
         let rel = workspace_rel(root, path)?;
         let source = format!("workspace://{rel}");
+        if options
+            .only_sources
+            .as_ref()
+            .is_some_and(|sources| !sources.contains(&source))
+        {
+            continue;
+        }
         let metadata = fs::metadata(path).with_context(|| format!("stat {source}"))?;
         let bytes = metadata.len();
         if bytes > options.max_file_bytes {
