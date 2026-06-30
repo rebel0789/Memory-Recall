@@ -66,7 +66,10 @@ pub struct SkippedFile {
 struct ParsedRepo {
     facts: BTreeSet<FactKey>,
     calls: Vec<CallRef>,
+    imports: Vec<ImportRef>,
+    routes: Vec<RouteRef>,
     definitions_by_name: BTreeMap<String, BTreeSet<String>>,
+    package_entries: BTreeMap<String, String>,
     generated_call_count: usize,
     import_count: usize,
     definition_count: usize,
@@ -77,7 +80,10 @@ impl ParsedRepo {
         Self {
             facts: BTreeSet::new(),
             calls: Vec::new(),
+            imports: Vec::new(),
+            routes: Vec::new(),
             definitions_by_name: BTreeMap::new(),
+            package_entries: BTreeMap::new(),
             generated_call_count: 0,
             import_count: 0,
             definition_count: 0,
@@ -105,10 +111,10 @@ impl ParsedRepo {
         );
     }
 
-    fn add_import(&mut self, owner: &str, target: &str, source: &str) {
+    fn add_import(&mut self, owner: &str, target: ImportTarget, source: &str) {
         self.import_count += 1;
         self.add_entity(
-            target.to_string(),
+            target.fallback.clone(),
             "Module",
             source,
             "oaf.ingest:import-module",
@@ -116,10 +122,16 @@ impl ParsedRepo {
         self.add_fact(
             owner.to_string(),
             "IMPORTS",
-            target.to_string(),
+            target.fallback.clone(),
             source,
             "oaf.ingest:import",
         );
+        self.imports.push(ImportRef {
+            owner: owner.to_string(),
+            raw: target.raw,
+            fallback: target.fallback,
+            source: source.to_string(),
+        });
     }
 
     fn add_fact(
@@ -166,6 +178,50 @@ impl ParsedRepo {
     }
 
     fn finish(mut self) -> Vec<BatchFact> {
+        let imports = std::mem::take(&mut self.imports);
+        for import in imports {
+            if let Some(target) = self.resolve_import_target(&import) {
+                if target != import.fallback {
+                    self.add_entity(
+                        target.clone(),
+                        "Module",
+                        &import.source,
+                        "oaf.ingest:resolved-import-module",
+                    );
+                    self.add_fact(
+                        import.owner,
+                        "IMPORTS",
+                        target,
+                        &import.source,
+                        "oaf.ingest:resolved-import",
+                    );
+                }
+            }
+        }
+
+        let routes = std::mem::take(&mut self.routes);
+        for route in routes {
+            let route_id = route_id(&route.method, &route.path);
+            self.add_entity(route_id.clone(), "Route", &route.source, "oaf.ingest:route");
+            self.add_fact(
+                route_id.clone(),
+                "HAS_METHOD",
+                format!("method={}", route.method),
+                &route.source,
+                route.note,
+            );
+            self.add_fact(
+                route_id.clone(),
+                "HAS_PATH",
+                format!("path={}", route.path),
+                &route.source,
+                route.note,
+            );
+            if let Some(handler) = self.resolve_route_handler(&route) {
+                self.add_fact(handler, "HANDLES", route_id, &route.source, route.note);
+            }
+        }
+
         let calls = std::mem::take(&mut self.calls);
         for call in calls {
             let (target, note) = self.resolve_call(&call);
@@ -181,6 +237,26 @@ impl ParsedRepo {
             .into_iter()
             .map(FactKey::into_batch_fact)
             .collect()
+    }
+
+    fn resolve_import_target(&self, import: &ImportRef) -> Option<String> {
+        let source_rel = import
+            .source
+            .strip_prefix("workspace://")
+            .unwrap_or(&import.source);
+        resolve_relative_import(source_rel, &import.raw)
+            .or_else(|| resolve_package_import(&self.package_entries, &import.raw))
+            .map(|stem| format!("module:{}", module_token(&stem)))
+    }
+
+    fn resolve_route_handler(&self, route: &RouteRef) -> Option<String> {
+        if let Some(subject) = route.handler_subject.as_deref() {
+            return Some(subject.to_string());
+        }
+        route
+            .handler_name
+            .as_deref()
+            .and_then(|name| self.resolve_exact_symbol_name(name))
     }
 
     fn resolve_call(&self, call: &CallRef) -> (String, &'static str) {
@@ -224,16 +300,43 @@ impl ParsedRepo {
     fn merge(&mut self, other: ParsedRepo) {
         self.facts.extend(other.facts);
         self.calls.extend(other.calls);
+        self.imports.extend(other.imports);
+        self.routes.extend(other.routes);
         for (name, subjects) in other.definitions_by_name {
             self.definitions_by_name
                 .entry(name)
                 .or_default()
                 .extend(subjects);
         }
+        self.package_entries.extend(other.package_entries);
         self.generated_call_count += other.generated_call_count;
         self.import_count += other.import_count;
         self.definition_count += other.definition_count;
     }
+}
+
+#[derive(Debug, Clone)]
+struct ImportTarget {
+    raw: String,
+    fallback: String,
+}
+
+#[derive(Debug, Clone)]
+struct ImportRef {
+    owner: String,
+    raw: String,
+    fallback: String,
+    source: String,
+}
+
+#[derive(Debug, Clone)]
+struct RouteRef {
+    method: String,
+    path: String,
+    handler_subject: Option<String>,
+    handler_name: Option<String>,
+    source: String,
+    note: &'static str,
 }
 
 #[derive(Debug, Clone)]
@@ -336,9 +439,11 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         options.max_memory_bytes,
         cgroup_memory_limit_bytes,
     );
+    let package_entries = scan_package_entries(&root)?;
     let (jobs, mut skipped_files, scanned_file_count) = discover_jobs(&root, options)?;
     let results = parse_jobs(jobs, effective_worker_count)?;
     let mut parsed = ParsedRepo::new();
+    parsed.package_entries = package_entries;
     let mut parsed_file_count = 0usize;
     let mut parsed_bytes = 0u64;
     let mut language_counts = BTreeMap::new();
@@ -546,6 +651,187 @@ fn discover_jobs(
     Ok((jobs, skipped_files, scanned_file_count))
 }
 
+fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {
+    let mut entries = BTreeMap::new();
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+
+    for entry in builder.build() {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !is_manifest_name(name) {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
+        if metadata.len() > DEFAULT_MAX_FILE_BYTES {
+            continue;
+        }
+        let rel = workspace_rel(root, path)?;
+        let source = fs::read_to_string(path).with_context(|| format!("read manifest {rel}"))?;
+        parse_manifest_entries(name, &rel, &source, &mut entries);
+    }
+    Ok(entries)
+}
+
+fn is_manifest_name(name: &str) -> bool {
+    matches!(
+        name,
+        "package.json" | "Cargo.toml" | "pyproject.toml" | "go.mod"
+    )
+}
+
+fn parse_manifest_entries(
+    name: &str,
+    rel: &str,
+    source: &str,
+    entries: &mut BTreeMap<String, String>,
+) {
+    match name {
+        "package.json" => parse_package_json_entries(rel, source, entries),
+        "Cargo.toml" => parse_cargo_toml_entries(rel, source, entries),
+        "pyproject.toml" => parse_pyproject_toml_entries(rel, source, entries),
+        "go.mod" => parse_go_mod_entries(rel, source, entries),
+        _ => {}
+    }
+}
+
+fn parse_package_json_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Ok(root) = serde_json::from_str::<Value>(source) else {
+        return;
+    };
+    let Some(name) = root.get("name").and_then(Value::as_str) else {
+        return;
+    };
+    if name.trim().is_empty() {
+        return;
+    }
+    let entry = root
+        .get("exports")
+        .and_then(|exports| exports.get("."))
+        .and_then(package_export_entry)
+        .or_else(|| root.get("main").and_then(Value::as_str))
+        .or_else(|| root.get("module").and_then(Value::as_str))
+        .unwrap_or("src/index.ts");
+    if let Some(stem) = manifest_entry_stem(rel, entry) {
+        insert_package_entry(entries, name, &stem);
+    }
+}
+
+fn package_export_entry(value: &Value) -> Option<&str> {
+    if let Some(text) = value.as_str() {
+        return Some(text);
+    }
+    value
+        .get("import")
+        .and_then(Value::as_str)
+        .or_else(|| value.get("default").and_then(Value::as_str))
+        .or_else(|| value.get("require").and_then(Value::as_str))
+}
+
+fn parse_cargo_toml_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Some(name) = toml_section_name(source, "[package]") else {
+        return;
+    };
+    let Some(stem) = manifest_entry_stem(rel, "src/lib.rs") else {
+        return;
+    };
+    insert_package_entry(entries, &name, &stem);
+    insert_package_entry(entries, &name.replace('-', "_"), &stem);
+}
+
+fn parse_pyproject_toml_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Some(name) = toml_section_name(source, "[project]") else {
+        return;
+    };
+    let normalized = name.replace('-', "_");
+    let Some(stem) = manifest_entry_stem(rel, &format!("src/{normalized}")) else {
+        return;
+    };
+    insert_package_entry(entries, &normalized, &stem);
+}
+
+fn parse_go_mod_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Some(module_path) = source
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("module "))
+    else {
+        return;
+    };
+    let dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    insert_package_entry(
+        entries,
+        module_path.split_whitespace().next().unwrap_or(""),
+        dir,
+    );
+}
+
+fn toml_section_name(source: &str, section: &str) -> Option<String> {
+    let mut in_section = false;
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_section = trimmed == section;
+            continue;
+        }
+        if !in_section {
+            continue;
+        }
+        let Some(value) = trimmed
+            .strip_prefix("name")
+            .and_then(|rest| rest.trim_start().strip_prefix('='))
+        else {
+            continue;
+        };
+        return quoted_value(value.trim()).map(str::to_string);
+    }
+    None
+}
+
+fn quoted_value(value: &str) -> Option<&str> {
+    let quote = value.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let rest = &value[quote.len_utf8()..];
+    rest.find(quote).map(|index| &rest[..index])
+}
+
+fn manifest_entry_stem(rel: &str, entry: &str) -> Option<String> {
+    let dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    let entry = entry.trim().trim_start_matches("./");
+    let joined = if dir.is_empty() {
+        entry.to_string()
+    } else {
+        format!("{dir}/{entry}")
+    };
+    Some(strip_known_extension(&joined).to_string())
+}
+
+fn insert_package_entry(entries: &mut BTreeMap<String, String>, name: &str, stem: &str) {
+    let key = name.trim();
+    if key.is_empty() || stem.trim().is_empty() {
+        return;
+    }
+    entries
+        .entry(key.to_string())
+        .or_insert_with(|| stem.trim_matches('/').to_string());
+}
+
 fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>> {
     if worker_count <= 1 {
         return jobs.into_iter().map(parse_file_job).collect();
@@ -687,6 +973,9 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         node.kind(),
         "call_expression" | "call" | "method_invocation"
     ) {
+        if let Some(route) = route_registration(node, source, context) {
+            parsed.routes.push(route);
+        }
         if let Some(caller) = context.caller.as_deref() {
             if let Some(callee) = callee_name(node, source) {
                 let typed_target_name = typed_call_target(node, source, context);
@@ -697,7 +986,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
 
     if is_import_node(node.kind()) {
         for target in import_targets(node, source, context.lang) {
-            parsed.add_import(&context.module, &target, &context.source);
+            parsed.add_import(&context.module, target, &context.source);
         }
     }
 
@@ -759,6 +1048,9 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         } else {
             BTreeMap::new()
         };
+        if let Some(route) = callable_route(node, source, context, &next.caller.clone().unwrap()) {
+            parsed.routes.push(route);
+        }
     }
 
     for index in 0..node.named_child_count() {
@@ -939,6 +1231,185 @@ fn receiver_method(value: &str) -> Option<(String, String)> {
     Some((receiver, method))
 }
 
+fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<RouteRef> {
+    if !matches!(
+        context.lang,
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+    ) {
+        return None;
+    }
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let (receiver, method) = receiver_method(node_text(function, source))?;
+    if !matches!(receiver.as_str(), "app" | "router") {
+        return None;
+    }
+    let method = http_method(&method)?;
+    let text = node_text(node, source);
+    let path = first_quoted_route_path(text)?;
+    let handler_name = route_handler_name(text)?;
+    Some(RouteRef {
+        method,
+        path,
+        handler_subject: None,
+        handler_name: Some(handler_name),
+        source: context.source.clone(),
+        note: "oaf.ingest:route-express",
+    })
+}
+
+fn callable_route(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+    handler_subject: &str,
+) -> Option<RouteRef> {
+    if context.lang != LangKind::Python {
+        return None;
+    }
+    let parent = node.parent()?;
+    if parent.kind() != "decorated_definition" {
+        return None;
+    }
+    for line in node_text(parent, source).lines() {
+        let line = line.trim();
+        if !line.starts_with('@') {
+            continue;
+        }
+        if let Some((method, path)) = python_route_decorator(line) {
+            return Some(RouteRef {
+                method,
+                path,
+                handler_subject: Some(handler_subject.to_string()),
+                handler_name: None,
+                source: context.source.clone(),
+                note: "oaf.ingest:route-flask",
+            });
+        }
+    }
+    None
+}
+
+fn python_route_decorator(line: &str) -> Option<(String, String)> {
+    let before_paren = line.split_once('(')?.0;
+    let method = before_paren
+        .rsplit_once('.')
+        .and_then(|(_, method)| http_method(method))
+        .or_else(|| before_paren.ends_with(".route").then(|| "GET".to_string()))?;
+    let path = first_quoted_route_path(line)?;
+    let method = if before_paren.ends_with(".route") {
+        route_methods_argument(line).unwrap_or(method)
+    } else {
+        method
+    };
+    Some((method, path))
+}
+
+fn route_methods_argument(line: &str) -> Option<String> {
+    let methods = line.split("methods").nth(1)?;
+    for quoted in quoted_literals(methods) {
+        let method = quoted.to_ascii_uppercase();
+        if is_http_method(&method) {
+            return Some(method);
+        }
+    }
+    None
+}
+
+fn first_quoted_route_path(text: &str) -> Option<String> {
+    quoted_literals(text)
+        .into_iter()
+        .find(|value| value.starts_with('/'))
+        .map(|value| canon_route_path(&value))
+}
+
+fn route_handler_name(text: &str) -> Option<String> {
+    let args = text.split_once('(')?.1.rsplit_once(')')?.0;
+    let candidate = args.rsplit(',').next()?.trim();
+    if candidate.starts_with(['(', '{']) || candidate.contains("=>") {
+        return None;
+    }
+    sanitize_symbol(candidate)
+}
+
+fn http_method(value: &str) -> Option<String> {
+    let method = value.to_ascii_uppercase();
+    is_http_method(&method).then_some(method)
+}
+
+fn is_http_method(method: &str) -> bool {
+    matches!(
+        method,
+        "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD"
+    )
+}
+
+fn route_id(method: &str, path: &str) -> String {
+    let path_token = path
+        .trim_start_matches('/')
+        .replace(":param", "param")
+        .replace('/', "_");
+    let token = sanitize_symbol(&format!(
+        "{}_{}",
+        method,
+        if path_token.is_empty() {
+            "root".to_string()
+        } else {
+            path_token
+        }
+    ))
+    .unwrap_or_else(|| format!("{}_root", method));
+    format!("route:{token}")
+}
+
+fn canon_route_path(path: &str) -> String {
+    let mut out = String::new();
+    let mut chars = path.trim().chars().peekable();
+    while let Some(ch) = chars.next() {
+        let at_segment_start = out.is_empty() || out.ends_with('/');
+        if ch == ':' && at_segment_start && chars.peek().is_some_and(|next| is_route_ident(*next)) {
+            while chars.peek().is_some_and(|next| is_route_ident(*next)) {
+                chars.next();
+            }
+            out.push_str(":param");
+        } else if ch == '<' {
+            for next in chars.by_ref() {
+                if next == '>' || next == '/' {
+                    break;
+                }
+            }
+            out.push_str(":param");
+        } else if ch == '{' {
+            for next in chars.by_ref() {
+                if next == '}' || next == '/' {
+                    break;
+                }
+            }
+            out.push_str(":param");
+        } else if ch == '$' && chars.peek() == Some(&'{') {
+            chars.next();
+            for next in chars.by_ref() {
+                if next == '}' || next == '/' {
+                    break;
+                }
+            }
+            out.push_str(":param");
+        } else {
+            out.push(ch);
+        }
+    }
+    if out.is_empty() {
+        "/".to_string()
+    } else {
+        out
+    }
+}
+
+fn is_route_ident(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_'
+}
+
 fn is_import_node(kind: &str) -> bool {
     matches!(
         kind,
@@ -951,11 +1422,11 @@ fn is_import_node(kind: &str) -> bool {
     )
 }
 
-fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<String> {
+fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTarget> {
     let text = node_text(node, source);
     let mut out = Vec::new();
     for quoted in quoted_literals(text) {
-        if let Some(target) = module_from_import(&quoted) {
+        if let Some(target) = import_target_from_raw(&quoted) {
             out.push(target);
         }
     }
@@ -971,7 +1442,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<String> 
                             .strip_prefix("import ")
                             .and_then(|rest| rest.split([',', ' ']).next())
                     });
-                if let Some(raw) = raw.and_then(module_from_import) {
+                if let Some(raw) = raw.and_then(import_target_from_raw) {
                     out.push(raw);
                 }
             }
@@ -979,7 +1450,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<String> 
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("use ")
-                    .and_then(module_from_import)
+                    .and_then(import_target_from_raw)
                 {
                     out.push(raw);
                 }
@@ -988,7 +1459,7 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<String> 
                 if let Some(raw) = text
                     .trim()
                     .strip_prefix("import ")
-                    .and_then(module_from_import)
+                    .and_then(import_target_from_raw)
                 {
                     out.push(raw);
                 }
@@ -996,9 +1467,30 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<String> 
             _ => {}
         }
     }
-    out.sort();
-    out.dedup();
+    out.sort_by(|left, right| {
+        left.raw
+            .cmp(&right.raw)
+            .then(left.fallback.cmp(&right.fallback))
+    });
+    out.dedup_by(|left, right| left.raw == right.raw && left.fallback == right.fallback);
     out
+}
+
+fn import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    Some(ImportTarget {
+        raw: clean_import_raw(value)?,
+        fallback: module_from_import(value)?,
+    })
+}
+
+fn clean_import_raw(value: &str) -> Option<String> {
+    let trimmed = value
+        .trim()
+        .trim_matches(['"', '\'', '`', ';', '{', '}', '(', ')']);
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(trimmed.to_string())
 }
 
 fn module_from_import(value: &str) -> Option<String> {
@@ -1013,6 +1505,92 @@ fn module_from_import(value: &str) -> Option<String> {
         .split([':', '/', '.', ' ', ',', '{', '}'])
         .find(|part| !part.is_empty())?;
     sanitize_symbol(first).map(|token| format!("module:{token}"))
+}
+
+fn resolve_relative_import(source_rel: &str, raw: &str) -> Option<String> {
+    let raw = raw.trim();
+    if !raw.starts_with('.') {
+        return None;
+    }
+    let source_dir = source_rel
+        .rsplit_once('/')
+        .map(|(dir, _)| dir)
+        .unwrap_or("");
+    let mut parts = Vec::new();
+    for part in source_dir.split('/') {
+        if !part.is_empty() {
+            parts.push(part);
+        }
+    }
+    for part in raw.split(['/', '\\']) {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            value => parts.push(value),
+        }
+    }
+    let joined = parts.join("/");
+    Some(strip_known_extension(&joined).to_string())
+}
+
+fn resolve_package_import(entries: &BTreeMap<String, String>, raw: &str) -> Option<String> {
+    let raw = raw
+        .trim()
+        .trim_start_matches("crate::")
+        .trim_start_matches("self::")
+        .trim_start_matches("super::");
+    if raw.is_empty() {
+        return None;
+    }
+    if let Some(stem) = entries.get(raw) {
+        return Some(stem.clone());
+    }
+    for separator in ['/', '.', ':'] {
+        if let Some(stem) = resolve_package_prefix(entries, raw, separator) {
+            return Some(stem);
+        }
+    }
+    None
+}
+
+fn resolve_package_prefix(
+    entries: &BTreeMap<String, String>,
+    raw: &str,
+    separator: char,
+) -> Option<String> {
+    let mut split_points = raw
+        .char_indices()
+        .filter_map(|(index, ch)| (ch == separator).then_some(index))
+        .collect::<Vec<_>>();
+    split_points.reverse();
+    for index in split_points {
+        let prefix = &raw[..index];
+        let Some(stem) = entries.get(prefix) else {
+            continue;
+        };
+        if separator == '.' {
+            let suffix = raw[index + 1..].replace('.', "/");
+            if !suffix.is_empty() && !stem.ends_with("src/lib") && !stem.ends_with("src/index") {
+                return Some(format!("{stem}/{suffix}"));
+            }
+        }
+        return Some(stem.clone());
+    }
+    None
+}
+
+fn strip_known_extension(path: &str) -> &str {
+    for ext in [
+        ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py", ".rs", ".go", ".java", ".c", ".h",
+        ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx",
+    ] {
+        if let Some(stem) = path.strip_suffix(ext) {
+            return stem;
+        }
+    }
+    path
 }
 
 fn quoted_literals(value: &str) -> Vec<String> {
@@ -1182,7 +1760,7 @@ fn module_token(rel: &str) -> String {
 fn language_for_path(path: &Path) -> Option<LangKind> {
     match path.extension().and_then(|value| value.to_str())? {
         "js" | "jsx" | "mjs" | "cjs" => Some(LangKind::JavaScript),
-        "ts" => Some(LangKind::TypeScript),
+        "ts" | "mts" | "cts" => Some(LangKind::TypeScript),
         "tsx" => Some(LangKind::Tsx),
         "py" => Some(LangKind::Python),
         "rs" => Some(LangKind::Rust),
@@ -1292,6 +1870,92 @@ mod tests {
             Some("oaf.ingest:typed-call-python")
         )));
         assert!(!calls.contains(&("function:run", "function:inc", Some("oaf.ingest:call"))));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn emits_routes_and_resolved_imports() {
+        let root = std::env::temp_dir().join(format!("oaf-ingest-routes-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src/demo_app")).unwrap();
+        fs::write(
+            root.join("package.json"),
+            r#"{"name":"@acme/web","main":"src/index.js"}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("pyproject.toml"),
+            "[project]\nname = \"demo-app\"\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/index.js"),
+            [
+                "import { helper } from './helper.js';",
+                "function listUsers(req, res) {",
+                "  return helper();",
+                "}",
+                "app.get('/api/accounts/:id', listUsers);",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/helper.js"),
+            "export function helper() { return 1; }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/demo_app/app.py"),
+            [
+                "from flask import Flask",
+                "app = Flask(__name__)",
+                "@app.route('/items/<int:item_id>', methods=['POST'])",
+                "def create_item():",
+                "    return 'ok'",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/demo_app/client.py"),
+            "from demo_app.app import create_item\n",
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let facts = report
+            .facts
+            .iter()
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.predicate.as_str(),
+                    fact.object.as_str(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert!(facts.contains(&("route:GET_api_accounts_param", "IS_A", "Route")));
+        assert!(facts.contains(&(
+            "route:GET_api_accounts_param",
+            "HAS_PATH",
+            "path=/api/accounts/:param"
+        )));
+        assert!(facts.contains(&(
+            "function:listUsers",
+            "HANDLES",
+            "route:GET_api_accounts_param"
+        )));
+        assert!(facts.contains(&("route:POST_items_param", "IS_A", "Route")));
+        assert!(facts.contains(&("function:create_item", "HANDLES", "route:POST_items_param")));
+        assert!(facts.contains(&("module:src_index", "IMPORTS", "module:src_helper")));
+        assert!(facts.contains(&(
+            "module:src_demo_app_client",
+            "IMPORTS",
+            "module:src_demo_app_app"
+        )));
 
         fs::remove_dir_all(root).unwrap();
     }
