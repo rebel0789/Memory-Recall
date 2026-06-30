@@ -58,15 +58,30 @@ The harness LLM is expensive. The brain must be SPARING and is the LAST resort, 
 - ACCOUNTED + BUDGETED: track and REPORT brain token usage per run; enforce a per-operation budget; a
   brain-assisted session must cost a small fraction of naive per-item LLM extraction. Report the number.
 
-### A.1 Best-in-class detection + one-command setup (the "best easiest detection and setup" ask)
-- `oaf setup` (and `oaf setup --detect`): AUTO-DETECT every installed coding-agent harness on the machine
-  (Claude Code, Codex CLI, Cursor, Gemini CLI, VS Code/Copilot, Windsurf, Zed, Aider, Cline, Continue,
-  etc.) by their config files / env / known paths — print exactly what was found.
-- One command wires each detected harness: install the OAF MCP server entry + the oaf-memory skill +
-  instruction snippet + (where supported) a pre-tool hook — RECEIPT-FIRST + `--confirm`, idempotent,
-  exact uninstall, touches ONLY the agent's own config dirs, NO credential storage, NO external network
-  (the M6 / UI-3 install discipline). Support a `--dry-run`. Detect AND report which model each harness
-  uses (Codex→GPT, Claude Code→Opus/Sonnet, …) so the user sees which brain is linked.
+### A.1 Best-in-class, ponytail-simple install (the "best easiest detection and setup" ask)
+Study `https://github.com/DietrichGebert/ponytail` clean-room for the install model — it works across 16
+agents with TWO commands and a per-agent manifest set. Reimplement that simplicity for OAF (attribute in
+THIRD_PARTY):
+- NATIVE AGENT-PLUGIN distribution: ship OAF as an agent plugin via each agent's own marketplace/plugin
+  system, so a user installs with their agent's native command (e.g. Claude Code `/plugin marketplace add
+  rebel0789/open-agent-fabric` + `/plugin install`, `codex plugin marketplace add ...`, Copilot, etc.).
+  Generate the per-agent manifests like ponytail's (`.claude-plugin/marketplace.json` + `plugin.json`, a
+  codex plugin manifest, `gemini-extension.json`, `opencode.json`, `.cursor`, `.windsurf`, `.kiro`,
+  `plugin.yaml` declaring provided MCP/skills/commands/hooks). Each plugin wires the OAF MCP server + the
+  oaf-memory skill + slash commands.
+- INSTRUCTION-TIER FALLBACK for agents without a plugin system: drop a root `AGENTS.md` (and per-agent
+  `CLAUDE.md`/`.cursorrules`/`.github/copilot-instructions.md`) with OAF's MCP + skill instructions, so the
+  rules hold even without the plugin.
+- `oaf setup` (auto-detect alternative): detect every installed harness (Claude Code, Codex, Cursor, Gemini
+  CLI, VS Code/Copilot, Windsurf, Zed, Aider, Cline, Continue, ...) + report which MODEL each uses; wire the
+  MCP + skill + instructions RECEIPT-FIRST + `--confirm` + `--dry-run`, idempotent, exact uninstall, ONLY
+  agent config dirs, NO creds, NO network (the M6/UI-3 discipline).
+- TIERS (ponytail lite/full/ultra — but FEATURE tiers for OAF): `oaf setup --tier lite|full|ultra` (+ a
+  config defaultTier and a `/oaf` command to switch): LITE = governed recall + read-only memory MCP only
+  (minimal); FULL (default) = + code/docs ingestion + the oaf-memory skill + governance; ULTRA = +
+  conversational memory + connectors + wiki + brain graph-organization + loop governance (everything).
+- AGENT-PORTABILITY TABLE: write `docs/agent-portability.md` (like ponytail's) listing each agent and how
+  OAF installs (plugin-tier vs instruction-tier) + its tier support.
 ### A.2 Governed brain tasks (driven by the harness LLM via skill + MCP)
 Extend the oaf-memory skill + MCP tools so the host agent's model can: (a) ORGANIZE the graph — propose
 community labels, entity aliases/merges, inferred relationships; (b) extract governed facts from docs/
@@ -81,7 +96,12 @@ and that OAF itself makes zero model calls. TOKEN-SMART assertions (A.0): assert
 for tasks the deterministic path handles (a code-only / unchanged ingest triggers ZERO brain calls);
 assert caching (identical brain input does not re-call); assert incremental (only changed content can
 trigger the brain); assert brain token usage is tracked + reported + within a budget, and is a small
-fraction of a naive per-item baseline. Commit: `feat: harness detection + token-smart governed brain`.
+fraction of a naive per-item baseline. INSTALL assertions (A.1): assert the per-agent plugin manifests
+are generated and schema-valid (at least Claude Code `.claude-plugin/marketplace.json`+`plugin.json`,
+a codex plugin manifest, `gemini-extension.json`); assert the instruction-tier `AGENTS.md` fallback is
+written; assert `--tier lite|full|ultra` produces the right feature set (lite = recall-only MCP, ultra =
+all tools); assert `docs/agent-portability.md` lists the supported agents. Commit: `feat: ponytail-style
+plugin install + tiers + token-smart governed brain`.
 
 ## Phase L — Almost all languages
 Extend governed tree-sitter ingest toward broad coverage (currently ~17). Use your judgement to add as
