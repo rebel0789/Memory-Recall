@@ -146,7 +146,13 @@ impl ParsedRepo {
             .insert(subject.to_string());
     }
 
-    fn add_call(&mut self, caller: &str, callee_name: &str, source: &str) {
+    fn add_call_with_hint(
+        &mut self,
+        caller: &str,
+        callee_name: &str,
+        typed_target_name: Option<String>,
+        source: &str,
+    ) {
         if callee_name.is_empty() || callee_name == "require" || callee_name == "super" {
             return;
         }
@@ -154,6 +160,7 @@ impl ParsedRepo {
         self.calls.push(CallRef {
             caller: caller.to_string(),
             callee_name: callee_name.to_string(),
+            typed_target_name,
             source: source.to_string(),
         });
     }
@@ -161,25 +168,43 @@ impl ParsedRepo {
     fn finish(mut self) -> Vec<BatchFact> {
         let calls = std::mem::take(&mut self.calls);
         for call in calls {
-            let target = self.resolve_call_target(&call.callee_name);
+            let (target, note) = self.resolve_call(&call);
             self.add_entity(
                 target.clone(),
                 symbol_kind(&target),
                 &call.source,
                 "oaf.ingest:call-target",
             );
-            self.add_fact(
-                call.caller,
-                "CALLS",
-                target,
-                &call.source,
-                "oaf.ingest:call",
-            );
+            self.add_fact(call.caller, "CALLS", target, &call.source, note);
         }
         self.facts
             .into_iter()
             .map(FactKey::into_batch_fact)
             .collect()
+    }
+
+    fn resolve_call(&self, call: &CallRef) -> (String, &'static str) {
+        if let Some(target_name) = call.typed_target_name.as_deref() {
+            if let Some(target) = self.resolve_exact_symbol_name(target_name) {
+                return (target, "oaf.ingest:typed-call-python");
+            }
+        }
+        (
+            self.resolve_call_target(&call.callee_name),
+            "oaf.ingest:call",
+        )
+    }
+
+    fn resolve_exact_symbol_name(&self, name: &str) -> Option<String> {
+        let name = sanitize_symbol(name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        if subjects.len() == 1 {
+            return subjects.iter().next().cloned();
+        }
+        subjects
+            .iter()
+            .find(|subject| subject.starts_with("method:"))
+            .cloned()
     }
 
     fn resolve_call_target(&self, callee_name: &str) -> String {
@@ -215,6 +240,7 @@ impl ParsedRepo {
 struct CallRef {
     caller: String,
     callee_name: String,
+    typed_target_name: Option<String>,
     source: String,
 }
 
@@ -292,6 +318,7 @@ struct WalkContext {
     class_name: Option<String>,
     impl_name: Option<String>,
     caller: Option<String>,
+    type_bindings: BTreeMap<String, String>,
 }
 
 pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
@@ -612,6 +639,7 @@ fn parse_file_job(job: FileJob) -> Result<FileParse> {
         class_name: None,
         impl_name: None,
         caller: None,
+        type_bindings: BTreeMap::new(),
     };
     walk_node(tree.root_node(), &bytes, &context, &mut parsed);
     Ok(FileParse {
@@ -661,7 +689,8 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
     ) {
         if let Some(caller) = context.caller.as_deref() {
             if let Some(callee) = callee_name(node, source) {
-                parsed.add_call(caller, &callee, &context.source);
+                let typed_target_name = typed_call_target(node, source, context);
+                parsed.add_call_with_hint(caller, &callee, typed_target_name, &context.source);
             }
         }
     }
@@ -721,6 +750,15 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             parsed.add_symbol_name(bare, &subject);
         }
         next.caller = Some(subject);
+        next.type_bindings = if context.lang == LangKind::Python {
+            let mut bindings = python_type_bindings(node, source);
+            if let Some(class_name) = context.class_name.as_deref() {
+                bindings.insert("self".to_string(), class_name.to_string());
+            }
+            bindings
+        } else {
+            BTreeMap::new()
+        };
     }
 
     for index in 0..node.named_child_count() {
@@ -882,6 +920,25 @@ fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
     last_identifier(text).and_then(|name| sanitize_symbol(&name))
 }
 
+fn typed_call_target(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
+    if context.lang != LangKind::Python {
+        return None;
+    }
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let (receiver, method) = receiver_method(node_text(function, source))?;
+    let receiver_type = context.type_bindings.get(&receiver)?;
+    Some(format!("{receiver_type}_{method}"))
+}
+
+fn receiver_method(value: &str) -> Option<(String, String)> {
+    let (receiver, method) = value.trim().rsplit_once('.')?;
+    let receiver = sanitize_symbol(receiver)?;
+    let method = sanitize_symbol(method)?;
+    Some((receiver, method))
+}
+
 fn is_import_node(kind: &str) -> bool {
     matches!(
         kind,
@@ -995,6 +1052,60 @@ fn go_receiver_name(text: &str) -> Option<String> {
         .split_whitespace()
         .last()
         .and_then(|part| sanitize_symbol(part.trim_start_matches('*')))
+}
+
+fn python_type_bindings(node: Node<'_>, source: &[u8]) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    for line in node_text(node, source).lines() {
+        if let Some((name, class_name)) = python_assignment_type(line) {
+            bindings.insert(name, class_name);
+        }
+    }
+    bindings
+}
+
+fn python_assignment_type(line: &str) -> Option<(String, String)> {
+    let without_comment = line.split('#').next().unwrap_or(line).trim();
+    let (left, right) = without_comment.split_once('=')?;
+    if left
+        .chars()
+        .last()
+        .is_some_and(|ch| matches!(ch, '!' | '<' | '>' | '='))
+        || right.starts_with('=')
+    {
+        return None;
+    }
+    let name = python_assignment_lhs(left.trim())?;
+    let class_name = python_constructor_name(right.trim())?;
+    Some((name, class_name))
+}
+
+fn python_assignment_lhs(value: &str) -> Option<String> {
+    let name = value.split_once(':').map(|(name, _)| name).unwrap_or(value);
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if !trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '.')
+    {
+        return None;
+    }
+    sanitize_symbol(trimmed)
+}
+
+fn python_constructor_name(value: &str) -> Option<String> {
+    let before_paren = value.split_once('(')?.0.trim();
+    let name = before_paren.rsplit('.').next()?.trim();
+    if !name
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_uppercase())
+    {
+        return None;
+    }
+    sanitize_symbol(name)
 }
 
 fn node_text<'a>(node: Node<'_>, source: &'a [u8]) -> &'a str {
@@ -1129,6 +1240,60 @@ mod tests {
             parsed.resolve_call_target("missingModule"),
             "function:missingModule"
         );
+    }
+
+    #[test]
+    fn resolves_python_receiver_calls_with_constructor_type_bindings() {
+        let root =
+            std::env::temp_dir().join(format!("oaf-ingest-python-types-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/typed.py"),
+            [
+                "class Counter:",
+                "    def inc(self):",
+                "        return 1",
+                "class Gauge:",
+                "    def inc(self):",
+                "        return 2",
+                "def run():",
+                "    counter = Counter()",
+                "    gauge = Gauge()",
+                "    counter.inc()",
+                "    gauge.inc()",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let calls = report
+            .facts
+            .iter()
+            .filter(|fact| fact.predicate == "CALLS")
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.object.as_str(),
+                    fact.notes.as_deref(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert!(calls.contains(&(
+            "function:run",
+            "method:Counter_inc",
+            Some("oaf.ingest:typed-call-python")
+        )));
+        assert!(calls.contains(&(
+            "function:run",
+            "method:Gauge_inc",
+            Some("oaf.ingest:typed-call-python")
+        )));
+        assert!(!calls.contains(&("function:run", "function:inc", Some("oaf.ingest:call"))));
+
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
