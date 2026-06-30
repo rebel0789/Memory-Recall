@@ -227,7 +227,11 @@ fn setup_command(args: &[String]) -> Result<()> {
     let server = mcp_server_config(&command, tier);
     let manifest_files = setup_manifest_files(&config_home, tier, &targets);
     let mut touched_files = setup_touched_files(&targets);
-    touched_files.extend(manifest_files.iter().map(|file| file.path.display().to_string()));
+    touched_files.extend(
+        manifest_files
+            .iter()
+            .map(|file| file.path.display().to_string()),
+    );
     touched_files.sort();
     touched_files.dedup();
     let plan = json!({
@@ -548,7 +552,8 @@ fn setup_manifest_files(
                 "tier": tier,
                 "mcpServers": [INSTALL_SERVER_NAME],
                 "rules": ["Use OAF memory proposals; never auto-approve."]
-            })).unwrap(),
+            }))
+            .unwrap(),
         });
     }
     if clients.contains("windsurf") {
@@ -560,7 +565,8 @@ fn setup_manifest_files(
                 "name": "open-agent-fabric",
                 "tier": tier,
                 "mcpServers": [INSTALL_SERVER_NAME]
-            })).unwrap(),
+            }))
+            .unwrap(),
         });
     }
     if clients.contains("kiro") {
@@ -572,7 +578,8 @@ fn setup_manifest_files(
                 "name": "open-agent-fabric",
                 "tier": tier,
                 "mcpServers": [INSTALL_SERVER_NAME]
-            })).unwrap(),
+            }))
+            .unwrap(),
         });
     }
     files
@@ -1003,41 +1010,83 @@ fn http_response(
     Ok(())
 }
 
-const UI_HTML: &str = r#"<!doctype html>
+const UI_HTML: &str = r##"<!doctype html>
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OAF Memory Graph</title>
+<title>OAF Governed Graph</title>
 <style>
-html,body{margin:0;height:100%;background:#101317;color:#eceff3;font:14px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-body{display:grid;grid-template-rows:auto 1fr}
-header{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #303842;background:#171b21}
-h1{font-size:15px;font-weight:650;margin:0}
-button{border:1px solid #3b4653;background:#202833;color:#eceff3;border-radius:6px;padding:7px 10px;cursor:pointer}
-button[aria-pressed=true]{background:#2f6fed;border-color:#79a8ff}
-#wrap{display:grid;grid-template-columns:1fr 280px;min-height:0}
+:root{color-scheme:dark;--bg:#0e1116;--panel:#151a21;--panel2:#1b222b;--line:#2c3642;--text:#edf1f5;--muted:#9aa6b2;--accent:#6ee7b7;--warn:#ffcf5a;--bad:#ff7a7a;--blue:#7aa2ff}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{display:grid;grid-template-rows:auto 1fr;overflow:hidden}
+header{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);background:#121720}
+h1{font-size:16px;font-weight:700;margin:0;letter-spacing:0}
+nav{display:flex;align-items:center;gap:7px;min-width:0;overflow:auto}
+a{color:#cfe0ff;text-decoration:none}
+button,select,input{border:1px solid #3a4654;background:#202833;color:var(--text);border-radius:6px;padding:7px 9px;font:inherit}
+button{cursor:pointer;white-space:nowrap}button[aria-pressed=true]{background:#315fba;border-color:#8fb7ff}
+input{min-width:180px;max-width:320px;width:28vw}.metric{color:var(--muted);font-size:12px;white-space:nowrap}
+#wrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;min-height:0}
+#stage{position:relative;min-width:0;min-height:0;background:#0e1116}
 canvas{width:100%;height:100%;display:block}
-aside{border-left:1px solid #303842;background:#15191f;padding:12px;overflow:auto}
-.k{color:#9aa6b2}.pill{display:inline-block;margin:3px 4px 3px 0;padding:3px 6px;border-radius:999px;background:#24303c;color:#cfd8e3;font-size:12px}
+#hud{position:absolute;left:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+.chip,.pill{display:inline-flex;align-items:center;gap:5px;border:1px solid #354150;background:#1a222d;color:#d8e0ea;border-radius:999px;padding:4px 8px;font-size:12px}
+aside{border-left:1px solid var(--line);background:var(--panel);display:grid;grid-template-rows:auto 1fr;min-height:0}
+#summary{padding:12px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+#detail{padding:12px;overflow:auto}.k{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.stat{background:var(--panel2);border:1px solid #303a47;border-radius:6px;padding:8px}.stat b{display:block;font-size:15px}.row{border-top:1px solid #27313d;padding:8px 0}.row:first-child{border-top:0}
+h2{font-size:15px;margin:0 0 6px}h3{font-size:13px;margin:14px 0 6px}.flag{color:#111;background:var(--warn);border-radius:4px;padding:2px 5px;font-size:11px}.bad{background:var(--bad)}code{background:#202833;border-radius:4px;padding:2px 4px;color:#dce8f8}
+@media(max-width:780px){header{grid-template-columns:1fr}#wrap{grid-template-columns:1fr;grid-template-rows:minmax(360px,1fr) 320px}aside{border-left:0;border-top:1px solid var(--line)}input{width:100%;max-width:none}.grid{grid-template-columns:repeat(2,1fr)}}
 </style>
-<header><h1>OAF Memory Graph</h1><button id="current" aria-pressed="true">Current</button><button id="history" aria-pressed="false">History</button></header>
-<div id="wrap"><canvas id="graph"></canvas><aside id="detail"><div class="k">Select a node</div></aside></div>
+<header>
+  <h1>OAF Governed Graph</h1>
+  <nav>
+    <button id="current" aria-pressed="true">Current</button><button id="history" aria-pressed="false">History</button>
+    <button id="space2d" aria-pressed="true">2D</button><button id="space3d" aria-pressed="false">3D</button>
+    <select id="color"><option value="type">Type</option><option value="community">Community</option><option value="trust">Trust</option></select>
+    <select id="kind"><option value="">All types</option><option value="function">Function</option><option value="method">Method</option><option value="class">Class</option><option value="module">Module</option><option value="decision">Decision</option></select>
+    <input id="search" type="search" placeholder="Search graph" aria-label="Search graph">
+  </nav>
+  <nav><a href="/wiki">Wiki</a><a href="#architecture">Architecture</a><span class="metric" id="status">Loading</span></nav>
+</header>
+<div id="wrap">
+  <section id="stage"><canvas id="graph"></canvas><div id="hud"></div></section>
+  <aside><div id="summary"></div><div id="detail"><div class="k">Select a node or edge.</div></div></aside>
+</div>
 <script>
-const canvas=document.getElementById('graph'),ctx=canvas.getContext('2d'),detail=document.getElementById('detail');
-let graph={nodes:[],edges:[],communities:[]},mode='current',focus=null,sim=null;
-function color(n){return n.governedDecision?'#ffcf5a':['#6ee7b7','#7aa2ff','#f08bd3','#f97373','#a3e635','#22d3ee'][n.community%6]}
-function resize(){const r=canvas.getBoundingClientRect();canvas.width=Math.max(320,r.width*devicePixelRatio);canvas.height=Math.max(240,r.height*devicePixelRatio)}
-addEventListener('resize',resize);resize();
-async function load(next){mode=next;document.getElementById('current').setAttribute('aria-pressed',mode==='current');document.getElementById('history').setAttribute('aria-pressed',mode==='history');graph=await fetch('/api/graph?mode='+mode).then(r=>r.json());seed();tick()}
-function seed(){const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=Math.min(w,h)*0.34;graph.nodes.forEach((n,i)=>{const a=(i/Math.max(1,graph.nodes.length))*Math.PI*2;n.x=cx+Math.cos(a)*r;n.y=cy+Math.sin(a)*r;n.vx=0;n.vy=0});}
-function tick(){cancelAnimationFrame(sim);step();draw();sim=requestAnimationFrame(tick)}
-function step(){const nodes=graph.nodes,by=new Map(nodes.map(n=>[n.id,n]));for(const a of nodes)for(const b of nodes){if(a===b)continue;const dx=a.x-b.x,dy=a.y-b.y,d=Math.max(40,Math.hypot(dx,dy));a.vx+=dx/d*18/d;a.vy+=dy/d*18/d}for(const e of graph.edges){const a=by.get(e.from),b=by.get(e.to);if(!a||!b)continue;const dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy)),pull=(d-170)*0.0009;a.vx+=dx*pull;b.vx-=dx*pull;a.vy+=dy*pull;b.vy-=dy*pull}for(const n of nodes){n.vx*=0.86;n.vy*=0.86;n.x=Math.min(canvas.width-20,Math.max(20,n.x+n.vx));n.y=Math.min(canvas.height-20,Math.max(20,n.y+n.vy))}}
-function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);const by=new Map(graph.nodes.map(n=>[n.id,n]));ctx.lineWidth=1*devicePixelRatio;for(const e of graph.edges){const a=by.get(e.from),b=by.get(e.to);if(!a||!b)continue;ctx.strokeStyle=e.governedDecision?'#ffcf5a66':'#6b728066';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}for(const n of graph.nodes){ctx.fillStyle=color(n);ctx.beginPath();ctx.arc(n.x,n.y,(focus===n.id?8:5)*devicePixelRatio,0,Math.PI*2);ctx.fill();if(focus===n.id){ctx.fillStyle='#f8fafc';ctx.font=`${12*devicePixelRatio}px system-ui`;ctx.fillText(n.label,n.x+10,n.y-10)}}}
-canvas.addEventListener('click',ev=>{const r=canvas.getBoundingClientRect(),x=(ev.clientX-r.left)*devicePixelRatio,y=(ev.clientY-r.top)*devicePixelRatio;let best=null,dist=1e9;for(const n of graph.nodes){const d=Math.hypot(n.x-x,n.y-y);if(d<dist){dist=d;best=n}}if(best&&dist<28*devicePixelRatio){focus=best.id;const rel=graph.edges.filter(e=>e.from===best.id||e.to===best.id).slice(0,20);detail.innerHTML=`<h2>${best.label}</h2><div class="k">${best.type} · community ${best.community} · degree ${best.degree}</div>${rel.map(e=>`<span class="pill">${e.from===best.id?'→ '+e.to:'← '+e.from} ${e.predicate}</span>`).join('')}`;}});
-document.getElementById('current').onclick=()=>load('current');document.getElementById('history').onclick=()=>load('history');load('current');
+const canvas=document.getElementById('graph'),ctx=canvas.getContext('2d'),detail=document.getElementById('detail'),summary=document.getElementById('summary'),hud=document.getElementById('hud'),statusEl=document.getElementById('status');
+const state={graph:{nodes:[],edges:[],communities:[],summary:{}},wiki:null,mode:'current',space:'2d',color:'type',kind:'',query:'',focus:null,edgeFocus:null,raf:0,drag:null};
+const typeColors={function:'#6ee7b7',method:'#7aa2ff',class:'#f08bd3',module:'#f59e0b',decision:'#ffcf5a',file:'#94a3b8',route:'#22d3ee',unknown:'#d1d5db'};
+function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function resize(){const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;canvas.width=Math.max(360,Math.floor(r.width*d));canvas.height=Math.max(320,Math.floor(r.height*d))}
+function nodeKey(n){return (n.id+' '+n.label+' '+n.type).toLowerCase()}
+function visibleNodes(){const q=state.query.trim().toLowerCase();return state.graph.nodes.filter(n=>(!state.kind||n.type===state.kind)&&(!q||nodeKey(n).includes(q)||relatedFacts(n.id).some(f=>(f.predicate+' '+f.object).toLowerCase().includes(q))))}
+function visibleEdges(nodes){const ids=new Set(nodes.map(n=>n.id));return state.graph.edges.filter(e=>ids.has(e.from)&&ids.has(e.to))}
+function degreeSize(n){return Math.max(4,Math.min(18,4+Math.sqrt(n.degree||1)*2.5))*(devicePixelRatio||1)}
+function nodeColor(n){if(state.color==='community')return ['#6ee7b7','#7aa2ff','#f08bd3','#f97373','#a3e635','#22d3ee','#facc15','#c084fc'][n.community%8];if(state.color==='trust')return nodeTrust(n.id)==='extracted'?'#6ee7b7':nodeTrust(n.id)==='inferred'?'#ffcf5a':'#94a3b8';return n.governedDecision?'#ffcf5a':(typeColors[n.type]||typeColors.unknown)}
+function nodeTrust(id){const fact=relatedFacts(id)[0];return fact?.confidence||'unknown'}
+function relatedFacts(id){if(!state.wiki)return[];const p=state.wiki.pages;return [...p.currentTruth,...p.history].filter(f=>f.subject===id||f.object===id).slice(0,80)}
+function conflictKeys(){if(!state.wiki)return new Set();const seen=new Map(),bad=new Set();for(const f of state.wiki.pages.currentTruth){const k=f.subject+'|'+f.predicate;if(seen.has(k)&&seen.get(k)!==f.object)bad.add(f.subject);else seen.set(k,f.object)}return bad}
+function project(n){if(state.space==='2d')return{x:n.x,y:n.y,s:1};const z=n.z||0,scale=520/(520+z);return{x:canvas.width/2+(n.x-canvas.width/2)*scale,y:canvas.height/2+(n.y-canvas.height/2)*scale,s:scale}}
+function seed(){const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=Math.min(w,h)*0.34;state.graph.nodes.forEach((n,i)=>{const a=(i/Math.max(1,state.graph.nodes.length))*Math.PI*2;n.x=cx+Math.cos(a)*r;n.y=cy+Math.sin(a)*r;n.z=((i%9)-4)*28;n.vx=0;n.vy=0;n.vz=0})}
+function step(){const nodes=visibleNodes(),edges=visibleEdges(nodes),by=new Map(nodes.map(n=>[n.id,n])),w=canvas.width,h=canvas.height;for(const a of nodes){const c=a.community||0,angle=(c/Math.max(1,state.graph.summary.communityCount||1))*Math.PI*2,targetX=w/2+Math.cos(angle)*w*.22,targetY=h/2+Math.sin(angle)*h*.20;a.vx+=(targetX-a.x)*0.0007;a.vy+=(targetY-a.y)*0.0007}for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const a=nodes[i],b=nodes[j],dx=a.x-b.x,dy=a.y-b.y,d=Math.max(35,Math.hypot(dx,dy)),push=28/(d*d);a.vx+=dx*push;b.vx-=dx*push;a.vy+=dy*push;b.vy-=dy*push}for(const e of edges){const a=by.get(e.from),b=by.get(e.to);if(!a||!b)continue;const dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy)),pull=(d-145)*0.0012;a.vx+=dx*pull;b.vx-=dx*pull;a.vy+=dy*pull;b.vy-=dy*pull}for(const n of nodes){if(state.drag===n.id)continue;n.vx*=0.84;n.vy*=0.84;n.x=Math.min(w-24,Math.max(24,n.x+n.vx));n.y=Math.min(h-24,Math.max(24,n.y+n.vy));n.z=Math.min(220,Math.max(-160,(n.z||0)+(n.vz||0)));n.vz=(n.vz||0)*0.88}}
+function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);const nodes=visibleNodes(),edges=visibleEdges(nodes),by=new Map(nodes.map(n=>[n.id,n])),conflicts=conflictKeys(),focus=state.focus;ctx.lineWidth=1*(devicePixelRatio||1);ctx.font=`${11*(devicePixelRatio||1)}px system-ui`;ctx.textBaseline='middle';for(const e of edges){const a=by.get(e.from),b=by.get(e.to);if(!a||!b)continue;const pa=project(a),pb=project(b),hot=focus&&(e.from===focus||e.to===focus);ctx.strokeStyle=e.governedDecision?'#ffcf5aaa':hot?'#dbeafeaa':'#64748b55';ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();if(hot||edges.length<80){const mx=(pa.x+pb.x)/2,my=(pa.y+pb.y)/2;ctx.fillStyle=e.governedDecision?'#ffcf5a':'#aab6c4';ctx.fillText(e.predicate,mx+4,my-4)}}for(const n of nodes.sort((a,b)=>(a.z||0)-(b.z||0))){const p=project(n),rad=degreeSize(n)*p.s;ctx.fillStyle=nodeColor(n);ctx.beginPath();ctx.arc(p.x,p.y,rad,0,Math.PI*2);ctx.fill();if(conflicts.has(n.id)){ctx.strokeStyle='#ff7a7a';ctx.lineWidth=2*(devicePixelRatio||1);ctx.stroke()}if(n.id===focus){ctx.strokeStyle='#f8fafc';ctx.lineWidth=2*(devicePixelRatio||1);ctx.stroke();ctx.fillStyle='#f8fafc';ctx.fillText(n.label,p.x+rad+6,p.y)}}}
+function loop(){step();draw();state.raf=requestAnimationFrame(loop)}
+function nearest(x,y){let best=null,dist=1e9;for(const n of visibleNodes()){const p=project(n),d=Math.hypot(p.x-x,p.y-y);if(d<dist){dist=d;best=n}}return best&&dist<28*(devicePixelRatio||1)?best:null}
+function setFocus(id){state.focus=id;state.edgeFocus=null;renderDetail()}
+function renderSummary(){const g=state.graph,modeLabel=state.mode==='history'?'History':'Current';summary.innerHTML=`<div class="grid"><div class="stat"><b>${g.summary.nodeCount||0}</b><span class="k">Nodes</span></div><div class="stat"><b>${g.summary.edgeCount||0}</b><span class="k">Edges</span></div><div class="stat"><b>${g.summary.communityCount||0}</b><span class="k">Groups</span></div></div><div class="k">${modeLabel} · offline · read-only</div>`;hud.innerHTML=`<span class="chip">color ${esc(state.color)}</span><span class="chip">size degree</span><span class="chip">${visibleNodes().length} visible</span>`}
+function renderDetail(){const id=state.focus,n=state.graph.nodes.find(x=>x.id===id);if(!n){detail.innerHTML='<div class="k">Select a node or edge.</div>';return}const facts=relatedFacts(id),current=facts.filter(f=>f.status==='active'&&!f.supersededBy),history=facts.filter(f=>f.status!=='active'||f.supersededBy),rel=state.graph.edges.filter(e=>e.from===id||e.to===id).slice(0,40),conflict=conflictKeys().has(id);detail.innerHTML=`<h2>${esc(n.label)}</h2><div>${conflict?'<span class="flag bad">conflict</span> ':''}${n.governedDecision?'<span class="flag">decision</span> ':''}<span class="pill">${esc(n.type)}</span><span class="pill">community ${n.community}</span><span class="pill">degree ${n.degree}</span><span class="pill">trust ${esc(nodeTrust(id))}</span></div><h3>Facts</h3>${current.slice(0,14).map(f=>`<div class="row"><code>${esc(f.predicate)}</code> ${esc(f.object)}<div class="k">${esc(f.sourceRef)} · ${esc(f.confidence)}</div></div>`).join('')||'<div class="k">No current facts.</div>'}<h3>Memory Why</h3>${rel.map(e=>`<div class="row">${e.from===id?'→':'←'} <code>${esc(e.from===id?e.to:e.from)}</code><div class="k">${esc(e.predicate)} · ${esc(e.factId)}</div></div>`).join('')||'<div class="k">No graph edges.</div>'}<h3>History</h3>${history.slice(0,10).map(f=>`<div class="row"><code>${esc(f.predicate)}</code> ${esc(f.object)}<div class="k">${esc(f.status)} · superseded ${esc(f.supersededBy||'no')}</div></div>`).join('')||'<div class="k">No supersession history.</div>'}`}
+async function load(mode=state.mode){state.mode=mode;document.getElementById('current').setAttribute('aria-pressed',mode==='current');document.getElementById('history').setAttribute('aria-pressed',mode==='history');statusEl.textContent='Loading';const [graph,wiki]=await Promise.all([fetch('/api/graph?mode='+mode).then(r=>r.json()),fetch('/api/wiki').then(r=>r.json())]);state.graph=graph;state.wiki=wiki;state.focus=null;seed();renderSummary();renderDetail();statusEl.textContent='Ready';cancelAnimationFrame(state.raf);loop()}
+canvas.addEventListener('pointerdown',ev=>{const r=canvas.getBoundingClientRect(),d=devicePixelRatio||1,n=nearest((ev.clientX-r.left)*d,(ev.clientY-r.top)*d);if(n){state.drag=n.id;setFocus(n.id);canvas.setPointerCapture(ev.pointerId)}})
+canvas.addEventListener('pointermove',ev=>{if(!state.drag)return;const n=state.graph.nodes.find(x=>x.id===state.drag),r=canvas.getBoundingClientRect(),d=devicePixelRatio||1;if(n){n.x=(ev.clientX-r.left)*d;n.y=(ev.clientY-r.top)*d;n.vx=0;n.vy=0}})
+canvas.addEventListener('pointerup',ev=>{state.drag=null;try{canvas.releasePointerCapture(ev.pointerId)}catch{}})
+document.getElementById('current').onclick=()=>load('current');document.getElementById('history').onclick=()=>load('history');
+document.getElementById('space2d').onclick=()=>{state.space='2d';document.getElementById('space2d').setAttribute('aria-pressed','true');document.getElementById('space3d').setAttribute('aria-pressed','false')};
+document.getElementById('space3d').onclick=()=>{state.space='3d';document.getElementById('space2d').setAttribute('aria-pressed','false');document.getElementById('space3d').setAttribute('aria-pressed','true')};
+document.getElementById('color').onchange=e=>{state.color=e.target.value;renderSummary();draw()};document.getElementById('kind').onchange=e=>{state.kind=e.target.value;renderSummary();renderDetail()};document.getElementById('search').oninput=e=>{state.query=e.target.value;renderSummary();renderDetail()};
+addEventListener('resize',()=>{resize();seed();renderSummary()});resize();load('current');
 </script>
 </html>
-"#;
+"##;
 
 const WIKI_HTML: &str = r##"<!doctype html>
 <html lang="en">
@@ -3341,13 +3390,15 @@ fn brain_propose_graph_payload(
     let notes = optional_json_string(args.get("notes"), 500)
         .unwrap_or_else(|| format!("ai_proposed:{kind}; host-agent graph curation"));
     let budget_tokens = json_i64(
-        args.get("budgetTokens").or_else(|| args.get("budget_tokens")),
+        args.get("budgetTokens")
+            .or_else(|| args.get("budget_tokens")),
         2048,
         1,
         20000,
     );
     let prompt_tokens = json_i64(
-        args.get("promptTokens").or_else(|| args.get("prompt_tokens")),
+        args.get("promptTokens")
+            .or_else(|| args.get("prompt_tokens")),
         estimate_tokens(&format!("{subject} {predicate} {object}")),
         0,
         budget_tokens,
