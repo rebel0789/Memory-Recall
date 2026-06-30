@@ -4,10 +4,11 @@ use oaf_store::{ActiveFactSnapshot, BatchFact, Supersedes};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::Instant;
 use tree_sitter::{Language, Node, Parser};
@@ -838,20 +839,27 @@ fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>>
     }
 
     let total_jobs = jobs.len();
-    let queue = Arc::new(Mutex::new(VecDeque::from(jobs)));
+    let mut scheduled = jobs;
+    scheduled.sort_by(|left, right| {
+        right
+            .bytes
+            .cmp(&left.bytes)
+            .then_with(|| left.rel.cmp(&right.rel))
+    });
+    let queue = Arc::new(scheduled);
+    let next_job = Arc::new(AtomicUsize::new(0));
     let (tx, rx) = mpsc::channel();
     let mut handles = Vec::new();
     for _ in 0..worker_count.max(1) {
         let queue = Arc::clone(&queue);
+        let next_job = Arc::clone(&next_job);
         let tx = tx.clone();
         handles.push(thread::spawn(move || loop {
-            let job = queue
-                .lock()
-                .expect("ingest worker queue poisoned")
-                .pop_front();
-            let Some(job) = job else {
+            let index = next_job.fetch_add(1, Ordering::Relaxed);
+            if index >= queue.len() {
                 break;
-            };
+            }
+            let job = queue[index].clone();
             if tx.send(parse_file_job(job)).is_err() {
                 break;
             }
