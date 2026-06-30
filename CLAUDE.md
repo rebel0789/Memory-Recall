@@ -93,7 +93,7 @@ tests are the most reliable description of what the code guarantees.
 Requirements: **Node.js 22+**, ESM only, no runtime npm dependencies.
 
 ```bash
-npm ci --ignore-scripts --no-audit --no-fund
+npm run bootstrap
 npm run dev        # local API + dashboard at http://127.0.0.1:4310
 npm test           # node --test tests/*.test.mjs  — start here to understand behavior
 npm run check      # repository structure/consistency check
@@ -111,10 +111,9 @@ Conventions that the existing code actually follows:
 
 ## Note on the OAF task system
 
-The repo ships an `npm run task -- OAF-xxx` backlog workflow and a lot of
-"operating manual" ceremony in `AGENTS.md`. **The project owner is not running
-that backlog** — don't treat OAF task IDs or the per-task protocol as required.
-The architecture *invariants* in `AGENTS.md` (untrusted external content, no
-silent memory overwrite, deterministic authority over model output) are still
-sound engineering principles worth respecting, but the task/handoff machinery is
-not the active workflow.
+The repo ships an `npm run task -- OAF-xxx` backlog workflow. When a task ID is
+assigned, follow the root `AGENTS.md` task protocol: run `npm run task -- <ID>`
+and load only the listed context before changing code. When no task ID is
+assigned, still respect the architecture invariants in `AGENTS.md`: untrusted
+external content stays untrusted, memory writes remain proposal-gated, and
+authority is deterministic code rather than model output.
