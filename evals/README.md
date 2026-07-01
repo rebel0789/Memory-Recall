@@ -28,6 +28,14 @@ include raw prompts, context bodies, outputs, credentials, provider URLs, local
 paths, hidden reasoning, model calls, network calls, adapter activation, active
 memory, snapshots, or external writes.
 
+`evals/context-recall/oaf-repo-gold.v1.json` measures tracked-repository code
+context recall against gold files with configurable token budgets. Run it with
+`npm run eval:context-recall -- --budgets 8000,12000,16000`; only the dataset
+target budget is gate-scored, and comparison modes must use the same dataset.
+Anonymous baseline results can be scored with `--mode external-baseline-json
+--baseline-results <path>` when they provide safe repo-relative file paths and
+returned-token counts for each case and budget.
+
 The eval runner also checks the native AST code candidate source with a
 temporary TypeScript workspace. It proves static JS/TS chunk discovery,
 workspace locators, symbol/import metadata, Context Compiler integration,

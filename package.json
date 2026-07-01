@@ -18,6 +18,7 @@
     "demo": "node scripts/demo.mjs",
     "test": "node --test tests/*.test.mjs",
     "eval": "node scripts/run-evals.mjs",
+    "eval:context-recall": "node scripts/context-recall-eval.mjs --dataset evals/context-recall/oaf-repo-gold.v1.json --mode compiler-code-search",
     "check": "node scripts/check.mjs",
     "ci": "npm run check && npm run protocol:validate && npm test && npm run eval",
     "doctor": "node scripts/doctor.mjs",

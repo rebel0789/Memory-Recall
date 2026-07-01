@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evalds_context_recall_oaf_repo",
+  "suite": "context-recall",
+  "version": "1.0.0",
+  "createdAt": "2026-06-30T00:00:00.000Z",
+  "targetBudget": 8000,
+  "thresholds": {
+    "hitRateMin": 1,
+    "avgFileRecallMin": 0.7,
+    "avgReturnedTokensMax": 8000,
+    "avgSavingsRatioMin": 0.99
+  },
+  "cases": [
+    {
+      "id": "ctxrec_native_sqlite_memory",
+      "query": "native SQLite memory provider proposal queue leases poison errors FTS5",
+      "goldFiles": [
+        "providers/native/memory-sqlite/src/index.mjs",
+        "tests/native-memory-sqlite.test.mjs",
+        "docs/architecture/native-providers.md"
+      ]
+    },
+    {
+      "id": "ctxrec_context_pack_measure",
+      "query": "context pack measurement report changed source bodies avoided MCP readback",
+      "goldFiles": [
+        "apps/cli/oaf.mjs",
+        "tests/cli-measure-context-pack.test.mjs",
+        "packages/protocol/schemas/context-pack-measurement-report.schema.json"
+      ]
+    },
+    {
+      "id": "ctxrec_truth_floor_benchmark",
+      "query": "benchmark truth floor required evidence recall distractor exclusion selected token ratio",
+      "goldFiles": [
+        "packages/evaluation-lab/src/index.mjs",
+        "evals/benchmark-truth-floor/cases.v1.json",
+        "tests/benchmark-truth-floor.test.mjs"
+      ]
+    },
+    {
+      "id": "ctxrec_ast_source_graph",
+      "query": "AST code candidate source JS TS source graph callers callees",
+      "goldFiles": [
+        "providers/native/context-candidate-ast-code/src/index.mjs",
+        "tests/ast-code-candidate-source.test.mjs"
+      ]
+    },
+    {
+      "id": "ctxrec_memory_write_gate",
+      "query": "memory write gate preference user confirmation source verification supersedes conflicts",
+      "goldFiles": [
+        "packages/memory-core/src/index.mjs",
+        "tests/memory-core.test.mjs"
+      ]
+    },
+    {
+      "id": "ctxrec_policy_evaluator",
+      "query": "deterministic policy evaluator contextual decisions external writes approvals budgets",
+      "goldFiles": [
+        "packages/policy/src/index.mjs",
+        "tests/policy-contextual.test.mjs",
+        "docs/architecture/native-providers.md"
+      ]
+    },
+    {
+      "id": "ctxrec_agent_pack",
+      "query": "Agent Pack validation portable no credentials authority grants",
+      "goldFiles": [
+        "packages/agentpack/src/index.mjs",
+        "tests/agentpack.test.mjs",
+        "docs/architecture/agent-packs.md"
+      ]
+    },
+    {
+      "id": "ctxrec_safe_replay",
+      "query": "safe replay plans disable external side effects learning proposals",
+      "goldFiles": [
+        "packages/replay/src/index.mjs",
+        "tests/replay.test.mjs",
+        "docs/architecture/flight-recorder.md"
+      ]
+    },
+    {
+      "id": "ctxrec_local_identity",
+      "query": "local identity provider csrf sessions API token hash scrypt",
+      "goldFiles": [
+        "providers/native/identity-local/src/index.mjs",
+        "tests/native-identity-store.test.mjs",
+        "docs/architecture/native-providers.md"
+      ]
+    },
+    {
+      "id": "ctxrec_ollama_loopback",
+      "query": "Ollama provider loopback no cloud fallback cancellation timeout",
+      "goldFiles": [
+        "providers/native/model-ollama/src/index.mjs",
+        "tests/native-model-ollama.test.mjs",
+        "docs/architecture/native-providers.md"
+      ]
+    }
+  ]
+}

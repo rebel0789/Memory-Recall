@@ -517,8 +517,10 @@ export async function generateContextCandidates(request, {
 }
 
 export async function compileContextFromSources(request, options = {}) {
-  const candidateGeneration = await generateContextCandidates(request, options);
+  const { selectionPolicy = CONTEXT_SELECTION_POLICY, ...candidateOptions } = options;
+  const candidateGeneration = await generateContextCandidates(request, candidateOptions);
   const selected = selectContextCandidates(request, candidateGeneration.candidates, {
+    policy: selectionPolicy,
     candidateGeneration,
     warnings: candidateGeneration.warnings
   });
@@ -842,6 +844,31 @@ export const CONTEXT_SELECTION_POLICY = deepFreeze({
     'tokens_asc',
     'record_id_asc'
   ]
+});
+
+export const CODE_SEARCH_CONTEXT_SELECTION_POLICY = deepFreeze({
+  ...deepClone(CONTEXT_SELECTION_POLICY),
+  policyVersion: '1.0.1',
+  categoryBudgets: Object.fromEntries(Object.entries(CONTEXT_SELECTION_POLICY.categoryBudgets).map(([category, value]) => [
+    category,
+    category === 'evidence' ? { ...value, cap: 50, softReserveRatio: 0.8 } : value
+  ])),
+  thresholds: {
+    ...CONTEXT_SELECTION_POLICY.thresholds,
+    minimumEvidenceCount: 12,
+    minimumUtility: 0.2,
+    marginalUtility: 0.05
+  },
+  limits: {
+    ...CONTEXT_SELECTION_POLICY.limits,
+    maxSelectedCandidates: 50,
+    maxCandidates: 100,
+    maxTotalCandidateTokens: 100000
+  },
+  similarity: {
+    ...CONTEXT_SELECTION_POLICY.similarity,
+    maxPairwiseComparisons: 100000
+  }
 });
 
 const SELECTION_POLICY_KEYS = new Set([
