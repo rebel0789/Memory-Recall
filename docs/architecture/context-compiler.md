@@ -84,6 +84,28 @@ selector stops at the smallest sufficient set instead of filling the window.
 8. **Persist manifest.** In durable composition, append the manifest before any model invocation, verify the stored copy, and emit a safe `context.manifest.persisted` event.
 9. **Emit compatibility event.** Preserve `context.compiled` for existing run inspection with additive durable fields.
 
+## Context Views
+
+Some records are useful but too noisy to pass through verbatim, especially
+logs, large JSON payloads, generated tool output, Markdown notes, and code
+snippets where only anchors matter. OAF supports an explicit
+`metadata.contextView.enabled` flag on input records to request a deterministic
+local view before selection. The compiler never enables this silently.
+
+The view builder classifies the content as JSON, log, code, Markdown, or text,
+redacts secret-shaped values and private local paths, keeps high-signal lines,
+and records `originalContentHash`, `viewContentHash`, original/view token
+counts, reduction ratio, algorithm ID, content kind, and reason codes. The
+selected manifest item keeps the original hash as `contentHash`, so the compact
+view is recoverable by hash without treating the shortened text as canonical
+state.
+
+Context views are not a proxy, model reranker, embedding pass, vector store,
+graph database, browser automation layer, or memory write path. They are a
+bounded representation tier inside the existing Context Compiler. Token
+accounting reports selected original tokens separately from assembled view
+tokens and records context-view loss notes when a selected item was shortened.
+
 ## Persisted Assembly
 
 OAF-012 keeps `compileContext(request, records)` synchronous and pure. Durable

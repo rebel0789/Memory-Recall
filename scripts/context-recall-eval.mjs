@@ -1,4 +1,4 @@
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import {
@@ -10,6 +10,8 @@ import {
 const FIXED_TIME = '2026-06-30T00:00:00.000Z';
 const TEXT_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.json', '.md', '.css', '.html', '.yml', '.yaml', '.toml', '.sql', '.txt', '.schema', '.lock']);
 const STOP_WORDS = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'into', 'over', 'under', 'when', 'where', 'which', 'what', 'then', 'than', 'were', 'been', 'have', 'has', 'had', 'are', 'is', 'was', 'will', 'can', 'not', 'all', 'any', 'same', 'repo', 'file', 'files', 'source', 'code']);
+const FALLBACK_EXCLUDED_DIRS = new Set(['.git', '.local', '.scratch', '.claude', '.cursor', '.github', '.playwright-cli', 'node_modules', 'coverage', 'context-packs', 'graphify-out', 'output']);
+const FALLBACK_EXCLUDED_FILES = new Set(['.env', '.DS_Store', 'REPOSITORY_MANIFEST.json.tmp']);
 
 function usage() {
   return [
@@ -42,14 +44,76 @@ function terms(value, max = 120) {
   return out;
 }
 
-async function buildCorpus({ root = process.cwd(), maxFileBytes = 200_000, chunkChars = 10_000 } = {}) {
-  const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).trim().split('\n').filter(Boolean);
+function rankedTerms(value, max = 180) {
+  const counts = new Map();
+  let ordinal = 0;
+  const firstSeen = new Map();
+  for (const raw of String(value ?? '').toLowerCase().replace(/[^a-z0-9_./:-]+/g, ' ').split(/\s+/)) {
+    for (const term of [raw, ...raw.split(/[/.:-]+/).filter(Boolean)]) {
+      if (term.length < 2 || STOP_WORDS.has(term)) continue;
+      if (!firstSeen.has(term)) firstSeen.set(term, ordinal);
+      counts.set(term, (counts.get(term) ?? 0) + 1);
+    }
+    ordinal += 1;
+  }
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || firstSeen.get(left[0]) - firstSeen.get(right[0]) || left[0].localeCompare(right[0]))
+    .slice(0, max)
+    .map(([term]) => term);
+}
+
+function locatorTerms(filePath, body) {
+  return [...new Set([...terms(filePath, 80), ...rankedTerms(body, 180)])];
+}
+
+function normalizeRelativePath(value) {
+  return path.posix.normalize(String(value ?? '').replaceAll('\\', '/'));
+}
+
+async function listCorpusFiles(root) {
+  try {
+    const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .trim()
+      .split('\n')
+      .map(normalizeRelativePath)
+      .filter(Boolean);
+    if (tracked.length > 0) return tracked;
+  } catch {
+    // Package archives do not include .git metadata. Fall back to the packaged file tree.
+  }
+
+  const files = [];
+  async function walkDir(directory, relativeDirectory = '') {
+    const entries = (await readdir(directory, { withFileTypes: true }).catch(() => []))
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    for (const entry of entries) {
+      const relativePath = normalizeRelativePath(relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name);
+      if (entry.isDirectory()) {
+        if (FALLBACK_EXCLUDED_DIRS.has(entry.name) || FALLBACK_EXCLUDED_DIRS.has(relativePath)) continue;
+        await walkDir(path.join(directory, entry.name), relativePath);
+      } else if (entry.isFile()) {
+        if (FALLBACK_EXCLUDED_FILES.has(entry.name) || FALLBACK_EXCLUDED_FILES.has(relativePath)) continue;
+        files.push(relativePath);
+      }
+    }
+  }
+
+  await walkDir(root);
+  return files.sort();
+}
+
+async function buildCorpus({ root = process.cwd(), maxFileBytes = 200_000, chunkChars = 10_000, excludePaths = [] } = {}) {
+  const tracked = await listCorpusFiles(root);
   const trackedSet = new Set(tracked);
+  const excluded = new Set(excludePaths.map(normalizeRelativePath));
   const chunks = [];
+  const locators = [];
   let trackedTextFiles = 0;
   let fullCorpusTokens = 0;
 
   for (const filePath of tracked) {
+    if (excluded.has(filePath)) continue;
     const ext = path.extname(filePath);
     if (!TEXT_EXTENSIONS.has(ext) && !filePath.endsWith('AGENTS.md') && !filePath.endsWith('README')) continue;
 
@@ -63,6 +127,13 @@ async function buildCorpus({ root = process.cwd(), maxFileBytes = 200_000, chunk
     const body = buffer.toString('utf8');
     trackedTextFiles += 1;
     fullCorpusTokens += estimateTokens(`${filePath}\n${body}`);
+    locators.push({
+      id: `obs_locator_${String(locators.length + 1).padStart(6, '0')}`,
+      path: filePath,
+      text: `${filePath}\nlocator-only\nUse this locator to recover the tracked source file.`,
+      tokens: estimateTokens(`${filePath}\nlocator-only\nUse this locator to recover the tracked source file.`),
+      tags: locatorTerms(filePath, body)
+    });
 
     const totalChunks = Math.max(1, Math.ceil(body.length / chunkChars));
     for (let index = 0; index < totalChunks; index += 1) {
@@ -79,6 +150,26 @@ async function buildCorpus({ root = process.cwd(), maxFileBytes = 200_000, chunk
       });
     }
   }
+
+  const locatorRecords = locators.map((locator) => ({
+    id: locator.id,
+    kind: 'observation',
+    workspaceId: 'ws_context_recall',
+    title: `${locator.path} locator`,
+    text: locator.text,
+    tags: locator.tags,
+    relations: locator.tags.slice(0, 40),
+    scope: 'workspace-private',
+    dataClass: 'workspace-private',
+    trustClass: 'observed',
+    status: 'active',
+    source: 'git-tracked-oaf-file-locator',
+    tokens: locator.tokens,
+    confidence: 0.7,
+    authority: locator.path.startsWith('docs/architecture/') ? 0.95 : 0.7,
+    updatedAt: FIXED_TIME,
+    metadata: { path: locator.path, representation: 'locator-only' }
+  }));
 
   const records = chunks.map((chunk) => ({
     id: chunk.id,
@@ -100,7 +191,7 @@ async function buildCorpus({ root = process.cwd(), maxFileBytes = 200_000, chunk
     metadata: { path: chunk.path, chunk: chunk.chunk, totalChunks: chunk.totalChunks }
   }));
 
-  return { trackedSet, records, trackedTextFiles, chunks: chunks.length, fullCorpusTokens };
+  return { trackedSet, records: [...locatorRecords, ...records], trackedTextFiles, chunks: chunks.length, fileLocators: locatorRecords.length, fullCorpusTokens };
 }
 
 function lexicalScore(record) {
@@ -136,9 +227,10 @@ function packRows(rows, budget) {
   return selected;
 }
 
-function summarizeCase(testCase, selected, fullCorpusTokens) {
+function summarizeCase(testCase, selected, fullCorpusTokens, { budget, durationMs = 0 } = {}) {
   const selectedPaths = [...new Set(selected.map((item) => item.metadata?.path).filter(Boolean))];
   const hitGold = testCase.goldFiles.filter((filePath) => selectedPaths.includes(filePath));
+  const omittedRequiredFiles = testCase.goldFiles.filter((filePath) => !hitGold.includes(filePath));
   const returnedTokens = selected.reduce((sum, item) => sum + item.tokens, 0);
   return {
     id: testCase.id,
@@ -146,10 +238,14 @@ function summarizeCase(testCase, selected, fullCorpusTokens) {
     fileRecall: testCase.goldFiles.length ? hitGold.length / testCase.goldFiles.length : 0,
     goldCount: testCase.goldFiles.length,
     hitGold,
+    omittedRequiredFiles,
+    omittedRequiredFileCount: omittedRequiredFiles.length,
     selectedPaths,
     selectedCount: selected.length,
     returnedTokens,
-    savingsRatio: 1 - (returnedTokens / fullCorpusTokens)
+    windowUtilization: budget > 0 ? returnedTokens / budget : 0,
+    savingsRatio: 1 - (returnedTokens / fullCorpusTokens),
+    durationMs
   };
 }
 
@@ -171,6 +267,11 @@ function safeRelativeFilePath(value, { trackedSet }) {
   }
   if (!trackedSet.has(normalized)) throw new Error(`baseline path is not tracked: ${normalized}`);
   return normalized;
+}
+
+function workspaceRelative(root, filePath) {
+  const relative = path.relative(root, path.resolve(root, filePath)).split(path.sep).join('/');
+  return relative && !relative.startsWith('../') ? relative : null;
 }
 
 async function readExternalBaseline(filePath, { trackedSet }) {
@@ -200,30 +301,39 @@ async function readExternalBaseline(filePath, { trackedSet }) {
   return { baselineId, rows };
 }
 
-function summarizeExternalCase(testCase, row, fullCorpusTokens) {
+function summarizeExternalCase(testCase, row, fullCorpusTokens, { durationMs = 0 } = {}) {
   const hitGold = testCase.goldFiles.filter((filePath) => row.selectedPaths.includes(filePath));
+  const omittedRequiredFiles = testCase.goldFiles.filter((filePath) => !hitGold.includes(filePath));
   return {
     id: testCase.id,
     hit: hitGold.length > 0,
     fileRecall: testCase.goldFiles.length ? hitGold.length / testCase.goldFiles.length : 0,
     goldCount: testCase.goldFiles.length,
     hitGold,
+    omittedRequiredFiles,
+    omittedRequiredFileCount: omittedRequiredFiles.length,
     selectedPaths: row.selectedPaths,
     selectedCount: row.selectedPaths.length,
     returnedTokens: row.returnedTokens,
-    savingsRatio: 1 - (row.returnedTokens / fullCorpusTokens)
+    windowUtilization: row.budget > 0 ? row.returnedTokens / row.budget : 0,
+    savingsRatio: 1 - (row.returnedTokens / fullCorpusTokens),
+    durationMs
   };
 }
 
 function summarizeBudget({ budget, cases, fullCorpusTokens }) {
   const hitCases = cases.filter((item) => item.hit).length;
+  const durationMs = cases.reduce((sum, item) => sum + item.durationMs, 0);
   return {
     budget,
     metrics: {
       hitRate: hitCases / cases.length,
       avgFileRecall: cases.reduce((sum, item) => sum + item.fileRecall, 0) / cases.length,
       avgReturnedTokens: Math.round(cases.reduce((sum, item) => sum + item.returnedTokens, 0) / cases.length),
+      avgWindowUtilization: cases.reduce((sum, item) => sum + item.windowUtilization, 0) / cases.length,
       avgSavingsRatio: cases.reduce((sum, item) => sum + item.savingsRatio, 0) / cases.length,
+      totalOmittedRequiredFileCount: cases.reduce((sum, item) => sum + item.omittedRequiredFileCount, 0),
+      durationMs,
       fullCorpusTokens
     },
     cases
@@ -290,6 +400,7 @@ async function selectRows({ mode, testCase, budget, candidateLimit, reader, reco
 }
 
 async function main() {
+  const suiteStarted = process.hrtime.bigint();
   const args = process.argv.slice(2);
   if (args.includes('--help')) {
     console.log(usage());
@@ -308,7 +419,9 @@ async function main() {
   if (!budgets.length || !Number.isInteger(candidateLimit) || candidateLimit < 1) throw new Error('invalid budget or candidate limit');
   if (mode === 'external-baseline-json' && !baselineResultsPath) throw new Error('missing --baseline-results');
 
-  const corpus = await buildCorpus();
+  const root = path.resolve(argValue(args, '--root', process.cwd()));
+  const datasetRelativePath = workspaceRelative(root, datasetPath);
+  const corpus = await buildCorpus({ root, excludePaths: datasetRelativePath ? [datasetRelativePath] : [] });
   const reader = createFixtureRecordReader(corpus.records);
   const recordsById = new Map(corpus.records.map((record) => [record.id, record]));
   const externalBaseline = mode === 'external-baseline-json' ? await readExternalBaseline(baselineResultsPath, { trackedSet: corpus.trackedSet }) : null;
@@ -321,13 +434,16 @@ async function main() {
   for (const budget of budgets) {
     const caseResults = [];
     for (const testCase of cases) {
+      const caseStarted = process.hrtime.bigint();
       if (mode === 'external-baseline-json') {
         const row = externalBaseline.rows.get(resultKey(testCase.id, budget));
         if (!row) throw new Error(`missing baseline result: ${resultKey(testCase.id, budget)}`);
-        caseResults.push(summarizeExternalCase(testCase, row, corpus.fullCorpusTokens));
+        const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - caseStarted) / 1_000_000));
+        caseResults.push(summarizeExternalCase(testCase, row, corpus.fullCorpusTokens, { durationMs }));
       } else {
         const selected = await selectRows({ mode, testCase, budget, candidateLimit, reader, recordsById });
-        caseResults.push(summarizeCase(testCase, selected, corpus.fullCorpusTokens));
+        const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - caseStarted) / 1_000_000));
+        caseResults.push(summarizeCase(testCase, selected, corpus.fullCorpusTokens, { budget, durationMs }));
       }
     }
     results.push(summarizeBudget({ budget, cases: caseResults, fullCorpusTokens: corpus.fullCorpusTokens }));
@@ -335,6 +451,8 @@ async function main() {
 
   const target = results.find((item) => item.budget === targetBudget) ?? results[0];
   const failures = gateResult(target, dataset.thresholds);
+  const passingBudgets = results.filter((item) => gateResult(item, dataset.thresholds).length === 0).map((item) => item.budget).sort((a, b) => a - b);
+  const suiteDurationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - suiteStarted) / 1_000_000));
   const report = {
     schemaVersion: '1.0.0',
     datasetId: dataset.id,
@@ -345,12 +463,18 @@ async function main() {
     corpus: {
       trackedTextFiles: corpus.trackedTextFiles,
       chunks: corpus.chunks,
+      fileLocators: corpus.fileLocators,
       fullCorpusTokens: corpus.fullCorpusTokens
     },
     candidateLimit,
     thresholds: dataset.thresholds,
-    gate: { budget: target.budget, failures },
+    gate: {
+      budget: target.budget,
+      failures,
+      minPassingBudget: passingBudgets[0] ?? null
+    },
     gateDecision: failures.length ? 'fail' : 'pass',
+    suiteDurationMs,
     results
   };
 

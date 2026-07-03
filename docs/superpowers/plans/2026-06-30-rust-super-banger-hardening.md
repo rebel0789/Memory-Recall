@@ -81,7 +81,7 @@ a bug ledger (found/fixed/open) + the use-case results. Numbers must be honest a
 ## Phase D — Release polish (your discretion on depth)
 - Confirm the single release binary + `oaf install` (receipt-first) + `oaf ui` work end-to-end.
 - Write/refresh a real README + quickstart so a new user can install OAF and ingest a repo in
-  minutes (positioning per spec §8: governed local control plane; cbm/others are organs).
+  minutes (positioning per spec §8: OAF is the governed local tool; other systems are research or optional integration inputs).
 - Note packaging/signing as deferred (don't build the signing pipeline).
 GATE: a fresh-clone smoke test (build → ingest a sample → recall → ui) documented and passing.
 

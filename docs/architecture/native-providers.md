@@ -30,7 +30,7 @@ Native providers make the local product useful without optional integrations. Th
 
 ## Composition
 
-The application composition root chooses providers from configuration. Workflows and UI code depend only on ports. Switching from SQLite memory to Mem0, or from the embedded runner to Temporal, does not change canonical records or Agent Packs.
+The application composition root chooses providers from configuration. Workflows and UI code depend only on OAF ports. Optional integrations can replace a provider for scale or compatibility, but they do not change canonical records, Agent Packs, or the default local product path.
 
 ## Filesystem artifact provider
 
@@ -72,7 +72,7 @@ replacement for shell `grep`. It returns lifecycle state, evidence IDs, and
 context-manifest reason codes when an explicit manifest is supplied. The
 provider also includes a SQLite proposal queue with idempotent fingerprints,
 leases, retry-to-pending, and poison/error records for local reconciliation.
-No network calls, model calls, external writes, Supermemory sync, FUSE/NFS
+No network calls, model calls, external writes, hosted memory sync, FUSE/NFS
 mounts, API-key storage, or active-memory creation from ordinary file edits are
 enabled.
 

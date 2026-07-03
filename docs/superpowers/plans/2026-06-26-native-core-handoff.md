@@ -1,9 +1,9 @@
 # Native Core — Codex Handoff Plan (local-first, best-of-breed memory)
 
-Goal of this plan: make OAF's **native core best-in-class** — better than any
-external organ — for the **local-first single-developer** production target.
+Goal of this plan: make OAF's **native core best-in-class** for the
+**local-first single-developer** production target.
 SQLite is the production database. External systems (Postgres, Temporal,
-graphiti, mem0, supermemory) stay **optional, disabled-by-default organs users
+graphiti, mem0, supermemory) stay **optional, disabled-by-default integrations users
 install as needed**. Never required.
 
 Each goal below is a self-contained Codex handoff: fire it, walk away, it commits
@@ -324,7 +324,7 @@ Local-first honesty constraints:
 
 ---
 
-## After G7 — optional organs (only when a user needs them)
+## After G7 — optional integrations (only when a user needs them)
 
 Each is a disabled-by-default, conformance-gated adapter behind an existing port,
 installed via `oaf adapter enable <name>`. The native core never depends on them:

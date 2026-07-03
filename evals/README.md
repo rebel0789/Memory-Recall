@@ -36,6 +36,11 @@ Anonymous baseline results can be scored with `--mode external-baseline-json
 --baseline-results <path>` when they provide safe repo-relative file paths and
 returned-token counts for each case and budget.
 
+The context-recall report measures retrieval and context-budget quality:
+hit rate, file recall, returned tokens, window utilization, omitted required
+files, and local observed duration. It is not a recovery benchmark, downstream
+task-quality judge, provider billing-token claim, or production latency claim.
+
 The eval runner also checks the native AST code candidate source with a
 temporary TypeScript workspace. It proves static JS/TS chunk discovery,
 workspace locators, symbol/import metadata, Context Compiler integration,

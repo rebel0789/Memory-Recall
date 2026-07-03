@@ -37,13 +37,14 @@ intent -> context -> action -> observation -> adjustment -> stop or repeat
 **"Full tool" is mostly wiring + naming, not greenfield.** Token measurement,
 governed memory, scoped graph, locator handoff, and the flight-recorder substrate
 already exist. The new work is the orchestration layer (Slices 1–5) plus optional
-best-in-class infra organs (Section 6) behind existing ports.
+scale integrations (Section 6) behind existing ports.
 
 **Definition of done for the full tool:** Slices 1–5 green, wired end to end on
 the **native** providers (SQLite memory, filesystem artifacts, embedded/durable
 workflow, deterministic model), with measured token budgets surfaced per run.
-External infra organs (Temporal, Pydantic AI, pgvector, Mem0, Graphify, OTel) are
-optional swaps behind ports, not a precondition.
+External infrastructure integrations for durable workflows, typed agent runtime,
+vector search, memory backends, repository graphs, and telemetry are optional
+swaps behind ports, not a precondition.
 
 ---
 
@@ -85,7 +86,7 @@ Slice 4  Loop orchestration + schedule  (durable)          ← needs 1,2,3
 Slice 5  Loop Workbench UI              (web)              ← needs 1–4
 
 Skills   ponytail action skill + grilling intent skill     ← any time after 1
-Organs   Temporal / Pydantic AI / pgvector / Mem0 / Graphify / OTel  ← last, gated
+Scale    durable runtime / typed runtime / vector DB / memory / graph / telemetry  ← last, gated
 ```
 
 Each slice builds only on merged, green predecessors. Fire them one per night.
@@ -271,20 +272,20 @@ Each ships as a small skill folder with focused tests, not a subsystem.
 
 ---
 
-## 6. Best-of-best infra — organ swaps behind existing ports (last, gated)
+## 6. Best-of-best infra — optional swaps behind existing ports (last, gated)
 
-These are **optional adapter slices**, not core. Each implements a port the
+These are **optional integration slices**, not the default product path. Each implements a port the
 native baseline already implements, and stays **disabled until pinned, licensed,
 SBOM-checked, reviewed, and conformance-tested** (the existing adapter promotion
-gate). Adapt the organs; do not fork into core.
+gate). OAF owns the user-facing tool; integrations only replace bounded internals.
 
-| Concern             | Native baseline (built)        | Best-in-class organ (adapter target) |
+| Concern             | Native baseline (built)        | Optional integration target          |
 | ------------------- | ------------------------------ | ------------------------------------ |
 | Durable workflow    | embedded + durable-sqlite      | **Temporal**                         |
 | Typed agent runtime | deterministic runner           | **Pydantic AI** (OTel built-in)      |
-| Memory / vector     | SQLite + FTS5                  | **pgvector** / **Mem0**              |
-| Repo graph          | native source graph            | **Graphify**                         |
-| Observability       | event ledger + flight recorder | **OpenTelemetry** / Logfire          |
+| Memory / vector     | SQLite + FTS5                  | reviewed memory/vector integration   |
+| Repo graph          | native source graph            | reviewed graph integration           |
+| Observability       | event ledger + flight recorder | reviewed telemetry integration       |
 | Tool transport      | brokered-local                 | **MCP** connectors                   |
 
 The 2026 reference pairing (Temporal + Pydantic AI, durable + typed + OTel) is

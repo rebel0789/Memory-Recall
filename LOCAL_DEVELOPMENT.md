@@ -110,7 +110,7 @@ npm run oaf -- context pack \
 Codex handoff preflight:
 
 ```bash
-npm --silent run oaf -- context handoff \
+oaf context handoff \
   --read-only \
   --from codex \
   --root . \
@@ -165,7 +165,7 @@ provider URLs, session/token markers, or secret-like strings.
 Impact brief:
 
 ```bash
-npm --silent run oaf -- measure context-pack \
+oaf measure context-pack \
   --read-only \
   --from codex \
   --root . \
@@ -245,7 +245,7 @@ production latency benchmark.
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"resources/list"}' | \
-  npm --silent run oaf -- mcp resources --read-only --stdio
+  oaf mcp resources --read-only --stdio
 ```
 
 The resources expose status, latest context manifest, latest run, memory
@@ -290,6 +290,9 @@ and emits a redacted operation summary. It does not write `.codex`,
 does not call models, does not make network calls, and does not enable external
 adapters or external writes. Malformed configs fail closed without printing the
 raw config body.
+
+Install and uninstall mean preview plus manual copy or removal; OAF does not
+mutate home configuration.
 
 The browser shell exposes the same plan-only flow under
 <http://127.0.0.1:4310/agents-tools>. That API accepts only the workspace and a

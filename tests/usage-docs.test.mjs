@@ -23,8 +23,8 @@ test('public usage docs avoid stale task and missing context-file examples', () 
   assert.match(docs, /docs\/usage\/local-agent-handoff\.md/);
   assert.match(docs, /copy and run/);
 
-  const gitignore = read('.gitignore');
-  assert.match(gitignore, /^context-packs\/$/m);
+  const localIgnore = existsSync('.gitignore') ? read('.gitignore') : read('.npmignore');
+  assert.match(localIgnore, /^context-packs\/$/m);
 });
 
 test('local handoff guide documents read-only Codex Cursor and Claude paths', () => {
@@ -38,10 +38,29 @@ test('local handoff guide documents read-only Codex Cursor and Claude paths', ()
   assert.match(guide, /--from codex,cursor .* --target cursor --changed-from-git --format json/);
   assert.match(guide, /--from codex,claude-code .* --target claude-code --changed-from-git --format json/);
   assert.match(guide, /harness setup plan --client cursor --server oaf --dry-run --format json/);
+  assert.match(guide, /harness setup status --client codex --dry-run --format json/);
+  assert.match(guide, /harness setup uninstall --client codex --server oaf --dry-run --format json/);
   assert.match(guide, /harness setup plan --client claude-code --server oaf --dry-run --format json/);
+  assert.match(guide, /harness setup uninstall --client claude-code --server oaf --dry-run --format json/);
+  assert.match(guide, /hook install --agent codex --dry-run --format json/);
+  assert.match(guide, /connect codex --dry-run --format json/);
   assert.match(guide, /git add -f context-packs\/\.\.\./);
   assert.match(guide, /writes context-pack files only when you click \*\*Pin locally\*\*/);
-  assert.match(guide, /does not mutate harness configs/);
+  assert.match(guide, /connect <agent> --yes/);
+  assert.match(guide, /creates backups/);
   assert.match(guide, /externalAdaptersEnabled/);
   assert.match(guide, /does not yet provide production authentication/);
+});
+
+test('troubleshooting documents read-only hook mcp rollback and benchmark fallbacks', () => {
+  const guide = read('TROUBLESHOOTING.md');
+
+  assert.match(guide, /hook context --read-only --format text/);
+  assert.match(guide, /mcp resources --read-only --stdio/);
+  assert.match(guide, /context registry status --read-only --format json/);
+  assert.match(guide, /harness setup uninstall --client codex --server oaf --dry-run --format json/);
+  assert.match(guide, /hook uninstall --agent codex --dry-run --format json/);
+  assert.match(guide, /disconnect codex --dry-run --format json/);
+  assert.match(guide, /benchmark truth-floor/);
+  assert.match(guide, /eval:context-recall/);
 });

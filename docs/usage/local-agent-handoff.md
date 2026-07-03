@@ -26,6 +26,25 @@ write-enabled MCP server, browser automation layer, or public publishing tool.
 From the repository root:
 
 ```bash
+npm pack
+npm install -g ./open-agent-fabric-0.2.0-dev.tgz
+oaf setup
+oaf verify
+```
+
+Without a global install:
+
+```bash
+npm run oaf -- setup
+npm run oaf -- verify
+```
+
+These are local wrappers for the existing bootstrap and handoff verification
+gates. The tarball path is local-install ready; registry publication and
+marketplace distribution still require maintainer approval. For the fully
+expanded source-checkout path:
+
+```bash
 npm ci --ignore-scripts --no-audit --no-fund
 npm run bootstrap
 npm run verify:handoff
@@ -82,7 +101,7 @@ Use this path when you want a repeatable command before launching the next
 agent.
 
 ```bash
-npm --silent run oaf -- context handoff \
+oaf context handoff \
   --read-only \
   --from codex \
   --root . \
@@ -107,7 +126,7 @@ memory/source text in the report.
 For a smaller impact report:
 
 ```bash
-npm --silent run oaf -- measure context-pack \
+oaf measure context-pack \
   --read-only \
   --from codex \
   --root . \
@@ -168,19 +187,25 @@ to share it.
 Codex:
 
 ```bash
-npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed-from-git --format json
+oaf context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed-from-git --format json
+npm run oaf -- harness setup status --client codex --dry-run --format json
+npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json
+npm run oaf -- harness setup uninstall --client codex --server oaf --dry-run --format json
 ```
 
 Cursor:
 
 ```bash
-npm --silent run oaf -- context handoff --read-only --from codex,cursor --root . --objective "Prepare handoff" --step "select next agent context" --target cursor --changed-from-git --format json
+oaf context handoff --read-only --from codex,cursor --root . --objective "Prepare handoff" --step "select next agent context" --target cursor --changed-from-git --format json
 ```
 
 Claude Code:
 
 ```bash
-npm --silent run oaf -- context handoff --read-only --from codex,claude-code --root . --objective "Prepare handoff" --step "select next agent context" --target claude-code --changed-from-git --format json
+oaf context handoff --read-only --from codex,claude-code --root . --objective "Prepare handoff" --step "select next agent context" --target claude-code --changed-from-git --format json
+npm run oaf -- harness setup status --client claude-code --dry-run --format json
+npm run oaf -- harness setup plan --client claude-code --server oaf --dry-run --format json
+npm run oaf -- harness setup uninstall --client claude-code --server oaf --dry-run --format json
 ```
 
 Cursor setup preview:
@@ -195,11 +220,26 @@ Claude Code setup preview:
 npm run oaf -- harness setup plan --client claude-code --server oaf --dry-run --format json
 ```
 
-These setup commands are dry-run previews. They report redacted config
-operations but do not edit `.codex`, `.cursor`, Claude Code, or other home
-configuration files. Each report also includes a generated
-`manualConfigSnippet` for the selected harness. It is derived from OAF's fixed
-read-only MCP command, not from your existing config body.
+Read-only hook receipt preview:
+
+```bash
+npm run oaf -- connect codex --dry-run --format json
+npm run oaf -- connect claude-code --dry-run --format json
+npm run oaf -- hook install --agent codex --dry-run --format json
+npm run oaf -- hook install --agent claude-code --dry-run --format json
+npm run oaf -- hook uninstall --agent codex --dry-run --format json
+```
+
+The `harness setup` and `hook install` commands are dry-run previews. They
+report redacted config operations but do not edit `.codex`, `.cursor`, Claude
+Code, or other home configuration files. `oaf connect <agent> --yes` is the
+narrow opt-in writer for Codex and Claude Code only: it writes the fixed
+read-only MCP and hook entries, creates backups, and reports a receipt.
+`oaf disconnect <agent> --yes` removes those OAF-owned entries. Each preview
+also includes a generated
+`manualConfigSnippet` or `manualHookSnippet` for the selected harness. It is
+derived from OAF's fixed read-only MCP and hook commands, not from your existing
+config body.
 
 Generated Context Pack Markdown now includes **Bridge Commands** for pinning a
 local artifact, receiving it, starting the read-only MCP bridge, reading the

@@ -150,7 +150,7 @@ slice.
   activation, harness config mutation, model call, network call, raw source
   body, markdown body, provider URL, credential, absolute path, or external
   adapter is included.
-- After a pin, `npm --silent run oaf -- mcp resources --read-only --stdio` automatically
+- After a pin, `oaf mcp resources --read-only --stdio` automatically
   discovers the current pinned use plan and registry status from
   `context-packs/current.json` and `context-packs/registry.json`. This is the
   standard bridge command used by local harness setup; it still exposes no tools
@@ -193,10 +193,10 @@ slice.
   omissions, fingerprints, and no-body safeguards without raw source, raw
   prompt text, markdown bodies, local paths, writes, network calls, model
   calls, graph databases, adapters, or production benchmark claims.
-- `npm --silent run oaf -- context handoff --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
+- `oaf context handoff --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   returns a schema-validated Codex handoff preflight report. It includes the
   launch prompt, required local reads, use-plan fingerprint, read-only MCP
-  context-pack readback proof, `npm --silent` stdio bridge command, and dry-run
+  context-pack readback proof, installed `oaf` stdio bridge command, and dry-run
   setup preview. With explicit `--memory-config oaf.memory.json`, it also
   preflights selected `memoryPaths` as proposal/quarantine counts and warning
   codes only. It rejects write, pin, output-file, and stdio-server modes and

@@ -25,6 +25,11 @@
 - OAF-028 dependency-free MCP protocol bridge with JSON-RPC-shaped initialize, ping, tool listing/call, resource listing/read handling, trusted-context identity checks, exact server-side grants, replay-side-effect denial, disconnect cancellation, safe events, protocol schema/fixture coverage, and focused bridge tests.
 - OAF-029 local operations backup, restore, upgrade, and rollback rehearsal with component checksum manifests, artifact export import, migration-status compatibility checks, deployment profile verification, diagnostics redaction, rollback plans, `ops:smoke`, and native smoke coverage.
 - OAF-030 release-readiness evidence with deterministic SBOM and provenance generation, compatibility matrix, security review, adapter certification criteria, third-party notice review, north-star gap audit, release checklist, repository-specific GitHub ownership/support metadata, `release:readiness`, and focused release-readiness tests.
+- Opt-in deterministic Context Compiler views for noisy logs, code, JSON, Markdown, text, and tool-output records, with secret/path redaction, original/view hashes, manifest representation metadata, and token-accounting loss notes.
+- Read-only local hook context command and dry-run harness setup hook snippets for supported local clients, without transcript capture, memory activation, authority grants, network calls, adapter enablement, or home-config writes.
+- Source-only setup and verify CLI wrappers, read-only MCP fallback documentation, manual harness setup/rollback receipts, context-recall budget metrics, and explicit unpublished distribution status.
+- Local npm tarball install path for the `oaf` CLI, with package contents excluding private scratch notes, local client config, generated state, and research-only docs while keeping hook install/uninstall manual and read-only by default.
+- Narrow `oaf connect` and `oaf disconnect` CLI commands for Codex and Claude Code, with dry-run default, explicit `--yes` home-config writes, backups, receipts, fixed read-only MCP/hook entries, and a read-only `context retrieve` command for recovering verified local context by locator or hash.
 - OAF-009 contextual policy engine with a versioned source registry, deterministic policy fingerprint, stable denial reason codes, strict policy request/decision schemas, native deterministic `PolicyEvaluatorPort` provider, and route/tool conformance tests.
 - OAF-008 native local identity provider, first-owner CLI bootstrap, browser sessions, CSRF, API tokens, deterministic workspace role/action authorization, and security audit events.
 - PostgreSQL `002_identity.sql` migration for users, memberships, sessions, API tokens, and security audit events.
@@ -54,6 +59,7 @@
 - The MCP bridge does not create a network listener, stdio server, hosted bridge, or external adapter. Remote protocol callers cannot supply identity, role, membership, grants, grant tokens, approval state, filesystem/network authority, or external-write authority; calls require OAF trusted context and server-side exact grants, and replay mode denies side-effecting tools before invocation.
 - Operations backup and restore verify manifest fingerprints, manifest checksum sidecars, component checksums, migration status, artifact export fingerprints, artifact object hashes, version compatibility, and external-write-disabled state before restore. Diagnostics redact credentials, raw bodies, prompts, outputs, provider URLs, local paths, SQL, cookies, tokens, authorization values, and hidden reasoning.
 - Release readiness keeps final merge, signing, and product 1.0 publication as explicit human approval gates; SBOM/provenance generation does not publish artifacts, store signing keys, enable external writes, or enable external adapters.
+- Context views are explicit per-record representations only: they preserve original content hashes for recovery, redact secret-shaped values and private local paths, and do not enable automatic memory writes, external adapters, proxying, embeddings, vector stores, graph stores, browser automation, outbound network, or canonical source replacement.
 - Route authorization and tool invocation now use one contextual policy service after authentication and current membership resolution; denials stop before workflows, Context Compiler, model/tool providers, artifact or memory mutation, secret resolution, filesystem writes, network operations, or consequential effects.
 - Policy evaluates workspace/resource ownership, API-token scope intersection, manifest-bounded tool capability, filesystem/network/secret/data-class/sandbox/budget dimensions, exact approval binding, idempotency, and the global external-write kill switch.
 - Control API rejects malformed paths, unknown queries, oversized bodies, unsupported media types, unsupported content encodings, cross-origin state-changing requests, excessive JSON complexity, and invalid bodies before domain execution.
@@ -70,7 +76,7 @@
 
 ### Added
 
-- Accepted architecture decision: build the reliability brain, adapt external organs, fork only through RFC.
+- Accepted architecture decision: build the whole local tool, own the boundaries, and fork only through RFC.
 - Five native provider manifests and local baseline implementations.
 - Workspace-scoped SQLite + FTS5 memory with temporal filters, supersession, export, and forget.
 - Content-addressed filesystem artifacts with hash verification and workspace isolation.

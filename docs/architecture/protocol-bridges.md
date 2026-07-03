@@ -23,7 +23,7 @@ composition:
 
 ```bash
 npm run oaf -- mcp resources --read-only --format json
-npm --silent run oaf -- mcp resources --read-only --stdio
+oaf mcp resources --read-only --stdio
 ```
 
 exposes sanitized resources for workspace status, the latest context manifest,
@@ -62,7 +62,7 @@ the pack remains a dry-run handoff object, while the write report truthfully
 records the local files written. A harness can then launch:
 
 ```bash
-npm --silent run oaf -- mcp resources --read-only \
+oaf mcp resources --read-only \
   --context-pack-use context-packs/CONTEXT_PACK.use.json --stdio
 ```
 
@@ -78,7 +78,7 @@ After a context pack is pinned, the standard installed bridge command also
 discovers the pinned use plan and registry status automatically:
 
 ```bash
-npm --silent run oaf -- mcp resources --read-only --stdio
+oaf mcp resources --read-only --stdio
 ```
 
 That default catalog lists and serves
@@ -92,7 +92,7 @@ When the user wants to reuse the same exported handoff later, the CLI can pin
 the local artifacts explicitly:
 
 ```bash
-npm --silent run oaf -- context pack --from codex --root . \
+oaf context pack --from codex --root . \
   --objective "Ship safely" --step "handoff" --target codex \
   --write --pin --out context-packs/CONTEXT_PACK.md --format json
 ```
@@ -105,10 +105,10 @@ required-read hashes, coverage, and current-pointer metadata. Verification is
 read-only:
 
 ```bash
-npm --silent run oaf -- context registry status --read-only --format json
-npm --silent run oaf -- mcp resources --read-only \
+oaf context registry status --read-only --format json
+oaf mcp resources --read-only \
   --uri oaf://workspace/ws_local/context-pack/registry/current --format json
-npm --silent run oaf -- mcp resources --read-only \
+oaf mcp resources --read-only \
   --context-pack-registry \
   --uri oaf://workspace/ws_local/context-pack/registry/current --format json
 ```
@@ -122,7 +122,7 @@ For a target harness readiness check, `context receive --read-only` consumes
 only the pinned current pointer, registry, and use plan:
 
 ```bash
-npm --silent run oaf -- context receive --read-only --root . \
+oaf context receive --read-only --root . \
   --target codex --format json
 ```
 

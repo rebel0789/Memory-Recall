@@ -85,7 +85,7 @@
     "state": "not_configured",
     "configured": false,
     "configRef": null,
-    "command": "npm --silent run oaf -- memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json",
+    "command": "oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json",
     "dryRun": true,
     "summary": {
       "proposalCount": 0,
@@ -131,8 +131,8 @@
       "desiredServer": {
         "name": "oaf",
         "transport": "stdio",
-        "command": "npm",
-        "args": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"],
+        "command": "oaf",
+        "args": ["mcp", "resources", "--read-only", "--stdio"],
         "environmentKeys": [],
         "resourceMode": "read-only",
         "externalWrites": false
@@ -157,10 +157,10 @@
     }
   },
   "commands": {
-    "previewSetup": "npm --silent run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
-    "startMcpBridge": "npm --silent run oaf -- mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --stdio",
-    "readCurrentContextPack": "npm --silent run oaf -- mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --uri oaf://workspace/ws_local/context-pack/current --format json",
-    "renderMarkdown": "npm --silent run oaf -- context pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --dry-run --format markdown"
+    "previewSetup": "oaf harness setup plan --client codex --server oaf --dry-run --format json",
+    "startMcpBridge": "oaf mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --stdio",
+    "readCurrentContextPack": "oaf mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --uri oaf://workspace/ws_local/context-pack/current --format json",
+    "renderMarkdown": "oaf context pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --dry-run --format markdown"
   },
   "checks": {
     "contextPackFingerprintMatchesMcp": true,
@@ -169,7 +169,7 @@
     "noToolsExposed": true,
     "noMarkdownBody": true,
     "setupDryRun": true,
-    "setupUsesSilentNpm": true
+    "setupUsesInstalledOaf": true
   },
   "safeguards": {
     "readOnly": true,

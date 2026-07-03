@@ -1,4 +1,4 @@
-# Mem0 Adapter Plan
+# Hosted Memory Adapter Plan
 
 ## Purpose
 

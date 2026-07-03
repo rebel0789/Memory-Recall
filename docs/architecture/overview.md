@@ -6,9 +6,9 @@
 _Conceptual target architecture. Boxes are responsibilities, not a requirement to deploy each as a separate service._
 
 
-Open Agent Fabric is a local-first control plane for building, running, inspecting, and improving agents. It owns portable domain state: workspaces, runs, workflows, events, context manifests, memories, evidence, approvals, policies, artifacts, evaluations, and adapter metadata.
+Open Agent Fabric is the local-first tool for building, running, inspecting, and improving agents. It owns portable domain state and the default runtime surface: workspaces, runs, workflows, events, context manifests, source graph, retrieval, compaction views, memories, evidence, approvals, policies, artifacts, hooks, evaluations, and integration metadata.
 
-It does not own foundation models, third-party agent framework internals, social platforms, or upstream memory products. Those enter through replaceable adapters.
+It does not own foundation models, third-party agent framework internals, social platforms, or upstream hosted products. Those can enter through replaceable integrations, but they do not own OAF's canonical state, authority, or user workflow.
 
 ## Logical architecture
 
@@ -65,7 +65,7 @@ flowchart TB
 
 ### Control plane
 
-Defines identities, workspaces, workflows, agents, tools, skills, budgets, policies, approvals, schedules, versions, and adapter configuration. It contains deterministic authority.
+Defines identities, workspaces, workflows, agents, tools, skills, budgets, policies, approvals, schedules, versions, hooks, and integration configuration. It contains deterministic authority.
 
 ### Execution plane
 
@@ -87,7 +87,7 @@ Presents outcome first, explanation second, trace third. Chat is optional. Runs,
 
 The current bootstrap uses Node's built-in HTTP server, file-backed local state, deterministic generation, synthetic observations, an in-process workflow runner, and a dependency-free static interface.
 
-The target production profile replaces these behind contracts with PostgreSQL, durable workflows, explicit local model servers, content-addressed object storage, authentication, OpenTelemetry, and optional adapters. The bootstrap remains a fast offline conformance environment.
+The target production profile strengthens these behind contracts with PostgreSQL, durable workflows, explicit local model servers, content-addressed object storage, authentication, OpenTelemetry, hooks, and optional integrations. The bootstrap remains a fast offline conformance environment.
 
 ## Deployment profiles
 
@@ -103,7 +103,7 @@ Each step has typed input and output, context policy, allowed tools, side-effect
 
 ## Native reliability layer
 
-The core always has a local baseline. `providers/native/` implements the same ports that future PostgreSQL, Temporal, Mem0, Graphify, or other integrations implement. Workflows and UI code do not know which provider is active.
+The core always has a local baseline. `providers/native/` implements the default local experience first. Optional integrations can implement the same ports later for compatibility or scale, but workflows and UI code still depend on OAF contracts.
 
 The local baseline includes SQLite/FTS5 memory, content-addressed filesystem artifacts, an embedded workflow runtime, deterministic generation behind the local model gateway, and an explicit loopback-only Ollama option. Read `native-providers.md` and `model-gateway.md` for limitations.
 

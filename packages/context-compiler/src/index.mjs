@@ -3,6 +3,10 @@ import { prefixedId, nowIso, assertPlainObject } from '../../protocol/src/index.
 
 export const COMPILER_VERSION = '0.2.0';
 const STOP_WORDS = new Set(['a','an','and','are','as','at','be','by','for','from','in','is','it','of','on','or','that','the','this','to','with']);
+export const CONTEXT_VIEW_ALGORITHM = 'oaf_context_view_v1';
+const CONTEXT_VIEW_KINDS = new Set(['auto', 'json', 'log', 'code', 'markdown', 'text']);
+const CONTEXT_VIEW_SECRET = /\b(?:token|secret|password|authorization|api[_-]?key|database_url|db_url|connection_string)\s*[:=]\s*[^\s,;]+/giu;
+const CONTEXT_VIEW_LOCAL_PATH = /(?:\/Users\/[^\s'")]+|\/private\/[^\s'")]+|\/var\/folders\/[^\s'")]+|[A-Za-z]:\\[^\s'")]+)/gu;
 
 export function estimateTokens(text) { return Math.max(1, Math.ceil(String(text ?? '').length / 4)); }
 export function terms(value) {
@@ -36,7 +40,7 @@ function isTemporallyValid(record, now) {
 function normalizeRecord(record) {
   assertPlainObject(record,'record');
   if (!record.id || !record.kind || !record.text) throw new Error('record requires id, kind, and text');
-  return {scope:'workspace-private',status:'active',confidence:.5,authority:.5,tags:[],relations:[],source:'unknown',...record,tokens:Number.isInteger(record.tokens)?record.tokens:estimateTokens(record.text)};
+  return applyContextView({scope:'workspace-private',status:'active',confidence:.5,authority:.5,tags:[],relations:[],source:'unknown',...record,tokens:Number.isInteger(record.tokens)?record.tokens:estimateTokens(record.text)});
 }
 function decision(item) {
   return {id:item.record.id,kind:item.record.kind,tokens:item.record.tokens,score:Number(item.score.toFixed(4)),reasonCodes:[...new Set(item.reasonCodes)],source:item.record.source,text:item.record.text};
@@ -154,6 +158,132 @@ function sha256(value) {
 
 export function hashRef(value) {
   return `sha256:${sha256(value)}`;
+}
+
+function redactContextViewText(value) {
+  return String(value ?? '')
+    .replace(CONTEXT_VIEW_SECRET, '[redacted-secret]')
+    .replace(CONTEXT_VIEW_LOCAL_PATH, '[redacted-local-path]');
+}
+
+function boundedText(value, maxTokens) {
+  const text = String(value ?? '').trim();
+  const maxChars = Math.max(16, maxTokens * 4);
+  return text.length > maxChars ? `${text.slice(0, maxChars - 3).trimEnd()}...` : text;
+}
+
+function classifyContextViewKind(text, explicit = 'auto') {
+  if (CONTEXT_VIEW_KINDS.has(explicit) && explicit !== 'auto') return explicit;
+  const trimmed = text.trim();
+  if (/^[\[{]/u.test(trimmed)) return 'json';
+  if (/^\s*#{1,6}\s|\n\s*[-*]\s/u.test(text)) return 'markdown';
+  if (/\b(?:error|warn|exception|traceback|failed|fatal)\b/iu.test(text) && text.split(/\r?\n/u).length > 4) return 'log';
+  if (/\b(?:import|export|function|class|const|let|fn|struct|impl)\b/u.test(text)) return 'code';
+  return 'text';
+}
+
+function jsonShape(value, depth = 0) {
+  if (depth > 2) return Array.isArray(value) ? `array(${value.length})` : typeof value;
+  if (Array.isArray(value)) {
+    const sample = value.slice(0, 3).map((item) => jsonShape(item, depth + 1)).join(', ');
+    return `array(${value.length})${sample ? ` of ${sample}` : ''}`;
+  }
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort();
+    const shown = keys.slice(0, 12).map((key) => `${key}: ${jsonShape(value[key], depth + 1)}`);
+    return `object keys(${keys.length}): ${shown.join('; ')}${keys.length > shown.length ? '; ...' : ''}`;
+  }
+  return typeof value;
+}
+
+function compactLines(text, { first = 4, last = 6, important = /./u, maxLines = 32 } = {}) {
+  const lines = text.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
+  if (lines.length <= maxLines) return lines.join('\n');
+  const chosen = new Map();
+  function add(index) {
+    if (index >= 0 && index < lines.length) chosen.set(index, lines[index]);
+  }
+  for (let index = 0; index < first; index++) add(index);
+  for (let index = 0; index < lines.length; index++) if (important.test(lines[index])) add(index);
+  for (let index = Math.max(first, lines.length - last); index < lines.length; index++) add(index);
+  const entries = [...chosen.entries()].sort((a, b) => a[0] - b[0]).slice(0, maxLines);
+  const omitted = Math.max(0, lines.length - entries.length);
+  return [...entries.map(([, line]) => line), ...(omitted ? [`... ${omitted} lines omitted ...`] : [])].join('\n');
+}
+
+function compactContextViewText(text, kind, maxTokens) {
+  if (kind === 'json') {
+    try {
+      return boundedText(`json ${jsonShape(JSON.parse(text))}`, maxTokens);
+    } catch {
+      return boundedText(compactLines(text, { first: 6, last: 6, important: /["{}\[\],:]/u }), maxTokens);
+    }
+  }
+  if (kind === 'log') return boundedText(compactLines(text, { important: /\b(?:error|warn|exception|traceback|failed|fatal)\b/iu }), maxTokens);
+  if (kind === 'code') return boundedText(compactLines(text, { first: 8, last: 4, important: /^\s*(?:import|export|class|function|const|let|fn|struct|impl)\b/u }), maxTokens);
+  if (kind === 'markdown') return boundedText(compactLines(text, { first: 6, last: 4, important: /^\s*(?:#{1,6}\s|[-*]\s)/u }), maxTokens);
+  return boundedText(compactLines(text, { first: 6, last: 4, important: /\b(?:must|should|error|decision|policy|todo|fix|fail)\b/iu }), maxTokens);
+}
+
+export function createContextView(value, { contentKind = 'auto', maxTokens = 160 } = {}) {
+  const original = String(value ?? '');
+  const redacted = redactContextViewText(original);
+  const kind = classifyContextViewKind(redacted, contentKind);
+  const boundedMaxTokens = Math.max(16, Math.min(4096, Number.isInteger(maxTokens) ? maxTokens : 160));
+  const text = compactContextViewText(redacted, kind, boundedMaxTokens);
+  const originalTokens = estimateTokens(original);
+  const viewTokens = estimateTokens(text);
+  return {
+    schemaVersion: '1.0.0',
+    algorithm: CONTEXT_VIEW_ALGORITHM,
+    contentKind: kind,
+    text,
+    originalTokens,
+    viewTokens,
+    originalContentHash: hashRef(original),
+    viewContentHash: hashRef(text),
+    reductionRatio: originalTokens ? Number((1 - viewTokens / originalTokens).toFixed(6)) : 0,
+    recoverableBy: 'originalContentHash',
+    reasonCodes: [...new Set([
+      'context_view_compacted',
+      `${kind}_context_view`,
+      ...(redacted !== original ? ['unsafe_material_redacted'] : [])
+    ])].sort()
+  };
+}
+
+function applyContextView(record) {
+  const config = record.metadata?.contextView;
+  if (!config || config.enabled !== true) return record;
+  const view = createContextView(record.text, {
+    contentKind: config.contentKind ?? config.kind ?? 'auto',
+    maxTokens: Number.isInteger(config.maxTokens) ? config.maxTokens : 160
+  });
+  if (view.viewTokens >= record.tokens) return record;
+  const contextAssembly = record.metadata?.contextAssembly && typeof record.metadata.contextAssembly === 'object' ? record.metadata.contextAssembly : {};
+  const reasonCodes = [...new Set([...(Array.isArray(contextAssembly.reasonCodes) ? contextAssembly.reasonCodes : []), ...view.reasonCodes, 'original_recoverable_by_hash'])].sort();
+  return {
+    ...record,
+    text: view.text,
+    tokens: view.viewTokens,
+    metadata: {
+      ...(record.metadata ?? {}),
+      contextAssembly: { ...contextAssembly, tier: contextAssembly.tier ?? 'full', reasonCodes },
+      contextView: { ...config, enabled: true },
+      contextCompression: {
+        schemaVersion: '1.0.0',
+        algorithm: view.algorithm,
+        contentKind: view.contentKind,
+        originalContentHash: view.originalContentHash,
+        viewContentHash: view.viewContentHash,
+        originalTokens: Number.isInteger(record.tokens) ? record.tokens : view.originalTokens,
+        viewTokens: view.viewTokens,
+        reductionRatio: view.reductionRatio,
+        recoverableBy: view.recoverableBy,
+        reasonCodes: view.reasonCodes
+      }
+    }
+  };
 }
 
 function safeNow(clock) {
@@ -1072,7 +1202,7 @@ function normalizeSelectionCandidate(candidate, index, request, policy) {
   const tokens = Number.isInteger(record.tokens) ? record.tokens : estimateTokens(record.text);
   if ((!policy.tokenEstimation.zeroTokensAllowed && tokens < 1) || tokens < 0 || tokens > policy.limits.maxCandidateTokens) throw new TypeError('invalid_token_estimate');
   if (byteLength(record.text) > MAX_CANDIDATE_TEXT_BYTES) throw new TypeError('malformed_candidate:text_too_large');
-  const contentHash = recordFingerprint(record);
+  const contentHash = record.metadata?.contextCompression?.originalContentHash ?? recordFingerprint(record);
   if ((record.contentHash || record.fingerprint) && !/^sha256:[a-f0-9]{64}$/.test(record.contentHash ?? record.fingerprint)) throw new TypeError('malformed_candidate:content_hash');
   const hits = Array.isArray(item.hits) && item.hits.length
     ? item.hits.slice(0, policy.limits.maxSourceHitsPerCandidate).map((hit, hitIndex) => normalizeSelectionHit(hit, hitIndex))
@@ -1317,10 +1447,13 @@ function decisionFromScored(item, score, reasonCodes, order = null) {
     source: safeManifestSource(item.record.source),
     text: item.record.text
   };
+  if (item.record.contentHash) result.contentHash = item.record.contentHash;
   if (order !== null) result.order = order;
   if (item.category) result.category = item.category;
   const representationHint = normalizeRepresentationHint(item.record.metadata?.contextAssembly);
   if (representationHint) result.representationHint = representationHint;
+  const contextView = normalizeContextViewForManifest(item.record.metadata?.contextCompression);
+  if (contextView) result.contextView = contextView;
   return result;
 }
 
@@ -1658,6 +1791,25 @@ function normalizeRepresentationHint(value) {
   };
 }
 
+function normalizeContextViewForManifest(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (value.algorithm !== CONTEXT_VIEW_ALGORITHM) return null;
+  if (!/^sha256:[a-f0-9]{64}$/u.test(value.originalContentHash ?? '') || !/^sha256:[a-f0-9]{64}$/u.test(value.viewContentHash ?? '')) return null;
+  return {
+    algorithm: value.algorithm,
+    contentKind: CONTEXT_VIEW_KINDS.has(value.contentKind) && value.contentKind !== 'auto' ? value.contentKind : 'text',
+    originalContentHash: value.originalContentHash,
+    viewContentHash: value.viewContentHash,
+    originalTokens: Math.max(1, Number(value.originalTokens ?? 1)),
+    viewTokens: Math.max(1, Number(value.viewTokens ?? 1)),
+    reductionRatio: round(Number(value.reductionRatio ?? 0)),
+    recoverableBy: value.recoverableBy === 'originalContentHash' ? 'originalContentHash' : 'manual_review',
+    reasonCodes: Array.isArray(value.reasonCodes)
+      ? [...new Set(value.reasonCodes.filter((item) => typeof item === 'string' && /^[a-z][a-z0-9_:-]*$/u.test(item)))].sort().slice(0, 12)
+      : ['context_view_compacted']
+  };
+}
+
 function durableManifestId({ request, runId, selectedIds }) {
   return `ctx_${sha256(stableStringify({
     workspaceId: request.workspaceId ?? 'ws_local',
@@ -1671,6 +1823,11 @@ function durableManifestId({ request, runId, selectedIds }) {
 }
 
 function manifestContentHash(item) {
+  if (item.contentHash && /^sha256:[a-f0-9]{64}$/u.test(item.contentHash)) return item.contentHash;
+  return legacyManifestContentHash(item);
+}
+
+function legacyManifestContentHash(item) {
   return hashRef(stableStringify({
     id: item.id,
     kind: item.kind,
@@ -1691,6 +1848,7 @@ function representationForItem(item) {
   const tier = CONTEXT_REPRESENTATION_TIERS.includes(requestedTier) ? requestedTier : 'full';
   let text = originalText;
   let reasonCodes = normalizeRepresentationHint(item.representationHint)?.reasonCodes ?? ['full_context_required'];
+  const originalTokens = Number.isInteger(item.contextView?.originalTokens) ? item.contextView.originalTokens : item.tokens;
   if (tier === 'snippet') {
     const limit = 240;
     text = originalText.length > limit ? `${originalText.slice(0, limit)}...` : originalText;
@@ -1709,7 +1867,7 @@ function representationForItem(item) {
   return {
     tier,
     text,
-    originalTokens: item.tokens,
+    originalTokens,
     representedTokens,
     reasonCodes
   };
@@ -1806,7 +1964,7 @@ function buildLegacyAssembly(selected, { policy = LEGACY_CONTEXT_ASSEMBLY_POLICY
       tokens: item.tokens,
       source: item.source,
       text: item.text,
-      contentHash: manifestContentHash(item)
+      contentHash: legacyManifestContentHash(item)
     }));
     sections.push({
       id: sectionId,
@@ -1891,9 +2049,9 @@ function manifestDeltaFrom(previousManifest, durable, assembly) {
 }
 
 function tokenBudgetReport({ manifest, assembly, selection, request, deltaFrom }) {
-  const selectedOriginalTokens = (manifest.selected ?? []).reduce((sum, item) => sum + Number(item.tokens ?? 0), 0);
+  const selectedOriginalTokens = (manifest.selected ?? []).reduce((sum, item) => sum + Number(item.contextView?.originalTokens ?? item.tokens ?? 0), 0);
   const assembledTokens = assembly.totalTokens;
-  const candidateTokens = Number(selection?.totalCandidateTokenCount ?? selectedOriginalTokens);
+  const candidateTokens = Math.max(Number(selection?.totalCandidateTokenCount ?? selectedOriginalTokens), selectedOriginalTokens);
   const requiredIds = new Set(request.requiredIds ?? []);
   const requiredSelected = (manifest.selected ?? []).filter((item) => requiredIds.has(item.id)).length;
   const requestedEntities = new Set(request.requiredEntities ?? []);
@@ -1909,6 +2067,14 @@ function tokenBudgetReport({ manifest, assembly, selection, request, deltaFrom }
           recordId: item.id,
           tier: item.representation.tier,
           reasonCodes: item.representation.reasonCodes ?? []
+        });
+      }
+      const selectedItem = (manifest.selected ?? []).find((record) => record.id === item.id);
+      if (selectedItem?.contextView) {
+        compressionLossNotes.push({
+          recordId: item.id,
+          tier: 'context-view',
+          reasonCodes: selectedItem.contextView.reasonCodes ?? []
         });
       }
     }

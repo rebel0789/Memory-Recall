@@ -78,6 +78,7 @@
         "evals/context-selection/cases.json",
         "tests/context-selection.test.mjs",
         "tests/context-compiler.test.mjs",
+        "tests/context-view.test.mjs",
         "tests/context-candidate-sources.test.mjs",
         "tests/ast-code-candidate-source.test.mjs",
         "tests/source-graph-preview.test.mjs",
@@ -100,6 +101,7 @@
       ],
       "limitations": [
         "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 256 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
+        "Context views are opt-in deterministic local representations for noisy selected records and tool output; they preserve original/view hashes and token accounting but do not replace canonical source or memory state",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Native source graph is read-only derived metadata; it is not canonical source state, not a graph database, not persisted as memory, and does not emit graph candidate-source records yet",
         "Token estimate is approximate",
@@ -220,14 +222,14 @@
         "Context packs preserve requested source families, user-selected locators, and changed locators in schema-backed requestedInputs, and reject secret-like or absolute-path objective and step text before rendering handoff markdown",
         "Context-pack Markdown intentionally caps bulky locator, omission, source-graph, affected-symbol, and verification-command rows while complete structured pack, use-plan, registry, and read-only MCP resources retain full required-read, omission-ref, requested-input, and command lists",
         "Opt-in read-only MCP context-pack summary resource exposes source-family selection, locators, fingerprints, omission counts, source-selection token counts, delivery-budget metrics, changed-file impact, and utility coverage counts without raw objective text, raw step text, markdown bodies, or source bodies",
-        "Read-only context handoff preflight reports combine launch prompt, required local reads, schema-validated use plan, MCP context-pack readback proof, silent npm stdio bridge command, and dry-run setup preview without writing context-pack artifacts or mutating harness config",
+        "Read-only context handoff preflight reports combine launch prompt, required local reads, schema-validated use plan, MCP context-pack readback proof, installed oaf stdio bridge command, and dry-run setup preview without writing context-pack artifacts or mutating harness config",
         "Read-only context-pack measurement reports include a schema-backed impact brief with changed-file coverage, affected symbols, required local reads, hash proof, graph hints, source-selection reduction, aggregate changed-source body tokens kept out of the handoff, MCP readback proof, and strict no-body/no-write/no-network/no-model/no-graph-database safeguards; large static JS/TS changed files within the 256 KiB preview ceiling are represented in the source graph while over-limit files stay in review",
         "The browser Context Pack page starts with a first local handoff flow, reviewed input fields, a practical handoff checklist, session-local current-handoff status across Context Pack, Fabric Map, and Agents & Tools, a copyable read-only preflight command, and no harness install affordance",
         "Explicit CLI export can write both context-packs/*.md markdown and context-packs/*.use.json sanitized use plans; the use plan carries complete required local reads, content hashes, coverage, delivery metrics, artifact hashes, and pack fingerprints without changing the pack object's dry-run semantics",
         "Explicit CLI pinning writes context-packs/*.md, context-packs/*.use.json, context-packs/registry.json, and context-packs/current.json, then read-only registry status verifies artifact hashes, required source hashes, registry fingerprints, current-pointer fingerprints, stale source changes, unsafe persisted source locators, and tampered exports without exposing markdown or source content",
         "Read-only MCP context-pack use-plan resources load only schema-validated context-packs/*.use.json files, reject arbitrary paths, and refuse unsafe direct use-plan data containing private local paths, provider URLs, session/token markers, or secret-like strings before serving the complete required-read plan",
         "Read-only MCP context-pack registry resources expose schema-validated verification status for pinned local context-pack artifacts without exposing write tools or private content",
-        "The standard read-only MCP stdio bridge uses npm --silent and automatically discovers pinned context-pack use-plan and registry resources from context-packs/current.json and context-packs/registry.json; tampered pins withhold the use-plan resource while still exposing registry status for review",
+        "The standard read-only MCP stdio bridge uses the installed oaf bin and automatically discovers pinned context-pack use-plan and registry resources from context-packs/current.json and context-packs/registry.json; tampered pins withhold the use-plan resource while still exposing registry status for review",
         "The local MCP stdio bridge caps stdin bytes, JSON-RPC line bytes, message count, child runtime, and child stdout/stderr; rejects JSON-RPC batch arrays; and redacts unsupported method, unknown resource, unknown tool, and oversized id failures",
         "The authenticated loopback Control API exposes read-only context-pack registry verification at GET /api/context/pack/registry/status without mutating canonical state",
         "Control API context-pack builds include an in-process read-only MCP resource readback proof for the freshly built pack, including fingerprint match, byte size, zero exposed tools, and no markdown body",
@@ -237,6 +239,9 @@
         "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, persisted graph database, graph candidate-source integration, publishing, or external write",
         "The browser Context Pack page reads existing pinned registry/current status through the authenticated loopback API, surfaces the read-only receive command as the primary consume action only for verified pins, and withholds the MCP use-plan read command unless the current pinned entry verifies",
         "Read-only context receive reports include a compact receiverPacket with ready/review/blocked state, fingerprints, required-read order, local-only proof gates, and next actions without embedding objective text, step text, launch prompts, markdown bodies, source bodies, credentials, provider URLs, absolute local paths, or hidden reasoning",
+        "Dry-run harness setup reports include manual read-only hook snippets for supported local clients; hook commands emit local context pointers only and do not capture transcripts, activate memory, grant authority, mutate home config, call the network, or enable adapters",
+        "Opt-in connect/disconnect commands can write or remove only fixed OAF-owned Codex and Claude Code read-only MCP and hook entries under an explicit --yes flag, with backups and receipts; dry-run remains the default",
+        "Read-only context retrieve can recover a verified local context read by workspace locator or current use-plan content hash while refusing secret-like paths and stale hashes",
         "The only context-pack write paths are explicit CLI outputs under context-packs/*.md, context-packs/*.use.json, context-packs/registry.json, and context-packs/current.json"
       ]
     },
@@ -621,11 +626,12 @@
         "docs/release/1.0-PROVENANCE.json",
         "docs/release/1.0-ADAPTER-CERTIFICATION.md",
         "docs/release/1.0-THIRD-PARTY-NOTICE-REVIEW.md",
-        "docs/release/1.0-RELEASE-CHECKLIST.md"
+        "docs/release/1.0-RELEASE-CHECKLIST.md",
+        ".npmignore"
       ],
       "limitations": [
-        "Release-candidate readiness evidence only; product 1.0 is not published",
-        "Final merge, tag creation, artifact signing, and product release publication require explicit maintainer approval",
+        "Release-candidate readiness evidence and local npm tarball install only; product 1.0 is not published",
+        "Final merge, tag creation, artifact signing, npm registry publication, marketplace distribution, and product release publication require explicit maintainer approval",
         "No signing keys, release credentials, hosted publishing automation, external writes, or external adapter activation are added"
       ]
     },
@@ -714,7 +720,7 @@
         "docs/implementation/OAF-028-protocol-bridges-note.md"
       ],
       "limitations": [
-        "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio composition using npm --silent for harness setup previews; no HTTP, SSE, hosted bridge, or network listener is started",
+        "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio composition using the installed oaf bin for harness setup previews; no HTTP, SSE, hosted bridge, or network listener is started",
         "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, opt-in current context packs, auto-discovered pinned context-pack use plans, and pinned context-pack registry verification; they do not expose write tools, source bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
         "The stdio bridge enforces bounded stdin, JSON-RPC line size, message count, child runtime, child stdout/stderr, JSON-RPC id, method, resource URI, and tool name limits; JSON-RPC batch arrays are rejected and request-metadata failures are redacted",
         "MCP context-pack smoke and measurement reports are observed local single-invocation measurements only; delivery-budget metrics distinguish locator-handoff cost from source-body selection cost but are not production latency benchmarks, provider billing-token claims, or external tool comparisons",
@@ -863,7 +869,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 373,
+    "testsExpected": 388,
     "protocolFixturesExpected": 151,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

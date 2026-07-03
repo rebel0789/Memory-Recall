@@ -198,25 +198,25 @@
     "nextActions": [
       {
         "label": "Check pinned registry",
-        "command": "npm --silent run oaf -- context registry status --read-only --root . --workspace ws_local --format json",
+        "command": "oaf context registry status --read-only --root . --workspace ws_local --format json",
         "reasonCode": "verify_pinned_registry",
         "required": true
       },
       {
         "label": "Read pinned use plan",
-        "command": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
+        "command": "oaf mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
         "reasonCode": "read_required_local_locators",
         "required": true
       },
       {
         "label": "Preview harness MCP setup",
-        "command": "npm --silent run oaf -- harness setup status --client codex --server oaf --dry-run --format json",
+        "command": "oaf harness setup status --client codex --server oaf --dry-run --format json",
         "reasonCode": "confirm_read_only_bridge_config",
         "required": true
       },
       {
         "label": "Start read-only MCP bridge",
-        "command": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --stdio",
+        "command": "oaf mcp resources --read-only --root . --workspace ws_local --stdio",
         "reasonCode": "serve_sanitized_resources_only",
         "required": false
       }
@@ -249,8 +249,8 @@
     "desiredServer": {
       "name": "oaf",
       "transport": "stdio",
-      "command": "npm",
-      "args": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"],
+      "command": "oaf",
+      "args": ["mcp", "resources", "--read-only", "--stdio"],
       "environmentKeys": [],
       "resourceMode": "read-only",
       "externalWrites": false
@@ -265,11 +265,11 @@
   },
   "commands": {
     "createPinnedContextPack": "npm run oaf -- context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json",
-    "checkRegistry": "npm --silent run oaf -- context registry status --read-only --root . --workspace ws_local --format json",
-    "readUsePlan": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
-    "readRegistry": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/registry/current --format json",
-    "previewSetup": "npm --silent run oaf -- harness setup status --client codex --server oaf --dry-run --format json",
-    "startReadOnlyBridge": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --stdio"
+    "checkRegistry": "oaf context registry status --read-only --root . --workspace ws_local --format json",
+    "readUsePlan": "oaf mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
+    "readRegistry": "oaf mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/registry/current --format json",
+    "previewSetup": "oaf harness setup status --client codex --server oaf --dry-run --format json",
+    "startReadOnlyBridge": "oaf mcp resources --read-only --root . --workspace ws_local --stdio"
   },
   "checks": {
     "registryFingerprintVerified": true,
@@ -283,7 +283,7 @@
     "usePlanResourceRead": true,
     "registryResourceRead": true,
     "setupDryRun": true,
-    "setupUsesSilentNpm": true
+    "setupUsesInstalledOaf": true
   },
   "safeguards": {
     "readOnly": true,

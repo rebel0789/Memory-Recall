@@ -4,7 +4,7 @@ You are receiving an agent-ready development kit for **Open Agent Fabric 0.2.0-d
 
 ## Mission
 
-Build a local-first reliability and context operating system for agents whose state, actions, evidence, memory, workflows, permissions, and improvements are portable and inspectable.
+Build the complete local-first reliability and context tool for agents whose state, actions, evidence, memory, source understanding, workflows, permissions, and improvements are portable and inspectable.
 
 ## First session
 
@@ -25,7 +25,7 @@ Read, in order:
 3. `PRODUCT.md`
 4. `DESIGN.md`
 5. `docs/START_HERE.md`
-6. `docs/adr/0012-build-the-brain-adapt-the-organs.md`
+6. `docs/adr/0012-build-the-whole-tool-own-the-boundaries.md`
 7. `docs/implementation/AGENT_EXECUTION_PLAYBOOK.md`
 8. the nearest package-level `AGENTS.md`
 
@@ -40,17 +40,19 @@ or external adapters unless the active task explicitly requires it.
 
 ## Product differentiator
 
-Open Agent Fabric does not win by bundling repositories. It owns:
+Open Agent Fabric does not win by bundling repositories or outsourcing its core product behavior. It owns:
 
 - intentional context selection and context manifests;
+- source graph, retrieval, compaction, and code intelligence for the default local experience;
 - temporal, evidence-backed memory lifecycle;
 - deterministic authority and capability grants;
+- project-scoped hooks that improve routing and performance without granting authority;
 - an agent flight recorder with replay and shadow mode;
 - reviewable learning proposals instead of silent self-modification;
 - portable Agent Packs;
 - provider and adapter conformance.
 
-Build the brain; adapt the organs. Fork only through an approved RFC.
+Build the product core. Use hooks and integrations as bounded accelerators only. Fork only through an approved RFC.
 
 ## Non-negotiable discipline
 

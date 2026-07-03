@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { lstat, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -41,15 +42,21 @@ import {
 } from '../../packages/source-graph/src/index.mjs';
 
 const CLI_PATH = fileURLToPath(import.meta.url);
+const PACKAGE_ROOT = path.resolve(path.dirname(CLI_PATH), '../..');
 const MCP_STDIO_MAX_STDIN_BYTES = boundedEnvInteger('OAF_MCP_STDIO_MAX_STDIN_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 const MCP_STDIO_MAX_LINE_BYTES = boundedEnvInteger('OAF_MCP_STDIO_MAX_LINE_BYTES', 32 * 1024, { min: 1, max: 512 * 1024 });
 const MCP_STDIO_MAX_MESSAGES = boundedEnvInteger('OAF_MCP_STDIO_MAX_MESSAGES', 16, { min: 1, max: 64 });
 const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOUT_MS', 30_000, { min: 1, max: 60_000 });
 const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
+const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/iu;
+const PRIVATE_LOCAL_PATH = /(?:^|[\s"'`(])(?:\/Users|\/private|\/var\/folders)(?:\/|$)/u;
+const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
 
 const [command = 'help', ...args] = process.argv.slice(2);
 const commands = new Map([
+  ['setup', ['scripts/bootstrap.mjs']],
+  ['verify', ['scripts/verify-handoff.mjs']],
   ['doctor', ['scripts/doctor.mjs']],
   ['demo', ['scripts/demo.mjs', ...args]],
   ['serve', ['services/control-api/src/server.mjs']],
@@ -74,6 +81,10 @@ if (commands.has(command)) {
   await measureCommand(args);
 } else if (command === 'harness') {
   await harnessCommand(args);
+} else if (command === 'hook') {
+  await hookCommand(args);
+} else if (command === 'connect' || command === 'disconnect') {
+  await connectionCommand(command, args);
 } else if (['help', '--help', '-h'].includes(command)) {
   help();
 } else if (['version', '--version', '-v'].includes(command)) {
@@ -264,6 +275,7 @@ async function contextCommand(values) {
   if (values[0] === 'pack') return contextPackCommand(values.slice(1));
   if (values[0] === 'handoff') return contextHandoffCommand(values.slice(1));
   if (values[0] === 'receive') return contextReceiveCommand(values.slice(1));
+  if (values[0] === 'retrieve') return contextRetrieveCommand(values.slice(1));
   if (values[0] === 'registry') return contextRegistryCommand(values.slice(1));
   if (values[0] === 'graph') {
     if (values[1] === 'preview') return contextGraphPreviewCommand(values.slice(2));
@@ -275,7 +287,7 @@ async function contextCommand(values) {
   const requestPath = option(values, '--request');
   const recordsPath = option(values, '--records');
   if (!requestPath || !recordsPath) {
-    console.error('context requires --request <json> and --records <json>, context scan --from <harness> --dry-run, context preview --from <harness> --dry-run, context pack --dry-run, context handoff --read-only, context receive --read-only, or context graph preview --dry-run');
+    console.error('context requires --request <json> and --records <json>, context scan --from <harness> --dry-run, context preview --from <harness> --dry-run, context pack --dry-run, context handoff --read-only, context receive --read-only, context retrieve --read-only, or context graph preview --dry-run');
     process.exitCode = 2;
     return;
   }
@@ -557,6 +569,40 @@ async function contextReceiveCommand(values) {
   }
 }
 
+async function contextRetrieveCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('context retrieve requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--stdio')) {
+    console.error('context retrieve is read-only and does not write, pin, output files, or run as an MCP stdio server');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error('context retrieve only supports --format json');
+    process.exitCode = 2;
+    return;
+  }
+  const target = option(values, '--locator') ?? option(values, '--hash') ?? firstPositional(values);
+  if (!target) {
+    console.error('context retrieve requires a workspace locator or sha256 hash');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const root = option(values, '--root') ?? process.cwd();
+    const workspaceId = option(values, '--workspace') ?? 'ws_local';
+    const report = await buildContextRetrieveReport({ root, workspaceId, target, generatedAt: fixedNow() });
+    console.log(JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
 async function contextRegistryCommand(values) {
   const subcommand = values[0] ?? 'status';
   if (subcommand !== 'status') {
@@ -735,6 +781,172 @@ async function harnessSetupCommand(values) {
     generatedAt: fixedNow()
   });
   console.log(JSON.stringify(report, null, 2));
+}
+
+async function hookCommand(values) {
+  const [subcommand, ...rest] = values;
+  if (subcommand === 'install' || subcommand === 'uninstall') {
+    return hookSetupCommand(subcommand, rest);
+  }
+  if (subcommand !== 'context') {
+    console.error('hook requires install, uninstall, or context');
+    process.exitCode = 2;
+    return;
+  }
+  if (!rest.includes('--read-only')) {
+    console.error('hook context requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(rest, '--format') ?? 'text';
+  const payload = {
+    schemaVersion: '1.0.0',
+    command: 'hook context',
+    dryRun: true,
+    readOnly: true,
+    recommendedCommands: [
+      'oaf context receive --read-only --root . --target codex --format json',
+      'oaf mcp resources --read-only --stdio'
+    ],
+    safeguards: {
+      localFilesWritten: 0,
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      memoryActivated: false,
+      authorityGranted: false
+    }
+  };
+  if (format === 'json') {
+    console.log(JSON.stringify(payload, null, 2));
+    return;
+  }
+  if (format !== 'text') {
+    console.error('hook context only supports --format text or json');
+    process.exitCode = 2;
+    return;
+  }
+  console.log([
+    'OAF HOOK CONTEXT',
+    'Use pinned local context only:',
+    ...payload.recommendedCommands.map((item) => `- ${item}`),
+    'No writes, memory activation, external adapters, network calls, or authority grants.'
+  ].join('\n'));
+}
+
+async function hookSetupCommand(action, values) {
+  if (!values.includes('--dry-run')) {
+    console.error(`hook ${action} requires --dry-run; home config writes are not implemented`);
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write')) {
+    console.error(`hook ${action} is dry-run only; home config writes are not implemented`);
+    process.exitCode = 2;
+    return;
+  }
+  const agent = option(values, '--agent') ?? option(values, '--client') ?? 'codex';
+  if (!['codex', 'claude-code'].includes(agent)) {
+    console.error('hook install supports --agent codex or --agent claude-code');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error(`hook ${action} only supports --format json`);
+    process.exitCode = 2;
+    return;
+  }
+  const report = await buildHarnessSetupReport({
+    action: action === 'install' ? 'plan' : 'uninstall',
+    client: agent,
+    server: 'oaf',
+    home: option(values, '--home') ?? process.env.HOME ?? process.cwd(),
+    configPath: option(values, '--config'),
+    generatedAt: fixedNow()
+  });
+  const manualHookSnippet = action === 'install'
+    ? report.manualHookSnippet
+    : {
+      format: 'json',
+      configRef: report.manualHookSnippet.configRef,
+      applyMode: 'manual-remove',
+      content: JSON.stringify({
+        removeEvents: report.desiredHooks.events,
+        matchingCommand: report.desiredHooks.command
+      }, null, 2),
+      warning: 'Dry-run only. Remove matching OAF hook entries manually; OAF did not edit home config.'
+    };
+  console.log(JSON.stringify({
+    schemaVersion: '1.0.0',
+    command: `hook ${action}`,
+    agent,
+    dryRun: true,
+    state: report.desiredHooks.supported ? `manual-${action === 'install' ? 'copy' : 'remove'}-ready` : 'unsupported',
+    receipt: {
+      localFilesWritten: 0,
+      homeConfigMutated: false,
+      externalWritesEnabled: false,
+      authorityGranted: false,
+      memoryActivated: false
+    },
+    manualHookSnippet,
+    harnessSetup: report
+  }, null, 2));
+}
+
+async function connectionCommand(action, values) {
+  const allowed = new Set(['--agent', '--client', '--home', '--format', '--dry-run', '--yes']);
+  const unsupported = unsupportedFlags(values, allowed, new Set(['--agent', '--client', '--home', '--format']));
+  if (unsupported.length) {
+    console.error(`${action} unsupported flags: ${unsupported.join(', ')}`);
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--dry-run') && values.includes('--yes')) {
+    console.error(`${action} accepts either --dry-run or --yes, not both`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (format !== 'json') {
+    console.error(`${action} only supports --format json`);
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const agent = normalizeConnectionAgent(option(values, '--agent') ?? option(values, '--client') ?? firstPositional(values) ?? 'codex');
+    const dryRun = !values.includes('--yes');
+    const home = option(values, '--home') ?? process.env.HOME ?? process.cwd();
+    const setup = await buildHarnessSetupReport({
+      action: action === 'connect' ? 'plan' : 'uninstall',
+      client: agent,
+      server: 'oaf',
+      home,
+      generatedAt: fixedNow()
+    });
+    const receipt = dryRun
+      ? connectionDryRunReceipt()
+      : await applyConnection({ action, agent, home, setup, generatedAt: fixedNow() });
+    console.log(JSON.stringify({
+      schemaVersion: '1.0.0',
+      command: action,
+      agent,
+      dryRun,
+      state: dryRun ? 'preview-ready' : receipt.state,
+      receipt,
+      harnessSetup: setup,
+      safeguards: {
+        localFilesWritten: receipt.localFilesWritten,
+        homeConfigMutated: receipt.homeConfigMutated,
+        externalWritesEnabled: false,
+        authorityGranted: false,
+        memoryActivated: false
+      }
+    }, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
 }
 
 async function mcpResourcesCommand(values) {
@@ -1080,7 +1292,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
   const selected = pack.utility.sourceSelection;
   const delivery = pack.delivery ?? {};
   const baseCommand = contextHandoffBaseCommand({ from, objective, step, targetHarness, userSelectedFiles, changedLocators });
-  const startMcpBridge = `npm --silent run oaf -- mcp resources --read-only --context-pack ${baseCommand} --stdio`;
+  const startMcpBridge = `oaf mcp resources --read-only --context-pack ${baseCommand} --stdio`;
   const report = {
     schemaVersion: '1.0.0',
     command: 'context handoff',
@@ -1157,10 +1369,10 @@ async function buildContextHandoffReport(values, { objective, step }) {
       }
     },
     commands: {
-      previewSetup: `npm --silent run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
+      previewSetup: `oaf harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
       startMcpBridge,
-      readCurrentContextPack: `npm --silent run oaf -- mcp resources --read-only --context-pack ${baseCommand} --uri oaf://workspace/${workspaceId}/context-pack/current --format json`,
-      renderMarkdown: `npm --silent run oaf -- context pack ${baseCommand} --dry-run --format markdown`
+      readCurrentContextPack: `oaf mcp resources --read-only --context-pack ${baseCommand} --uri oaf://workspace/${workspaceId}/context-pack/current --format json`,
+      renderMarkdown: `oaf context pack ${baseCommand} --dry-run --format markdown`
     },
     checks: {
       contextPackFingerprintMatchesMcp: smoke.resource.contextPackFingerprint === pack.contextPackFingerprint,
@@ -1169,7 +1381,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
       noToolsExposed: smoke.checks.noToolsExposed,
       noMarkdownBody: smoke.checks.noMarkdownBody,
       setupDryRun: setup.dryRun === true,
-      setupUsesSilentNpm: setup.desiredServer.command === 'npm' && setup.desiredServer.args[0] === '--silent'
+      setupUsesInstalledOaf: setup.desiredServer.command === 'oaf' && setup.desiredServer.args[0] === 'mcp'
     },
     safeguards: {
       readOnly: true,
@@ -1208,7 +1420,7 @@ function safeWorkspaceRelativePath(value, label) {
 }
 
 function memoryProposalCommand(configPath = 'oaf.memory.json') {
-  return `npm --silent run oaf -- memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
+  return `oaf memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
 }
 
 function memoryPreflightSafeguards(report = null) {
@@ -1848,6 +2060,293 @@ async function writeWorkspaceFile(root, locator, content) {
   await writeFile(absolute, content, 'utf8');
 }
 
+async function buildContextRetrieveReport({ root, workspaceId, target, generatedAt }) {
+  const usePlan = await loadCurrentContextPackUsePlan({ root, workspaceId, clock: () => generatedAt }).catch(() => null);
+  const readItem = findRetrieveReadItem(usePlan, target);
+  const locator = readItem?.locator ?? (String(target).startsWith('sha256:') ? null : String(target));
+  if (!locator) throw new Error('context retrieve hash was not found in the current verified context-pack use plan');
+  const source = await readWorkspaceLocator(root, locator);
+  const contentHash = `sha256:${createHash('sha256').update(source.text).digest('hex')}`;
+  if (String(target).startsWith('sha256:') && contentHash !== target) throw new Error('context retrieve hash no longer matches local source');
+  if (readItem?.contentHash && readItem.contentHash !== contentHash) throw new Error('context retrieve source is stale against current use plan');
+  const sensitive = SECRET_LIKE.test(source.text) || PRIVATE_LOCAL_PATH.test(source.text) || AUTO_DETECTED_SECRET_PATH.test(source.relativePath);
+  return {
+    schemaVersion: '1.0.0',
+    command: 'context retrieve',
+    generatedAt,
+    workspaceId,
+    state: sensitive ? 'withheld' : 'ready',
+    target,
+    locator,
+    matchedUsePlan: Boolean(readItem),
+    role: readItem?.role ?? 'direct_workspace_read',
+    required: readItem?.required ?? false,
+    represented: readItem?.represented ?? null,
+    contentHash,
+    byteSize: source.byteSize,
+    lineCount: source.lineCount,
+    contentIncluded: !sensitive,
+    content: sensitive ? null : source.text,
+    reasonCodes: [
+      readItem ? 'use_plan_match' : 'direct_workspace_locator',
+      sensitive ? 'sensitive_content_withheld' : 'content_recovered',
+      readItem?.contentHash ? 'content_hash_verified' : null
+    ].filter(Boolean),
+    readHint: readItem?.readHint ?? `Read ${locator} from the local workspace.`,
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      homeConfigMutated: false,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      sensitiveContentIncluded: false
+    }
+  };
+}
+
+function findRetrieveReadItem(usePlan, target) {
+  const reads = usePlan?.requiredLocalReads ?? [];
+  if (String(target).startsWith('sha256:')) return reads.find((item) => item.contentHash === target) ?? null;
+  return reads.find((item) => item.locator === target) ?? null;
+}
+
+async function readWorkspaceLocator(root, locator) {
+  const relativePath = relativePathFromContextLocator(locator);
+  if (!relativePath || relativePath.includes('..') || path.isAbsolute(relativePath)) throw new Error('context retrieve locator is unsupported');
+  if (AUTO_DETECTED_SECRET_PATH.test(relativePath)) throw new Error('context retrieve refuses secret-like workspace paths');
+  const realRoot = await realpath(root);
+  const absolute = path.resolve(realRoot, relativePath);
+  const actual = await realpath(absolute);
+  if (!isInside(realRoot, actual)) throw new Error('context retrieve locator escapes workspace root');
+  const info = await stat(actual);
+  if (!info.isFile()) throw new Error('context retrieve locator is not a file');
+  if (info.size > 256 * 1024) throw new Error('context retrieve locator exceeds 256 KiB');
+  const text = await readFile(actual, 'utf8');
+  return {
+    text,
+    relativePath,
+    byteSize: info.size,
+    lineCount: text ? text.split(/\r\n|\r|\n/u).length : 0
+  };
+}
+
+function relativePathFromContextLocator(locator) {
+  const value = String(locator ?? '');
+  if (value.startsWith('workspace://')) return value.slice('workspace://'.length);
+  if (value.startsWith('user-selected://')) return value.slice('user-selected://'.length);
+  return null;
+}
+
+async function applyConnection({ action, agent, home, setup, generatedAt }) {
+  const mcp = await applyMcpConfig({ action, home, setup, generatedAt });
+  const hooks = await applyHookConfig({ action, home, setup, generatedAt });
+  const operations = [...mcp.operations, ...hooks.operations];
+  const localFilesWritten = operations.reduce((sum, operation) => sum + operation.filesWritten, 0);
+  return {
+    state: operations.some((operation) => operation.changed) ? `${action}ed` : 'unchanged',
+    agent,
+    localFilesWritten,
+    homeConfigMutated: operations.some((operation) => operation.changed),
+    externalWritesEnabled: false,
+    authorityGranted: false,
+    memoryActivated: false,
+    operations
+  };
+}
+
+function connectionDryRunReceipt() {
+  return {
+    state: 'preview-ready',
+    localFilesWritten: 0,
+    homeConfigMutated: false,
+    externalWritesEnabled: false,
+    authorityGranted: false,
+    memoryActivated: false,
+    operations: []
+  };
+}
+
+async function applyMcpConfig({ action, home, setup, generatedAt }) {
+  const relativePath = homeRefRelativePath(setup.config.ref);
+  const current = await readHomeFile(home, relativePath);
+  if (action === 'disconnect' && setup.status.server !== 'installed') {
+    return { operations: [skippedOperation('mcp', setup.config.ref, 'not_installed_or_drifted')] };
+  }
+  const nextText = setup.config.format === 'toml'
+    ? nextTomlMcpConfig(current.text, setup.manualConfigSnippet.content, action)
+    : nextJsonMcpConfig(current.text, setup.desiredServer, action);
+  return { operations: [await writeHomeFileIfChanged({ home, relativePath, current, nextText, generatedAt, role: 'mcp' })] };
+}
+
+async function applyHookConfig({ action, home, setup, generatedAt }) {
+  if (!setup.desiredHooks.supported) return { operations: [skippedOperation('hook', setup.manualHookSnippet.configRef, 'unsupported')] };
+  const relativePath = homeRefRelativePath(setup.manualHookSnippet.configRef);
+  const current = await readHomeFile(home, relativePath);
+  const nextText = nextJsonHookConfig(current.text, setup.desiredHooks, action);
+  return { operations: [await writeHomeFileIfChanged({ home, relativePath, current, nextText, generatedAt, role: 'hook' })] };
+}
+
+function nextTomlMcpConfig(text, snippet, action) {
+  const withoutOaf = removeTomlMcpServer(text ?? '', 'oaf').trimEnd();
+  if (action === 'disconnect') return withoutOaf ? `${withoutOaf}\n` : '';
+  return `${withoutOaf ? `${withoutOaf}\n\n` : ''}${snippet.trim()}\n`;
+}
+
+function removeTomlMcpServer(text, server) {
+  const lines = String(text ?? '').split(/\r\n|\r|\n/u);
+  const output = [];
+  let skipping = false;
+  const target = new RegExp(`^\\[mcp_servers\\.${server}\\]\\s*$`, 'u');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (target.test(trimmed)) {
+      skipping = true;
+      continue;
+    }
+    if (skipping && /^\[[^\]]+\]\s*$/u.test(trimmed)) skipping = false;
+    if (!skipping) output.push(line);
+  }
+  return output.join('\n');
+}
+
+function nextJsonMcpConfig(text, desiredServer, action) {
+  const doc = parseJsonHomeConfig(text);
+  const servers = doc.mcpServers ?? {};
+  if (!servers || typeof servers !== 'object' || Array.isArray(servers)) throw new Error('mcpServers must be an object');
+  if (action === 'disconnect') {
+    if (isDesiredOafServer(servers.oaf)) delete servers.oaf;
+  } else {
+    servers.oaf = { command: desiredServer.command, args: desiredServer.args };
+  }
+  doc.mcpServers = servers;
+  return `${JSON.stringify(doc, null, 2)}\n`;
+}
+
+function nextJsonHookConfig(text, desiredHooks, action) {
+  const doc = parseJsonHomeConfig(text);
+  const hooks = doc.hooks ?? {};
+  if (!hooks || typeof hooks !== 'object' || Array.isArray(hooks)) throw new Error('hooks must be an object');
+  for (const event of desiredHooks.events) {
+    const existing = Array.isArray(hooks[event]) ? hooks[event] : [];
+    if (hooks[event] && !Array.isArray(hooks[event])) throw new Error(`hooks.${event} must be an array`);
+    hooks[event] = action === 'disconnect'
+      ? removeHookCommand(existing, desiredHooks.command)
+      : addHookCommand(existing, desiredHooks.command);
+    if (hooks[event].length === 0) delete hooks[event];
+  }
+  doc.hooks = hooks;
+  if (Object.keys(hooks).length === 0) delete doc.hooks;
+  return `${JSON.stringify(doc, null, 2)}\n`;
+}
+
+function addHookCommand(entries, command) {
+  if (entries.some((entry) => hookEntryHasCommand(entry, command))) return entries;
+  return [...entries, { hooks: [{ type: 'command', command, timeout: 5 }] }];
+}
+
+function removeHookCommand(entries, command) {
+  return entries.map((entry) => {
+    if (!Array.isArray(entry?.hooks)) return entry;
+    return { ...entry, hooks: entry.hooks.filter((hook) => hook?.command !== command) };
+  }).filter((entry) => !Array.isArray(entry?.hooks) || entry.hooks.length > 0);
+}
+
+function hookEntryHasCommand(entry, command) {
+  return Array.isArray(entry?.hooks) && entry.hooks.some((hook) => hook?.command === command);
+}
+
+function parseJsonHomeConfig(text) {
+  if (!text) return {};
+  const parsed = JSON.parse(text);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('home config must be a JSON object');
+  return parsed;
+}
+
+function isDesiredOafServer(server) {
+  return server?.command === 'oaf' &&
+    Array.isArray(server.args) &&
+    server.args.join('\0') === ['mcp', 'resources', '--read-only', '--stdio'].join('\0');
+}
+
+async function readHomeFile(home, relativePath) {
+  const { absolute } = await resolveHomePath(home, relativePath);
+  const entry = await lstat(absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!entry) return { exists: false, text: '' };
+  if (entry.isSymbolicLink()) throw new Error(`home config target is a symlink: ${relativePath}`);
+  if (!entry.isFile()) throw new Error(`home config target is not a file: ${relativePath}`);
+  if (entry.size > 256 * 1024) throw new Error(`home config exceeds 256 KiB: ${relativePath}`);
+  return { exists: true, text: await readFile(absolute, 'utf8') };
+}
+
+async function writeHomeFileIfChanged({ home, relativePath, current, nextText, generatedAt, role }) {
+  if ((current.text ?? '') === nextText) return {
+    role,
+    target: `home://${toPosix(relativePath)}`,
+    changed: false,
+    filesWritten: 0,
+    backupRef: null,
+    reason: 'already_current'
+  };
+  const { root, absolute } = await resolveHomePath(home, relativePath);
+  await assertNoSymlinkAncestors(root, relativePath);
+  await mkdir(path.dirname(absolute), { recursive: true });
+  const backupRef = current.exists ? await writeHomeBackup({ home, relativePath, text: current.text, generatedAt }) : null;
+  const existing = await lstat(absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (existing?.isSymbolicLink()) throw new Error(`home config target is a symlink: ${relativePath}`);
+  await writeFile(absolute, nextText, 'utf8');
+  return {
+    role,
+    target: `home://${toPosix(relativePath)}`,
+    changed: true,
+    filesWritten: backupRef ? 2 : 1,
+    backupRef,
+    reason: current.exists ? 'updated_with_backup' : 'created'
+  };
+}
+
+async function writeHomeBackup({ home, relativePath, text, generatedAt }) {
+  const suffix = `${generatedAt.replace(/[^0-9A-Za-z_-]/gu, '-')}-${createHash('sha256').update(text).digest('hex').slice(0, 8)}`;
+  const backupRelative = `${relativePath}.oaf-backup-${suffix}`;
+  const { root, absolute } = await resolveHomePath(home, backupRelative);
+  await assertNoSymlinkAncestors(root, backupRelative);
+  await mkdir(path.dirname(absolute), { recursive: true });
+  await writeFile(absolute, text, 'utf8');
+  return `home://${toPosix(backupRelative)}`;
+}
+
+async function resolveHomePath(home, relativePath) {
+  if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes('..')) throw new Error(`home config path is unsupported: ${relativePath}`);
+  const root = await realpath(home);
+  const absolute = path.resolve(root, relativePath);
+  if (!isInside(root, absolute)) throw new Error(`home config path escapes home: ${relativePath}`);
+  return { root, absolute };
+}
+
+function homeRefRelativePath(ref) {
+  const value = String(ref ?? '');
+  if (!value.startsWith('home://')) throw new Error(`unsupported home config ref: ${value}`);
+  return value.slice('home://'.length);
+}
+
+function skippedOperation(role, target, reason) {
+  return { role, target, changed: false, filesWritten: 0, backupRef: null, reason };
+}
+
+function normalizeConnectionAgent(value) {
+  const normalized = new Map([['claude', 'claude-code']]).get(String(value ?? '').trim()) ?? String(value ?? '').trim();
+  if (!['codex', 'claude-code'].includes(normalized)) throw new Error('connect supports codex or claude-code');
+  return normalized;
+}
+
 function isGeneratedMemoryReportTarget(relativePath) {
   return relativePath === 'memory/profile.md' ||
     /^memory\/proposals\/mem_[A-Za-z0-9._-]+\.md$/.test(relativePath) ||
@@ -1875,6 +2374,10 @@ async function assertNoSymlinkAncestors(root, relativePath) {
 function isInside(root, candidate) {
   const relative = path.relative(root, candidate);
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function toPosix(value) {
+  return String(value).split(path.sep).join('/');
 }
 
 function deterministicMemoryId(locator, text) {
@@ -1977,8 +2480,15 @@ function strictIntegerOption(values, name, fallback) {
 
 function resolveCommitSha(root = process.cwd()) {
   if (/^[a-f0-9]{40}$/.test(process.env.OAF_COMMIT_SHA ?? '')) return process.env.OAF_COMMIT_SHA;
+  const expectedRoot = realComparablePath(root);
   try {
-    const value = execFileSync('git', ['-C', path.resolve(root), 'rev-parse', 'HEAD'], {
+    const resolvedRoot = path.resolve(root);
+    const gitRoot = execFileSync('git', ['-C', resolvedRoot, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim();
+    if (realComparablePath(gitRoot) !== expectedRoot) return '0000000000000000000000000000000000000000';
+    const value = execFileSync('git', ['-C', resolvedRoot, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore']
     }).trim();
@@ -1989,9 +2499,20 @@ function resolveCommitSha(root = process.cwd()) {
   return '0000000000000000000000000000000000000000';
 }
 
+function realComparablePath(value) {
+  const resolved = path.resolve(value);
+  try {
+    return realpathSync(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
 function runNode(nodeArgs) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, nodeArgs, { stdio: 'inherit', env: process.env });
+    const [script, ...rest] = nodeArgs;
+    const resolvedScript = path.isAbsolute(script) ? script : path.join(PACKAGE_ROOT, script);
+    const child = spawn(process.execPath, [resolvedScript, ...rest], { stdio: 'inherit', env: process.env, cwd: PACKAGE_ROOT });
     child.on('error', reject);
     child.on('exit', (code) => resolve(code ?? 1));
   });
@@ -2001,8 +2522,12 @@ function help() {
   console.log(`Open Agent Fabric CLI
 
 Usage:
+  oaf setup
+  oaf verify
   oaf doctor
   oaf status
+  oaf connect codex --dry-run --format json
+  oaf disconnect codex --dry-run --format json
   oaf task <OAF-ID>
   oaf demo [objective]
   oaf serve
@@ -2017,6 +2542,7 @@ Usage:
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
   oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --memory-config oaf.memory.json --format json
   oaf context receive --read-only --root . --target codex --format json
+  oaf context retrieve workspace://AGENTS.md --read-only --root . --format json
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
@@ -2035,6 +2561,9 @@ Usage:
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json
   oaf harness setup uninstall --client cursor --server oaf --dry-run --format json
+  oaf hook install --agent codex --dry-run --format json
+  oaf hook uninstall --agent codex --dry-run --format json
+  oaf hook context --read-only --format text
   oaf version
 
 Run oaf task only when npm run status names a next task.

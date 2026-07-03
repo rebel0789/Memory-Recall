@@ -280,7 +280,7 @@ function shellQuote(value) {
 }
 
 function memoryProposalCommand(configPath = 'oaf.memory.json') {
-  return `npm --silent run oaf -- memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
+  return `oaf memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
 }
 
 function memoryPreflightSafeguards(report = null) {
@@ -1522,7 +1522,7 @@ function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, 
     `npm run oaf -- context pack ${base} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
     'npm run oaf -- context registry status --read-only --format json',
     `npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`,
-    'npm --silent run oaf -- mcp resources --read-only --stdio',
+    'oaf mcp resources --read-only --stdio',
     'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json',
     'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json',
     `npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
@@ -1546,7 +1546,7 @@ function markdownBridgeCommands(commands) {
   return [
     candidates.find((command) => command.includes('context pack') && command.includes('--write --pin')),
     candidates.find((command) => command.includes('context receive --read-only')),
-    candidates.find((command) => command === 'npm --silent run oaf -- mcp resources --read-only --stdio'),
+    candidates.find((command) => command === 'oaf mcp resources --read-only --stdio'),
     candidates.find((command) => command.includes('mcp resources --read-only') && command.includes('context-pack/registry/current')),
     candidates.find((command) => command.includes('mcp resources --read-only') && command.includes('context-pack/use-plan/current')),
     candidates.find((command) => command.includes('harness setup plan') && command.includes('--dry-run'))
@@ -3096,7 +3096,7 @@ export async function buildContextPackReceiveReport({
     usePlanResourceRead: usePlanPayload?.resourceKind === 'context-pack-use-plan',
     registryResourceRead: registryPayload?.resourceKind === 'context-pack-registry-status',
     setupDryRun: setup.dryRun === true,
-    setupUsesSilentNpm: setup.desiredServer.command === 'npm' && setup.desiredServer.args[0] === '--silent'
+    setupUsesInstalledOaf: setup.desiredServer.command === 'oaf' && setup.desiredServer.args[0] === 'mcp'
   };
   const readyChecks = [
     checks.registryFingerprintVerified,
@@ -3110,7 +3110,7 @@ export async function buildContextPackReceiveReport({
     checks.usePlanResourceRead,
     checks.registryResourceRead,
     checks.setupDryRun,
-    checks.setupUsesSilentNpm
+    checks.setupUsesInstalledOaf
   ];
   const state = registryBlocking
     ? 'blocked'
@@ -3130,11 +3130,11 @@ export async function buildContextPackReceiveReport({
   }));
   const commands = {
     createPinnedContextPack: `npm run oaf -- context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target ${normalizedTarget} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
-    checkRegistry: `npm --silent run oaf -- context registry status --read-only --root . --workspace ${workspaceId} --format json`,
-    readUsePlan: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --uri ${usePlanResourceUri} --format json`,
-    readRegistry: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --uri ${registryResourceUri} --format json`,
-    previewSetup: `npm --silent run oaf -- harness setup status --client ${setupClient} --server oaf --dry-run --format json`,
-    startReadOnlyBridge: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --stdio`
+    checkRegistry: `oaf context registry status --read-only --root . --workspace ${workspaceId} --format json`,
+    readUsePlan: `oaf mcp resources --read-only --root . --workspace ${workspaceId} --uri ${usePlanResourceUri} --format json`,
+    readRegistry: `oaf mcp resources --read-only --root . --workspace ${workspaceId} --uri ${registryResourceUri} --format json`,
+    previewSetup: `oaf harness setup status --client ${setupClient} --server oaf --dry-run --format json`,
+    startReadOnlyBridge: `oaf mcp resources --read-only --root . --workspace ${workspaceId} --stdio`
   };
   const report = {
     schemaVersion: '1.0.0',
@@ -3629,6 +3629,8 @@ export async function buildHarnessSetupReport({
       server: serverState
     },
     desiredServer: desiredHarnessServerSummary(normalizedServer),
+    desiredHooks: desiredHarnessHooks(normalizedClient),
+    manualHookSnippet: harnessManualHookSnippet(normalizedClient),
     manualConfigSnippet: harnessManualConfigSnippet({
       client: normalizedClient,
       server: normalizedServer,
@@ -3725,11 +3727,40 @@ function desiredHarnessServerSummary(server) {
   return {
     name: server,
     transport: 'stdio',
-    command: 'npm',
-    args: ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'],
+    command: 'oaf',
+    args: ['mcp', 'resources', '--read-only', '--stdio'],
     environmentKeys: [],
     resourceMode: 'read-only',
     externalWrites: false
+  };
+}
+
+function desiredHarnessHooks(client) {
+  const supported = ['codex', 'claude-code'].includes(client.id);
+  return {
+    supported,
+    applyMode: 'manual-copy',
+    events: supported ? ['SessionStart', 'UserPromptSubmit', 'PreCompact'] : [],
+    command: supported ? 'oaf hook context --read-only --format text' : null,
+    authority: 'none',
+    externalWrites: false
+  };
+}
+
+function harnessManualHookSnippet(client) {
+  const desired = desiredHarnessHooks(client);
+  const configRef = client.id === 'codex' ? 'home://.codex/hooks.json' : client.id === 'claude-code' ? 'home://.claude/settings.json' : `home://${toPosix(client.configPath)}`;
+  const content = desired.supported
+    ? JSON.stringify({ hooks: Object.fromEntries(desired.events.map((event) => [event, [{ hooks: [{ type: 'command', command: desired.command, timeout: 5 }] }]])) }, null, 2)
+    : '';
+  return {
+    format: 'json',
+    configRef,
+    applyMode: 'manual-copy',
+    content,
+    warning: desired.supported
+      ? 'Preview only. OAF hook commands are read-only and do not grant authority or write memory.'
+      : 'This harness has no OAF hook snippet yet; use the read-only MCP bridge.'
   };
 }
 
@@ -3765,6 +3796,11 @@ function harnessManualConfigSnippet({ client, server, configRef }) {
 
 function classifyHarnessServer(server) {
   if (!server) return 'absent';
+  if (
+    server.command === 'oaf' &&
+    Array.isArray(server.args) &&
+    arraysEqual(server.args, ['mcp', 'resources', '--read-only', '--stdio'])
+  ) return 'installed';
   if (
     server.command === 'npm' &&
     Array.isArray(server.args) &&

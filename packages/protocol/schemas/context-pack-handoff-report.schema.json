@@ -309,12 +309,17 @@
       "properties": {
         "name": { "const": "oaf" },
         "transport": { "const": "stdio" },
-        "command": { "const": "npm" },
+        "command": { "const": "oaf" },
         "args": {
           "type": "array",
-          "minItems": 8,
-          "maxItems": 8,
-          "items": { "enum": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"] }
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            { "const": "mcp" },
+            { "const": "resources" },
+            { "const": "--read-only" },
+            { "const": "--stdio" }
+          ]
         },
         "environmentKeys": { "type": "array", "maxItems": 0 },
         "resourceMode": { "const": "read-only" },
@@ -404,7 +409,7 @@
         "noToolsExposed",
         "noMarkdownBody",
         "setupDryRun",
-        "setupUsesSilentNpm"
+        "setupUsesInstalledOaf"
       ],
       "properties": {
         "contextPackFingerprintMatchesMcp": { "const": true },
@@ -413,7 +418,7 @@
         "noToolsExposed": { "const": true },
         "noMarkdownBody": { "const": true },
         "setupDryRun": { "const": true },
-        "setupUsesSilentNpm": { "const": true }
+        "setupUsesInstalledOaf": { "const": true }
       }
     },
     "safeguards": {

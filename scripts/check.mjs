@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const errors = [];
-const ignoredDirectories = new Set(['.git', 'node_modules', '.local']);
+const ignoredDirectories = new Set(['.git', 'node_modules', '.local', '.playwright-cli', '.scratch', 'coverage', 'context-packs', 'graphify-out']);
 const required = [
   'README.md',
   'ASSIGN_TO_AGENT.md',
@@ -23,7 +23,7 @@ const required = [
   'docs/implementation/BUILD_ORDER.md',
   'docs/implementation/AGENT_EXECUTION_PLAYBOOK.md',
   'docs/security/threat-model.md',
-  'docs/adr/0012-build-the-brain-adapt-the-organs.md',
+  'docs/adr/0012-build-the-whole-tool-own-the-boundaries.md',
   'docs/architecture/native-providers.md',
   'docs/architecture/agent-packs.md',
   'docs/architecture/flight-recorder.md',

@@ -444,12 +444,17 @@
       "properties": {
         "name": { "const": "oaf" },
         "transport": { "const": "stdio" },
-        "command": { "const": "npm" },
+        "command": { "const": "oaf" },
         "args": {
           "type": "array",
-          "minItems": 8,
-          "maxItems": 8,
-          "items": { "enum": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"] }
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            { "const": "mcp" },
+            { "const": "resources" },
+            { "const": "--read-only" },
+            { "const": "--stdio" }
+          ]
         },
         "environmentKeys": { "type": "array", "maxItems": 0 },
         "resourceMode": { "const": "read-only" },
@@ -520,7 +525,7 @@
         "usePlanResourceRead",
         "registryResourceRead",
         "setupDryRun",
-        "setupUsesSilentNpm"
+        "setupUsesInstalledOaf"
       ],
       "properties": {
         "registryFingerprintVerified": { "type": "boolean" },
@@ -534,7 +539,7 @@
         "usePlanResourceRead": { "type": "boolean" },
         "registryResourceRead": { "type": "boolean" },
         "setupDryRun": { "type": "boolean" },
-        "setupUsesSilentNpm": { "type": "boolean" }
+        "setupUsesInstalledOaf": { "type": "boolean" }
       }
     },
     "safeguards": {
