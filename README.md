@@ -10,62 +10,75 @@ This repository is an **agent-ready development kit**, not a claim that the full
 
 > Build the whole tool. Own the boundaries. Integrate only when the contract is clear.
 
+## Ship-ready local memory path
+
+OAF now has a verified local profile for governed coding-agent memory over a
+real workspace. It ingests repository facts into a local SQLite store as
+proposals, requires explicit approval before facts become ACTIVE, serves active
+facts first through read-only MCP, and sends cursor deltas during a session so
+repeat pulls do not resend the same context.
+
+Verified local benchmarks:
+
+- Temporal correctness: `oaf bench temporal --read-only --root .` returned
+  `100%` correct and `100%` clean for current facts while stale values were
+  present in the raw timeline.
+- Session delivery: `oaf bench session --read-only --root .` returned `100%`
+  correctness and a `76%` delivered-token reduction versus full resend
+  (`651` delta tokens vs `2664` full-resend tokens). This is the measured
+  session-delta path, not a provider billing claim.
+- Real repo questions: `oaf bench realqa --read-only --root .` returned `100%`
+  after structured governed ingest on 12 questions derived from this repo.
+
+Plain tradeoff: on static lookup, OAF ties keyword search more than it beats it.
+The edge is correctness when facts change, proposal governance before trust, and
+cheap repeat delivery through MCP cursors. It does not claim semantic retrieval,
+generic token savings versus RAG, hosted memory, or cloud sync.
+
 ## What works now
 
-- dependency-free Node.js 22 bootstrap;
-- local HTTP control API, CLI, and responsive evidence-first dashboard;
-- deterministic Content Intelligence vertical slice;
-- Context Compiler with selected and excluded context reason codes;
-- opt-in deterministic context views for noisy records such as logs, code,
-  Markdown, JSON, and tool output, preserving original/view hashes and token
-  accounting;
-- dependency-free JSON Schema subset validator and compatibility fixtures;
-- provider-neutral ports and conformance helpers;
-- native SQLite + FTS5 workspace memory provider;
-- native content-addressed filesystem artifact provider;
-- cancellable embedded workflow provider with event checkpoints;
-- deterministic model provider and optional loopback-only Ollama provider;
-- portable Agent Pack validation, resolution, and deterministic fingerprinting;
-- side-effect-free replay plans, run comparison, and reviewable learning proposals;
-- dry-run harness context scanner for documented Codex, Claude Code, and Cursor
-  project files, with sanitized reports and no import/write path;
-- preview-only harness context compiler path with selected/excluded safe
-  locators, proposal-only memory plan, token-ratio metrics, and deterministic
-  benchmark gates;
-- dry-run context pack builder for Codex, Claude Code, Cursor, and generic
-  agents, producing a schema-validated locator handoff with compact source
-  graph hints, explicit user-selected file locators, a utility read plan with
-  changed-file coverage, a copyable launch prompt, and a delivery-budget metric
-  distinct from source-body token counts, without raw source bodies or automatic
-  memory import;
-- read-only context impact brief for the current checkout, reporting changed
-  coverage, affected symbols, required local reads, omitted counts, hashes,
-  source-selection reduction, and MCP readback proof without raw code or writes;
-- opt-in read-only MCP context-pack summary resource for local harnesses,
-  exposing locators, hashes, token counts, omissions, changed-file impact, and
-  utility coverage counts without raw task text, source bodies, markdown
-  bodies, or write tools;
-- local MCP context-pack stdio smoke report with observed duration, response
-  size, selected/candidate source units, and delivered-handoff unit counts for
-  one explicit local invocation;
-- read-only Codex handoff preflight report that combines the launch prompt,
-  required local reads, schema-validated use plan, MCP context-pack readback
-  proof, and dry-run setup preview without writing harness config;
-- read-only native JS/TS source graph preview through CLI and loopback API,
-  with bounded search, trace, diff-impact results, 256 KiB default file
-  coverage for static JS/TS, and no graph database;
-- dry-run harness setup planner for local MCP client configs, with redacted
-  status, add, replace, uninstall, and read-only hook previews and no home
-  config writes;
-- versioned contract fixtures for 12 disabled external integration targets;
-- tests, evaluations, repository checks, and agent task tooling;
-- no API key, paid service, database server, or external network required.
+- dependency-free Node.js 22 bootstrap with no API key, paid service, database
+  server, model API, or external network required;
+- native SQLite/FTS5 governed memory with temporal facts, supersession, entity
+  edges, proposal queue, explicit approve/reject, and no hard delete;
+- `oaf memory ingest --root . --sqlite .local/memory.sqlite` for deterministic
+  offline extraction from git history, key docs, project status, provider
+  manifests, and source-graph hints into PENDING proposals only;
+- `oaf memory review`, `oaf memory approve`, and `oaf memory reject` for the
+  trust step from candidate proposal to ACTIVE fact;
+- `oaf memory remember --batch facts.json` for host-agent extracted memory maps
+  from `skills/oaf-memory`, including supersession and confidence labels;
+- read-only `oaf mcp server` exposing `memory.recall`, `context.profile`, and
+  `context.pack` over local stdio with active facts separated from proposals;
+- persisted MCP cursors and `since` deltas so repeat `memory.recall` and
+  `context.profile` calls send only changed current truth, including after a
+  restart;
+- preview-then-confirm MCP install for Claude Code, Cursor, and Codex with an
+  absolute server path, explicit project root, explicit project SQLite memory
+  path, and no silent home config write;
+- `/memory` cockpit over the loopback Control API with temporal facts, proposal
+  counts, MCP delivery stats, and confirm-gated proposal approval;
+- deterministic local benches for temporal correctness, session delta delivery,
+  and real repo question answering;
+- local HTTP control API, CLI, responsive evidence-first dashboard, Context
+  Compiler, context manifests, native source graph preview, bounded local
+  workflow provider, deterministic model provider, content-addressed artifact
+  provider, policy/tool primitives, Agent Pack validation, tests, evaluations,
+  repository checks, and release manifests.
 
 ## What is deliberately not claimed
 
-Production PostgreSQL repositories, crash-resumable workflow orchestration, production authentication, proposal-based harness context import, automatic harness history import, write-capable MCP tools, broad harness config writes beyond explicit Codex/Claude connect commands, real social connectors, hardened sandboxes, external publishing, signed Agent Pack distribution, and a production frontend framework are **specified and planned**, but not completed. `PROJECT_STATUS.json` is the machine-readable source for current capability status and limitations.
+Production PostgreSQL repositories, production authentication, semantic
+retrieval, hosted embeddings, vector databases, hosted memory sync, write-capable
+MCP tools, automatic harness history import, silent or broad harness config
+writes outside confirmed MCP install, real social connectors, hardened
+sandboxes, external publishing, signed Agent Pack distribution, and a production
+frontend framework are **not claimed**. Durable workflow and source-graph
+providers exist as local references; team/cloud production remains outside the
+local profile. `PROJECT_STATUS.json` is the machine-readable source for current
+capability status and limitations.
 
-## Start in five minutes
+## Quickstart: governed memory in Claude Code
 
 Requirement: Node.js 22 or newer.
 
@@ -101,19 +114,41 @@ and marketplace are not published.
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
-npm run bootstrap
-npm run verify:handoff
-npm run dev
+npm run local:run
+
+# Preview the exact Claude Code MCP config. This writes nothing.
+npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --dry-run --format json
+# Short default preview also works: npm run oaf -- mcp install --client claude-code --dry-run --format json
+
+# Apply only after preview by feeding the matching fingerprint back.
+CONFIRM="$(npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --dry-run --format json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).planFingerprint))')"
+npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --apply --confirm "$CONFIRM" --format json
+
+# Populate governed memory from this repo. Ingest creates proposals, not trust.
+npm --silent run oaf -- memory ingest --root . --sqlite .local/memory.sqlite --format json
+npm --silent run oaf -- memory review --root . --sqlite .local/memory.sqlite --format json
+
+# Promote reviewed facts explicitly. Use a narrower source when you want less.
+npm --silent run oaf -- memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
+
+# Pull what a coding agent receives over the read-only MCP server.
+printf '%s\n' \
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+'{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory.recall","arguments":{"client":"readme-quickstart","query":"default durable workflow provider","scope":"workspace","limit":8}}}' \
+'{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"context.profile","arguments":{"client":"readme-quickstart","objective":"default durable workflow provider","scope":"workspace","limit":8,"budget":512}}}' \
+| npm --silent run oaf -- mcp server --read-only --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --stdio
 ```
 
-Open <http://127.0.0.1:4310>. If the browser asks for local owner setup or
-sign-in, complete that before running dashboard actions. CLI-only setup is also
-available without putting a password on the command line:
+The install command writes only the `oaf` MCP server entry after
+`--apply --confirm`; the server remains read-only and local stdio. The memory
+commands never auto-activate facts. Rejections and supersessions are recorded,
+not hard-deleted.
 
-```bash
-printf '%s\n' 'correct horse battery staple' | \
-  npm run auth:bootstrap -- --username owner --display-name "Local Owner" --password-stdin
-```
+Manual install flow: run `npm run oaf -- mcp install --client claude-code --dry-run --format json`,
+review the preview, then run the printed `--apply --confirm <fingerprint>`
+command. The installed server does not import harness history, enable write
+tools, call cloud/model APIs, or claim provider billing-token savings.
+In short: it does not import harness history, enable write tools, call cloud/model APIs, or claim provider billing-token savings.
 
 First practical path: open **Context Pack**, keep the target as Codex or choose
 your local harness from **Inputs to review**, click **Preview sources**, use

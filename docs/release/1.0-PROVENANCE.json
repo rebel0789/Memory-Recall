@@ -21,12 +21,12 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:606a26034025262c0cd0a7f07a6f5d5df488f1ed6c7093e93abbfa51f3688d94",
+    "package.json": "sha256:ab246f0255e6c9365d7ebd4638a8f9a594bbbb089993b1ed1fe8d1dabb19a1fe",
     "package-lock.json": "sha256:15af2e29fa1b1fec125c550839d9ae8fc9c0b2adc72881b1db22493352d0851e",
-    "PROJECT_STATUS.json": "sha256:a136d296a46f887bae70fae9c2ce467efb2c04a067379818ae5d1812cff90214",
+    "PROJECT_STATUS.json": "sha256:f0e3694b45eddc7e258f7303cb1f9619e3f07d1fbbce7e3efbe2e47d15add912",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
-    "THIRD_PARTY.md": "sha256:f41c6a2b6a68f6e06080527c2ec81804ad8a75debe16c703bec9cf58521d7a82",
+    "THIRD_PARTY.md": "sha256:d1f48830ac86cda0f42060659ff5f37e727ae6f636cc804e7ff3ab1fba8bf151",
     "SECURITY.md": "sha256:a5d5b9d1e786d26bedaca01aa84c34699a4e258f07838193a0d0e8d752b2fc12",
     "GOVERNANCE.md": "sha256:ef85f7b2d9ec6271150741d5f4c69d42e1fa4809e630314297f348b2a4fd2e3e"
   },

@@ -18,6 +18,9 @@ import contextPackSchema from '../../protocol/schemas/context-pack.schema.json' 
 import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import harnessContextPreviewSchema from '../../protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import harnessContextSourceSchema from '../../protocol/schemas/harness-context-source.schema.json' with { type: 'json' };
+import loopObservationSchema from '../../protocol/schemas/loop-observation.schema.json' with { type: 'json' };
+import loopPlanSchema from '../../protocol/schemas/loop-plan.schema.json' with { type: 'json' };
+import loopRunSchema from '../../protocol/schemas/loop-run.schema.json' with { type: 'json' };
 import {
   buildMemoryProposalsReport,
   evaluateMemoryWrite,
@@ -32,6 +35,8 @@ import {
   createMcpBridge
 } from '../../protocol-bridges/src/index.mjs';
 import contextPackReceiveReportSchema from '../../protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };
+import loopVerificationReportSchema from '../../protocol/schemas/loop-verification-report.schema.json' with { type: 'json' };
+import { createReplayPlan } from '../../replay/src/index.mjs';
 
 export const CONTEXT_PACK_VERSION = '0.1.0';
 export const CONTEXT_PACK_USE_PLAN_VERSION = '0.1.0';
@@ -40,6 +45,12 @@ export const HARNESS_CONTEXT_SCANNER_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
 export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
+export const LOOP_PLAN_VERSION = '0.1.0';
+export const LOOP_RUN_WORKFLOW_ID = 'workflow:oaf:loop-run';
+export const OAF_MCP_RESOURCE_ARGS = Object.freeze(['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
+export const OAF_MCP_TOKEN_SAVER_ARGS = Object.freeze(['--silent', 'run', 'oaf', '--', 'mcp', 'server', '--read-only', '--root', '.', '--stdio']);
+export const REALISTIC_SAVINGS_OBJECTIVE = 'Prove MCP memory token savings on Open Agent Fabric coding-agent work';
+export const REALISTIC_SAVINGS_STEP = 'Compare context.profile delivery with naive candidate file and git history body resend';
 
 const DEFAULT_MAX_BYTES = 65_536;
 const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
@@ -63,7 +74,7 @@ const CONTROL_BYTES = new Set([...Array.from({ length: 9 }, (_, index) => index)
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/giu;
 const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)+/gu;
 const LOCAL_USER_ROOT = /\/Users\/[A-Za-z0-9._-]+(?=$|[\s"'`,;).])/gu;
-const HANDOFF_ABSOLUTE_PATH = /(?:\/home\/[A-Za-z0-9._-]+(?:\/[^\s"'`,;).]+)+|[A-Za-z]:\\[^\s"'`,;]+(?:\\[^\s"'`,;]+)+)/gu;
+const HANDOFF_ABSOLUTE_PATH = /(?:\/home\/[A-Za-z0-9._-]+(?:\/[^\s"'`,;).]+)+|\/private\/[^\s"'`,;).]+(?:\/[^\s"'`,;).]+)*|\/var\/folders\/[^\s"'`,;).]+(?:\/[^\s"'`,;).]+)*|[A-Za-z]:\\[^\s"'`,;]+(?:\\[^\s"'`,;]+)+)/gu;
 const UNSAFE_PERSISTED_LOCATOR = /(?:https?:|file:|\/Users(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|oaf_session|oaf_ses_|sk-proj|OPENAI_API_KEY|authorization|cookie|token\s*[=:]|secret\s*[=:]|api[_-]?key\s*[=:])/iu;
 const REDACTED_UNSAFE_SOURCE_LOCATOR = 'workspace://context-packs/redacted-unsafe-source-locator';
 const execFileAsync = promisify(execFile);
@@ -81,6 +92,25 @@ const STATIC_PROJECT_SOURCES = Object.freeze({
     { relativePath: '.cursor/mcp.json', sourceKind: 'mcp-config', scope: 'workspace', trust: 'user-authored' }
   ]
 });
+
+const REALISTIC_SAVINGS_CANDIDATE_PATHS = Object.freeze([
+  'AGENTS.md',
+  'README.md',
+  'PRODUCT.md',
+  'PROJECT_STATUS.json',
+  'docs/superpowers/plans/2026-06-26-mcp-token-saver.md',
+  'docs/product/loop-workbench-build-plan.md',
+  'docs/architecture/overview.md',
+  'apps/cli/oaf.mjs',
+  'packages/harness-context/src/index.mjs',
+  'packages/context-compiler/src/index.mjs',
+  'providers/native/memory-sqlite/src/index.mjs',
+  'packages/protocol-bridges/src/index.mjs',
+  'services/control-api/src/server.mjs',
+  'apps/web/app.js',
+  'tests/cli.test.mjs',
+  'tests/web-shell.test.mjs'
+]);
 
 export const HARNESS_SETUP_CLIENTS = new Map([
   ['codex', { id: 'codex', label: 'Codex', format: 'toml', configPath: '.codex/config.toml' }],
@@ -105,6 +135,248 @@ function hash(value) {
 
 function hashJson(value) {
   return hash(stableStringify(value));
+}
+
+export function buildContextProfileDeliveryPayloadFromReport({
+  report,
+  workspaceId = 'ws_local',
+  generatedAt = new Date().toISOString(),
+  objective,
+  step,
+  available = true,
+  governedFactCount = 0,
+  proposalFactCount = 0
+} = {}) {
+  if (!report?.contextBudget || !report?.manifest || !report?.profile) throw new Error('context profile report is required');
+  return {
+    schemaVersion: '1.0.0',
+    command: 'context.profile',
+    workspaceId,
+    generatedAt,
+    data: {
+      available,
+      objectiveFingerprint: hashJson(String(objective ?? '')),
+      stepFingerprint: hashJson(String(step ?? '')),
+      profile: {
+        id: report.id,
+        layers: report.profile.layers,
+        staticRecordCount: report.profile.staticRecordCount,
+        dynamicRecordCount: report.profile.dynamicRecordCount,
+        acceptedHistoryRecordCount: report.profile.acceptedHistoryRecordCount,
+        skippedHistoryRecordCount: report.profile.skippedHistoryRecordCount,
+        governedFactCount,
+        proposalFactCount,
+        contentHash: report.profile.contentHash
+      },
+      contextBudget: report.contextBudget,
+      selectedContext: {
+        id: report.manifest.id,
+        selectedCount: report.manifest.selected.length,
+        excludedCount: report.manifest.excluded.length,
+        selectedIds: report.manifest.selected.map((item) => String(item.id ?? '').slice(0, 120)).filter(Boolean),
+        budget: report.manifest.budget
+      },
+      tokenSavingPercent: Math.round(Number(report.contextBudget.reductionRatio ?? 0) * 100)
+    },
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceSnapshotsWritten: 0,
+      deliveryStatsRecorded: false,
+      privateContentIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+}
+
+export async function buildRealisticContextProfileSavingsReport({
+  root = process.cwd(),
+  workspaceId = 'ws_local',
+  generatedAt = new Date().toISOString(),
+  objective,
+  step,
+  deliveredPayload,
+  maxFiles = 16,
+  maxFileBytes = DEFAULT_CHANGED_HASH_MAX_BYTES,
+  gitHistoryLimit = 20
+} = {}) {
+  if (!objective || !step) throw new Error('objective and step are required');
+  if (!deliveredPayload || typeof deliveredPayload !== 'object') throw new Error('delivered context.profile payload is required');
+  const baseline = await collectRealisticSavingsBaseline({ root, objective, step, maxFiles, maxFileBytes, gitHistoryLimit });
+  const afterDeliveryTokens = estimateTokens(JSON.stringify(deliveredPayload));
+  const beforeDeliveryTokens = baseline.deliveryTokens;
+  const tokensSaved = beforeDeliveryTokens - afterDeliveryTokens;
+  const reductionRatio = beforeDeliveryTokens > 0 ? Number((tokensSaved / beforeDeliveryTokens).toFixed(6)) : 0;
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'measure savings',
+    generatedAt,
+    workspaceId,
+    measurementScope: 'realistic local context.profile delivery-token benchmark',
+    objectiveFingerprint: hashJson(String(objective)),
+    stepFingerprint: hashJson(String(step)),
+    source: {
+      provider: 'real-workspace-candidate-bodies',
+      rootRef: 'workspace://.',
+      candidateFileCount: baseline.candidateFiles.length,
+      historyCommitCount: baseline.gitHistory.commitCount,
+      candidateBodyTokens: baseline.candidateBodyTokens,
+      historyBodyTokens: baseline.historyBodyTokens
+    },
+    baseline: {
+      label: 'naive full candidate file/history body delivery estimate',
+      deliveryTokens: beforeDeliveryTokens,
+      basis: 'bounded real workspace candidate file bodies plus recent git history bodies'
+    },
+    compressed: {
+      label: 'OAF context.profile MCP payload delivery estimate',
+      deliveryTokens: afterDeliveryTokens,
+      basis: 'estimated tokens over exact context.profile JSON payload text',
+      selectedContextId: deliveredPayload.data?.selectedContext?.id ?? null,
+      selectedCount: Number(deliveredPayload.data?.selectedContext?.selectedCount ?? 0),
+      excludedCount: Number(deliveredPayload.data?.selectedContext?.excludedCount ?? 0)
+    },
+    savings: {
+      tokensSaved,
+      reductionRatio,
+      percent: Math.round(reductionRatio * 100),
+      basis: 'delivery-token-estimate',
+      providerBillingClaimed: false
+    },
+    realisticBenchmark: {
+      candidateFiles: baseline.candidateFiles,
+      skippedFiles: baseline.skippedFiles,
+      gitHistory: baseline.gitHistory,
+      deliveredPayloadFingerprint: hash(JSON.stringify(deliveredPayload)),
+      deliveredPayloadTokens: afterDeliveryTokens
+    },
+    checks: {
+      baselineTokensPresent: beforeDeliveryTokens > 0,
+      deliveredTokensPresent: afterDeliveryTokens > 0,
+      savesTokens: tokensSaved > 0,
+      providerBillingNotClaimed: true
+    },
+    safeguards: {
+      readOnly: true,
+      localOnly: true,
+      providerBillingClaimed: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      localFilesWritten: 0,
+      canonicalStateMutated: false,
+      activeMemoryCreated: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      rawSourceBodiesIncluded: false,
+      rawGitHistoryIncluded: false,
+      rawObjectiveIncluded: false,
+      rawStepIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+  return {
+    ...report,
+    beforeDeliveryTokens,
+    afterDeliveryTokens,
+    tokensSaved,
+    reductionRatio,
+    percent: report.savings.percent,
+    reportFingerprint: hashJson(report)
+  };
+}
+
+async function collectRealisticSavingsBaseline({ root, objective, step, maxFiles, maxFileBytes, gitHistoryLimit }) {
+  const realRoot = await realpath(path.resolve(root));
+  const candidateFiles = [];
+  const skippedFiles = [];
+  const bodyParts = [`objective:\n${objective}`, `step:\n${step}`];
+  for (const relativePath of REALISTIC_SAVINGS_CANDIDATE_PATHS.slice(0, Math.max(1, maxFiles))) {
+    const normalized = safeWorkspaceRelativePath(relativePath, 'realistic savings candidate path');
+    const absolute = path.resolve(realRoot, normalized);
+    if (!isInside(realRoot, absolute)) {
+      skippedFiles.push({ locator: workspaceLocator(normalized), reason: 'escaped_root' });
+      continue;
+    }
+    const info = await stat(absolute).catch((error) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    });
+    if (!info?.isFile()) {
+      skippedFiles.push({ locator: workspaceLocator(normalized), reason: 'missing' });
+      continue;
+    }
+    if (info.size > maxFileBytes) {
+      skippedFiles.push({ locator: workspaceLocator(normalized), reason: 'over_size_limit', byteSize: info.size });
+      continue;
+    }
+    const text = await readFile(absolute, 'utf8');
+    const tokenCount = estimateTokens(text);
+    bodyParts.push(`file ${workspaceLocator(normalized)}:\n${text}`);
+    candidateFiles.push({
+      locator: workspaceLocator(normalized),
+      byteSize: Buffer.byteLength(text, 'utf8'),
+      tokenCount,
+      contentHash: hash(text)
+    });
+  }
+  const gitHistory = await collectRealisticSavingsGitHistory(realRoot, gitHistoryLimit);
+  if (gitHistory.body) bodyParts.push(`git history:\n${gitHistory.body}`);
+  const candidateBodyTokens = candidateFiles.reduce((sum, item) => sum + item.tokenCount, 0);
+  const historyBodyTokens = gitHistory.tokenCount;
+  return {
+    deliveryTokens: estimateTokens(bodyParts.join('\n\n')),
+    candidateBodyTokens,
+    historyBodyTokens,
+    candidateFiles,
+    skippedFiles,
+    gitHistory: {
+      available: gitHistory.available,
+      commitCount: gitHistory.commitCount,
+      byteSize: gitHistory.byteSize,
+      tokenCount: gitHistory.tokenCount,
+      contentHash: gitHistory.contentHash,
+      reason: gitHistory.reason
+    }
+  };
+}
+
+async function collectRealisticSavingsGitHistory(root, limit) {
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', root, 'log', `--max-count=${Math.max(1, Math.min(50, Number(limit) || 20))}`, '--pretty=format:%H%n%s%n%b%n---OAF-COMMIT---'], {
+      encoding: 'utf8',
+      timeout: GIT_STATUS_TIMEOUT_MS,
+      maxBuffer: GIT_STATUS_MAX_BUFFER,
+      env: {
+        ...process.env,
+        GIT_OPTIONAL_LOCKS: '0',
+        GIT_TERMINAL_PROMPT: '0'
+      }
+    });
+    const body = String(stdout ?? '').trim();
+    return {
+      available: true,
+      body,
+      commitCount: body ? body.split('---OAF-COMMIT---').filter((item) => item.trim()).length : 0,
+      byteSize: Buffer.byteLength(body, 'utf8'),
+      tokenCount: estimateTokens(body),
+      contentHash: body ? hash(body) : null,
+      reason: null
+    };
+  } catch (error) {
+    return {
+      available: false,
+      body: '',
+      commitCount: 0,
+      byteSize: 0,
+      tokenCount: 0,
+      contentHash: null,
+      reason: safeGitErrorReason(error)
+    };
+  }
 }
 
 function idDigest(value) {
@@ -155,11 +427,12 @@ function redact(text) {
   const withoutSecrets = text.replace(SECRET_LIKE, '[redacted-secret]');
   const filePaths = replaceWithCount(withoutSecrets, LOCAL_FILE_PATH, '[redacted-local-path]');
   const rootPaths = replaceWithCount(filePaths.redacted, LOCAL_USER_ROOT, '[redacted-local-path]');
-  const localPathCount = filePaths.count + rootPaths.count;
+  const absolutePaths = replaceWithCount(rootPaths.redacted, HANDOFF_ABSOLUTE_PATH, '[redacted-local-path]');
+  const localPathCount = filePaths.count + rootPaths.count + absolutePaths.count;
   const reasonCodes = [];
   if (secretCount > 0) reasonCodes.push('secret_like_value');
   if (localPathCount > 0) reasonCodes.push('local_path');
-  return { redacted: rootPaths.redacted, secretCount, localPathCount, reasonCodes };
+  return { redacted: absolutePaths.redacted, secretCount, localPathCount, reasonCodes };
 }
 
 function assertSafeHandoffField(value, fieldName) {
@@ -2021,6 +2294,1059 @@ export function renderContextPackMarkdown(pack) {
   ].join('\n');
 }
 
+function assertSafeLoopPlanField(value, fieldName) {
+  try {
+    assertSafeHandoffField(value, fieldName);
+  } catch (error) {
+    const wrapped = new Error(`loop_plan_${fieldName}_unsafe`);
+    wrapped.code = `loop_plan_${fieldName}_unsafe`;
+    wrapped.cause = error;
+    throw wrapped;
+  }
+  if (UNSAFE_PERSISTED_LOCATOR.test(String(value ?? ''))) {
+    const error = new Error(`loop_plan_${fieldName}_unsafe`);
+    error.code = `loop_plan_${fieldName}_unsafe`;
+    throw error;
+  }
+}
+
+function normalizeLoopPlanTexts(values, fieldName, maxItems = 16) {
+  const list = values === null || values === undefined || values === ''
+    ? []
+    : Array.isArray(values) ? values : [values];
+  if (list.length > maxItems) throw new Error(`loop_plan_${fieldName}_too_many`);
+  return [...new Set(list.map((value) => {
+    const text = String(value ?? '').replace(/\s+/gu, ' ').trim();
+    if (!text) return null;
+    assertSafeLoopPlanField(text, fieldName);
+    return text.slice(0, fieldName === 'validationCommand' ? 400 : 240);
+  }).filter(Boolean))].sort();
+}
+
+function nullableFingerprint(value) {
+  return typeof value === 'string' && /^sha256:[a-f0-9]{64}$/u.test(value) ? value : null;
+}
+
+function normalizeReasonCode(value) {
+  const text = String(value ?? '').trim().toLowerCase().replace(/[^a-z0-9_:-]+/gu, '_').replace(/^_+|_+$/gu, '');
+  if (!text) return null;
+  return (/^[a-z]/u.test(text) ? text : `reason_${text}`).slice(0, 96);
+}
+
+function normalizeReasonCodes(values, fallback) {
+  const input = Array.isArray(values) && values.length ? values : fallback;
+  return [...new Set((input ?? []).map(normalizeReasonCode).filter(Boolean))].sort().slice(0, 16);
+}
+
+function loopReadItem({ locator, role, required = true, contentHash = null, reasonCodes = [] }) {
+  return {
+    locator,
+    role,
+    required: required === true,
+    contentHash: nullableFingerprint(contentHash),
+    reasonCodes: normalizeReasonCodes(reasonCodes, [])
+  };
+}
+
+function addLoopRead(reads, item) {
+  if (!item?.locator || !/^(workspace|user-selected):\/\/[^\r\n]{1,320}$/u.test(item.locator)) return;
+  if (UNSAFE_PERSISTED_LOCATOR.test(item.locator)) throw new Error('loop_plan_locator_unsafe');
+  const key = `${item.role}:${item.locator}`;
+  if (!reads.some((existing) => `${existing.role}:${existing.locator}` === key)) reads.push(item);
+}
+
+function normalizeLoopBudget(contextBudget = null) {
+  if (!contextBudget || contextBudget.basis !== 'context-pack-measurement') {
+    return {
+      estimatedDeliveryTokens: 0,
+      sourceBodyTokensExcluded: 0,
+      deliveryReductionRatio: 0,
+      basis: 'unestimated'
+    };
+  }
+  return {
+    estimatedDeliveryTokens: Math.max(0, Math.trunc(Number(contextBudget.estimatedDeliveryTokens ?? 0))),
+    sourceBodyTokensExcluded: Math.max(0, Math.trunc(Number(contextBudget.sourceBodyTokensExcluded ?? 0))),
+    deliveryReductionRatio: Math.max(0, Math.min(1, Number(contextBudget.deliveryReductionRatio ?? 0))),
+    basis: 'context-pack-measurement'
+  };
+}
+
+function normalizeSkillTokens(values, fieldName, maxItems = 16) {
+  return normalizeLoopPlanTexts(values, fieldName, maxItems);
+}
+
+function loopSkillStatusReady(value) {
+  return value ? 'ready' : 'blocked_needs_human';
+}
+
+export function buildLoopActionEfficiencyGuidance({
+  loopPlan = null,
+  reusablePrimitives = [],
+  proposedBoundary = [],
+  validationCommands = loopPlan?.validationCommands ?? [],
+  contextBudget = loopPlan?.contextBudget ?? null
+} = {}) {
+  if (loopPlan) assertJsonSchema(loopPlanSchema, loopPlan, 'loop action efficiency plan');
+  const normalizedPrimitives = normalizeSkillTokens(reusablePrimitives, 'reusablePrimitive', 12);
+  const normalizedValidation = normalizeLoopPlanTexts(validationCommands, 'validationCommand', 8);
+  const normalizedBoundary = normalizeChangedLocators(proposedBoundary.length ? proposedBoundary : loopPlan?.sourceGraph?.changedLocators ?? []);
+  const measuredBudget = normalizeLoopBudget(contextBudget);
+  const ready = normalizedPrimitives.length > 0 && normalizedValidation.length > 0;
+  return {
+    schemaVersion: '1.0.0',
+    skillId: 'skill:loop-action-efficiency',
+    status: loopSkillStatusReady(ready),
+    actionLadder: [
+      'reuse_existing_primitive',
+      'adapt_existing_boundary',
+      'make_smallest_coherent_edit',
+      'generate_new_code_last'
+    ],
+    reusedPrimitives: normalizedPrimitives,
+    proposedBoundary: normalizedBoundary,
+    validationCommands: normalizedValidation,
+    measured: {
+      contextBudget: measuredBudget,
+      diffSize: 'unmeasured'
+    },
+    writeAuthorityGranted: false,
+    reasonCodes: [
+      'reuse_before_generate',
+      normalizedPrimitives.length ? 'existing_primitive_named' : 'existing_primitive_missing',
+      normalizedValidation.length ? 'validation_named' : 'validation_missing',
+      measuredBudget.basis === 'context-pack-measurement' ? 'context_budget_measured' : 'context_budget_unestimated',
+      'no_write_authority_granted'
+    ].sort()
+  };
+}
+
+export function buildLoopIntentClarification({
+  objective = '',
+  stopCondition = '',
+  nonGoals = [],
+  sideEffectClass = 'read-only',
+  validationCommands = [],
+  rollback = ''
+} = {}) {
+  const normalizedObjective = String(objective ?? '').replace(/\s+/gu, ' ').trim();
+  const normalizedStopCondition = String(stopCondition ?? '').replace(/\s+/gu, ' ').trim();
+  const normalizedValidation = normalizeLoopPlanTexts(validationCommands, 'validationCommand', 8);
+  const normalizedRollback = String(rollback ?? '').replace(/\s+/gu, ' ').trim();
+  if (normalizedObjective) assertSafeLoopPlanField(normalizedObjective, 'objective');
+  if (normalizedStopCondition) assertSafeLoopPlanField(normalizedStopCondition, 'stopCondition');
+  if (normalizedRollback) assertSafeLoopPlanField(normalizedRollback, 'rollback');
+  const reasons = [];
+  const questions = [];
+  if (!normalizedObjective) {
+    reasons.push('missing_objective');
+    questions.push('What observable behavior should this loop produce?');
+  }
+  if (!normalizedStopCondition) {
+    reasons.push('missing_stop_condition');
+    questions.push('What exact condition stops the loop?');
+  }
+  if (!normalizedValidation.length) {
+    reasons.push('missing_validation');
+    questions.push('Which command or check proves the stop condition?');
+  }
+  if (!normalizedRollback) reasons.push('missing_rollback');
+  const safeSideEffectClass = ['read-only', 'local-write', 'external-write'].includes(sideEffectClass) ? sideEffectClass : 'read-only';
+  const ready = reasons.length === 0 && safeSideEffectClass !== 'external-write';
+  return {
+    schemaVersion: '1.0.0',
+    skillId: 'skill:loop-intent-clarification',
+    status: loopSkillStatusReady(ready),
+    planFields: {
+      objective: normalizedObjective,
+      stopCondition: normalizedStopCondition,
+      nonGoals: normalizeLoopPlanTexts(nonGoals, 'nonGoal', 8),
+      sideEffectClass: safeSideEffectClass,
+      validationCommands: normalizedValidation,
+      rollback: normalizedRollback
+    },
+    openQuestions: questions.slice(0, 3),
+    stopReason: ready ? null : 'blocked_needs_human',
+    authorityGranted: false,
+    reasonCodes: [
+      ...reasons,
+      safeSideEffectClass === 'external-write' ? 'external_write_requires_human' : 'side_effect_class_bounded',
+      'no_authority_granted'
+    ].sort()
+  };
+}
+
+function loopRefId(value) {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return /^[A-Za-z0-9._:-]{1,120}$/u.test(text) ? text : null;
+}
+
+function normalizeLoopGovernanceAssertions(values = []) {
+  if (values === null || values === undefined) return [];
+  if (!Array.isArray(values) || values.length > 16) throw new Error('loop_governance_assertions_invalid');
+  return values.map((item) => {
+    const subject = String(item?.subject ?? '').trim();
+    const predicate = String(item?.predicate ?? '').trim();
+    const file = normalizeUserSelectedFilePath(item?.probe?.file);
+    const capture = String(item?.probe?.capture ?? '').trim();
+    const valueTemplate = String(item?.probe?.valueTemplate ?? '').trim();
+    if (!/^[A-Za-z0-9:_-]{1,128}$/u.test(subject)) throw new Error('loop_governance_subject_invalid');
+    if (!/^[A-Za-z0-9:_-]{1,128}$/u.test(predicate)) throw new Error('loop_governance_predicate_invalid');
+    if (!capture || capture.length > 240 || /[\r\n]/u.test(capture)) throw new Error('loop_governance_capture_invalid');
+    if (!valueTemplate || valueTemplate.length > 120 || /[\r\n]/u.test(valueTemplate) || !valueTemplate.includes('$1')) throw new Error('loop_governance_value_template_invalid');
+    assertSafeHandoffField(`${subject} ${predicate} ${file} ${capture} ${valueTemplate}`, 'loop_governance_assertion');
+    return { subject, predicate, probe: { file, capture, valueTemplate } };
+  });
+}
+
+export function buildLoopPlan({
+  workspaceId = 'ws_local',
+  objective,
+  stopCondition,
+  nonGoals = [],
+  validationCommands = [],
+  governanceAssertions = [],
+  changedLocators = [],
+  userSelectedFiles = [],
+  contextPack = null,
+  usePlan = null,
+  sourceGraph = null,
+  contextBudget = null,
+  riskClass = 'low',
+  maxIterations = 3,
+  timeoutSeconds = 1800,
+  clock = () => new Date().toISOString()
+} = {}) {
+  const createdAt = clock();
+  const normalizedObjective = String(objective ?? '').replace(/\s+/gu, ' ').trim();
+  const normalizedStopCondition = String(stopCondition ?? '').replace(/\s+/gu, ' ').trim();
+  if (!normalizedObjective) throw new Error('loop_plan_objective_required');
+  if (!normalizedStopCondition) throw new Error('loop_plan_stopCondition_required');
+  assertSafeLoopPlanField(normalizedObjective, 'objective');
+  assertSafeLoopPlanField(normalizedStopCondition, 'stopCondition');
+  for (const locator of Array.isArray(changedLocators) ? changedLocators : [changedLocators]) {
+    if (UNSAFE_PERSISTED_LOCATOR.test(String(locator ?? ''))) throw new Error('changed_context_locator_invalid');
+  }
+  const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
+  const normalizedUserSelectedFiles = normalizeUserSelectedFiles(userSelectedFiles);
+  const normalizedGovernanceAssertions = normalizeLoopGovernanceAssertions(governanceAssertions);
+  const reads = [];
+
+  for (const locator of normalizedChangedLocators) {
+    addLoopRead(reads, loopReadItem({
+      locator,
+      role: 'changed_locator',
+      required: true,
+      reasonCodes: ['changed_locator_supplied', 'read_before_edit']
+    }));
+  }
+  for (const relativePath of normalizedUserSelectedFiles) {
+    addLoopRead(reads, loopReadItem({
+      locator: `user-selected://${relativePath}`,
+      role: 'explicit_user_selected',
+      required: true,
+      reasonCodes: ['explicit_user_file', 'read_before_handoff']
+    }));
+  }
+  const inheritedReads = (usePlan?.requiredLocalReads?.length ? usePlan.requiredLocalReads : contextPack?.utility?.requiredLocalReads) ?? [];
+  for (const item of inheritedReads) {
+    addLoopRead(reads, loopReadItem({
+      locator: item.locator,
+      role: ['selected_context', 'explicit_user_selected', 'changed_locator', 'source_graph_hint'].includes(item.role) ? item.role : 'selected_context',
+      required: item.required !== false,
+      contentHash: item.contentHash,
+      reasonCodes: item.reasonCodes?.length ? item.reasonCodes : ['selected_context']
+    }));
+  }
+  for (const item of sourceGraph?.results ?? []) {
+    addLoopRead(reads, loopReadItem({
+      locator: item.locator,
+      role: 'source_graph_hint',
+      required: false,
+      contentHash: item.contentHash,
+      reasonCodes: item.reasonCodes?.length ? item.reasonCodes : ['source_graph_hint']
+    }));
+  }
+
+  const plan = {
+    schemaVersion: '1.0.0',
+    command: 'loop plan',
+    id: 'loopplan_000000000000000000000000',
+    workspaceId: String(workspaceId ?? 'ws_local').trim(),
+    createdAt,
+    loopPlanFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000',
+    objective: normalizedObjective,
+    stopCondition: normalizedStopCondition,
+    nonGoals: normalizeLoopPlanTexts(nonGoals, 'nonGoal'),
+    riskClass: ['low', 'review', 'high'].includes(riskClass) ? riskClass : 'low',
+    sideEffectClass: 'read-only',
+    maxIterations: Number.isInteger(maxIterations) ? Math.max(1, Math.min(20, maxIterations)) : 3,
+    timeoutSeconds: Number.isInteger(timeoutSeconds) ? Math.max(1, Math.min(86400, timeoutSeconds)) : 1800,
+    approvalRequired: false,
+    sourceGraph: {
+      status: sourceGraph?.status === 'available' ? 'available' : 'unavailable',
+      sourceIndexFingerprint: nullableFingerprint(sourceGraph?.sourceIndexFingerprint),
+      graphFingerprint: nullableFingerprint(sourceGraph?.graphFingerprint),
+      changedLocators: normalizedChangedLocators
+    },
+    contextPack: {
+      contextPackId: loopRefId(contextPack?.id),
+      contextPackFingerprint: nullableFingerprint(contextPack?.fingerprint ?? contextPack?.contextPackFingerprint),
+      usePlanId: loopRefId(usePlan?.id),
+      usePlanFingerprint: nullableFingerprint(usePlan?.fingerprint ?? usePlan?.usePlanFingerprint)
+    },
+    requiredLocalReads: reads.slice(0, 80),
+    validationCommands: normalizeLoopPlanTexts(validationCommands, 'validationCommand'),
+    contextBudget: normalizeLoopBudget(contextBudget),
+    stopReasons: [
+      'completed',
+      'validation_failed',
+      'governance-violation',
+      'blocked_needs_human',
+      'unsafe_action_required',
+      'max_iterations',
+      'timeout',
+      'unrelated_changes',
+      'out_of_scope'
+    ],
+    rollback: 'Discard this loop plan; Slice 1 is read-only and mutates no workspace state.',
+    safeguards: {
+      readOnly: true,
+      commandsExecuted: 0,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      sourceContentIncluded: false,
+      rawOutputIncluded: false,
+      hiddenReasoningIncluded: false
+    }
+  };
+  if (normalizedGovernanceAssertions.length) plan.governanceAssertions = normalizedGovernanceAssertions;
+  plan.id = `loopplan_${idDigest(stableStringify({
+    workspaceId: plan.workspaceId,
+    objective: plan.objective,
+    stopCondition: plan.stopCondition,
+    validationCommands: plan.validationCommands,
+    governanceAssertions: plan.governanceAssertions ?? [],
+    requiredLocalReads: plan.requiredLocalReads,
+    contextBudget: plan.contextBudget
+  }))}`;
+  plan.loopPlanFingerprint = hashJson({ ...plan, loopPlanFingerprint: null });
+  assertJsonSchema(loopPlanSchema, plan, 'loop plan');
+  return plan;
+}
+
+function splitCommand(command) {
+  const parts = [];
+  const pattern = /"([^"]*)"|'([^']*)'|[^\s]+/gu;
+  for (const match of String(command ?? '').matchAll(pattern)) parts.push(match[1] ?? match[2] ?? match[0]);
+  if (!parts.length) throw new Error('loop_observation_command_empty');
+  return parts;
+}
+
+function isAllowlistedValidationCommand(command) {
+  const [file, ...args] = splitCommand(command);
+  const executable = path.basename(file);
+  if (executable === 'node' && args[0] === '--test') return true;
+  if (executable === 'npm' && args[0] === 'test') return true;
+  if (executable === 'npm' && args[0] === 'run' && typeof args[1] === 'string' && !args[1].startsWith('-')) return true;
+  return false;
+}
+
+function assertValidationCommandAllowed(command, { executeCommands = false, confirmedCommands = [] } = {}) {
+  if (executeCommands !== true) {
+    const error = new Error('loop_observation_command_execution_not_enabled');
+    error.code = 'loop_observation_command_execution_not_enabled';
+    throw error;
+  }
+  if (isAllowlistedValidationCommand(command) || confirmedCommands.includes(command)) return;
+  const error = new Error('loop_observation_command_not_allowed');
+  error.code = 'loop_observation_command_not_allowed';
+  throw error;
+}
+
+async function defaultValidationCommandRunner(command, { cwd = process.cwd(), timeoutMs = 60_000 } = {}) {
+  const [file, ...args] = splitCommand(command);
+  const started = Date.now();
+  try {
+    const result = await execFileAsync(file, args, {
+      cwd,
+      timeout: timeoutMs,
+      maxBuffer: 128 * 1024,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0'
+      }
+    });
+    return {
+      exitCode: 0,
+      stdout: result.stdout ?? '',
+      stderr: result.stderr ?? '',
+      durationMs: Date.now() - started
+    };
+  } catch (error) {
+    return {
+      exitCode: Number.isInteger(error.code) ? error.code : 1,
+      stdout: error.stdout ?? '',
+      stderr: error.stderr ?? error.message ?? '',
+      durationMs: Date.now() - started
+    };
+  }
+}
+
+function summarizeCommandOutput({ stdout = '', stderr = '' }) {
+  const redactions = redact(`${stdout}\n${stderr}`.trim());
+  const redacted = redactions.redacted.replace(/\s+/gu, ' ').trim();
+  assertSafeHandoffField(redacted, 'command_output');
+  return {
+    summary: redacted.slice(0, 320),
+    hash: hash(redacted),
+    truncated: redacted.length > 320
+  };
+}
+
+function loopObservationEvent({ observation, sequence, occurredAt }) {
+  const payload = {
+    observationId: observation.id,
+    loopPlanId: observation.loopPlanId,
+    loopPlanFingerprint: observation.loopPlanFingerprint,
+    status: observation.status,
+    commandCount: observation.commands.length,
+    commandExitCodes: observation.commands.map((item) => item.exitCode),
+    commandOutputHashes: observation.commands.map((item) => item.outputHash),
+    observationFingerprint: observation.observationFingerprint
+  };
+  return {
+    schemaVersion: '1.0.0',
+    id: `evt_loop_${idDigest(stableStringify({ observationId: observation.id, sequence, payload }))}`,
+    workspaceId: observation.workspaceId,
+    runId: observation.runId,
+    type: 'loop.observation_recorded',
+    actorId: 'system',
+    sequence,
+    occurredAt,
+    correlationId: `corr_${observation.id}`,
+    causationId: observation.loopPlanId,
+    dataClass: 'workspace-private',
+    producerVersion: LOOP_PLAN_VERSION,
+    payload
+  };
+}
+
+export async function recordLoopObservation({
+  loopPlan,
+  runId = 'run_loop_observation',
+  validationCommands = null,
+  executeCommands = false,
+  confirmedCommands = [],
+  cwd = process.cwd(),
+  commandRunner = defaultValidationCommandRunner,
+  appendEvent = async () => {},
+  eventSequence = 0,
+  clock = () => new Date().toISOString()
+} = {}) {
+  assertJsonSchema(loopPlanSchema, loopPlan, 'loop observation plan');
+  const planCommands = loopPlan.validationCommands ?? [];
+  const commands = validationCommands === null || validationCommands === undefined ? planCommands : validationCommands;
+  const normalizedCommands = normalizeLoopPlanTexts(commands, 'validationCommand');
+  for (const command of normalizedCommands) {
+    if (!planCommands.includes(command)) throw new Error('loop_observation_command_not_in_plan');
+  }
+  if (!normalizedCommands.length) throw new Error('loop_observation_commands_required');
+  for (const command of normalizedCommands) assertValidationCommandAllowed(command, { executeCommands, confirmedCommands });
+
+  const createdAt = clock();
+  const results = [];
+  for (const command of normalizedCommands) {
+    const result = await commandRunner(command, {
+      cwd,
+      timeoutMs: Math.min(Number(loopPlan.timeoutSeconds ?? 1800) * 1000, 600_000)
+    });
+    const output = summarizeCommandOutput(result);
+    const exitCode = Number.isInteger(result.exitCode) ? Math.max(0, Math.min(255, result.exitCode)) : 1;
+    results.push({
+      command,
+      exitCode,
+      durationMs: Math.max(0, Math.min(600_000, Math.trunc(Number(result.durationMs ?? 0)))),
+      passed: exitCode === 0,
+      outputSummary: output.summary,
+      outputHash: output.hash,
+      outputTruncated: output.truncated
+    });
+  }
+
+  const observation = {
+    schemaVersion: '1.0.0',
+    command: 'loop observe',
+    id: 'loopobs_000000000000000000000000',
+    workspaceId: loopPlan.workspaceId,
+    runId,
+    createdAt,
+    loopPlanId: loopPlan.id,
+    loopPlanFingerprint: loopPlan.loopPlanFingerprint,
+    status: results.every((item) => item.passed) ? 'passed' : 'failed',
+    commands: results,
+    events: [],
+    safeguards: {
+      commandsLimitedToPlan: true,
+      rawOutputIncluded: false,
+      outputSummaryMaxChars: 320,
+      localFilesWrittenOutsideLedger: 0,
+      networkCallsDeclared: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      activeMemoryCreated: 0
+    },
+    observationFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  observation.id = `loopobs_${idDigest(stableStringify({
+    workspaceId: observation.workspaceId,
+    runId,
+    loopPlanFingerprint: observation.loopPlanFingerprint,
+    commands: observation.commands
+  }))}`;
+  observation.observationFingerprint = hashJson({ ...observation, observationFingerprint: null });
+  const event = loopObservationEvent({ observation, sequence: eventSequence, occurredAt: createdAt });
+  observation.events = [{ id: event.id, type: event.type, sequence: event.sequence }];
+  await appendEvent(event);
+  assertJsonSchema(loopObservationSchema, observation, 'loop observation');
+  return observation;
+}
+
+async function gitChangedWorkspaceLocators(worktreePath) {
+  const gitEnv = {
+    ...process.env,
+    GIT_OPTIONAL_LOCKS: '0',
+    GIT_TERMINAL_PROMPT: '0'
+  };
+  const options = {
+    encoding: 'utf8',
+    timeout: GIT_STATUS_TIMEOUT_MS,
+    maxBuffer: GIT_STATUS_MAX_BUFFER,
+    env: gitEnv
+  };
+  const [tracked, untracked] = await Promise.all([
+    execFileAsync('git', ['-C', worktreePath, 'diff', '--name-only'], options),
+    execFileAsync('git', ['-C', worktreePath, 'ls-files', '--others', '--exclude-standard'], options)
+  ]);
+  const paths = `${tracked.stdout}\n${untracked.stdout}`;
+  return [...new Set(paths.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean))]
+    .map((relativePath) => {
+      if (relativePath.startsWith('"')) return `workspace://out-of-scope/${idDigest(relativePath)}`;
+      try {
+        return `workspace://${normalizeUserSelectedFilePath(relativePath)}`;
+      } catch {
+        return `workspace://out-of-scope/${idDigest(relativePath)}`;
+      }
+    })
+    .sort();
+}
+
+function verificationEvent({ report, type, sequence, occurredAt, payload = {} }) {
+  const safePayload = {
+    verificationReportId: report.id,
+    loopPlanId: report.loopPlanId,
+    loopPlanFingerprint: report.loopPlanFingerprint,
+    status: report.status,
+    ...payload
+  };
+  return {
+    schemaVersion: '1.0.0',
+    id: `evt_loop_${idDigest(stableStringify({ reportId: report.id, type, sequence, safePayload }))}`,
+    workspaceId: report.workspaceId,
+    runId: report.runId,
+    type,
+    actorId: 'system',
+    sequence,
+    occurredAt,
+    correlationId: `corr_${report.id}`,
+    causationId: report.loopPlanId,
+    dataClass: 'workspace-private',
+    producerVersion: LOOP_PLAN_VERSION,
+    payload: safePayload
+  };
+}
+
+function replayEvidence({ workspaceId, runId, reason }) {
+  const replay = createReplayPlan({
+    workspaceId,
+    sourceRunId: runId,
+    mode: 'shadow',
+    reason,
+    sideEffects: 'disabled'
+  });
+  return {
+    sideEffects: replay.sideEffects,
+    approvalsReusable: replay.approvalsReusable,
+    planFingerprint: replay.fingerprint
+  };
+}
+
+function normalizeLoopGovernanceReport(report = {}) {
+  const violations = Array.isArray(report.violations) ? report.violations.slice(0, 16).map((item) => ({
+    subject: String(item.subject ?? '').trim(),
+    predicate: String(item.predicate ?? '').trim(),
+    expected: String(item.expected ?? '').trim().slice(0, 240),
+    actual: String(item.actual ?? '').trim().slice(0, 240),
+    file: normalizeUserSelectedFilePath(item.file)
+  })) : [];
+  return {
+    checked: Math.max(0, Math.min(16, Math.trunc(Number(report.checked ?? 0)))),
+    violations
+  };
+}
+
+export async function runLoopVerification({
+  loopPlan,
+  runId = 'run_loop_verification',
+  worktreePath,
+  implementer = async () => {},
+  executeCommands = false,
+  confirmedCommands = [],
+  commandRunner = defaultValidationCommandRunner,
+  governanceChecker = async () => ({ checked: 0, violations: [] }),
+  appendEvent = async () => {},
+  replayMode = false,
+  clock = () => new Date().toISOString()
+} = {}) {
+  assertJsonSchema(loopPlanSchema, loopPlan, 'loop verification plan');
+  if (!worktreePath || typeof worktreePath !== 'string') throw new Error('loop_verification_worktree_required');
+  const createdAt = clock();
+  const allowedLocators = [...new Set(loopPlan.sourceGraph.changedLocators ?? [])].sort();
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'loop verify',
+    id: 'loopverify_000000000000000000000000',
+    workspaceId: loopPlan.workspaceId,
+    runId,
+    createdAt,
+    loopPlanId: loopPlan.id,
+    loopPlanFingerprint: loopPlan.loopPlanFingerprint,
+    status: 'blocked',
+    stopReason: replayMode ? 'blocked_needs_human' : 'completed',
+    worktree: {
+      mode: 'isolated',
+      pathFingerprint: hash(path.resolve(worktreePath))
+    },
+    implementer: {
+      status: replayMode ? 'skipped_replay' : 'completed',
+      changedLocators: []
+    },
+    checker: {
+      status: replayMode ? 'skipped_replay' : 'failed',
+      observation: null
+    },
+    governance: {
+      checked: 0,
+      violations: []
+    },
+    scope: {
+      status: replayMode ? 'skipped_replay' : 'passed',
+      allowedLocators,
+      changedLocators: [],
+      unrelatedLocators: []
+    },
+    proposal: {
+      status: 'blocked',
+      autoMerge: false,
+      approvalRequired: true,
+      approvalsReused: false,
+      reasonCodes: []
+    },
+    replay: replayEvidence({ workspaceId: loopPlan.workspaceId, runId, reason: 'loop verification shadow replay disables side effects' }),
+    flightRecorder: {
+      eventCount: 0,
+      eventTypes: []
+    },
+    safeguards: {
+      isolatedWorktreeOnly: true,
+      mainBranchWritten: false,
+      autoMerge: false,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      replaySideEffectsDisabled: replayMode === true
+    },
+    reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.id = `loopverify_${idDigest(stableStringify({
+    workspaceId: report.workspaceId,
+    runId,
+    loopPlanFingerprint: report.loopPlanFingerprint,
+    worktreePath: report.worktree.pathFingerprint,
+    replayMode
+  }))}`;
+
+  const events = [];
+  let sequence = 0;
+  const emit = async (type, payload = {}) => {
+    const event = verificationEvent({ report, type, sequence: sequence++, occurredAt: clock(), payload });
+    events.push(event);
+    await appendEvent(event);
+  };
+
+  if (!replayMode) {
+    await implementer({ worktreePath, loopPlan });
+    const changedLocators = await gitChangedWorkspaceLocators(worktreePath);
+    report.implementer.changedLocators = changedLocators;
+    await emit('loop.implementer_completed', { changedLocators });
+    const observation = await recordLoopObservation({
+      loopPlan,
+      runId,
+      cwd: worktreePath,
+      commandRunner,
+      executeCommands,
+      confirmedCommands,
+      appendEvent: async () => {},
+      eventSequence: sequence,
+      clock
+    });
+    report.checker.observation = observation;
+    report.checker.status = observation.status === 'passed' ? 'passed' : 'failed';
+    await emit('loop.checker_completed', { observationId: observation.id, checkerStatus: report.checker.status });
+    report.governance = normalizeLoopGovernanceReport(await governanceChecker({ loopPlan, worktreePath, runId }));
+    report.scope.changedLocators = changedLocators;
+    report.scope.unrelatedLocators = changedLocators.filter((locator) => !allowedLocators.includes(locator));
+    report.scope.status = report.scope.unrelatedLocators.length ? 'blocked' : 'passed';
+    const checkerPassed = report.checker.status === 'passed';
+    const governancePassed = report.governance.violations.length === 0;
+    report.status = checkerPassed && report.scope.status === 'passed' && governancePassed ? 'proposed' : 'blocked';
+    report.stopReason = !checkerPassed ? 'validation_failed' : !governancePassed ? 'governance-violation' : report.scope.status === 'blocked' ? 'unrelated_changes' : 'completed';
+  }
+
+  report.proposal.status = report.status === 'proposed' ? 'proposed' : 'blocked';
+  report.proposal.reasonCodes = [
+    report.checker.status === 'passed' ? 'checker_passed' : report.checker.status === 'skipped_replay' ? 'checker_skipped_replay' : 'checker_failed',
+    report.governance.checked === 0 ? 'governance_not_configured' : report.governance.violations.length ? 'governance_violation' : 'governance_passed',
+    report.scope.status === 'passed' ? 'scope_passed' : report.scope.status === 'skipped_replay' ? 'scope_skipped_replay' : 'unrelated_changes',
+    'human_approval_required',
+    'auto_merge_disabled'
+  ];
+  report.flightRecorder = {
+    eventCount: events.length + 1,
+    eventTypes: [...events.map((event) => event.type), 'loop.verification_reported']
+  };
+  report.reportFingerprint = hashJson({ ...report, reportFingerprint: null });
+  await emit('loop.verification_reported', { reportFingerprint: report.reportFingerprint, stopReason: report.stopReason });
+  assertJsonSchema(loopVerificationReportSchema, report, 'loop verification report');
+  return report;
+}
+
+export function createLoopRunWorkflowDefinition({
+  approvalRequired = false,
+  scheduleDelayMs = 0
+} = {}) {
+  const handler = (id) => ({ id: `handler:oaf:loop-run:${id}`, version: '1.0.0' });
+  const step = (id, riskClass = 'read-only') => ({
+    id,
+    kind: 'deterministic',
+    handler: handler(id),
+    timeoutMs: 1000,
+    retry: { maxAttempts: 1 },
+    approval: { required: false },
+    idempotency: { required: false },
+    riskClass,
+    inputSchema: {},
+    outputSchema: {}
+  });
+  const steps = [
+    step('intent'),
+    step('context')
+  ];
+  if (scheduleDelayMs > 0) {
+    steps.push({
+      id: 'schedule',
+      kind: 'timer',
+      timer: { delayMs: Math.max(1, Math.min(86_400_000, Math.trunc(scheduleDelayMs))) },
+      timeoutMs: 1000,
+      retry: { maxAttempts: 1 },
+      approval: { required: false },
+      idempotency: { required: false },
+      riskClass: 'read-only',
+      inputSchema: {},
+      outputSchema: {}
+    });
+  }
+  if (approvalRequired) {
+    steps.push({
+      id: 'approval',
+      kind: 'approval',
+      timeoutMs: 1000,
+      retry: { maxAttempts: 1 },
+      approval: { required: true, operationFingerprint: 'sha256:loop-run-human-approval', expiresInMs: 3_600_000 },
+      idempotency: { required: false },
+      riskClass: 'consequential-write',
+      inputSchema: {},
+      outputSchema: {}
+    });
+  }
+  steps.push(
+    step('action', approvalRequired ? 'consequential-write' : 'read-only'),
+    step('observation'),
+    step('adjustment'),
+    step('stop')
+  );
+  return {
+    schemaVersion: '1.0.0',
+    id: LOOP_RUN_WORKFLOW_ID,
+    version: '1.0.0',
+    name: 'Loop Workbench run',
+    description: 'Bounded local Loop Workbench run controller.',
+    steps
+  };
+}
+
+function normalizedTerminalStopReasons(reasons) {
+  const allowed = new Set([
+    'completed',
+    'validation_failed',
+    'governance-violation',
+    'blocked_needs_human',
+    'unsafe_action_required',
+    'unrelated_changes',
+    'out_of_scope'
+  ]);
+  const selected = Array.isArray(reasons) && reasons.length ? reasons : ['completed', 'validation_failed', 'governance-violation', 'blocked_needs_human', 'unsafe_action_required', 'unrelated_changes', 'out_of_scope'];
+  return [...new Set(selected.filter((reason) => allowed.has(reason)))].slice(0, 8);
+}
+
+async function advanceDurableLoopWorkflow({
+  durableRuntime,
+  loopPlan,
+  runId,
+  workflowTicks,
+  workerId,
+  humanApprovalRequired,
+  scheduleDelayMs
+}) {
+  if (!durableRuntime) {
+    return {
+      enabled: false,
+      workflowId: null,
+      workflowRunId: null,
+      status: 'not_configured',
+      resumed: false,
+      historyEventCount: 0,
+      eventTypes: []
+    };
+  }
+  const definition = createLoopRunWorkflowDefinition({ approvalRequired: humanApprovalRequired, scheduleDelayMs });
+  await durableRuntime.registerWorkflow(definition);
+  const workflowRunId = `${runId}_workflow`;
+  await durableRuntime.start({
+    workspaceId: loopPlan.workspaceId,
+    workflowId: definition.id,
+    workflowVersion: definition.version,
+    runId: workflowRunId,
+    input: {
+      loopPlanId: loopPlan.id,
+      loopPlanFingerprint: loopPlan.loopPlanFingerprint
+    },
+    idempotencyKey: `loop-run:${loopPlan.id}:${runId}`
+  });
+  for (let tick = 0; tick < workflowTicks; tick += 1) {
+    const result = await durableRuntime.tick({ workerId });
+    if (!result.claimed) break;
+  }
+  const [run, history] = await Promise.all([
+    durableRuntime.get({ workspaceId: loopPlan.workspaceId, runId: workflowRunId }),
+    durableRuntime.history({ workspaceId: loopPlan.workspaceId, runId: workflowRunId })
+  ]);
+  const eventTypes = history.events.map((event) => event.type);
+  return {
+    enabled: true,
+    workflowId: definition.id,
+    workflowRunId,
+    status: run?.status ?? 'missing',
+    resumed: eventTypes.includes('run.resumed'),
+    historyEventCount: history.events.length,
+    eventTypes
+  };
+}
+
+export async function runLoop({
+  loopPlan,
+  runId = 'run_loop',
+  worktreePath = process.cwd(),
+  maxIterations = loopPlan?.maxIterations,
+  timeoutMs = Math.max(0, Number(loopPlan?.timeoutSeconds ?? 0) * 1000),
+  terminalStopReasons = null,
+  humanApprovalRequired = false,
+  schedule = null,
+  durableRuntime = null,
+  workflowTicks = 0,
+  workerId = 'worker_loop',
+  verificationRunner = async (input) => runLoopVerification(input),
+  executeCommands = false,
+  confirmedCommands = [],
+  governanceChecker = async () => ({ checked: 0, violations: [] }),
+  clock = () => new Date().toISOString()
+} = {}) {
+  assertJsonSchema(loopPlanSchema, loopPlan, 'loop run plan');
+  const createdAt = clock();
+  const boundedMaxIterations = Number.isInteger(maxIterations) ? Math.max(1, Math.min(20, maxIterations)) : loopPlan.maxIterations;
+  const boundedTimeoutMs = Number.isFinite(timeoutMs) ? Math.max(0, Math.min(86_400_000, Math.trunc(timeoutMs))) : Math.max(0, loopPlan.timeoutSeconds * 1000);
+  const terminalReasons = normalizedTerminalStopReasons(terminalStopReasons);
+  const scheduleEnabled = Boolean(schedule);
+  const scheduleDelayMs = schedule?.delayMs ? Math.max(1, Math.min(86_400_000, Math.trunc(Number(schedule.delayMs)))) : 0;
+  const approvalGate = humanApprovalRequired === true || loopPlan.approvalRequired === true;
+  const durable = await advanceDurableLoopWorkflow({
+    durableRuntime,
+    loopPlan,
+    runId,
+    workflowTicks,
+    workerId,
+    humanApprovalRequired: approvalGate,
+    scheduleDelayMs
+  });
+  const perIterationTokens = loopPlan.contextBudget.estimatedDeliveryTokens;
+  const iterations = [];
+  const governance = { checked: 0, violations: [] };
+  let status = 'blocked';
+  let stopReason = 'max_iterations';
+  const deadline = Date.parse(createdAt) + boundedTimeoutMs;
+
+  if (Date.parse(clock()) >= deadline) {
+    stopReason = 'timeout';
+  } else if (approvalGate) {
+    stopReason = 'blocked_needs_human';
+  } else {
+    for (let index = 1; index <= boundedMaxIterations; index += 1) {
+      if (Date.parse(clock()) >= deadline) {
+        stopReason = 'timeout';
+        break;
+      }
+      const verification = await verificationRunner({
+        loopPlan,
+        runId: `${runId}_iter_${index}`,
+        worktreePath,
+        executeCommands,
+        confirmedCommands,
+        governanceChecker,
+        replayMode: false,
+        clock
+      });
+      governance.checked += Number(verification.governance?.checked ?? 0);
+      for (const violation of verification.governance?.violations ?? []) {
+        if (governance.violations.length < 16) governance.violations.push(violation);
+      }
+      const iterationStopReason = verification.stopReason ?? (verification.status === 'proposed' ? 'completed' : 'validation_failed');
+      iterations.push({
+        index,
+        status: verification.status,
+        stopReason: iterationStopReason,
+        verificationReportId: verification.id ?? null,
+        estimatedDeliveryTokens: perIterationTokens
+      });
+      if (terminalReasons.includes(iterationStopReason)) {
+        stopReason = iterationStopReason;
+        status = iterationStopReason === 'completed' ? 'completed' : 'blocked';
+        break;
+      }
+      if (index === boundedMaxIterations) stopReason = 'max_iterations';
+    }
+  }
+
+  if (stopReason === 'completed') status = 'completed';
+  const runLogEventTypes = [
+    'loop.run_started',
+    ...durable.eventTypes,
+    ...iterations.map((iteration) => `loop.iteration_${iteration.index}_${iteration.stopReason}`),
+    'loop.run_stopped'
+  ];
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'loop run',
+    id: 'looprun_000000000000000000000000',
+    workspaceId: loopPlan.workspaceId,
+    runId,
+    createdAt,
+    loopPlanId: loopPlan.id,
+    loopPlanFingerprint: loopPlan.loopPlanFingerprint,
+    status,
+    stopReason,
+    controller: {
+      maxIterations: boundedMaxIterations,
+      timeoutMs: boundedTimeoutMs,
+      terminalStopReasons: terminalReasons
+    },
+    durable: {
+      enabled: durable.enabled,
+      workflowId: durable.workflowId,
+      workflowRunId: durable.workflowRunId,
+      status: durable.status,
+      resumed: durable.resumed,
+      historyEventCount: durable.historyEventCount
+    },
+    iterations,
+    governance,
+    tokenBudget: {
+      perIterationEstimatedDeliveryTokens: perIterationTokens,
+      aggregatedEstimatedDeliveryTokens: perIterationTokens * iterations.length,
+      sourceBodyTokensExcluded: loopPlan.contextBudget.sourceBodyTokensExcluded,
+      basis: loopPlan.contextBudget.basis
+    },
+    schedule: {
+      enabled: scheduleEnabled,
+      kind: schedule?.kind ?? 'manual',
+      cadence: schedule?.cadence ?? 'none',
+      nextRunAt: schedule?.nextRunAt ?? null,
+      humanApprovalThresholdTokens: Math.max(0, Math.trunc(Number(schedule?.humanApprovalThresholdTokens ?? 0)))
+    },
+    runLog: {
+      eventCount: runLogEventTypes.length,
+      eventTypes: runLogEventTypes
+    },
+    reasoning: {
+      maker: buildLoopActionEfficiencyGuidance({
+        loopPlan,
+        reusablePrimitives: ['buildLoopPlan', 'runLoopVerification', 'runLoop'],
+        proposedBoundary: loopPlan.sourceGraph.changedLocators,
+        validationCommands: loopPlan.validationCommands,
+        contextBudget: loopPlan.contextBudget
+      }),
+      checker: buildLoopIntentClarification({
+        objective: loopPlan.objective,
+        stopCondition: loopPlan.stopCondition,
+        nonGoals: loopPlan.nonGoals,
+        sideEffectClass: loopPlan.sideEffectClass,
+        validationCommands: loopPlan.validationCommands,
+        rollback: loopPlan.rollback
+      }),
+      stopConditions: {
+        plannedStopCondition: loopPlan.stopCondition,
+        terminalStopReasons: terminalReasons,
+        observedStopReason: stopReason
+      }
+    },
+    safeguards: {
+      boundedIterations: true,
+      timeoutEnforced: true,
+      humanApprovalGateEnforced: approvalGate,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      autoMerge: false
+    },
+    runFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.id = `looprun_${idDigest(stableStringify({
+    workspaceId: report.workspaceId,
+    runId,
+    loopPlanFingerprint: report.loopPlanFingerprint,
+    iterations: report.iterations,
+    stopReason: report.stopReason
+  }))}`;
+  report.runFingerprint = hashJson({ ...report, runFingerprint: null });
+  assertJsonSchema(loopRunSchema, report, 'loop run');
+  return report;
+}
+
 export async function buildContextPack({
   root = process.cwd(),
   harnesses = ['codex', 'claude-code', 'cursor'],
@@ -3598,17 +4924,19 @@ export async function buildHarnessSetupReport({
   server = 'oaf',
   home = process.env.HOME ?? process.cwd(),
   configPath = null,
+  bridgeMode = 'resources',
   generatedAt = new Date().toISOString()
 }) {
   const normalizedAction = normalizeHarnessSetupAction(action);
   const normalizedClient = normalizeHarnessSetupClient(client);
   const normalizedServer = normalizeHarnessSetupServer(server);
+  const normalizedBridgeMode = normalizeHarnessSetupBridgeMode(bridgeMode);
   const selectedConfigPath = configPath ?? normalizedClient.configPath;
   const config = await readHomeConfig(home, selectedConfigPath);
   const parsed = config.exists ? parseHarnessConfig(config.text, normalizedClient.format) : emptyHarnessConfig(normalizedClient.format);
   const servers = extractHarnessServers(parsed);
-  const serverState = classifyHarnessServer(servers.get(normalizedServer));
-  const operations = harnessSetupOperations({ action: normalizedAction, server: normalizedServer, serverState });
+  const serverState = classifyHarnessServer(servers.get(normalizedServer), { bridgeMode: normalizedBridgeMode });
+  const operations = harnessSetupOperations({ action: normalizedAction, server: normalizedServer, serverState, bridgeMode: normalizedBridgeMode });
   const report = {
     schemaVersion: '1.0.0',
     plannerVersion: HARNESS_SETUP_PLANNER_VERSION,
@@ -3618,6 +4946,7 @@ export async function buildHarnessSetupReport({
     client: normalizedClient.id,
     clientLabel: normalizedClient.label,
     server: normalizedServer,
+    bridgeMode: normalizedBridgeMode,
     config: {
       ref: config.configRef,
       format: normalizedClient.format,
@@ -3628,12 +4957,13 @@ export async function buildHarnessSetupReport({
       config: config.exists ? 'present' : 'absent',
       server: serverState
     },
-    desiredServer: desiredHarnessServerSummary(normalizedServer),
+    desiredServer: desiredHarnessServerSummary(normalizedServer, { bridgeMode: normalizedBridgeMode }),
     desiredHooks: desiredHarnessHooks(normalizedClient),
     manualHookSnippet: harnessManualHookSnippet(normalizedClient),
     manualConfigSnippet: harnessManualConfigSnippet({
       client: normalizedClient,
       server: normalizedServer,
+      bridgeMode: normalizedBridgeMode,
       configRef: config.configRef
     }),
     diff: {
@@ -3667,6 +4997,12 @@ function normalizeHarnessSetupServer(value) {
   return name;
 }
 
+function normalizeHarnessSetupBridgeMode(value) {
+  const mode = String(value ?? 'resources').trim();
+  if (!['resources', 'token-saver'].includes(mode)) throw new Error(`unsupported harness setup bridge mode: ${mode || '<missing>'}`);
+  return mode;
+}
+
 async function readHomeConfig(home, relativePath) {
   if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes('..')) throw new Error(`harness config path is unsupported: ${relativePath}`);
   const realHome = await realpath(home);
@@ -3686,16 +5022,17 @@ async function readHomeConfig(home, relativePath) {
   return { exists: true, text: await readFile(actual, 'utf8'), configRef: `home://${toPosix(relativePath)}` };
 }
 
-function harnessSetupOperations({ action, server, serverState }) {
+function harnessSetupOperations({ action, server, serverState, bridgeMode }) {
   if (action === 'status') return [];
   if (action === 'plan') {
     if (serverState === 'installed') return [];
+    const label = bridgeMode === 'token-saver' ? 'token-saver server' : 'resource bridge';
     return [{
       op: serverState === 'absent' ? 'add' : 'replace',
       target: `mcpServers.${server}`,
       before: serverState,
       after: 'read-only-oaf-mcp-stdio',
-      summary: `${serverState === 'absent' ? 'add' : 'replace'} ${server} with read-only OAF MCP stdio resource bridge`
+      summary: `${serverState === 'absent' ? 'add' : 'replace'} ${server} with read-only OAF MCP stdio ${label}`
     }];
   }
   if (serverState === 'absent') return [];
@@ -3723,14 +5060,15 @@ function harnessSetupSafeguards() {
   };
 }
 
-function desiredHarnessServerSummary(server) {
+function desiredHarnessServerSummary(server, { bridgeMode = 'resources' } = {}) {
+  const args = bridgeMode === 'token-saver' ? [...OAF_MCP_TOKEN_SAVER_ARGS] : [...OAF_MCP_RESOURCE_ARGS];
   return {
     name: server,
     transport: 'stdio',
-    command: 'oaf',
-    args: ['mcp', 'resources', '--read-only', '--stdio'],
+    command: 'npm',
+    args,
     environmentKeys: [],
-    resourceMode: 'read-only',
+    resourceMode: bridgeMode === 'token-saver' ? 'read-only-token-saver' : 'read-only',
     externalWrites: false
   };
 }
@@ -3764,8 +5102,8 @@ function harnessManualHookSnippet(client) {
   };
 }
 
-function harnessManualConfigSnippet({ client, server, configRef }) {
-  const desired = desiredHarnessServerSummary(server);
+function harnessManualConfigSnippet({ client, server, bridgeMode = 'resources', configRef }) {
+  const desired = desiredHarnessServerSummary(server, { bridgeMode });
   const serverConfig = {
     command: desired.command,
     args: desired.args
@@ -3794,8 +5132,9 @@ function harnessManualConfigSnippet({ client, server, configRef }) {
   };
 }
 
-function classifyHarnessServer(server) {
+function classifyHarnessServer(server, { bridgeMode = 'resources' } = {}) {
   if (!server) return 'absent';
+  const expectedArgs = bridgeMode === 'token-saver' ? OAF_MCP_TOKEN_SAVER_ARGS : OAF_MCP_RESOURCE_ARGS;
   if (
     server.command === 'oaf' &&
     Array.isArray(server.args) &&
@@ -3804,7 +5143,7 @@ function classifyHarnessServer(server) {
   if (
     server.command === 'npm' &&
     Array.isArray(server.args) &&
-    arraysEqual(server.args, ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio'])
+    arraysEqual(server.args, expectedArgs)
   ) return 'installed';
   return 'drifted';
 }

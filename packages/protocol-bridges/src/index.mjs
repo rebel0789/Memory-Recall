@@ -26,7 +26,7 @@ const MAX_JSONRPC_RESOURCE_URI_BYTES = 512;
 const MAX_JSONRPC_TOOL_NAME_BYTES = 512;
 const MAX_CONTEXT_PACK_ITEMS = 2;
 const MAX_CONTEXT_PACK_BULK_ITEMS = 1;
-const MCP_METHODS = new Set(['initialize', 'ping', 'tools/list', 'tools/call', 'resources/list', 'resources/read']);
+const MCP_METHODS = new Set(['initialize', 'ping', 'tools/list', 'tools/call', 'resources/list', 'resources/read', 'prompts/list']);
 
 function hash(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -119,11 +119,17 @@ function errorToJsonRpc(id, error) {
       mcp_replay_side_effect_denied: -32004,
       mcp_authority_injection: -32005,
       mcp_private_payload: -32006,
-      mcp_output_too_large: -32007
+      mcp_output_too_large: -32007,
+      mcp_tool_failed: -32008
     }[error.code] ?? -32000;
     return jsonRpcError(id, code, error.message, { code: error.code, ...error.details });
   }
   return jsonRpcError(id, -32000, 'Internal bridge error', { code: 'mcp_internal_error' });
+}
+
+function safeBridgeErrorMessage(error) {
+  const message = String(error?.message ?? 'MCP tool failed').slice(0, 240);
+  return UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE.test(message) ? 'MCP tool failed' : message;
 }
 
 function stringByteLength(value) {
@@ -160,6 +166,10 @@ function validateMessage(message) {
     throw new ProtocolBridgeError('mcp_invalid_params', 'MCP bridge params must be an object');
   }
   return message;
+}
+
+function isJsonRpcNotification(message) {
+  return isPlainObject(message) && message.jsonrpc === JSONRPC && message.method !== undefined && message.id === undefined;
 }
 
 function resourceUriParam(params) {
@@ -1008,6 +1018,7 @@ export function createMcpBridge({
   replayMode = false,
   tools = [],
   resources = [],
+  allowReadOnlyToolsWithoutGrant = false,
   eventSink = async () => {},
   clock = () => new Date().toISOString()
 } = {}) {
@@ -1066,6 +1077,14 @@ export function createMcpBridge({
     return grant;
   }
 
+  function readOnlyGrantFor({ tool }) {
+    return {
+      grantId: 'grant_readonly_implicit',
+      operation: tool.operation,
+      sideEffectClass: 'read-only'
+    };
+  }
+
   async function handleToolCall(message, params) {
     const context = requireIdentity();
     const name = toolNameParam(params);
@@ -1078,17 +1097,26 @@ export function createMcpBridge({
     if (!isPlainObject(args)) throw new ProtocolBridgeError('mcp_invalid_params', 'tool arguments must be an object');
     assertNoCallerAuthority(args);
     const argumentsFingerprint = hash(args);
-    const grant = consumeGrant({ grantId: params.grantId, tool, context, argumentsFingerprint });
+    const grant = allowReadOnlyToolsWithoutGrant && tool.sideEffectClass === 'read-only' && !params.grantId
+      ? readOnlyGrantFor({ tool })
+      : consumeGrant({ grantId: params.grantId, tool, context, argumentsFingerprint });
     const controller = new AbortController();
     state.active.add(controller);
     try {
-      const output = await tool.handler({
-        arguments: args,
-        trustedContext: context,
-        grant: { grantId: grant.grantId, operation: grant.operation },
-        replayMode,
-        signal: controller.signal
-      });
+      let output;
+      try {
+        output = await tool.handler({
+          arguments: args,
+          trustedContext: context,
+          grant: { grantId: grant.grantId, operation: grant.operation },
+          replayMode,
+          signal: controller.signal
+        });
+      } catch (error) {
+        if (error instanceof ProtocolBridgeError) throw error;
+        if (state.disconnected) throw new ProtocolBridgeError('mcp_disconnected', 'MCP bridge connection disconnected during request');
+        throw new ProtocolBridgeError('mcp_tool_failed', safeBridgeErrorMessage(error));
+      }
       requireConnected();
       const result = assertSafeResult({
         content: output.content ?? [{ type: 'json', json: output }],
@@ -1112,6 +1140,7 @@ export function createMcpBridge({
   async function handle(message) {
     let requestId = null;
     try {
+      if (isJsonRpcNotification(message)) return null;
       validateMessage(message);
       requestId = message.id;
       requireConnected();
@@ -1124,11 +1153,13 @@ export function createMcpBridge({
           serverInfo: { name, version },
           capabilities: {
             tools: { listChanged: false },
-            resources: { subscribe: false, listChanged: false }
+            resources: { subscribe: false, listChanged: false },
+            prompts: { listChanged: false }
           }
         });
       }
       if (message.method === 'ping') return jsonRpcResult(message.id, {});
+      if (message.method === 'prompts/list') return jsonRpcResult(message.id, { prompts: [] });
       if (message.method === 'tools/list') {
         requireIdentity();
         return jsonRpcResult(message.id, assertSafeResult({ tools: [...toolsByName.values()].map(publicTool) }));

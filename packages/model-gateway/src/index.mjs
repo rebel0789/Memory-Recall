@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { stableStringify } from '../../protocol/src/index.mjs';
 import { assertJsonSchema } from '../../protocol/src/schema-validator.mjs';
 import { createTelemetry, modelSpanAttributes } from '../../observability/src/index.mjs';
 
@@ -12,12 +13,6 @@ const templates = [
   { angle: 'The strongest agent story may be the most boring workflow', hook: 'Agents become understandable when they automate one repetitive job end to end.', evidenceTerms: ['boring', 'workflow', 'support triage', 'inbox', 'local-first', 'on-device'], confidence: .79 },
   { angle: 'Show the failed tool calls—not just the polished agent demo', hook: 'A trustworthy agent demo should show what it refused, retried, and excluded.', evidenceTerms: ['timeline', 'debugging', 'selected context', 'policy decision', 'failed step', 'denied permissions'], confidence: .77 }
 ];
-
-function stableStringify(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-}
 
 export function fingerprintModelValue(value) {
   return `sha256:${createHash('sha256').update(typeof value === 'string' ? value : stableStringify(value)).digest('hex')}`;

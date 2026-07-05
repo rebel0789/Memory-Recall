@@ -4,11 +4,13 @@ export const ROUTES = [
   { id:'home', path:'/', label:'Home', title:'Home', eyebrow:'Workspace / local', description:'Health, active work, approvals, residency, and the next local action.' },
   { id:'runs', path:'/runs', label:'Runs', title:'Runs', eyebrow:'Execution', description:'Run history, status, current step, artifacts, and sanitized timelines.' },
   { id:'workflows', path:'/workflows', label:'Workflows', title:'Workflows', eyebrow:'Definitions', description:'Workflow versions, graph outline, risk, retries, approvals, and tests.' },
+  { id:'loop-workbench', path:'/loop-workbench', label:'Loop Workbench', title:'Loop Workbench', eyebrow:'Loop engineering', description:'Plan, run, observe, verify, budget, and stop loops with local proof.' },
   { id:'fabric-map', path:'/fabric-map', label:'Fabric Map', title:'Fabric Map', eyebrow:'System graph', description:'Visualize local process flow, context assembly, node handoffs, and disabled external boundaries.' },
   { id:'context', path:'/context', label:'Context', title:'Context', eyebrow:'Manifest inspector', description:'Selected and excluded records, budgets, conflicts, assembly, and compiler versions.' },
   { id:'context-pack', path:'/context-pack', label:'Context Pack', title:'Context Pack', eyebrow:'Agent handoff', description:'Build a safe, token-aware handoff for Codex, Claude Code, Cursor, or a generic agent.' },
   { id:'source-graph', path:'/source-graph', label:'Source Graph', title:'Source Graph', eyebrow:'Code map', description:'Search symbols, trace calls, and inspect likely diff impact from local JS/TS metadata.' },
   { id:'memory', path:'/memory', label:'Memory', title:'Memory', eyebrow:'Lifecycle', description:'Proposals, active records, supersession, retraction, expiry, and provenance.' },
+  { id:'memory-graph', path:'/memory-graph', label:'Graph', title:'Memory Graph', eyebrow:'Governed knowledge', description:'Explore current and historical governed memory relationships from the local SQLite store.' },
   { id:'evidence', path:'/evidence', label:'Evidence', title:'Evidence', eyebrow:'Observed facts', description:'Snapshots, observations, citations, staleness, and inferred pattern boundaries.' },
   { id:'approvals', path:'/approvals', label:'Approvals', title:'Approvals', eyebrow:'Consequences', description:'Exact actions, risk, policy reasons, idempotency, expiry, and disabled publisher state.' },
   { id:'content', path:'/content', label:'Content Lab', title:'Content Lab', eyebrow:'Creator workflow', description:'Candidates, evidence, differentiation, proof needed, local drafts, and outcomes.' },
@@ -34,6 +36,13 @@ let pinnedHandoffStatus=null;
 let pinnedHandoffError=null;
 let pinnedHandoffReceiveReport=null;
 let pinnedHandoffReceiveError=null;
+let loopWorkbench=null;
+let loopWorkbenchError=null;
+let memoryCockpit=null;
+let memoryCockpitError=null;
+let memoryGraph=null;
+let memoryGraphError=null;
+let memoryGraphOptions={history:false,query:'',entity:'',communities:false};
 let contextSourcePreviewResult=null;
 let contextSourcePreviewError=null;
 let sourceGraphResult=null;
@@ -408,6 +417,85 @@ export function buildMemoryReviewModel({ memories = [] } = {}) {
   });
 }
 
+export function buildMemoryCockpitModel(cockpit = null) {
+  const budget = cockpit?.tokenBudget ?? {};
+  const savings = cockpit?.savings ?? {};
+  const summary = cockpit?.summary ?? {};
+  const facts = Array.isArray(cockpit?.facts) ? cockpit.facts : [];
+  const proposalQueue = Array.isArray(cockpit?.proposalQueue) ? cockpit.proposalQueue : [];
+  return {
+    ready:Boolean(cockpit),
+    workspaceId:safeText(cockpit?.workspaceId ?? 'ws_local'),
+    provider:safeText(cockpit?.provider ?? 'provider:native:memory:sqlite'),
+    generatedAt:cockpit?.generatedAt ?? null,
+    summary:{
+      activeFactCount:Number(summary.activeFactCount ?? facts.filter((fact)=>fact.status==='active').length),
+      pendingProposalCount:Number(summary.pendingProposalCount ?? proposalQueue.filter((item)=>item.status==='pending').length),
+      proposalCount:Number(summary.proposalCount ?? proposalQueue.length)
+    },
+    tokenSavingPercent:Math.round(Number(budget.reductionRatio ?? 0) * 100),
+    tokenBudget:{
+      estimatedDeliveryTokens:Number(budget.estimatedDeliveryTokens ?? 0),
+      historyTokensAvoided:Number(budget.historyTokensAvoided ?? 0),
+      historyTokensAvailable:Number(budget.historyTokensAvailable ?? 0),
+      profileTokens:Number(budget.profileTokens ?? 0),
+      basis:safeText(budget.basis ?? 'not measured')
+    },
+    savings:{
+      beforeDeliveryTokens:Number(savings.beforeDeliveryTokens ?? savings.baseline?.deliveryTokens ?? budget.historyTokensAvailable ?? 0),
+      afterDeliveryTokens:Number(savings.afterDeliveryTokens ?? savings.compressed?.deliveryTokens ?? budget.estimatedDeliveryTokens ?? 0),
+      tokensSaved:Number(savings.tokensSaved ?? savings.savings?.tokensSaved ?? budget.historyTokensAvoided ?? 0),
+      percent:Math.round(Number(savings.percent ?? savings.savings?.percent ?? Number(budget.reductionRatio ?? 0) * 100)),
+      providerBillingClaimed:Boolean(savings.savings?.providerBillingClaimed ?? false),
+      basis:safeText(savings.savings?.basis ?? 'delivery-token-estimate')
+    },
+    mcpStats:{
+      available:Boolean(cockpit?.mcpStats?.available),
+      callCount:Number(cockpit?.mcpStats?.callCount ?? 0),
+      deliveredTokens:Number(cockpit?.mcpStats?.deliveredTokens ?? 0),
+      baselineTokens:Number(cockpit?.mcpStats?.baselineTokens ?? 0),
+      tokensSaved:Number(cockpit?.mcpStats?.tokensSaved ?? 0),
+      tokenSavingPercent:Number(cockpit?.mcpStats?.tokenSavingPercent ?? 0),
+      providerBillingClaimed:Boolean(cockpit?.mcpStats?.providerBillingClaimed ?? false),
+      basis:safeText(cockpit?.mcpStats?.basis ?? 'estimated tokens over exact MCP JSON tool payload text'),
+      byTool:Array.isArray(cockpit?.mcpStats?.byTool) ? cockpit.mcpStats.byTool.map((item)=>({
+        toolName:safeText(item.toolName ?? 'unknown'),
+        callCount:Number(item.callCount ?? 0),
+        deliveredTokens:Number(item.deliveredTokens ?? 0),
+        tokensSaved:Number(item.tokensSaved ?? 0)
+      })).slice(0,8) : []
+    },
+    facts:facts.map((fact)=>({
+      id:safeText(fact.id ?? 'memfact_unknown'),
+      text:memoryDisplayText(fact.text ?? ''),
+      subject:safeText(fact.subject ?? 'unknown'),
+      predicate:safeText(fact.predicate ?? 'unknown'),
+      object:memoryDisplayText(fact.object ?? ''),
+      status:safeText(fact.status ?? 'unknown'),
+      scope:safeText(fact.scope ?? 'workspace'),
+      validFrom:fact.validity?.validFrom ?? fact.validFrom ?? null,
+      validUntil:fact.validity?.validUntil ?? fact.validUntil ?? null,
+      supersededBy:fact.supersededBy ? safeText(fact.supersededBy) : 'none',
+      supersessionChain:Array.isArray(fact.supersessionChain) ? fact.supersessionChain.map(safeText) : [],
+      provenance:{
+        episodeId:safeText(fact.provenance?.episodeId ?? fact.episodeId ?? 'none'),
+        source:safeText(fact.provenance?.source ?? fact.source ?? 'unknown'),
+        summary:memoryDisplayText(fact.provenance?.episode?.summary ?? fact.episode?.summary ?? '')
+      }
+    })),
+    proposalQueue:proposalQueue.map((item)=>({
+      id:safeText(item.id ?? 'mpq_unknown'),
+      status:safeText(item.status ?? 'pending'),
+      sourceLocator:safeText(item.sourceLocator ?? 'workspace://unknown'),
+      sourceHash:safeText(item.sourceHash ?? 'sha256:unknown'),
+      attempts:Number(item.attempts ?? 0),
+      payload:safeKeyValueList(item.payload ?? {}).slice(0,6)
+    })),
+    safeguards:cockpit?.safeguards ?? {},
+    reportFingerprint:safeText(cockpit?.reportFingerprint ?? 'sha256:unavailable')
+  };
+}
+
 export function buildEvidenceExplorerModel({ latestManifest = null, latestRun = null, evidenceGraph = null } = {}) {
   const manifestEvidence = (latestManifest?.selected ?? []).filter((item)=>['observation','evidence'].includes(item.kind));
   const graphObservations = Array.isArray(evidenceGraph?.observations) ? evidenceGraph.observations : [];
@@ -720,7 +808,7 @@ async function load() {
   render();
   try {
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
-    await loadPinnedHandoffStatus();
+    await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit(), loadMemoryGraph()]);
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
     dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
@@ -738,6 +826,60 @@ async function loadPinnedHandoffStatus() {
   } catch (error) {
     pinnedHandoffStatus = null;
     pinnedHandoffError = error.message;
+  }
+}
+
+async function loadLoopWorkbench() {
+  try {
+    loopWorkbench = await api(`/api/loop/workbench?workspaceId=${encodeURIComponent(workspaceId())}`);
+    loopWorkbenchError = null;
+  } catch (error) {
+    loopWorkbench = null;
+    loopWorkbenchError = error.message;
+  }
+}
+
+async function loadMemoryCockpit() {
+  try {
+    memoryCockpit = await api(`/api/memory/cockpit?workspaceId=${encodeURIComponent(workspaceId())}`);
+    memoryCockpitError = null;
+  } catch (error) {
+    memoryCockpit = null;
+    memoryCockpitError = error.message;
+  }
+}
+
+async function loadMemoryGraph(options = memoryGraphOptions) {
+  const next={...memoryGraphOptions,...options};
+  const params=new URLSearchParams({workspaceId:workspaceId(),history:next.history?'true':'false'});
+  if(next.entity)params.set('entity',next.entity);
+  if(next.query)params.set('query',next.query);
+  try {
+    memoryGraph = await api(`/api/memory/graph?${params.toString()}`);
+    memoryGraphError = null;
+    memoryGraphOptions=next;
+  } catch (error) {
+    memoryGraph = null;
+    memoryGraphError = error.message;
+    memoryGraphOptions=next;
+  }
+}
+
+async function approveMemoryProposal(event) {
+  const button=event.currentTarget;
+  const proposalId=button.dataset.proposalId;
+  if(!proposalId || !globalThis.confirm?.(`Approve memory proposal ${proposalId}?`))return;
+  button.disabled=true;
+  document.querySelector('#live-status').textContent='Approving memory proposal.';
+  try{
+    await api(`/api/memory/proposals/${encodeURIComponent(proposalId)}/approve`,{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),confirm:true})});
+    await loadMemoryCockpit();
+    render();
+    document.querySelector('#live-status').textContent='Memory proposal approved.';
+  }catch(error){
+    memoryCockpitError=error.message;
+    render();
+    document.querySelector('#live-status').textContent=error.message;
   }
 }
 
@@ -765,6 +907,9 @@ function render() {
   root.querySelectorAll('[data-action=refresh-pinned-handoff]').forEach(button=>button.addEventListener('click',refreshPinnedHandoff));
   root.querySelectorAll('[data-action=receive-pinned-handoff]').forEach(button=>button.addEventListener('click',receivePinnedHandoff));
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
+  root.querySelector('#memory-graph-form')?.addEventListener('submit',submitMemoryGraph);
+  root.querySelector('#memory-graph-history')?.addEventListener('change',toggleMemoryGraphHistory);
+  root.querySelector('#memory-graph-communities')?.addEventListener('change',toggleMemoryGraphCommunities);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
   root.querySelectorAll('[data-action=copy-pack]').forEach(button=>button.addEventListener('click',copyContextPack));
   root.querySelectorAll('[data-action=copy-receiver-packet]').forEach(button=>button.addEventListener('click',copyPinnedReceiverPacket));
@@ -774,10 +919,12 @@ function render() {
   root.querySelectorAll('[data-action=copy-memory-config]').forEach(button=>button.addEventListener('click',copyContextPackMemoryConfig));
   root.querySelectorAll('[data-action=download-memory-config]').forEach(button=>button.addEventListener('click',downloadContextPackMemoryConfig));
   root.querySelectorAll('[data-action=run-memory-preflight]').forEach(button=>button.addEventListener('click',runContextPackMemoryPreflight));
+  root.querySelectorAll('[data-action=approve-memory-proposal]').forEach(button=>button.addEventListener('click',approveMemoryProposal));
   root.querySelectorAll('[data-action=pin-context-pack]').forEach(button=>button.addEventListener('click',pinCurrentContextPack));
   root.querySelectorAll('[data-action=preview-pack-setup]').forEach(button=>button.addEventListener('click',previewContextPackSetup));
   root.querySelectorAll('[data-action=copy-launch-prompt]').forEach(button=>button.addEventListener('click',copyContextPackLaunchPrompt));
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
+  if(route.id==='memory-graph')drawMemoryGraphCanvas(root.querySelector('#memory-graph-canvas'),memoryGraph,memoryGraphOptions);
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
 }
 
@@ -897,11 +1044,13 @@ function renderRoute(route) {
   if (route.id === 'home') return renderHome();
   if (route.id === 'runs') return activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns();
   if (route.id === 'workflows') return renderWorkflows();
+  if (route.id === 'loop-workbench') return renderLoopWorkbench();
   if (route.id === 'fabric-map') return renderFabricMap();
   if (route.id === 'context') return renderContext();
   if (route.id === 'context-pack') return renderContextPack();
   if (route.id === 'source-graph') return renderSourceGraph();
   if (route.id === 'memory') return renderMemory();
+  if (route.id === 'memory-graph') return renderMemoryGraph(memoryGraph,memoryGraphOptions,memoryGraphError);
   if (route.id === 'evidence') return renderEvidence();
   if (route.id === 'approvals') return renderApprovals();
   if (route.id === 'content') return renderContentLab();
@@ -945,6 +1094,72 @@ function renderRunDetail(data) {
 function renderWorkflows() {
   const steps=['collect','normalize','analyze-patterns','compile-context','generate-angles','verify-recommendations','local-draft-outcome'];
   return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Content Intelligence</h2><span>workflow:content-intelligence</span></div><ol class="outline">${steps.map((step,index)=>`<li><span>${index+1}</span><strong>${step}</strong><em>${workflowStepCopy(step)}</em></li>`).join('')}</ol></div><aside class="inspector"><h2>Equivalent outline</h2><p>Graph information is presented as an ordered list for keyboard and screen-reader access.</p><dl class="facts"><div><dt>Risk</dt><dd>Read-only/local-only outputs</dd></div><div><dt>Timeout</dt><dd>5s deterministic steps, 120s model step</dd></div><div><dt>Approval</dt><dd>Local candidate approval record only</dd></div></dl></aside></section>`;
+}
+
+export function buildLoopWorkbenchModel(report=null,{dashboard=null,error=null}={}) {
+  const fallback={
+    schemaVersion:'1.0.0',
+    workspaceId:'ws_local',
+    generatedAt:new Date(0).toISOString(),
+    plan:{status:'reference',command:'loop plan',maxIterations:3,timeoutSeconds:1800,sideEffectClass:'read-only'},
+    runs:{status:'ready',count:0,latestRunId:null,controller:'bounded maxIterations and timeout'},
+    observations:{status:'ready',count:0,rawOutputIncluded:false},
+    verification:{status:'ready',count:0,autoMerge:false},
+    tokenBudget:{basis:'contextBudget estimate',estimatedDeliveryTokens:0,aggregatedEstimatedDeliveryTokens:0,providerBillingClaimed:false},
+    memoryLoop:null,
+    stopReasons:['completed','validation_failed','blocked_needs_human','unsafe_action_required','max_iterations','timeout','unrelated_changes','out_of_scope'],
+    trace:{eventCount:0,eventTypes:[]},
+    safeguards:{readOnlyViews:true,planCreationViaControlApi:true,externalWritesEnabled:false,networkCalls:0,modelCalls:0,autoMerge:false}
+  };
+  const source=report?.schemaVersion === '1.0.0' ? report : fallback;
+  return {
+    source:error ? 'fallback' : report ? 'api' : 'local',
+    error:error ? String(error) : null,
+    workspaceId:source.workspaceId,
+    generatedAt:source.generatedAt,
+    plan:source.plan,
+    runs:source.runs,
+    observations:source.observations,
+    verification:source.verification,
+    tokenBudget:source.tokenBudget,
+    memoryLoop:source.memoryLoop ?? null,
+    stopReasons:source.stopReasons,
+    trace:source.trace,
+    safeguards:source.safeguards,
+    dashboardRuns:Number(dashboard?.metrics?.runs ?? 0),
+    pendingApprovals:Number(dashboard?.metrics?.pendingApprovals ?? 0)
+  };
+}
+
+function renderLoopWorkbench() {
+  const model=buildLoopWorkbenchModel(loopWorkbench,{dashboard,error:loopWorkbenchError});
+  const stopReasonRows=model.stopReasons.map((reason)=>`<tr><td><code>${esc(reason)}</code></td><td>${loopStopReasonCopy(reason)}</td></tr>`).join('');
+  const traceRows=(model.trace.eventTypes.length ? model.trace.eventTypes : ['loop.run_started','loop.run_stopped']).map((type)=>`<li><span>${esc(type)}</span></li>`).join('');
+  const errorPanel=model.error ? statePanel('partial','Loop Workbench API unavailable',model.error,false) : '';
+  return `${errorPanel}<section class="surface primary-flow" aria-label="Loop Workbench summary"><div><p class="eyebrow">Outcome</p><h2>${esc(model.runs.status)} loop controller</h2><p>Plan, observation, verification, schedule prompt, and stop-reason views stay local and read-only.</p></div><ol class="flow-mini" aria-label="Loop stages"><li><strong>1</strong><span>Intent plan</span></li><li><strong>2</strong><span>Scoped action</span></li><li><strong>3</strong><span>Observation</span></li><li><strong>4</strong><span>Verifier gate</span></li></ol><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Create plan context</a><a class="button secondary" href="/runs" data-route="runs">View run trace</a></div></section><section class="metric-strip" aria-label="Loop Workbench metrics">${metric(model.plan.maxIterations,'Max iterations','Controller bound')}${metric(Math.round(Number(model.plan.timeoutSeconds??0)/60),'Timeout min','Stop bound')}${metric(model.tokenBudget.aggregatedEstimatedDeliveryTokens,'Budget tokens','Aggregated estimate')}${metric(model.trace.eventCount,'Loop events','Flight recorder')}</section>${renderLoopWorkbenchMemoryFlow(model.memoryLoop)}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Current loop</h2><span>outcome before trace</span></div><dl class="facts facts-wide"><div><dt>Plan</dt><dd>${esc(model.plan.command)} · ${esc(model.plan.sideEffectClass)}</dd></div><div><dt>Runs</dt><dd>${esc(model.runs.status)} · ${model.runs.count} loop records</dd></div><div><dt>Observation</dt><dd>${esc(model.observations.status)} · raw output included: ${model.observations.rawOutputIncluded?'yes':'no'}</dd></div><div><dt>Verification</dt><dd>${esc(model.verification.status)} · auto-merge: ${model.verification.autoMerge?'enabled':'off'}</dd></div><div><dt>Budget basis</dt><dd>${esc(model.tokenBudget.basis)} · provider billing claimed: ${model.tokenBudget.providerBillingClaimed?'yes':'no'}</dd></div></dl><div class="section-heading"><h2>Stop reasons</h2><span>${model.stopReasons.length} controller exits</span></div><div class="table-wrap"><table><thead><tr><th>Reason</th><th>Meaning</th></tr></thead><tbody>${stopReasonRows}</tbody></table></div></div><aside class="inspector"><div class="section-heading"><h2>Trace</h2><span>${model.trace.eventCount} events</span></div><ol class="outline compact-outline">${traceRows}</ol><hr><h2>Safeguards</h2><dl class="facts compact-facts"><div><dt>Views</dt><dd>${model.safeguards.readOnlyViews?'read-only':'write-capable'}</dd></div><div><dt>Plan creation</dt><dd>${model.safeguards.planCreationViaControlApi?'Control API':'unavailable'}</dd></div><div><dt>External writes</dt><dd>${model.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div><div><dt>Network calls</dt><dd>${model.safeguards.networkCalls}</dd></div><div><dt>Model calls</dt><dd>${model.safeguards.modelCalls}</dd></div></dl></aside></section>`;
+}
+
+export function renderLoopWorkbenchMemoryFlow(flow = null) {
+  if(!flow)return statePanel('empty','No native memory loop data','Seed the native SQLite memory provider to connect compressed profile, loop plan, observation, proposal, and fact.');
+  const profileBudget=flow.compressedProfile?.contextBudget ?? {};
+  const loopBudget=flow.loopPlan?.contextBudget ?? {};
+  const tokenSavingPercent=Math.round(Number(profileBudget.reductionRatio ?? 0) * 100);
+  const proposal=flow.extractionProposal;
+  const fact=flow.memoryFact;
+  return `<section class="surface loop-memory-flow" aria-label="Native memory loop flow"><div class="section-heading"><div><p class="eyebrow">Native memory loop</p><h2>${tokenSavingPercent}% token saving into loop plan</h2></div><span>${esc(flow.observation?.status ?? 'ready')} observation</span></div><div class="flow-steps"><article class="flow-step"><span>1</span><strong>Objective</strong><em>${esc(flow.objective)}</em><small>local-only</small></article><article class="flow-step"><span>2</span><strong>Compressed profile</strong><em>${Number(profileBudget.estimatedDeliveryTokens ?? 0)} delivery tokens</em><small>${Number(profileBudget.historyTokensAvoided ?? 0)} history tokens avoided</small></article><article class="flow-step"><span>3</span><strong>Loop plan</strong><em>${Number(loopBudget.estimatedDeliveryTokens ?? 0)} budget tokens</em><small>${esc(flow.loopPlan?.validationCommands?.[0] ?? 'no validation command')}</small></article><article class="flow-step"><span>4</span><strong>Observe</strong><em>${esc(flow.observation?.status ?? 'ready')}</em><small>raw output excluded</small></article><article class="flow-step"><span>5</span><strong>Proposal</strong><em>${proposal?esc(proposal.status):'none'}</em><small>${proposal?esc(proposal.id):'no proposal queued'}</small></article><article class="flow-step"><span>6</span><strong>Memory fact</strong><em>${fact?esc(fact.status):'none'}</em><small>${fact?esc(fact.id):'no fact applied'}</small></article></div><dl class="facts facts-wide"><div><dt>Proposal text</dt><dd>${proposal?esc(proposal.text):'none'}</dd></div><div><dt>Fact text</dt><dd>${fact?esc(fact.text):'none'}</dd></div><div><dt>Validity</dt><dd>${fact?`${date(fact.validity?.validFrom)} to ${fact.validity?.validUntil?date(fact.validity.validUntil):'open'}`:'none'}</dd></div><div><dt>Superseded by</dt><dd>${esc(fact?.supersededBy ?? 'none')}</dd></div></dl></section>`;
+}
+
+function loopStopReasonCopy(reason) {
+  return ({
+    completed:'Stop condition passed.',
+    validation_failed:'Checker command failed or returned non-zero.',
+    blocked_needs_human:'Human approval or clarification is required.',
+    unsafe_action_required:'Requested action exceeds the current policy boundary.',
+    max_iterations:'Controller reached its bounded iteration cap.',
+    timeout:'Controller reached its wall-clock timeout.',
+    unrelated_changes:'Verifier found changes outside the Loop Plan scope.',
+    out_of_scope:'The next action no longer matches the Loop Plan.'
+  })[reason] ?? 'Controller stopped with a recorded reason.';
 }
 
 function renderFabricMap() {
@@ -1866,8 +2081,67 @@ function sourceGraphSafeguards(safeguards={}) {
 }
 
 function renderMemory() {
-  const memories=buildMemoryReviewModel({memories:dashboard?.memories});
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Memory diffs</h2><span>${memories.length} reviewable records</span></div>${memoryDiffList(memories)}</div><aside class="inspector"><h2>Lifecycle states</h2><ol class="compact-list"><li>Observed</li><li>Proposed</li><li>Verified</li><li>Active</li><li>Superseded / retracted / expired</li></ol><hr><p class="muted">Memory remains proposal-first. Raw source bodies, credentials, local paths, and hidden reasoning are not rendered.</p></aside></section>`;
+  if(memoryCockpitError)return statePanel('error','Memory cockpit unavailable',memoryCockpitError);
+  return renderMemoryCockpit(memoryCockpit);
+}
+
+export function buildMemoryGraphModel(report = null) {
+  if(!report?.graph)return {ready:false,summary:{nodeCount:0,edgeCount:0,communityCount:0},nodes:[],edges:[],focus:null};
+  const nodes=Array.isArray(report.graph.nodes)?report.graph.nodes:[];
+  const edges=Array.isArray(report.graph.edges)?report.graph.edges:[];
+  const summary={nodeCount:nodes.length,edgeCount:edges.length,communityCount:0,...(report.summary??{})};
+  return {
+    ready:true,
+    provider:report.provider??'provider:native:memory:sqlite',
+    mode:report.mode??'current',
+    generatedAt:report.generatedAt,
+    reportFingerprint:report.reportFingerprint,
+    communityMethod:report.communityMethod??'label-propagation',
+    summary,
+    nodes,
+    edges,
+    focus:report.focus,
+    safeguards:report.safeguards??{}
+  };
+}
+
+export function renderMemoryGraph(report = null, options = {}, error = null) {
+  if(error)return statePanel('error','Memory graph unavailable',error);
+  const model=buildMemoryGraphModel(report);
+  if(!model.ready)return statePanel('empty','No governed graph loaded','Ingest and approve temporal memory facts, then refresh this local graph view.');
+  const query=options.query??'';
+  const historyChecked=options.history?' checked':'';
+  const communityChecked=options.communities?' checked':'';
+  const focus=model.focus?.nodes?.length?model.focus:null;
+  const focusList=focus
+    ? `<ol class="compact-list locator-list">${focus.nodes.slice(0,12).map((node)=>`<li><strong>${esc(node.name)}</strong><span>${esc(node.type)} · degree ${Number(node.degree??0)} · community ${Number(node.community??0)}</span></li>`).join('')}</ol>`
+    : '<p class="muted">Click a node or search for an entity to focus its governed neighborhood.</p>';
+  const staleEdges=model.edges.filter((edge)=>!edge.current).slice(0,12);
+  const historyList=staleEdges.length
+    ? `<ol class="compact-list locator-list">${staleEdges.map((edge)=>`<li><strong>${esc(edge.from)} ${esc(edge.predicate)} ${esc(edge.to)}</strong><span>${esc(edge.status)} · superseded by ${esc(edge.supersededBy??'none')}</span></li>`).join('')}</ol>`
+    : '<p class="muted">No superseded graph edges are visible in this mode.</p>';
+  return `<section class="metric-strip" aria-label="Governed memory graph metrics">${metric(model.summary.nodeCount,'Nodes',`${model.summary.currentNodeCount??0} current`)}${metric(model.summary.edgeCount,'Edges',`${model.summary.currentEdgeCount??0} current`)}${metric(model.summary.communityCount,'Communities',model.communityMethod)}${metric(model.summary.historyEdgeCount??0,'History edges',model.mode==='history'?'visible':'hidden')}</section><section class="memory-graph-shell"><div class="surface surface-primary"><div class="section-heading"><h2>Governed knowledge graph</h2><span>${esc(model.mode)} · ${esc(shortFingerprint(model.reportFingerprint))}</span></div><form id="memory-graph-form" class="memory-graph-toolbar"><label class="field memory-graph-search"><span>Search entity</span><input name="query" value="${esc(query)}" placeholder="provider:native:memory:sqlite" maxlength="512"></label><label class="toggle-field"><input id="memory-graph-history" name="history" type="checkbox"${historyChecked}> <span>Show history</span></label><label class="toggle-field"><input id="memory-graph-communities" name="communities" type="checkbox"${communityChecked}> <span>Community colors</span></label><button class="button primary" type="submit">Refresh graph</button></form><div class="memory-graph-canvas-wrap"><canvas id="memory-graph-canvas" width="1120" height="640" role="img" aria-label="Interactive governed memory graph"></canvas></div><div class="memory-graph-legend">${memoryGraphLegend(model.nodes)}</div></div><aside class="inspector"><h2>Focus neighborhood</h2>${focusList}<hr><h2>Temporal history</h2>${historyList}<hr><dl class="facts compact-facts"><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div><div><dt>Read-only</dt><dd>${model.safeguards.readOnly?'yes':'no'}</dd></div><div><dt>Model calls</dt><dd>${Number(model.safeguards.modelCalls??0)}</dd></div><div><dt>Network</dt><dd>${Number(model.safeguards.networkCalls??0)}</dd></div><div><dt>External writes</dt><dd>${model.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div></dl></aside></section>`;
+}
+
+function memoryGraphLegend(nodes=[]) {
+  const types=[...new Set(nodes.map((node)=>node.type))].sort();
+  if(!types.length)return '<p class="muted">No node types to render.</p>';
+  return types.map((type)=>`<span><i style="background:${memoryGraphNodeColor(type,0,false)}"></i>${esc(type)}</span>`).join('');
+}
+
+export function renderMemoryCockpit(cockpit = null) {
+  const model=buildMemoryCockpitModel(cockpit);
+  if(!model.ready)return statePanel('empty','No native memory store loaded','Run the local memory-loop demo to seed temporal facts and proposal-gated extraction records.');
+  const facts=model.facts.length
+    ? `<div class="memory-list">${model.facts.map((fact)=>`<article class="memory-diff state-${esc(fact.status)}"><header><div><code>${esc(fact.id)}</code><h3>${esc(fact.subject)} ${esc(fact.predicate)}</h3></div>${statusChip(fact.status,fact.status,'Temporal fact status')}</header><p>${esc(fact.text)}</p><dl class="facts compact-facts"><div><dt>Scope</dt><dd>${esc(fact.scope)}</dd></div><div><dt>Object</dt><dd>${esc(fact.object)}</dd></div><div><dt>Valid from</dt><dd>${date(fact.validFrom)}</dd></div><div><dt>Valid until</dt><dd>${fact.validUntil?date(fact.validUntil):'open'}</dd></div><div><dt>Superseded by</dt><dd>${esc(fact.supersededBy)}</dd></div><div><dt>Episode</dt><dd>${esc(fact.provenance.episodeId)}</dd></div></dl><div class="reason-list">${fact.supersessionChain.map((id)=>`<span class="reason">${esc(id)}</span>`).join('')}</div><p class="muted">Source ${esc(fact.provenance.source)}${fact.provenance.summary?` · ${esc(fact.provenance.summary)}`:''}</p></article>`).join('')}</div>`
+    : statePanel('empty','No temporal facts yet','The native SQLite provider is reachable, but this workspace has no bi-temporal facts.');
+  const queue=model.proposalQueue.length
+    ? `<ol class="compact-list locator-list">${model.proposalQueue.map((item)=>`<li><strong>${esc(item.id)} · ${esc(item.status)}</strong><span>${esc(item.sourceLocator)} · attempts ${item.attempts}</span>${item.status==='pending'?`<button class="button secondary" data-action="approve-memory-proposal" data-proposal-id="${esc(item.id)}" type="button">Approve</button>`:''}${item.payload.length?`<dl class="summary-list">${item.payload.map((entry)=>`<div><dt>${esc(entry.key)}</dt><dd>${esc(entry.value)}</dd></div>`).join('')}</dl>`:''}</li>`).join('')}</ol>`
+    : '<p class="muted">No queued extraction proposals for this workspace.</p>';
+  const toolStats=model.mcpStats.byTool.length
+    ? `<ol class="compact-list locator-list">${model.mcpStats.byTool.map((item)=>`<li><strong>${esc(item.toolName)} · ${item.callCount}</strong><span>${item.deliveredTokens} delivered · ${item.tokensSaved} saved</span></li>`).join('')}</ol>`
+    : '<p class="muted">No MCP delivery calls recorded for this workspace yet.</p>';
+  return `<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.savings.percent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>OAF compressed</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>MCP delivery stats</h2><dl class="facts compact-facts"><div><dt>Available</dt><dd>${model.mcpStats.available?'yes':'no'}</dd></div><div><dt>Baseline</dt><dd>${model.mcpStats.baselineTokens}</dd></div><div><dt>Saving</dt><dd>${model.mcpStats.tokenSavingPercent}%</dd></div><div><dt>Basis</dt><dd>${esc(model.mcpStats.basis)}</dd></div></dl>${toolStats}<hr><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider and MCP delivery telemetry through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
 }
 
 function renderEvidence() {
@@ -2373,6 +2647,32 @@ async function submitSourceGraph(event){
   }
 }
 
+async function submitMemoryGraph(event){
+  event.preventDefault();
+  const form=event.currentTarget;
+  const button=form.querySelector('button[type=submit]');
+  const data=new FormData(form);
+  const query=String(data.get('query')??'').trim();
+  const history=data.get('history')==='on';
+  const communities=data.get('communities')==='on';
+  button.disabled=true;
+  button.textContent='Refreshing...';
+  document.querySelector('#live-status').textContent='Refreshing governed memory graph.';
+  await loadMemoryGraph({history,query,entity:'',communities});
+  render();
+  document.querySelector('#live-status').textContent=memoryGraphError??'Governed memory graph ready.';
+}
+
+async function toggleMemoryGraphHistory(event){
+  await loadMemoryGraph({...memoryGraphOptions,history:event.currentTarget.checked,entity:''});
+  render();
+}
+
+function toggleMemoryGraphCommunities(event){
+  memoryGraphOptions={...memoryGraphOptions,communities:event.currentTarget.checked};
+  render();
+}
+
 async function previewContextPackSetup(event){
   const button=event.currentTarget;
   const client=button.dataset.client ?? 'codex';
@@ -2618,6 +2918,160 @@ function approvalActionsForStatus(status){if(status==='pending')return [{label:'
 function memoryDisplayText(value){const text=String(value??'');return /sk-[A-Za-z0-9_-]{12,}|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16}|gho_[A-Za-z0-9_]{12,}/.test(text) ? '[redacted-sensitive-value]' : previewText(text)}
 function safeKeyValueList(value){if(!value||typeof value!=='object'||Array.isArray(value))return [];return Object.entries(value).filter(([key])=>!/prompt|body|credential|token|secret|path|url|reasoning|sql/i.test(key)).slice(0,8).map(([key,raw])=>({key:labelize(key),value:Array.isArray(raw)?raw.slice(0,4).map(safeText).join(', '):safeText(raw)}))}
 function quoteShell(value){return `'${String(value??'').replaceAll("'","'\"'\"'")}'`}
+
+function memoryGraphNodeColor(type,community=0,useCommunity=false){
+  if(useCommunity){
+    const palette=['#4cc9a6','#7aa2ff','#f7b955','#e56b8b','#b38cff','#62d3ff','#9bd66f','#f08f4f'];
+    return palette[Math.abs(Number(community??0))%palette.length];
+  }
+  return ({project:'#4cc9a6',provider:'#7aa2ff',port:'#f7b955',decision:'#e56b8b',module:'#b38cff',entity:'#8a96a8'})[type]??'#8a96a8';
+}
+
+function memoryGraphVisiblePayload(report){
+  const nodes=Array.isArray(report?.graph?.nodes)?report.graph.nodes:[];
+  const edges=Array.isArray(report?.graph?.edges)?report.graph.edges:[];
+  const focusNames=new Set((report?.focus?.nodes??[]).map((node)=>node.name));
+  if(!focusNames.size)return {nodes,edges};
+  return {
+    nodes:nodes.filter((node)=>focusNames.has(node.name)),
+    edges:edges.filter((edge)=>focusNames.has(edge.from)&&focusNames.has(edge.to))
+  };
+}
+
+function layoutMemoryGraph(nodes,edges,width,height){
+  const positions=new Map();
+  const centerX=width/2;
+  const centerY=height/2;
+  const radius=Math.max(80,Math.min(width,height)*0.36);
+  nodes.forEach((node,index)=>{
+    const angle=(Math.PI*2*index)/Math.max(1,nodes.length);
+    positions.set(node.id,{x:centerX+Math.cos(angle)*radius,y:centerY+Math.sin(angle)*radius,vx:0,vy:0,node});
+  });
+  const linked=edges.map((edge)=>({source:positions.get(edge.from),target:positions.get(edge.to),edge})).filter((item)=>item.source&&item.target);
+  for(let tick=0;tick<90;tick+=1){
+    for(let i=0;i<nodes.length;i+=1){
+      const a=positions.get(nodes[i].id);
+      for(let j=i+1;j<nodes.length;j+=1){
+        const b=positions.get(nodes[j].id);
+        let dx=a.x-b.x;
+        let dy=a.y-b.y;
+        let distance=Math.max(24,Math.hypot(dx,dy));
+        const force=780/(distance*distance);
+        dx/=distance;dy/=distance;
+        a.vx+=dx*force;b.vx-=dx*force;
+        a.vy+=dy*force;b.vy-=dy*force;
+      }
+    }
+    for(const link of linked){
+      const dx=link.target.x-link.source.x;
+      const dy=link.target.y-link.source.y;
+      const distance=Math.max(1,Math.hypot(dx,dy));
+      const target=140;
+      const force=(distance-target)*0.015;
+      const fx=(dx/distance)*force;
+      const fy=(dy/distance)*force;
+      link.source.vx+=fx;link.target.vx-=fx;
+      link.source.vy+=fy;link.target.vy-=fy;
+    }
+    for(const entry of positions.values()){
+      entry.vx+=(centerX-entry.x)*0.004;
+      entry.vy+=(centerY-entry.y)*0.004;
+      entry.x=Math.max(36,Math.min(width-36,entry.x+entry.vx));
+      entry.y=Math.max(36,Math.min(height-36,entry.y+entry.vy));
+      entry.vx*=0.82;entry.vy*=0.82;
+    }
+  }
+  return positions;
+}
+
+function drawMemoryGraphCanvas(canvas,report,options={}){
+  if(!canvas||!report?.graph)return;
+  const ctx=canvas.getContext('2d');
+  if(!ctx)return;
+  const rect=canvas.getBoundingClientRect();
+  const width=Math.max(640,Math.floor(rect.width||canvas.width||1120));
+  const height=Math.max(420,Math.floor(rect.height||canvas.height||640));
+  const dpr=Math.min(2,globalThis.devicePixelRatio||1);
+  canvas.width=width*dpr;
+  canvas.height=height*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,width,height);
+  ctx.fillStyle='#111826';
+  ctx.fillRect(0,0,width,height);
+  const {nodes,edges}=memoryGraphVisiblePayload(report);
+  if(!nodes.length){
+    ctx.fillStyle='#8a96a8';
+    ctx.font='14px Inter, system-ui, sans-serif';
+    ctx.fillText('No governed graph nodes to render.',24,34);
+    return;
+  }
+  const positions=layoutMemoryGraph(nodes,edges,width,height);
+  const focusNodes=new Set((report.focus?.nodes??[]).map((node)=>node.name));
+  const query=String(options.query??'').toLowerCase();
+  ctx.lineCap='round';
+  for(const edge of edges){
+    const source=positions.get(edge.from);
+    const target=positions.get(edge.to);
+    if(!source||!target)continue;
+    const focused=!focusNodes.size||focusNodes.has(edge.from)||focusNodes.has(edge.to);
+    ctx.globalAlpha=edge.current?(focused?0.72:0.32):0.18;
+    ctx.strokeStyle=edge.current?'#4f5d75':'#9aa3b2';
+    ctx.lineWidth=edge.current?1.4:1;
+    ctx.setLineDash(edge.current?[]:[5,5]);
+    ctx.beginPath();
+    ctx.moveTo(source.x,source.y);
+    ctx.lineTo(target.x,target.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const labelX=(source.x+target.x)/2;
+    const labelY=(source.y+target.y)/2;
+    ctx.globalAlpha=edge.current?0.75:0.32;
+    ctx.fillStyle='#c7ced9';
+    ctx.font='11px Inter, system-ui, sans-serif';
+    ctx.fillText(edge.predicate.slice(0,28),labelX+4,labelY-4);
+  }
+  ctx.globalAlpha=1;
+  for(const node of nodes){
+    const point=positions.get(node.id);
+    if(!point)continue;
+    const matched=query&&node.name.toLowerCase().includes(query);
+    const focused=!focusNodes.size||focusNodes.has(node.name);
+    const r=Number(node.size??10)+(matched?4:0);
+    ctx.globalAlpha=node.current?(focused?1:0.52):0.34;
+    ctx.fillStyle=memoryGraphNodeColor(node.type,node.community,options.communities);
+    ctx.beginPath();
+    ctx.arc(point.x,point.y,r,0,Math.PI*2);
+    ctx.fill();
+    if(node.governedDecision||matched){
+      ctx.strokeStyle=node.governedDecision?'#ff7395':'#f7b955';
+      ctx.lineWidth=3;
+      ctx.stroke();
+    }
+    ctx.globalAlpha=node.current?0.92:0.46;
+    ctx.fillStyle='#f5f7fb';
+    ctx.font='12px Inter, system-ui, sans-serif';
+    ctx.fillText(node.name.slice(0,34),point.x+r+5,point.y+4);
+  }
+  ctx.globalAlpha=1;
+  canvas.onclick=async (event)=>{
+    const box=canvas.getBoundingClientRect();
+    const x=(event.clientX-box.left)*(width/box.width);
+    const y=(event.clientY-box.top)*(height/box.height);
+    let selected=null;
+    let best=Infinity;
+    for(const node of nodes){
+      const point=positions.get(node.id);
+      if(!point)continue;
+      const distance=Math.hypot(point.x-x,point.y-y);
+      const hit=(Number(node.size??10)+8);
+      if(distance<hit&&distance<best){selected=node;best=distance;}
+    }
+    if(!selected)return;
+    document.querySelector('#live-status').textContent=`Focusing ${selected.name}.`;
+    await loadMemoryGraph({...memoryGraphOptions,entity:selected.name,query:''});
+    render();
+  };
+}
 
 function boot(){
   document.querySelector('#run-button')?.addEventListener('click',runDemo);

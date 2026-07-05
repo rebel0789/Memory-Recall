@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:loop-action-efficiency",
+  "name": "Loop Action Efficiency",
+  "version": "0.1.0",
+  "triggers": [
+    "loop action",
+    "reuse before generate",
+    "smallest change"
+  ],
+  "tools": [
+    "tool:filesystem-read",
+    "tool:git-read"
+  ],
+  "sideEffectClass": "read-only",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

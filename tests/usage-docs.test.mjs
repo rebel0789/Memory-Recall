@@ -22,6 +22,9 @@ test('public usage docs avoid stale task and missing context-file examples', () 
   assert.match(docs, /npm run task -- <OAF-ID>` only when status names a next task/);
   assert.match(docs, /docs\/usage\/local-agent-handoff\.md/);
   assert.match(docs, /copy and run/);
+  assert.match(docs, /mcp install --client claude-code --dry-run --format json/);
+  assert.match(docs, /--apply --confirm <fingerprint>/);
+  assert.match(docs, /does\s+not import harness history, enable write tools, call cloud\/model APIs, or claim\s+provider billing-token savings/);
 
   const localIgnore = existsSync('.gitignore') ? read('.gitignore') : read('.npmignore');
   assert.match(localIgnore, /^context-packs\/$/m);

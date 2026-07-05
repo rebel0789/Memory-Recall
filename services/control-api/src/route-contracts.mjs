@@ -171,6 +171,7 @@ export function createApiRouteContracts(limits = {}) {
     buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     pinContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     preflightContextPackMemory: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    approveMemoryProposal: Math.min(limits.bodyBytes ?? 1_000_000, 2 * 1024),
     previewContextSources: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     detectGitChanges: Math.min(limits.bodyBytes ?? 1_000_000, 1024),
     previewContextGraph: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
@@ -900,6 +901,204 @@ export function createApiRouteContracts(limits = {}) {
     }
   };
   const contextGraphPreviewResponse = sourceGraphPreviewSchema;
+  const memoryCockpitResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'summary', 'facts', 'proposalQueue', 'mcpStats', 'tokenBudget', 'savings', 'profile', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      workspaceId,
+      generatedAt: { type: 'string', format: 'date-time' },
+      provider: { const: 'provider:native:memory:sqlite' },
+      summary: { type: 'object', additionalProperties: true },
+      facts: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } },
+      proposalQueue: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } },
+      mcpStats: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['available', 'callCount', 'deliveredTokens', 'baselineTokens', 'tokensSaved', 'tokenSavingPercent', 'providerBillingClaimed', 'basis'],
+        properties: {
+          available: { type: 'boolean' },
+          callCount: { type: 'integer', minimum: 0, maximum: 1000000 },
+          deliveredTokens: { type: 'integer', minimum: 0, maximum: 100000000 },
+          baselineTokens: { type: 'integer', minimum: 0, maximum: 100000000 },
+          tokensSaved: { type: 'integer', minimum: 0, maximum: 100000000 },
+          tokenSavingPercent: { type: 'integer', minimum: 0, maximum: 100 },
+          providerBillingClaimed: { const: false },
+          basis: boundedString(160)
+        }
+      },
+      tokenBudget: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['basis', 'estimatedDeliveryTokens', 'profileTokens', 'retrievedContextTokens', 'historyTokensAvailable', 'historyTokensAvoided', 'reductionRatio', 'measured'],
+        properties: {
+          basis: boundedString(120),
+          estimatedDeliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          profileTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          retrievedContextTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          historyTokensAvailable: { type: 'integer', minimum: 0, maximum: 1000000 },
+          historyTokensAvoided: { type: 'integer', minimum: 0, maximum: 1000000 },
+          reductionRatio: { type: 'number', minimum: 0, maximum: 1 },
+          measured: { const: true }
+        }
+      },
+      savings: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['schemaVersion', 'command', 'measurementScope', 'baseline', 'compressed', 'savings', 'beforeDeliveryTokens', 'afterDeliveryTokens', 'tokensSaved', 'percent', 'safeguards', 'reportFingerprint'],
+        properties: {
+          schemaVersion: { const: '1.0.0' },
+          command: { const: 'measure savings' },
+          measurementScope: { enum: ['single local compressed-profile delivery-token estimate', 'realistic local context.profile delivery-token benchmark'] },
+          baseline: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['deliveryTokens'],
+            properties: {
+              deliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 }
+            }
+          },
+          compressed: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['deliveryTokens'],
+            properties: {
+              deliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 }
+            }
+          },
+          savings: {
+            type: 'object',
+            additionalProperties: true,
+            required: ['tokensSaved', 'percent', 'providerBillingClaimed'],
+            properties: {
+              tokensSaved: { type: 'integer', minimum: -100000000, maximum: 100000000 },
+              percent: { type: 'integer', minimum: -100000, maximum: 100 },
+              providerBillingClaimed: { const: false }
+            }
+          },
+          beforeDeliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          afterDeliveryTokens: { type: 'integer', minimum: 0, maximum: 1000000 },
+          tokensSaved: { type: 'integer', minimum: -100000000, maximum: 100000000 },
+          percent: { type: 'integer', minimum: -100000, maximum: 100 },
+          safeguards: { type: 'object', additionalProperties: true },
+          reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+        }
+      },
+      profile: { type: 'object', additionalProperties: true },
+      safeguards: { type: 'object', additionalProperties: true },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
+  const memoryGraphNode = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'entityId', 'name', 'type', 'kind', 'current', 'governedDecision', 'degree', 'size', 'community'],
+    properties: {
+      id: boundedString(512),
+      entityId: boundedString(128),
+      name: boundedString(512),
+      type: { enum: ['project', 'provider', 'port', 'decision', 'module', 'entity'] },
+      kind: boundedString(128),
+      current: { type: 'boolean' },
+      governedDecision: { type: 'boolean' },
+      degree: { type: 'integer', minimum: 0, maximum: 100000 },
+      size: { type: 'number', minimum: 0, maximum: 100 },
+      community: { type: 'integer', minimum: 0, maximum: 2500 }
+    }
+  };
+  const memoryGraphEdge = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['id', 'from', 'to', 'predicate', 'factId', 'current', 'status', 'validFrom', 'validUntil', 'supersededBy', 'source'],
+    properties: {
+      id: boundedString(128),
+      from: boundedString(512),
+      to: boundedString(512),
+      predicate: boundedString(160),
+      factId: boundedString(128),
+      current: { type: 'boolean' },
+      status: { enum: ['active', 'superseded'] },
+      validFrom: { type: 'string', format: 'date-time' },
+      validUntil: { type: ['string', 'null'], format: 'date-time' },
+      supersededBy: { type: ['string', 'null'], maxLength: 128 },
+      source: boundedString(512)
+    }
+  };
+  const memoryGraphResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'workspaceId', 'generatedAt', 'provider', 'mode', 'communityMethod', 'summary', 'graph', 'focus', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      workspaceId,
+      generatedAt: { type: 'string', format: 'date-time' },
+      provider: { const: 'provider:native:memory:sqlite' },
+      mode: { enum: ['current', 'history'] },
+      communityMethod: { const: 'label-propagation' },
+      summary: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['nodeCount', 'edgeCount', 'currentNodeCount', 'currentEdgeCount', 'historyNodeCount', 'historyEdgeCount', 'communityCount'],
+        properties: {
+          nodeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          edgeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          currentNodeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          currentEdgeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          historyNodeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          historyEdgeCount: { type: 'integer', minimum: 0, maximum: 2500 },
+          communityCount: { type: 'integer', minimum: 0, maximum: 2500 }
+        }
+      },
+      graph: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['nodes', 'edges'],
+        properties: {
+          nodes: { type: 'array', maxItems: 2500, items: memoryGraphNode },
+          edges: { type: 'array', maxItems: 2500, items: memoryGraphEdge }
+        }
+      },
+      focus: {
+        type: ['object', 'null'],
+        additionalProperties: false,
+        required: ['entity', 'depth', 'nodes', 'edges'],
+        properties: {
+          entity: boundedString(512),
+          depth: { type: 'integer', minimum: 1, maximum: 6 },
+          nodes: { type: 'array', maxItems: 2500, items: memoryGraphNode },
+          edges: { type: 'array', maxItems: 2500, items: memoryGraphEdge }
+        }
+      },
+      safeguards: { type: 'object', additionalProperties: true },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
+  const memoryApprovalRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId', 'confirm'],
+    properties: {
+      workspaceId,
+      confirm: { const: true }
+    }
+  };
+  const memoryApprovalResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'command', 'generatedAt', 'workspaceId', 'summary', 'proposal', 'fact', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      command: { const: 'memory approve' },
+      generatedAt: { type: 'string', format: 'date-time' },
+      workspaceId,
+      summary: { type: 'object', additionalProperties: true },
+      proposal: { type: 'object', additionalProperties: true },
+      fact: { type: 'object', additionalProperties: true },
+      safeguards: { type: 'object', additionalProperties: true },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
   const manualConfigSnippet = {
     type: 'object',
     additionalProperties: false,
@@ -936,7 +1135,7 @@ export function createApiRouteContracts(limits = {}) {
   const harnessSetupPlanResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'config', 'status', 'desiredServer', 'desiredHooks', 'manualConfigSnippet', 'manualHookSnippet', 'diff', 'safeguards', 'planFingerprint'],
+    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'bridgeMode', 'config', 'status', 'desiredServer', 'desiredHooks', 'manualConfigSnippet', 'manualHookSnippet', 'diff', 'safeguards', 'planFingerprint'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       plannerVersion: boundedString(32),
@@ -946,6 +1145,7 @@ export function createApiRouteContracts(limits = {}) {
       client: boundedString(32),
       clientLabel: boundedString(80),
       server: { const: 'oaf' },
+      bridgeMode: { const: 'resources' },
       config: {
         type: 'object',
         additionalProperties: false,
@@ -1293,6 +1493,95 @@ export function createApiRouteContracts(limits = {}) {
       allowsBody: false,
       streams: false,
       responses: { 200: { type: 'object', additionalProperties: true, required: ['metrics', 'latestRun', 'latestManifest', 'runs'], properties: { metrics: { type: 'object', additionalProperties: true }, latestRun: { type: ['object', 'null'], additionalProperties: true }, latestManifest: { type: ['object', 'null'], additionalProperties: true }, runs: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } } } } }
+    },
+    {
+      method: 'GET',
+      path: '/api/loop/workbench',
+      operationId: 'getLoopWorkbench',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: {
+        200: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['schemaVersion', 'workspaceId', 'generatedAt', 'plan', 'runs', 'observations', 'verification', 'tokenBudget', 'memoryLoop', 'stopReasons', 'trace', 'safeguards'],
+          properties: {
+            schemaVersion: { const: '1.0.0' },
+            workspaceId,
+            generatedAt: { type: 'string', format: 'date-time' },
+            plan: { type: 'object', additionalProperties: true },
+            runs: { type: 'object', additionalProperties: true },
+            observations: { type: 'object', additionalProperties: true },
+            verification: { type: 'object', additionalProperties: true },
+            tokenBudget: { type: 'object', additionalProperties: true },
+            memoryLoop: { type: ['object', 'null'], additionalProperties: true },
+            stopReasons: { type: 'array', maxItems: 16, items: boundedString(64) },
+            trace: { type: 'object', additionalProperties: true },
+            safeguards: { type: 'object', additionalProperties: true }
+          }
+        }
+      }
+    },
+    {
+      method: 'GET',
+      path: '/api/memory/cockpit',
+      operationId: 'getMemoryCockpit',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'query' },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: { workspaceId }, required: ['workspaceId'] },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: memoryCockpitResponse }
+    },
+    {
+      method: 'GET',
+      path: '/api/memory/graph',
+      operationId: 'getMemoryGraph',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'query' },
+      pathParameters: {},
+      query: {
+        additionalProperties: false,
+        properties: {
+          workspaceId,
+          history: { enum: ['true', 'false'] },
+          entity: boundedString(512),
+          query: boundedString(512)
+        },
+        required: ['workspaceId']
+      },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: memoryGraphResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/memory/proposals/{proposalId}/approve',
+      operationId: 'approveMemoryProposal',
+      security: { authenticated: true, action: 'memory.approve', workspace: 'body' },
+      pathParameters: { proposalId: { type: 'string', pattern: '^mpq_[A-Za-z0-9._-]{1,128}$', maxLength: 132 } },
+      query: { additionalProperties: false, properties: {}, required: [] },
+      headers: {},
+      requestMediaType: 'application/json',
+      requestBodySchema: memoryApprovalRequest,
+      maxBodyBytes: routeBodyBytes.approveMemoryProposal,
+      allowsBody: true,
+      streams: false,
+      responses: { 201: memoryApprovalResponse }
     },
     {
       method: 'GET',

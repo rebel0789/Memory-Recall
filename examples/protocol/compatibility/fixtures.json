@@ -62,6 +62,12 @@
       "expectedValid": true
     },
     {
+      "id": "memory-temporal-fact-current-valid",
+      "schema": "packages/protocol/schemas/memory-temporal-fact.schema.json",
+      "instance": "examples/protocol/memory-temporal-fact.json",
+      "expectedValid": true
+    },
+    {
       "id": "artifact-record-current-valid",
       "schema": "packages/protocol/schemas/artifact-record.schema.json",
       "instance": "examples/protocol/artifact-record.json",
@@ -905,6 +911,54 @@
       "id": "context-pack-use-plan-private-field-invalid",
       "schema": "packages/protocol/schemas/context-pack-use-plan.schema.json",
       "instance": "examples/protocol/compatibility/invalid/context-pack-use-plan-private-field.json",
+      "expectedValid": false
+    },
+    {
+      "id": "loop-plan-current-valid",
+      "schema": "packages/protocol/schemas/loop-plan.schema.json",
+      "instance": "examples/protocol/loop-plan.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-plan-raw-body-invalid",
+      "schema": "packages/protocol/schemas/loop-plan.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "loop-observation-current-valid",
+      "schema": "packages/protocol/schemas/loop-observation.schema.json",
+      "instance": "examples/protocol/loop-observation.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-observation-raw-output-invalid",
+      "schema": "packages/protocol/schemas/loop-observation.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-observation-raw-output.json",
+      "expectedValid": false
+    },
+    {
+      "id": "loop-verification-report-current-valid",
+      "schema": "packages/protocol/schemas/loop-verification-report.schema.json",
+      "instance": "examples/protocol/loop-verification-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-verification-auto-merge-invalid",
+      "schema": "packages/protocol/schemas/loop-verification-report.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-verification-auto-merge.json",
+      "expectedValid": false
+    },
+    {
+      "id": "loop-run-current-valid",
+      "schema": "packages/protocol/schemas/loop-run.schema.json",
+      "instance": "examples/protocol/loop-run.json",
+      "expectedValid": true
+    },
+    {
+      "id": "loop-run-auto-merge-invalid",
+      "schema": "packages/protocol/schemas/loop-run.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/loop-run-auto-merge.json",
       "expectedValid": false
     }
   ]

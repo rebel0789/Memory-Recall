@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "loop verify",
+  "id": "loopverify_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspaceId": "ws_loop",
+  "runId": "run_loop",
+  "createdAt": "2026-06-26T00:00:01.000Z",
+  "loopPlanId": "loopplan_aaaaaaaaaaaaaaaaaaaaaaaa",
+  "loopPlanFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "proposed",
+  "stopReason": "completed",
+  "worktree": {
+    "mode": "isolated",
+    "pathFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "implementer": {
+    "status": "completed",
+    "changedLocators": ["workspace://src/auth.ts"]
+  },
+  "checker": {
+    "status": "passed",
+    "observation": null
+  },
+  "governance": {
+    "checked": 0,
+    "violations": []
+  },
+  "scope": {
+    "status": "passed",
+    "allowedLocators": ["workspace://src/auth.ts"],
+    "changedLocators": ["workspace://src/auth.ts"],
+    "unrelatedLocators": []
+  },
+  "proposal": {
+    "status": "proposed",
+    "autoMerge": false,
+    "approvalRequired": true,
+    "approvalsReused": false,
+    "reasonCodes": ["checker_passed", "scope_passed", "human_approval_required"]
+  },
+  "replay": {
+    "sideEffects": "disabled",
+    "approvalsReusable": false,
+    "planFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "flightRecorder": {
+    "eventCount": 3,
+    "eventTypes": ["loop.implementer_completed", "loop.checker_completed", "loop.verification_reported"]
+  },
+  "safeguards": {
+    "isolatedWorktreeOnly": true,
+    "mainBranchWritten": false,
+    "autoMerge": false,
+    "externalWritesEnabled": false,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "replaySideEffectsDisabled": false
+  },
+  "reportFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

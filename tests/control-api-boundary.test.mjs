@@ -860,6 +860,7 @@ test('harness setup plan route is protected plan-only and does not expose home c
   assert.equal(response.body.dryRun, true);
   assert.equal(response.body.client, 'cursor');
   assert.equal(response.body.server, 'oaf');
+  assert.equal(response.body.bridgeMode, 'resources');
   assert.equal(response.body.config.ref, 'home://.cursor/mcp.json');
   assert.equal(response.body.config.serverCount, 1);
   assert.equal(response.body.diff.redacted, true);
@@ -1012,6 +1013,24 @@ test('dashboard counters are scoped to the authorized workspace', async (t) => {
   assert.equal(response.body.metrics.pendingApprovals, 1);
   assert.deepEqual(response.body.memories.map((item) => item.id), ['mem_local']);
   assert.deepEqual(response.body.approvals.map((item) => item.id).sort(), ['apr_local_done', 'apr_local_pending']);
+});
+
+test('loop workbench endpoint returns read-only local projection', async (t) => {
+  const api = await startServer(t);
+  api.store.state.events = [
+    { id: 'evt_loop_a', workspaceId: 'ws_local', runId: 'run_loop', type: 'loop.verification_reported', payload: {} },
+    { id: 'evt_other', workspaceId: 'ws_other', runId: 'run_other', type: 'loop.verification_reported', payload: {} }
+  ];
+  const response = await request(api.base, '/api/loop/workbench?workspaceId=ws_local', {
+    headers: { cookie: api.auth.cookie }
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.body.schemaVersion, '1.0.0');
+  assert.equal(response.body.workspaceId, 'ws_local');
+  assert.equal(response.body.verification.autoMerge, false);
+  assert.equal(response.body.trace.eventCount, 1);
+  assert.equal(response.body.stopReasons.includes('unrelated_changes'), true);
+  assert.equal(response.body.safeguards.externalWritesEnabled, false);
 });
 
 test('start-run validates input and propagates API correlation into persisted events', async (t) => {

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { assertPlainObject } from '../../protocol/src/index.mjs';
+import { assertPlainObject, stableStringify } from '../../protocol/src/index.mjs';
 
 export const POLICY_VERSION = '1.0.0';
 export const POLICY_SCHEMA_VERSION = '1.0.0';
@@ -12,6 +12,7 @@ export const AUTHZ_ACTIONS = Object.freeze([
   'run.read',
   'run.execute',
   'context.compile',
+  'memory.approve',
   'stream.read',
   'workspace.reset',
   'token.manage',
@@ -64,7 +65,7 @@ export const POLICY_SIDE_EFFECT_CLASSES = Object.freeze(['read-only', 'reversibl
 
 const ROLE_ACTIONS_OBJECT = Object.freeze({
   owner: Object.freeze([...AUTHZ_ACTIONS, 'tool.invoke']),
-  builder: Object.freeze(['workspace.read', 'dashboard.read', 'run.read', 'run.execute', 'context.compile', 'stream.read', 'tool.invoke']),
+  builder: Object.freeze(['workspace.read', 'dashboard.read', 'run.read', 'run.execute', 'context.compile', 'memory.approve', 'stream.read', 'tool.invoke']),
   operator: Object.freeze(['workspace.read', 'dashboard.read', 'run.read', 'run.execute', 'stream.read', 'tool.invoke']),
   auditor: Object.freeze(['workspace.read', 'dashboard.read', 'run.read', 'stream.read', 'audit.read', 'tool.invoke'])
 });
@@ -693,14 +694,6 @@ function riskRank(value) {
 
 function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
-}
-
-function stableStringify(value) {
-  if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
 }
 
 function deepClone(value) {

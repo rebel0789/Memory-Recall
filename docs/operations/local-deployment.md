@@ -6,6 +6,21 @@ Node process on loopback, file store, deterministic model. Best for development
 and protocol conformance. OAF-029 backup/restore is implemented and tested for
 this profile through `npm run ops:smoke`.
 
+## Local native profile
+
+For a single-developer workstation, run:
+
+```bash
+npm run local:run
+```
+
+This composes `npm run bootstrap` and `npm run native:smoke`. It verifies the
+local native provider path without enabling network access, cloud fallback,
+external writes, team authentication, or hosted services. The profile covers
+local-owner bootstrap, proposal-gated SQLite memory, native retrieval, context
+compilation, local artifacts, deterministic model behavior, and native smoke
+checks. It is not the team/cloud deployment target.
+
 ## Workstation target
 
 - OAF control API and web;

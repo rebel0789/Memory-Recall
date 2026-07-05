@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.local/schemas/loop-run.schema.json",
+  "title": "Loop Run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "id",
+    "workspaceId",
+    "runId",
+    "createdAt",
+    "loopPlanId",
+    "loopPlanFingerprint",
+    "status",
+    "stopReason",
+    "controller",
+    "durable",
+    "iterations",
+    "governance",
+    "tokenBudget",
+    "schedule",
+    "runLog",
+    "safeguards",
+    "runFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "command": { "const": "loop run" },
+    "id": { "type": "string", "pattern": "^looprun_[a-f0-9]{24}$" },
+    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+    "runId": { "type": "string", "pattern": "^run_[A-Za-z0-9._:-]{1,120}$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "loopPlanId": { "type": "string", "pattern": "^loopplan_[a-f0-9]{24}$" },
+    "loopPlanFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "status": { "type": "string", "enum": ["completed", "blocked"] },
+    "stopReason": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "validation_failed",
+        "governance-violation",
+        "blocked_needs_human",
+        "unsafe_action_required",
+        "max_iterations",
+        "timeout",
+        "unrelated_changes",
+        "out_of_scope"
+      ]
+    },
+    "controller": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxIterations", "timeoutMs", "terminalStopReasons"],
+      "properties": {
+        "maxIterations": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "timeoutMs": { "type": "integer", "minimum": 0, "maximum": 86400000 },
+        "terminalStopReasons": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 8
+        }
+      }
+    },
+    "durable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "workflowId", "workflowRunId", "status", "resumed", "historyEventCount"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "workflowId": { "type": ["string", "null"] },
+        "workflowRunId": { "type": ["string", "null"] },
+        "status": { "type": "string" },
+        "resumed": { "type": "boolean" },
+        "historyEventCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "iterations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "status", "stopReason", "verificationReportId", "estimatedDeliveryTokens"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 1, "maximum": 20 },
+          "status": { "type": "string" },
+          "stopReason": { "type": "string" },
+          "verificationReportId": { "type": ["string", "null"] },
+          "estimatedDeliveryTokens": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "maxItems": 20
+    },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checked", "violations"],
+      "properties": {
+        "checked": { "type": "integer", "minimum": 0, "maximum": 320 },
+        "violations": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["subject", "predicate", "expected", "actual", "file"],
+            "properties": {
+              "subject": { "type": "string", "pattern": "^[A-Za-z0-9:_-]{1,128}$" },
+              "predicate": { "type": "string", "pattern": "^[A-Za-z0-9:_-]{1,128}$" },
+              "expected": { "type": "string", "minLength": 1, "maxLength": 240 },
+              "actual": { "type": "string", "minLength": 1, "maxLength": 240 },
+              "file": { "type": "string", "pattern": "^[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$" }
+            }
+          }
+        }
+      }
+    },
+    "tokenBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["perIterationEstimatedDeliveryTokens", "aggregatedEstimatedDeliveryTokens", "sourceBodyTokensExcluded", "basis"],
+      "properties": {
+        "perIterationEstimatedDeliveryTokens": { "type": "integer", "minimum": 0 },
+        "aggregatedEstimatedDeliveryTokens": { "type": "integer", "minimum": 0 },
+        "sourceBodyTokensExcluded": { "type": "integer", "minimum": 0 },
+        "basis": { "type": "string" }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "kind", "cadence", "nextRunAt", "humanApprovalThresholdTokens"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "kind": { "type": "string" },
+        "cadence": { "type": "string" },
+        "nextRunAt": { "type": ["string", "null"], "format": "date-time" },
+        "humanApprovalThresholdTokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "runLog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventCount", "eventTypes"],
+      "properties": {
+        "eventCount": { "type": "integer", "minimum": 0 },
+        "eventTypes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 5000
+        }
+      }
+    },
+    "reasoning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maker", "checker", "stopConditions"],
+      "properties": {
+        "maker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "skillId", "status", "actionLadder", "reusedPrimitives", "proposedBoundary", "validationCommands", "measured", "writeAuthorityGranted", "reasonCodes"],
+          "properties": {
+            "schemaVersion": { "const": "1.0.0" },
+            "skillId": { "const": "skill:loop-action-efficiency" },
+            "status": { "enum": ["ready", "blocked_needs_human"] },
+            "actionLadder": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9_:-]{1,96}$" },
+              "minItems": 1,
+              "maxItems": 8
+            },
+            "reusedPrimitives": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 240 },
+              "maxItems": 12
+            },
+            "proposedBoundary": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^workspace://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,320}$" },
+              "maxItems": 16
+            },
+            "validationCommands": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 400 },
+              "maxItems": 8
+            },
+            "measured": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["contextBudget", "diffSize"],
+              "properties": {
+                "contextBudget": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["estimatedDeliveryTokens", "sourceBodyTokensExcluded", "deliveryReductionRatio", "basis"],
+                  "properties": {
+                    "estimatedDeliveryTokens": { "type": "integer", "minimum": 0 },
+                    "sourceBodyTokensExcluded": { "type": "integer", "minimum": 0 },
+                    "deliveryReductionRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+                    "basis": { "type": "string" }
+                  }
+                },
+                "diffSize": { "type": "string", "maxLength": 64 }
+              }
+            },
+            "writeAuthorityGranted": { "const": false },
+            "reasonCodes": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9_:-]{1,96}$" },
+              "maxItems": 16
+            }
+          }
+        },
+        "checker": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "skillId", "status", "planFields", "openQuestions", "stopReason", "authorityGranted", "reasonCodes"],
+          "properties": {
+            "schemaVersion": { "const": "1.0.0" },
+            "skillId": { "const": "skill:loop-intent-clarification" },
+            "status": { "enum": ["ready", "blocked_needs_human"] },
+            "planFields": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["objective", "stopCondition", "nonGoals", "sideEffectClass", "validationCommands", "rollback"],
+              "properties": {
+                "objective": { "type": "string", "maxLength": 240 },
+                "stopCondition": { "type": "string", "maxLength": 240 },
+                "nonGoals": {
+                  "type": "array",
+                  "items": { "type": "string", "maxLength": 240 },
+                  "maxItems": 8
+                },
+                "sideEffectClass": { "enum": ["read-only", "local-write", "external-write"] },
+                "validationCommands": {
+                  "type": "array",
+                  "items": { "type": "string", "maxLength": 400 },
+                  "maxItems": 8
+                },
+                "rollback": { "type": "string", "maxLength": 240 }
+              }
+            },
+            "openQuestions": {
+              "type": "array",
+              "items": { "type": "string", "maxLength": 240 },
+              "maxItems": 3
+            },
+            "stopReason": { "type": ["string", "null"], "enum": ["blocked_needs_human", null] },
+            "authorityGranted": { "const": false },
+            "reasonCodes": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9_:-]{1,96}$" },
+              "maxItems": 16
+            }
+          }
+        },
+        "stopConditions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["plannedStopCondition", "terminalStopReasons", "observedStopReason"],
+          "properties": {
+            "plannedStopCondition": { "type": "string", "maxLength": 240 },
+            "terminalStopReasons": {
+              "type": "array",
+              "items": { "type": "string" },
+              "maxItems": 8
+            },
+            "observedStopReason": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "validation_failed",
+                "governance-violation",
+                "blocked_needs_human",
+                "unsafe_action_required",
+                "max_iterations",
+                "timeout",
+                "unrelated_changes",
+                "out_of_scope"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundedIterations",
+        "timeoutEnforced",
+        "humanApprovalGateEnforced",
+        "externalWritesEnabled",
+        "networkCalls",
+        "modelCalls",
+        "autoMerge"
+      ],
+      "properties": {
+        "boundedIterations": { "type": "boolean" },
+        "timeoutEnforced": { "type": "boolean" },
+        "humanApprovalGateEnforced": { "type": "boolean" },
+        "externalWritesEnabled": { "const": false },
+        "networkCalls": { "type": "integer", "minimum": 0 },
+        "modelCalls": { "type": "integer", "minimum": 0 },
+        "autoMerge": { "const": false }
+      }
+    },
+    "runFingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+  }
+}

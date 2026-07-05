@@ -336,10 +336,13 @@ test('MCP bridge initializes and lists tools/resources only with trusted identit
   const init = await bridge.handle({ jsonrpc: '2.0', id: 1, method: 'initialize' });
   assert.equal(init.result.protocolVersion, '2025-06-18');
   assert.equal(init.result.capabilities.tools.listChanged, false);
+  assert.equal(init.result.capabilities.prompts.listChanged, false);
   const tools = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   assert.deepEqual(tools.result.tools.map((tool) => tool.name), ['oaf.readRun']);
   const resources = await bridge.handle({ jsonrpc: '2.0', id: 3, method: 'resources/list' });
   assert.deepEqual(resources.result.resources.map((item) => item.uri), ['oaf://workspace/ws_mcp/runs/run_demo']);
+  const prompts = await bridge.handle({ jsonrpc: '2.0', id: 4, method: 'prompts/list' });
+  assert.deepEqual(prompts.result, { prompts: [] });
 });
 
 test('MCP tool calls require exact server-side grants and reject caller authority', async () => {

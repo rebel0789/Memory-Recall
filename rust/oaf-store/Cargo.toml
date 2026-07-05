@@ -1,0 +1,19 @@
+[package]
+name = "oaf-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0.86"
+rusqlite = { version = "0.32.1", features = ["bundled"] }
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = { version = "1.0.117", features = ["preserve_order"] }
+sha2 = "0.10.8"
+hex = "0.4.3"
+chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
+regex = "1.10.5"
+
+[dev-dependencies]
+tempfile = "3.10.1"
+

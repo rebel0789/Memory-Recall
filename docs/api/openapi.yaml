@@ -147,6 +147,74 @@ paths:
           description: Local dashboard projection.
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/loop/workbench:
+    get:
+      operationId: getLoopWorkbench
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Loop Workbench read model for plan, runs, observation, verification, budget, stop reasons, and the native memory-loop flow.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/cockpit:
+    get:
+      operationId: getMemoryCockpit
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+      responses:
+        '200':
+          description: Read-only native SQLite memory cockpit with temporal facts, proposal queue, and compressed profile token budget.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/graph:
+    get:
+      operationId: getMemoryGraph
+      parameters:
+        - { $ref: '#/components/parameters/WorkspaceId' }
+        - name: history
+          in: query
+          required: false
+          schema: { enum: ['true', 'false'] }
+        - name: entity
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 512 }
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 512 }
+      responses:
+        '200':
+          description: Read-only governed memory graph projection with current-truth and historical temporal edges.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/proposals/{proposalId}/approve:
+    post:
+      operationId: approveMemoryProposal
+      parameters:
+        - name: proposalId
+          in: path
+          required: true
+          schema: { type: string, pattern: '^mpq_[A-Za-z0-9._-]{1,128}$' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [workspaceId, confirm]
+              properties:
+                workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+                confirm: { const: true }
+      responses:
+        '201':
+          description: Explicitly promotes one pending memory proposal to an active temporal fact.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
   /api/runs:
     get:
       operationId: listRuns

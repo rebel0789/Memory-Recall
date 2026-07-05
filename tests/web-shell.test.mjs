@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { buildCompressedProfileContextReport } from '../packages/context-compiler/src/index.mjs';
+import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 import {
   ROUTES,
   SHELL_STATES,
@@ -15,6 +17,9 @@ import {
   buildFabricMapModel,
   buildFirstUseReadinessModel,
   buildHarnessSetupUiModel,
+  buildLoopWorkbenchModel,
+  buildMemoryCockpitModel,
+  buildMemoryGraphModel,
   buildMemoryReviewModel,
   buildPinnedHandoffStatusModel,
   canReceivePinnedHandoff,
@@ -31,6 +36,9 @@ import {
   runDetailLink,
   safeEventSummary,
   selectContextPackPinPayload,
+  renderMemoryCockpit,
+  renderMemoryGraph,
+  renderLoopWorkbenchMemoryFlow,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -46,16 +54,165 @@ function replaceGlobal(name,value) {
 }
 
 test('web shell exposes stable path routes with legacy query compatibility',()=>{
-  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/fabric-map','/context','/context-pack','/source-graph','/memory','/evidence','/approvals','/content','/agents-tools','/settings']);
+  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/loop-workbench','/fabric-map','/context','/context-pack','/source-graph','/memory','/memory-graph','/evidence','/approvals','/content','/agents-tools','/settings']);
   assert.equal(resolveRoute('http://127.0.0.1:4310/runs').id,'runs');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/loop-workbench').id,'loop-workbench');
   assert.equal(resolveRoute('http://127.0.0.1:4310/fabric-map').id,'fabric-map');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context?manifest=ctx_1').id,'context');
   assert.equal(resolveRoute('http://127.0.0.1:4310/context-pack').id,'context-pack');
   assert.equal(resolveRoute('http://127.0.0.1:4310/source-graph').id,'source-graph');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/memory-graph').id,'memory-graph');
   assert.equal(resolveRoute('http://127.0.0.1:4310/?view=evidence').id,'evidence');
   assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id,'home');
   assert.equal(legacyViewPath('design'),'/settings');
   assert.equal(ROUTES.some(route=>route.id==='content'),true);
+});
+
+test('memory route renders real temporal fact fields and computed token number', async (t) => {
+  const provider = new SQLiteMemoryProvider({ filename: ':memory:', clock: () => '2026-06-26T10:00:00.000Z' });
+  t.after(() => provider.close());
+  await provider.put({
+    id: 'mem_web_profile',
+    workspaceId: 'ws_local',
+    kind: 'decision',
+    text: `${Array(80).fill('surface-wire-memory').join(' ')} local token budget profile`,
+    source: 'workspace://docs/web-memory.md',
+    status: 'active',
+    confidence: 0.9,
+    authority: 0.9,
+    updatedAt: '2026-06-26T09:55:00.000Z'
+  });
+  const proposal = await provider.enqueueProposal({
+    id: 'mpq_web_memory',
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://docs/web-memory.md',
+    sourceHash: 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    payload: { kind: 'fact', subject: 'memory-route', predicate: 'renders', object: 'real-fields' }
+  });
+  await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'reviewer', leaseUntil: '2026-06-26T10:05:00.000Z' });
+  await provider.recordProposalResult({ workspaceId: 'ws_local', id: proposal.id, workerId: 'reviewer', status: 'applied', result: { accepted: true } });
+  await provider.addTemporalFact({
+    id: 'memfact_web_memory',
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'memory-route',
+    predicate: 'renders',
+    object: 'real-fields',
+    text: 'The memory route renders native SQLite fact fields.',
+    source: 'workspace://docs/web-memory.md',
+    proposalQueueId: proposal.id,
+    validFrom: '2026-06-26T10:00:00.000Z'
+  });
+  const exported = await provider.export({ workspaceId: 'ws_local' });
+  const facts = await provider.listTemporalFacts({ workspaceId: 'ws_local' });
+  const proposalQueue = [
+    ...(await provider.listProposalQueue({ workspaceId: 'ws_local' })),
+    { id: 'mpq_web_pending', status: 'pending', sourceLocator: 'workspace://docs/pending.md', sourceHash: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', attempts: 0, payload: { kind: 'fact', subject: 'memory-route', predicate: 'approves', object: 'pending' } }
+  ];
+  const profile = buildCompressedProfileContextReport({
+    records: [...exported.records, ...facts],
+    workspaceId: 'ws_local',
+    generatedAt: '2026-06-26T10:00:00.000Z',
+    objective: 'Render memory route',
+    step: 'Assert token number',
+    tokenBudget: 4096
+  });
+  const cockpit = {
+    schemaVersion: '1.0.0',
+    workspaceId: 'ws_local',
+    generatedAt: '2026-06-26T10:00:00.000Z',
+    provider: 'provider:native:memory:sqlite',
+    summary: { activeFactCount: 1, pendingProposalCount: 1 },
+    facts,
+    proposalQueue,
+    mcpStats: {
+      available: true,
+      callCount: 2,
+      deliveredTokens: 320,
+      baselineTokens: 900,
+      tokensSaved: 580,
+      tokenSavingPercent: 64,
+      providerBillingClaimed: false,
+      basis: 'estimated tokens over exact MCP JSON tool payload text',
+      byTool: [
+        { toolName: 'memory.recall', callCount: 1, deliveredTokens: 120, tokensSaved: 0 },
+        { toolName: 'context.profile', callCount: 1, deliveredTokens: 200, tokensSaved: 580 }
+      ]
+    },
+    tokenBudget: profile.contextBudget,
+    savings: {
+      beforeDeliveryTokens: profile.contextBudget.historyTokensAvailable,
+      afterDeliveryTokens: profile.contextBudget.estimatedDeliveryTokens,
+      tokensSaved: profile.contextBudget.historyTokensAvoided,
+      percent: Math.round(profile.contextBudget.reductionRatio * 100),
+      savings: { providerBillingClaimed: false, basis: 'delivery-token-estimate' }
+    },
+    profile: { id: profile.id },
+    safeguards: { readOnly: true },
+    reportFingerprint: profile.id.replace(/^ctxprofile_/, 'sha256:').padEnd(71, '0')
+  };
+  const model = buildMemoryCockpitModel(cockpit);
+  const html = renderMemoryCockpit(cockpit);
+  assert.equal(model.tokenBudget.estimatedDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
+  assert.equal(model.savings.beforeDeliveryTokens, profile.contextBudget.historyTokensAvailable);
+  assert.equal(model.savings.afterDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
+  assert.equal(model.savings.providerBillingClaimed, false);
+  assert.equal(model.mcpStats.callCount, 2);
+  assert.equal(model.mcpStats.deliveredTokens, 320);
+  assert.equal(model.summary.activeFactCount, 1);
+  assert.equal(model.summary.pendingProposalCount, 1);
+  assert.match(html, new RegExp(`${model.tokenSavingPercent}% token saving`));
+  assert.match(html, /<dt>Active facts<\/dt><dd>1<\/dd>/);
+  assert.match(html, /<dt>Pending proposals<\/dt><dd>1<\/dd>/);
+  assert.match(html, /data-action="approve-memory-proposal"/);
+  assert.match(html, new RegExp(`<dt>Naive baseline</dt><dd>${profile.contextBudget.historyTokensAvailable}</dd>`));
+  assert.match(html, new RegExp(`<dt>OAF compressed</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
+  assert.match(html, /<dt>Provider billing<\/dt><dd>not claimed<\/dd>/);
+  assert.match(html, /<dt>MCP calls<\/dt><dd>2<\/dd>/);
+  assert.match(html, /<dt>MCP delivered<\/dt><dd>320<\/dd>/);
+  assert.match(html, /context\.profile/);
+  assert.match(html, /memfact_web_memory/);
+  assert.match(html, /memory-route/);
+  assert.match(html, /Jun 26, 2026/);
+  assert.match(html, /mpq_web_memory/);
+  assert.match(html, new RegExp(`<dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
+});
+
+test('memory graph route renders governed graph canvas controls', async () => {
+  const report = {
+    schemaVersion: '1.0.0',
+    workspaceId: 'ws_local',
+    generatedAt: '2026-06-26T10:00:00.000Z',
+    provider: 'provider:native:memory:sqlite',
+    mode: 'history',
+    communityMethod: 'label-propagation',
+    summary: { nodeCount: 3, edgeCount: 2, currentNodeCount: 2, currentEdgeCount: 1, historyNodeCount: 1, historyEdgeCount: 1, communityCount: 2 },
+    graph: {
+      nodes: [
+        { id: 'provider:native:memory:sqlite', entityId: 'ment_provider', name: 'provider:native:memory:sqlite', type: 'provider', kind: 'subject', current: true, governedDecision: false, degree: 2, size: 16, community: 1 },
+        { id: 'MemoryBackendPort', entityId: 'ment_port', name: 'MemoryBackendPort', type: 'port', kind: 'object', current: true, governedDecision: false, degree: 1, size: 13, community: 1 },
+        { id: 'adr:memory-graph-ui', entityId: 'ment_adr', name: 'adr:memory-graph-ui', type: 'decision', kind: 'subject', current: false, governedDecision: true, degree: 1, size: 13, community: 2 }
+      ],
+      edges: [
+        { id: 'medge_provider_port', from: 'provider:native:memory:sqlite', to: 'MemoryBackendPort', predicate: 'implements_port', factId: 'memfact_provider_port', current: true, status: 'active', validFrom: '2026-06-26T09:00:00.000Z', validUntil: null, supersededBy: null, source: 'workspace://providers/native/memory-sqlite/provider.json' },
+        { id: 'medge_adr', from: 'adr:memory-graph-ui', to: 'legacy-view', predicate: 'replaces', factId: 'memfact_adr', current: false, status: 'superseded', validFrom: '2026-06-26T08:00:00.000Z', validUntil: '2026-06-26T09:00:00.000Z', supersededBy: 'memfact_new', source: 'workspace://DECISIONS.md' }
+      ]
+    },
+    focus: null,
+    safeguards: { readOnly: true, networkCalls: 0, modelCalls: 0, externalWritesEnabled: false },
+    reportFingerprint: 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+  };
+  const model = buildMemoryGraphModel(report);
+  const html = renderMemoryGraph(report, { history: true, query: 'provider', communities: true });
+  const source = await readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8');
+  assert.equal(model.summary.edgeCount, 2);
+  assert.equal(model.nodes.some((node) => node.governedDecision), true);
+  assert.match(html, /id="memory-graph-canvas"/);
+  assert.match(html, /id="memory-graph-history"/);
+  assert.match(html, /id="memory-graph-communities"/);
+  assert.match(html, /provider:native:memory:sqlite/);
+  assert.match(html, /legacy-view/);
+  assert.match(source, /\/api\/memory\/graph/);
 });
 
 test('context pack pin uses the reviewed build payload instead of a stale form payload',()=>{
@@ -433,6 +590,54 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(sourcePreviewModel.rawBodiesLabel,'excluded');
   assert.equal(sourcePreviewModel.externalWritesLabel,'disabled');
   assert.equal(sourcePreviewModel.activeMemoryCreated,0);
+});
+
+test('loop workbench model exposes plan run observation verification budget and stop reasons',async()=>{
+  const report={
+    schemaVersion:'1.0.0',
+    workspaceId:'ws_local',
+    generatedAt:'2026-06-26T00:00:00.000Z',
+    plan:{status:'reference',command:'loop plan',maxIterations:4,timeoutSeconds:1200,sideEffectClass:'read-only'},
+    runs:{status:'blocked',count:2,latestRunId:'run_loop',controller:'bounded maxIterations and timeout'},
+    observations:{status:'recorded',count:1,rawOutputIncluded:false},
+    verification:{status:'reported',count:1,autoMerge:false},
+    tokenBudget:{basis:'contextBudget estimate',estimatedDeliveryTokens:10,aggregatedEstimatedDeliveryTokens:20,providerBillingClaimed:false},
+    memoryLoop:{
+      objective:'Use native memory to complete a local feedback loop',
+      compressedProfile:{
+        id:'ctxprofile_loop',
+        contextBudget:{basis:'compressed-profile-measurement',estimatedDeliveryTokens:123,profileTokens:44,retrievedContextTokens:0,historyTokensAvailable:600,historyTokensAvoided:477,reductionRatio:0.795,measured:true},
+        acceptedHistoryRecordCount:2,
+        skippedHistoryRecordCount:0
+      },
+      loopPlan:{id:'loopplan_native_memory',maxIterations:3,timeoutMs:1800000,validationCommands:['node --test tests/native-memory-profile-context.test.mjs'],contextBudget:{basis:'context-pack-measurement',estimatedDeliveryTokens:123,sourceBodyTokensExcluded:477,deliveryReductionRatio:0.795},sideEffectClass:'read-only'},
+      observation:{status:'recorded',command:'node --test tests/native-memory-profile-context.test.mjs',rawOutputIncluded:false},
+      extractionProposal:{id:'mpq_loop_web',status:'applied',sourceLocator:'workspace://docs/surface.md',text:'surface-wire visible loop-workbench'},
+      memoryFact:{id:'memfact_loop_web',text:'Loop Workbench renders native memory-loop fact fields.',status:'active',validity:{validFrom:'2026-06-26T10:00:00.000Z',validUntil:null},supersededBy:null,proposalQueueId:'mpq_loop_web',episodeId:'mep_loop_web'},
+      safeguards:{readOnlyView:true,networkCalls:0,modelCalls:0,externalWritesEnabled:false}
+    },
+    stopReasons:['completed','validation_failed','blocked_needs_human','max_iterations','timeout','unrelated_changes'],
+    trace:{eventCount:3,eventTypes:['loop.run_started','loop.verification_reported','loop.run_stopped']},
+    safeguards:{readOnlyViews:true,planCreationViaControlApi:true,externalWritesEnabled:false,networkCalls:0,modelCalls:0,autoMerge:false}
+  };
+  const model=buildLoopWorkbenchModel(report,{dashboard:{metrics:{runs:5,pendingApprovals:1}}});
+  assert.equal(model.plan.maxIterations,4);
+  assert.equal(model.runs.count,2);
+  assert.equal(model.observations.rawOutputIncluded,false);
+  assert.equal(model.verification.autoMerge,false);
+  assert.equal(model.tokenBudget.aggregatedEstimatedDeliveryTokens,20);
+  assert.equal(model.memoryLoop.loopPlan.contextBudget.estimatedDeliveryTokens,123);
+  const flowHtml=renderLoopWorkbenchMemoryFlow(model.memoryLoop);
+  assert.match(flowHtml,/80% token saving into loop plan/);
+  assert.match(flowHtml,/123 delivery tokens/);
+  assert.match(flowHtml,/mpq_loop_web/);
+  assert.match(flowHtml,/memfact_loop_web/);
+  assert.match(flowHtml,/Jun 26, 2026/);
+  assert.equal(model.stopReasons.includes('unrelated_changes'),true);
+  const app=await readFile('apps/web/app.js','utf8');
+  assert.match(app,/function renderLoopWorkbench/);
+  assert.match(app,/\/api\/loop\/workbench\?workspaceId=/);
+  assert.match(app,/Create plan context/);
 });
 
 test('context pack command copy copies the adjacent command text',async()=>{

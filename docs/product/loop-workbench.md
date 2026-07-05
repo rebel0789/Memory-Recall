@@ -63,7 +63,11 @@ policy gates before anything merges. Agent runs are trees, not log lines — the
 flight recorder records the parent run, sub-agent handoffs, tool calls, policy
 decisions, and outcomes required to replay and compare.
 
-This is a later slice. It is named here so the first slice is designed to feed it.
+The shipped primitive is a schema-validated verification report: an injected
+implementer changes an isolated worktree, a checker runs only the Loop Plan's
+validation commands, unrelated diffs block the proposal, replay mode disables
+side effects, and auto-merge stays off. This is not yet a scheduler or autonomous
+executor.
 
 ## Delivery slices
 
@@ -75,16 +79,27 @@ the whole product is done.
    Graph hints, and Context Pack / use-plan references. No executor, no command
    execution, no observation capture, no UI. Carries a `contextBudget`.
 2. **Slice 2 — Sanitized observation capture.** Record validation results and
-   loop events to the event ledger, redacted and read-only.
-3. **Slice 3 — Maker/checker verifier.** Implementer + verifier sub-agents under
-   the flight recorder; shadow run, compare, learning proposal.
-4. **Slice 4 — Scheduling / automation.** Loops that prompt you on a cadence
-   (triage, PR babysitter, CI sweeper) over the durable workflow runtime.
-5. **Slice 5 — Loop Workbench UI.** The `/loop-workbench` route, last.
+   loop events to the event ledger, redacted and bounded to the Loop Plan's own
+   validation commands.
+3. **Slice 3 — Maker/checker verifier.** A schema-backed report from an isolated
+   worktree, injected implementer, plan-limited checker commands, unrelated-diff
+   blocking, replay side-effect proof, flight-recorder events, and a blocked or
+   proposed human-reviewed proposal. No auto-merge.
+4. **Slice 4 — Scheduling / automation.** A bounded loop-run projection over the
+   durable workflow runtime: max iterations, timeout stop reasons, contextBudget
+   aggregation, durable history/resume proof, human approval gates, and opt-in
+   schedule prompt reports for triage, PR babysitter, and CI sweeper. No
+   background daemon.
+5. **Slice 5 — Loop Workbench UI.** The `/loop-workbench` route: dependency-free
+   web shell views over plan, runs, observations, verification, token budget,
+   stop reasons, and trace, backed by the local Control API read model.
 
-Two skills layer across all slices: an **Action-stage efficiency skill** (reuse
-before generate; smallest change that works) and an **Intent-stage clarification
-skill** (interrogate the objective before work begins).
+Two small instruction skills layer across all slices:
+`skill:loop-action-efficiency` for reuse-before-generate action work and
+`skill:loop-intent-clarification` for interrogating the objective before work
+begins. Loop-run reports now include structured maker/checker reasoning from
+those skills, including the reuse ladder, clarified plan fields, and observed
+stop reason. Both are read-only skill folders; they do not grant authority.
 
 ## Hard boundaries (apply to every slice until explicitly lifted)
 
@@ -99,7 +114,9 @@ skill** (interrogate the objective before work begins).
 
 ## What is not claimed
 
-Observation capture, proof summaries, reusable loop templates, the maker/checker
-verifier, scheduling automation, the web UI, and any autonomous executor are
-**specified and planned, not shipped**. Slice 1 delivers only the Loop Plan
-primitive.
+Proof summaries, reusable loop templates, and any autonomous executor are
+**specified and planned, not shipped**. The shipped native primitives are the
+Loop Plan generator, sanitized observation capture, maker/checker verification
+report, bounded loop-run projection with opt-in schedule prompt reports, and the
+`/loop-workbench` read surface. The shipped Loop Workbench skills are
+instruction-only procedures, not a runtime skill execution engine.

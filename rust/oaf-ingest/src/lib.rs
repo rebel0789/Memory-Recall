@@ -1,0 +1,3195 @@
+use anyhow::{bail, Context, Result};
+use ignore::{DirEntry, WalkBuilder};
+use oaf_store::{ActiveFactSnapshot, BatchFact, Supersedes};
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
+use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{mpsc, Arc};
+use std::thread;
+use std::time::Instant;
+use tree_sitter::{Language, Node, Parser};
+
+pub const DEFAULT_MAX_MEMORY_BYTES: u64 = 350 * 1024 * 1024;
+pub const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
+const PER_WORKER_MEMORY_BYTES: u64 = 64 * 1024 * 1024;
+
+#[derive(Debug, Clone)]
+pub struct IngestOptions {
+    pub root: PathBuf,
+    pub max_memory_bytes: u64,
+    pub max_file_bytes: u64,
+    pub workers: usize,
+    pub only_sources: Option<BTreeSet<String>>,
+}
+
+impl IngestOptions {
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self {
+            root: root.into(),
+            max_memory_bytes: DEFAULT_MAX_MEMORY_BYTES,
+            max_file_bytes: DEFAULT_MAX_FILE_BYTES,
+            workers: 1,
+            only_sources: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngestFileHash {
+    pub source: String,
+    pub sha256: String,
+    pub bytes: u64,
+}
+
+pub const CODE_MINHASH_K: usize = 64;
+
+#[derive(Debug, Clone)]
+pub struct CodeFingerprint {
+    pub subject: String,
+    pub source: String,
+    pub language: String,
+    pub minhash: [u64; CODE_MINHASH_K],
+    pub token_count: usize,
+    pub feature_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IngestReport {
+    pub scanned_file_count: usize,
+    pub parsed_file_count: usize,
+    pub skipped_file_count: usize,
+    pub generated_fact_count: usize,
+    pub generated_call_count: usize,
+    pub import_count: usize,
+    pub definition_count: usize,
+    pub parsed_bytes: u64,
+    pub requested_worker_count: usize,
+    pub effective_worker_count: usize,
+    pub cgroup_memory_limit_bytes: Option<u64>,
+    pub elapsed_ms: u128,
+    pub skipped_files: Vec<SkippedFile>,
+    #[serde(skip)]
+    pub facts: Vec<BatchFact>,
+    pub language_counts: BTreeMap<String, usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DocumentIngestReport {
+    pub scanned_file_count: usize,
+    pub parsed_file_count: usize,
+    pub skipped_file_count: usize,
+    pub generated_fact_count: usize,
+    pub generated_decision_count: usize,
+    pub generated_supersession_count: usize,
+    pub parsed_bytes: u64,
+    pub elapsed_ms: u128,
+    pub skipped_files: Vec<SkippedFile>,
+    #[serde(skip)]
+    pub facts: Vec<BatchFact>,
+    pub format_counts: BTreeMap<String, usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkippedFile {
+    pub workspace_ref: String,
+    pub reason: String,
+    pub bytes: u64,
+}
+
+#[derive(Debug, Clone)]
+struct ParsedRepo {
+    facts: BTreeSet<FactKey>,
+    calls: Vec<CallRef>,
+    imports: Vec<ImportRef>,
+    routes: Vec<RouteRef>,
+    definitions_by_name: BTreeMap<String, BTreeSet<String>>,
+    package_entries: BTreeMap<String, String>,
+    generated_call_count: usize,
+    import_count: usize,
+    definition_count: usize,
+}
+
+impl ParsedRepo {
+    fn new() -> Self {
+        Self {
+            facts: BTreeSet::new(),
+            calls: Vec::new(),
+            imports: Vec::new(),
+            routes: Vec::new(),
+            definitions_by_name: BTreeMap::new(),
+            package_entries: BTreeMap::new(),
+            generated_call_count: 0,
+            import_count: 0,
+            definition_count: 0,
+        }
+    }
+
+    fn add_entity(
+        &mut self,
+        subject: String,
+        kind: &'static str,
+        source: &str,
+        note: &'static str,
+    ) {
+        self.add_fact(subject, "IS_A", kind.to_string(), source, note);
+    }
+
+    fn add_definition(&mut self, owner: &str, symbol: &str, source: &str, note: &'static str) {
+        self.definition_count += 1;
+        self.add_fact(
+            owner.to_string(),
+            "DEFINES",
+            symbol.to_string(),
+            source,
+            note,
+        );
+    }
+
+    fn add_import(&mut self, owner: &str, target: ImportTarget, source: &str) {
+        self.import_count += 1;
+        self.add_entity(
+            target.fallback.clone(),
+            "Module",
+            source,
+            "oaf.ingest:import-module",
+        );
+        self.add_fact(
+            owner.to_string(),
+            "IMPORTS",
+            target.fallback.clone(),
+            source,
+            "oaf.ingest:import",
+        );
+        self.imports.push(ImportRef {
+            owner: owner.to_string(),
+            raw: target.raw,
+            fallback: target.fallback,
+            source: source.to_string(),
+        });
+    }
+
+    fn add_fact(
+        &mut self,
+        subject: String,
+        predicate: &'static str,
+        object: String,
+        source: &str,
+        note: &'static str,
+    ) {
+        self.facts.insert(FactKey {
+            subject,
+            predicate: predicate.to_string(),
+            object,
+            source: source.to_string(),
+            note: note.to_string(),
+        });
+    }
+
+    fn add_symbol_name(&mut self, name: &str, subject: &str) {
+        self.definitions_by_name
+            .entry(name.to_string())
+            .or_default()
+            .insert(subject.to_string());
+    }
+
+    fn add_call_with_hint(
+        &mut self,
+        caller: &str,
+        callee_name: &str,
+        typed_target: Option<TypedCallHint>,
+        source: &str,
+    ) {
+        if callee_name.is_empty()
+            || matches!(
+                callee_name,
+                "require" | "super" | "return" | "exit" | "export" | "local" | "echo"
+            )
+        {
+            return;
+        }
+        self.generated_call_count += 1;
+        self.calls.push(CallRef {
+            caller: caller.to_string(),
+            callee_name: callee_name.to_string(),
+            typed_target,
+            source: source.to_string(),
+        });
+    }
+
+    fn finish(mut self) -> Vec<BatchFact> {
+        let imports = std::mem::take(&mut self.imports);
+        for import in imports {
+            if let Some(target) = self.resolve_import_target(&import) {
+                if target != import.fallback {
+                    self.add_entity(
+                        target.clone(),
+                        "Module",
+                        &import.source,
+                        "oaf.ingest:resolved-import-module",
+                    );
+                    self.add_fact(
+                        import.owner,
+                        "IMPORTS",
+                        target,
+                        &import.source,
+                        "oaf.ingest:resolved-import",
+                    );
+                }
+            }
+        }
+
+        let routes = std::mem::take(&mut self.routes);
+        for route in routes {
+            let route_id = route_id(&route.method, &route.path);
+            self.add_entity(route_id.clone(), "Route", &route.source, "oaf.ingest:route");
+            self.add_fact(
+                route_id.clone(),
+                "HAS_METHOD",
+                format!("method={}", route.method),
+                &route.source,
+                route.note,
+            );
+            self.add_fact(
+                route_id.clone(),
+                "HAS_PATH",
+                format!("path={}", route.path),
+                &route.source,
+                route.note,
+            );
+            if let Some(handler) = self.resolve_route_handler(&route) {
+                self.add_fact(handler, "HANDLES", route_id, &route.source, route.note);
+            }
+        }
+
+        let calls = std::mem::take(&mut self.calls);
+        for call in calls {
+            let (target, note) = self.resolve_call(&call);
+            if !self.has_definition_subject(&target) {
+                self.add_entity(
+                    target.clone(),
+                    symbol_kind(&target),
+                    &call.source,
+                    "oaf.ingest:call-target",
+                );
+            }
+            self.add_fact(call.caller, "CALLS", target, &call.source, note);
+        }
+        self.facts
+            .into_iter()
+            .map(FactKey::into_batch_fact)
+            .collect()
+    }
+
+    fn resolve_import_target(&self, import: &ImportRef) -> Option<String> {
+        let source_rel = import
+            .source
+            .strip_prefix("workspace://")
+            .unwrap_or(&import.source);
+        resolve_relative_import(source_rel, &import.raw)
+            .or_else(|| resolve_package_import(&self.package_entries, &import.raw))
+            .map(|stem| format!("module:{}", module_token(&stem)))
+    }
+
+    fn resolve_route_handler(&self, route: &RouteRef) -> Option<String> {
+        if let Some(subject) = route.handler_subject.as_deref() {
+            return Some(subject.to_string());
+        }
+        route
+            .handler_name
+            .as_deref()
+            .and_then(|name| self.resolve_exact_symbol_name(name))
+    }
+
+    fn resolve_call(&self, call: &CallRef) -> (String, &'static str) {
+        if let Some(hint) = call.typed_target.as_ref() {
+            if let Some(target) = self.resolve_exact_symbol_name(&hint.target_name) {
+                return (target, hint.note);
+            }
+        }
+        (
+            self.resolve_call_target(&call.callee_name),
+            "oaf.ingest:call",
+        )
+    }
+
+    fn resolve_exact_symbol_name(&self, name: &str) -> Option<String> {
+        let name = sanitize_symbol(name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        if subjects.len() == 1 {
+            return subjects.iter().next().cloned();
+        }
+        subjects
+            .iter()
+            .find(|subject| subject.starts_with("method:"))
+            .cloned()
+    }
+
+    fn resolve_call_target(&self, callee_name: &str) -> String {
+        let name = sanitize_symbol(callee_name).unwrap_or_else(|| "unknown".to_string());
+        match self.definitions_by_name.get(&name) {
+            Some(subjects) if subjects.len() == 1 => subjects.iter().next().cloned().unwrap(),
+            Some(subjects) => subjects
+                .iter()
+                .find(|subject| subject.starts_with("function:"))
+                .cloned()
+                .or_else(|| subjects.iter().next().cloned())
+                .unwrap_or_else(|| format!("function:{name}")),
+            None => format!("function:{name}"),
+        }
+    }
+
+    fn has_definition_subject(&self, subject: &str) -> bool {
+        self.definitions_by_name
+            .values()
+            .any(|subjects| subjects.contains(subject))
+    }
+
+    fn merge(&mut self, other: ParsedRepo) {
+        self.facts.extend(other.facts);
+        self.calls.extend(other.calls);
+        self.imports.extend(other.imports);
+        self.routes.extend(other.routes);
+        for (name, subjects) in other.definitions_by_name {
+            self.definitions_by_name
+                .entry(name)
+                .or_default()
+                .extend(subjects);
+        }
+        self.package_entries.extend(other.package_entries);
+        self.generated_call_count += other.generated_call_count;
+        self.import_count += other.import_count;
+        self.definition_count += other.definition_count;
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ImportTarget {
+    raw: String,
+    fallback: String,
+}
+
+#[derive(Debug, Clone)]
+struct ImportRef {
+    owner: String,
+    raw: String,
+    fallback: String,
+    source: String,
+}
+
+#[derive(Debug, Clone)]
+struct RouteRef {
+    method: String,
+    path: String,
+    handler_subject: Option<String>,
+    handler_name: Option<String>,
+    source: String,
+    note: &'static str,
+}
+
+#[derive(Debug, Clone)]
+struct CallRef {
+    caller: String,
+    callee_name: String,
+    typed_target: Option<TypedCallHint>,
+    source: String,
+}
+
+#[derive(Debug, Clone)]
+struct TypedCallHint {
+    target_name: String,
+    note: &'static str,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+struct FactKey {
+    subject: String,
+    predicate: String,
+    object: String,
+    source: String,
+    note: String,
+}
+
+impl FactKey {
+    fn into_batch_fact(self) -> BatchFact {
+        BatchFact {
+            subject: self.subject,
+            predicate: self.predicate,
+            object: self.object,
+            source: self.source,
+            source_trust: None,
+            confidence: Some("extracted".to_string()),
+            notes: Some(self.note),
+            supersedes: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+enum LangKind {
+    JavaScript,
+    TypeScript,
+    Tsx,
+    Python,
+    Rust,
+    Go,
+    Java,
+    C,
+    Cpp,
+    Ruby,
+    Php,
+    CSharp,
+    Swift,
+    Kotlin,
+    Lua,
+    Bash,
+    Sql,
+    ObjectiveC,
+    Scala,
+    Dart,
+    R,
+    Julia,
+    Zig,
+}
+
+impl LangKind {
+    fn group(self) -> &'static str {
+        match self {
+            LangKind::JavaScript => "javascript-jsx",
+            LangKind::TypeScript | LangKind::Tsx => "typescript-tsx",
+            LangKind::Python => "python",
+            LangKind::Rust => "rust",
+            LangKind::Go => "go",
+            LangKind::Java => "java",
+            LangKind::C => "c",
+            LangKind::Cpp => "cpp",
+            LangKind::Ruby => "ruby",
+            LangKind::Php => "php",
+            LangKind::CSharp => "csharp",
+            LangKind::Swift => "swift",
+            LangKind::Kotlin => "kotlin",
+            LangKind::Lua => "lua",
+            LangKind::Bash => "bash",
+            LangKind::Sql => "sql",
+            LangKind::ObjectiveC => "objective-c",
+            LangKind::Scala => "scala",
+            LangKind::Dart => "dart",
+            LangKind::R => "r",
+            LangKind::Julia => "julia",
+            LangKind::Zig => "zig",
+        }
+    }
+
+    fn language(self) -> Language {
+        match self {
+            LangKind::JavaScript => tree_sitter_javascript::LANGUAGE.into(),
+            LangKind::TypeScript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            LangKind::Tsx => tree_sitter_typescript::LANGUAGE_TSX.into(),
+            LangKind::Python => tree_sitter_python::LANGUAGE.into(),
+            LangKind::Rust => tree_sitter_rust::LANGUAGE.into(),
+            LangKind::Go => tree_sitter_go::LANGUAGE.into(),
+            LangKind::Java => tree_sitter_java::LANGUAGE.into(),
+            LangKind::C => tree_sitter_c::LANGUAGE.into(),
+            LangKind::Cpp => tree_sitter_cpp::LANGUAGE.into(),
+            LangKind::Ruby => tree_sitter_ruby::LANGUAGE.into(),
+            LangKind::Php => tree_sitter_php::LANGUAGE_PHP.into(),
+            LangKind::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
+            LangKind::Swift => tree_sitter_swift::LANGUAGE.into(),
+            LangKind::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
+            LangKind::Lua => tree_sitter_lua::LANGUAGE.into(),
+            LangKind::Bash => tree_sitter_bash::LANGUAGE.into(),
+            LangKind::Sql => tree_sitter_sequel::LANGUAGE.into(),
+            LangKind::ObjectiveC => tree_sitter_objc::LANGUAGE.into(),
+            LangKind::Scala => tree_sitter_scala::LANGUAGE.into(),
+            LangKind::Dart => tree_sitter_dart::LANGUAGE.into(),
+            LangKind::R => tree_sitter_r::LANGUAGE.into(),
+            LangKind::Julia => tree_sitter_julia::LANGUAGE.into(),
+            LangKind::Zig => tree_sitter_zig::LANGUAGE.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct WalkContext {
+    module: String,
+    source: String,
+    lang: LangKind,
+    class_name: Option<String>,
+    impl_name: Option<String>,
+    caller: Option<String>,
+    type_bindings: BTreeMap<String, String>,
+}
+
+pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
+    let started = Instant::now();
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "ingest root must point at a local workspace directory: {}",
+            options.root.display()
+        )
+    })?;
+    let requested_worker_count = options.workers.max(1);
+    let cgroup_memory_limit_bytes = cgroup_memory_limit_bytes();
+    let effective_worker_count = effective_worker_count(
+        requested_worker_count,
+        options.max_memory_bytes,
+        cgroup_memory_limit_bytes,
+    );
+    let package_entries = scan_package_entries(&root)?;
+    let (jobs, mut skipped_files, scanned_file_count) = discover_jobs(&root, options)?;
+    let results = parse_jobs(jobs, effective_worker_count)?;
+    let mut parsed = ParsedRepo::new();
+    parsed.package_entries = package_entries;
+    let mut parsed_file_count = 0usize;
+    let mut parsed_bytes = 0u64;
+    let mut language_counts = BTreeMap::new();
+
+    for result in results {
+        parsed_bytes += result.bytes_read;
+        if let Some(skipped) = result.skipped {
+            skipped_files.push(skipped);
+            continue;
+        }
+        if let Some(file_parsed) = result.parsed {
+            parsed.merge(file_parsed);
+            parsed_file_count += 1;
+            *language_counts
+                .entry(result.lang.group().to_string())
+                .or_insert(0) += 1;
+        }
+    }
+
+    let generated_call_count = parsed.generated_call_count;
+    let import_count = parsed.import_count;
+    let definition_count = parsed.definition_count;
+    let facts = parsed.finish();
+    Ok(IngestReport {
+        scanned_file_count,
+        parsed_file_count,
+        skipped_file_count: skipped_files.len(),
+        generated_fact_count: facts.len(),
+        generated_call_count,
+        import_count,
+        definition_count,
+        parsed_bytes,
+        requested_worker_count,
+        effective_worker_count,
+        cgroup_memory_limit_bytes,
+        elapsed_ms: started.elapsed().as_millis(),
+        skipped_files,
+        facts,
+        language_counts,
+    })
+}
+
+pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHash>> {
+    let (jobs, _skipped, _scanned) = discover_jobs(&options.root, options)?;
+    let mut hashes = Vec::with_capacity(jobs.len());
+    for job in jobs {
+        let bytes = fs::read(&job.path).with_context(|| format!("read {}", job.source))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        hashes.push(IngestFileHash {
+            source: job.source,
+            sha256: hex::encode(hasher.finalize()),
+            bytes: bytes.len() as u64,
+        });
+    }
+    Ok(hashes)
+}
+
+pub fn extract_code_fingerprints(options: &IngestOptions) -> Result<Vec<CodeFingerprint>> {
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "fingerprint root must point at a local workspace directory: {}",
+            options.root.display()
+        )
+    })?;
+    let (jobs, _skipped_files, _scanned_file_count) = discover_jobs(&root, options)?;
+    let mut fingerprints = Vec::new();
+    for job in jobs {
+        fingerprints.extend(extract_file_fingerprints(job)?);
+    }
+    fingerprints.sort_by(|left, right| {
+        left.subject
+            .cmp(&right.subject)
+            .then_with(|| left.source.cmp(&right.source))
+    });
+    Ok(fingerprints)
+}
+
+pub fn retirement_facts(active: &[ActiveFactSnapshot], extracted: &[BatchFact]) -> Vec<BatchFact> {
+    let current = extracted
+        .iter()
+        .map(|fact| {
+            (
+                fact.subject.as_str(),
+                fact.predicate.as_str(),
+                fact.object.as_str(),
+                fact.source.as_str(),
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    active
+        .iter()
+        .filter(|fact| {
+            !current.contains(&(
+                fact.subject.as_str(),
+                fact.predicate.as_str(),
+                fact.object.as_str(),
+                fact.source.as_str(),
+            ))
+        })
+        .map(|fact| BatchFact {
+            subject: fact.subject.clone(),
+            predicate: fact.predicate.clone(),
+            object: format!("retired_{}", short_hash(&fact.object)),
+            source: fact.source.clone(),
+            source_trust: None,
+            confidence: Some("extracted".to_string()),
+            notes: Some("oaf.ingest:retired".to_string()),
+            supersedes: Some(Supersedes {
+                subject: fact.subject.clone(),
+                predicate: fact.predicate.clone(),
+                object: Some(fact.object.clone()),
+            }),
+        })
+        .collect()
+}
+
+pub fn report_quality_fields(report: &IngestReport) -> Value {
+    json!({
+        "scannedFileCount": report.scanned_file_count,
+        "parsedFileCount": report.parsed_file_count,
+        "skippedFileCount": report.skipped_file_count,
+        "generatedFactCount": report.generated_fact_count,
+        "generatedCallCount": report.generated_call_count,
+        "definitionCount": report.definition_count,
+        "importCount": report.import_count,
+        "parsedBytes": report.parsed_bytes,
+        "requestedWorkerCount": report.requested_worker_count,
+        "effectiveWorkerCount": report.effective_worker_count,
+        "cgroupMemoryLimitBytes": report.cgroup_memory_limit_bytes,
+        "elapsedMs": report.elapsed_ms,
+        "languageCounts": report.language_counts,
+        "skippedFiles": report.skipped_files
+    })
+}
+
+#[derive(Debug, Clone)]
+struct FileJob {
+    index: usize,
+    path: PathBuf,
+    rel: String,
+    source: String,
+    lang: LangKind,
+    bytes: u64,
+}
+
+#[derive(Debug)]
+struct FileParse {
+    index: usize,
+    lang: LangKind,
+    bytes_read: u64,
+    parsed: Option<ParsedRepo>,
+    skipped: Option<SkippedFile>,
+}
+
+fn discover_jobs(
+    root: &Path,
+    options: &IngestOptions,
+) -> Result<(Vec<FileJob>, Vec<SkippedFile>, usize)> {
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+
+    let mut candidates = Vec::new();
+    let mut skipped_files = Vec::new();
+    let mut scanned_file_count = 0usize;
+    for entry in builder.build() {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                skipped_files.push(SkippedFile {
+                    workspace_ref: "workspace://.".to_string(),
+                    reason: format!("walk error: {error}"),
+                    bytes: 0,
+                });
+                continue;
+            }
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(lang) = language_for_path(path) else {
+            continue;
+        };
+        scanned_file_count += 1;
+        let rel = workspace_rel(root, path)?;
+        let source = format!("workspace://{rel}");
+        if options
+            .only_sources
+            .as_ref()
+            .is_some_and(|sources| !sources.contains(&source))
+        {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {source}"))?;
+        let bytes = metadata.len();
+        if bytes > options.max_file_bytes {
+            skipped_files.push(SkippedFile {
+                workspace_ref: source,
+                reason: "file exceeds max-file-bytes and was not truncated".to_string(),
+                bytes,
+            });
+            continue;
+        }
+        let canonical = path
+            .canonicalize()
+            .with_context(|| format!("canonicalize {source}"))?;
+        if !canonical.starts_with(root) {
+            skipped_files.push(SkippedFile {
+                workspace_ref: source,
+                reason: "path resolves outside workspace root".to_string(),
+                bytes,
+            });
+            continue;
+        }
+        candidates.push(FileJob {
+            index: 0,
+            path: canonical,
+            rel,
+            source,
+            lang,
+            bytes,
+        });
+    }
+
+    candidates.sort_by(|left, right| left.rel.cmp(&right.rel));
+    let mut jobs = Vec::new();
+    let mut planned_bytes = 0u64;
+    for mut candidate in candidates {
+        if planned_bytes.saturating_add(candidate.bytes) > options.max_memory_bytes {
+            skipped_files.push(SkippedFile {
+                workspace_ref: candidate.source,
+                reason: "max-memory cap reached before reading file".to_string(),
+                bytes: candidate.bytes,
+            });
+            continue;
+        }
+        planned_bytes += candidate.bytes;
+        candidate.index = jobs.len();
+        jobs.push(candidate);
+    }
+    Ok((jobs, skipped_files, scanned_file_count))
+}
+
+pub fn extract_documents(options: &IngestOptions) -> Result<DocumentIngestReport> {
+    let started = Instant::now();
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "canonicalize document ingest root {}",
+            options.root.display()
+        )
+    })?;
+    let (jobs, mut skipped_files, scanned_file_count) = discover_document_jobs(&root, options)?;
+    let mut facts = Vec::new();
+    let mut parsed_file_count = 0usize;
+    let mut parsed_bytes = 0u64;
+    let mut generated_decision_count = 0usize;
+    let mut format_counts = BTreeMap::new();
+
+    for job in jobs {
+        let text = match job.kind {
+            DocumentKind::Pdf => match pdf_extract::extract_text(&job.path) {
+                Ok(text) => text,
+                Err(error) => {
+                    skipped_files.push(SkippedFile {
+                        workspace_ref: job.source,
+                        reason: format!("pdf text extraction failed: {error}"),
+                        bytes: job.bytes,
+                    });
+                    continue;
+                }
+            },
+            DocumentKind::Markdown | DocumentKind::Text => match fs::read_to_string(&job.path) {
+                Ok(text) => text,
+                Err(error) => {
+                    skipped_files.push(SkippedFile {
+                        workspace_ref: job.source,
+                        reason: format!("read document failed: {error}"),
+                        bytes: job.bytes,
+                    });
+                    continue;
+                }
+            },
+        };
+        parsed_file_count += 1;
+        parsed_bytes += job.bytes;
+        *format_counts
+            .entry(job.kind.name().to_string())
+            .or_insert(0) += 1;
+        let before = facts.len();
+        let stats = parse_document_text(&job, &text, &mut facts);
+        generated_decision_count += stats.decision_count;
+        if facts.len() == before {
+            push_doc_fact(
+                &mut facts,
+                doc_subject(&job.rel),
+                "HAS_CONTENT",
+                format!("empty {}", job.kind.name()),
+                &job.source,
+                "oaf.ingest:doc-empty; lines=0-0".to_string(),
+                None,
+            );
+        }
+    }
+
+    facts.sort_by(|left, right| {
+        left.subject
+            .cmp(&right.subject)
+            .then_with(|| left.predicate.cmp(&right.predicate))
+            .then_with(|| left.object.cmp(&right.object))
+            .then_with(|| left.source.cmp(&right.source))
+    });
+    facts.dedup_by(|left, right| {
+        left.subject == right.subject
+            && left.predicate == right.predicate
+            && left.object == right.object
+            && left.source == right.source
+    });
+    let generated_supersession_count = facts
+        .iter()
+        .filter(|fact| fact.supersedes.is_some())
+        .count();
+    Ok(DocumentIngestReport {
+        scanned_file_count,
+        parsed_file_count,
+        skipped_file_count: skipped_files.len(),
+        generated_fact_count: facts.len(),
+        generated_decision_count,
+        generated_supersession_count,
+        parsed_bytes,
+        elapsed_ms: started.elapsed().as_millis(),
+        skipped_files,
+        facts,
+        format_counts,
+    })
+}
+
+#[derive(Debug, Clone)]
+struct DocumentJob {
+    path: PathBuf,
+    rel: String,
+    source: String,
+    kind: DocumentKind,
+    bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DocumentKind {
+    Markdown,
+    Text,
+    Pdf,
+}
+
+impl DocumentKind {
+    fn name(self) -> &'static str {
+        match self {
+            DocumentKind::Markdown => "markdown",
+            DocumentKind::Text => "text",
+            DocumentKind::Pdf => "pdf",
+        }
+    }
+
+    fn entity_kind(self, rel: &str) -> &'static str {
+        if is_adr_source(rel) {
+            "ADR"
+        } else {
+            match self {
+                DocumentKind::Markdown | DocumentKind::Text => "Document",
+                DocumentKind::Pdf => "PDF",
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct DocumentParseStats {
+    decision_count: usize,
+}
+
+fn discover_document_jobs(
+    root: &Path,
+    options: &IngestOptions,
+) -> Result<(Vec<DocumentJob>, Vec<SkippedFile>, usize)> {
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+
+    let mut candidates = Vec::new();
+    let mut skipped_files = Vec::new();
+    let mut scanned_file_count = 0usize;
+    for entry in builder.build() {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(error) => {
+                skipped_files.push(SkippedFile {
+                    workspace_ref: "workspace://.".to_string(),
+                    reason: format!("walk error: {error}"),
+                    bytes: 0,
+                });
+                continue;
+            }
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(kind) = document_kind_for_path(path) else {
+            continue;
+        };
+        scanned_file_count += 1;
+        let rel = workspace_rel(root, path)?;
+        let source = format!("workspace://{rel}");
+        if options
+            .only_sources
+            .as_ref()
+            .is_some_and(|sources| !sources.contains(&source))
+        {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {source}"))?;
+        let bytes = metadata.len();
+        if bytes > options.max_file_bytes {
+            skipped_files.push(SkippedFile {
+                workspace_ref: source,
+                reason: "file exceeds max-file-bytes and was not truncated".to_string(),
+                bytes,
+            });
+            continue;
+        }
+        let canonical = path
+            .canonicalize()
+            .with_context(|| format!("canonicalize {source}"))?;
+        if !canonical.starts_with(root) {
+            skipped_files.push(SkippedFile {
+                workspace_ref: source,
+                reason: "path resolves outside workspace root".to_string(),
+                bytes,
+            });
+            continue;
+        }
+        candidates.push(DocumentJob {
+            path: canonical,
+            rel,
+            source,
+            kind,
+            bytes,
+        });
+    }
+    candidates.sort_by(|left, right| left.rel.cmp(&right.rel));
+    let mut jobs = Vec::new();
+    let mut planned_bytes = 0u64;
+    for candidate in candidates {
+        if planned_bytes.saturating_add(candidate.bytes) > options.max_memory_bytes {
+            skipped_files.push(SkippedFile {
+                workspace_ref: candidate.source,
+                reason: "max-memory cap reached before reading file".to_string(),
+                bytes: candidate.bytes,
+            });
+            continue;
+        }
+        planned_bytes += candidate.bytes;
+        jobs.push(candidate);
+    }
+    Ok((jobs, skipped_files, scanned_file_count))
+}
+
+fn document_kind_for_path(path: &Path) -> Option<DocumentKind> {
+    match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "md" | "markdown" | "mdx" => Some(DocumentKind::Markdown),
+        "txt" | "text" => Some(DocumentKind::Text),
+        "pdf" => Some(DocumentKind::Pdf),
+        _ => None,
+    }
+}
+
+fn parse_document_text(
+    job: &DocumentJob,
+    text: &str,
+    facts: &mut Vec<BatchFact>,
+) -> DocumentParseStats {
+    let doc = doc_subject(&job.rel);
+    let mut stats = DocumentParseStats::default();
+    push_doc_fact(
+        facts,
+        doc.clone(),
+        "IS_A",
+        job.kind.entity_kind(&job.rel).to_string(),
+        &job.source,
+        "oaf.ingest:doc-entity; lines=1-1".to_string(),
+        None,
+    );
+    if is_adr_source(&job.rel) {
+        let decision = decision_subject(&job.rel);
+        stats.decision_count += 1;
+        push_doc_fact(
+            facts,
+            decision.clone(),
+            "IS_A",
+            "Decision".to_string(),
+            &job.source,
+            "oaf.ingest:adr-decision; lines=1-1".to_string(),
+            None,
+        );
+        push_doc_fact(
+            facts,
+            doc.clone(),
+            "DEFINES",
+            decision,
+            &job.source,
+            "oaf.ingest:adr-defines; lines=1-1".to_string(),
+            None,
+        );
+    }
+
+    let mut current_heading = String::new();
+    let mut snippet_count = 0usize;
+    let mut decision_heading_line = None;
+    for (index, raw_line) in text.lines().enumerate() {
+        let line_no = index + 1;
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(title) = markdown_heading(line) {
+            current_heading = title.to_string();
+            let section = format!("section:{}:{}", stable_token(&doc), stable_token(title));
+            push_doc_fact(
+                facts,
+                section.clone(),
+                "IS_A",
+                "Section".to_string(),
+                &job.source,
+                format!("oaf.ingest:doc-section; lines={line_no}-{line_no}"),
+                None,
+            );
+            if let Some(object) = safe_doc_object(title) {
+                push_doc_fact(
+                    facts,
+                    section.clone(),
+                    "HAS_TITLE",
+                    object,
+                    &job.source,
+                    format!("oaf.ingest:doc-heading; lines={line_no}-{line_no}"),
+                    None,
+                );
+            }
+            push_doc_fact(
+                facts,
+                section,
+                "PART_OF",
+                doc.clone(),
+                &job.source,
+                format!("oaf.ingest:doc-section-parent; lines={line_no}-{line_no}"),
+                None,
+            );
+            if is_decision_heading(title) {
+                decision_heading_line = Some(line_no);
+            }
+            continue;
+        }
+
+        if is_adr_source(&job.rel) {
+            parse_adr_line(job, line, line_no, decision_heading_line, facts, &mut stats);
+        }
+
+        if snippet_count < 64 {
+            let cleaned = line
+                .trim_start_matches(['-', '*', '+', '>', ' '])
+                .trim_start_matches(|ch: char| ch.is_ascii_digit() || ch == '.')
+                .trim();
+            if cleaned.len() >= 12 {
+                if let Some(object) = safe_doc_object(cleaned) {
+                    let predicate = if current_heading.is_empty() {
+                        "HAS_CONTENT"
+                    } else {
+                        "MENTIONS"
+                    };
+                    push_doc_fact(
+                        facts,
+                        doc.clone(),
+                        predicate,
+                        object,
+                        &job.source,
+                        format!("oaf.ingest:doc-snippet; lines={line_no}-{line_no}"),
+                        None,
+                    );
+                    snippet_count += 1;
+                }
+            }
+        }
+    }
+    stats
+}
+
+fn parse_adr_line(
+    job: &DocumentJob,
+    line: &str,
+    line_no: usize,
+    decision_heading_line: Option<usize>,
+    facts: &mut Vec<BatchFact>,
+    stats: &mut DocumentParseStats,
+) {
+    let decision = decision_subject(&job.rel);
+    if let Some(value) = field_value(line, "status") {
+        if let Some(object) = safe_doc_object(value) {
+            push_doc_fact(
+                facts,
+                decision.clone(),
+                "HAS_STATUS",
+                object,
+                &job.source,
+                format!("oaf.ingest:adr-status; lines={line_no}-{line_no}"),
+                None,
+            );
+        }
+    }
+    if let Some(value) = field_value(line, "decision") {
+        if let Some(object) = safe_doc_object(value) {
+            stats.decision_count += 1;
+            push_doc_fact(
+                facts,
+                decision.clone(),
+                "DECISION",
+                object,
+                &job.source,
+                format!("oaf.ingest:adr-decision-text; lines={line_no}-{line_no}"),
+                None,
+            );
+        }
+    } else if decision_heading_line
+        .is_some_and(|heading_line| line_no > heading_line && line_no <= heading_line + 6)
+    {
+        if let Some(object) = safe_doc_object(line) {
+            stats.decision_count += 1;
+            push_doc_fact(
+                facts,
+                decision.clone(),
+                "DECISION",
+                object,
+                &job.source,
+                format!("oaf.ingest:adr-decision-text; lines={line_no}-{line_no}"),
+                None,
+            );
+        }
+    }
+    if let Some(value) = field_value(line, "supersedes").or_else(|| field_value(line, "replaces")) {
+        for old in split_references(value) {
+            add_decision_supersession(job, &decision, &old, line_no, facts);
+        }
+    } else if line.to_ascii_lowercase().contains("supersedes") {
+        for old in split_references(line) {
+            if normalize_decision_ref(&old) != decision {
+                add_decision_supersession(job, &decision, &old, line_no, facts);
+            }
+        }
+    }
+}
+
+fn add_decision_supersession(
+    job: &DocumentJob,
+    decision: &str,
+    old: &str,
+    line_no: usize,
+    facts: &mut Vec<BatchFact>,
+) {
+    let old_decision = normalize_decision_ref(old);
+    if old_decision == decision {
+        return;
+    }
+    push_doc_fact(
+        facts,
+        decision.to_string(),
+        "SUPERSEDES",
+        old_decision.clone(),
+        &job.source,
+        format!("oaf.ingest:adr-supersedes; lines={line_no}-{line_no}"),
+        None,
+    );
+    push_doc_fact(
+        facts,
+        old_decision.clone(),
+        "HAS_STATUS",
+        format!("retired_by_{}", stable_token(decision)),
+        &job.source,
+        format!("oaf.ingest:adr-retired; lines={line_no}-{line_no}"),
+        Some(Supersedes {
+            subject: old_decision,
+            predicate: "HAS_STATUS".to_string(),
+            object: None,
+        }),
+    );
+}
+
+fn markdown_heading(line: &str) -> Option<&str> {
+    let trimmed = line.trim_start();
+    let level = trimmed.chars().take_while(|ch| *ch == '#').count();
+    if (1..=6).contains(&level) && trimmed.chars().nth(level) == Some(' ') {
+        Some(trimmed[level..].trim())
+    } else {
+        None
+    }
+}
+
+fn field_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {
+    let trimmed = line
+        .trim_start_matches(['-', '*', '+', ' '])
+        .trim_start_matches(|ch: char| ch.is_ascii_digit() || ch == '.')
+        .trim();
+    let (left, right) = trimmed.split_once(':')?;
+    if left.trim().eq_ignore_ascii_case(key) {
+        Some(right.trim())
+    } else {
+        None
+    }
+}
+
+fn split_references(value: &str) -> Vec<String> {
+    value
+        .split(|ch: char| ch == ',' || ch == ';' || ch.is_whitespace())
+        .filter_map(|part| {
+            let clean = part
+                .trim_matches(|ch: char| {
+                    !(ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == ':')
+                })
+                .trim();
+            let lower = clean.to_ascii_lowercase();
+            if clean.len() >= 3
+                && lower != "supersedes"
+                && lower != "replaces"
+                && (lower.contains("adr")
+                    || lower.contains("decision")
+                    || clean.chars().any(|ch| ch.is_ascii_digit()))
+            {
+                Some(clean.to_string())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn is_decision_heading(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower == "decision" || lower == "decisions" || lower.contains("decision")
+}
+
+fn is_adr_source(rel: &str) -> bool {
+    let lower = rel.to_ascii_lowercase();
+    lower.contains("/adr/")
+        || lower.starts_with("adr/")
+        || lower.contains("decision")
+        || lower.contains("/architecture/")
+}
+
+fn doc_subject(rel: &str) -> String {
+    format!("doc:{}", stable_token(rel.trim_end_matches(".md")))
+}
+
+fn decision_subject(rel: &str) -> String {
+    let stem = Path::new(rel)
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or(rel);
+    normalize_decision_ref(stem)
+}
+
+fn normalize_decision_ref(value: &str) -> String {
+    let clean = value
+        .trim()
+        .trim_start_matches("workspace://")
+        .trim_end_matches(".md")
+        .trim_end_matches(".markdown");
+    let token = if clean.starts_with("decision:") {
+        stable_token(clean.trim_start_matches("decision:"))
+    } else {
+        stable_token(clean)
+    };
+    format!("decision:{token}")
+}
+
+fn stable_token(value: &str) -> String {
+    let mut out = String::new();
+    let mut last_was_sep = false;
+    for ch in value.chars() {
+        let next = if ch.is_ascii_alphanumeric() {
+            last_was_sep = false;
+            Some(ch.to_ascii_lowercase())
+        } else if !last_was_sep {
+            last_was_sep = true;
+            Some('_')
+        } else {
+            None
+        };
+        if let Some(ch) = next {
+            out.push(ch);
+        }
+        if out.len() >= 80 {
+            break;
+        }
+    }
+    let out = out.trim_matches('_').to_string();
+    if out.is_empty() {
+        format!("item_{}", short_hash(value))
+    } else {
+        out
+    }
+}
+
+fn safe_doc_object(value: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut last_space = false;
+    for ch in value
+        .trim()
+        .trim_matches(['`', '"', '\'', '*', '_', '[', ']'])
+        .chars()
+    {
+        let allowed = ch.is_ascii_alphanumeric()
+            || matches!(
+                ch,
+                ' ' | '_' | '.' | ':' | '/' | '=' | ',' | ';' | '(' | ')' | '\'' | '-'
+            );
+        if allowed {
+            if ch.is_whitespace() {
+                if !last_space {
+                    out.push(' ');
+                }
+                last_space = true;
+            } else {
+                out.push(ch);
+                last_space = false;
+            }
+        } else if !last_space {
+            out.push(' ');
+            last_space = true;
+        }
+        if out.len() >= 220 {
+            break;
+        }
+    }
+    let out = out
+        .trim()
+        .trim_end_matches(['.', ';', ':', ','])
+        .trim()
+        .to_string();
+    if out
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_alphanumeric())
+        && out.len() >= 2
+    {
+        Some(out)
+    } else {
+        None
+    }
+}
+
+fn push_doc_fact(
+    facts: &mut Vec<BatchFact>,
+    subject: String,
+    predicate: &str,
+    object: String,
+    source: &str,
+    notes: String,
+    supersedes: Option<Supersedes>,
+) {
+    facts.push(BatchFact {
+        subject,
+        predicate: predicate.to_string(),
+        object,
+        source: source.to_string(),
+        source_trust: Some("verified".to_string()),
+        confidence: Some("extracted".to_string()),
+        notes: Some(notes),
+        supersedes,
+    });
+}
+
+fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {
+    let mut entries = BTreeMap::new();
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+
+    for entry in builder.build() {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !is_manifest_name(name) {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
+        if metadata.len() > DEFAULT_MAX_FILE_BYTES {
+            continue;
+        }
+        let rel = workspace_rel(root, path)?;
+        let source = fs::read_to_string(path).with_context(|| format!("read manifest {rel}"))?;
+        parse_manifest_entries(name, &rel, &source, &mut entries);
+    }
+    Ok(entries)
+}
+
+fn is_manifest_name(name: &str) -> bool {
+    matches!(
+        name,
+        "package.json" | "Cargo.toml" | "pyproject.toml" | "go.mod"
+    )
+}
+
+fn parse_manifest_entries(
+    name: &str,
+    rel: &str,
+    source: &str,
+    entries: &mut BTreeMap<String, String>,
+) {
+    match name {
+        "package.json" => parse_package_json_entries(rel, source, entries),
+        "Cargo.toml" => parse_cargo_toml_entries(rel, source, entries),
+        "pyproject.toml" => parse_pyproject_toml_entries(rel, source, entries),
+        "go.mod" => parse_go_mod_entries(rel, source, entries),
+        _ => {}
+    }
+}
+
+fn parse_package_json_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Ok(root) = serde_json::from_str::<Value>(source) else {
+        return;
+    };
+    let Some(name) = root.get("name").and_then(Value::as_str) else {
+        return;
+    };
+    if name.trim().is_empty() {
+        return;
+    }
+    let entry = root
+        .get("exports")
+        .and_then(|exports| exports.get("."))
+        .and_then(package_export_entry)
+        .or_else(|| root.get("main").and_then(Value::as_str))
+        .or_else(|| root.get("module").and_then(Value::as_str))
+        .unwrap_or("src/index.ts");
+    if let Some(stem) = manifest_entry_stem(rel, entry) {
+        insert_package_entry(entries, name, &stem);
+    }
+}
+
+fn package_export_entry(value: &Value) -> Option<&str> {
+    if let Some(text) = value.as_str() {
+        return Some(text);
+    }
+    value
+        .get("import")
+        .and_then(Value::as_str)
+        .or_else(|| value.get("default").and_then(Value::as_str))
+        .or_else(|| value.get("require").and_then(Value::as_str))
+}
+
+fn parse_cargo_toml_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Some(name) = toml_section_name(source, "[package]") else {
+        return;
+    };
+    let Some(stem) = manifest_entry_stem(rel, "src/lib.rs") else {
+        return;
+    };
+    insert_package_entry(entries, &name, &stem);
+    insert_package_entry(entries, &name.replace('-', "_"), &stem);
+}
+
+fn parse_pyproject_toml_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Some(name) = toml_section_name(source, "[project]") else {
+        return;
+    };
+    let normalized = name.replace('-', "_");
+    let Some(stem) = manifest_entry_stem(rel, &format!("src/{normalized}")) else {
+        return;
+    };
+    insert_package_entry(entries, &normalized, &stem);
+}
+
+fn parse_go_mod_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Some(module_path) = source
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("module "))
+    else {
+        return;
+    };
+    let dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    insert_package_entry(
+        entries,
+        module_path.split_whitespace().next().unwrap_or(""),
+        dir,
+    );
+}
+
+fn toml_section_name(source: &str, section: &str) -> Option<String> {
+    let mut in_section = false;
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') {
+            in_section = trimmed == section;
+            continue;
+        }
+        if !in_section {
+            continue;
+        }
+        let Some(value) = trimmed
+            .strip_prefix("name")
+            .and_then(|rest| rest.trim_start().strip_prefix('='))
+        else {
+            continue;
+        };
+        return quoted_value(value.trim()).map(str::to_string);
+    }
+    None
+}
+
+fn quoted_value(value: &str) -> Option<&str> {
+    let quote = value.chars().next()?;
+    if quote != '"' && quote != '\'' {
+        return None;
+    }
+    let rest = &value[quote.len_utf8()..];
+    rest.find(quote).map(|index| &rest[..index])
+}
+
+fn manifest_entry_stem(rel: &str, entry: &str) -> Option<String> {
+    let dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    let entry = entry.trim().trim_start_matches("./");
+    let joined = if dir.is_empty() {
+        entry.to_string()
+    } else {
+        format!("{dir}/{entry}")
+    };
+    Some(strip_known_extension(&joined).to_string())
+}
+
+fn insert_package_entry(entries: &mut BTreeMap<String, String>, name: &str, stem: &str) {
+    let key = name.trim();
+    if key.is_empty() || stem.trim().is_empty() {
+        return;
+    }
+    entries
+        .entry(key.to_string())
+        .or_insert_with(|| stem.trim_matches('/').to_string());
+}
+
+fn parse_jobs(jobs: Vec<FileJob>, worker_count: usize) -> Result<Vec<FileParse>> {
+    if worker_count <= 1 {
+        return jobs.into_iter().map(parse_file_job).collect();
+    }
+
+    let total_jobs = jobs.len();
+    let mut scheduled = jobs;
+    scheduled.sort_by(|left, right| {
+        right
+            .bytes
+            .cmp(&left.bytes)
+            .then_with(|| left.rel.cmp(&right.rel))
+    });
+    let queue = Arc::new(scheduled);
+    let next_job = Arc::new(AtomicUsize::new(0));
+    let (tx, rx) = mpsc::channel();
+    let mut handles = Vec::new();
+    for _ in 0..worker_count.max(1) {
+        let queue = Arc::clone(&queue);
+        let next_job = Arc::clone(&next_job);
+        let tx = tx.clone();
+        handles.push(thread::spawn(move || loop {
+            let index = next_job.fetch_add(1, Ordering::Relaxed);
+            if index >= queue.len() {
+                break;
+            }
+            let job = queue[index].clone();
+            if tx.send(parse_file_job(job)).is_err() {
+                break;
+            }
+        }));
+    }
+    drop(tx);
+
+    let mut parsed = Vec::with_capacity(total_jobs);
+    let mut first_error = None;
+    for result in rx {
+        match result {
+            Ok(file) => parsed.push(file),
+            Err(error) if first_error.is_none() => first_error = Some(error),
+            Err(_) => {}
+        }
+    }
+    for handle in handles {
+        handle
+            .join()
+            .map_err(|_| anyhow::anyhow!("ingest worker panicked"))?;
+    }
+    if let Some(error) = first_error {
+        return Err(error);
+    }
+    if parsed.len() != total_jobs {
+        bail!("ingest worker pool returned incomplete parse results");
+    }
+    parsed.sort_by_key(|file| file.index);
+    Ok(parsed)
+}
+
+fn parse_file_job(job: FileJob) -> Result<FileParse> {
+    let bytes = fs::read(&job.path).with_context(|| format!("read {}", job.source))?;
+    let bytes_read = bytes.len() as u64;
+    let mut parser = Parser::new();
+    parser
+        .set_language(&job.lang.language())
+        .with_context(|| format!("load parser for {}", job.source))?;
+    let tree = parser
+        .parse(&bytes, None)
+        .with_context(|| format!("parse {}", job.source))?;
+    if tree.root_node().has_error() {
+        return Ok(FileParse {
+            index: job.index,
+            lang: job.lang,
+            bytes_read,
+            parsed: None,
+            skipped: Some(SkippedFile {
+                workspace_ref: job.source,
+                reason: "tree-sitter parse error".to_string(),
+                bytes: job.bytes,
+            }),
+        });
+    }
+
+    let mut parsed = ParsedRepo::new();
+    let file_id = format!("file:{}", path_token(&job.rel));
+    let module = format!("module:{}", module_token(&job.rel));
+    parsed.add_entity(file_id.clone(), "File", &job.source, "oaf.ingest:file");
+    parsed.add_entity(module.clone(), "Module", &job.source, "oaf.ingest:module");
+    parsed.add_definition(
+        &file_id,
+        &module,
+        &job.source,
+        "oaf.ingest:file-defines-module",
+    );
+    let context = WalkContext {
+        module,
+        source: job.source,
+        lang: job.lang,
+        class_name: None,
+        impl_name: None,
+        caller: None,
+        type_bindings: BTreeMap::new(),
+    };
+    walk_node(tree.root_node(), &bytes, &context, &mut parsed);
+    Ok(FileParse {
+        index: job.index,
+        lang: job.lang,
+        bytes_read,
+        parsed: Some(parsed),
+        skipped: None,
+    })
+}
+
+fn extract_file_fingerprints(job: FileJob) -> Result<Vec<CodeFingerprint>> {
+    let bytes = fs::read(&job.path).with_context(|| format!("read {}", job.source))?;
+    let mut parser = Parser::new();
+    parser
+        .set_language(&job.lang.language())
+        .with_context(|| format!("load parser for {}", job.source))?;
+    let tree = parser
+        .parse(&bytes, None)
+        .with_context(|| format!("parse {}", job.source))?;
+    if tree.root_node().has_error() {
+        return Ok(Vec::new());
+    }
+    let module = format!("module:{}", module_token(&job.rel));
+    let context = WalkContext {
+        module,
+        source: job.source,
+        lang: job.lang,
+        class_name: None,
+        impl_name: None,
+        caller: None,
+        type_bindings: BTreeMap::new(),
+    };
+    let mut out = Vec::new();
+    walk_fingerprint_nodes(tree.root_node(), &bytes, &context, &mut out);
+    Ok(out)
+}
+
+fn walk_fingerprint_nodes(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+    out: &mut Vec<CodeFingerprint>,
+) {
+    let mut next = context.clone();
+    if let Some(class_name) = class_name(node, source, context.lang) {
+        next.class_name = Some(class_name);
+    }
+    if context.lang == LangKind::Rust && node.kind() == "impl_item" {
+        next.impl_name = rust_impl_name(node, source);
+    }
+    if let Some((_name, subject, _kind)) = callable_definition(node, source, context) {
+        if let Some((minhash, token_count, feature_count)) = code_minhash(node) {
+            out.push(CodeFingerprint {
+                subject,
+                source: context.source.clone(),
+                language: context.lang.group().to_string(),
+                minhash,
+                token_count,
+                feature_count,
+            });
+        }
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            walk_fingerprint_nodes(child, source, &next, out);
+        }
+    }
+}
+
+fn code_minhash(node: Node<'_>) -> Option<([u64; CODE_MINHASH_K], usize, usize)> {
+    let mut tokens = Vec::new();
+    collect_leaf_tokens(node, &mut tokens);
+    if tokens.len() < 30 {
+        return None;
+    }
+    let mut features = BTreeSet::new();
+    for window in tokens.windows(3) {
+        let weight = window
+            .iter()
+            .filter(|token| !matches!(token.as_str(), "I" | "S" | "N" | "T"))
+            .count();
+        if weight == 0 {
+            continue;
+        }
+        features.insert(format!("{}|{}|{}", window[0], window[1], window[2]));
+    }
+    if features.len() < 16 {
+        return None;
+    }
+    let mut signature = [u64::MAX; CODE_MINHASH_K];
+    for feature in &features {
+        for (index, slot) in signature.iter_mut().enumerate() {
+            *slot = (*slot).min(stable_hash64(&[feature, &format!("code-minhash:{index}")]));
+        }
+    }
+    Some((signature, tokens.len(), features.len()))
+}
+
+fn collect_leaf_tokens(node: Node<'_>, out: &mut Vec<String>) {
+    if node.child_count() == 0 {
+        let kind = normalize_node_kind(node.kind());
+        if !kind.is_empty() {
+            out.push(kind.to_string());
+        }
+        return;
+    }
+    for index in 0..node.child_count() {
+        if let Some(child) = node.child(index) {
+            collect_leaf_tokens(child, out);
+        }
+    }
+}
+
+fn normalize_node_kind(kind: &str) -> &str {
+    match kind {
+        "identifier"
+        | "field_identifier"
+        | "property_identifier"
+        | "type_identifier"
+        | "shorthand_property_identifier"
+        | "shorthand_field_identifier"
+        | "variable_name"
+        | "name" => "I",
+        "string"
+        | "string_literal"
+        | "interpreted_string_literal"
+        | "raw_string_literal"
+        | "template_string"
+        | "string_content"
+        | "escape_sequence" => "S",
+        "number" | "integer" | "float" | "integer_literal" | "float_literal" | "int_literal"
+        | "number_literal" => "N",
+        "predefined_type" | "primitive_type" | "builtin_type" | "type_annotation"
+        | "simple_type" => "T",
+        other => other,
+    }
+}
+
+fn effective_worker_count(
+    requested: usize,
+    max_memory_bytes: u64,
+    cgroup_memory_limit_bytes: Option<u64>,
+) -> usize {
+    let available = thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+        .max(1);
+    let memory_limit = cgroup_memory_limit_bytes
+        .map(|limit| limit.min(max_memory_bytes))
+        .unwrap_or(max_memory_bytes);
+    let memory_workers = (memory_limit / PER_WORKER_MEMORY_BYTES).max(1) as usize;
+    requested.max(1).min(available).min(memory_workers).max(1)
+}
+
+fn cgroup_memory_limit_bytes() -> Option<u64> {
+    read_cgroup_limit("/sys/fs/cgroup/memory.max")
+        .or_else(|| read_cgroup_limit("/sys/fs/cgroup/memory/memory.limit_in_bytes"))
+}
+
+fn read_cgroup_limit(path: &str) -> Option<u64> {
+    let raw = fs::read_to_string(path).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed == "max" {
+        return None;
+    }
+    let value = trimmed.parse::<u64>().ok()?;
+    (value < (1u64 << 60)).then_some(value)
+}
+
+fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
+    if matches!(
+        node.kind(),
+        "call_expression"
+            | "call"
+            | "method_invocation"
+            | "function_call"
+            | "function_call_expression"
+            | "member_call_expression"
+            | "nullsafe_member_call_expression"
+            | "scoped_call_expression"
+            | "invocation"
+            | "invocation_expression"
+            | "message_expression"
+            | "command"
+    ) {
+        if let Some(route) = route_registration(node, source, context) {
+            parsed.routes.push(route);
+        }
+        if let Some(caller) = context.caller.as_deref() {
+            if let Some(callee) = callee_name(node, source) {
+                if !is_declaration_signature_call(node, context.lang, caller, &callee) {
+                    let typed_target = typed_call_target(node, source, context);
+                    parsed.add_call_with_hint(caller, &callee, typed_target, &context.source);
+                }
+            }
+        }
+    }
+
+    if is_import_node(node.kind()) {
+        for target in import_targets(node, source, context.lang) {
+            parsed.add_import(&context.module, target, &context.source);
+        }
+    }
+
+    let mut next = context.clone();
+    if let Some(class_name) = class_name(node, source, context.lang) {
+        let class_id = format!("class:{class_name}");
+        parsed.add_entity(
+            class_id.clone(),
+            "Class",
+            &context.source,
+            "oaf.ingest:class",
+        );
+        parsed.add_definition(
+            &context.module,
+            &class_id,
+            &context.source,
+            "oaf.ingest:define-class",
+        );
+        parsed.add_symbol_name(&class_name, &class_id);
+        next.class_name = Some(class_name);
+    }
+
+    if context.lang == LangKind::Rust && node.kind() == "impl_item" {
+        next.impl_name = rust_impl_name(node, source);
+    }
+
+    if let Some((name, subject, kind)) = callable_definition(node, source, context) {
+        parsed.add_entity(
+            subject.clone(),
+            kind,
+            &context.source,
+            "oaf.ingest:callable",
+        );
+        parsed.add_definition(
+            &context.module,
+            &subject,
+            &context.source,
+            "oaf.ingest:define-callable",
+        );
+        if let Some(class_name) = context.class_name.as_deref() {
+            parsed.add_definition(
+                &format!("class:{class_name}"),
+                &subject,
+                &context.source,
+                "oaf.ingest:class-defines-method",
+            );
+        }
+        parsed.add_symbol_name(&name, &subject);
+        if subject.starts_with("method:") {
+            if let Some((_, bare)) = name.rsplit_once('_') {
+                parsed.add_symbol_name(bare, &subject);
+            }
+        }
+        next.caller = Some(subject);
+        next.type_bindings = local_type_bindings(node, source, context);
+        if let Some(route) = callable_route(node, source, context, &next.caller.clone().unwrap()) {
+            parsed.routes.push(route);
+        }
+    }
+
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            walk_node(child, source, &next, parsed);
+        }
+    }
+}
+
+fn is_declaration_signature_call(
+    node: Node<'_>,
+    lang: LangKind,
+    caller: &str,
+    callee: &str,
+) -> bool {
+    lang == LangKind::Julia
+        && node.kind() == "call_expression"
+        && caller.strip_prefix("function:") == Some(callee)
+}
+
+fn callable_definition(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<(String, String, &'static str)> {
+    let kind = node.kind();
+    if context.lang == LangKind::R && kind == "function_definition" {
+        return None;
+    }
+    match kind {
+        "function_declaration"
+        | "function_definition"
+        | "function_item"
+        | "create_function"
+        | "method" => {
+            let name = callable_node_name(node, source, context)?;
+            let sanitized = sanitize_symbol(&name)?;
+            if context.lang == LangKind::Rust && context.impl_name.is_some() {
+                let impl_name = context.impl_name.as_deref().unwrap();
+                let method_name = format!("{impl_name}_{sanitized}");
+                return Some((
+                    method_name.clone(),
+                    format!("method:{method_name}"),
+                    "Method",
+                ));
+            }
+            if context.class_name.is_some()
+                && matches!(
+                    context.lang,
+                    LangKind::Python
+                        | LangKind::Cpp
+                        | LangKind::Ruby
+                        | LangKind::Swift
+                        | LangKind::Kotlin
+                        | LangKind::Lua
+                        | LangKind::Scala
+                        | LangKind::Zig
+                )
+            {
+                let class_name = context.class_name.as_deref().unwrap();
+                let method_name = format!("{class_name}_{sanitized}");
+                return Some((
+                    method_name.clone(),
+                    format!("method:{method_name}"),
+                    "Method",
+                ));
+            }
+            Some((
+                sanitized.clone(),
+                format!("function:{sanitized}"),
+                "Function",
+            ))
+        }
+        "method_definition" | "method_declaration" => {
+            let name = callable_node_name(node, source, context)?;
+            let sanitized = sanitize_symbol(&name)?;
+            let receiver = if context.lang == LangKind::Go {
+                go_receiver_name(node_text(node, source))
+            } else {
+                context.class_name.clone()
+            }
+            .unwrap_or_else(|| "receiver".to_string());
+            let method_name = format!("{receiver}_{sanitized}");
+            Some((
+                method_name.clone(),
+                format!("method:{method_name}"),
+                "Method",
+            ))
+        }
+        "variable_declarator" => {
+            let value = node.child_by_field_name("value")?;
+            if value.kind() != "arrow_function" && value.kind() != "function" {
+                return None;
+            }
+            let name = node.child_by_field_name("name")?;
+            let sanitized = sanitize_symbol(node_text(name, source))?;
+            Some((
+                sanitized.clone(),
+                format!("function:{sanitized}"),
+                "Function",
+            ))
+        }
+        "binary_operator" if context.lang == LangKind::R => {
+            let value = node.child_by_field_name("rhs")?;
+            if value.kind() != "function_definition" {
+                return None;
+            }
+            let name = node
+                .child_by_field_name("lhs")
+                .and_then(|child| descendant_identifier_name(child, source))?;
+            let sanitized = sanitize_symbol(&name)?;
+            Some((
+                sanitized.clone(),
+                format!("function:{sanitized}"),
+                "Function",
+            ))
+        }
+        _ => None,
+    }
+}
+
+fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
+    match node.kind() {
+        "class_declaration"
+        | "class"
+        | "abstract_class_declaration"
+        | "class_definition"
+        | "class_implementation"
+        | "class_interface"
+        | "object_definition"
+        | "trait_definition" => node_name(node, source).and_then(|name| sanitize_symbol(&name)),
+        "struct_definition" if lang == LangKind::Julia => {
+            descendant_identifier_name(node, source).and_then(|name| sanitize_symbol(&name))
+        }
+        "variable_declaration" if lang == LangKind::Zig => {
+            if !node_text(node, source).contains("struct") {
+                return None;
+            }
+            node_name(node, source).and_then(|name| sanitize_symbol(&name))
+        }
+        "class_specifier" if lang == LangKind::Cpp => {
+            node_name(node, source).and_then(|name| sanitize_symbol(&name))
+        }
+        "struct_item" | "enum_item" | "trait_item" if lang == LangKind::Rust => {
+            node_name(node, source).and_then(|name| sanitize_symbol(&name))
+        }
+        "type_spec" if lang == LangKind::Go => {
+            let text = node_text(node, source);
+            if !text.contains("struct") && !text.contains("interface") {
+                return None;
+            }
+            node_name(node, source).and_then(|name| sanitize_symbol(&name))
+        }
+        _ => None,
+    }
+}
+
+fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    node.child_by_field_name("name")
+        .map(|child| node_text(child, source).to_string())
+        .or_else(|| {
+            (0..node.named_child_count())
+                .filter_map(|index| node.named_child(index))
+                .find(|child| {
+                    matches!(
+                        child.kind(),
+                        "identifier"
+                            | "type_identifier"
+                            | "property_identifier"
+                            | "field_identifier"
+                            | "constant"
+                            | "simple_identifier"
+                            | "variable_name"
+                            | "name"
+                            | "method_identifier"
+                            | "word"
+                    )
+                })
+                .map(|child| node_text(child, source).to_string())
+        })
+}
+
+fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
+    if matches!(
+        context.lang,
+        LangKind::C | LangKind::Cpp | LangKind::ObjectiveC
+    ) && node.kind() == "function_definition"
+    {
+        return node
+            .child_by_field_name("declarator")
+            .and_then(|child| descendant_identifier_name(child, source))
+            .or_else(|| node_name(node, source));
+    }
+    if context.lang == LangKind::Sql && node.kind() == "create_function" {
+        return descendant_identifier_name(node, source);
+    }
+    if context.lang == LangKind::Julia && node.kind() == "function_definition" {
+        return node
+            .named_children(&mut node.walk())
+            .find(|child| child.kind() == "signature")
+            .and_then(|signature| descendant_identifier_name(signature, source))
+            .or_else(|| node_name(node, source));
+    }
+    if context.lang == LangKind::Dart
+        && matches!(node.kind(), "function_declaration" | "method_declaration")
+    {
+        return node
+            .child_by_field_name("signature")
+            .and_then(|signature| descendant_field_name(signature, source, "name"))
+            .or_else(|| node_name(node, source));
+    }
+    node_name(node, source)
+}
+
+fn descendant_field_name(node: Node<'_>, source: &[u8], field: &str) -> Option<String> {
+    if let Some(child) = node.child_by_field_name(field) {
+        return Some(node_text(child, source).to_string());
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            if let Some(name) = descendant_field_name(child, source, field) {
+                return Some(name);
+            }
+        }
+    }
+    None
+}
+
+fn descendant_identifier_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if matches!(
+        node.kind(),
+        "identifier"
+            | "type_identifier"
+            | "property_identifier"
+            | "field_identifier"
+            | "constant"
+            | "simple_identifier"
+            | "variable_name"
+            | "name"
+            | "method_identifier"
+            | "operator_identifier"
+            | "word"
+    ) {
+        return Some(node_text(node, source).to_string());
+    }
+    for index in 0..node.named_child_count() {
+        if let Some(child) = node.named_child(index) {
+            if let Some(name) = descendant_identifier_name(child, source) {
+                return Some(name);
+            }
+        }
+    }
+    None
+}
+
+fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if matches!(
+        node.kind(),
+        "member_call_expression"
+            | "nullsafe_member_call_expression"
+            | "scoped_call_expression"
+            | "method_invocation"
+            | "message_expression"
+    ) {
+        return last_identifier(node_text(node, source)).and_then(|name| sanitize_symbol(&name));
+    }
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let text = node_text(function, source);
+    last_identifier(text).and_then(|name| sanitize_symbol(&name))
+}
+
+fn typed_call_target(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<TypedCallHint> {
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let function_text = if node.kind() == "method_invocation" {
+        node_text(node, source)
+    } else {
+        node_text(function, source)
+    };
+    let (receiver_type, method) = if let Some((receiver, method)) = receiver_method(function_text) {
+        (context.type_bindings.get(&receiver)?.clone(), method)
+    } else if let Some(class_name) = context.class_name.as_ref() {
+        let method = sanitize_symbol(function_text)?;
+        (class_name.clone(), method)
+    } else {
+        return None;
+    };
+    Some(TypedCallHint {
+        target_name: format!("{receiver_type}_{method}"),
+        note: typed_call_note(context.lang)?,
+    })
+}
+
+fn typed_call_note(lang: LangKind) -> Option<&'static str> {
+    match lang {
+        LangKind::Python => Some("oaf.ingest:typed-call-python"),
+        LangKind::Java => Some("oaf.ingest:typed-call-java"),
+        LangKind::CSharp => Some("oaf.ingest:typed-call-csharp"),
+        LangKind::Swift => Some("oaf.ingest:typed-call-swift"),
+        LangKind::Kotlin => Some("oaf.ingest:typed-call-kotlin"),
+        _ => None,
+    }
+}
+
+fn local_type_bindings(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> BTreeMap<String, String> {
+    if context.lang == LangKind::Python {
+        let mut bindings = python_type_bindings(node, source);
+        if let Some(class_name) = context.class_name.as_deref() {
+            bindings.insert("self".to_string(), class_name.to_string());
+        }
+        return bindings;
+    }
+    if matches!(
+        context.lang,
+        LangKind::Java | LangKind::CSharp | LangKind::Swift | LangKind::Kotlin
+    ) {
+        return constructor_type_bindings(node_text(node, source));
+    }
+    BTreeMap::new()
+}
+
+fn constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    for line in text.lines() {
+        let line = line.split("//").next().unwrap_or("").trim();
+        let Some((lhs, rhs)) = line.split_once('=') else {
+            continue;
+        };
+        let Some(variable) = last_identifier(lhs) else {
+            continue;
+        };
+        let type_name = if let Some((_, after_new)) = rhs.split_once("new ") {
+            constructor_name(after_new)
+        } else if starts_with_binding_keyword(lhs) {
+            constructor_name(rhs)
+        } else {
+            None
+        };
+        let Some(type_name) = type_name else {
+            continue;
+        };
+        if looks_like_type_name(&type_name) {
+            bindings.insert(variable, type_name);
+        }
+    }
+    bindings
+}
+
+fn starts_with_binding_keyword(lhs: &str) -> bool {
+    lhs.split_whitespace()
+        .next()
+        .is_some_and(|token| matches!(token, "let" | "var" | "val" | "final" | "const"))
+}
+
+fn constructor_name(rhs: &str) -> Option<String> {
+    let before_paren = rhs.split_once('(')?.0;
+    last_identifier(before_paren)
+}
+
+fn looks_like_type_name(name: &str) -> bool {
+    name.chars().next().is_some_and(char::is_uppercase)
+}
+
+fn receiver_method(value: &str) -> Option<(String, String)> {
+    let (receiver, method) = value.trim().rsplit_once('.')?;
+    let receiver = sanitize_symbol(receiver)?;
+    let method = sanitize_symbol(method)?;
+    Some((receiver, method))
+}
+
+fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<RouteRef> {
+    if !matches!(
+        context.lang,
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+    ) {
+        return None;
+    }
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let (receiver, method) = receiver_method(node_text(function, source))?;
+    if !matches!(receiver.as_str(), "app" | "router") {
+        return None;
+    }
+    let method = http_method(&method)?;
+    let text = node_text(node, source);
+    let path = first_quoted_route_path(text)?;
+    let handler_name = route_handler_name(text)?;
+    Some(RouteRef {
+        method,
+        path,
+        handler_subject: None,
+        handler_name: Some(handler_name),
+        source: context.source.clone(),
+        note: "oaf.ingest:route-express",
+    })
+}
+
+fn callable_route(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+    handler_subject: &str,
+) -> Option<RouteRef> {
+    if context.lang != LangKind::Python {
+        return None;
+    }
+    let parent = node.parent()?;
+    if parent.kind() != "decorated_definition" {
+        return None;
+    }
+    for line in node_text(parent, source).lines() {
+        let line = line.trim();
+        if !line.starts_with('@') {
+            continue;
+        }
+        if let Some((method, path)) = python_route_decorator(line) {
+            return Some(RouteRef {
+                method,
+                path,
+                handler_subject: Some(handler_subject.to_string()),
+                handler_name: None,
+                source: context.source.clone(),
+                note: "oaf.ingest:route-flask",
+            });
+        }
+    }
+    None
+}
+
+fn python_route_decorator(line: &str) -> Option<(String, String)> {
+    let before_paren = line.split_once('(')?.0;
+    let method = before_paren
+        .rsplit_once('.')
+        .and_then(|(_, method)| http_method(method))
+        .or_else(|| before_paren.ends_with(".route").then(|| "GET".to_string()))?;
+    let path = first_quoted_route_path(line)?;
+    let method = if before_paren.ends_with(".route") {
+        route_methods_argument(line).unwrap_or(method)
+    } else {
+        method
+    };
+    Some((method, path))
+}
+
+fn route_methods_argument(line: &str) -> Option<String> {
+    let methods = line.split("methods").nth(1)?;
+    for quoted in quoted_literals(methods) {
+        let method = quoted.to_ascii_uppercase();
+        if is_http_method(&method) {
+            return Some(method);
+        }
+    }
+    None
+}
+
+fn first_quoted_route_path(text: &str) -> Option<String> {
+    quoted_literals(text)
+        .into_iter()
+        .find(|value| value.starts_with('/'))
+        .map(|value| canon_route_path(&value))
+}
+
+fn route_handler_name(text: &str) -> Option<String> {
+    let args = text.split_once('(')?.1.rsplit_once(')')?.0;
+    let candidate = args.rsplit(',').next()?.trim();
+    if candidate.starts_with(['(', '{']) || candidate.contains("=>") {
+        return None;
+    }
+    sanitize_symbol(candidate)
+}
+
+fn http_method(value: &str) -> Option<String> {
+    let method = value.to_ascii_uppercase();
+    is_http_method(&method).then_some(method)
+}
+
+fn is_http_method(method: &str) -> bool {
+    matches!(
+        method,
+        "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS" | "HEAD"
+    )
+}
+
+fn route_id(method: &str, path: &str) -> String {
+    let path_token = path
+        .trim_start_matches('/')
+        .replace(":param", "param")
+        .replace('/', "_");
+    let token = sanitize_symbol(&format!(
+        "{}_{}",
+        method,
+        if path_token.is_empty() {
+            "root".to_string()
+        } else {
+            path_token
+        }
+    ))
+    .unwrap_or_else(|| format!("{}_root", method));
+    format!("route:{token}")
+}
+
+fn canon_route_path(path: &str) -> String {
+    let mut out = String::new();
+    let mut chars = path.trim().chars().peekable();
+    while let Some(ch) = chars.next() {
+        let at_segment_start = out.is_empty() || out.ends_with('/');
+        if ch == ':' && at_segment_start && chars.peek().is_some_and(|next| is_route_ident(*next)) {
+            while chars.peek().is_some_and(|next| is_route_ident(*next)) {
+                chars.next();
+            }
+            out.push_str(":param");
+        } else if ch == '<' {
+            for next in chars.by_ref() {
+                if next == '>' || next == '/' {
+                    break;
+                }
+            }
+            out.push_str(":param");
+        } else if ch == '{' {
+            for next in chars.by_ref() {
+                if next == '}' || next == '/' {
+                    break;
+                }
+            }
+            out.push_str(":param");
+        } else if ch == '$' && chars.peek() == Some(&'{') {
+            chars.next();
+            for next in chars.by_ref() {
+                if next == '}' || next == '/' {
+                    break;
+                }
+            }
+            out.push_str(":param");
+        } else {
+            out.push(ch);
+        }
+    }
+    if out.is_empty() {
+        "/".to_string()
+    } else {
+        out
+    }
+}
+
+fn is_route_ident(ch: char) -> bool {
+    ch.is_ascii_alphanumeric() || ch == '_'
+}
+
+fn is_import_node(kind: &str) -> bool {
+    matches!(
+        kind,
+        "import_statement"
+            | "import_from_statement"
+            | "import_declaration"
+            | "import_spec"
+            | "import"
+            | "library_import"
+            | "use_declaration"
+            | "preproc_include"
+            | "include_expression"
+            | "include_once_expression"
+            | "source_command"
+    )
+}
+
+fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTarget> {
+    let text = node_text(node, source);
+    let mut out = Vec::new();
+    for quoted in quoted_literals(text) {
+        if let Some(target) = import_target_from_raw(&quoted) {
+            out.push(target);
+        }
+    }
+    if out.is_empty() {
+        match lang {
+            LangKind::Python => {
+                let cleaned = text.trim();
+                let raw = cleaned
+                    .strip_prefix("from ")
+                    .and_then(|rest| rest.split_whitespace().next())
+                    .or_else(|| {
+                        cleaned
+                            .strip_prefix("import ")
+                            .and_then(|rest| rest.split([',', ' ']).next())
+                    });
+                if let Some(raw) = raw.and_then(import_target_from_raw) {
+                    out.push(raw);
+                }
+            }
+            LangKind::Rust => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("use ")
+                    .and_then(import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Java => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("import ")
+                    .and_then(import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            LangKind::Kotlin
+            | LangKind::Swift
+            | LangKind::Php
+            | LangKind::CSharp
+            | LangKind::Scala
+            | LangKind::Dart
+            | LangKind::Julia => {
+                if let Some(raw) = text
+                    .trim()
+                    .strip_prefix("import ")
+                    .or_else(|| text.trim().strip_prefix("include "))
+                    .and_then(import_target_from_raw)
+                {
+                    out.push(raw);
+                }
+            }
+            _ => {}
+        }
+    }
+    out.sort_by(|left, right| {
+        left.raw
+            .cmp(&right.raw)
+            .then(left.fallback.cmp(&right.fallback))
+    });
+    out.dedup_by(|left, right| left.raw == right.raw && left.fallback == right.fallback);
+    out
+}
+
+fn import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    Some(ImportTarget {
+        raw: clean_import_raw(value)?,
+        fallback: module_from_import(value)?,
+    })
+}
+
+fn clean_import_raw(value: &str) -> Option<String> {
+    let trimmed = value
+        .trim()
+        .trim_matches(['"', '\'', '`', ';', '{', '}', '(', ')']);
+    if trimmed.is_empty() {
+        return None;
+    }
+    Some(trimmed.to_string())
+}
+
+fn module_from_import(value: &str) -> Option<String> {
+    let trimmed = value
+        .trim()
+        .trim_matches(['"', '\'', '`', ';', '{', '}', '(', ')'])
+        .trim_start_matches("crate::")
+        .trim_start_matches("super::")
+        .trim_start_matches("./")
+        .trim_start_matches("../");
+    let first = trimmed
+        .split([':', '/', '.', ' ', ',', '{', '}'])
+        .find(|part| !part.is_empty())?;
+    sanitize_symbol(first).map(|token| format!("module:{token}"))
+}
+
+fn resolve_relative_import(source_rel: &str, raw: &str) -> Option<String> {
+    let raw = raw.trim();
+    if !raw.starts_with('.') {
+        return None;
+    }
+    let source_dir = source_rel
+        .rsplit_once('/')
+        .map(|(dir, _)| dir)
+        .unwrap_or("");
+    let mut parts = Vec::new();
+    for part in source_dir.split('/') {
+        if !part.is_empty() {
+            parts.push(part);
+        }
+    }
+    for part in raw.split(['/', '\\']) {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            value => parts.push(value),
+        }
+    }
+    let joined = parts.join("/");
+    Some(strip_known_extension(&joined).to_string())
+}
+
+fn resolve_package_import(entries: &BTreeMap<String, String>, raw: &str) -> Option<String> {
+    let raw = raw
+        .trim()
+        .trim_start_matches("crate::")
+        .trim_start_matches("self::")
+        .trim_start_matches("super::");
+    if raw.is_empty() {
+        return None;
+    }
+    if let Some(stem) = entries.get(raw) {
+        return Some(stem.clone());
+    }
+    for separator in ['/', '.', ':'] {
+        if let Some(stem) = resolve_package_prefix(entries, raw, separator) {
+            return Some(stem);
+        }
+    }
+    None
+}
+
+fn resolve_package_prefix(
+    entries: &BTreeMap<String, String>,
+    raw: &str,
+    separator: char,
+) -> Option<String> {
+    let mut split_points = raw
+        .char_indices()
+        .filter_map(|(index, ch)| (ch == separator).then_some(index))
+        .collect::<Vec<_>>();
+    split_points.reverse();
+    for index in split_points {
+        let prefix = &raw[..index];
+        let Some(stem) = entries.get(prefix) else {
+            continue;
+        };
+        if separator == '.' {
+            let suffix = raw[index + 1..].replace('.', "/");
+            if !suffix.is_empty() && !stem.ends_with("src/lib") && !stem.ends_with("src/index") {
+                return Some(format!("{stem}/{suffix}"));
+            }
+        }
+        return Some(stem.clone());
+    }
+    None
+}
+
+fn strip_known_extension(path: &str) -> &str {
+    for ext in [
+        ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py", ".rs", ".go", ".java", ".c", ".h",
+        ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx", ".rb", ".php", ".cs", ".swift", ".kt",
+        ".kts", ".lua", ".sh", ".bash", ".zsh", ".sql", ".m", ".mm", ".scala", ".sc", ".dart",
+        ".r", ".R", ".jl", ".zig",
+    ] {
+        if let Some(stem) = path.strip_suffix(ext) {
+            return stem;
+        }
+    }
+    path
+}
+
+fn quoted_literals(value: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut quote = None;
+    let mut current = String::new();
+    for ch in value.chars() {
+        match quote {
+            Some(active) if ch == active => {
+                out.push(current.clone());
+                current.clear();
+                quote = None;
+            }
+            Some(_) => current.push(ch),
+            None if ch == '"' || ch == '\'' || ch == '`' => quote = Some(ch),
+            None => {}
+        }
+    }
+    out
+}
+
+fn rust_impl_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if let Some(child) = node.child_by_field_name("type") {
+        return sanitize_symbol(node_text(child, source));
+    }
+    let text = node_text(node, source);
+    let before_body = text.split('{').next().unwrap_or(text);
+    before_body
+        .split_whitespace()
+        .rev()
+        .find_map(|part| sanitize_symbol(part.trim_matches(['&', '*', '<', '>', ','])))
+}
+
+fn go_receiver_name(text: &str) -> Option<String> {
+    let receiver = text.strip_prefix("func (")?.split(')').next()?;
+    receiver
+        .split_whitespace()
+        .last()
+        .and_then(|part| sanitize_symbol(part.trim_start_matches('*')))
+}
+
+fn python_type_bindings(node: Node<'_>, source: &[u8]) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    for line in node_text(node, source).lines() {
+        if let Some((name, class_name)) = python_assignment_type(line) {
+            bindings.insert(name, class_name);
+        }
+    }
+    bindings
+}
+
+fn python_assignment_type(line: &str) -> Option<(String, String)> {
+    let without_comment = line.split('#').next().unwrap_or(line).trim();
+    let (left, right) = without_comment.split_once('=')?;
+    if left
+        .chars()
+        .last()
+        .is_some_and(|ch| matches!(ch, '!' | '<' | '>' | '='))
+        || right.starts_with('=')
+    {
+        return None;
+    }
+    let name = python_assignment_lhs(left.trim())?;
+    let class_name = python_constructor_name(right.trim())?;
+    Some((name, class_name))
+}
+
+fn python_assignment_lhs(value: &str) -> Option<String> {
+    let name = value.split_once(':').map(|(name, _)| name).unwrap_or(value);
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if !trimmed
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '.')
+    {
+        return None;
+    }
+    sanitize_symbol(trimmed)
+}
+
+fn python_constructor_name(value: &str) -> Option<String> {
+    let before_paren = value.split_once('(')?.0.trim();
+    let name = before_paren.rsplit('.').next()?.trim();
+    if !name
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_uppercase())
+    {
+        return None;
+    }
+    sanitize_symbol(name)
+}
+
+fn node_text<'a>(node: Node<'_>, source: &'a [u8]) -> &'a str {
+    node.utf8_text(source).unwrap_or("")
+}
+
+fn last_identifier(value: &str) -> Option<String> {
+    let mut current = String::new();
+    let mut best = None;
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            current.push(ch);
+        } else if !current.is_empty() {
+            best = Some(current.clone());
+            current.clear();
+        }
+    }
+    if !current.is_empty() {
+        best = Some(current);
+    }
+    best
+}
+
+fn symbol_kind(subject: &str) -> &'static str {
+    if subject.starts_with("method:") {
+        "Method"
+    } else if subject.starts_with("class:") {
+        "Class"
+    } else if subject.starts_with("module:") {
+        "Module"
+    } else if subject.starts_with("file:") {
+        "File"
+    } else {
+        "Function"
+    }
+}
+
+fn sanitize_symbol(value: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut last_underscore = false;
+    for ch in value.trim().chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch);
+            last_underscore = false;
+        } else if (ch == '_' || ch == '-') && !last_underscore && !out.is_empty() {
+            out.push('_');
+            last_underscore = true;
+        }
+    }
+    while out.ends_with('_') {
+        out.pop();
+    }
+    if out.is_empty() {
+        return None;
+    }
+    if out.chars().next().is_some_and(|ch| ch.is_ascii_digit()) {
+        out.insert(0, 'n');
+    }
+    if out.len() > 96 {
+        out.truncate(96);
+    }
+    Some(out)
+}
+
+fn path_token(rel: &str) -> String {
+    sanitize_symbol(&rel.replace(['/', '.', '-'], "_")).unwrap_or_else(|| "root".to_string())
+}
+
+fn module_token(rel: &str) -> String {
+    let without_ext = rel.rsplit_once('.').map(|(stem, _)| stem).unwrap_or(rel);
+    path_token(without_ext)
+}
+
+fn language_for_path(path: &Path) -> Option<LangKind> {
+    match path.extension().and_then(|value| value.to_str())? {
+        "js" | "jsx" | "mjs" | "cjs" => Some(LangKind::JavaScript),
+        "ts" | "mts" | "cts" => Some(LangKind::TypeScript),
+        "tsx" => Some(LangKind::Tsx),
+        "py" => Some(LangKind::Python),
+        "rs" => Some(LangKind::Rust),
+        "go" => Some(LangKind::Go),
+        "java" => Some(LangKind::Java),
+        "c" | "h" => Some(LangKind::C),
+        "cc" | "cpp" | "cxx" | "hpp" | "hh" | "hxx" => Some(LangKind::Cpp),
+        "rb" => Some(LangKind::Ruby),
+        "php" => Some(LangKind::Php),
+        "cs" => Some(LangKind::CSharp),
+        "swift" => Some(LangKind::Swift),
+        "kt" | "kts" => Some(LangKind::Kotlin),
+        "lua" => Some(LangKind::Lua),
+        "sh" | "bash" | "zsh" => Some(LangKind::Bash),
+        "sql" => Some(LangKind::Sql),
+        "m" | "mm" => Some(LangKind::ObjectiveC),
+        "scala" | "sc" => Some(LangKind::Scala),
+        "dart" => Some(LangKind::Dart),
+        "r" | "R" => Some(LangKind::R),
+        "jl" => Some(LangKind::Julia),
+        "zig" => Some(LangKind::Zig),
+        _ => None,
+    }
+}
+
+fn should_descend(entry: &DirEntry) -> bool {
+    let name = entry.file_name().to_string_lossy();
+    !matches!(
+        name.as_ref(),
+        ".git" | ".local" | "node_modules" | "target" | "dist" | "build" | "coverage"
+    )
+}
+
+fn workspace_rel(root: &Path, path: &Path) -> Result<String> {
+    let rel = path
+        .strip_prefix(root)
+        .with_context(|| format!("path escaped workspace root: {}", path.display()))?;
+    let mut parts = Vec::new();
+    for component in rel.components() {
+        match component {
+            Component::Normal(value) => parts.push(value.to_string_lossy().to_string()),
+            Component::CurDir => {}
+            _ => bail!("path escaped workspace root: {}", path.display()),
+        }
+    }
+    Ok(parts.join("/"))
+}
+
+fn short_hash(value: &str) -> String {
+    hex::encode(Sha256::digest(value.as_bytes()))
+        .chars()
+        .take(16)
+        .collect()
+}
+
+fn stable_hash64(parts: &[&str]) -> u64 {
+    let mut hasher = Sha256::new();
+    for part in parts {
+        hasher.update((part.len() as u64).to_le_bytes());
+        hasher.update(part.as_bytes());
+    }
+    let digest = hasher.finalize();
+    u64::from_le_bytes(digest[..8].try_into().unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolves_calls_to_functions_not_modules() {
+        let mut parsed = ParsedRepo::new();
+        parsed.add_symbol_name("runServer", "function:runServer");
+        assert_eq!(
+            parsed.resolve_call_target("runServer"),
+            "function:runServer"
+        );
+        assert_eq!(
+            parsed.resolve_call_target("missingModule"),
+            "function:missingModule"
+        );
+    }
+
+    #[test]
+    fn resolves_python_receiver_calls_with_constructor_type_bindings() {
+        let root =
+            std::env::temp_dir().join(format!("oaf-ingest-python-types-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/typed.py"),
+            [
+                "class Counter:",
+                "    def inc(self):",
+                "        return 1",
+                "class Gauge:",
+                "    def inc(self):",
+                "        return 2",
+                "def run():",
+                "    counter = Counter()",
+                "    gauge = Gauge()",
+                "    counter.inc()",
+                "    gauge.inc()",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let calls = report
+            .facts
+            .iter()
+            .filter(|fact| fact.predicate == "CALLS")
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.object.as_str(),
+                    fact.notes.as_deref(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert!(calls.contains(&(
+            "function:run",
+            "method:Counter_inc",
+            Some("oaf.ingest:typed-call-python")
+        )));
+        assert!(calls.contains(&(
+            "function:run",
+            "method:Gauge_inc",
+            Some("oaf.ingest:typed-call-python")
+        )));
+        assert!(!calls.contains(&("function:run", "function:inc", Some("oaf.ingest:call"))));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn emits_routes_and_resolved_imports() {
+        let root = std::env::temp_dir().join(format!("oaf-ingest-routes-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src/demo_app")).unwrap();
+        fs::write(
+            root.join("package.json"),
+            r#"{"name":"@acme/web","main":"src/index.js"}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("pyproject.toml"),
+            "[project]\nname = \"demo-app\"\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/index.js"),
+            [
+                "import { helper } from './helper.js';",
+                "function listUsers(req, res) {",
+                "  return helper();",
+                "}",
+                "app.get('/api/accounts/:id', listUsers);",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/helper.js"),
+            "export function helper() { return 1; }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/demo_app/app.py"),
+            [
+                "from flask import Flask",
+                "app = Flask(__name__)",
+                "@app.route('/items/<int:item_id>', methods=['POST'])",
+                "def create_item():",
+                "    return 'ok'",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/demo_app/client.py"),
+            "from demo_app.app import create_item\n",
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let facts = report
+            .facts
+            .iter()
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.predicate.as_str(),
+                    fact.object.as_str(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert!(facts.contains(&("route:GET_api_accounts_param", "IS_A", "Route")));
+        assert!(facts.contains(&(
+            "route:GET_api_accounts_param",
+            "HAS_PATH",
+            "path=/api/accounts/:param"
+        )));
+        assert!(facts.contains(&(
+            "function:listUsers",
+            "HANDLES",
+            "route:GET_api_accounts_param"
+        )));
+        assert!(facts.contains(&("route:POST_items_param", "IS_A", "Route")));
+        assert!(facts.contains(&("function:create_item", "HANDLES", "route:POST_items_param")));
+        assert!(facts.contains(&("module:src_index", "IMPORTS", "module:src_helper")));
+        assert!(facts.contains(&(
+            "module:src_demo_app_client",
+            "IMPORTS",
+            "module:src_demo_app_app"
+        )));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn emits_exact_retirement_facts() {
+        let active = vec![ActiveFactSnapshot {
+            subject: "function:OldName".to_string(),
+            predicate: "IS_A".to_string(),
+            object: "Function".to_string(),
+            source: "workspace://src/a.ts".to_string(),
+        }];
+        let retirements = retirement_facts(&active, &[]);
+        assert_eq!(retirements.len(), 1);
+        assert_eq!(retirements[0].subject, "function:OldName");
+        assert_eq!(
+            retirements[0]
+                .supersedes
+                .as_ref()
+                .and_then(|item| item.object.as_deref()),
+            Some("Function")
+        );
+    }
+
+    #[test]
+    fn parallel_extract_matches_sequential_fact_set() {
+        let root = std::env::temp_dir().join(format!("oaf-ingest-parallel-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/a.js"),
+            "export function alpha(){ return beta(); }\nfunction beta(){ return 1; }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/b.py"),
+            "def gamma():\n    return delta()\ndef delta():\n    return 1\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/c.rs"),
+            "fn epsilon(){ zeta(); }\nfn zeta() {}\n",
+        )
+        .unwrap();
+
+        let mut sequential = IngestOptions::new(&root);
+        sequential.workers = 1;
+        let mut parallel = IngestOptions::new(&root);
+        parallel.workers = 4;
+
+        let sequential = extract_repo(&sequential).unwrap();
+        let parallel = extract_repo(&parallel).unwrap();
+        assert_eq!(sequential.facts, parallel.facts);
+        assert_eq!(sequential.scanned_file_count, parallel.scanned_file_count);
+        assert_eq!(sequential.parsed_file_count, parallel.parsed_file_count);
+        assert!(parallel.effective_worker_count >= 1);
+        assert!(parallel.effective_worker_count <= 4);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+}

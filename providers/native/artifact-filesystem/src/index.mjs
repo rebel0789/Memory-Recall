@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
 import { copyFile, lstat, mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { nowIso } from '../../../../packages/protocol/src/index.mjs';
+import { canonicalStringify, sha256Hex as sha256 } from '../../../../packages/protocol/src/fingerprint.mjs';
 
 const PROVIDER_ID = 'provider:native:artifact:filesystem';
 const WORKSPACE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
@@ -28,18 +28,6 @@ const SNAPSHOT_FORBIDDEN_KEYS = new Set([
   'claims'
 ]);
 const SENSITIVE_KEY_PATTERN = /(^|[-_.])(authorization|cookie|token|secret|password|credential|signedheaders|signed_headers)([-_.]|$)/i;
-
-function sha256(value) {
-  return createHash('sha256').update(value).digest('hex');
-}
-
-function canonicalStringify(value) {
-  if (Array.isArray(value)) return `[${value.map((item) => canonicalStringify(item)).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalStringify(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
 
 function exportManifestFingerprint(manifest) {
   const { fingerprint, ...fingerprintInput } = manifest;

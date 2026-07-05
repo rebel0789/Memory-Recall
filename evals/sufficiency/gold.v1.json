@@ -1,0 +1,67 @@
+{
+  "id": "oaf-sufficiency-gold-v1",
+  "version": "1.0.0",
+  "description": "Fixed local gold facts for the ungamable OAF context sufficiency benchmark.",
+  "cases": [
+    {
+      "id": "read_only_mcp",
+      "question": "What MCP bridge policy is specified before write tools?",
+      "answer": "read-only-first",
+      "aliases": ["read-only MCP", "read-only before write tools"]
+    },
+    {
+      "id": "proposal_gated_memory",
+      "question": "What memory import policy prevents automatic activation?",
+      "answer": "proposal-gated",
+      "aliases": ["proposal gate", "proposal-gated harness memory import"]
+    },
+    {
+      "id": "sqlite_fts5_memory",
+      "question": "What local memory store does the native memory provider use?",
+      "answer": "sqlite-fts5",
+      "aliases": ["SQLite", "FTS5", "provider:native:memory:sqlite"]
+    },
+    {
+      "id": "native_source_graph",
+      "question": "Which context source comes before a codebase memory adapter?",
+      "answer": "native-source-graph",
+      "aliases": ["native source graph", "source graph"]
+    },
+    {
+      "id": "external_writes",
+      "question": "What is the default external write posture?",
+      "answer": "disabled-by-default",
+      "aliases": ["externalWrites=false", "external writes disabled", "externalWrites"]
+    },
+    {
+      "id": "memory_provider",
+      "question": "Which provider id backs workspace memory?",
+      "answer": "provider:native:memory:sqlite",
+      "aliases": ["memoryProvider"]
+    },
+    {
+      "id": "artifact_provider",
+      "question": "Which provider id backs local artifacts?",
+      "answer": "provider:native:artifact:filesystem",
+      "aliases": ["artifactProvider"]
+    },
+    {
+      "id": "ollama_provider",
+      "question": "Which provider id implements optional loopback local model support?",
+      "answer": "provider:native:model:ollama",
+      "aliases": ["model.ollama"]
+    },
+    {
+      "id": "protocol_validate",
+      "question": "What command validates protocol compatibility fixtures?",
+      "answer": "npm run protocol:validate",
+      "aliases": ["scripts/validate-protocol.mjs"]
+    },
+    {
+      "id": "release_provenance",
+      "question": "Which checked-in file records the 1.0 release provenance artifact?",
+      "answer": "docs/release/1.0-PROVENANCE.json",
+      "aliases": ["1.0-PROVENANCE.json"]
+    }
+  ]
+}

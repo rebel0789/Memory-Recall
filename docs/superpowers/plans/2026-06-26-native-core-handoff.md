@@ -1,9 +1,9 @@
 # Native Core — Codex Handoff Plan (local-first, best-of-breed memory)
 
-Goal of this plan: make OAF's **native core best-in-class** for the
-**local-first single-developer** production target.
+Goal of this plan: make OAF's **native core best-in-class** — better than any
+external organ — for the **local-first single-developer** production target.
 SQLite is the production database. External systems (Postgres, Temporal,
-graphiti, mem0, supermemory) stay **optional, disabled-by-default integrations users
+graphiti, mem0, supermemory) stay **optional, disabled-by-default organs users
 install as needed**. Never required.
 
 Each goal below is a self-contained Codex handoff: fire it, walk away, it commits
@@ -14,8 +14,13 @@ per the checkpoint protocol. All goals obey the **Unattended Run Rules** and
 writing, commit only when `npm run ci` is green, never weaken a test, stop at the
 first blocker.
 
-Fire them in order. G0 (cleanup) goes first so the new core is built on clean
-ground.
+Fire them in order. **G0 is already DONE** on branch `codex/native-cleanup`
+(see `CLEANUP_REPORT.md`): the audit found little safe dead code, removed the two
+genuinely-orphaned helpers, and proved the utility "duplication" is mostly UNSAFE
+to merge (the copies diverged — `sha256` alone has 5 different behaviors). **Base
+every goal below on the merged `codex/native-cleanup` branch.**
+
+Status: G0 ✅ done · G0.5 → G7 pending.
 
 ---
 
@@ -65,7 +70,7 @@ Local-first honesty constraints:
 
 ---
 
-## G0 — Full cleanup / de-bloat (do this first)
+## G0 — Full cleanup / de-bloat ✅ DONE (branch codex/native-cleanup)
 
 - **Objective:** remove over-engineered, duplicated, and dead code without
   changing real behavior. The codebase grew through many agent runs and has
@@ -103,6 +108,48 @@ Local-first honesty constraints:
   to enable a removal; if an existing test fails, revert that removal. Produce
   CLEANUP_REPORT.md. Target net-negative lines. Commit per green step. Stop when
   npm run ci is green with no behavior change.
+  ```
+
+---
+
+## G0.5 — Reconcile + unify divergent utilities (corrected, fingerprint-safe)
+
+- **Why corrected:** the G0 audit proved the duplicated helpers have **diverged**,
+  so a blind dedup would change fingerprints/validation. `sha256` has 5 distinct
+  behaviors across 9 copies; `stableStringify` has 3 across 6; `assertPlainObject`
+  has 4 distinct across 4; only `canonicalStringify` (×3) is byte-identical. See
+  `CLEANUP_REPORT.md` for the full divergence map.
+- **Objective:** unify these into one shared module **without changing any digest
+  or validation outcome**.
+- **Method:** for each helper, (1) pick one canonical implementation, (2) confirm
+  every caller's actual input types are compatible with it, (3) add
+  fingerprint-equivalence tests over representative inputs (including non-string
+  inputs for `sha256`) proving digests are unchanged, (4) then move it to a shared
+  module under `packages/protocol/src/` (the base packages already import via
+  `../../protocol/...`) and replace the copies. Start with the trivially-safe
+  `canonicalStringify`; treat `sha256`, `stableStringify`, `assertPlainObject` as
+  behavior-sensitive and do each behind its own equivalence test.
+- **DoD:** copies removed; all callers import the shared helper; new
+  fingerprint-equivalence tests pass; `npm run ci` green; zero digest changes.
+- **Boundaries:** no digest/validation behavior change. If a caller's behavior
+  would change, keep that variant local and document why — do not force a merge.
+- **Attach prompt:**
+  ```text
+  You are working in Open Agent Fabric. Obey the Unattended Run Rules + Checkpoint
+  Protocol in docs/product/loop-workbench-build-plan.md. Base on merged
+  codex/native-cleanup; worktree codex/native-utils.
+
+  Do G0.5 from docs/superpowers/plans/2026-06-26-native-core-handoff.md: unify the
+  divergent duplicated utilities WITHOUT changing any fingerprint. Read
+  CLEANUP_REPORT.md for the divergence map. For each helper (start with the
+  byte-identical canonicalStringify; then sha256, stableStringify,
+  assertPlainObject which are behavior-sensitive): pick one canonical impl, confirm
+  caller input types are compatible, add fingerprint-equivalence tests over
+  representative inputs INCLUDING non-string inputs, then move it to
+  packages/protocol/src/ and replace the copies. If unifying would change any
+  digest or validation outcome, keep that variant local and document why. One
+  focused test file. Commit per green step. Stop when npm run ci is green with zero
+  digest changes.
   ```
 
 ---
@@ -324,7 +371,7 @@ Local-first honesty constraints:
 
 ---
 
-## After G7 — optional integrations (only when a user needs them)
+## After G7 — optional organs (only when a user needs them)
 
 Each is a disabled-by-default, conformance-gated adapter behind an existing port,
 installed via `oaf adapter enable <name>`. The native core never depends on them:

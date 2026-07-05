@@ -6,9 +6,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { FileStateStore } from '../../../packages/storage/src/file-store.mjs';
 import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/identity-local/src/index.mjs';
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
+import { SQLiteMemoryProvider } from '../../../providers/native/memory-sqlite/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
-import { compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
-import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildHarnessContextPreview, buildHarnessSetupReport, buildMemoryProposalPreflightFromConfig, detectGitChangedLocators, pinContextPackArtifacts, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
+import { buildCompressedProfileContextReport, compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
+import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildContextProfileDeliveryPayloadFromReport, buildHarnessContextPreview, buildHarnessSetupReport, buildLoopPlan, buildMemoryProposalPreflightFromConfig, buildRealisticContextProfileSavingsReport, detectGitChangedLocators, pinContextPackArtifacts, REALISTIC_SAVINGS_OBJECTIVE, REALISTIC_SAVINGS_STEP, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
@@ -16,6 +17,7 @@ import {
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
+import { sha256Hex, stableStringify } from '../../../packages/protocol/src/fingerprint.mjs';
 import { createTelemetryFromEnv, createTraceContext, routeSpanAttributes } from '../../../packages/observability/src/index.mjs';
 import { API_ERROR_SCHEMA, createApiRouteContracts } from './route-contracts.mjs';
 
@@ -130,6 +132,429 @@ function redactContextPackForApiTransport(pack) {
   return safePack;
 }
 
+function loopBudgetFromProfile(contextBudget) {
+  return {
+    basis: 'context-pack-measurement',
+    estimatedDeliveryTokens: Number(contextBudget?.estimatedDeliveryTokens ?? 0),
+    sourceBodyTokensExcluded: Number(contextBudget?.historyTokensAvoided ?? 0),
+    deliveryReductionRatio: Number(contextBudget?.reductionRatio ?? 0)
+  };
+}
+
+function proposalPayloadText(proposal) {
+  const payload = proposal?.payload ?? {};
+  return payload.text ?? [payload.subject, payload.predicate, payload.object].filter(Boolean).join(' ');
+}
+
+async function buildMemoryLoopFlow({ provider, workspaceId, generatedAt, loopEventCount }) {
+  const [exported, facts, proposalQueue] = await Promise.all([
+    provider.export({ workspaceId }),
+    provider.listTemporalFacts({ workspaceId, limit: 100 }),
+    provider.listProposalQueue({ workspaceId, limit: 100 })
+  ]);
+  const objective = 'Use native memory to complete a local feedback loop';
+  const compressedProfile = buildCompressedProfileContextReport({
+    records: [...exported.records, ...facts.map(factProfileRecord)],
+    workspaceId,
+    generatedAt,
+    objective,
+    step: 'Compress memory before planning the loop',
+    tokenBudget: 4096
+  });
+  const loopPlan = buildLoopPlan({
+    workspaceId,
+    objective,
+    stopCondition: 'The observed proposal is applied as a temporal memory fact',
+    validationCommands: ['node --test tests/native-memory-profile-context.test.mjs'],
+    changedLocators: ['workspace://providers/native/memory-sqlite/src/index.mjs', 'workspace://apps/web/app.js'],
+    userSelectedFiles: ['docs/product/loop-workbench-build-plan.md'],
+    contextBudget: loopBudgetFromProfile(compressedProfile.contextBudget),
+    clock: () => generatedAt
+  });
+  const latestProposal = proposalQueue.find((proposal) => ['applied', 'claimed', 'pending'].includes(proposal.status)) ?? proposalQueue[0] ?? null;
+  const latestFact = facts.find((fact) => fact.proposalQueueId === latestProposal?.id) ?? facts[0] ?? null;
+  const observationStatus = loopEventCount > 0 ? 'recorded' : 'ready';
+  return {
+    objective,
+    compressedProfile: {
+      id: compressedProfile.id,
+      contextBudget: compressedProfile.contextBudget,
+      acceptedHistoryRecordCount: compressedProfile.profile.acceptedHistoryRecordCount,
+      skippedHistoryRecordCount: compressedProfile.profile.skippedHistoryRecordCount
+    },
+    loopPlan: {
+      id: loopPlan.id,
+      maxIterations: loopPlan.maxIterations,
+      timeoutMs: loopPlan.timeoutMs,
+      validationCommands: loopPlan.validationCommands,
+      contextBudget: loopPlan.contextBudget,
+      sideEffectClass: loopPlan.sideEffectClass
+    },
+    observation: {
+      status: observationStatus,
+      command: loopPlan.validationCommands[0] ?? null,
+      rawOutputIncluded: false
+    },
+    extractionProposal: latestProposal
+      ? {
+          id: latestProposal.id,
+          status: latestProposal.status,
+          sourceLocator: latestProposal.sourceLocator,
+          text: proposalPayloadText(latestProposal)
+        }
+      : null,
+    memoryFact: latestFact
+      ? {
+          id: latestFact.id,
+          text: latestFact.text,
+          status: latestFact.status,
+          validity: { validFrom: latestFact.validFrom, validUntil: latestFact.validUntil },
+          supersededBy: latestFact.supersededBy,
+          proposalQueueId: latestFact.proposalQueueId,
+          episodeId: latestFact.episodeId
+        }
+      : null,
+    safeguards: {
+      readOnlyView: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false
+    }
+  };
+}
+
+async function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt, memoryProvider = null }) {
+  const runs = state.runs.filter((run) => run.workspaceId === workspaceId);
+  const events = state.events.filter((event) => event.workspaceId === workspaceId);
+  const loopEvents = events.filter((event) => String(event.type ?? '').startsWith('loop.'));
+  const loopRunRecords = runs.filter((run) => String(run.workflowId ?? '').includes('loop'));
+  const eventTypes = [...new Set(loopEvents.map((event) => event.type))].sort();
+  const memoryLoop = memoryProvider ? await buildMemoryLoopFlow({ provider: memoryProvider, workspaceId, generatedAt, loopEventCount: loopEvents.length }) : null;
+  return {
+    schemaVersion: '1.0.0',
+    workspaceId,
+    generatedAt,
+    plan: {
+      status: 'reference',
+      command: 'loop plan',
+      inputs: ['objective', 'stopCondition', 'validationCommands', 'changedLocators'],
+      maxIterations: 3,
+      timeoutSeconds: 1800,
+      sideEffectClass: 'read-only'
+    },
+    runs: {
+      status: loopRunRecords.at(-1)?.status ?? 'ready',
+      count: loopRunRecords.length,
+      latestRunId: loopRunRecords.at(-1)?.id ?? null,
+      controller: 'bounded maxIterations and timeout'
+    },
+    observations: {
+      status: loopEvents.some((event) => event.type === 'loop.observation_recorded') ? 'recorded' : 'ready',
+      count: loopEvents.filter((event) => event.type === 'loop.observation_recorded').length,
+      rawOutputIncluded: false
+    },
+    verification: {
+      status: loopEvents.some((event) => event.type === 'loop.verification_reported') ? 'reported' : 'ready',
+      count: loopEvents.filter((event) => event.type === 'loop.verification_reported').length,
+      autoMerge: false
+    },
+    tokenBudget: {
+      basis: memoryLoop ? 'compressed-profile contextBudget' : 'contextBudget estimate',
+      estimatedDeliveryTokens: memoryLoop?.compressedProfile.contextBudget.estimatedDeliveryTokens ?? 0,
+      aggregatedEstimatedDeliveryTokens: memoryLoop?.loopPlan.contextBudget.estimatedDeliveryTokens ?? 0,
+      providerBillingClaimed: false
+    },
+    memoryLoop,
+    stopReasons: [
+      'completed',
+      'validation_failed',
+      'blocked_needs_human',
+      'unsafe_action_required',
+      'max_iterations',
+      'timeout',
+      'unrelated_changes',
+      'out_of_scope'
+    ],
+    trace: {
+      eventCount: loopEvents.length,
+      eventTypes
+    },
+    safeguards: {
+      readOnlyViews: true,
+      planCreationViaControlApi: true,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      autoMerge: false
+    }
+  };
+}
+
+function factProfileRecord(fact) {
+  return {
+    id: fact.id,
+    workspaceId: fact.workspaceId,
+    kind: 'fact',
+    text: fact.text,
+    scope: 'workspace-private',
+    dataClass: 'workspace-private',
+    status: fact.status,
+    source: fact.source,
+    confidence: fact.confidence,
+    authority: fact.confidence,
+    tags: [fact.subject, fact.predicate, fact.object].filter(Boolean),
+    relations: [fact.subject, fact.object].filter(Boolean),
+    updatedAt: fact.updatedAt,
+    observedAt: fact.validFrom
+  };
+}
+
+function temporalFactChains(facts) {
+  const byKey = new Map();
+  for (const fact of facts) {
+    const key = `${fact.scope}:${fact.subject}:${fact.predicate}`;
+    const values = byKey.get(key) ?? [];
+    values.push(fact);
+    byKey.set(key, values);
+  }
+  for (const values of byKey.values()) {
+    values.sort((left, right) => String(left.validFrom).localeCompare(String(right.validFrom)) || String(left.id).localeCompare(String(right.id)));
+  }
+  return new Map(facts.map((fact) => {
+    const key = `${fact.scope}:${fact.subject}:${fact.predicate}`;
+    return [fact.id, byKey.get(key).map((item) => item.id)];
+  }));
+}
+
+async function buildMemoryCockpitProjection({ provider, workspaceId, generatedAt, mcpStatsPath = null, root = path.resolve(here, '../../..') }) {
+  const [exported, facts, proposalQueue] = await Promise.all([
+    provider.export({ workspaceId }),
+    provider.listTemporalFacts({ workspaceId, limit: 100 }),
+    provider.listProposalQueue({ workspaceId, limit: 100 })
+  ]);
+  const chains = temporalFactChains(facts);
+  const profileRecords = [...exported.records, ...facts.map(factProfileRecord)];
+  const mcpStats = await buildMcpStatsSummaryFromFile({ statsPath: mcpStatsPath, workspaceId, generatedAt });
+  const objective = REALISTIC_SAVINGS_OBJECTIVE;
+  const step = REALISTIC_SAVINGS_STEP;
+  const profile = buildCompressedProfileContextReport({
+    records: profileRecords,
+    workspaceId,
+    generatedAt,
+    objective,
+    step,
+    tokenBudget: 4096
+  });
+  const deliveredPayload = buildContextProfileDeliveryPayloadFromReport({
+    report: profile,
+    workspaceId,
+    generatedAt,
+    objective,
+    step,
+    governedFactCount: profileRecords.length,
+    proposalFactCount: 0
+  });
+  const savings = await buildRealisticContextProfileSavingsReport({
+    root,
+    workspaceId,
+    generatedAt,
+    objective,
+    step,
+    deliveredPayload
+  });
+  const projectedFacts = facts.map((fact) => ({
+    ...fact,
+    validity: { validFrom: fact.validFrom, validUntil: fact.validUntil },
+    supersessionChain: chains.get(fact.id) ?? [fact.id],
+    provenance: {
+      episodeId: fact.episodeId,
+      source: fact.source,
+      episode: fact.episode
+        ? {
+            id: fact.episode.id,
+            sourceLocator: fact.episode.sourceLocator,
+            summary: fact.episode.summary,
+            observedAt: fact.episode.observedAt
+          }
+        : null
+    }
+  }));
+  const report = {
+    schemaVersion: '1.0.0',
+    workspaceId,
+    generatedAt,
+    provider: 'provider:native:memory:sqlite',
+    summary: {
+      activeFactCount: projectedFacts.filter((fact) => fact.status === 'active').length,
+      pendingProposalCount: proposalQueue.filter((item) => item.status === 'pending').length,
+      proposalCount: proposalQueue.length
+    },
+    facts: projectedFacts,
+    proposalQueue,
+    mcpStats,
+    tokenBudget: profile.contextBudget,
+    savings,
+    profile: {
+      id: profile.id,
+      acceptedHistoryRecordCount: profile.profile.acceptedHistoryRecordCount,
+      skippedHistoryRecordCount: profile.profile.skippedHistoryRecordCount,
+      layers: profile.profile.layers,
+      contentHash: profile.profile.contentHash
+    },
+    safeguards: {
+      readOnly: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      rawSourceBodiesIncluded: false
+    }
+  };
+  return {
+    ...report,
+    reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}`
+  };
+}
+
+async function buildMemoryGraphProjection({ provider, workspaceId, generatedAt, includeHistory = false, entity = '', query = '' }) {
+  const graph = await provider.getTemporalMemoryGraph({ workspaceId, includeHistory, at: generatedAt, limit: 1500 });
+  let focus = null;
+  const focusInput = String(entity || query || '').trim();
+  if (focusInput) {
+    try {
+      const explained = await provider.explainTemporalMemory({
+        workspaceId,
+        entity: entity || undefined,
+        query: query || entity,
+        depth: 1,
+        at: generatedAt
+      });
+      const nodeNames = new Set((explained.nodes ?? []).map((node) => node.name));
+      const factIds = new Set((explained.edges ?? []).map((edge) => edge.factId));
+      focus = {
+        entity: explained.entity,
+        depth: explained.depth,
+        nodes: graph.nodes.filter((node) => nodeNames.has(node.name)),
+        edges: graph.edges.filter((edge) => factIds.has(edge.factId))
+      };
+    } catch {
+      focus = { entity: focusInput, depth: 1, nodes: [], edges: [] };
+    }
+  }
+  const report = {
+    schemaVersion: '1.0.0',
+    workspaceId,
+    generatedAt,
+    provider: graph.provider,
+    mode: graph.mode,
+    communityMethod: graph.communityMethod,
+    summary: graph.summary,
+    graph: {
+      nodes: graph.nodes,
+      edges: graph.edges
+    },
+    focus,
+    safeguards: {
+      readOnly: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      activeMemoryCreated: 0,
+      externalWritesEnabled: false,
+      rawSourceBodiesIncluded: false
+    }
+  };
+  return {
+    ...report,
+    reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}`
+  };
+}
+
+async function approveMemoryProposal({ provider, workspaceId, proposalId, generatedAt }) {
+  const { proposal, fact } = await provider.approveProposalFact({ workspaceId, id: proposalId, workerId: 'memory-cockpit', approvedAt: generatedAt });
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'memory approve',
+    generatedAt,
+    workspaceId,
+    summary: {
+      activeMemoryCreated: 1,
+      rejectedProposalCount: 0
+    },
+    proposal,
+    fact,
+    safeguards: {
+      readOnly: false,
+      proposalGated: true,
+      canonicalStateMutated: true,
+      activeMemoryCreated: 1,
+      hardDeleted: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      rawSourceBodiesIncluded: false
+    }
+  };
+  return { ...report, reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}` };
+}
+
+async function buildMcpStatsSummaryFromFile({ statsPath, workspaceId, generatedAt }) {
+  const empty = {
+    schemaVersion: '1.0.0',
+    generatedAt,
+    available: false,
+    statsRef: 'workspace://.local/mcp-stats.jsonl',
+    callCount: 0,
+    deliveredTokens: 0,
+    baselineTokens: 0,
+    tokensSaved: 0,
+    tokenSavingPercent: 0,
+    providerBillingClaimed: false,
+    byTool: [],
+    basis: 'estimated tokens over exact MCP JSON tool payload text'
+  };
+  if (!statsPath) return empty;
+  const info = await stat(statsPath).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!info?.isFile()) return empty;
+  if (info.size > 2 * 1024 * 1024) return { ...empty, warning: 'mcp_stats_file_too_large' };
+  const byTool = new Map();
+  for (const line of (await readFile(statsPath, 'utf8')).split(/\r?\n/u).filter(Boolean)) {
+    let entry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (entry?.workspaceId !== workspaceId || entry?.kind !== 'mcp-delivery-token-estimate') continue;
+    const key = String(entry.toolName ?? 'unknown');
+    const current = byTool.get(key) ?? { toolName: key, callCount: 0, deliveredTokens: 0, baselineTokens: 0, tokensSaved: 0 };
+    current.callCount += 1;
+    current.deliveredTokens += Math.max(0, Math.trunc(Number(entry.deliveredTokens ?? 0)));
+    current.baselineTokens += Math.max(0, Math.trunc(Number(entry.baselineTokens ?? 0)));
+    current.tokensSaved += Math.max(0, Math.trunc(Number(entry.tokensSaved ?? 0)));
+    byTool.set(key, current);
+  }
+  const totals = [...byTool.values()].reduce((sum, item) => ({
+    callCount: sum.callCount + item.callCount,
+    deliveredTokens: sum.deliveredTokens + item.deliveredTokens,
+    baselineTokens: sum.baselineTokens + item.baselineTokens,
+    tokensSaved: sum.tokensSaved + item.tokensSaved
+  }), { callCount: 0, deliveredTokens: 0, baselineTokens: 0, tokensSaved: 0 });
+  return {
+    ...empty,
+    available: totals.callCount > 0,
+    ...totals,
+    tokenSavingPercent: totals.baselineTokens > 0 ? Math.round((totals.tokensSaved / totals.baselineTokens) * 100) : 0,
+    byTool: [...byTool.values()].sort((left, right) => left.toolName.localeCompare(right.toolName)).map((item) => ({
+      ...item,
+      tokenSavingPercent: item.baselineTokens > 0 ? Math.round((item.tokensSaved / item.baselineTokens) * 100) : 0
+    }))
+  };
+}
+
 const VALID_CORRELATION_ID = /^req_[A-Za-z0-9._:-]{8,96}$/;
 const SAFE_RUN_ID = /^run_[A-Za-z0-9._:-]{1,120}$/;
 const SAFE_WORKSPACE_ID = /^ws_[A-Za-z0-9._:-]{1,120}$/;
@@ -155,6 +580,9 @@ export function createControlApiServer({
   manifestRepository = null,
   sourceGraphRoot = path.resolve(here, '../../..'),
   harnessSetupHome = process.env.HOME ?? process.cwd(),
+  memoryProvider = null,
+  memoryDatabasePath = path.resolve(sourceGraphRoot, '.local/memory.sqlite'),
+  mcpStatsPath = path.resolve(sourceGraphRoot, '.local/mcp-stats.jsonl'),
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   policyService = null,
@@ -287,6 +715,26 @@ export function createControlApiServer({
           artifacts: state.artifacts.filter((artifact) => (artifact.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse()
         };
       }
+      case 'getLoopWorkbench': {
+        const state = await store.read();
+        return withMemoryProvider(async (provider) => buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock(), memoryProvider: provider }));
+      }
+      case 'getMemoryCockpit':
+        return withMemoryProvider(async (provider) => buildMemoryCockpitProjection({ provider, workspaceId: context.workspaceId, generatedAt: clock(), mcpStatsPath, root: sourceGraphRoot }));
+      case 'getMemoryGraph':
+        return withMemoryProvider(async (provider) => buildMemoryGraphProjection({
+          provider,
+          workspaceId: context.workspaceId,
+          generatedAt: clock(),
+          includeHistory: context.query.history === 'true',
+          entity: context.query.entity ?? '',
+          query: context.query.query ?? ''
+        }));
+      case 'approveMemoryProposal':
+        return withMemoryProvider(
+          async (provider) => approveMemoryProposal({ provider, workspaceId: context.workspaceId, proposalId: context.params.proposalId, generatedAt: clock() }),
+          { readOnly: false }
+        );
       case 'listRuns': {
         const state = await store.read();
         return { schemaVersion: '1.0.0', items: state.runs.filter((run) => run.workspaceId === context.workspaceId).slice().reverse() };
@@ -610,6 +1058,22 @@ export function createControlApiServer({
   }
 
   return { server, close, contracts, activeStreamCount: () => streams.size };
+
+  async function withMemoryProvider(operation, { readOnly = true } = {}) {
+    if (memoryProvider) return operation(memoryProvider);
+    let provider;
+    try {
+      await stat(memoryDatabasePath);
+      provider = new SQLiteMemoryProvider({ filename: memoryDatabasePath, clock, migrate: false, readOnly });
+    } catch {
+      provider = new SQLiteMemoryProvider({ filename: ':memory:', clock });
+    }
+    try {
+      return await operation(provider);
+    } finally {
+      provider.close();
+    }
+  }
 }
 
 function selectCorrelationId(value, factory) {
@@ -1062,10 +1526,14 @@ function routeResourceType(contract) {
     case 'detectGitChanges':
     case 'previewContextGraph':
       return 'context';
+    case 'getMemoryGraph':
+    case 'approveMemoryProposal':
+      return 'memory';
     case 'planHarnessSetup':
       return 'workspace';
     case 'resetBootstrap':
     case 'getDashboard':
+    case 'getLoopWorkbench':
       return 'workspace';
     default:
       return 'workspace';
@@ -1166,7 +1634,7 @@ async function main() {
   const store = await new FileStateStore(dataDir).init();
   const identityStore = await new LocalIdentityStore({ directory: path.join(dataDir, 'identity') }).init();
   const manifestRepository = new FilesystemContextManifestRepository({ root: path.join(dataDir, 'context-manifests') });
-  const api = createControlApiServer({ store, identityStore, manifestRepository });
+  const api = createControlApiServer({ store, identityStore, manifestRepository, memoryDatabasePath: path.join(dataDir, 'memory.sqlite') });
   api.server.listen(port, host, () => {
     console.log(`Open Agent Fabric local bootstrap: http://${host}:${port}`);
     console.log('No external writes are enabled. Press Ctrl+C to stop.');

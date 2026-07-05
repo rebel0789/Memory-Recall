@@ -67,11 +67,33 @@ warnings, and markdown memory-index cap warnings. These diagnostics are
 review-only signals; they do not create active memory or change retrieval
 policy by themselves.
 
+`oaf context profile` builds a read-only compressed profile for context
+selection: static long-term memory plus dynamic recent memory are converted into
+bounded synthetic Context Compiler records, then selected under the normal token
+budget. Its `contextBudget` reports estimated delivery tokens, accepted-history
+tokens available, history tokens avoided, and the measured reduction ratio. It
+does not replay raw history, call a model, open the network, or create memory.
+
 `oaf memory sgrep` is a local source-grounded memory search command, not a
 replacement for shell `grep`. It returns lifecycle state, evidence IDs, and
 context-manifest reason codes when an explicit manifest is supplied. The
 provider also includes a SQLite proposal queue with idempotent fingerprints,
 leases, retry-to-pending, and poison/error records for local reconciliation.
+Temporal facts are stored in separate `fact`, `entity`, `edge`, and `episode`
+tables with `validFrom`, `validUntil`, `supersededBy`, and episode provenance.
+`oaf memory fact add/get/history` writes and reads that temporal surface through
+the native provider. Fact writes require an applied proposal queue record; a
+contradicting fact supersedes the old row by closing its valid window and never
+hard-deletes it. The temporal fact table has its own FTS5 index.
+`oaf memory search/path/explain` adds the first local hybrid retrieval surface:
+FTS5 matches seed the result set, entity edges add graph-neighbor facts,
+temporal ranking prefers recent valid facts, and scoped digests provide a compact
+graphify-style handoff summary. Semantic sqlite-vec ranking is reported as
+skipped when no local embedder is available; no network or model API is called.
+Offline fact extraction is ADD-only and deterministic: safe `subject predicate
+object` triples from an episode enqueue reviewable proposals with provenance and
+entity links. Extraction does not write active facts; the existing proposal queue
+must still be approved before a temporal fact can be added.
 No network calls, model calls, external writes, hosted memory sync, FUSE/NFS
 mounts, API-key storage, or active-memory creation from ordinary file edits are
 enabled.
@@ -85,6 +107,7 @@ The native identity provider implements `IdentityStorePort` version `1.0.0` for 
 - opaque browser sessions with httpOnly SameSite=Strict cookies;
 - CSRF tokens bound to sessions and compared with timing-safe checks;
 - hashed API tokens returned raw only at creation time;
+- API token minting requires active owner membership for every requested workspace;
 - workspace memberships with owner, builder, operator, and auditor roles;
 - security audit events without raw secrets, cookies, token values, password credentials, salts, or filesystem paths.
 

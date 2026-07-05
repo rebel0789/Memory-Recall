@@ -1,0 +1,16 @@
+[package]
+name = "oaf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0.86"
+oaf-ingest = { path = "../oaf-ingest" }
+oaf-store = { path = "../oaf-store" }
+serde_json = { version = "1.0.117", features = ["preserve_order"] }
+sha2 = "0.10.8"
+hex = "0.4.3"
+chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
+regex = "1.10.5"
+getrandom = "0.2"

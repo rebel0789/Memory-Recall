@@ -222,3 +222,155 @@ test('native SQLite proposal queue enforces lease ownership and poisons abandone
   assert.deepEqual(errors.map((record) => record.id), [queued.id]);
   assert.equal(errors[0].error.code, 'lease_expired_max_attempts');
 });
+
+test('native SQLite temporal facts are proposal-gated, superseded, time-travel queryable, and episode-provenanced', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-memory-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let current = '2026-06-24T10:00:00.000Z';
+  const provider = new SQLiteMemoryProvider({ filename: path.join(directory, 'memory.sqlite'), clock: () => current });
+  t.after(() => provider.close());
+
+  await assert.rejects(
+    () => provider.addTemporalFact({
+      id: 'memfact_ungated',
+      workspaceId: 'ws_local',
+      scope: 'workspace',
+      subject: 'project:oaf',
+      predicate: 'release_status',
+      object: 'alpha',
+      text: 'OAF release status is alpha.',
+      source: 'workspace://memory/status.md',
+      episode: {
+        id: 'mep_status_1',
+        sourceLocator: 'workspace://memory/status.md',
+        summary: 'Initial status note.',
+        observedAt: '2026-06-24T09:55:00.000Z'
+      }
+    }),
+    /proposal gate/
+  );
+
+  const firstProposal = await provider.enqueueProposal({
+    id: 'mpq_first',
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://memory/status.md',
+    sourceHash: 'sha256:1111111111111111111111111111111111111111111111111111111111111111',
+    payload: { kind: 'fact', subject: 'project:oaf', predicate: 'release_status', object: 'alpha' }
+  });
+  await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'reviewer', leaseUntil: '2026-06-24T10:05:00.000Z' });
+  await provider.recordProposalResult({ workspaceId: 'ws_local', id: firstProposal.id, workerId: 'reviewer', status: 'applied', result: { accepted: true } });
+  const first = await provider.addTemporalFact({
+    id: 'memfact_alpha',
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'project:oaf',
+    predicate: 'release_status',
+    object: 'alpha',
+    text: 'OAF release status is alpha.',
+    source: 'workspace://memory/status.md',
+    proposalQueueId: firstProposal.id,
+    validFrom: '2026-06-24T10:00:00.000Z',
+    episode: {
+      id: 'mep_status_1',
+      sourceLocator: 'workspace://memory/status.md',
+      summary: 'Initial status note.',
+      observedAt: '2026-06-24T09:55:00.000Z'
+    }
+  });
+  assert.equal(first.episode.id, 'mep_status_1');
+
+  current = '2026-06-25T10:00:00.000Z';
+  const secondProposal = await provider.enqueueProposal({
+    id: 'mpq_second',
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://memory/status.md',
+    sourceHash: 'sha256:2222222222222222222222222222222222222222222222222222222222222222',
+    payload: { kind: 'fact', subject: 'project:oaf', predicate: 'release_status', object: 'release-candidate' }
+  });
+  await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'reviewer', leaseUntil: '2026-06-25T10:05:00.000Z' });
+  await provider.recordProposalResult({ workspaceId: 'ws_local', id: secondProposal.id, workerId: 'reviewer', status: 'applied', result: { accepted: true } });
+  const second = await provider.addTemporalFact({
+    id: 'memfact_rc',
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'project:oaf',
+    predicate: 'release_status',
+    object: 'release-candidate',
+    text: 'OAF release status is release-candidate.',
+    source: 'workspace://memory/status.md',
+    proposalQueueId: secondProposal.id,
+    validFrom: '2026-06-25T10:00:00.000Z',
+    episode: {
+      id: 'mep_status_2',
+      sourceLocator: 'workspace://memory/status.md',
+      summary: 'Reviewed status update.',
+      observedAt: '2026-06-25T09:55:00.000Z'
+    }
+  });
+
+  const then = await provider.getTemporalFacts({
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'project:oaf',
+    predicate: 'release_status',
+    at: '2026-06-24T12:00:00.000Z'
+  });
+  const now = await provider.getTemporalFacts({
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'project:oaf',
+    predicate: 'release_status',
+    at: '2026-06-26T12:00:00.000Z'
+  });
+  assert.deepEqual(then.map((fact) => fact.id), ['memfact_alpha']);
+  assert.deepEqual(now.map((fact) => fact.id), ['memfact_rc']);
+
+  const history = await provider.getTemporalFactHistory({
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'project:oaf',
+    predicate: 'release_status'
+  });
+  assert.deepEqual(history.map((fact) => fact.id), ['memfact_alpha', 'memfact_rc']);
+  assert.equal(history[0].validUntil, second.validFrom);
+  assert.equal(history[0].supersededBy, 'memfact_rc');
+  assert.equal(history[1].supersededBy, null);
+  assert.equal(history[1].episode.sourceLocator, 'workspace://memory/status.md');
+  assert.equal(second.proposalQueueId, 'mpq_second');
+});
+
+test('native SQLite memory exposes read-only temporal cockpit lists', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-memory-cockpit-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const provider = new SQLiteMemoryProvider({ filename: path.join(directory, 'memory.sqlite'), clock: () => '2026-06-26T10:00:00.000Z' });
+  t.after(() => provider.close());
+
+  const proposal = await provider.enqueueProposal({
+    id: 'mpq_cockpit',
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://notes/cockpit.md',
+    sourceHash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    payload: { kind: 'fact', subject: 'surface-wire', predicate: 'phase', object: 'S1' }
+  });
+  await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'reviewer', leaseUntil: '2026-06-26T10:05:00.000Z' });
+  await provider.recordProposalResult({ workspaceId: 'ws_local', id: proposal.id, workerId: 'reviewer', status: 'applied', result: { accepted: true } });
+  await provider.addTemporalFact({
+    id: 'memfact_cockpit',
+    workspaceId: 'ws_local',
+    scope: 'workspace',
+    subject: 'surface-wire',
+    predicate: 'phase',
+    object: 'S1',
+    text: 'Surface & Wire S1 renders real native memory facts.',
+    source: 'workspace://notes/cockpit.md',
+    proposalQueueId: proposal.id,
+    validFrom: '2026-06-26T10:00:00.000Z'
+  });
+
+  const facts = await provider.listTemporalFacts({ workspaceId: 'ws_local' });
+  const queue = await provider.listProposalQueue({ workspaceId: 'ws_local' });
+  assert.equal(facts[0].id, 'memfact_cockpit');
+  assert.equal(facts[0].episode.sourceLocator, 'workspace://notes/cockpit.md');
+  assert.equal(queue[0].id, 'mpq_cockpit');
+  assert.equal(queue[0].status, 'applied');
+});

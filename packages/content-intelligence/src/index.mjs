@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { stableStringify } from '../../protocol/src/index.mjs';
 
 const clamp = value => Math.max(0, Math.min(1, Number(value) || 0));
 const ANTI_PATTERNS = new Set(['generic prediction', 'absolute claim']);
@@ -15,12 +16,6 @@ function containsAny(text, phrases) {
 
 function sha(value) {
   return createHash('sha256').update(String(value)).digest('hex');
-}
-
-function stableStringify(value) {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  return `{${Object.keys(value).sort().map((key)=>`${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
 }
 
 function fingerprint(value) {
