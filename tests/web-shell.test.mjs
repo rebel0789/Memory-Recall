@@ -411,7 +411,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
         "npm run oaf -- context pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --dry-run --format markdown",
         "npm run oaf -- context pack --from 'codex,cursor' --root . --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --write --pin --out context-packs/CONTEXT_PACK.md --format json",
         "npm run oaf -- context registry status --read-only --format json",
-        "oaf mcp resources --read-only --stdio",
+        "npm --silent run oaf -- mcp resources --read-only --stdio",
         "npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json",
         "npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
         "npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
@@ -555,19 +555,19 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   const summaryCommand=model.commands[summaryIndex].command;
   assert.equal(summaryCommand,'npm run oaf -- context receive --read-only --root . --target codex --format summary');
   assert.doesNotMatch(summaryCommand,/--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
-  assert.equal(model.commands.some((item)=>item.command==='oaf mcp resources --read-only --stdio'),true);
+  assert.equal(model.commands.some((item)=>item.command==='npm --silent run oaf -- mcp resources --read-only --stdio'),true);
   const preflightCommand=model.commands.find((item)=>item.label==='Test local handoff')?.command ?? '';
-  assert.match(preflightCommand,/^oaf context handoff --read-only /);
+  assert.match(preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
   assert.match(preflightCommand,/--from 'codex,cursor'/);
   assert.match(preflightCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format json/);
   assert.doesNotMatch(preflightCommand,/--write|--pin|--out|install/);
   const preflightSummaryCommand=model.commands.find((item)=>item.label==='Test handoff summary')?.command ?? '';
-  assert.match(preflightSummaryCommand,/^oaf context handoff --read-only /);
+  assert.match(preflightSummaryCommand,/^npm --silent run oaf -- context handoff --read-only /);
   assert.match(preflightSummaryCommand,/--from 'codex,cursor'/);
   assert.match(preflightSummaryCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format summary/);
   assert.doesNotMatch(preflightSummaryCommand,/--write|--pin|--out|install/);
   const impactCommand=model.commands.find((item)=>item.label==='Copy impact command')?.command ?? '';
-  assert.match(impactCommand,/^oaf measure context-pack --read-only /);
+  assert.match(impactCommand,/^npm --silent run oaf -- measure context-pack --read-only /);
   assert.match(impactCommand,/--from 'codex,cursor'/);
   assert.match(impactCommand,/--target codex --changed 'apps\/web\/app\.js' --format json/);
   assert.doesNotMatch(impactCommand,/--write|--pin|--out|install/);
@@ -803,10 +803,10 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(handoffStatus.safeguards.configWrites,false);
   assert.equal(handoffStatus.safeguards.externalWritesEnabled,false);
   assert.equal(handoffStatus.safeguards.externalAdaptersEnabled,0);
-  assert.match(handoffStatus.preflightCommand,/^oaf context handoff --read-only /);
+  assert.match(handoffStatus.preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--memory-config/);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--write|--pin|--out|install/);
-  assert.match(handoffStatus.preflightSummaryCommand,/^oaf context handoff --read-only /);
+  assert.match(handoffStatus.preflightSummaryCommand,/^npm --silent run oaf -- context handoff --read-only /);
   assert.match(handoffStatus.preflightSummaryCommand,/--format summary/);
   assert.doesNotMatch(handoffStatus.preflightSummaryCommand,/--memory-config/);
   assert.doesNotMatch(handoffStatus.preflightSummaryCommand,/--write|--pin|--out|install/);
@@ -944,8 +944,8 @@ test('agents tools exposes dry-run harness setup planning without install afford
     server:'oaf',
     config:{ref:'home://.cursor/mcp.json',format:'json',exists:false,serverCount:0},
     status:{config:'absent',server:'absent'},
-    desiredServer:{name:'oaf',transport:'stdio',command:'oaf',args:['mcp','resources','--read-only','--stdio'],environmentKeys:[],resourceMode:'read-only',externalWrites:false},
-    manualConfigSnippet:{format:'json',configRef:'home://.cursor/mcp.json',applyMode:'manual-copy',content:'{"mcpServers":{"oaf":{"command":"oaf","args":["mcp","resources","--read-only","--stdio"]}}}',warning:'Preview only. Review and paste manually; OAF does not write home config files.'},
+    desiredServer:{name:'oaf',transport:'stdio',command:'npm',args:['--silent','run','oaf','--','mcp','resources','--read-only','--stdio'],environmentKeys:[],resourceMode:'read-only',externalWrites:false},
+    manualConfigSnippet:{format:'json',configRef:'home://.cursor/mcp.json',applyMode:'manual-copy',content:'{"mcpServers":{"oaf":{"command":"npm","args":["--silent","run","oaf","--","mcp","resources","--read-only","--stdio"]}}}',warning:'Preview only. Review and paste manually; OAF does not write home config files.'},
     diff:{redacted:true,operations:[{op:'add',target:'mcpServers.oaf',before:'absent',after:'read-only-oaf-mcp-stdio',summary:'add oaf with read-only OAF MCP stdio resource bridge'}],preview:['add oaf with read-only OAF MCP stdio resource bridge']},
     safeguards:{localFilesWritten:0,canonicalStateMutated:false,homeConfigMutated:false,externalWritesEnabled:false,externalAdaptersEnabled:0,networkCalls:0,modelCalls:0,rawConfigBodyIncluded:false,absoluteFilesystemLocationsIncluded:false,credentialsIncluded:false},
     planFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
@@ -954,7 +954,7 @@ test('agents tools exposes dry-run harness setup planning without install afford
   assert.equal(model.configRef,'home://.cursor/mcp.json');
   assert.equal(model.operation,'add oaf with read-only OAF MCP stdio resource bridge');
   assert.equal(model.command,'npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json');
-  assert.equal(model.bridgeCommand,'oaf mcp resources --read-only --stdio');
+  assert.equal(model.bridgeCommand,'npm --silent run oaf -- mcp resources --read-only --stdio');
   assert.equal(model.manualConfigSnippet.configRef,'home://.cursor/mcp.json');
   assert.match(model.manualConfigSnippet.content,/mcpServers/);
   assert.deepEqual(model.safeguards.find(([label])=>label==='External writes'),['External writes','disabled']);

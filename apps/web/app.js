@@ -1,5 +1,7 @@
 export const SHELL_STATES = new Set(['loading','setup','empty','error','denied','stale','partial','success']);
 
+const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
+
 export const ROUTES = [
   { id:'home', path:'/', label:'Home', title:'Home', eyebrow:'Workspace / local', description:'Health, active work, approvals, residency, and the next local action.' },
   { id:'runs', path:'/runs', label:'Runs', title:'Runs', eyebrow:'Execution', description:'Run history, status, current step, artifacts, and sanitized timelines.' },
@@ -726,7 +728,7 @@ export function buildHarnessSetupUiModel(report = null) {
     operation:operation ? safeText(operation.summary) : 'No MCP config change needed',
     operationKind:safeText(operation?.op ?? 'none'),
     command:report ? `npm run oaf -- harness setup plan --client ${safeText(report.client)} --server oaf --dry-run --format json` : 'npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json',
-    bridgeCommand:report?.desiredServer ? [report.desiredServer.command,...report.desiredServer.args].join(' ') : 'oaf mcp resources --read-only --stdio',
+    bridgeCommand:report?.desiredServer ? [report.desiredServer.command,...report.desiredServer.args].join(' ') : oafCommand('mcp resources --read-only --stdio'),
     manualConfigSnippet:report?.manualConfigSnippet ? {
       format:safeText(report.manualConfigSnippet.format),
       configRef:safeText(report.manualConfigSnippet.configRef),
@@ -1687,7 +1689,7 @@ function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
     { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
     { label:'Receive summary', command:contextPackReceiveSummaryCommand(pack) },
-    { label:'Start MCP bridge', command:'oaf mcp resources --read-only --stdio' },
+    { label:'Start MCP bridge', command:oafCommand('mcp resources --read-only --stdio') },
     { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
     { label:'Read use plan', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
     { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
@@ -1724,7 +1726,7 @@ function contextPackImpactCommand(pack) {
     .map((item)=>` --include-file ${quoteShell(String(item.locator).replace(/^user-selected:\/\//u,''))}`)
     .join('');
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
-  return `oaf measure context-pack --read-only --root . --from ${from} --objective ${objective} --step ${step} --target ${target}${selected}${changed} --format json`;
+  return oafCommand(`measure context-pack --read-only --root . --from ${from} --objective ${objective} --step ${step} --target ${target}${selected}${changed} --format json`);
 }
 
 function contextPackPreflightCommand(pack,{memoryConfig=null,format='json'}={}) {
@@ -1740,7 +1742,7 @@ function contextPackPreflightCommand(pack,{memoryConfig=null,format='json'}={}) 
     .join('');
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
   const memoryFlag=normalizeMemoryWorkspaceConfig(memoryConfig).memoryPaths.length ? ' --memory-config oaf.memory.json' : '';
-  return `oaf context handoff --read-only --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed}${memoryFlag} --format ${outputFormat}`;
+  return oafCommand(`context handoff --read-only --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed}${memoryFlag} --format ${outputFormat}`);
 }
 
 function contextPackReceiveCommand(pack) {
@@ -1769,7 +1771,7 @@ function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
     { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
     { label:'Receive summary', command:contextPackReceiveSummaryCommand(pack) },
-    { label:'Start MCP bridge', command:'oaf mcp resources --read-only --stdio' },
+    { label:'Start MCP bridge', command:oafCommand('mcp resources --read-only --stdio') },
     { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
     { label:'Read use plan', command:`npm run oaf -- mcp resources --read-only --uri ${uri} --format json` }
   ];
@@ -1796,6 +1798,10 @@ function contextPackCommandLabel(command) {
   if(command.includes('context-pack/current'))return 'Read current context pack';
   if(command.includes('mcp resources --read-only'))return 'Read MCP resources';
   return 'Run command';
+}
+
+function oafCommand(args) {
+  return `${OAF_CHECKOUT_COMMAND_PREFIX} ${args}`;
 }
 
 function contextPackSetupClient(pack) {

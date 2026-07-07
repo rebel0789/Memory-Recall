@@ -1173,11 +1173,11 @@ export function createApiRouteContracts(limits = {}) {
         properties: {
           name: { const: 'oaf' },
           transport: { const: 'stdio' },
-          command: { const: 'oaf' },
+          command: { enum: ['oaf', 'npm'] },
           args: {
             type: 'array',
             minItems: 4,
-            maxItems: 4,
+            maxItems: 8,
             items: {
               type: 'string',
               minLength: 1,

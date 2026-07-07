@@ -132,7 +132,7 @@
     "state": "not_configured",
     "configured": false,
     "configRef": null,
-    "command": "oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json",
+    "command": "npm --silent run oaf -- memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json",
     "dryRun": true,
     "summary": {
       "proposalCount": 0,
@@ -171,7 +171,7 @@
   "skillCatalog": {
     "state": "ready",
     "configured": true,
-    "command": "oaf skill catalog --read-only --root . --format json",
+    "command": "npm --silent run oaf -- skill catalog --read-only --root . --format json",
     "summary": {
       "total": 1,
       "advertisedSkillCount": 1,
@@ -214,8 +214,8 @@
       "desiredServer": {
         "name": "oaf",
         "transport": "stdio",
-        "command": "oaf",
-        "args": ["mcp", "resources", "--read-only", "--stdio"],
+        "command": "npm",
+        "args": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"],
         "environmentKeys": [],
         "resourceMode": "read-only",
         "externalWrites": false
@@ -224,7 +224,7 @@
         "format": "toml",
         "configRef": "home://.codex/config.toml",
         "applyMode": "manual-copy",
-        "content": "[mcp_servers.oaf]\ncommand = \"oaf\"\nargs = [\"mcp\", \"resources\", \"--read-only\", \"--stdio\"]",
+        "content": "[mcp_servers.oaf]\ncommand = \"npm\"\nargs = [\"--silent\", \"run\", \"oaf\", \"--\", \"mcp\", \"resources\", \"--read-only\", \"--stdio\"]",
         "warning": "Preview only. Review and paste manually; OAF does not write home config files."
       }
     },
@@ -240,12 +240,12 @@
     }
   },
   "commands": {
-    "previewSetup": "oaf harness setup plan --client codex --server oaf --dry-run --format json",
-    "startMcpBridge": "oaf mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --stdio",
-    "readCurrentContextPack": "oaf mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --uri oaf://workspace/ws_local/context-pack/current --format json",
-    "renderMarkdown": "oaf context pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --dry-run --format markdown",
-    "refineMemory": "oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json",
-    "catalogSkills": "oaf skill catalog --read-only --root . --format json"
+    "previewSetup": "npm --silent run oaf -- harness setup plan --client codex --server oaf --dry-run --format json",
+    "startMcpBridge": "npm --silent run oaf -- mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --stdio",
+    "readCurrentContextPack": "npm --silent run oaf -- mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --uri oaf://workspace/ws_local/context-pack/current --format json",
+    "renderMarkdown": "npm --silent run oaf -- context pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --dry-run --format markdown",
+    "refineMemory": "npm --silent run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json",
+    "catalogSkills": "npm --silent run oaf -- skill catalog --read-only --root . --format json"
   },
   "checks": {
     "contextPackFingerprintMatchesMcp": true,

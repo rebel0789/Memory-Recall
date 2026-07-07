@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -59,6 +60,8 @@ export const LOOP_RUN_WORKFLOW_ID = 'workflow:oaf:loop-run';
 export const OAF_MCP_RESOURCE_BINARY_ARGS = Object.freeze(['mcp', 'resources', '--read-only', '--stdio']);
 export const OAF_MCP_TOKEN_SAVER_BINARY_ARGS = Object.freeze(['mcp', 'server', '--read-only', '--root', '.', '--stdio']);
 const OAF_HOOK_CONTEXT_COMMAND = 'oaf hook context --read-only --format text';
+const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
+const OAF_CHECKOUT_ARG_PREFIX = Object.freeze(['--silent', 'run', 'oaf', '--']);
 export const REALISTIC_SAVINGS_OBJECTIVE = 'Prove MCP memory token savings on Open Agent Fabric coding-agent work';
 export const REALISTIC_SAVINGS_STEP = 'Compare context.profile delivery with naive candidate file and git history body resend';
 
@@ -607,8 +610,31 @@ function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
+function sourceCheckoutHasOafScript() {
+  return existsSync(path.resolve(process.cwd(), 'package.json')) && existsSync(path.resolve(process.cwd(), 'apps/cli/oaf.mjs'));
+}
+
+function oafCommand(args) {
+  return sourceCheckoutHasOafScript() ? `${OAF_CHECKOUT_COMMAND_PREFIX} ${args}` : `oaf ${args}`;
+}
+
+function oafServerCommand(binaryArgs) {
+  return sourceCheckoutHasOafScript()
+    ? { command: 'npm', args: [...OAF_CHECKOUT_ARG_PREFIX, ...binaryArgs] }
+    : { command: 'oaf', args: binaryArgs };
+}
+
+function isOafServerInvocation(server, binaryArgs) {
+  return Boolean(server) &&
+    Array.isArray(server.args) &&
+    (
+      (server.command === 'oaf' && arraysEqual(server.args, binaryArgs)) ||
+      (server.command === 'npm' && arraysEqual(server.args, [...OAF_CHECKOUT_ARG_PREFIX, ...binaryArgs]))
+    );
+}
+
 function memoryProposalCommand(configPath = 'oaf.memory.json') {
-  return `oaf memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
+  return oafCommand(`memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`);
 }
 
 function memoryPreflightSafeguards(report = null) {
@@ -1897,7 +1923,7 @@ function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, 
     'npm run oaf -- context registry status --read-only --format json',
     `npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`,
     `npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format summary`,
-    'oaf mcp resources --read-only --stdio',
+    oafCommand('mcp resources --read-only --stdio'),
     'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json',
     'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json',
     `npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
@@ -1922,7 +1948,7 @@ function markdownBridgeCommands(commands) {
     candidates.find((command) => command.includes('context pack') && command.includes('--write --pin')),
     candidates.find((command) => command.includes('context receive --read-only') && command.includes('--format json')),
     candidates.find((command) => command.includes('context receive --read-only') && command.includes('--format summary')),
-    candidates.find((command) => command === 'oaf mcp resources --read-only --stdio'),
+    candidates.find((command) => command === oafCommand('mcp resources --read-only --stdio')),
     candidates.find((command) => command.includes('mcp resources --read-only') && command.includes('context-pack/registry/current')),
     candidates.find((command) => command.includes('mcp resources --read-only') && command.includes('context-pack/use-plan/current')),
     candidates.find((command) => command.includes('harness setup plan') && command.includes('--dry-run'))
@@ -4612,12 +4638,12 @@ export async function buildContextPackReceiveReport({
     reasonCodes: item.reasonCodes
   }));
   const commands = {
-    createPinnedContextPack: `npm run oaf -- context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target ${normalizedTarget} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
-    checkRegistry: `oaf context registry status --read-only --root . --workspace ${workspaceId} --format json`,
-    readUsePlan: `oaf mcp resources --read-only --root . --workspace ${workspaceId} --uri ${usePlanResourceUri} --format json`,
-    readRegistry: `oaf mcp resources --read-only --root . --workspace ${workspaceId} --uri ${registryResourceUri} --format json`,
-    previewSetup: `oaf harness setup status --client ${setupClient} --server oaf --dry-run --format json`,
-    startReadOnlyBridge: `oaf mcp resources --read-only --root . --workspace ${workspaceId} --stdio`
+    createPinnedContextPack: oafCommand(`context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target ${normalizedTarget} --write --pin --out context-packs/CONTEXT_PACK.md --format json`),
+    checkRegistry: oafCommand(`context registry status --read-only --root . --workspace ${workspaceId} --format json`),
+    readUsePlan: oafCommand(`mcp resources --read-only --root . --workspace ${workspaceId} --uri ${usePlanResourceUri} --format json`),
+    readRegistry: oafCommand(`mcp resources --read-only --root . --workspace ${workspaceId} --uri ${registryResourceUri} --format json`),
+    previewSetup: oafCommand(`harness setup status --client ${setupClient} --server oaf --dry-run --format json`),
+    startReadOnlyBridge: oafCommand(`mcp resources --read-only --root . --workspace ${workspaceId} --stdio`)
   };
   const report = {
     schemaVersion: '1.0.0',
@@ -4741,9 +4767,8 @@ export async function buildContextPackReceiveReport({
 }
 
 function harnessSetupUsesRunnableOaf(server) {
-  if (!server || !Array.isArray(server.args)) return false;
-  if (server.command === 'oaf') return arraysEqual(server.args.slice(0, 1), ['mcp']);
-  return false;
+  return isOafServerInvocation(server, OAF_MCP_RESOURCE_BINARY_ARGS) ||
+    isOafServerInvocation(server, OAF_MCP_TOKEN_SAVER_BINARY_ARGS);
 }
 
 function defaultReceiveTrustedContext(workspaceId) {
@@ -5262,11 +5287,12 @@ function harnessSetupSafeguards() {
 
 function desiredHarnessServerSummary(server, { bridgeMode = 'resources' } = {}) {
   const binaryArgs = bridgeMode === 'token-saver' ? [...OAF_MCP_TOKEN_SAVER_BINARY_ARGS] : [...OAF_MCP_RESOURCE_BINARY_ARGS];
+  const invocation = oafServerCommand(binaryArgs);
   return {
     name: server,
     transport: 'stdio',
-    command: 'oaf',
-    args: binaryArgs,
+    command: invocation.command,
+    args: invocation.args,
     environmentKeys: [],
     resourceMode: bridgeMode === 'token-saver' ? 'read-only-token-saver' : 'read-only',
     externalWrites: false
@@ -5279,7 +5305,9 @@ function desiredHarnessHooks(client) {
     supported,
     applyMode: 'manual-copy',
     events: supported ? ['SessionStart', 'UserPromptSubmit', 'PreCompact'] : [],
-    command: supported ? OAF_HOOK_CONTEXT_COMMAND : null,
+    command: supported
+      ? (sourceCheckoutHasOafScript() ? oafCommand('hook context --read-only --format text') : OAF_HOOK_CONTEXT_COMMAND)
+      : null,
     authority: 'none',
     externalWrites: false
   };
@@ -5334,12 +5362,8 @@ function harnessManualConfigSnippet({ client, server, bridgeMode = 'resources', 
 
 function classifyHarnessServer(server, { bridgeMode = 'resources' } = {}) {
   if (!server) return 'absent';
-  const expected = desiredHarnessServerSummary('oaf', { bridgeMode });
-  if (
-    server.command === expected.command &&
-    Array.isArray(server.args) &&
-    arraysEqual(server.args, expected.args)
-  ) return 'installed';
+  const binaryArgs = bridgeMode === 'token-saver' ? OAF_MCP_TOKEN_SAVER_BINARY_ARGS : OAF_MCP_RESOURCE_BINARY_ARGS;
+  if (isOafServerInvocation(server, binaryArgs)) return 'installed';
   return 'drifted';
 }
 

@@ -17,7 +17,7 @@
     "unitBudget": 4096
   },
   "bridge": {
-    "invocation": "oaf mcp resources --read-only --context-pack --stdio",
+    "invocation": "npm --silent run oaf -- mcp resources --read-only --context-pack --stdio",
     "jsonRpcMessageCount": 5,
     "responseCount": 4,
     "resourcesListed": 6,

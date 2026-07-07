@@ -868,8 +868,8 @@ test('harness setup plan route is protected plan-only and does not expose home c
   assert.equal(response.body.config.serverCount, 1);
   assert.equal(response.body.diff.redacted, true);
   assert.deepEqual(response.body.diff.operations, [{ op: 'add', target: 'mcpServers.oaf', before: 'absent', after: 'read-only-oaf-mcp-stdio', summary: 'add oaf with read-only OAF MCP stdio resource bridge' }]);
-  assert.equal(response.body.desiredServer.command, 'oaf');
-  assert.deepEqual(response.body.desiredServer.args, ['mcp', 'resources', '--read-only', '--stdio']);
+  assert.equal(response.body.desiredServer.command, 'npm');
+  assert.deepEqual(response.body.desiredServer.args, ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
   assert.equal(response.body.desiredHooks.supported, false);
   assert.equal(response.body.desiredHooks.authority, 'none');
   assert.equal(response.body.manualHookSnippet.applyMode, 'manual-copy');
@@ -878,8 +878,8 @@ test('harness setup plan route is protected plan-only and does not expose home c
   assert.equal(response.body.manualConfigSnippet.applyMode, 'manual-copy');
   const snippet = JSON.parse(response.body.manualConfigSnippet.content);
   assert.deepEqual(Object.keys(snippet.mcpServers), ['oaf']);
-  assert.equal(snippet.mcpServers.oaf.command, 'oaf');
-  assert.deepEqual(snippet.mcpServers.oaf.args, ['mcp', 'resources', '--read-only', '--stdio']);
+  assert.equal(snippet.mcpServers.oaf.command, 'npm');
+  assert.deepEqual(snippet.mcpServers.oaf.args, ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
   assert.match(response.body.planFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.equal(response.body.safeguards.localFilesWritten, 0);
   assert.equal(response.body.safeguards.homeConfigMutated, false);

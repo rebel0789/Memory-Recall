@@ -63,7 +63,7 @@
       "additionalProperties": false,
       "required": ["invocation", "jsonRpcMessageCount", "responseCount", "resourcesListed", "toolsExposed"],
       "properties": {
-        "invocation": { "const": "oaf mcp resources --read-only --context-pack --stdio" },
+        "invocation": { "enum": ["oaf mcp resources --read-only --context-pack --stdio", "npm --silent run oaf -- mcp resources --read-only --context-pack --stdio"] },
         "jsonRpcMessageCount": { "type": "integer", "minimum": 5, "maximum": 5 },
         "responseCount": { "type": "integer", "minimum": 4, "maximum": 4 },
         "resourcesListed": { "type": "integer", "minimum": 1, "maximum": 64 },

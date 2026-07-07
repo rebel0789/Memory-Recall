@@ -428,7 +428,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 1000,
-          "pattern": "^oaf skill catalog --read-only --root \\. --format json$"
+          "pattern": "^(?:oaf|npm --silent run oaf --) skill catalog --read-only --root \\. --format json$"
         },
         "summary": { "$ref": "#/$defs/skillCatalogSummary" },
         "catalogFingerprint": { "$ref": "#/$defs/maybeHash" },
@@ -474,11 +474,11 @@
       "properties": {
         "name": { "const": "oaf" },
         "transport": { "const": "stdio" },
-        "command": { "const": "oaf" },
+        "command": { "enum": ["oaf", "npm"] },
         "args": {
           "type": "array",
           "minItems": 4,
-          "maxItems": 4,
+          "maxItems": 8,
           "items": {
             "type": "string",
             "minLength": 1,
@@ -566,13 +566,13 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 1000,
-          "pattern": "^oaf memory refine --read-only --root \\. --sqlite \\.local/memory\\.sqlite --target-active-facts 200 --format json$"
+          "pattern": "^(?:oaf|npm --silent run oaf --) memory refine --read-only --root \\. --sqlite \\.local/memory\\.sqlite --target-active-facts 200 --format json$"
         },
         "catalogSkills": {
           "type": "string",
           "minLength": 1,
           "maxLength": 1000,
-          "pattern": "^oaf skill catalog --read-only --root \\. --format json$"
+          "pattern": "^(?:oaf|npm --silent run oaf --) skill catalog --read-only --root \\. --format json$"
         }
       }
     },

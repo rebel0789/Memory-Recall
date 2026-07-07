@@ -151,7 +151,7 @@ test('context pack renders a harness-specific handoff without raw source bodies 
   assert.match(markdown, /npm run oaf -- context pack --from 'codex,claude-code,cursor'.*--write --pin --out context-packs\/CONTEXT_PACK\.md --format json/);
   assert.match(markdown, /npm run oaf -- context receive --read-only --root \. --target codex --format json/);
   assert.match(markdown, /npm run oaf -- context receive --read-only --root \. --target codex --format summary/);
-  assert.match(markdown, /oaf mcp resources --read-only --stdio/);
+  assert.match(markdown, /npm --silent run oaf -- mcp resources --read-only --stdio/);
   assert.match(markdown, /context-pack\/registry\/current/);
   assert.match(markdown, /context-pack\/use-plan\/current/);
   assert.match(markdown, /harness setup plan --client codex --server oaf --dry-run --format json/);

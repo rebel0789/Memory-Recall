@@ -19,6 +19,8 @@ import {
   buildHarnessSetupReport,
   buildLoopPlan,
   buildMemoryProposalPreflightFromFile,
+  OAF_MCP_RESOURCE_BINARY_ARGS,
+  OAF_MCP_TOKEN_SAVER_BINARY_ARGS,
   buildRealisticContextProfileSavingsReport,
   detectGitChangedLocators,
   loadCurrentContextPackUsePlan,
@@ -58,6 +60,8 @@ import {
 
 const CLI_PATH = fileURLToPath(import.meta.url);
 const PACKAGE_ROOT = path.resolve(path.dirname(CLI_PATH), '../..');
+const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
+const OAF_CHECKOUT_ARG_PREFIX = Object.freeze(['--silent', 'run', 'oaf', '--']);
 const MCP_STDIO_MAX_STDIN_BYTES = boundedEnvInteger('OAF_MCP_STDIO_MAX_STDIN_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 const MCP_STDIO_MAX_LINE_BYTES = boundedEnvInteger('OAF_MCP_STDIO_MAX_LINE_BYTES', 32 * 1024, { min: 1, max: 512 * 1024 });
 const MCP_STDIO_MAX_MESSAGES = boundedEnvInteger('OAF_MCP_STDIO_MAX_MESSAGES', 16, { min: 1, max: 64 });
@@ -4377,7 +4381,7 @@ async function buildSkillCatalogPreflight({ root, workspaceId, generatedAt }) {
     if (error.code === 'ENOENT') return null;
     throw error;
   });
-  const command = 'oaf skill catalog --read-only --root . --format json';
+  const command = oafCommand('skill catalog --read-only --root . --format json');
   if (!skillsRootStat?.isDirectory()) {
     return {
       state: 'unavailable',
@@ -4452,7 +4456,7 @@ async function buildSkillCatalogMcpResourceSummaryFromReport({ root, report }) {
   return {
     state: 'ready',
     configured: true,
-    command: 'oaf skill catalog --read-only --root . --format json',
+    command: oafCommand('skill catalog --read-only --root . --format json'),
     summary: report.summary,
     skills: report.skills.map((skill) => ({
       id: skill.id,
@@ -6114,8 +6118,8 @@ async function hookCommand(values) {
     dryRun: true,
     readOnly: true,
     recommendedCommands: [
-      'oaf context receive --read-only --root . --target codex --format json',
-      'oaf mcp resources --read-only --stdio'
+      oafCommand('context receive --read-only --root . --target codex --format json'),
+      oafCommand('mcp resources --read-only --stdio')
     ],
     safeguards: {
       localFilesWritten: 0,
@@ -6521,7 +6525,7 @@ function buildMcpInspectUnavailable(availability = {}) {
     missing.push({
       uri: 'oaf://workspace/<workspaceId>/context-pack/current',
       reasonCodes: ['requires_context_pack_inputs'],
-      howToExpose: 'oaf mcp inspect --read-only --context-pack --objective "Ship safely" --step "handoff" --format json'
+      howToExpose: oafCommand('mcp inspect --read-only --context-pack --objective "Ship safely" --step "handoff" --format json')
     });
   }
   if (!availability.contextPackUsePlan) {
@@ -6774,7 +6778,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
       unitBudget: tokenBudget
     },
     bridge: {
-      invocation: 'oaf mcp resources --read-only --context-pack --stdio',
+      invocation: oafCommand('mcp resources --read-only --context-pack --stdio'),
       jsonRpcMessageCount: messages.length,
       responseCount: responses.length,
       resourcesListed: listed.length,
@@ -6884,7 +6888,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
   const selected = pack.utility.sourceSelection;
   const delivery = pack.delivery ?? {};
   const baseCommand = contextHandoffBaseCommand({ from, objective, step, targetHarness, userSelectedFiles, changedLocators });
-  const startMcpBridge = `oaf mcp resources --read-only --context-pack ${baseCommand} --stdio`;
+  const startMcpBridge = oafCommand(`mcp resources --read-only --context-pack ${baseCommand} --stdio`);
   const handoffParts = buildContextHandoffParts({
     launchPrompt: pack.handoff.launchPrompt,
     contextPackFingerprint: pack.contextPackFingerprint,
@@ -6971,11 +6975,11 @@ async function buildContextHandoffReport(values, { objective, step }) {
       }
     },
     commands: {
-      previewSetup: `oaf harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
+      previewSetup: oafCommand(`harness setup plan --client ${setupClient} --server oaf --dry-run --format json`),
       startMcpBridge,
-      readCurrentContextPack: `oaf mcp resources --read-only --context-pack ${baseCommand} --uri oaf://workspace/${workspaceId}/context-pack/current --format json`,
-      renderMarkdown: `oaf context pack ${baseCommand} --dry-run --format markdown`,
-      refineMemory: 'oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json',
+      readCurrentContextPack: oafCommand(`mcp resources --read-only --context-pack ${baseCommand} --uri oaf://workspace/${workspaceId}/context-pack/current --format json`),
+      renderMarkdown: oafCommand(`context pack ${baseCommand} --dry-run --format markdown`),
+      refineMemory: oafCommand('memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json'),
       catalogSkills: skillCatalog.command
     },
     checks: {
@@ -7063,9 +7067,8 @@ function buildContextHandoffParts({ launchPrompt, contextPackFingerprint, contex
 }
 
 function harnessSetupUsesRunnableOaf(server) {
-  if (!server || !Array.isArray(server.args)) return false;
-  if (server.command === 'oaf') return arraysEqual(server.args.slice(0, 1), ['mcp']);
-  return false;
+  return isOafServerInvocation(server, OAF_MCP_RESOURCE_BINARY_ARGS) ||
+    isOafServerInvocation(server, OAF_MCP_TOKEN_SAVER_BINARY_ARGS);
 }
 
 function safeWorkspaceRelativePath(value, label) {
@@ -7079,7 +7082,7 @@ function safeWorkspaceRelativePath(value, label) {
 }
 
 function memoryProposalCommand(configPath = 'oaf.memory.json') {
-  return `oaf memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
+  return oafCommand(`memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`);
 }
 
 function memoryPreflightSafeguards(report = null) {
@@ -8308,9 +8311,16 @@ function parseJsonHomeConfig(text) {
 }
 
 function isDesiredOafServer(server) {
-  return server?.command === 'oaf' &&
+  return isOafServerInvocation(server, OAF_MCP_RESOURCE_BINARY_ARGS);
+}
+
+function isOafServerInvocation(server, binaryArgs) {
+  return Boolean(server) &&
     Array.isArray(server.args) &&
-    server.args.join('\0') === ['mcp', 'resources', '--read-only', '--stdio'].join('\0');
+    (
+      (server.command === 'oaf' && arraysEqual(server.args, binaryArgs)) ||
+      (server.command === 'npm' && arraysEqual(server.args, [...OAF_CHECKOUT_ARG_PREFIX, ...binaryArgs]))
+    );
 }
 
 async function readHomeFile(home, relativePath) {
@@ -8449,6 +8459,14 @@ function normalizeHarnesses(value) {
 
 function shellQuote(value) {
   return `'${String(value ?? '').replaceAll("'", `'"'"'`)}'`;
+}
+
+function sourceCheckoutHasOafScript() {
+  return existsSync(path.resolve(process.cwd(), 'package.json')) && existsSync(path.resolve(process.cwd(), 'apps/cli/oaf.mjs'));
+}
+
+function oafCommand(args) {
+  return sourceCheckoutHasOafScript() ? `${OAF_CHECKOUT_COMMAND_PREFIX} ${args}` : `oaf ${args}`;
 }
 
 function contextHandoffSetupClient(targetHarness) {
