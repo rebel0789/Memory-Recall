@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 
 const backlog = JSON.parse(await readFile('planning/backlog.json', 'utf8'));
 const status = JSON.parse(await readFile('PROJECT_STATUS.json', 'utf8'));
+const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
 
 function readyTasks() {
   const completed = new Set(backlog.tasks.filter((task) => task.status === 'completed').map((task) => task.id));
@@ -46,10 +47,18 @@ test('status command does not advertise completed backlog work as next', () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Next task: none \(checked-in backlog complete\)/);
   assert.match(result.stdout, /Use OAF today: docs\/usage\/local-agent-handoff\.md/);
-  assert.match(result.stdout, /First safe handoff: npm run oaf -- context handoff --read-only --from codex --root \. --objective "Ship safely" --step "handoff" --target codex --changed-from-git --format summary/);
+  assert.match(result.stdout, /First safe handoff: npm run handoff:safe/);
+  assert.match(result.stdout, /Expanded handoff: npm run oaf -- context handoff --read-only --from codex --root \. --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary/);
   assert.match(result.stdout, /Skill menu: npm run oaf -- skill catalog --read-only --root \. --format summary/);
   assert.match(result.stdout, /Issue\/PR queue instructions: docs\/agents\/issue-tracker\.md/);
   assert.equal(result.stdout.includes('Next task: OAF-030'), false);
+});
+
+test('first safe handoff has a package script', () => {
+  assert.equal(
+    packageJson.scripts['handoff:safe'],
+    'npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary'
+  );
 });
 
 test('bootstrap output only points to task command conditionally', () => {

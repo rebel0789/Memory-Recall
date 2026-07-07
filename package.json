@@ -79,6 +79,7 @@
     "db:test:postgres": "node scripts/postgres-recovery-test.mjs",
     "manifest": "node scripts/generate-manifest.mjs",
     "status": "node scripts/status.mjs",
+    "handoff:safe": "npm --silent run oaf -- context handoff --read-only --from codex --root . --objective \"Ship safely\" --step handoff --target codex --changed-from-git --format summary",
     "task": "node scripts/task.mjs",
     "oaf": "node apps/cli/oaf.mjs",
     "native:smoke": "node scripts/native-smoke.mjs",
