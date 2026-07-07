@@ -278,6 +278,11 @@ test('memory graph route renders governed graph canvas controls', async () => {
   assert.match(html, /id="memory-graph-communities"/);
   assert.match(html, /provider:native:memory:sqlite/);
   assert.match(html, /legacy-view/);
+  assert.match(html, /Current facts/);
+  assert.match(html, /History facts/);
+  assert.match(html, /Superseded/);
+  assert.match(html, /Provenance/);
+  assert.match(html, /workspace:\/\/providers\/native\/memory-sqlite\/provider\.json/);
   assert.match(source, /\/api\/memory\/graph/);
 });
 
