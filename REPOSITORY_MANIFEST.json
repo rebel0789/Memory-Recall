@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-07-07T12:24:16.320Z",
+  "generatedAt": "2026-07-07T12:43:13.288Z",
   "fileCount": 869,
   "totalBytes": 5640254,
   "exclusions": [
@@ -2163,7 +2163,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 975,
-      "sha256": "0eb6ea93dd789b9b0305e5370605eb6f58dfdb2b17c06f28514b20e44c12867d"
+      "sha256": "6743c858827f476d4e12fd3a8093521e748eed2d22b90c2a6653858e4ecce621"
     },
     {
       "path": "LICENSE",
@@ -3478,7 +3478,7 @@
     {
       "path": "rust/oaf/src/main.rs",
       "bytes": 179071,
-      "sha256": "4dbf7341d921d9e5999a3f98557633876fbdb39a1ef3f0a03d87e0bd97d4c3ed"
+      "sha256": "f5048cc890941130671510950564f711a2be4a856cafd735564292661ea45265"
     },
     {
       "path": "rust/README.md",
