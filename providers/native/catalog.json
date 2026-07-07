@@ -68,6 +68,12 @@
       "purpose": "Dependency-free JS/TS static code chunk candidate source"
     },
     {
+      "id": "provider:native:context-candidate:graph",
+      "path": "providers/native/context-candidate-graph",
+      "enabledByDefault": true,
+      "purpose": "Dependency-free JS/TS source graph locator candidate source"
+    },
+    {
       "id": "provider:native:context-manifest:local",
       "path": "providers/native/context-manifest-local",
       "enabledByDefault": true,

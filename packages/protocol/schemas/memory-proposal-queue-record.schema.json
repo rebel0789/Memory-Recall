@@ -11,7 +11,7 @@
     "id": { "type": "string", "pattern": "^mpq_[A-Za-z0-9._-]{1,128}$" },
     "workspaceId": { "type": "string", "minLength": 1, "maxLength": 128 },
     "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "sourceLocator": { "type": "string", "pattern": "^workspace://(?!/)(?!.*\\.\\.)(?!.*(?:/Users/|file:///))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$" },
+    "sourceLocator": { "type": "string", "pattern": "^workspace://(?!/)(?!.*\\.\\.)(?!.*(?:/Users/|file:///))[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}$" },
     "sourceHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "status": { "enum": ["pending", "claimed", "applied", "poison"] },
     "attempts": { "type": "integer", "minimum": 0, "maximum": 10 },

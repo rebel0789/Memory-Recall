@@ -229,7 +229,16 @@ async function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt, m
   const loopEvents = events.filter((event) => String(event.type ?? '').startsWith('loop.'));
   const loopRunRecords = runs.filter((run) => String(run.workflowId ?? '').includes('loop'));
   const eventTypes = [...new Set(loopEvents.map((event) => event.type))].sort();
-  const memoryLoop = memoryProvider ? await buildMemoryLoopFlow({ provider: memoryProvider, workspaceId, generatedAt, loopEventCount: loopEvents.length }) : null;
+  let memoryLoop = null;
+  let memoryLoopStatus = memoryProvider ? 'available' : 'not_configured';
+  if (memoryProvider) {
+    try {
+      memoryLoop = await buildMemoryLoopFlow({ provider: memoryProvider, workspaceId, generatedAt, loopEventCount: loopEvents.length });
+    } catch (error) {
+      if (!isReadOnlyMemorySchemaUnavailable(error)) throw error;
+      memoryLoopStatus = 'unavailable';
+    }
+  }
   return {
     schemaVersion: '1.0.0',
     workspaceId,
@@ -277,7 +286,8 @@ async function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt, m
     ],
     trace: {
       eventCount: loopEvents.length,
-      eventTypes
+      eventTypes,
+      memoryLoopStatus
     },
     safeguards: {
       readOnlyViews: true,
@@ -288,6 +298,10 @@ async function buildLoopWorkbenchProjection({ state, workspaceId, generatedAt, m
       autoMerge: false
     }
   };
+}
+
+function isReadOnlyMemorySchemaUnavailable(error) {
+  return /no such table: memory_(?:facts|proposal_queue|records|episodes)\b/iu.test(String(error?.message ?? ''));
 }
 
 function factProfileRecord(fact) {

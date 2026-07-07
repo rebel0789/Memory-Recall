@@ -29,7 +29,10 @@ language model.
 The Ollama provider is explicit, disabled by default, loopback HTTP only, and
 requires a separately installed Ollama process plus a named local model. A
 missing model or unavailable process returns a local error; there is no hosted
-fallback.
+fallback. Health checks expose bounded local model metadata from Ollama's tag
+list, including family, parameter size, and quantization level when Ollama
+reports them; OAF does not train, download, auto-select, inspect, certify, or
+change model weights.
 
 ## Event Safety
 

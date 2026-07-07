@@ -46,6 +46,10 @@ generic token savings versus RAG, hosted memory, or cloud sync.
   manifests, and source-graph hints into PENDING proposals only;
 - `oaf memory review`, `oaf memory approve`, and `oaf memory reject` for the
   trust step from candidate proposal to ACTIVE fact;
+- `oaf memory refine --read-only --root . --sqlite .local/memory.sqlite` for
+  duplicate, conflicting, stale, supersession, and lineage-residue candidates
+  before recall drift becomes trusted context; add `--target-active-facts N`
+  for a read-only memory budget preflight from existing candidates;
 - `oaf memory remember --batch facts.json` for host-agent extracted memory maps
   from `skills/oaf-memory`, including supersession and confidence labels;
 - read-only `oaf mcp server` exposing `memory.recall`, `context.profile`, and
@@ -131,6 +135,11 @@ npm --silent run oaf -- memory review --root . --sqlite .local/memory.sqlite --f
 # Promote reviewed facts explicitly. Use a narrower source when you want less.
 npm --silent run oaf -- memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
 
+# Audit active facts before handing them to another agent. This is read-only.
+npm --silent run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --format json
+# Optional: preview the review work needed to fit an active-fact budget.
+npm --silent run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
+
 # Pull what a coding agent receives over the read-only MCP server.
 printf '%s\n' \
 '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
@@ -180,13 +189,15 @@ objective, write and pin first, then receive the pinned artifact:
 ```bash
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
 npm run oaf -- context receive --read-only --root . --target codex --format json
+npm run oaf -- context receive --read-only --root . --target codex --format summary
 ```
 
 `context receive` reads `context-packs/current.json`, the pinned use-plan, and
 the registry only. It returns `ready`, `review`, or `blocked` with hashes,
-required local reads, a compact `receiverPacket`, MCP zero-tool proof, and
-harness status; it does not rebuild the pack, accept objective/step text, write
-files, or expose raw source or Markdown bodies. Direct
+required local reads, a compact `receiverPacket` with versioned typed safe message parts,
+MCP zero-tool recipient proof, and harness status. Use `--format summary` for a
+compact operator preflight over the same proof. It does not rebuild the pack, accept
+objective/step text, write files, or expose raw source or Markdown bodies. Direct
 `--context-pack-use context-packs/*.use.json` MCP reads are also rejected before
 resource exposure if the use-plan contains unsafe local paths, provider URLs,
 session/token markers, or secret-like strings.
@@ -195,6 +206,7 @@ For a single CLI preflight before handing work to Codex:
 
 ```bash
 oaf context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+oaf context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format summary
 ```
 
 Add `--memory-config oaf.memory.json` only when you want the report to preflight
@@ -220,7 +232,11 @@ latency, raw source inclusion, model calls, network calls, or external writes.
 For the full copy-paste operator path across the browser, CLI, Codex, Cursor,
 and Claude Code, read `docs/usage/local-agent-handoff.md`.
 
-The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.
+The offline bootstrap installs no runtime npm dependencies. The optional Ollama
+provider requires a separately installed loopback Ollama server and never falls
+back to a cloud model. Its health check reports safe local model metadata from
+Ollama, including quantization level when present; OAF does not download,
+select, or modify weights.
 
 ## Give this repository to a coding agent
 
@@ -308,7 +324,9 @@ npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" 
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
 npm run oaf -- context receive --read-only --root . --target codex --format json  # after --write --pin
-oaf context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+npm run oaf -- context receive --read-only --root . --target codex --format summary
+npm run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
+npm run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
 npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json

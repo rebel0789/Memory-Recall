@@ -71,7 +71,8 @@ slice.
 - The same native provider now exposes a read-only derived source graph built
   from that JS/TS source index, with schema-validated file/chunk/symbol/module
   nodes, contains/defined/import/export/reference/call edges, lexical graph
-  search, call tracing, and changed-file impact reports. The parser uses a
+  search, call tracing, changed-file impact reports, and locator-only graph
+  candidate records for Context Compiler selection. The parser uses a
   linear string/comment stripper, 256 KiB default static JS/TS file coverage,
   a 1 MiB hard validation ceiling, and bounded reference/call fanout so large
   template-heavy project files cannot spin the CLI, API, or browser preview.
@@ -250,7 +251,9 @@ slice.
 - Generated memory files are reports only; ordinary file edits do not create or
   activate canonical memory.
 - `memoryPaths` config is explicit, workspace-relative, size-bounded, and used
-  only to create proposal reports.
+  only to create proposal reports. Generated OAF outputs such as
+  `memory/profile.md`, `memory/proposals/*`, `context-packs/*`, and `.local/*`
+  are not accepted as proposal sources.
 - Context packs contain locators, hashes, reason codes, warnings, and
   instructions only. They do not embed raw source bodies or grant authority.
 - `requestedInputs` records explicit source-family choices, user-selected
@@ -287,9 +290,9 @@ engine, daemon, embeddings, mutating MCP tools, or performance claims.
 ## Still Planned
 
 - Broader native graph work after the source, compiler, token, and memory
-  baselines are established, including graph candidate-source records,
-  repository-scale benchmarks, and bounded subgraph selection into context
-  manifests.
+  baselines are established, including repository-scale benchmarks, richer
+  bounded subgraph selection into context manifests, and derived graph artifact
+  reuse.
 - Automatic harness chat history import and active-memory activation.
 - Optional disabled adapters for external memory or code-intelligence systems
   after pin, checksum, license, trust-boundary, and conformance review.

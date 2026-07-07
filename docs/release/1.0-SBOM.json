@@ -354,6 +354,13 @@
       "contract": "CandidateSourcePort"
     },
     {
+      "id": "provider:native:context-candidate:graph",
+      "category": "context-candidate",
+      "locality": "in-process",
+      "enabledByDefault": true,
+      "contract": "CandidateSourcePort"
+    },
+    {
       "id": "provider:native:context-candidate:lexical",
       "category": "context-candidate",
       "locality": "in-process",

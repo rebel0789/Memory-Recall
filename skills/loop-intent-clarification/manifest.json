@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:loop-intent-clarification",
   "name": "Loop Intent Clarification",
+  "description": "Clarify loop objectives, non-goals, side effects, validation, rollback, and stop conditions.",
   "version": "0.1.0",
   "triggers": [
     "loop intent",

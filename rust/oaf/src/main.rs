@@ -2704,8 +2704,8 @@ fn context_pack_payload(
             "sourceCandidateTokenCount": 0,
             "sourceSelectedTokenCount": 0,
             "sourceSelectedTokenRatio": 0,
-            "deliveredTokenCount": 1073,
-            "deliveredByteSize": 4290,
+            "deliveredTokenCount": 1090,
+            "deliveredByteSize": 4358,
             "deliveredTokenRatio": 0,
             "observedTokenReductionRatio": 0,
             "sourceContentTokenCountIncluded": 0,
@@ -2752,12 +2752,12 @@ fn context_pack_payload(
             "role": "agent-handoff",
             "contentType": "text/markdown",
             "contentHash": format!("sha256:{}", sha256_hex("context-pack-markdown")),
-            "byteSize": 4290
+            "byteSize": 4358
         }],
         "markdownArtifact": {
             "included": false,
             "contentHash": format!("sha256:{}", sha256_hex("context-pack-markdown")),
-            "byteSize": 4290
+            "byteSize": 4358
         },
         "safeguards": {
             "readOnly": true,

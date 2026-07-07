@@ -128,10 +128,11 @@
         "docs/implementation/OAF-012-context-manifests-note.md"
       ],
       "limitations": [
-        "Native exact, lexical, and AST-code candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 256 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
+        "Native exact, lexical, AST-code, and graph locator candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 256 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
+        "Context views are opt-in deterministic local representations for noisy selected records and tool output; they preserve original/view hashes and token accounting but do not replace canonical source or memory state",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Compressed memory profile context and oaf measure savings use bounded local before/after delivery-token estimates over a realistic workspace candidate-file and git-history baseline, surfaced in the memory cockpit and MCP stats; MCP stats separates context.profile compression-path savings from memory.recall compaction savings and does not claim provider billing-token savings",
-        "Native source graph is read-only derived metadata; it is not canonical source state, not a graph database, not persisted as memory, and does not emit graph candidate-source records yet",
+        "Native source graph is read-only derived metadata; graph candidate records are locator-only and it is not canonical source state, not a graph database, and not persisted as memory",
         "Token estimate is approximate",
         "Manifest persistence is local native or repository-layer only; no production orchestration is implied"
       ]
@@ -145,6 +146,7 @@
         "providers/native/context-candidate-exact/provider.json",
         "providers/native/context-candidate-lexical/provider.json",
         "providers/native/context-candidate-ast-code/provider.json",
+        "providers/native/context-candidate-graph/provider.json",
         "providers/native/catalog.json",
         "tests/context-candidate-sources.test.mjs",
         "tests/ast-code-candidate-source.test.mjs",
@@ -160,9 +162,9 @@
         "docs/architecture/context-compiler.md"
       ],
       "limitations": [
-        "Only native exact, lexical, and AST-code sources are implemented and enabled",
-        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; over-limit files remain hash/read-plan-only and are not treated as symbol-impact coverage; it is not a full semantic parser, language server, graph database, or executor",
-        "Vector, graph, temporal, preference, and episode sources are declared but unavailable",
+        "Only native exact, lexical, AST-code, and graph locator sources are implemented and enabled",
+        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; graph source emits locator-only derived JS/TS graph hits; over-limit files remain hash/read-plan-only and are not treated as symbol-impact coverage; it is not a full semantic parser, language server, graph database, or executor",
+        "Vector, temporal, preference, and episode sources are declared but unavailable",
         "Sources generate candidates only; final selection remains in the Context Compiler selector",
         "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
       ]
@@ -264,9 +266,9 @@
         "Local MCP context-pack smoke report proves the stdio resources/list, tools/list, and resources/read path with observed one-run duration, byte sizes, selected/candidate source units, and delivered-handoff units",
         "Read-only context-pack measurement reports combine current-checkout context-pack build metrics and stdio MCP readback metrics with commit SHA, fingerprints, source-graph coverage counts, byte sizes, zero exposed tools, and explicit no-production-benchmark safeguards",
         "Raw source bodies, prompts, outputs, credentials, provider URLs, private local paths, and hidden reasoning are omitted",
-        "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, persisted graph database, graph candidate-source integration, publishing, or external write",
+        "No automatic harness chat history import, active memory activation, model call, external adapter, outbound network, persisted graph database, publishing, or external write",
         "The browser Context Pack page reads existing pinned registry/current status through the authenticated loopback API, surfaces the read-only receive command as the primary consume action only for verified pins, and withholds the MCP use-plan read command unless the current pinned entry verifies",
-        "Read-only context receive reports include a compact receiverPacket with ready/review/blocked state, fingerprints, required-read order, local-only proof gates, and next actions without embedding objective text, step text, launch prompts, markdown bodies, source bodies, credentials, provider URLs, absolute local paths, or hidden reasoning",
+        "Read-only context receive reports include a compact receiverPacket and summary stdout with versioned typed safe message parts for ready/review/blocked state, fingerprints, required-read order, local-only recipient proof validity gates, and next actions without embedding objective text, step text, launch prompts, markdown bodies, source bodies, credentials, provider URLs, absolute local paths, or hidden reasoning",
         "The only context-pack write paths are explicit CLI outputs under context-packs/*.md, context-packs/*.use.json, context-packs/registry.json, and context-packs/current.json"
       ]
     },
@@ -279,10 +281,14 @@
         "packages/protocol/schemas/loop-observation.schema.json",
         "packages/protocol/schemas/loop-verification-report.schema.json",
         "packages/protocol/schemas/loop-run.schema.json",
+        "packages/protocol/schemas/skill-catalog-report.schema.json",
+        "packages/protocol/schemas/skill-load-plan.schema.json",
         "examples/protocol/loop-plan.json",
         "examples/protocol/loop-observation.json",
         "examples/protocol/loop-verification-report.json",
         "examples/protocol/loop-run.json",
+        "examples/protocol/skill-load-plan.json",
+        "examples/protocol/mcp-readonly-skill-load-plan-resource.json",
         "examples/protocol/compatibility/invalid/loop-plan-raw-body.json",
         "examples/protocol/compatibility/invalid/loop-observation-raw-output.json",
         "examples/protocol/compatibility/invalid/loop-verification-auto-merge.json",
@@ -313,6 +319,7 @@
         "The run controller bounds iterations/timeouts, projects durable workflow history, aggregates contextBudget estimates, and supports opt-in schedule prompt reports; it is not a background daemon.",
         "The web route is a dependency-free read surface over the local Control API model; it does not add a production frontend framework.",
         "Loop Workbench skills are read-only instruction folders with structured maker/checker guidance; they do not execute tools, grant authority, or create an autonomous skill runtime.",
+        "The skill catalog, CLI load-plan command, and MCP load-plan resources are read-only manifest inventory surfaces; they validate committed local skill metadata, return ordered workspace:// reads, and omit raw skill bodies.",
         "Proof summary and autonomous executor are not implemented.",
         "contextBudget is an estimate carried from a context-pack measurement; it does not claim provider billing tokens."
       ]
@@ -443,11 +450,13 @@
         "packages/protocol/schemas/memory-record.schema.json",
         "packages/protocol/schemas/memory-profile-report.schema.json",
         "packages/protocol/schemas/memory-proposals-report.schema.json",
+        "packages/protocol/schemas/memory-refine-report.schema.json",
         "packages/protocol/schemas/memory-sgrep-report.schema.json",
         "packages/protocol/schemas/memory-workspace-config.schema.json",
         "examples/protocol/memory-proposal.json",
         "examples/protocol/memory-profile-report.json",
         "examples/protocol/memory-proposals-report.json",
+        "examples/protocol/memory-refine-report.json",
         "examples/protocol/memory-sgrep-report.json",
         "tests/memory-core.test.mjs",
         "tests/memory-filesystem-ux.test.mjs",
@@ -456,6 +465,7 @@
       "limitations": [
         "Pure domain lifecycle gate; persistence/search remains delegated to native SQLite memory provider",
         "Generated memory/profile.md and memory/proposals/*.md are reports only; file edits are not canonical memory writes",
+        "Read-only memory refine reports duplicate, conflicting, stale, supersession, and lineage-residue candidates without approving, rejecting, superseding, deleting, calling models, or mutating SQLite",
         "memoryPaths config is an explicit proposal source only and cannot activate memory; diagnostics cover source role, hash, line count, byte size, age, stale-source warnings, and markdown memory-index cap warnings",
         "No automatic activation from model, tool, external, or retrieved content",
         "No hosted memory provider, embeddings, vector database, graph database, connector ingestion, or external write"
@@ -782,6 +792,8 @@
         "examples/protocol/mcp-readonly-context-pack-resource.json",
         "examples/protocol/mcp-readonly-context-pack-use-plan-resource.json",
         "examples/protocol/mcp-readonly-context-pack-registry-resource.json",
+        "examples/protocol/mcp-readonly-skill-load-plan-resource.json",
+        "examples/protocol/mcp-readonly-tool-catalog-resource.json",
         "examples/protocol/context-pack-handoff-report.json",
         "examples/protocol/mcp-context-pack-smoke.json",
         "apps/cli/oaf.mjs",
@@ -794,7 +806,7 @@
       "limitations": [
         "Reference-complete for the local read-only coding-agent memory profile: Claude Code/Cursor/Codex install previews include an absolute server path, explicit project root, explicit project SQLite memory path, and preview-then-confirm writes.",
         "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio compositions and the preview-confirm mcp install planner using npm --silent; no HTTP, SSE, hosted bridge, or network listener is started",
-        "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, opt-in current context packs, auto-discovered pinned context-pack use plans, and pinned context-pack registry verification; they do not expose write tools, source bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
+        "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, opt-in current context packs, auto-discovered pinned context-pack use plans, pinned context-pack registry verification, skill catalog, per-skill load plans, and the reviewed tool catalog; they do not expose write tools, source bodies, skill bodies, tool manifest bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
         "MCP memory.recall and context.profile serve active temporal facts first and pending proposal facts separately, include active/proposal count summaries, support since cursors for deltas, and persist last-delivered cursors locally per client/scope",
         "The read-only bridge never approves proposals or activates memory",
         "The MCP token-saver install command writes only the selected local client MCP config entry after --apply plus a matching dry-run fingerprint; default dry-run prints exact config only, rejects --write, and does not print raw home config bodies or absolute paths",
@@ -838,6 +850,7 @@
         "providers/native/memory-sqlite/provider.json",
         "packages/memory-core/src/index.mjs",
         "packages/protocol/schemas/memory-proposal-queue-record.schema.json",
+        "packages/protocol/schemas/memory-refine-report.schema.json",
         "packages/protocol/schemas/memory-temporal-fact.schema.json",
         "examples/protocol/memory-proposal-queue-record.json",
         "examples/protocol/memory-temporal-fact.json",
@@ -848,7 +861,7 @@
         "tests/cli.test.mjs"
       ],
       "limitations": [
-        "Reference-complete for local governed coding-agent memory over a real workspace: deterministic ingest, review, approve, reject, ACTIVE recall/profile preference, and proposal separation are covered by CLI, MCP, and cockpit tests.",
+        "Reference-complete for local governed coding-agent memory over a real workspace: deterministic ingest, review, approve, reject, read-only refine, ACTIVE recall/profile preference, and proposal separation are covered by CLI, MCP, and cockpit tests.",
         "Node 22 node:sqlite is experimental",
         "Search is lexical FTS5 plus report projection; temporal facts add fact/entity/edge/episode tables with FTS5 fact indexing, hybrid FTS5 plus entity-edge graph expansion plus temporal ranking, and scoped digest summaries",
         "Static lookup can tie keyword search; the verified edge is temporal correctness on evolving facts and cheap repeat delivery through MCP deltas, not generic token savings versus RAG.",
@@ -906,6 +919,7 @@
       "limitations": [
         "Requires separately installed Ollama and selected model",
         "Disabled by default; no silent fallback",
+        "Quantization metadata is read from Ollama's local tag list when present; OAF does not inspect, certify, download, or change model weights",
         "Loopback-only integration test uses a local fake Ollama-compatible server; no model download or hosted provider is implied"
       ]
     },
@@ -938,7 +952,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-06-26",
+    "asOf": "2026-07-07",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run local:run",
@@ -958,8 +972,8 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 435,
-    "protocolFixturesExpected": 160,
+    "testsExpected": 491,
+    "protocolFixturesExpected": 167,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

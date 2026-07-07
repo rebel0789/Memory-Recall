@@ -4,14 +4,17 @@ import path from 'node:path';
 import {
   CODE_SEARCH_CONTEXT_SELECTION_POLICY,
   compileContextFromSources,
+  createCandidateSourceRegistry,
   createFixtureRecordReader
 } from '../packages/context-compiler/src/index.mjs';
+import { createNativeLexicalCandidateSource } from '../providers/native/context-candidate-lexical/src/index.mjs';
+import { createNativeSourceGraphCandidateSource } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 
 const FIXED_TIME = '2026-06-30T00:00:00.000Z';
 const TEXT_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.ts', '.tsx', '.json', '.md', '.css', '.html', '.yml', '.yaml', '.toml', '.sql', '.txt', '.schema', '.lock']);
 const STOP_WORDS = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'into', 'over', 'under', 'when', 'where', 'which', 'what', 'then', 'than', 'were', 'been', 'have', 'has', 'had', 'are', 'is', 'was', 'will', 'can', 'not', 'all', 'any', 'same', 'repo', 'file', 'files', 'source', 'code']);
-const FALLBACK_EXCLUDED_DIRS = new Set(['.git', '.local', '.scratch', '.claude', '.cursor', '.github', '.playwright-cli', 'node_modules', 'coverage', 'context-packs', 'graphify-out', 'output']);
-const FALLBACK_EXCLUDED_FILES = new Set(['.env', '.DS_Store', 'REPOSITORY_MANIFEST.json.tmp']);
+const EXCLUDED_DIRS = new Set(['.git', '.local', '.scratch', '.claude', '.cursor', '.github', '.playwright-cli', 'node_modules', 'coverage', 'context-packs', 'graphify-out', 'output']);
+const EXCLUDED_FILES = new Set(['.env', '.DS_Store', 'REPOSITORY_MANIFEST.json.tmp']);
 
 function usage() {
   return [
@@ -33,8 +36,11 @@ function estimateTokens(value) {
 function terms(value, max = 120) {
   const out = [];
   const seen = new Set();
-  for (const raw of String(value ?? '').toLowerCase().replace(/[^a-z0-9_./:-]+/g, ' ').split(/\s+/)) {
-    for (const term of [raw, ...raw.split(/[/.:-]+/).filter(Boolean)]) {
+  const expanded = String(value ?? '')
+    .replace(/([A-Z]+)([A-Z][a-z])/gu, '$1 $2')
+    .replace(/([a-z0-9])([A-Z])/gu, '$1 $2');
+  for (const raw of expanded.toLowerCase().replace(/[^a-z0-9_./:-]+/g, ' ').split(/\s+/)) {
+    for (const term of [raw, ...raw.split(/[_.:/-]+/u).filter(Boolean)]) {
       if (term.length < 2 || STOP_WORDS.has(term) || seen.has(term)) continue;
       seen.add(term);
       out.push(term);
@@ -48,8 +54,11 @@ function rankedTerms(value, max = 180) {
   const counts = new Map();
   let ordinal = 0;
   const firstSeen = new Map();
-  for (const raw of String(value ?? '').toLowerCase().replace(/[^a-z0-9_./:-]+/g, ' ').split(/\s+/)) {
-    for (const term of [raw, ...raw.split(/[/.:-]+/).filter(Boolean)]) {
+  const expanded = String(value ?? '')
+    .replace(/([A-Z]+)([A-Z][a-z])/gu, '$1 $2')
+    .replace(/([a-z0-9])([A-Z])/gu, '$1 $2');
+  for (const raw of expanded.toLowerCase().replace(/[^a-z0-9_./:-]+/g, ' ').split(/\s+/)) {
+    for (const term of [raw, ...raw.split(/[_.:/-]+/u).filter(Boolean)]) {
       if (term.length < 2 || STOP_WORDS.has(term)) continue;
       if (!firstSeen.has(term)) firstSeen.set(term, ordinal);
       counts.set(term, (counts.get(term) ?? 0) + 1);
@@ -70,13 +79,18 @@ function normalizeRelativePath(value) {
   return path.posix.normalize(String(value ?? '').replaceAll('\\', '/'));
 }
 
+function isExcludedCorpusPath(filePath) {
+  const parts = normalizeRelativePath(filePath).split('/');
+  return parts.some((part) => EXCLUDED_DIRS.has(part)) || EXCLUDED_FILES.has(parts.at(-1)) || EXCLUDED_FILES.has(parts.join('/'));
+}
+
 async function listCorpusFiles(root) {
   try {
     const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
       .trim()
       .split('\n')
       .map(normalizeRelativePath)
-      .filter(Boolean);
+      .filter((filePath) => filePath && !isExcludedCorpusPath(filePath));
     if (tracked.length > 0) return tracked;
   } catch {
     // Package archives do not include .git metadata. Fall back to the packaged file tree.
@@ -90,10 +104,10 @@ async function listCorpusFiles(root) {
     for (const entry of entries) {
       const relativePath = normalizeRelativePath(relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name);
       if (entry.isDirectory()) {
-        if (FALLBACK_EXCLUDED_DIRS.has(entry.name) || FALLBACK_EXCLUDED_DIRS.has(relativePath)) continue;
+        if (isExcludedCorpusPath(relativePath)) continue;
         await walkDir(path.join(directory, entry.name), relativePath);
       } else if (entry.isFile()) {
-        if (FALLBACK_EXCLUDED_FILES.has(entry.name) || FALLBACK_EXCLUDED_FILES.has(relativePath)) continue;
+        if (isExcludedCorpusPath(relativePath)) continue;
         files.push(relativePath);
       }
     }
@@ -227,10 +241,38 @@ function packRows(rows, budget) {
   return selected;
 }
 
-function summarizeCase(testCase, selected, fullCorpusTokens, { budget, durationMs = 0 } = {}) {
+function missedFileDiagnostics({ omittedRequiredFiles = [], missingGoldFiles = [], generatedPaths = [], excludedByPath = new Map() } = {}) {
+  const generated = new Set(generatedPaths);
+  return [
+    ...missingGoldFiles.map((filePath) => ({
+      filePath,
+      status: 'missing_gold_file',
+      reasonCodes: ['missing_gold_file']
+    })),
+    ...omittedRequiredFiles.map((filePath) => {
+      const excluded = excludedByPath.get(filePath) ?? [];
+      if (excluded.length) {
+        return {
+          filePath,
+          status: 'generated_excluded',
+          reasonCodes: [...new Set(excluded.flatMap((item) => item.reasonCodes ?? []))].sort()
+        };
+      }
+      return {
+        filePath,
+        status: generated.has(filePath) ? 'generated_not_selected' : 'not_generated',
+        reasonCodes: [generated.has(filePath) ? 'candidate_generated' : 'candidate_not_generated']
+      };
+    })
+  ];
+}
+
+function summarizeCase(testCase, selected, fullCorpusTokens, { budget, durationMs = 0, generatedPaths = [], excludedByPath = new Map() } = {}) {
   const selectedPaths = [...new Set(selected.map((item) => item.metadata?.path).filter(Boolean))];
   const hitGold = testCase.goldFiles.filter((filePath) => selectedPaths.includes(filePath));
   const omittedRequiredFiles = testCase.goldFiles.filter((filePath) => !hitGold.includes(filePath));
+  const missingGoldFiles = testCase.missingGoldFiles ?? [];
+  const requiredFileDiagnostics = missedFileDiagnostics({ omittedRequiredFiles, missingGoldFiles, generatedPaths, excludedByPath });
   const returnedTokens = selected.reduce((sum, item) => sum + item.tokens, 0);
   return {
     id: testCase.id,
@@ -240,6 +282,9 @@ function summarizeCase(testCase, selected, fullCorpusTokens, { budget, durationM
     hitGold,
     omittedRequiredFiles,
     omittedRequiredFileCount: omittedRequiredFiles.length,
+    missingGoldFiles,
+    missingGoldFileCount: missingGoldFiles.length,
+    requiredFileDiagnostics,
     selectedPaths,
     selectedCount: selected.length,
     returnedTokens,
@@ -304,6 +349,8 @@ async function readExternalBaseline(filePath, { trackedSet }) {
 function summarizeExternalCase(testCase, row, fullCorpusTokens, { durationMs = 0 } = {}) {
   const hitGold = testCase.goldFiles.filter((filePath) => row.selectedPaths.includes(filePath));
   const omittedRequiredFiles = testCase.goldFiles.filter((filePath) => !hitGold.includes(filePath));
+  const missingGoldFiles = testCase.missingGoldFiles ?? [];
+  const requiredFileDiagnostics = missedFileDiagnostics({ omittedRequiredFiles, missingGoldFiles });
   return {
     id: testCase.id,
     hit: hitGold.length > 0,
@@ -312,6 +359,9 @@ function summarizeExternalCase(testCase, row, fullCorpusTokens, { durationMs = 0
     hitGold,
     omittedRequiredFiles,
     omittedRequiredFileCount: omittedRequiredFiles.length,
+    missingGoldFiles,
+    missingGoldFileCount: missingGoldFiles.length,
+    requiredFileDiagnostics,
     selectedPaths: row.selectedPaths,
     selectedCount: row.selectedPaths.length,
     returnedTokens: row.returnedTokens,
@@ -333,6 +383,7 @@ function summarizeBudget({ budget, cases, fullCorpusTokens }) {
       avgWindowUtilization: cases.reduce((sum, item) => sum + item.windowUtilization, 0) / cases.length,
       avgSavingsRatio: cases.reduce((sum, item) => sum + item.savingsRatio, 0) / cases.length,
       totalOmittedRequiredFileCount: cases.reduce((sum, item) => sum + item.omittedRequiredFileCount, 0),
+      totalMissingGoldFileCount: cases.reduce((sum, item) => sum + item.missingGoldFileCount, 0),
       durationMs,
       fullCorpusTokens
     },
@@ -342,6 +393,7 @@ function summarizeBudget({ budget, cases, fullCorpusTokens }) {
 
 function gateResult(result, thresholds) {
   const failures = [];
+  if (result.metrics.totalMissingGoldFileCount > 0) failures.push('missing_gold_files');
   if (result.metrics.hitRate < thresholds.hitRateMin) failures.push('hit_rate');
   if (result.metrics.avgFileRecall < thresholds.avgFileRecallMin) failures.push('avg_file_recall');
   if (result.metrics.avgReturnedTokens > thresholds.avgReturnedTokensMax) failures.push('avg_returned_tokens');
@@ -350,6 +402,7 @@ function gateResult(result, thresholds) {
 }
 
 function requestForCase(testCase, budget, candidateLimit) {
+  const graphLimit = Math.max(1, Math.min(25, candidateLimit));
   return {
     schemaVersion: '1.0.0',
     id: `ctxreq_${testCase.id}_${budget}`,
@@ -365,16 +418,19 @@ function requestForCase(testCase, budget, candidateLimit) {
     allowedDataClasses: ['workspace-private'],
     allowedTrustClasses: ['observed', 'verified', 'trusted'],
     allowedScopes: ['workspace-private'],
-    sourcePlan: [{ kind: 'lexical', required: true, limit: candidateLimit, timeoutMs: 10000 }],
+    sourcePlan: [
+      { kind: 'lexical', required: true, limit: candidateLimit, timeoutMs: 10000 },
+      { kind: 'graph', required: false, limit: graphLimit, timeoutMs: 10000 }
+    ],
     perSourceLimit: candidateLimit,
-    totalCandidateLimit: candidateLimit,
+    totalCandidateLimit: Math.min(200, candidateLimit + graphLimit),
     tokenBudget: budget,
     trustedTimestamp: FIXED_TIME,
     now: FIXED_TIME
   };
 }
 
-async function selectRows({ mode, testCase, budget, candidateLimit, reader, recordsById }) {
+async function selectRows({ mode, testCase, budget, candidateLimit, reader, recordsById, compilerRegistry }) {
   if (mode === 'lexical-pack') {
     const rows = await reader.searchLexical({
       workspaceId: 'ws_context_recall',
@@ -384,16 +440,34 @@ async function selectRows({ mode, testCase, budget, candidateLimit, reader, reco
       statuses: ['active'],
       at: FIXED_TIME
     });
-    return packRows(rows, budget);
+    return {
+      selected: packRows(rows, budget),
+      generatedPaths: [...new Set(rows.map((row) => row.metadata?.path).filter(Boolean))]
+    };
   }
 
   if (mode === 'compiler-code-search') {
     const compiled = await compileContextFromSources(requestForCase(testCase, budget, candidateLimit), {
+      registry: compilerRegistry,
       recordReader: reader,
       selectionPolicy: CODE_SEARCH_CONTEXT_SELECTION_POLICY,
       clock: () => FIXED_TIME
     });
-    return compiled.manifest.selected.map((item) => recordsById.get(item.id)).filter(Boolean);
+    const generatedById = new Map(compiled.candidateGeneration.candidates.map((candidate) => [candidate.record.id, candidate.record]));
+    const excludedByPath = new Map();
+    for (const item of compiled.manifest.excluded ?? []) {
+      const record = recordsById.get(item.id) ?? generatedById.get(item.id);
+      const filePath = record?.metadata?.path;
+      if (!filePath) continue;
+      const list = excludedByPath.get(filePath) ?? [];
+      list.push({ reasonCodes: Array.isArray(item.reasonCodes) ? item.reasonCodes : [] });
+      excludedByPath.set(filePath, list);
+    }
+    return {
+      selected: compiled.manifest.selected.map((item) => recordsById.get(item.id) ?? generatedById.get(item.id)).filter(Boolean),
+      generatedPaths: [...new Set(compiled.candidateGeneration.candidates.map((candidate) => candidate.record.metadata?.path).filter(Boolean))],
+      excludedByPath
+    };
   }
 
   throw new Error(`unknown mode: ${mode}`);
@@ -424,11 +498,26 @@ async function main() {
   const corpus = await buildCorpus({ root, excludePaths: datasetRelativePath ? [datasetRelativePath] : [] });
   const reader = createFixtureRecordReader(corpus.records);
   const recordsById = new Map(corpus.records.map((record) => [record.id, record]));
+  const compilerRegistry = mode === 'compiler-code-search'
+    ? createCandidateSourceRegistry([
+      createNativeLexicalCandidateSource(),
+      createNativeSourceGraphCandidateSource({
+        root,
+        workspaceId: 'ws_context_recall',
+        maxFiles: Math.min(2500, Math.max(200, corpus.trackedTextFiles)),
+        clock: () => FIXED_TIME
+      })
+    ])
+    : null;
   const externalBaseline = mode === 'external-baseline-json' ? await readExternalBaseline(baselineResultsPath, { trackedSet: corpus.trackedSet }) : null;
-  const cases = dataset.cases.map((testCase) => ({
-    ...testCase,
-    goldFiles: testCase.goldFiles.filter((filePath) => corpus.trackedSet.has(filePath))
-  }));
+  const cases = dataset.cases.map((testCase) => {
+    const goldFiles = testCase.goldFiles.map(normalizeRelativePath);
+    return {
+      ...testCase,
+      goldFiles: goldFiles.filter((filePath) => corpus.trackedSet.has(filePath)),
+      missingGoldFiles: goldFiles.filter((filePath) => !corpus.trackedSet.has(filePath))
+    };
+  });
 
   const results = [];
   for (const budget of budgets) {
@@ -441,9 +530,14 @@ async function main() {
         const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - caseStarted) / 1_000_000));
         caseResults.push(summarizeExternalCase(testCase, row, corpus.fullCorpusTokens, { durationMs }));
       } else {
-        const selected = await selectRows({ mode, testCase, budget, candidateLimit, reader, recordsById });
+        const selection = await selectRows({ mode, testCase, budget, candidateLimit, reader, recordsById, compilerRegistry });
         const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - caseStarted) / 1_000_000));
-        caseResults.push(summarizeCase(testCase, selected, corpus.fullCorpusTokens, { budget, durationMs }));
+        caseResults.push(summarizeCase(testCase, selection.selected, corpus.fullCorpusTokens, {
+          budget,
+          durationMs,
+          generatedPaths: selection.generatedPaths,
+          excludedByPath: selection.excludedByPath
+        }));
       }
     }
     results.push(summarizeBudget({ budget, cases: caseResults, fullCorpusTokens: corpus.fullCorpusTokens }));

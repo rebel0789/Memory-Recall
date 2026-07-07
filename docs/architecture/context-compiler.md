@@ -37,10 +37,10 @@ with conflicting version/hash fails closed as `candidate_identity_conflict`.
 
 The native JS/TS source graph is a read-only derived index over the native
 AST-code source index. It exposes files, chunks, symbols, modules, structural
-edges, lexical graph search, call traces, and diff-impact reports for local
-inspection and future context selection. It is not a `graph` candidate-source
-provider yet, not canonical source or memory state, and not backed by a graph
-database or external adapter.
+edges, lexical graph search, call traces, diff-impact reports, and locator-only
+`graph` candidate-source records for local context selection. It is not
+canonical source or memory state, and is not backed by a graph database or
+external adapter.
 
 ## Selection policy
 
@@ -65,12 +65,16 @@ must have task signal; high source rank alone cannot pull unrelated material
 into the model context.
 
 The diversity pass uses bounded MMR-style marginal utility over normalized
-term shingles. Duplicate candidates are excluded as `redundant`; complementary
-records receive coverage and kind bonuses. Category caps are enforced, and
-category soft-reserve ratios are recorded in the policy as budget guidance for
-governance, working state, decisions, preferences, evidence, procedures,
-episodes, artifacts, negative evidence, examples, and other context. The
-selector stops at the smallest sufficient set instead of filling the window.
+term shingles. Code identifiers and paths split camelCase and common source
+separators before relevance and similarity scoring, so `QueryClient`,
+`query_client`, and `query-client` can match `query client` requests. Duplicate
+candidates are excluded as `redundant`; complementary records receive coverage
+and kind bonuses. Category caps are enforced, and category soft-reserve ratios
+are recorded in the policy as budget guidance for governance, working state,
+decisions, preferences, evidence, procedures, episodes, artifacts, negative
+evidence, examples, and other context. The selector reuses pairwise redundancy
+work across iterations and stops at the smallest sufficient set instead of
+filling the window.
 
 `oaf context profile` uses the same selector for compressed memory injection.
 Accepted active memory records are summarized into bounded static and dynamic
@@ -83,7 +87,7 @@ provider billing claim.
 
 1. **Authorize and normalize.** Remove inaccessible, malformed, quarantined, expired, retracted, and superseded candidates before ranking.
 2. **Force governance.** Include applicable policies, hard constraints, output schema, current plan, unresolved obligations, and explicitly referenced records.
-3. **Generate candidates.** Use source ports for exact references, lexical search, and dependency-free static JS/TS code evidence now; semantic, graph, temporal, preference, and episode sources are declared but unavailable until later tasks. Native source-graph helpers expose a bounded read-only CLI/API preview over the JS/TS source index, but they do not currently emit graph candidate-source records into model context.
+3. **Generate candidates.** Use source ports for exact references, lexical search, dependency-free static JS/TS code evidence, and locator-only JS/TS source-graph hits now; semantic, temporal, preference, and episode sources are declared but unavailable until later tasks. Native source-graph helpers also expose a bounded read-only CLI/API preview over the JS/TS source index.
 4. **Resolve versions and conflicts.** Prefer active versions, preserve unresolved conflicts, and never silently merge contradictory values.
 5. **Fuse and rerank.** Apply weighted reciprocal rank fusion, deterministic feature weights, and stable tie-breaks.
 6. **Diversify and budget.** Select complementary records under token budget and category caps, with soft reserves recorded in policy.

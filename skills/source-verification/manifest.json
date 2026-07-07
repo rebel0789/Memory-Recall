@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:source-verification",
   "name": "Source Verification",
+  "description": "Verify material claims against evidence for support, weakness, conflict, and staleness.",
   "version": "0.1.0",
   "triggers": [
     "verify claim",

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const errors = [];
-const ignoredDirectories = new Set(['.git', 'node_modules', '.local', '.playwright-cli', '.scratch', 'coverage', 'context-packs', 'graphify-out']);
+const ignoredDirectories = new Set(['.git', 'node_modules', '.local', '.playwright-cli', '.scratch', 'coverage', 'context-packs', 'graphify-out', 'target']);
 const required = [
   'README.md',
   'ASSIGN_TO_AGENT.md',
@@ -92,7 +92,7 @@ for (const [file, value] of jsonValues) {
   }
 
   if (relative.startsWith('skills/') && relative.endsWith('/manifest.json')) {
-    for (const key of ['name', 'version', 'triggers', 'tools', 'sideEffectClass', 'inputSchema', 'outputSchema']) if (value[key] === undefined) errors.push(`${relative}: missing ${key}`);
+    for (const key of ['name', 'description', 'version', 'triggers', 'tools', 'sideEffectClass', 'inputSchema', 'outputSchema']) if (value[key] === undefined) errors.push(`${relative}: missing ${key}`);
   }
 
   if (relative.startsWith('tools/manifests/')) {

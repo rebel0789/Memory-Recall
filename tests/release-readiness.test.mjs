@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -31,6 +31,22 @@ test('release readiness artifacts are generated and checked in without drift', a
   assert.equal(result.summary.humanApprovalRequired, true);
 });
 
+test('release readiness ignores Cargo target build output directories', async () => {
+  const fixtureDirectory = path.join('rust', 'target', 'oaf-release-readiness-fixture');
+  const fixtureFile = path.join(fixtureDirectory, 'generated.txt');
+  mkdirSync(fixtureDirectory, { recursive: true });
+  const placeholderToken = ['TO', 'DO'].join('');
+  writeFileSync(fixtureFile, `${placeholderToken} generated Cargo build output should not be scanned.\n`);
+
+  try {
+    const artifacts = await buildReleaseReadinessArtifacts(process.cwd());
+    assert.equal(artifacts.placeholderResult.findings.some((finding) => finding.file.startsWith('rust/target/')), false);
+    assert.equal(artifacts.placeholderResult.passed, true);
+  } finally {
+    rmSync(fixtureDirectory, { recursive: true, force: true });
+  }
+});
+
 test('repository manifest excludes local ignored handoff and browser artifacts', async () => {
   const manifest = JSON.parse(await readFile('REPOSITORY_MANIFEST.json', 'utf8'));
   const paths = manifest.files.map((file) => file.path);
@@ -55,6 +71,24 @@ test('repository manifest excludes local ignored handoff and browser artifacts',
   assert.equal(manifest.exclusions.includes('output/**'), true);
   assert.equal(manifest.exclusions.includes('docs/research/**'), true);
   assert.equal(manifest.exclusions.includes('docs/superpowers/**'), true);
+});
+
+test('repository manifest generator ignores Cargo target build output directories', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-manifest-target-'));
+  mkdirSync(path.join(root, 'rust', 'target', 'debug'), { recursive: true });
+  writeFileSync(path.join(root, 'README.md'), '# fixture\n');
+  writeFileSync(path.join(root, 'rust', 'target', 'debug', 'generated.txt'), 'generated build output\n');
+
+  const result = spawnSync(process.execPath, [path.resolve('scripts/generate-manifest.mjs')], {
+    cwd: root,
+    encoding: 'utf8'
+  });
+  assert.equal(result.status, 0, result.stderr);
+
+  const manifest = JSON.parse(readFileSync(path.join(root, 'REPOSITORY_MANIFEST.json'), 'utf8'));
+  const paths = manifest.files.map((file) => file.path);
+  assert.equal(paths.includes('README.md'), true);
+  assert.equal(paths.some((filePath) => filePath.startsWith('rust/target/')), false);
 });
 
 test('npm package excludes private scratch local config and generated state', () => {
@@ -103,7 +137,7 @@ test('installed npm package setup does not re-pack generated local state', () =>
   assert.equal(hookPlan.status, 0, hookPlan.stderr);
   const hookReport = JSON.parse(hookPlan.stdout);
   assert.equal(hookReport.harnessSetup.desiredHooks.command, 'oaf hook context --read-only --format text');
-  assert.doesNotMatch(hookReport.manualHookSnippet.content, /npm --silent run oaf/);
+  assert.match(hookReport.manualHookSnippet.content, /oaf hook context --read-only --format text/);
   const hookSnippet = JSON.parse(hookReport.manualHookSnippet.content);
   const hookCommand = hookSnippet.hooks.SessionStart[0].hooks[0].command;
   const hookRun = spawnSync(hookCommand, { cwd: work, shell: true, encoding: 'utf8', env });
@@ -140,7 +174,7 @@ test('package-facing markdown docs avoid competitor names', () => {
   assert.equal(result.status, 0, result.stderr);
   const [pack] = JSON.parse(result.stdout);
   const docs = pack.files.map((file) => file.path).filter((filePath) => filePath.endsWith('.md'));
-  const forbidden = /Headroom|AgentMemory|Graphiti|Zep|Mem0|Letta|LangMem|Supermemory|headroom|agentmemory|graphiti|mem0|letta|langmem|supermemory/;
+  const forbidden = /Headroom|AgentMemory|Graphiti|Zep|Mem0|Letta|LangMem|Supermemory|Microsoft ISE|TrueFoundry|MemRefine|Deployment-Time Memorization|Experience Compression Spectrum|create-context-graph|DataHub|Neo4j Labs|Neo4j|headroom|agentmemory|graphiti|mem0|letta|langmem|supermemory|microsoft ise|truefoundry|memrefine|deployment-time memorization|experience compression spectrum|datahub|neo4j labs|neo4j/;
 
   for (const filePath of docs) {
     const body = readFileSync(filePath, 'utf8');

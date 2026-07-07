@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "skill catalog",
+  "generatedAt": "2026-07-05T00:00:00.000Z",
+  "workspaceId": "ws_local",
+  "rootRef": "workspace://.",
+  "summary": {
+    "total": 2,
+    "advertisedSkillCount": 1,
+    "loadableOnlySkillCount": 1,
+    "readOnlyCount": 2,
+    "reversibleWriteCount": 0,
+    "consequentialWriteCount": 0,
+    "writableSkillCount": 0,
+    "bySideEffectClass": {
+      "read-only": 2,
+      "reversible-write": 0,
+      "consequential-write": 0
+    },
+    "uniqueToolCount": 2,
+    "toolIds": ["tool:filesystem-read", "tool:hidden-read"],
+    "advertisedToolCount": 1,
+    "advertisedToolIds": ["tool:filesystem-read"]
+  },
+  "skills": [
+    {
+      "id": "skill:visible-example",
+      "name": "Visible Example",
+      "description": "Example skill that appears in compact menus.",
+      "version": "0.1.0",
+      "advertised": true,
+      "directoryRef": "workspace://skills/visible-example",
+      "manifestRef": "workspace://skills/visible-example/manifest.json",
+      "skillRef": "workspace://skills/visible-example/SKILL.md",
+      "sideEffectClass": "read-only",
+      "inputSchema": {
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "triggers": ["visible-example"],
+      "tools": ["tool:filesystem-read"],
+      "references": [],
+      "readiness": {
+        "state": "ready",
+        "approvalRequired": false,
+        "unreviewedToolIds": [],
+        "reasonCodes": ["read_only_skill"]
+      },
+      "manifestFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "checks": {
+        "manifestValid": true,
+        "skillDocumentPresent": true,
+        "referencesPresent": true
+      }
+    },
+    {
+      "id": "skill:loadable-only-example",
+      "name": "Loadable Only Example",
+      "description": "Example skill that remains loadable without appearing in compact menus.",
+      "version": "0.1.0",
+      "advertised": false,
+      "directoryRef": "workspace://skills/loadable-only-example",
+      "manifestRef": "workspace://skills/loadable-only-example/manifest.json",
+      "skillRef": "workspace://skills/loadable-only-example/SKILL.md",
+      "sideEffectClass": "read-only",
+      "inputSchema": {
+        "type": "object"
+      },
+      "outputSchema": {
+        "type": "object"
+      },
+      "triggers": ["loadable-only-example"],
+      "tools": ["tool:hidden-read"],
+      "references": [],
+      "readiness": {
+        "state": "blocked",
+        "approvalRequired": false,
+        "unreviewedToolIds": ["tool:hidden-read"],
+        "reasonCodes": ["read_only_skill", "skill_declares_unreviewed_tools"]
+      },
+      "manifestFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "checks": {
+        "manifestValid": true,
+        "skillDocumentPresent": true,
+        "referencesPresent": true
+      }
+    }
+  ],
+  "catalogFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "externalWritesEnabled": false,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "rawSkillTextIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false
+  },
+  "reportFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

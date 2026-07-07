@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:context-debug",
   "name": "Context Debug",
+  "description": "Diagnose retrieval, selection, manifest, budget, and evaluation drift with minimal repro cases.",
   "version": "0.1.0",
   "triggers": [
     "context drift",

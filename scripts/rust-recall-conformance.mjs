@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { DatabaseSync } from 'node:sqlite';
+import { peakRssMb, timedSpawn } from './timing.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RUST_BIN = path.join(ROOT, 'rust/target/release/oaf');
@@ -199,11 +200,10 @@ function scenarioB(command) {
 
 function timed(command, args, options = {}) {
   const started = performance.now();
-  const result = spawnSync('/usr/bin/time', ['-l', command, ...args], { cwd: ROOT, encoding: 'utf8', ...options });
+  const result = timedSpawn(command, args, { cwd: ROOT, encoding: 'utf8', ...options });
   const elapsedMs = performance.now() - started;
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  const rssBytes = Number(result.stderr.match(/(\d+)\s+maximum resident set size/u)?.[1] ?? 0);
-  return { ms: Number(elapsedMs.toFixed(3)), peakRssMb: Number((rssBytes / 1024 / 1024).toFixed(1)) };
+  return { ms: Number(elapsedMs.toFixed(3)), peakRssMb: peakRssMb(result.stderr) };
 }
 
 function benchmark(root) {

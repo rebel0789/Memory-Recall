@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:oaf-memory",
   "name": "OAF Memory Mapper",
+  "description": "Map project decisions, entities, relationships, and supersessions into proposal-gated OAF memory.",
   "version": "0.1.0",
   "triggers": [
     "/oaf-memory",

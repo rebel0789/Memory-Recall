@@ -50,6 +50,12 @@
       "expectedValid": true
     },
     {
+      "id": "memory-refine-report-current-valid",
+      "schema": "packages/protocol/schemas/memory-refine-report.schema.json",
+      "instance": "examples/protocol/memory-refine-report.json",
+      "expectedValid": true
+    },
+    {
       "id": "memory-workspace-config-current-valid",
       "schema": "packages/protocol/schemas/memory-workspace-config.schema.json",
       "instance": "examples/protocol/memory-workspace-config.json",
@@ -680,6 +686,12 @@
       "expectedValid": false
     },
     {
+      "id": "memory-workspace-config-generated-report-invalid",
+      "schema": "packages/protocol/schemas/memory-workspace-config.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/memory-workspace-config-generated-report.json",
+      "expectedValid": false
+    },
+    {
       "id": "memory-proposal-queue-record-local-path-invalid",
       "schema": "packages/protocol/schemas/memory-proposal-queue-record.schema.json",
       "instance": "examples/protocol/compatibility/invalid/memory-proposal-queue-record-local-path.json",
@@ -761,6 +773,18 @@
       "id": "mcp-readonly-context-pack-registry-resource-current-valid",
       "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
       "instance": "examples/protocol/mcp-readonly-context-pack-registry-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-readonly-skill-load-plan-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-skill-load-plan-resource.json",
+      "expectedValid": true
+    },
+    {
+      "id": "mcp-readonly-tool-catalog-resource-current-valid",
+      "schema": "packages/protocol/schemas/mcp-readonly-resource.schema.json",
+      "instance": "examples/protocol/mcp-readonly-tool-catalog-resource.json",
       "expectedValid": true
     },
     {
@@ -870,6 +894,24 @@
       "schema": "packages/protocol/schemas/mcp-context-pack-smoke.schema.json",
       "instance": "examples/protocol/compatibility/invalid/mcp-context-pack-smoke-raw-body.json",
       "expectedValid": false
+    },
+    {
+      "id": "skill-manifest-loadable-only-current-valid",
+      "schema": "packages/protocol/schemas/skill-manifest.schema.json",
+      "instance": "examples/protocol/skill-manifest.json",
+      "expectedValid": true
+    },
+    {
+      "id": "skill-catalog-report-loadable-only-current-valid",
+      "schema": "packages/protocol/schemas/skill-catalog-report.schema.json",
+      "instance": "examples/protocol/skill-catalog-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "skill-load-plan-current-valid",
+      "schema": "packages/protocol/schemas/skill-load-plan.schema.json",
+      "instance": "examples/protocol/skill-load-plan.json",
+      "expectedValid": true
     },
     {
       "id": "context-pack-measurement-report-raw-body-invalid",

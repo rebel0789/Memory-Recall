@@ -62,10 +62,11 @@ imports, external adapters, or external writes.
 
 OAF-031 adds `memory-profile-report.schema.json`,
 `memory-proposals-report.schema.json`, `memory-sgrep-report.schema.json`,
-`memory-workspace-config.schema.json`, and
+`memory-refine-report.schema.json`, `memory-workspace-config.schema.json`, and
 `memory-proposal-queue-record.schema.json`. These contracts describe generated
 workspace-local memory reports, explicit proposal-source configuration, local
-source-grounded search output, and SQLite proposal queue reconciliation.
+source-grounded search output, read-only temporal-memory refinement and
+lineage-residue candidates, and SQLite proposal queue reconciliation.
 
 The reports are not canonical memory authority. They require zero network
 calls, zero model calls, zero external writes, zero active-memory creation, and
@@ -110,11 +111,16 @@ and id errors are redacted instead of echoing caller-provided metadata.
 `mcp-readonly-resource.schema.json` defines the sanitized JSON envelope for
 OAF-owned read-only MCP resources. These resources expose status, context
 manifest, run, memory-proposal, handoff, context-pack, context-pack use-plan,
-and pinned context-pack registry summaries with provenance, fingerprints,
-timestamps, and explicit no-write/no-network safeguards. Resource payloads
-contain counts, IDs, hashes, reason codes, and statuses; they do not contain
-raw prompts, context bodies, markdown bodies, model results, credentials,
-provider URLs, absolute local paths, or hidden reasoning.
+skill-catalog, per-skill load-plan, reviewed tool-catalog, and pinned context-pack registry summaries
+with provenance, fingerprints, timestamps, and explicit no-write/no-network
+safeguards. Resource payloads contain counts, IDs, hashes, reason codes,
+statuses, and ordered local read refs; they do not contain raw prompts, context
+bodies, markdown bodies, skill bodies, model results, credentials, provider
+URLs, absolute local paths, or hidden reasoning.
+
+`skill-load-plan.schema.json` defines the read-only local load plan for one
+skill. It lists manifest, skill, and declared reference reads by workspace URI
+without including raw skill text or granting tool authority.
 
 `context-pack-measurement-report.schema.json` defines the local read-only
 measurement report for context-pack builds and MCP stdio readback. It records
@@ -128,17 +134,18 @@ claim, or production latency contract.
 `context-pack-handoff-report.schema.json` defines the read-only launch report
 for handing a context pack to a local agent harness. It combines the launch
 prompt, utility read plan, MCP context-pack readback proof, silent stdio bridge
-command, dry-run setup preview, and explicit zero-write safeguards. It does not
-install harness config, expose MCP tools, include raw source bodies, or enable
-external adapters.
+command, dry-run setup preview, safe skill-catalog summary when available, and
+explicit zero-write safeguards. It does not install harness config, expose MCP
+tools, include raw source or skill bodies, or enable external adapters.
 
 `context-pack-receive-report.schema.json` defines the read-only receiver report
 for consuming an explicitly pinned local context pack. It verifies the registry,
 current pointer, current use-plan, read-only MCP resource surface, and dry-run
 harness status without rebuilding the pack or requiring objective/step text.
-It also carries an optional compact `receiverPacket` for agent first-use. The
-report and packet include only statuses, counts, safe locators, and
-fingerprints; they do not include raw markdown, source bodies, launch prompts,
+It also carries a compact `receiverPacket` for agent first-use, including
+versioned typed `messageParts` for the safe summary, recipient proof,
+required-read plan, and next actions. The report and packet include only
+statuses, counts, safe locators, and fingerprints; they do not include raw markdown, source bodies, launch prompts,
 provider URLs, credentials,
 absolute filesystem paths, model calls, network calls, writes, or adapters.
 

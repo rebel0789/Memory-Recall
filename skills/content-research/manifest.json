@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:content-research",
   "name": "Content Research",
+  "description": "Collect, snapshot, normalize, and cite read-only evidence before content generation.",
   "version": "0.1.0",
   "triggers": [
     "content ideas",

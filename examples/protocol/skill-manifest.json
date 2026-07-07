@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "skill:loadable-only-example",
+  "name": "Loadable Only Example",
+  "description": "Example skill that remains loadable by ID without appearing in compact menus.",
+  "version": "0.1.0",
+  "advertise": false,
+  "triggers": ["loadable-only-example"],
+  "tools": ["tool:filesystem-read"],
+  "sideEffectClass": "read-only",
+  "inputSchema": {
+    "type": "object"
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "references": []
+}

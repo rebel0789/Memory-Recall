@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { validateJsonSchema } from '../../protocol/src/schema-validator.mjs';
 import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
+import skillLoadPlanSchema from '../../protocol/schemas/skill-load-plan.schema.json' with { type: 'json' };
 
 export const PROTOCOL_BRIDGES_VERSION = '0.1.0';
 export const MCP_BRIDGE_PROTOCOL_VERSION = '2025-06-18';
@@ -256,7 +257,7 @@ function safeLocalLocator(value, scheme) {
   const segments = pathname.split('/');
   if (segments.some((segment) => !segment || ['.', '..', '.git', '.local', 'node_modules', 'Users', 'private'].includes(segment))) return null;
   if (segments.length >= 2 && segments[0] === 'var' && segments[1] === 'folders') return null;
-  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@/-]+$/u.test(pathname)) return null;
+  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@/\[\]-]+$/u.test(pathname)) return null;
   return value;
 }
 
@@ -272,6 +273,34 @@ function safeLocator(value) {
 
 function safeId(value) {
   return typeof value === 'string' && /^[A-Za-z0-9._:@/-]{1,160}$/.test(value) ? value : null;
+}
+
+function skillResourceSegment(value) {
+  const match = typeof value === 'string' ? /^workspace:\/\/skills\/([a-z0-9][a-z0-9-]{0,120})$/u.exec(value) : null;
+  return match?.[1] ?? null;
+}
+
+function safeSkillLoadPlanForResource(plan) {
+  if (!isPlainObject(plan)) return null;
+  const result = validateJsonSchema(skillLoadPlanSchema, plan);
+  if (!result.valid) throw new ProtocolBridgeError('mcp_invalid_skill_load_plan', 'skill load plan failed schema validation');
+  const blocked = scanStrings(plan, UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE);
+  if (blocked) throw new ProtocolBridgeError('mcp_unsafe_skill_load_plan', 'skill load plan contains unsafe private locator data');
+  const { rawSkillTextIncluded, ...safeguards } = isPlainObject(plan.safeguards) ? plan.safeguards : {};
+  return {
+    ...plan,
+    safeguards: {
+      ...safeguards,
+      skillTextIncluded: rawSkillTextIncluded === true
+    }
+  };
+}
+
+function safeToolCatalogForResource(catalog) {
+  if (!isPlainObject(catalog)) return null;
+  const blocked = scanStrings(catalog, UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE);
+  if (blocked) throw new ProtocolBridgeError('mcp_unsafe_tool_catalog', 'tool catalog contains unsafe private data');
+  return catalog;
 }
 
 function safeReferenceId(value) {
@@ -732,6 +761,10 @@ export function buildOafReadOnlyResourceCatalog({
   currentContextPack = null,
   currentContextPackUsePlan = null,
   currentContextPackRegistryStatus = null,
+  memoryRefineReport = null,
+  skillCatalog = null,
+  skillLoadPlans = [],
+  toolCatalog = null,
   workspaceId = 'ws_local',
   generatedAt = new Date().toISOString()
 } = {}) {
@@ -887,7 +920,79 @@ export function buildOafReadOnlyResourceCatalog({
       data: currentContextPackRegistryStatus
     })));
   }
+  if (isPlainObject(memoryRefineReport)) {
+    resources.push(jsonResource(`${base}/memory/refine`, 'Memory refine report', 'Read-only governed memory refinement report without source bodies.', () => createResourcePayload({
+      resourceKind: 'memory-refine-report',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-memory-refine',
+      data: safeMemoryRefineReportForResource(memoryRefineReport)
+    })));
+  }
+  if (isPlainObject(skillCatalog)) {
+    resources.push(jsonResource(`${base}/skills/catalog`, 'Skill catalog summary', 'Sanitized governed skill catalog summary with reviewed tool reconciliation.', () => createResourcePayload({
+      resourceKind: 'skill-catalog-summary',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-skill-catalog',
+      data: skillCatalog
+    })));
+  }
+  const safeToolCatalog = safeToolCatalogForResource(toolCatalog);
+  if (safeToolCatalog) {
+    resources.push(jsonResource(`${base}/tools/catalog`, 'Tool catalog summary', 'Sanitized reviewed tool catalog summary without grants or execution authority.', () => createResourcePayload({
+      resourceKind: 'tool-catalog-summary',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-tool-catalog',
+      data: safeToolCatalog
+    })));
+  }
+  for (const plan of Array.isArray(skillLoadPlans) ? skillLoadPlans : []) {
+    const safePlan = safeSkillLoadPlanForResource(plan);
+    const segment = skillResourceSegment(safePlan?.skill?.directoryRef);
+    if (!segment) continue;
+    resources.push(jsonResource(`${base}/skills/${segment}/load-plan`, `${segment} skill load plan`, 'Sanitized ordered local read plan for one governed skill.', () => createResourcePayload({
+      resourceKind: 'skill-load-plan',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-skill-load-plan',
+      data: safePlan
+    })));
+  }
   return resources;
+}
+
+function safeMemoryRefineReportForResource(report) {
+  return {
+    command: report.command,
+    state: report.state,
+    reasonCodes: Array.isArray(report.reasonCodes) ? report.reasonCodes : [],
+    summary: isPlainObject(report.summary) ? report.summary : {},
+    budgetPlan: isPlainObject(report.budgetPlan) ? {
+      state: report.budgetPlan.state,
+      reasonCodes: Array.isArray(report.budgetPlan.reasonCodes) ? report.budgetPlan.reasonCodes : [],
+      targetActiveFactCount: report.budgetPlan.targetActiveFactCount,
+      currentActiveFactCount: report.budgetPlan.currentActiveFactCount,
+      projectedActiveFactCount: report.budgetPlan.projectedActiveFactCount,
+      overBudgetBy: report.budgetPlan.overBudgetBy,
+      plannedReviewCount: report.budgetPlan.plannedReviewCount,
+      plannedReductionCount: report.budgetPlan.plannedReductionCount
+    } : null,
+    reportFingerprint: report.reportFingerprint,
+    safeguards: {
+      readOnly: report.safeguards?.readOnly === true,
+      proposalGated: report.safeguards?.proposalGated === true,
+      canonicalStateMutated: report.safeguards?.canonicalStateMutated === true,
+      activeMemoryCreated: Number(report.safeguards?.activeMemoryCreated ?? 0),
+      hardDeleted: report.safeguards?.hardDeleted === true,
+      networkCalls: Number(report.safeguards?.networkCalls ?? 0),
+      modelCalls: Number(report.safeguards?.modelCalls ?? 0),
+      externalWritesEnabled: report.safeguards?.externalWritesEnabled === true,
+      sourceTextVisible: false,
+      localLocationsVisible: false
+    }
+  };
 }
 
 export async function buildContextPackReadbackProof({

@@ -16,14 +16,21 @@ This catalog preserves the source set that informed the development kit. It is a
 
 ## Memory and context
 
+- [Microsoft ISE A2A context passing](https://devblogs.microsoft.com/ise/a2a-context-passing-multi-agent-systems/) — coordinator-provided embedded context pattern for stateless receiver agents.
+- [Experience Compression Spectrum](https://arxiv.org/abs/2604.15877) — research input for tiering raw traces, memory, skills, and rules by compression level.
+- [MemRefine](https://arxiv.org/abs/2606.13177) — memory-compaction research input; any OAF use stays proposal-gated and read-only before approval.
+- [Deployment-Time Memorization](https://arxiv.org/abs/2606.10062) — memory deletion, derived-summary residue, and extraction-risk threat-model input.
 - [claude-mem](https://github.com/thedotmack/claude-mem) — progressive session-memory retrieval research.
+- [Graphiti](https://github.com/getzep/graphiti) — temporal graph memory research with provenance and changing facts.
 - [Mem0](https://github.com/mem0ai/mem0) — optional memory backend research.
 - [OpenViking](https://github.com/volcengine/OpenViking) — filesystem-oriented context research.
 - [HydraDB](https://hydradb.com/) — temporal/relational selection thesis; commercial dependency is not required.
+- [DataHub context management](https://datahub.com/blog/context-management/) — governance, lineage, access-control, and auditability framing for organization-wide context.
 - User-provided article: “Your AI Agents Don't Have a Memory Problem. They Have a Selection Problem” — thesis input for the Context Compiler.
 
 ## Code and knowledge intelligence
 
+- [Neo4j Labs create-context-graph](https://github.com/neo4j-labs/create-context-graph) — context-graph application scaffold for graph, document browser, and decision-trace research.
 - [Graphify](https://github.com/safishamsi/graphify) — optional code/document graph adapter.
 - [Understand Anything](https://github.com/Egonex-AI/Understand-Anything) — optional repository-intelligence adapter.
 - [ECC](https://github.com/affaan-m/ECC) — procedures and harness patterns to audit and curate, never bulk-load.
@@ -41,6 +48,8 @@ This catalog preserves the source set that informed the development kit. It is a
 - [LangGraph](https://github.com/langchain-ai/langgraph) — optional bounded reasoning adapter.
 - [LiteLLM](https://docs.litellm.ai/docs/) — optional model gateway implementation behind OAF contracts.
 - [Model Context Protocol](https://github.com/modelcontextprotocol) — tool/resource interoperability target.
+- [TrueFoundry Skills Registry](https://www.truefoundry.com/blog/introducing-skills-registry-reusable-agent-skills-for-production-ai-systems) — skill metadata, on-demand loading, and governed procedural-context registry pattern.
+- [TrueFoundry MCP Gateway Registry](https://www.truefoundry.com/blog/mcp-gateway-registry) — MCP tool discovery, schema, permission, and approval governance pattern.
 - [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/specs/semconv/) — telemetry contract input.
 - [Langfuse self-hosting](https://langfuse.com/self-hosting) — optional evaluation/trace frontend.
 - [OpenFGA](https://github.com/openfga/openfga) and [OPA](https://www.openpolicyagent.org/) — future authorization and contextual policy implementations.

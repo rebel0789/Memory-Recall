@@ -1178,12 +1178,12 @@ export function createApiRouteContracts(limits = {}) {
             type: 'array',
             minItems: 4,
             maxItems: 4,
-            items: [
-              { const: 'mcp' },
-              { const: 'resources' },
-              { const: '--read-only' },
-              { const: '--stdio' }
-            ]
+            items: {
+              type: 'string',
+              minLength: 1,
+              maxLength: 220,
+              pattern: "^(?!.*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\\s\\S]*$"
+            }
           },
           environmentKeys: { type: 'array', maxItems: 0 },
           resourceMode: { const: 'read-only' },
@@ -1202,7 +1202,7 @@ export function createApiRouteContracts(limits = {}) {
             maxItems: 3,
             items: { enum: ['SessionStart', 'UserPromptSubmit', 'PreCompact'] }
           },
-          command: { type: ['string', 'null'], maxLength: 120 },
+          command: { type: ['string', 'null'], maxLength: 240 },
           authority: { const: 'none' },
           externalWrites: { const: false }
         }

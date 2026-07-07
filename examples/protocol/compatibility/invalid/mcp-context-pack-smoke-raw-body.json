@@ -19,7 +19,7 @@
   },
   "bridge": {
     "invocation": "oaf mcp resources --read-only --context-pack --stdio",
-    "jsonRpcMessageCount": 4,
+    "jsonRpcMessageCount": 5,
     "responseCount": 4,
     "resourcesListed": 6,
     "toolsExposed": 0
@@ -54,7 +54,8 @@
     "resourceListed": true,
     "resourceRead": true,
     "noToolsExposed": true,
-    "noMarkdownBody": true
+    "noMarkdownBody": true,
+    "initializedNotificationAccepted": true
   },
   "safeguards": {
     "readOnly": true,

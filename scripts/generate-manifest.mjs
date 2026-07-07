@@ -16,6 +16,7 @@ const excludedDirectories = new Set([
   'coverage',
   'context-packs',
   'graphify-out',
+  'target',
   'output'
 ]);
 const excludedRelativeDirectories = new Set([

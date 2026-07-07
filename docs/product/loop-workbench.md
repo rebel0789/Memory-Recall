@@ -100,6 +100,9 @@ Two small instruction skills layer across all slices:
 begins. Loop-run reports now include structured maker/checker reasoning from
 those skills, including the reuse ladder, clarified plan fields, and observed
 stop reason. Both are read-only skill folders; they do not grant authority.
+`oaf skill catalog --read-only --format json` validates the local skill
+manifests and reports descriptions, side-effect classes, tool IDs, and
+fingerprints without including raw skill bodies.
 
 ## Hard boundaries (apply to every slice until explicitly lifted)
 

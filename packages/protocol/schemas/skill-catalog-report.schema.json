@@ -1,0 +1,318 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Skill Catalog Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "generatedAt",
+    "workspaceId",
+    "rootRef",
+    "summary",
+    "skills",
+    "catalogFingerprint",
+    "safeguards",
+    "reportFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "command": {
+      "const": "skill catalog"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workspaceId": {
+      "type": "string"
+    },
+    "rootRef": {
+      "const": "workspace://."
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "advertisedSkillCount",
+        "loadableOnlySkillCount",
+        "readOnlyCount",
+        "reversibleWriteCount",
+        "consequentialWriteCount",
+        "writableSkillCount",
+        "bySideEffectClass",
+        "uniqueToolCount",
+        "toolIds",
+        "advertisedToolCount",
+        "advertisedToolIds"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "advertisedSkillCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "loadableOnlySkillCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "readOnlyCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reversibleWriteCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "consequentialWriteCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "writableSkillCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bySideEffectClass": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "read-only",
+            "reversible-write",
+            "consequential-write"
+          ],
+          "properties": {
+            "read-only": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reversible-write": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "consequential-write": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "uniqueToolCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "toolIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "advertisedToolCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "advertisedToolIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "description",
+          "version",
+          "advertised",
+          "directoryRef",
+          "manifestRef",
+          "skillRef",
+          "sideEffectClass",
+          "inputSchema",
+          "outputSchema",
+          "triggers",
+          "tools",
+          "references",
+          "readiness",
+          "manifestFingerprint",
+          "checks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "version": {
+            "type": "string"
+          },
+          "advertised": {
+            "type": "boolean"
+          },
+          "directoryRef": {
+            "type": "string"
+          },
+          "manifestRef": {
+            "type": "string"
+          },
+          "skillRef": {
+            "type": "string"
+          },
+          "sideEffectClass": {
+            "enum": [
+              "read-only",
+              "reversible-write",
+              "consequential-write"
+            ]
+          },
+          "inputSchema": {
+            "type": "object"
+          },
+          "outputSchema": {
+            "type": "object"
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "readiness": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state",
+              "approvalRequired",
+              "unreviewedToolIds",
+              "reasonCodes"
+            ],
+            "properties": {
+              "state": {
+                "enum": [
+                  "ready",
+                  "review",
+                  "blocked"
+                ]
+              },
+              "approvalRequired": {
+                "type": "boolean"
+              },
+              "unreviewedToolIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reasonCodes": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "manifestFingerprint": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
+          "checks": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "manifestValid",
+              "skillDocumentPresent",
+              "referencesPresent"
+            ],
+            "properties": {
+              "manifestValid": {
+                "type": "boolean"
+              },
+              "skillDocumentPresent": {
+                "type": "boolean"
+              },
+              "referencesPresent": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "catalogFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "canonicalStateMutated",
+        "localFilesWritten",
+        "externalWritesEnabled",
+        "networkCalls",
+        "modelCalls",
+        "rawSkillTextIncluded",
+        "absoluteFilesystemLocationsIncluded"
+      ],
+      "properties": {
+        "readOnly": {
+          "const": true
+        },
+        "canonicalStateMutated": {
+          "const": false
+        },
+        "localFilesWritten": {
+          "const": 0
+        },
+        "externalWritesEnabled": {
+          "const": false
+        },
+        "networkCalls": {
+          "const": 0
+        },
+        "modelCalls": {
+          "const": 0
+        },
+        "rawSkillTextIncluded": {
+          "const": false
+        },
+        "absoluteFilesystemLocationsIncluded": {
+          "const": false
+        }
+      }
+    },
+    "reportFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}

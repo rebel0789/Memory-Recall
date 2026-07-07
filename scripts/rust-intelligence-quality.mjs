@@ -5,6 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
+import { peakRssMb, timedSpawn } from './timing.mjs';
 
 const ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const RUST_BIN = path.join(ROOT, 'rust/target/release/oaf');
@@ -300,11 +301,10 @@ function exerciseImpact() {
 
 function timed(label, command, args, options = {}) {
   const started = performance.now();
-  const result = spawnSync('/usr/bin/time', ['-l', command, ...args], { cwd: ROOT, encoding: 'utf8', ...options });
+  const result = timedSpawn(command, args, { cwd: ROOT, encoding: 'utf8', ...options });
   assert.equal(result.status, options.expectedStatus ?? 0, `${label}\n${result.stderr || result.stdout}`);
   const elapsedMs = performance.now() - started;
-  const rssBytes = Number(result.stderr.match(/(\d+)\s+maximum resident set size/u)?.[1] ?? 0);
-  return { ms: Number(elapsedMs.toFixed(3)), peakRssMb: Number((rssBytes / 1024 / 1024).toFixed(1)) };
+  return { ms: Number(elapsedMs.toFixed(3)), peakRssMb: peakRssMb(result.stderr) };
 }
 
 assert.equal(existsSync(RUST_BIN), true, 'run cargo build --release before M5 intelligence harness');

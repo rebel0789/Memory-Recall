@@ -8,6 +8,52 @@
   "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "measurementScope": "single local context-pack build, MCP readback, and harness setup dry-run",
   "launchPrompt": "Continue this local repository work in codex.\nObjective: Ship safely\nCurrent step: handoff\n\nUse the attached Context Pack as a locator handoff.",
+  "handoffParts": [
+    {
+      "order": 1,
+      "partType": "launch_instruction",
+      "schemaVersion": "1.0.0",
+      "title": "Launch instruction",
+      "resourceUri": null,
+      "commandKey": null,
+      "fingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "payloadIncluded": false,
+      "reasonCodes": ["schema_versioned_part", "target_harness_instruction"]
+    },
+    {
+      "order": 2,
+      "partType": "context_pack_resource",
+      "schemaVersion": "1.0.0",
+      "title": "Context pack MCP resource",
+      "resourceUri": "oaf://workspace/ws_local/context-pack/current",
+      "commandKey": "readCurrentContextPack",
+      "fingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "payloadIncluded": false,
+      "reasonCodes": ["mcp_readback_verified", "schema_versioned_part"]
+    },
+    {
+      "order": 3,
+      "partType": "use_plan_resource",
+      "schemaVersion": "1.0.0",
+      "title": "Required local read plan",
+      "resourceUri": "oaf://workspace/ws_local/context-pack/use-plan/current",
+      "commandKey": null,
+      "fingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "payloadIncluded": false,
+      "reasonCodes": ["local_reads_required", "schema_versioned_part"]
+    },
+    {
+      "order": 4,
+      "partType": "safeguards",
+      "schemaVersion": "1.0.0",
+      "title": "Read-only safeguards",
+      "resourceUri": null,
+      "commandKey": null,
+      "fingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "payloadIncluded": false,
+      "reasonCodes": ["no_external_writes", "no_raw_source_bodies", "schema_versioned_part"]
+    }
+  ],
   "request": {
     "objectiveFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     "objectiveLength": 32,
@@ -47,6 +93,7 @@
   "usePlan": {
     "resourceUri": "oaf://workspace/ws_local/context-pack/use-plan/current",
     "contextPackFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "usePlanFingerprint": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
     "requiredReadCount": 3,
     "requiredLocalReads": [
       {
@@ -121,6 +168,42 @@
       "absoluteFilesystemLocationsIncluded": false
     }
   },
+  "skillCatalog": {
+    "state": "ready",
+    "configured": true,
+    "command": "oaf skill catalog --read-only --root . --format json",
+    "summary": {
+      "total": 1,
+      "advertisedSkillCount": 1,
+      "loadableOnlySkillCount": 0,
+      "readOnlyCount": 1,
+      "reversibleWriteCount": 0,
+      "consequentialWriteCount": 0,
+      "writableSkillCount": 0,
+      "bySideEffectClass": {
+        "read-only": 1,
+        "reversible-write": 0,
+        "consequential-write": 0
+      },
+      "uniqueToolCount": 1,
+      "toolIds": ["tool:filesystem-read"],
+      "advertisedToolCount": 1,
+      "advertisedToolIds": ["tool:filesystem-read"]
+    },
+    "catalogFingerprint": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "reasonCodes": ["skill_catalog_validated"],
+    "safeguards": {
+      "readOnly": true,
+      "localFilesWritten": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "rawSkillTextIncluded": false,
+      "absoluteFilesystemLocationsIncluded": false,
+      "externalWritesEnabled": false,
+      "toolAuthorityGranted": false,
+      "catalogReportFingerprint": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    }
+  },
   "mcp": {
     "resourceUri": "oaf://workspace/ws_local/context-pack/current",
     "setup": {
@@ -141,7 +224,7 @@
         "format": "toml",
         "configRef": "home://.codex/config.toml",
         "applyMode": "manual-copy",
-        "content": "[mcp_servers.oaf]\ncommand = \"npm\"\nargs = [\"--silent\", \"run\", \"oaf\", \"--\", \"mcp\", \"resources\", \"--read-only\", \"--stdio\"]",
+        "content": "[mcp_servers.oaf]\ncommand = \"oaf\"\nargs = [\"mcp\", \"resources\", \"--read-only\", \"--stdio\"]",
         "warning": "Preview only. Review and paste manually; OAF does not write home config files."
       }
     },
@@ -160,7 +243,9 @@
     "previewSetup": "oaf harness setup plan --client codex --server oaf --dry-run --format json",
     "startMcpBridge": "oaf mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --stdio",
     "readCurrentContextPack": "oaf mcp resources --read-only --context-pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --uri oaf://workspace/ws_local/context-pack/current --format json",
-    "renderMarkdown": "oaf context pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --dry-run --format markdown"
+    "renderMarkdown": "oaf context pack --from 'codex' --root . --objective 'Ship safely' --step 'handoff' --target codex --changed 'src/auth.ts' --dry-run --format markdown",
+    "refineMemory": "oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json",
+    "catalogSkills": "oaf skill catalog --read-only --root . --format json"
   },
   "checks": {
     "contextPackFingerprintMatchesMcp": true,

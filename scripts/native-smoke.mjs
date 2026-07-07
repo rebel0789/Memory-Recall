@@ -12,7 +12,7 @@ import { DurableSQLiteWorkflowRuntime, createDurableSmokeWorkflowDefinition, cre
 import { BrokeredLocalToolProvider } from '../providers/native/tool-brokered-local/src/index.mjs';
 import { createNativeExactCandidateSource } from '../providers/native/context-candidate-exact/src/index.mjs';
 import { createNativeLexicalCandidateSource } from '../providers/native/context-candidate-lexical/src/index.mjs';
-import { buildJsTsSourceIndex, createNativeAstCodeCandidateSource, querySourceIndex } from '../providers/native/context-candidate-ast-code/src/index.mjs';
+import { buildJsTsSourceIndex, createNativeAstCodeCandidateSource, createNativeSourceGraphCandidateSource, querySourceIndex } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 import { compileAndPersistContext, createCandidateSourceRegistry, createFixtureRecordReader, generateContextCandidates } from '../packages/context-compiler/src/index.mjs';
 import { createMemoryEffectBoundary } from '../packages/tool-registry/src/index.mjs';
 import { fingerprintAgentPack, validateAgentPack } from '../packages/agentpack/src/index.mjs';
@@ -165,6 +165,35 @@ try {
     '  return compileSmokeContext(request);',
     '}'
   ].join('\n'));
+  const graphCandidates = await generateContextCandidates({
+    schemaVersion: '1.0.0',
+    requestId: 'ccreq_smoke_graph',
+    correlationId: 'req_native-smoke-graph001',
+    workspaceId: 'ws_smoke',
+    actorId: bootstrap.user.id,
+    taskId: 'task_smoke',
+    objective: 'trace runSmokeWorkflow compileSmokeContext source graph',
+    step: 'find source graph locator evidence',
+    requiredIds: [],
+    requiredEntities: ['compileSmokeContext'],
+    allowedDataClasses: ['workspace-private'],
+    allowedTrustClasses: ['observed'],
+    allowedScopes: ['workspace-private'],
+    sourcePlan: [{ kind: 'graph', required: false, limit: 5, timeoutMs: 1000 }],
+    perSourceLimit: 5,
+    totalCandidateLimit: 5,
+    trustedTimestamp: '2026-06-19T10:00:00.000Z',
+    tokenBudget: 64
+  }, {
+    registry: createCandidateSourceRegistry([
+      createNativeSourceGraphCandidateSource({ root: astRoot, workspaceId: 'ws_smoke', clock: () => '2026-06-19T10:00:00.000Z' })
+    ]),
+    recordReader: createFixtureRecordReader([]),
+    clock: () => '2026-06-19T10:00:00.000Z'
+  });
+  if (!graphCandidates.candidates.some((candidate) => candidate.record.metadata?.representation === 'source-graph-locator' && candidate.record.metadata?.path === 'src/context-smoke.ts')) {
+    throw new Error('native source graph candidate smoke failed');
+  }
   const sourceIndex = await buildJsTsSourceIndex({
     root: astRoot,
     workspaceId: 'ws_smoke',
@@ -355,7 +384,7 @@ try {
   console.log('PASS content-addressed artifact store');
   console.log('PASS native local identity');
   console.log('PASS deterministic contextual policy provider');
-  console.log('PASS native exact, lexical, AST-code, and JS/TS source-index context sources');
+  console.log('PASS native exact, lexical, AST-code, graph, and JS/TS source-index context sources');
   console.log('PASS native local context manifest repository');
   console.log('PASS native durable SQLite workflow recovery');
   console.log('PASS native operations backup and restore');

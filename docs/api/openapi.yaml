@@ -1205,11 +1205,11 @@ components:
           properties:
             name: { const: oaf }
             transport: { const: stdio }
-            command: { const: npm }
+            command: { const: oaf }
             args:
               type: array
-              minItems: 8
-              maxItems: 8
+              minItems: 4
+              maxItems: 4
               items: { type: string, maxLength: 32 }
             environmentKeys:
               type: array

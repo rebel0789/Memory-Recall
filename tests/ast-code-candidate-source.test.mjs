@@ -16,6 +16,7 @@ import {
   buildJsTsSourceGraph,
   buildSourceGraphFromIndex,
   createNativeAstCodeCandidateSource,
+  createNativeSourceGraphCandidateSource,
   mapSourceGraphDiffImpact,
   querySourceIndex,
   readAstCodeSlice,
@@ -55,6 +56,26 @@ async function fixtureWorkspace() {
     '  const service = new TokenResetService();',
     '  return service.approveTokenReset(request);',
     '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'constants.ts'), [
+    'export const kyOptionKeys = { retry: true };',
+    'export const requestOptionsRegistry = { method: true };'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'options.ts'), [
+    'import {',
+    '  kyOptionKeys,',
+    '  requestOptionsRegistry',
+    "} from './constants.js';",
+    '',
+    'export const findUnknownOptions = (',
+    '  options: Record<string, unknown>,',
+    '): Record<string, unknown> => {',
+    '  const unknownOptions: Record<string, unknown> = {};',
+    '  for (const key in options) {',
+    '    if (!(key in requestOptionsRegistry) && !(key in kyOptionKeys)) unknownOptions[key] = options[key];',
+    '  }',
+    '  return unknownOptions;',
+    '};'
   ].join('\n'));
   await writeFile(path.join(root, 'src', 'multi.ts'), [
     'export class MultiMethodService {',
@@ -166,6 +187,8 @@ test('native AST code source returns deterministic sanitized candidates for JS a
   assert.match(candidate.record.source, /^workspace:\/\/src\/auth\.ts#L\d+-L\d+$/);
   assert(candidate.record.tags.includes('symbol:approveTokenReset'));
   assert(candidate.record.tags.includes('import:zod'));
+  assert.equal(candidate.record.metadata.path, 'src/auth.ts');
+  assert.equal(candidate.record.metadata.representation, 'source-locator-summary');
   assert(candidate.hits.every((hit) => hit.sourceKind === 'ast-code'));
   assert(candidate.hits.every((hit) => /^sha256:[a-f0-9]{64}$/.test(hit.queryFingerprint)));
 
@@ -180,6 +203,97 @@ test('native AST code source returns deterministic sanitized candidates for JS a
     recordReader: createFixtureRecordReader([])
   });
   assert(compiled.manifest.selected.some((item) => item.id === candidate.record.id));
+});
+
+test('native source graph candidate source returns locator-only graph hits without raw source bodies', async () => {
+  const root = await fixtureWorkspace();
+  const source = createNativeSourceGraphCandidateSource({ root, workspaceId: 'ws_ast', clock: () => fixedNow });
+  const descriptor = source.descriptor();
+  assert.equal(descriptor.id, 'provider:native:context-candidate:graph');
+  assert.equal(descriptor.kind, 'graph');
+
+  const result = await generateContextCandidates(request({
+    sourcePlan: [{ kind: 'graph', required: false, limit: 8, timeoutMs: 1000 }]
+  }), {
+    registry: createCandidateSourceRegistry([source]),
+    recordReader: createFixtureRecordReader([])
+  });
+
+  assert.equal(result.status, 'succeeded');
+  assert.deepEqual(result.reports.map((report) => [report.sourceKind, report.status]), [['graph', 'succeeded']]);
+  const candidate = result.candidates.find((item) => item.record.text.includes('approveTokenReset'));
+  assert(candidate);
+  assert.equal(candidate.record.kind, 'observation');
+  assert.equal(candidate.record.metadata.representation, 'source-graph-locator');
+  assert.equal(candidate.record.metadata.path, 'src/auth.ts');
+  assert(candidate.hits.every((hit) => hit.sourceKind === 'graph'));
+  assert(candidate.hits.some((hit) => hit.reasonCodes.includes('source_graph_match')));
+
+  const serialized = JSON.stringify(result);
+  assert(!serialized.includes('private implementation body'));
+  assert(!serialized.includes(root));
+  assert(!serialized.includes('/Users/'));
+  assert(!serialized.includes('/Users/rebel/private/secret'));
+});
+
+test('native source graph candidate source carries resolved relative import neighbors', async () => {
+  const root = await fixtureWorkspace();
+  const source = createNativeSourceGraphCandidateSource({ root, workspaceId: 'ws_ast', clock: () => fixedNow });
+
+  const result = await generateContextCandidates(request({
+    objective: 'find unknown fetch options forwarded by options helper',
+    step: 'include imported constants used by the helper',
+    requiredEntities: [],
+    sourcePlan: [{ kind: 'graph', required: false, limit: 10, timeoutMs: 1000 }],
+    perSourceLimit: 10,
+    totalCandidateLimit: 10
+  }), {
+    registry: createCandidateSourceRegistry([source]),
+    recordReader: createFixtureRecordReader([])
+  });
+
+  const importedConstants = result.candidates.find((item) => item.record.metadata?.path === 'src/constants.ts');
+  assert(importedConstants);
+  assert.equal(importedConstants.record.metadata.representation, 'source-graph-locator');
+  assert(importedConstants.hits.some((hit) => hit.reasonCodes.includes('source_graph_neighbor') || hit.reasonCodes.includes('lexical_match')));
+  assert(!JSON.stringify(result).includes('kyOptionKeys = { retry: true }'));
+});
+
+test('native source graph candidate source keeps direct matches ahead of neighbor expansion', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'oaf-graph-fairness-'));
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'src', 'hub.ts'), [
+    "import { directNeedle } from './direct-needle.js';",
+    "import { noisyOne } from './noisy-one.js';",
+    "import { noisyTwo } from './noisy-two.js';",
+    "import { noisyThree } from './noisy-three.js';",
+    'export function centralHubNeedle() {',
+    '  return directNeedle();',
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'direct-needle.ts'), "export function directNeedle() { return 'needle'; }\n");
+  await writeFile(path.join(root, 'src', 'noisy-one.ts'), "export function noisyOne() { return 'one'; }\n");
+  await writeFile(path.join(root, 'src', 'noisy-two.ts'), "export function noisyTwo() { return 'two'; }\n");
+  await writeFile(path.join(root, 'src', 'noisy-three.ts'), "export function noisyThree() { return 'three'; }\n");
+
+  const source = createNativeSourceGraphCandidateSource({ root, workspaceId: 'ws_ast', clock: () => fixedNow });
+  const result = await generateContextCandidates(request({
+    objective: 'central hub direct needle implementation',
+    step: 'central hub direct needle implementation',
+    requiredEntities: [],
+    sourcePlan: [{ kind: 'graph', required: false, limit: 5, timeoutMs: 1000 }],
+    perSourceLimit: 5,
+    totalCandidateLimit: 5
+  }), {
+    registry: createCandidateSourceRegistry([source]),
+    recordReader: createFixtureRecordReader([])
+  });
+
+  const firstNeighborIndex = result.candidates.findIndex((item) => item.hits.some((hit) => hit.reasonCodes.includes('source_graph_neighbor')));
+  const directNeedleIndex = result.candidates.findIndex((item) => item.record.metadata?.path === 'src/direct-needle.ts');
+  assert(directNeedleIndex >= 0);
+  assert(firstNeighborIndex >= 0);
+  assert(directNeedleIndex < firstNeighborIndex);
 });
 
 test('AST scanner bounds filesystem access, parse diagnostics, exact slices, and cache invalidation', async () => {
@@ -243,7 +357,7 @@ test('JS and TS source index exposes definitions references imports exports outl
     clock: () => fixedNow
   });
 
-  assert.equal(index.repositoryOutline.fileCount, 5);
+  assert.equal(index.repositoryOutline.fileCount, 7);
   assert(index.repositoryOutline.symbolCount >= 4);
   assert.match(index.sourceIndexFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.match(index.symbolIndex.symbolIndexFingerprint, /^sha256:[a-f0-9]{64}$/);
@@ -258,6 +372,9 @@ test('JS and TS source index exposes definitions references imports exports outl
   const imports = querySourceIndex(index, { operation: 'imports', module: 'zod' });
   assert.equal(imports.length, 1);
   assert(imports.some((item) => item.locator.startsWith('workspace://src/auth.ts#L')));
+  const multilineImports = querySourceIndex(index, { operation: 'imports', module: './constants.js' });
+  assert.equal(multilineImports.length, 1);
+  assert(multilineImports.some((item) => item.locator.startsWith('workspace://src/options.ts#L')));
   const absoluteImports = querySourceIndex(index, { operation: 'imports', module: 'local:absolute-import' });
   assert.equal(absoluteImports.length, 1);
 
@@ -306,11 +423,12 @@ test('native source graph exposes sanitized graph search trace and diff impact o
   assert.equal(validateJsonSchema(graphSchema, graphFromScanner).valid, true);
   assert.match(graph.graphFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.equal(graph.workspaceId, 'ws_ast');
-  assert.equal(graph.summary.fileCount, 5);
+  assert.equal(graph.summary.fileCount, 7);
   assert(graph.summary.symbolCount >= 7);
   assert(graph.summary.edgeKindCounts.calls >= 2);
   assert(graph.nodes.some((node) => node.kind === 'module' && node.label === 'zod'));
   assert(graph.edges.some((edge) => edge.kind === 'calls'));
+  assert(graph.edges.some((edge) => edge.kind === 'imports' && edge.locator === 'workspace://src/constants.ts'));
 
   const search = searchSourceGraph(graph, { query: 'approve token reset workflow', limit: 10 });
   assert.equal(search.retrievalMethod, 'source_graph_lexical');

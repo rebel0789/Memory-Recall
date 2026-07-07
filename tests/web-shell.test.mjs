@@ -265,6 +265,11 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Receiver packet ready/);
   assert.match(app,/Review blockers/);
   assert.match(app,/Copy receiver packet/);
+  assert.match(app,/Packet parts/);
+  assert.match(app,/Part schemas/);
+  assert.match(app,/item\.contentType/);
+  assert.match(app,/item\.schemaVersion/);
+  assert.match(app,/packet\.messageParts/);
   assert.match(app,/reviewedPayload:contextPackReviewedPayload/);
   assert.match(app,/selectContextPackPinPayload\(\{reviewedPayload:contextPackResult\?\.reviewedPayload/);
   assert.match(app,/data-action="download-pack"/);
@@ -337,6 +342,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Written artifacts/);
   assert.match(app,/Repository/);
   assert.match(app,/Use this pack/);
+  assert.match(app,/Test handoff summary/);
   assert.match(app,/artifactHeading=readiness\.ready\?'Handoff ready':'Handoff needs review'/);
   assert.match(app,/Changed files, reads, and proof commands are ready/);
   assert.match(app,/Review changed files, reads, and proof commands before handoff/);
@@ -345,7 +351,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Pin and receive/);
   assert.match(app,/setupPreviewed/);
   assert.match(app,/Setup preview already passed for this browser session/);
-  assert.match(app,/\['Test local handoff','Pin locally','Receive pinned pack','Copy impact command'\]/);
+  assert.match(app,/\['Test local handoff','Test handoff summary','Pin locally','Receive pinned pack','Receive summary','Copy impact command'\]/);
   assert.match(app,/context receive --read-only --root \. --target/);
   assert.match(app,/Utility read plan/);
   assert.match(app,/Hash verified/);
@@ -537,19 +543,29 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   const pinIndex=model.commands.findIndex((item)=>item.label==='Pin locally');
   const verifyIndex=model.commands.findIndex((item)=>item.label==='Verify pin');
   const receiveIndex=model.commands.findIndex((item)=>item.label==='Receive pinned pack');
+  const summaryIndex=model.commands.findIndex((item)=>item.label==='Receive summary');
   assert(pinIndex >= 0);
   assert.equal(verifyIndex,pinIndex+1);
   assert.equal(receiveIndex,verifyIndex+1);
+  assert.equal(summaryIndex,receiveIndex+1);
   assert.match(model.commands[verifyIndex].command,/context registry status --read-only --format json/);
   const receiveCommand=model.commands[receiveIndex].command;
   assert.equal(receiveCommand,'npm run oaf -- context receive --read-only --root . --target codex --format json');
   assert.doesNotMatch(receiveCommand,/--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
+  const summaryCommand=model.commands[summaryIndex].command;
+  assert.equal(summaryCommand,'npm run oaf -- context receive --read-only --root . --target codex --format summary');
+  assert.doesNotMatch(summaryCommand,/--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
   assert.equal(model.commands.some((item)=>item.command==='oaf mcp resources --read-only --stdio'),true);
   const preflightCommand=model.commands.find((item)=>item.label==='Test local handoff')?.command ?? '';
   assert.match(preflightCommand,/^oaf context handoff --read-only /);
   assert.match(preflightCommand,/--from 'codex,cursor'/);
   assert.match(preflightCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format json/);
   assert.doesNotMatch(preflightCommand,/--write|--pin|--out|install/);
+  const preflightSummaryCommand=model.commands.find((item)=>item.label==='Test handoff summary')?.command ?? '';
+  assert.match(preflightSummaryCommand,/^oaf context handoff --read-only /);
+  assert.match(preflightSummaryCommand,/--from 'codex,cursor'/);
+  assert.match(preflightSummaryCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format summary/);
+  assert.doesNotMatch(preflightSummaryCommand,/--write|--pin|--out|install/);
   const impactCommand=model.commands.find((item)=>item.label==='Copy impact command')?.command ?? '';
   assert.match(impactCommand,/^oaf measure context-pack --read-only /);
   assert.match(impactCommand,/--from 'codex,cursor'/);
@@ -684,6 +700,7 @@ test('pinned handoff status model gates receive commands by registry verificatio
   assert.equal(ready.primaryCommand.command,'npm run oaf -- context receive --read-only --root . --target codex --format json');
   assert.equal(canReceivePinnedHandoff(ready.state),true);
   assert.equal(ready.commands.some((item)=>item.label==='Receive pinned pack'),true);
+  assert.equal(ready.commands.find((item)=>item.label==='Receive summary')?.command,'npm run oaf -- context receive --read-only --root . --target codex --format summary');
   assert.equal(ready.commands.some((item)=>item.label==='Read pinned use plan'),true);
   assert.equal(ready.facts.some(([key,value])=>key==='Use plan'&&value==='available'),true);
 
@@ -701,6 +718,7 @@ test('pinned handoff status model gates receive commands by registry verificatio
   assert.equal(stale.primaryCommand,null);
   assert.equal(canReceivePinnedHandoff(stale.state),true);
   assert.equal(stale.commands.some((item)=>item.label==='Receive pinned pack'),true);
+  assert.equal(stale.commands.some((item)=>item.label==='Receive summary'),true);
   assert.equal(stale.commands.some((item)=>item.label==='Read pinned use plan'),false);
   assert.equal(stale.facts.some(([key,value])=>key==='Use plan'&&value==='withheld'),true);
 
@@ -788,6 +806,10 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.match(handoffStatus.preflightCommand,/^oaf context handoff --read-only /);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--memory-config/);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--write|--pin|--out|install/);
+  assert.match(handoffStatus.preflightSummaryCommand,/^oaf context handoff --read-only /);
+  assert.match(handoffStatus.preflightSummaryCommand,/--format summary/);
+  assert.doesNotMatch(handoffStatus.preflightSummaryCommand,/--memory-config/);
+  assert.doesNotMatch(handoffStatus.preflightSummaryCommand,/--write|--pin|--out|install/);
   const memoryPendingStatus=buildCurrentHandoffStatusModel({
     contextPackResult:{
       pack:{...safePack,objective:'Prepare safe Codex handoff',step:'select useful context'},
@@ -801,6 +823,7 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(memoryPendingStatus.statusLabel,'review');
   assert.match(memoryPendingStatus.nextAction,/Memory import/);
   assert.match(memoryPendingStatus.preflightCommand,/--memory-config oaf\.memory\.json --format json/);
+  assert.match(memoryPendingStatus.preflightSummaryCommand,/--memory-config oaf\.memory\.json --format summary/);
   const memoryPending=buildFirstUseReadinessModel({
     pack:safePack,
     markdown:'# Context Pack\n',

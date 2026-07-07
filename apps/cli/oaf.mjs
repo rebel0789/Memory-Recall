@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { realpathSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { appendFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename as renameFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -44,8 +44,13 @@ import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pa
 import contextPackHandoffReportSchema from '../../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
+import memoryRefineReportSchema from '../../packages/protocol/schemas/memory-refine-report.schema.json' with { type: 'json' };
+import skillManifestSchema from '../../packages/protocol/schemas/skill-manifest.schema.json' with { type: 'json' };
+import skillCatalogReportSchema from '../../packages/protocol/schemas/skill-catalog-report.schema.json' with { type: 'json' };
+import skillLoadPlanSchema from '../../packages/protocol/schemas/skill-load-plan.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
 import { sha256Hex, stableStringify } from '../../packages/protocol/src/fingerprint.mjs';
+import { loadReviewedToolCatalog } from '../../packages/tool-registry/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
@@ -87,7 +92,9 @@ const commands = new Map([
   ['task', ['scripts/task.mjs', ...args]]
 ]);
 
-if (command === 'demo' && args[0] === 'memory-loop') {
+if (!isHelpCommand(command) && args.some(isHelpCommand)) {
+  help(command, args.find((value) => !isHelpCommand(value)));
+} else if (command === 'demo' && args[0] === 'memory-loop') {
   await demoMemoryLoopCommand(args.slice(1));
 } else if (commands.has(command)) {
   process.exitCode = await runNode(commands.get(command));
@@ -103,14 +110,16 @@ if (command === 'demo' && args[0] === 'memory-loop') {
   await measureCommand(args);
 } else if (command === 'loop') {
   await loopCommand(args);
+} else if (command === 'skill' || command === 'skills') {
+  await skillCommand(args);
 } else if (command === 'harness') {
   await harnessCommand(args);
 } else if (command === 'hook') {
   await hookCommand(args);
 } else if (command === 'connect' || command === 'disconnect') {
   await connectionCommand(command, args);
-} else if (['help', '--help', '-h'].includes(command)) {
-  help();
+} else if (isHelpCommand(command)) {
+  help(args[0], args[1]);
 } else if (['version', '--version', '-v'].includes(command)) {
   const pkg = JSON.parse(await readFile(new URL('../../package.json', import.meta.url), 'utf8'));
   console.log(pkg.version);
@@ -471,6 +480,7 @@ async function memoryCommand(values) {
     if (subcommand === 'approve') return await memoryApproveCommand(rest);
     if (subcommand === 'reject') return await memoryRejectCommand(rest);
     if (subcommand === 'review') return await memoryReviewCommand(rest);
+    if (subcommand === 'refine') return await memoryRefineCommand(rest);
     if (subcommand === 'profile') return await memoryProfileCommand(rest);
     if (subcommand === 'proposals') return await memoryProposalsCommand(rest);
     if (subcommand === 'sgrep') return await memorySgrepCommand(rest);
@@ -478,7 +488,7 @@ async function memoryCommand(values) {
     if (subcommand === 'search') return await memorySearchCommand(rest);
     if (subcommand === 'path') return await memoryPathCommand(rest);
     if (subcommand === 'explain') return await memoryExplainCommand(rest);
-    console.error('memory requires remember, ingest, approve, reject, review, profile, proposals, sgrep, fact, search, path, or explain');
+    console.error('memory requires remember, ingest, approve, reject, review, refine, profile, proposals, sgrep, fact, search, path, or explain');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -498,14 +508,18 @@ async function memoryReviewCommand(values) {
   return await memoryReviewListCommand(values);
 }
 
-async function openMemoryReviewProvider(values, { readOnly, commandName }) {
+async function openMemoryReviewProvider(values, { readOnly, commandName, allowMissing = false }) {
   const root = path.resolve(option(values, '--root') ?? process.cwd());
   const rootStat = await stat(root).catch(() => null);
   if (!rootStat?.isDirectory()) throw new Error(`${commandName} --root must point at a local workspace directory`);
-  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', commandName, { mustExist: true });
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', commandName, { mustExist: !allowMissing });
   const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  if (allowMissing && !sqlitePath.exists) {
+    return { root, sqlitePath, workspaceId, provider: null, unavailableReason: 'sqlite_missing' };
+  }
   const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
   return {
+    root,
     sqlitePath,
     workspaceId,
     provider: new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: fixedNow, migrate: false, readOnly })
@@ -560,6 +574,481 @@ async function memoryReviewListCommand(values) {
   } finally {
     provider.close();
   }
+}
+
+async function memoryRefineCommand(values) {
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('memory refine only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  if (!values.includes('--read-only')) {
+    console.error('memory refine requires --read-only; it only reports candidates and never mutates memory');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--scope', '--limit', '--target-active-facts', '--min-confidence', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`memory refine unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const generatedAt = fixedNow();
+  const output = await buildMemoryRefineReportForValues(values, { generatedAt });
+  emitMemoryRefineReport(output, format);
+}
+
+async function buildMemoryRefineReportForValues(values, { generatedAt = fixedNow() } = {}) {
+  const scope = option(values, '--scope') ?? 'workspace';
+  const limit = Math.max(1, Math.min(500, parseIntegerOption(values, '--limit', 500)));
+  const targetActiveFactCount = option(values, '--target-active-facts') === null ? null : strictIntegerOption(values, '--target-active-facts', null);
+  if (targetActiveFactCount !== null && (targetActiveFactCount < 1 || targetActiveFactCount > 500)) throw new Error('memory refine --target-active-facts must be an integer between 1 and 500');
+  const minConfidence = option(values, '--min-confidence') === null ? 0.5 : strictNumberOption(values, '--min-confidence', 0.5);
+  if (minConfidence < 0 || minConfidence > 1) throw new Error('memory refine --min-confidence must be a number between 0 and 1');
+  const { root, sqlitePath, workspaceId, provider, unavailableReason } = await openMemoryReviewProvider(values, {
+    readOnly: true,
+    commandName: 'memory refine',
+    allowMissing: true
+  });
+  if (!provider) {
+    const output = buildEmptyMemoryRefineReport({ generatedAt, workspaceId, scope, sqlitePath, reasonCode: unavailableReason, targetActiveFactCount });
+    assertJsonSchema(memoryRefineReportSchema, output, 'memory refine unavailable report');
+    return output;
+  }
+  try {
+    const facts = await provider.listTemporalFacts({ workspaceId, scope, limit });
+    const proposalQueue = await provider.listProposalQueue({ workspaceId, limit });
+    const activeFacts = facts.filter((fact) => memoryRefineFactIsActiveAt(fact, generatedAt));
+    const duplicateCandidates = memoryRefineDuplicateCandidates(activeFacts);
+    const conflictCandidates = memoryRefineConflictCandidates(activeFacts);
+    const staleCandidates = memoryRefineStaleCandidates(facts, generatedAt);
+    const supersessionCandidates = memoryRefineSupersessionCandidates(activeFacts);
+    const lineageResidueCandidates = memoryRefineLineageResidueCandidates(activeFacts, proposalQueue, root);
+    const lowConfidenceCandidates = memoryRefineLowConfidenceCandidates(activeFacts, minConfidence);
+    const refineCandidateCount = duplicateCandidates.length + conflictCandidates.length + staleCandidates.length + supersessionCandidates.length + lineageResidueCandidates.length + lowConfidenceCandidates.length;
+    const derivedArtifacts = await memoryRefineDerivedArtifacts(root, refineCandidateCount);
+    const report = {
+      schemaVersion: '1.0.0',
+      command: 'memory refine',
+      generatedAt,
+      workspaceId,
+      scope,
+      state: 'ready',
+      reasonCodes: ['memory_schema_ready'],
+      source: {
+        provider: 'provider:native:memory:sqlite',
+        sqliteRef: `workspace://${sqlitePath.relative}`
+      },
+      summary: {
+        scannedFactCount: facts.length,
+        activeFactCount: activeFacts.length,
+        duplicateCandidateCount: duplicateCandidates.length,
+        conflictCandidateCount: conflictCandidates.length,
+        staleCandidateCount: staleCandidates.length,
+        supersessionCandidateCount: supersessionCandidates.length,
+        lineageResidueCandidateCount: lineageResidueCandidates.length,
+        lowConfidenceCandidateCount: lowConfidenceCandidates.length,
+        derivedArtifactReviewCount: derivedArtifacts.length,
+        refineCandidateCount,
+        activeMemoryCreated: 0
+      },
+      duplicateCandidates,
+      conflictCandidates,
+      staleCandidates,
+      supersessionCandidates,
+      lineageResidueCandidates,
+      lowConfidenceCandidates,
+      derivedArtifacts,
+      budgetPlan: buildMemoryRefineBudgetPlan({
+        activeFactCount: activeFacts.length,
+        targetActiveFactCount,
+        duplicateCandidates,
+        supersessionCandidates,
+        lineageResidueCandidates,
+        lowConfidenceCandidates
+      }),
+      safeguards: {
+        readOnly: true,
+        proposalGated: true,
+        canonicalStateMutated: false,
+        activeMemoryCreated: 0,
+        hardDeleted: false,
+        networkCalls: 0,
+        modelCalls: 0,
+        externalWritesEnabled: false,
+        rawSourceBodiesIncluded: false,
+        absoluteFilesystemLocationsIncluded: false
+      },
+      reportFingerprint: null
+    };
+    const output = { ...report, reportFingerprint: stableJsonFingerprint(report) };
+    assertJsonSchema(memoryRefineReportSchema, output, 'memory refine report');
+    return output;
+  } catch (error) {
+    if (!memoryRefineSchemaUnavailable(error)) throw error;
+    const output = buildEmptyMemoryRefineReport({ generatedAt, workspaceId, scope, sqlitePath, reasonCode: 'sqlite_schema_unavailable', targetActiveFactCount });
+    assertJsonSchema(memoryRefineReportSchema, output, 'memory refine unavailable report');
+    return output;
+  } finally {
+    provider.close();
+  }
+}
+
+function emitMemoryRefineReport(report, format) {
+  console.log(format === 'summary' ? renderMemoryRefineSummary(report) : JSON.stringify(report, null, 2));
+}
+
+function renderMemoryRefineSummary(report) {
+  const summary = report.summary;
+  const safeguards = report.safeguards;
+  const lines = [
+    `State: ${report.state}`,
+    `Workspace: ${report.workspaceId}`,
+    `Scope: ${report.scope}`,
+    `Reason codes: ${report.reasonCodes.join(', ')}`,
+    `SQLite: ${report.source.sqliteRef}`,
+    `Scanned facts: ${summary.scannedFactCount}`,
+    `Active facts: ${summary.activeFactCount}`,
+    `Refine candidates: ${summary.refineCandidateCount}`,
+    `Duplicates: ${summary.duplicateCandidateCount}`,
+    `Conflicts: ${summary.conflictCandidateCount}`,
+    `Stale: ${summary.staleCandidateCount}`,
+    `Supersessions: ${summary.supersessionCandidateCount}`,
+    `Lineage residue: ${summary.lineageResidueCandidateCount}`,
+    `Low confidence: ${summary.lowConfidenceCandidateCount}`,
+    `Derived artifacts to review: ${summary.derivedArtifactReviewCount}`
+  ];
+  if (report.budgetPlan) {
+    lines.push(
+      `Budget plan: ${report.budgetPlan.state}`,
+      `Target active facts: ${report.budgetPlan.targetActiveFactCount}`,
+      `Projected active facts: ${report.budgetPlan.projectedActiveFactCount}`,
+      `Planned reviews: ${report.budgetPlan.plannedReviewCount}`,
+      `Planned reductions: ${report.budgetPlan.plannedReductionCount}`
+    );
+  } else {
+    lines.push('Budget plan: not requested');
+  }
+  lines.push(
+    `Canonical state mutated: ${safeguards.canonicalStateMutated ? 'yes' : 'no'}`,
+    `Active memory created: ${safeguards.activeMemoryCreated}`,
+    `Network calls: ${safeguards.networkCalls}`,
+    `Model calls: ${safeguards.modelCalls}`,
+    `Report fingerprint: ${report.reportFingerprint}`
+  );
+  return lines.join('\n');
+}
+
+function buildEmptyMemoryRefineReport({ generatedAt, workspaceId, scope, sqlitePath, reasonCode, targetActiveFactCount = null }) {
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'memory refine',
+    generatedAt,
+    workspaceId,
+    scope,
+    state: 'unavailable',
+    reasonCodes: [reasonCode],
+    source: {
+      provider: 'provider:native:memory:sqlite',
+      sqliteRef: `workspace://${sqlitePath.relative}`
+    },
+    summary: {
+      scannedFactCount: 0,
+      activeFactCount: 0,
+      duplicateCandidateCount: 0,
+      conflictCandidateCount: 0,
+      staleCandidateCount: 0,
+      supersessionCandidateCount: 0,
+      lineageResidueCandidateCount: 0,
+      lowConfidenceCandidateCount: 0,
+      derivedArtifactReviewCount: 0,
+      refineCandidateCount: 0,
+      activeMemoryCreated: 0
+    },
+    duplicateCandidates: [],
+    conflictCandidates: [],
+    staleCandidates: [],
+    supersessionCandidates: [],
+    lineageResidueCandidates: [],
+    lowConfidenceCandidates: [],
+    derivedArtifacts: [],
+    budgetPlan: targetActiveFactCount === null ? null : memoryRefineUnavailableBudgetPlan(targetActiveFactCount, reasonCode),
+    safeguards: {
+      readOnly: true,
+      proposalGated: true,
+      canonicalStateMutated: false,
+      activeMemoryCreated: 0,
+      hardDeleted: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      rawSourceBodiesIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    },
+    reportFingerprint: null
+  };
+  return { ...report, reportFingerprint: stableJsonFingerprint(report) };
+}
+
+function memoryRefineUnavailableBudgetPlan(targetActiveFactCount, reasonCode) {
+  return {
+    state: 'unavailable',
+    reasonCodes: [reasonCode],
+    targetActiveFactCount,
+    currentActiveFactCount: 0,
+    projectedActiveFactCount: 0,
+    overBudgetBy: 0,
+    plannedReviewCount: 0,
+    plannedReductionCount: 0,
+    actions: []
+  };
+}
+
+function buildMemoryRefineBudgetPlan({ activeFactCount, targetActiveFactCount, duplicateCandidates, supersessionCandidates, lineageResidueCandidates, lowConfidenceCandidates }) {
+  if (targetActiveFactCount === null) return null;
+  let projectedActiveFactCount = activeFactCount;
+  const seenFactIds = new Set();
+  const actions = [];
+  const add = (candidate, action, reasonCodes, factIds) => {
+    if (projectedActiveFactCount <= targetActiveFactCount) return;
+    const reviewFactIds = factIds.filter((id) => id && !seenFactIds.has(id)).sort();
+    if (reviewFactIds.length === 0) return;
+    for (const id of reviewFactIds) seenFactIds.add(id);
+    projectedActiveFactCount = Math.max(0, projectedActiveFactCount - reviewFactIds.length);
+    const seed = { action, candidateId: candidate.id, factIds: reviewFactIds };
+    actions.push({
+      id: `mbp_${sha256Hex(stableStringify(seed)).slice(0, 16)}`,
+      action,
+      candidateId: candidate.id,
+      candidateKind: candidate.kind,
+      reasonCodes,
+      factIds: reviewFactIds,
+      expectedActiveFactReduction: reviewFactIds.length,
+      recommendation: candidate.recommendation
+    });
+  };
+  for (const candidate of lineageResidueCandidates) add(candidate, 'review_lineage_residue', ['lineage_residue'], candidate.factIds);
+  for (const candidate of duplicateCandidates) add(candidate, 'review_duplicate_facts', ['duplicate_active_fact'], candidate.supersededFactIds);
+  for (const candidate of supersessionCandidates) add(candidate, 'review_supersession', ['newer_value_available'], candidate.supersededFactIds);
+  for (const candidate of lowConfidenceCandidates) add(candidate, 'review_low_confidence_fact', ['low_confidence_fact'], candidate.factIds);
+  const overBudgetBy = Math.max(0, activeFactCount - targetActiveFactCount);
+  const plannedReductionCount = activeFactCount - projectedActiveFactCount;
+  return {
+    state: overBudgetBy === 0 ? 'within_budget' : projectedActiveFactCount <= targetActiveFactCount ? 'review_needed' : 'insufficient_candidates',
+    reasonCodes: overBudgetBy === 0 ? ['target_active_fact_budget_met'] : projectedActiveFactCount <= targetActiveFactCount ? ['target_active_fact_budget_exceeded'] : ['target_active_fact_budget_exceeded', 'insufficient_refine_candidates'],
+    targetActiveFactCount,
+    currentActiveFactCount: activeFactCount,
+    projectedActiveFactCount,
+    overBudgetBy,
+    plannedReviewCount: actions.length,
+    plannedReductionCount,
+    actions
+  };
+}
+
+function memoryRefineSchemaUnavailable(error) {
+  return /no such table: memory_(?:facts|proposal_queue|episodes)/u.test(String(error?.message ?? ''));
+}
+
+async function memoryRefineDerivedArtifacts(root, refineCandidateCount) {
+  if (refineCandidateCount <= 0) return [];
+  const relativePath = 'memory/profile.md';
+  const absolutePath = path.join(root, relativePath);
+  if (!existsSync(absolutePath)) return [];
+  const body = await readFile(absolutePath, 'utf8').catch(() => null);
+  if (body === null) return [];
+  return [{
+    role: 'memory_profile',
+    locator: `workspace://${relativePath}`,
+    contentHash: `sha256:${sha256Hex(body)}`,
+    state: 'review_recommended',
+    reasonCodes: ['refine_candidates_present', 'derived_memory_profile_may_contain_residue'],
+    recommendation: 'Regenerate or review the derived memory profile after memory refine candidates are resolved.'
+  }];
+}
+
+function memoryRefineFactIsActiveAt(fact, at) {
+  if (fact.status !== 'active' || fact.supersededBy) return false;
+  const atMs = Date.parse(at);
+  const validFromMs = Date.parse(fact.validFrom);
+  const validUntilMs = fact.validUntil ? Date.parse(fact.validUntil) : null;
+  return Number.isFinite(atMs) && Number.isFinite(validFromMs) && validFromMs <= atMs && (!Number.isFinite(validUntilMs) || validUntilMs > atMs);
+}
+
+function memoryRefineDuplicateCandidates(facts) {
+  const groups = groupMemoryRefineFacts(facts, (fact) => [fact.subject, fact.predicate, fact.object].join('\0'));
+  return [...groups.values()]
+    .filter((group) => group.length > 1)
+    .sort(memoryRefineGroupSort)
+    .slice(0, 50)
+    .map((group) => memoryRefineCandidate('duplicate_active_fact', group, {
+      object: memoryRefineSafeText(group[0].object, 240),
+      objects: null,
+      recommendation: 'Review duplicate ACTIVE facts; reject or supersede the extra source through the normal memory review flow.'
+    }));
+}
+
+function memoryRefineConflictCandidates(facts) {
+  const groups = groupMemoryRefineFacts(facts, (fact) => [fact.subject, fact.predicate].join('\0'));
+  return [...groups.values()]
+    .filter((group) => new Set(group.map((fact) => fact.object)).size > 1)
+    .sort(memoryRefineGroupSort)
+    .slice(0, 50)
+    .map((group) => memoryRefineCandidate('conflicting_active_fact', group, {
+      object: null,
+      objects: [...new Set(group.map((fact) => memoryRefineSafeText(fact.object, 240)))].sort(),
+      supersededFactIds: [],
+      recommendation: 'Approve a superseding fact or reject the stale candidate; do not let multiple ACTIVE values answer the same subject/predicate.'
+    }));
+}
+
+function memoryRefineStaleCandidates(facts, at) {
+  return facts
+    .filter((fact) => fact.status === 'active' && !fact.supersededBy && fact.validUntil && Date.parse(fact.validUntil) <= Date.parse(at))
+    .sort((left, right) => String(left.validUntil).localeCompare(String(right.validUntil)) || String(left.id).localeCompare(String(right.id)))
+    .slice(0, 50)
+    .map((fact) => memoryRefineCandidate('stale_active_fact', [fact], {
+      object: memoryRefineSafeText(fact.object, 240),
+      objects: null,
+      supersededFactIds: [],
+      validUntil: fact.validUntil,
+      recommendation: 'Review expired ACTIVE fact; approve a replacement or mark it superseded through the normal memory review flow.'
+    }));
+}
+
+function memoryRefineSupersessionCandidates(facts) {
+  const groups = groupMemoryRefineFacts(facts, (fact) => [fact.subject, fact.predicate].join('\0'));
+  return [...groups.values()]
+    .filter((group) => new Set(group.map((fact) => fact.object)).size > 1)
+    .sort(memoryRefineGroupSort)
+    .slice(0, 50)
+    .map((group) => {
+      const sorted = group.slice().sort((left, right) => String(right.validFrom).localeCompare(String(left.validFrom)) || String(right.id).localeCompare(String(left.id)));
+      return memoryRefineCandidate('supersession_candidate', group, {
+        object: memoryRefineSafeText(sorted[0].object, 240),
+        objects: [...new Set(group.map((fact) => memoryRefineSafeText(fact.object, 240)))].sort(),
+        supersededFactIds: sorted.slice(1).map((fact) => fact.id).sort(),
+        recommendation: 'Newest ACTIVE value can supersede older values once evidence is reviewed.'
+      });
+    });
+}
+
+function memoryRefineLineageResidueCandidates(facts, proposalQueue, root) {
+  const proposals = new Map(proposalQueue.map((proposal) => [proposal.id, proposal]));
+  return facts
+    .filter((fact) => {
+      const proposalId = fact.proposalQueueId;
+      if (!proposalId) return true;
+      const proposal = proposals.get(proposalId);
+      return !proposal || proposal.result?.accepted === false || memoryRefineWorkspaceSourceMissing(root, fact.source);
+    })
+    .sort((left, right) => String(left.proposalQueueId ?? '').localeCompare(String(right.proposalQueueId ?? '')) || String(left.id).localeCompare(String(right.id)))
+    .slice(0, 50)
+    .map((fact) => {
+      const sourceMissing = memoryRefineWorkspaceSourceMissing(root, fact.source);
+      return memoryRefineCandidate('lineage_residue_candidate', [fact], {
+        object: memoryRefineSafeText(fact.object, 240),
+        objects: null,
+        supersededFactIds: [],
+        recommendation: sourceMissing
+          ? 'Review ACTIVE fact whose workspace source is missing; attach replacement evidence or supersede through the normal memory review flow.'
+          : fact.proposalQueueId
+            ? 'Review ACTIVE fact whose proposal lineage is missing or rejected; supersede or retract through the normal memory review flow.'
+            : 'Review ACTIVE fact without proposal lineage; attach evidence or supersede through the normal memory review flow.'
+      });
+    });
+}
+
+function memoryRefineLowConfidenceCandidates(facts, minConfidence) {
+  return facts
+    .filter((fact) => Number(fact.confidence) < minConfidence)
+    .sort((left, right) => Number(left.confidence) - Number(right.confidence) || String(left.id).localeCompare(String(right.id)))
+    .slice(0, 50)
+    .map((fact) => {
+      const candidate = memoryRefineCandidate('low_confidence_fact', [fact], {
+        object: memoryRefineSafeText(fact.object, 240),
+        objects: null,
+        supersededFactIds: [],
+        recommendation: 'Review low-confidence ACTIVE fact; attach stronger evidence or supersede through the normal memory review flow.'
+      });
+      return {
+        ...candidate,
+        confidence: Number(fact.confidence),
+        minConfidence
+      };
+    });
+}
+
+function memoryRefineWorkspaceSourceMissing(root, source) {
+  if (!/^workspace:\/\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(source ?? '')) return false;
+  const relative = memoryRefineWorkspaceLocatorPath(source.slice('workspace://'.length));
+  const normalized = path.normalize(relative);
+  if (path.isAbsolute(normalized) || normalized === '..' || normalized.startsWith(`..${path.sep}`)) return true;
+  const candidate = path.resolve(root, normalized);
+  if (!existsSync(candidate)) return true;
+  try {
+    return !isInside(realpathSync(root), realpathSync(candidate));
+  } catch {
+    return true;
+  }
+}
+
+function memoryRefineWorkspaceLocatorPath(locatorPath) {
+  return String(locatorPath ?? '').replace(/:[0-9]+(?:-[0-9]+)?$/u, '');
+}
+
+function memoryRefineSafeText(value, maxLength = 240) {
+  const text = mcpSanitizeString(value, maxLength);
+  return SECRET_LIKE.test(text) ? '[redacted]' : text;
+}
+
+function groupMemoryRefineFacts(facts, keyForFact) {
+  const groups = new Map();
+  for (const fact of facts) {
+    const key = keyForFact(fact);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(fact);
+  }
+  return groups;
+}
+
+function memoryRefineGroupSort(left, right) {
+  const leftKey = [left[0]?.subject, left[0]?.predicate, left[0]?.object].join('\0');
+  const rightKey = [right[0]?.subject, right[0]?.predicate, right[0]?.object].join('\0');
+  return leftKey.localeCompare(rightKey);
+}
+
+function memoryRefineCandidate(kind, group, { object, objects, supersededFactIds = null, validUntil = null, recommendation }) {
+  const newest = group.slice().sort((left, right) => String(right.validFrom).localeCompare(String(left.validFrom)) || String(right.id).localeCompare(String(left.id)))[0];
+  const seed = {
+    kind,
+    subject: group[0].subject,
+    predicate: group[0].predicate,
+    object,
+    objects,
+    factIds: group.map((fact) => fact.id).sort(),
+    validUntil
+  };
+  const inferredSupersededFactIds = supersededFactIds ?? group
+    .filter((fact) => fact.id !== newest.id)
+    .map((fact) => fact.id)
+    .sort();
+  return {
+    id: `mref_${sha256Hex(stableStringify(seed)).slice(0, 16)}`,
+    kind,
+    subject: memoryRefineSafeText(group[0].subject, 240),
+    predicate: memoryRefineSafeText(group[0].predicate, 160),
+    object,
+    objects,
+    factIds: seed.factIds,
+    supersededFactIds: inferredSupersededFactIds,
+    sourceRefs: [...new Set(group.map((fact) => mcpCompactProvenanceRef(fact.source)))].sort(),
+    newestFactId: newest.id,
+    validUntil,
+    recommendation
+  };
 }
 
 async function memoryReviewApproveCommand(values) {
@@ -3244,8 +3733,8 @@ async function contextHandoffCommand(values) {
     return;
   }
   const format = option(values, '--format') ?? 'json';
-  if (format !== 'json') {
-    console.error('context handoff only supports --format json');
+  if (!['json', 'summary'].includes(format)) {
+    console.error('context handoff only supports --format json or summary');
     process.exitCode = 2;
     return;
   }
@@ -3258,11 +3747,32 @@ async function contextHandoffCommand(values) {
   }
   try {
     const report = await buildContextHandoffReport(values, { objective, step });
-    console.log(JSON.stringify(report, null, 2));
+    console.log(format === 'summary' ? renderContextHandoffSummary(report) : JSON.stringify(report, null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+function renderContextHandoffSummary(report) {
+  const contextPack = report.contextPack ?? {};
+  const usePlan = report.usePlan ?? {};
+  const memory = report.memoryProposalPreflight ?? {};
+  const skillCatalog = report.skillCatalog ?? {};
+  const mcp = report.mcp ?? {};
+  return [
+    `State: ${report.state}`,
+    `Target: ${report.targetHarness}`,
+    `Context pack: ${contextPack.utilityStatus ?? 'unknown'} ${contextPack.contextPackFingerprint ?? 'unknown'}`,
+    `Required reads: ${usePlan.requiredReadCount ?? 0} (${(usePlan.requiredLocalReads ?? []).length} shown, ${usePlan.truncatedRequiredReadCount ?? 0} omitted)`,
+    `Changed coverage: ${contextPack.changedLocatorCoverage?.covered ?? 0}/${contextPack.changedLocatorCoverage?.total ?? 0} ${contextPack.changedLocatorCoverage?.status ?? 'unknown'}`,
+    `MCP readback: ${report.checks?.resourceRead ? 'ok' : 'review'} (${mcp.smoke?.resourcesListed ?? 0} resources, ${mcp.smoke?.toolsExposed ?? 0} tools)`,
+    `Harness setup: ${mcp.setup?.client ?? 'unknown'} ${mcp.setup?.serverStatus ?? 'unknown'} dry-run`,
+    `Memory preflight: ${memory.state ?? 'unknown'} (${memory.summary?.reviewItemCount ?? 0} review items)`,
+    `Skill catalog: ${skillCatalog.state ?? 'unknown'} (${skillCatalog.summary?.total ?? 0} skills, ${skillCatalog.summary?.uniqueToolCount ?? 0} tools)`,
+    `External writes: ${report.safeguards?.externalWritesEnabled ? 'enabled' : 'disabled'}`,
+    `Report fingerprint: ${report.reportFingerprint}`
+  ].join('\n');
 }
 
 async function contextReceiveCommand(values) {
@@ -3287,8 +3797,8 @@ async function contextReceiveCommand(values) {
     return;
   }
   const format = option(values, '--format') ?? 'json';
-  if (format !== 'json') {
-    console.error('context receive only supports --format json');
+  if (!['json', 'summary'].includes(format)) {
+    console.error('context receive only supports --format json or summary');
     process.exitCode = 2;
     return;
   }
@@ -3304,11 +3814,39 @@ async function contextReceiveCommand(values) {
       home: process.env.HOME ?? process.cwd(),
       trustedContext: localMcpTrustedContext(workspaceId)
     });
-    console.log(JSON.stringify(report, null, 2));
+    console.log(format === 'summary' ? renderContextReceiveSummary(report) : JSON.stringify(report, null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+function renderContextReceiveSummary(report) {
+  const packet = report.receiverPacket ?? {};
+  const proof = packet.proof ?? {};
+  const recipientProof = proof.recipientProof ?? {};
+  const readPlan = packet.readPlan ?? {};
+  const partSchemas = (packet.messageParts ?? [])
+    .map((item) => [item.partType, item.contentType, item.schemaVersion].filter(Boolean).join(' '))
+    .filter(Boolean)
+    .join(', ') || 'none';
+  const nextRequired = (packet.nextActions ?? [])
+    .filter((item) => item.required === true)
+    .map((item) => item.label)
+    .join(', ') || 'none';
+  return [
+    `State: ${report.state}`,
+    `Target: ${report.targetHarness}`,
+    `Registry: ${report.registry?.currentStatus ?? 'unknown'}`,
+    `Recipient proof: ${proof.recipientProofValid ? 'valid' : 'review'}`,
+    `Read-only resources: ${(recipientProof.requiredResourceUris ?? []).join(', ') || 'none'}`,
+    `Packet parts: ${partSchemas}`,
+    `Required reads: ${readPlan.requiredReadCount ?? 0} (${readPlan.includedReadCount ?? 0} shown, ${readPlan.omittedReadCount ?? 0} omitted)`,
+    `Tools exposed: ${proof.toolsExposed ?? report.mcp?.toolsExposed ?? 0}`,
+    `External writes: ${proof.externalWritesEnabled ? 'enabled' : 'disabled'}`,
+    `Next required: ${nextRequired}`,
+    `Report fingerprint: ${report.reportFingerprint}`
+  ].join('\n');
 }
 
 async function contextRetrieveCommand(values) {
@@ -3323,8 +3861,8 @@ async function contextRetrieveCommand(values) {
     return;
   }
   const format = option(values, '--format') ?? 'json';
-  if (format !== 'json') {
-    console.error('context retrieve only supports --format json');
+  if (!['json', 'summary'].includes(format)) {
+    console.error('context retrieve only supports --format json or summary');
     process.exitCode = 2;
     return;
   }
@@ -3338,11 +3876,31 @@ async function contextRetrieveCommand(values) {
     const root = option(values, '--root') ?? process.cwd();
     const workspaceId = option(values, '--workspace') ?? 'ws_local';
     const report = await buildContextRetrieveReport({ root, workspaceId, target, generatedAt: fixedNow() });
-    console.log(JSON.stringify(report, null, 2));
+    console.log(format === 'summary' ? renderContextRetrieveSummary(report) : JSON.stringify(report, null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+function renderContextRetrieveSummary(report) {
+  return [
+    `State: ${report.state}`,
+    `Locator: ${report.locator}`,
+    `Matched use plan: ${report.matchedUsePlan ? 'yes' : 'no'}`,
+    `Role: ${report.role}`,
+    `Required: ${report.required ? 'yes' : 'no'}`,
+    `Represented: ${report.represented === null ? 'unknown' : report.represented ? 'yes' : 'no'}`,
+    `Content hash: ${report.contentHash}`,
+    `Bytes: ${report.byteSize}`,
+    `Lines: ${report.lineCount}`,
+    'Summary content included: no',
+    `JSON content included: ${report.contentIncluded ? 'yes' : 'no'}`,
+    `Reason codes: ${report.reasonCodes.join(', ')}`,
+    `Local files written: ${report.safeguards.localFilesWritten}`,
+    `Network calls: ${report.safeguards.networkCalls}`,
+    `Model calls: ${report.safeguards.modelCalls}`
+  ].join('\n');
 }
 
 async function contextRegistryCommand(values) {
@@ -3431,16 +3989,650 @@ async function contextGraphPreviewCommand(values) {
 async function mcpCommand(values) {
   const [subcommand, ...rest] = values;
   try {
+    if (subcommand === 'inspect') return await mcpInspectCommand(rest);
     if (subcommand === 'resources') return await mcpResourcesCommand(rest);
     if (subcommand === 'server') return await mcpServerCommand(rest);
     if (subcommand === 'install') return await mcpInstallCommand(rest);
     if (subcommand === 'stats') return await mcpStatsCommand(rest);
     if (subcommand === 'smoke') return await mcpSmokeCommand(rest);
-    console.error('mcp requires resources, server, install, stats, or smoke');
+    console.error('mcp requires inspect, resources, server, install, stats, or smoke');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
+  }
+}
+
+async function skillCommand(values) {
+  const [subcommand, ...rest] = values;
+  try {
+    if (subcommand === 'catalog') return await skillCatalogCommand(rest);
+    if (subcommand === 'load-plan') return await skillLoadPlanCommand(rest);
+    console.error('skill requires catalog or load-plan');
+    process.exitCode = 2;
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function skillCatalogCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('skill catalog requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--apply') || values.includes('--out') || values.includes('--stdio')) {
+    console.error('skill catalog is read-only and does not write files, apply configs, or start stdio servers');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('skill catalog only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const allowedFlags = new Set(['--read-only', '--root', '--workspace', '--workspace-id', '--format']);
+  const valueFlags = new Set(['--root', '--workspace', '--workspace-id', '--format']);
+  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
+  if (unsupported.length) {
+    console.error(`skill catalog unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('skill catalog --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const report = await buildSkillCatalogReport({ root, workspaceId, generatedAt: fixedNow() });
+  const toolReview = format === 'summary' ? await buildSkillCatalogToolReview({ root, declaredToolIds: report.summary.advertisedToolIds }) : null;
+  console.log(format === 'summary' ? renderSkillCatalogSummary(report, toolReview) : JSON.stringify(report, null, 2));
+}
+
+async function skillLoadPlanCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('skill load-plan requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--apply') || values.includes('--out') || values.includes('--stdio')) {
+    console.error('skill load-plan is read-only and does not write files, apply configs, or start stdio servers');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('skill load-plan only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const skillId = option(values, '--id');
+  if (!skillId) {
+    console.error('skill load-plan requires --id <skill:id>');
+    process.exitCode = 2;
+    return;
+  }
+  const allowedFlags = new Set(['--read-only', '--root', '--workspace', '--workspace-id', '--id', '--format']);
+  const valueFlags = new Set(['--root', '--workspace', '--workspace-id', '--id', '--format']);
+  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
+  if (unsupported.length) {
+    console.error(`skill load-plan unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('skill load-plan --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const report = await buildSkillLoadPlan({ root, workspaceId, skillId, generatedAt: fixedNow() });
+  console.log(format === 'summary' ? renderSkillLoadPlanSummary(report) : JSON.stringify(report, null, 2));
+}
+
+async function buildSkillCatalogReport({ root, workspaceId, generatedAt }) {
+  const realRoot = await realpath(root);
+  const skillsRoot = path.join(realRoot, 'skills');
+  const skillsRootStat = await stat(skillsRoot).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!skillsRootStat?.isDirectory()) throw new Error('skill catalog requires a skills/ directory under --root');
+
+  const entries = (await readdir(skillsRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const skills = [];
+  for (const entry of entries) {
+    const directory = path.join(skillsRoot, entry.name);
+    const relativeDirectory = `skills/${entry.name}`;
+    const manifest = JSON.parse(await readFile(path.join(directory, 'manifest.json'), 'utf8'));
+    assertJsonSchema(skillManifestSchema, manifest, `${relativeDirectory}/manifest.json`);
+
+    const skillDocumentPath = path.join(directory, 'SKILL.md');
+    const skillDocument = await stat(skillDocumentPath).catch((error) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    });
+    if (!skillDocument?.isFile()) throw new Error(`${relativeDirectory}/SKILL.md is missing`);
+
+    const references = [];
+    for (const reference of manifest.references ?? []) {
+      if (typeof reference !== 'string' || !reference || path.isAbsolute(reference) || reference.includes('..')) {
+        throw new Error(`${relativeDirectory}/manifest.json has an unsafe reference`);
+      }
+      const absolute = path.resolve(directory, reference);
+      if (!isInside(directory, absolute)) throw new Error(`${relativeDirectory}/manifest.json reference escapes skill directory`);
+      const referenceStat = await stat(absolute).catch((error) => {
+        if (error.code === 'ENOENT') return null;
+        throw error;
+      });
+      if (!referenceStat?.isFile()) throw new Error(`${relativeDirectory}/${reference} is missing`);
+      references.push(`workspace://${relativeDirectory}/${reference.split(path.sep).join('/')}`);
+    }
+
+    skills.push({
+      id: manifest.id,
+      name: manifest.name,
+      description: manifest.description,
+      version: manifest.version,
+      advertised: manifest.advertise !== false,
+      directoryRef: `workspace://${relativeDirectory}`,
+      manifestRef: `workspace://${relativeDirectory}/manifest.json`,
+      skillRef: `workspace://${relativeDirectory}/SKILL.md`,
+      sideEffectClass: manifest.sideEffectClass,
+      inputSchema: manifest.inputSchema,
+      outputSchema: manifest.outputSchema,
+      triggers: [...manifest.triggers].sort((left, right) => left.localeCompare(right)),
+      tools: [...manifest.tools].sort((left, right) => left.localeCompare(right)),
+      references: references.sort((left, right) => left.localeCompare(right)),
+      manifestFingerprint: stableJsonFingerprint(manifest),
+      checks: {
+        manifestValid: true,
+        skillDocumentPresent: true,
+        referencesPresent: true
+      }
+    });
+  }
+
+  const bySideEffectClass = {
+    'read-only': skills.filter((skill) => skill.sideEffectClass === 'read-only').length,
+    'reversible-write': skills.filter((skill) => skill.sideEffectClass === 'reversible-write').length,
+    'consequential-write': skills.filter((skill) => skill.sideEffectClass === 'consequential-write').length
+  };
+  const advertisedSkills = skills.filter((skill) => skill.advertised);
+  const toolIds = [...new Set(skills.flatMap((skill) => skill.tools))].sort((left, right) => left.localeCompare(right));
+  const advertisedToolIds = [...new Set(advertisedSkills.flatMap((skill) => skill.tools))].sort((left, right) => left.localeCompare(right));
+  const toolReview = await buildSkillCatalogToolReview({ root: realRoot, declaredToolIds: toolIds });
+  const skillsWithReadiness = skills.map((skill) => ({
+    ...skill,
+    readiness: skillCatalogReadiness(skill, toolReview)
+  }));
+  const summary = {
+    total: skills.length,
+    advertisedSkillCount: advertisedSkills.length,
+    loadableOnlySkillCount: skills.length - advertisedSkills.length,
+    readOnlyCount: bySideEffectClass['read-only'],
+    reversibleWriteCount: bySideEffectClass['reversible-write'],
+    consequentialWriteCount: bySideEffectClass['consequential-write'],
+    writableSkillCount: bySideEffectClass['reversible-write'] + bySideEffectClass['consequential-write'],
+    bySideEffectClass,
+    uniqueToolCount: toolIds.length,
+    toolIds,
+    advertisedToolCount: advertisedToolIds.length,
+    advertisedToolIds
+  };
+  const reportBase = {
+    schemaVersion: '1.0.0',
+    command: 'skill catalog',
+    generatedAt,
+    workspaceId,
+    rootRef: 'workspace://.',
+    summary,
+    skills: skillsWithReadiness,
+    catalogFingerprint: stableJsonFingerprint({ summary, skills: skillsWithReadiness.map((skill) => ({
+      id: skill.id,
+      version: skill.version,
+      description: skill.description,
+      advertised: skill.advertised,
+      sideEffectClass: skill.sideEffectClass,
+      inputSchema: skill.inputSchema,
+      outputSchema: skill.outputSchema,
+      tools: skill.tools,
+      readiness: skill.readiness,
+      manifestFingerprint: skill.manifestFingerprint
+    })) }),
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      rawSkillTextIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+  const report = { ...reportBase, reportFingerprint: stableJsonFingerprint({ ...reportBase, reportFingerprint: null }) };
+  assertJsonSchema(skillCatalogReportSchema, report, 'skill catalog report');
+  return report;
+}
+
+async function buildSkillLoadPlan({ root, workspaceId, skillId, generatedAt }) {
+  const catalog = await buildSkillCatalogReport({ root, workspaceId, generatedAt });
+  return buildSkillLoadPlanFromCatalog({ catalog, skillId });
+}
+
+async function buildOptionalSkillCatalogReport({ root, workspaceId, generatedAt }) {
+  try {
+    return {
+      report: await buildSkillCatalogReport({ root, workspaceId, generatedAt }),
+      reasonCode: null
+    };
+  } catch {
+    return {
+      report: null,
+      reasonCode: 'skill_catalog_invalid'
+    };
+  }
+}
+
+function buildSkillLoadPlanFromCatalog({ catalog, skillId }) {
+  const skill = catalog.skills.find((item) => item.id === skillId);
+  if (!skill) throw new Error(`skill load-plan could not find ${skillId}`);
+  const requiredLocalReads = [
+    { order: 1, kind: 'manifest', ref: skill.manifestRef, reason: 'Validate skill metadata before reading instructions.' },
+    { order: 2, kind: 'skill', ref: skill.skillRef, reason: 'Read instructions only after the trigger matches.' },
+    ...skill.references.map((ref, index) => ({
+      order: index + 3,
+      kind: 'reference',
+      ref,
+      reason: 'Read only if the selected skill instructions require this reference.'
+    }))
+  ];
+  const reportBase = {
+    schemaVersion: '1.0.0',
+    command: 'skill load-plan',
+    generatedAt: catalog.generatedAt,
+    workspaceId: catalog.workspaceId,
+    rootRef: catalog.rootRef,
+    skill: {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      version: skill.version,
+      advertised: skill.advertised,
+      directoryRef: skill.directoryRef,
+      manifestRef: skill.manifestRef,
+      skillRef: skill.skillRef,
+      sideEffectClass: skill.sideEffectClass,
+      triggers: skill.triggers,
+      tools: skill.tools,
+      references: skill.references,
+      readiness: skill.readiness,
+      manifestFingerprint: skill.manifestFingerprint,
+      checks: skill.checks
+    },
+    requiredLocalReads,
+    catalogFingerprint: catalog.catalogFingerprint,
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      rawSkillTextIncluded: false,
+      toolAuthorityGranted: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+  const report = { ...reportBase, loadPlanFingerprint: stableJsonFingerprint({ ...reportBase, loadPlanFingerprint: null }) };
+  assertJsonSchema(skillLoadPlanSchema, report, 'skill load-plan report');
+  return report;
+}
+
+function skillCatalogReadiness(skill, toolReview) {
+  const approvalRequired = skill.sideEffectClass !== 'read-only';
+  const reviewedToolIds = new Set(toolReview.state === 'ready' ? toolReview.reviewedToolIds : []);
+  const unreviewedToolIds = skill.tools.filter((toolId) => !reviewedToolIds.has(toolId));
+  const reasonCodes = [
+    approvalRequired ? 'write_skill_requires_approval' : 'read_only_skill',
+    ...(unreviewedToolIds.length ? ['skill_declares_unreviewed_tools'] : []),
+    ...(toolReview.state === 'unavailable' ? ['tool_catalog_missing'] : []),
+    ...(toolReview.state === 'invalid' ? ['tool_catalog_invalid'] : [])
+  ];
+  return {
+    state: unreviewedToolIds.length ? 'blocked' : approvalRequired ? 'review' : 'ready',
+    approvalRequired,
+    unreviewedToolIds,
+    reasonCodes
+  };
+}
+
+function renderSkillCatalogSummary(report, toolReview = null) {
+  const advertisedSkills = report.skills.filter((skill) => skill.advertised);
+  const lines = [
+    `Skills: ${report.summary.total}`,
+    `Advertised: ${report.summary.advertisedSkillCount}`,
+    `Loadable only: ${report.summary.loadableOnlySkillCount}`,
+    `Read-only: ${report.summary.readOnlyCount}`,
+    `Reversible write: ${report.summary.reversibleWriteCount}`,
+    `Consequential write: ${report.summary.consequentialWriteCount}`,
+    `Unique tools: ${report.summary.uniqueToolCount}`,
+    toolReview?.configured
+      ? `Reviewed tools: ${toolReview.enabledReviewedToolIds.length}/${toolReview.reviewedToolIds.length}; unreviewed declared: ${toolReview.unreviewedDeclaredToolIds.join(', ') || 'none'}`
+      : 'Reviewed tools: unavailable',
+    `Catalog fingerprint: ${report.catalogFingerprint}`,
+    `Raw skill text included: ${report.safeguards.rawSkillTextIncluded ? 'yes' : 'no'}`,
+    'Load policy: read a skillRef only after its trigger matches; catalog grants no tool authority.',
+    'Load plan: npm run oaf -- skill load-plan --read-only --root . --id <skill:id> --format summary',
+    'Skill menu:',
+    ...advertisedSkills.map((skill) => `- ${skill.id} [${skill.sideEffectClass}]: ${skill.description}`),
+    report.summary.loadableOnlySkillCount > 0 ? `Loadable-only skills omitted from menu: ${report.summary.loadableOnlySkillCount}` : null
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+
+function renderSkillLoadPlanSummary(report) {
+  const refs = report.requiredLocalReads.map((item) => `- ${item.order}. ${item.kind}: ${item.ref}`);
+  return [
+    `Skill: ${report.skill.id}`,
+    `Name: ${report.skill.name}`,
+    `Side effect: ${report.skill.sideEffectClass}`,
+    `Readiness: ${report.skill.readiness.state}`,
+    `Approval required: ${report.skill.readiness.approvalRequired ? 'yes' : 'no'}`,
+    `Required local reads: ${report.requiredLocalReads.length}`,
+    ...refs,
+    `Catalog fingerprint: ${report.catalogFingerprint}`,
+    `Load plan fingerprint: ${report.loadPlanFingerprint}`,
+    `Raw skill text included: ${report.safeguards.rawSkillTextIncluded ? 'yes' : 'no'}`,
+    `Tool authority granted: ${report.safeguards.toolAuthorityGranted ? 'yes' : 'no'}`
+  ].join('\n');
+}
+
+async function buildSkillCatalogPreflight({ root, workspaceId, generatedAt }) {
+  const realRoot = await realpath(root);
+  const skillsRootStat = await stat(path.join(realRoot, 'skills')).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  const command = 'oaf skill catalog --read-only --root . --format json';
+  if (!skillsRootStat?.isDirectory()) {
+    return {
+      state: 'unavailable',
+      configured: false,
+      command,
+      summary: emptySkillCatalogSummary(),
+      catalogFingerprint: null,
+      reasonCodes: ['skills_directory_missing'],
+      safeguards: skillCatalogPreflightSafeguards()
+    };
+  }
+  const { report, reasonCode } = await buildOptionalSkillCatalogReport({ root, workspaceId, generatedAt });
+  if (!report) {
+    return {
+      state: 'unavailable',
+      configured: true,
+      command,
+      summary: emptySkillCatalogSummary(),
+      catalogFingerprint: null,
+      reasonCodes: [reasonCode],
+      safeguards: skillCatalogPreflightSafeguards()
+    };
+  }
+  return {
+    state: 'ready',
+    configured: true,
+    command,
+    summary: report.summary,
+    catalogFingerprint: report.catalogFingerprint,
+    reasonCodes: ['skill_catalog_validated'],
+    safeguards: skillCatalogPreflightSafeguards(report)
+  };
+}
+
+function emptySkillCatalogSummary() {
+  return {
+    total: 0,
+    readOnlyCount: 0,
+    reversibleWriteCount: 0,
+    consequentialWriteCount: 0,
+    writableSkillCount: 0,
+    advertisedSkillCount: 0,
+    loadableOnlySkillCount: 0,
+    bySideEffectClass: {
+      'read-only': 0,
+      'reversible-write': 0,
+      'consequential-write': 0
+    },
+    uniqueToolCount: 0,
+    toolIds: [],
+    advertisedToolCount: 0,
+    advertisedToolIds: []
+  };
+}
+
+function skillCatalogPreflightSafeguards(report = null) {
+  return {
+    readOnly: true,
+    localFilesWritten: 0,
+    networkCalls: 0,
+    modelCalls: 0,
+    rawSkillTextIncluded: false,
+    absoluteFilesystemLocationsIncluded: false,
+    externalWritesEnabled: false,
+    toolAuthorityGranted: false,
+    catalogReportFingerprint: report?.reportFingerprint ?? null
+  };
+}
+
+async function buildSkillCatalogMcpResourceSummaryFromReport({ root, report }) {
+  const toolReview = await buildSkillCatalogToolReview({ root, declaredToolIds: report.summary.toolIds });
+  return {
+    state: 'ready',
+    configured: true,
+    command: 'oaf skill catalog --read-only --root . --format json',
+    summary: report.summary,
+    skills: report.skills.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      version: skill.version,
+      advertised: skill.advertised,
+      sideEffectClass: skill.sideEffectClass,
+      tools: skill.tools,
+      readiness: skill.readiness,
+      manifestFingerprint: skill.manifestFingerprint
+    })),
+    toolReview,
+    catalogFingerprint: report.catalogFingerprint,
+    reportFingerprint: report.reportFingerprint,
+    reasonCodes: ['skill_catalog_validated', ...toolReview.reasonCodes],
+    safeguards: skillCatalogMcpResourceSafeguards(report)
+  };
+}
+
+async function buildSkillMcpResources({ root, workspaceId, generatedAt }) {
+  const realRoot = await realpath(root);
+  const skillsRootStat = await stat(path.join(realRoot, 'skills')).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!skillsRootStat?.isDirectory()) {
+    return { skillCatalog: null, skillLoadPlans: [], skillCatalogUnavailableReason: 'skills_directory_missing' };
+  }
+  const { report, reasonCode } = await buildOptionalSkillCatalogReport({ root: realRoot, workspaceId, generatedAt });
+  if (!report) {
+    return { skillCatalog: null, skillLoadPlans: [], skillCatalogUnavailableReason: reasonCode };
+  }
+  return {
+    skillCatalog: await buildSkillCatalogMcpResourceSummaryFromReport({ root: realRoot, report }),
+    skillLoadPlans: report.skills.map((skill) => buildSkillLoadPlanFromCatalog({ catalog: report, skillId: skill.id })),
+    skillCatalogUnavailableReason: null
+  };
+}
+
+function skillCatalogMcpResourceSafeguards(report) {
+  return {
+    readOnly: true,
+    localFilesWritten: 0,
+    networkCalls: 0,
+    modelCalls: 0,
+    skillTextIncluded: false,
+    absoluteFilesystemLocationsIncluded: false,
+    externalWritesEnabled: false,
+    toolAuthorityGranted: false,
+    catalogReportFingerprint: report.reportFingerprint
+  };
+}
+
+async function buildToolCatalogMcpResourceSummary({ root }) {
+  const catalogPath = path.join(root, 'tools', 'catalog.json');
+  const catalogStat = await stat(catalogPath).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!catalogStat?.isFile()) return { toolCatalog: null, toolCatalogUnavailableReason: 'tool_catalog_missing' };
+  try {
+    const catalog = await loadReviewedToolCatalog({ catalogPath, manifestRoot: root });
+    const tools = catalog.tools.map((tool) => {
+      const operations = Object.entries(tool.manifest.operations)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([name, operation]) => ({
+          name,
+          sideEffectClass: operation.sideEffectClass,
+          approvalRequired: operation.approval?.required === true,
+          idempotencyRequired: operation.idempotency?.required === true,
+          dataClasses: [...(operation.dataClasses ?? [])].sort((left, right) => left.localeCompare(right)),
+          filesystemReadScopes: [...(operation.filesystem?.read ?? [])].sort((left, right) => left.localeCompare(right)),
+          filesystemWriteScopes: [...(operation.filesystem?.write ?? [])].sort((left, right) => left.localeCompare(right)),
+          networkTargetCount: Array.isArray(operation.network) ? operation.network.length : 0,
+          credentialReferenceCount: Array.isArray(operation.secretReferences) ? operation.secretReferences.length : 0
+        }));
+      return {
+        id: tool.manifest.id,
+        name: tool.manifest.name,
+        version: tool.manifest.version,
+        enabled: tool.enabled,
+        reviewStatus: tool.entry.reviewStatus,
+        reviewVersion: tool.entry.reviewVersion,
+        manifestRef: `workspace://${tool.entry.manifestPath}`,
+        reviewedManifestSha256: `sha256:${tool.entry.sha256}`,
+        manifestFingerprint: tool.manifestFingerprint,
+        operations
+      };
+    }).sort((left, right) => left.id.localeCompare(right.id));
+    const operations = tools.flatMap((tool) => tool.operations);
+    const summary = {
+      toolCount: tools.length,
+      enabledToolCount: tools.filter((tool) => tool.enabled).length,
+      reviewedToolCount: tools.filter((tool) => tool.reviewStatus === 'reviewed').length,
+      disabledToolCount: tools.filter((tool) => !tool.enabled).length,
+      operationCount: operations.length,
+      sideEffectClassCounts: countValues(operations.map((operation) => operation.sideEffectClass)),
+      writableOperationCount: operations.filter((operation) => operation.sideEffectClass !== 'read-only').length,
+      approvalRequiredOperationCount: operations.filter((operation) => operation.approvalRequired).length,
+      idempotencyRequiredOperationCount: operations.filter((operation) => operation.idempotencyRequired).length,
+      networkTargetCount: operations.reduce((sum, operation) => sum + operation.networkTargetCount, 0),
+      credentialReferenceCount: operations.reduce((sum, operation) => sum + operation.credentialReferenceCount, 0)
+    };
+    const report = {
+      state: 'ready',
+      configured: true,
+      summary,
+      tools,
+      toolCatalogFingerprint: stableJsonFingerprint(tools.map((tool) => ({
+        id: tool.id,
+        enabled: tool.enabled,
+        reviewStatus: tool.reviewStatus,
+        reviewVersion: tool.reviewVersion,
+        manifestFingerprint: tool.manifestFingerprint
+      }))),
+      reasonCodes: ['tool_catalog_validated'],
+      safeguards: {
+        readOnly: true,
+        localFilesWritten: 0,
+        networkCalls: 0,
+        modelCalls: 0,
+        toolAuthorityGranted: false,
+        manifestTextIncluded: false,
+        absoluteFilesystemLocationsIncluded: false,
+        remoteEndpointDetailsIncluded: false
+      }
+    };
+    return { toolCatalog: report, toolCatalogUnavailableReason: null };
+  } catch (error) {
+    return {
+      toolCatalog: null,
+      toolCatalogUnavailableReason: typeof error?.code === 'string' ? error.code : 'tool_catalog_invalid'
+    };
+  }
+}
+
+async function buildSkillCatalogToolReview({ root, declaredToolIds }) {
+  const declared = [...new Set(declaredToolIds)].sort((left, right) => left.localeCompare(right));
+  const catalogPath = path.join(root, 'tools', 'catalog.json');
+  const catalogStat = await stat(catalogPath).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!catalogStat?.isFile()) {
+    return {
+      state: 'unavailable',
+      configured: false,
+      reviewedToolIds: [],
+      enabledReviewedToolIds: [],
+      disabledReviewedToolIds: [],
+      unreviewedDeclaredToolIds: declared,
+      toolCatalogFingerprint: null,
+      reasonCodes: ['tool_catalog_missing']
+    };
+  }
+  try {
+    const catalog = await loadReviewedToolCatalog({ catalogPath, manifestRoot: root });
+    const reviewedToolIds = catalog.tools
+      .filter((tool) => tool.entry.reviewStatus === 'reviewed')
+      .map((tool) => tool.manifest.id)
+      .sort((left, right) => left.localeCompare(right));
+    const enabledReviewedToolIds = catalog.tools
+      .filter((tool) => tool.entry.reviewStatus === 'reviewed' && tool.enabled)
+      .map((tool) => tool.manifest.id)
+      .sort((left, right) => left.localeCompare(right));
+    const disabledReviewedToolIds = catalog.tools
+      .filter((tool) => tool.entry.reviewStatus === 'reviewed' && !tool.enabled)
+      .map((tool) => tool.manifest.id)
+      .sort((left, right) => left.localeCompare(right));
+    const reviewed = new Set(reviewedToolIds);
+    const unreviewedDeclaredToolIds = declared.filter((toolId) => !reviewed.has(toolId));
+    return {
+      state: 'ready',
+      configured: true,
+      reviewedToolIds,
+      enabledReviewedToolIds,
+      disabledReviewedToolIds,
+      unreviewedDeclaredToolIds,
+      toolCatalogFingerprint: stableJsonFingerprint(catalog.tools.map((tool) => ({
+        toolId: tool.manifest.id,
+        enabled: tool.enabled,
+        reviewStatus: tool.entry.reviewStatus,
+        reviewVersion: tool.entry.reviewVersion,
+        manifestFingerprint: tool.manifestFingerprint
+      }))),
+      reasonCodes: unreviewedDeclaredToolIds.length
+        ? ['tool_catalog_validated', 'skill_declares_unreviewed_tools']
+        : ['tool_catalog_validated']
+    };
+  } catch (error) {
+    return {
+      state: 'invalid',
+      configured: true,
+      reviewedToolIds: [],
+      enabledReviewedToolIds: [],
+      disabledReviewedToolIds: [],
+      unreviewedDeclaredToolIds: declared,
+      toolCatalogFingerprint: null,
+      reasonCodes: [typeof error?.code === 'string' ? error.code : 'tool_catalog_invalid']
+    };
   }
 }
 
@@ -3477,9 +4669,12 @@ async function mcpServerCommand(values) {
     artifacts: []
   });
   const projectStatus = await loadWorkspaceJson(root, option(values, '--project-status') ?? 'PROJECT_STATUS.json', {});
+  const { skillCatalog, skillLoadPlans } = await buildSkillMcpResources({ root, workspaceId, generatedAt: fixedNow() });
   const resources = buildOafReadOnlyResourceCatalog({
     state,
     projectStatus,
+    skillCatalog,
+    skillLoadPlans,
     workspaceId,
     generatedAt: fixedNow()
   });
@@ -5046,37 +6241,20 @@ async function mcpResourcesCommand(values) {
     return;
   }
   const format = option(values, '--format') ?? 'json';
-  if (format !== 'json') {
-    console.error('mcp resources only supports --format json');
+  if (!['json', 'summary'].includes(format)) {
+    console.error('mcp resources only supports --format json or summary');
     process.exitCode = 2;
     return;
   }
-  const root = option(values, '--root') ?? process.cwd();
-  const workspaceId = option(values, '--workspace') ?? 'ws_local';
-  const currentContextPackUsePlan = await loadMcpContextPackUsePlan(values, { root, workspaceId });
-  const currentContextPack = await buildMcpContextPackResource(values, { root, workspaceId });
-  const currentContextPackRegistryStatus = await loadMcpContextPackRegistryStatus(values, { root, workspaceId });
-  const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
-    schemaVersion: '1.0.0',
-    runs: [],
-    events: [],
-    memories: [],
-    approvals: [],
-    artifacts: []
-  });
-  const projectStatus = await loadWorkspaceJson(root, option(values, '--project-status') ?? 'PROJECT_STATUS.json', {});
-  const resources = buildOafReadOnlyResourceCatalog({
-    state,
-    projectStatus,
-    currentContextPack,
-    currentContextPackUsePlan,
-    currentContextPackRegistryStatus,
-    workspaceId,
-    generatedAt: fixedNow()
-  });
+  const { workspaceId, resources } = await buildMcpResourceCatalogForValues(values);
   const trustedContext = localMcpTrustedContext(workspaceId);
 
   if (values.includes('--stdio')) {
+    if (format !== 'json') {
+      console.error('mcp resources --stdio only supports --format json');
+      process.exitCode = 2;
+      return;
+    }
     await mcpResourcesStdio({ resources, trustedContext });
     return;
   }
@@ -5090,13 +6268,20 @@ async function mcpResourcesCommand(values) {
       return;
     }
     const contents = await resource.read({ trustedContext, replayMode: false });
-    console.log(JSON.stringify({
+    const report = {
       schemaVersion: '1.0.0',
       mode: 'read-only',
       workspaceId,
       uri,
       contents
-    }, null, 2));
+    };
+    console.log(format === 'summary' ? renderMcpResourceReadSummary(report) : JSON.stringify(report, null, 2));
+    return;
+  }
+
+  if (format === 'summary') {
+    console.error('mcp resources --format summary requires --uri; use mcp inspect --format summary for resource listings');
+    process.exitCode = 2;
     return;
   }
 
@@ -5113,6 +6298,293 @@ async function mcpResourcesCommand(values) {
       modelCalls: 0
     }
   }, null, 2));
+}
+
+async function mcpInspectCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('mcp inspect requires --read-only; MCP write tools are not exposed by this command');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--stdio')) {
+    console.error('mcp inspect is read-only and does not write context packs, output files, or start stdio');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('mcp inspect only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const catalog = await buildMcpResourceCatalogForValues(values);
+  const tools = buildMcpTokenSaverTools({ values, root: catalog.root, workspaceId: catalog.workspaceId, generatedAt: catalog.generatedAt });
+  const report = buildMcpInspectReport({ ...catalog, tools });
+  console.log(format === 'summary' ? renderMcpInspectSummary(report) : JSON.stringify(report, null, 2));
+}
+
+async function buildMcpResourceCatalogForValues(values) {
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const currentContextPackUsePlan = await loadMcpContextPackUsePlan(values, { root, workspaceId });
+  const currentContextPack = await buildMcpContextPackResource(values, { root, workspaceId });
+  const currentContextPackRegistryStatus = await loadMcpContextPackRegistryStatus(values, { root, workspaceId });
+  const wantsMemoryRefineResource = values.includes('--memory-refine') || option(values, '--uri') === `oaf://workspace/${workspaceId}/memory/refine`;
+  const memoryRefineReport = wantsMemoryRefineResource ? await buildMemoryRefineReportForValues(values, { generatedAt }) : null;
+  const state = await loadWorkspaceJson(root, option(values, '--state') ?? '.local/state.json', {
+    schemaVersion: '1.0.0',
+    runs: [],
+    events: [],
+    memories: [],
+    approvals: [],
+    artifacts: []
+  });
+  const projectStatus = await loadWorkspaceJson(root, option(values, '--project-status') ?? 'PROJECT_STATUS.json', {});
+  const { skillCatalog, skillLoadPlans, skillCatalogUnavailableReason } = await buildSkillMcpResources({ root, workspaceId, generatedAt });
+  const { toolCatalog, toolCatalogUnavailableReason } = await buildToolCatalogMcpResourceSummary({ root });
+  const resources = buildOafReadOnlyResourceCatalog({
+    state,
+    projectStatus,
+    currentContextPack,
+    currentContextPackUsePlan,
+    currentContextPackRegistryStatus,
+    memoryRefineReport,
+    skillCatalog,
+    skillLoadPlans,
+    toolCatalog,
+    workspaceId,
+    generatedAt
+  });
+  return {
+    root,
+    workspaceId,
+    generatedAt,
+    resources,
+    optionalAvailability: {
+      contextPackCurrent: Boolean(currentContextPack),
+      contextPackUsePlan: Boolean(currentContextPackUsePlan),
+      contextPackRegistry: Boolean(currentContextPackRegistryStatus),
+      memoryRefine: Boolean(memoryRefineReport),
+      skillCatalog: Boolean(skillCatalog),
+      skillLoadPlans: Array.isArray(skillLoadPlans) ? skillLoadPlans.length : 0,
+      skillCatalogUnavailableReason,
+      toolCatalog: Boolean(toolCatalog),
+      toolCatalogUnavailableReason
+    }
+  };
+}
+
+function buildMcpInspectReport({ workspaceId, generatedAt, resources, tools, optionalAvailability }) {
+  const inspectedResources = resources.map((resource) => {
+    const metadataText = [resource.uri, resource.name, resource.description, resource.mimeType].filter(Boolean).join(' ');
+    return {
+      uri: resource.uri,
+      name: resource.name,
+      description: resource.description,
+      mimeType: resource.mimeType,
+      resourceKind: inferMcpResourceKind(resource.uri),
+      contextTier: inferMcpResourceContextTier(resource.uri),
+      visibility: 'listed',
+      readOnly: true,
+      metadataTokens: estimateTokens(metadataText)
+    };
+  });
+  const inspectedTools = tools.map((tool) => {
+    const inputProperties = Object.keys(tool.inputSchema?.properties ?? {}).sort((left, right) => left.localeCompare(right));
+    return {
+      name: tool.name,
+      description: tool.description,
+      operation: tool.operation,
+      sideEffectClass: tool.sideEffectClass,
+      contextTier: inferMcpToolContextTier(tool.operation ?? tool.name),
+      visibility: tool.sideEffectClass === 'read-only' ? 'server-listed' : 'blocked',
+      inputFieldCount: inputProperties.length,
+      inputFields: inputProperties,
+      metadataTokens: estimateTokens([tool.name, tool.description, tool.operation, tool.sideEffectClass, inputProperties.join(' ')].filter(Boolean).join(' '))
+    };
+  });
+  const unavailable = buildMcpInspectUnavailable(optionalAvailability);
+  const reportBase = {
+    schemaVersion: '1.0.0',
+    command: 'mcp inspect',
+    mode: 'read-only',
+    workspaceId,
+    generatedAt,
+    summary: {
+      resourcesListed: inspectedResources.length,
+      resourceKindCounts: countValues(inspectedResources.map((resource) => resource.resourceKind)),
+      contextTierCounts: countValues(inspectedResources.map((resource) => resource.contextTier)),
+      toolContextTierCounts: countValues(inspectedTools.map((tool) => tool.contextTier)),
+      toolsExposedByResourcesCommand: 0,
+      toolsExposedByServerCommand: inspectedTools.filter((tool) => tool.visibility === 'server-listed').length,
+      resourceTemplatesExposed: 0,
+      promptsExposed: 0,
+      unavailableResourceCount: unavailable.length,
+      estimatedMetadataTokens: inspectedResources.reduce((sum, item) => sum + item.metadataTokens, 0) + inspectedTools.reduce((sum, item) => sum + item.metadataTokens, 0)
+    },
+    resources: inspectedResources,
+    serverTools: inspectedTools,
+    unavailableResources: unavailable,
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      externalAdaptersEnabled: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      resourceBodiesRead: 0,
+      rawSourceBodiesIncluded: false,
+      absoluteFilesystemLocationsIncluded: false
+    }
+  };
+  return { ...reportBase, reportFingerprint: stableJsonFingerprint({ ...reportBase, reportFingerprint: null }) };
+}
+
+function inferMcpResourceKind(uri) {
+  if (/\/status$/u.test(uri)) return 'status-summary';
+  if (/\/context\/latest$/u.test(uri)) return 'context-manifest-summary';
+  if (/\/runs\/latest$/u.test(uri)) return 'run-summary';
+  if (/\/memory\/proposals$/u.test(uri)) return 'memory-proposal-summary';
+  if (/\/memory\/refine$/u.test(uri)) return 'memory-refine-report';
+  if (/\/handoff\/latest$/u.test(uri)) return 'handoff-bundle-summary';
+  if (/\/context-pack\/current$/u.test(uri)) return 'context-pack-summary';
+  if (/\/context-pack\/use-plan\/current$/u.test(uri)) return 'context-pack-use-plan';
+  if (/\/context-pack\/registry\/current$/u.test(uri)) return 'context-pack-registry-status';
+  if (/\/skills\/catalog$/u.test(uri)) return 'skill-catalog-summary';
+  if (/\/skills\/[^/]+\/load-plan$/u.test(uri)) return 'skill-load-plan';
+  if (/\/tools\/catalog$/u.test(uri)) return 'tool-catalog-summary';
+  return 'unknown';
+}
+
+function inferMcpResourceContextTier(uri) {
+  const kind = inferMcpResourceKind(uri);
+  if (kind === 'run-summary') return 'event-trace';
+  if (kind === 'context-manifest-summary') return 'selected-context';
+  if (kind === 'memory-proposal-summary' || kind === 'memory-refine-report') return 'governed-memory';
+  if (kind === 'skill-catalog-summary' || kind === 'skill-load-plan') return 'procedural-skill';
+  if (kind === 'tool-catalog-summary') return 'tool-capability';
+  if (kind === 'context-pack-summary' || kind === 'context-pack-use-plan' || kind === 'handoff-bundle-summary') return 'handoff-context';
+  if (kind === 'context-pack-registry-status' || kind === 'status-summary') return 'workspace-state';
+  return 'other';
+}
+
+function inferMcpToolContextTier(operation) {
+  if (operation === 'memory.recall') return 'governed-memory';
+  if (operation === 'context.profile') return 'selected-context';
+  if (operation === 'context.pack') return 'handoff-context';
+  return 'tool-capability';
+}
+
+function countValues(values) {
+  return values.reduce((counts, value) => {
+    counts[value] = (counts[value] ?? 0) + 1;
+    return counts;
+  }, {});
+}
+
+function buildMcpInspectUnavailable(availability = {}) {
+  const missing = [];
+  if (!availability.contextPackCurrent) {
+    missing.push({
+      uri: 'oaf://workspace/<workspaceId>/context-pack/current',
+      reasonCodes: ['requires_context_pack_inputs'],
+      howToExpose: 'oaf mcp inspect --read-only --context-pack --objective "Ship safely" --step "handoff" --format json'
+    });
+  }
+  if (!availability.contextPackUsePlan) {
+    missing.push({
+      uri: 'oaf://workspace/<workspaceId>/context-pack/use-plan/current',
+      reasonCodes: ['no_current_context_pack_use_plan'],
+      howToExpose: 'pin or export a context-pack use plan, then rerun mcp inspect'
+    });
+  }
+  if (!availability.contextPackRegistry) {
+    missing.push({
+      uri: 'oaf://workspace/<workspaceId>/context-pack/registry/current',
+      reasonCodes: ['no_pinned_context_pack_registry'],
+      howToExpose: 'pin a context pack locally, then rerun mcp inspect'
+    });
+  }
+  if (!availability.skillCatalog) {
+    const reasonCode = availability.skillCatalogUnavailableReason ?? 'skills_directory_missing';
+    missing.push({
+      uri: 'oaf://workspace/<workspaceId>/skills/catalog',
+      reasonCodes: [reasonCode],
+      howToExpose: reasonCode === 'skills_directory_missing'
+        ? 'run from an OAF checkout with a skills/ directory'
+        : 'fix skills/*/manifest.json and SKILL.md, then rerun mcp inspect'
+    });
+  }
+  if (!availability.toolCatalog) {
+    const reasonCode = availability.toolCatalogUnavailableReason ?? 'tool_catalog_missing';
+    missing.push({
+      uri: 'oaf://workspace/<workspaceId>/tools/catalog',
+      reasonCodes: [reasonCode],
+      howToExpose: reasonCode === 'tool_catalog_missing'
+        ? 'run from an OAF checkout with tools/catalog.json'
+        : 'fix tools/catalog.json and pinned tool manifests, then rerun mcp inspect'
+    });
+  }
+  return missing;
+}
+
+function renderMcpInspectSummary(report) {
+  const tierRows = Object.entries(report.summary.contextTierCounts).sort(([left], [right]) => left.localeCompare(right)).map(([tier, count]) => `- ${tier}: ${count}`);
+  const resources = report.resources.slice(0, 12).map((resource) => `- ${resource.contextTier}/${resource.resourceKind}: ${resource.uri}`);
+  const tools = report.serverTools.map((tool) => `- ${tool.contextTier}/${tool.name} [${tool.sideEffectClass}]: ${tool.operation}`);
+  const unavailable = report.unavailableResources.map((item) => `- ${item.uri}: ${item.reasonCodes.join(', ')}`);
+  return [
+    `Resources listed: ${report.summary.resourcesListed}`,
+    `Server tools: ${report.summary.toolsExposedByServerCommand}`,
+    `Resource templates: ${report.summary.resourceTemplatesExposed}`,
+    `Prompts: ${report.summary.promptsExposed}`,
+    `Metadata tokens: ${report.summary.estimatedMetadataTokens}`,
+    'Context tiers:',
+    ...(tierRows.length ? tierRows : ['- none']),
+    'Resources:',
+    ...(resources.length ? resources : ['- none']),
+    'Tools:',
+    ...(tools.length ? tools : ['- none']),
+    'Unavailable:',
+    ...(unavailable.length ? unavailable : ['- none']),
+    `Resource bodies read: ${report.safeguards.resourceBodiesRead}`,
+    `Report fingerprint: ${report.reportFingerprint}`
+  ].join('\n');
+}
+
+function renderMcpResourceReadSummary(report) {
+  const payload = parseMcpResourcePayload(report.contents);
+  const resourceKind = payload.resourceKind ?? inferMcpResourceKind(report.uri);
+  const lines = [
+    `Resource: ${report.uri}`,
+    `Kind: ${resourceKind}`,
+    `Context tier: ${inferMcpResourceContextTier(report.uri)}`,
+    `Provenance: ${payload.provenance?.source ?? 'unknown'}`,
+    `Fingerprint: ${payload.resourceFingerprint ?? 'unknown'}`,
+    `Read-only: ${payload.safeguards?.readOnly === true ? 'yes' : 'unknown'}`
+  ];
+  if (typeof payload.data?.state === 'string') lines.push(`State: ${payload.data.state}`);
+  if (payload.data?.skill?.id) lines.push(`Skill: ${payload.data.skill.id}`);
+  if (Array.isArray(payload.data?.requiredLocalReads)) lines.push(`Required local reads: ${payload.data.requiredLocalReads.length}`);
+  const summary = payload.data?.summary && typeof payload.data.summary === 'object' && !Array.isArray(payload.data.summary) ? payload.data.summary : {};
+  for (const [key, value] of Object.entries(summary).sort(([left], [right]) => left.localeCompare(right))) {
+    if (['string', 'number', 'boolean'].includes(typeof value)) lines.push(`${key}: ${value}`);
+  }
+  const safeguards = payload.data?.safeguards && typeof payload.data.safeguards === 'object' && !Array.isArray(payload.data.safeguards) ? payload.data.safeguards : {};
+  if (typeof safeguards.skillTextIncluded === 'boolean') lines.push(`Skill text included: ${safeguards.skillTextIncluded ? 'yes' : 'no'}`);
+  if (typeof safeguards.manifestTextIncluded === 'boolean') lines.push(`Manifest text included: ${safeguards.manifestTextIncluded ? 'yes' : 'no'}`);
+  if (typeof safeguards.toolAuthorityGranted === 'boolean') lines.push(`Tool authority granted: ${safeguards.toolAuthorityGranted ? 'yes' : 'no'}`);
+  return lines.join('\n');
+}
+
+function parseMcpResourcePayload(contents) {
+  try {
+    return JSON.parse(contents?.[0]?.text ?? '{}');
+  } catch {
+    return {};
+  }
 }
 
 async function loadMcpContextPackUsePlan(values, { root, workspaceId }) {
@@ -5220,6 +6692,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
 
   const messages = [
     { jsonrpc: '2.0', id: 1, method: 'initialize' },
+    { jsonrpc: '2.0', method: 'notifications/initialized', params: {} },
     { jsonrpc: '2.0', id: 2, method: 'resources/list' },
     { jsonrpc: '2.0', id: 3, method: 'tools/list' },
     { jsonrpc: '2.0', id: 4, method: 'resources/read', params: { uri: resourceUri } }
@@ -5232,7 +6705,8 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   if (child.code !== 0) {
     throw new Error(`mcp context-pack smoke bridge failed with status ${child.code}`);
   }
-  const responses = parseJsonRpcResponseLines(child.stdout, { expectedCount: messages.length });
+  const expectedResponseCount = messages.filter((message) => message.id !== undefined).length;
+  const responses = parseJsonRpcResponseLines(child.stdout, { expectedCount: expectedResponseCount });
   const errors = responses.filter((response) => response.error);
   if (errors.length) {
     const code = errors[0].error?.data?.code ?? 'jsonrpc_error';
@@ -5305,7 +6779,8 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
       resourceListed: listed.some((resource) => resource.uri === resourceUri),
       resourceRead: payload.resourceKind === 'context-pack-summary',
       noToolsExposed: tools.length === 0,
-      noMarkdownBody: payload.data?.markdownArtifact?.included === false
+      noMarkdownBody: payload.data?.markdownArtifact?.included === false,
+      initializedNotificationAccepted: responses.length === expectedResponseCount
     },
     safeguards: {
       readOnly: true,
@@ -5356,6 +6831,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
   assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context-pack handoff use plan');
   const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
   const memoryProposalPreflight = await buildMemoryProposalPreflight(values, { root, workspaceId, generatedAt });
+  const skillCatalog = await buildSkillCatalogPreflight({ root, workspaceId, generatedAt });
   const setupClient = contextHandoffSetupClient(targetHarness);
   const setup = await buildHarnessSetupReport({
     action: 'plan',
@@ -5378,6 +6854,13 @@ async function buildContextHandoffReport(values, { objective, step }) {
   const delivery = pack.delivery ?? {};
   const baseCommand = contextHandoffBaseCommand({ from, objective, step, targetHarness, userSelectedFiles, changedLocators });
   const startMcpBridge = `oaf mcp resources --read-only --context-pack ${baseCommand} --stdio`;
+  const handoffParts = buildContextHandoffParts({
+    launchPrompt: pack.handoff.launchPrompt,
+    contextPackFingerprint: pack.contextPackFingerprint,
+    contextPackResourceUri: smoke.resourceUri,
+    usePlanResourceUri: usePlan.resource.uri,
+    usePlanFingerprint: usePlan.usePlanFingerprint
+  });
   const report = {
     schemaVersion: '1.0.0',
     command: 'context handoff',
@@ -5395,6 +6878,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
     commitSha: resolveCommitSha(root),
     measurementScope: 'single local context-pack build, MCP readback, and harness setup dry-run',
     launchPrompt: pack.handoff.launchPrompt,
+    handoffParts,
     request: {
       objectiveFingerprint: fingerprintJson(objective),
       objectiveLength: objective.length,
@@ -5425,6 +6909,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
     usePlan: {
       resourceUri: usePlan.resource.uri,
       contextPackFingerprint: usePlan.contextPack.fingerprint,
+      usePlanFingerprint: usePlan.usePlanFingerprint,
       requiredReadCount: usePlan.requiredLocalReads.length,
       requiredLocalReads: readFirst,
       truncatedRequiredReadCount: Math.max(0, usePlan.requiredLocalReads.length - readFirst.length),
@@ -5432,6 +6917,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
       sourceContentIncluded: usePlan.safeguards.sourceContentIncluded
     },
     memoryProposalPreflight,
+    skillCatalog,
     mcp: {
       resourceUri: smoke.resourceUri,
       setup: {
@@ -5457,7 +6943,9 @@ async function buildContextHandoffReport(values, { objective, step }) {
       previewSetup: `oaf harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
       startMcpBridge,
       readCurrentContextPack: `oaf mcp resources --read-only --context-pack ${baseCommand} --uri oaf://workspace/${workspaceId}/context-pack/current --format json`,
-      renderMarkdown: `oaf context pack ${baseCommand} --dry-run --format markdown`
+      renderMarkdown: `oaf context pack ${baseCommand} --dry-run --format markdown`,
+      refineMemory: 'oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json',
+      catalogSkills: skillCatalog.command
     },
     checks: {
       contextPackFingerprintMatchesMcp: smoke.resource.contextPackFingerprint === pack.contextPackFingerprint,
@@ -5466,7 +6954,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
       noToolsExposed: smoke.checks.noToolsExposed,
       noMarkdownBody: smoke.checks.noMarkdownBody,
       setupDryRun: setup.dryRun === true,
-      setupUsesInstalledOaf: setup.desiredServer.command === 'oaf' && setup.desiredServer.args[0] === 'mcp'
+      setupUsesInstalledOaf: harnessSetupUsesRunnableOaf(setup.desiredServer)
     },
     safeguards: {
       readOnly: true,
@@ -5494,12 +6982,67 @@ async function buildContextHandoffReport(values, { objective, step }) {
   return report;
 }
 
+function buildContextHandoffParts({ launchPrompt, contextPackFingerprint, contextPackResourceUri, usePlanResourceUri, usePlanFingerprint }) {
+  return [
+    {
+      order: 1,
+      partType: 'launch_instruction',
+      schemaVersion: '1.0.0',
+      title: 'Launch instruction',
+      resourceUri: null,
+      commandKey: null,
+      fingerprint: fingerprintJson(launchPrompt),
+      payloadIncluded: false,
+      reasonCodes: ['schema_versioned_part', 'target_harness_instruction']
+    },
+    {
+      order: 2,
+      partType: 'context_pack_resource',
+      schemaVersion: '1.0.0',
+      title: 'Context pack MCP resource',
+      resourceUri: contextPackResourceUri,
+      commandKey: 'readCurrentContextPack',
+      fingerprint: contextPackFingerprint,
+      payloadIncluded: false,
+      reasonCodes: ['mcp_readback_verified', 'schema_versioned_part']
+    },
+    {
+      order: 3,
+      partType: 'use_plan_resource',
+      schemaVersion: '1.0.0',
+      title: 'Required local read plan',
+      resourceUri: usePlanResourceUri,
+      commandKey: null,
+      fingerprint: usePlanFingerprint,
+      payloadIncluded: false,
+      reasonCodes: ['local_reads_required', 'schema_versioned_part']
+    },
+    {
+      order: 4,
+      partType: 'safeguards',
+      schemaVersion: '1.0.0',
+      title: 'Read-only safeguards',
+      resourceUri: null,
+      commandKey: null,
+      fingerprint: fingerprintJson({ readOnly: true, externalWritesEnabled: false, rawSourceBodiesIncluded: false }),
+      payloadIncluded: false,
+      reasonCodes: ['no_external_writes', 'no_raw_source_bodies', 'schema_versioned_part']
+    }
+  ];
+}
+
+function harnessSetupUsesRunnableOaf(server) {
+  if (!server || !Array.isArray(server.args)) return false;
+  if (server.command === 'oaf') return server.args[0] === 'mcp';
+  return false;
+}
+
 function safeWorkspaceRelativePath(value, label) {
   const relativePath = String(value ?? '').trim();
   if (!relativePath || path.isAbsolute(relativePath) || relativePath.includes('..') || relativePath.includes('\\') || /^[a-z]+:/iu.test(relativePath)) {
     throw new Error(`${label} must be workspace-relative`);
   }
-  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$/u.test(relativePath)) throw new Error(`${label} contains unsupported characters`);
+  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@%/\[\]-]{1,512}$/u.test(relativePath)) throw new Error(`${label} contains unsupported characters`);
   if (/(^|\/)(?:\.git|\.local|node_modules)(?:\/|$)/u.test(relativePath)) throw new Error(`${label} points to an unsupported workspace location`);
   return relativePath;
 }
@@ -6143,7 +7686,7 @@ async function resolveWorkspaceSqlitePath(root, sqlitePath, commandName, { mustE
   if (mustExist && !existing?.isFile()) {
     throw new Error(`${commandName} requires an existing SQLite database at --sqlite or .local/memory.sqlite; no database is created`);
   }
-  return { absolute, relative: toPosix(path.relative(realRoot, absolute)) };
+  return { absolute, relative: toPosix(path.relative(realRoot, absolute)), exists: Boolean(existing?.isFile()) };
 }
 
 async function resolveWorkspaceReadPath(root, requestedPath, commandName) {
@@ -6953,6 +8496,14 @@ function strictIntegerOption(values, name, fallback) {
   return parsed;
 }
 
+function strictNumberOption(values, name, fallback) {
+  const value = option(values, name);
+  if (value === null) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) throw new Error(`${name} must be a number`);
+  return parsed;
+}
+
 function resolveCommitSha(root = process.cwd()) {
   if (/^[a-f0-9]{40}$/.test(process.env.OAF_COMMIT_SHA ?? '')) return process.env.OAF_COMMIT_SHA;
   const expectedRoot = realComparablePath(root);
@@ -6993,14 +8544,24 @@ function runNode(nodeArgs) {
   });
 }
 
-function help() {
+function isHelpCommand(value) {
+  return ['help', '--help', '-h'].includes(value);
+}
+
+function help(topic, subtopic) {
+  const topicHelp = helpTopic(topic, subtopic);
+  if (topicHelp) {
+    console.log(topicHelp);
+    return;
+  }
+
   console.log(`Open Agent Fabric CLI
 
 Usage:
+  oaf status
   oaf setup
   oaf verify
   oaf doctor
-  oaf status
   oaf connect codex --dry-run --format json
   oaf disconnect codex --dry-run --format json
   oaf task <OAF-ID>
@@ -7018,8 +8579,11 @@ Usage:
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json
   oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
   oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --memory-config oaf.memory.json --format json
+  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format summary
   oaf context receive --read-only --root . --target codex --format json
+  oaf context receive --read-only --root . --target codex --format summary
   oaf context retrieve workspace://AGENTS.md --read-only --root . --format json
+  oaf context retrieve workspace://AGENTS.md --read-only --root . --format summary
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
@@ -7027,6 +8591,9 @@ Usage:
   oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
   oaf loop run --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
   oaf loop schedule --read-only --root . --plan loop-plan.json --kind triage --cadence manual --format json
+  oaf skill catalog --read-only --root . --format json
+  oaf skill load-plan --read-only --root . --id skill:oaf-memory --format json
+  oaf skill load-plan --read-only --root . --id skill:oaf-memory --format summary
   oaf measure savings --read-only --root . --objective "Ship safely" --step "measure savings" --format json
   oaf measure savings --read-only --root . --objective "Ship safely" --step "measure savings" --format summary
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
@@ -7046,6 +8613,8 @@ Usage:
   oaf memory approve --all --root . --sqlite .local/memory.sqlite --format json
   oaf memory reject mpq_status --root . --sqlite .local/memory.sqlite --format json
   oaf memory review approve --root . --sqlite .local/memory.sqlite --proposal mpq_status --format json
+  oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
+  oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --min-confidence 0.5 --format summary
   oaf memory proposals --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
@@ -7055,7 +8624,11 @@ Usage:
   oaf memory search "release" --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --format json
   oaf memory path --root . --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --from project:oaf --to temporal-memory --max-hops 6 --format json
   oaf memory explain --root . --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --entity auth --depth 1 --format json
+  oaf mcp inspect --read-only --root . --format json
   oaf mcp resources --read-only --workspace ws_local --format json
+  oaf mcp resources --read-only --uri oaf://workspace/ws_local/skills/catalog --format json
+  oaf mcp resources --read-only --uri oaf://workspace/ws_local/tools/catalog --format summary
+  oaf mcp resources --read-only --memory-refine --uri oaf://workspace/ws_local/memory/refine --format summary
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --uri oaf://workspace/ws_local/context-pack/current --format json
   oaf mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json
   oaf mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json
@@ -7072,6 +8645,200 @@ Usage:
   oaf hook context --read-only --format text
   oaf version
 
+Start with oaf status; if it says Next task: none, run the First safe handoff command it prints.
 Run oaf task only when npm run status names a next task.
+oaf setup bootstraps the local checkout; use oaf harness setup plan/status for dry-run harness wiring previews.
 The default bootstrap is local-only and enables no external writes.`);
+}
+
+function helpTopic(topic, subtopic) {
+  const key = [topic, subtopic].filter(Boolean).join(' ');
+  const topics = new Map([
+    ['setup', `Open Agent Fabric CLI: setup
+
+Usage:
+  oaf setup
+
+Runs the repository bootstrap script for this local checkout. It does not
+configure MCP clients, install harness servers, activate memory, or enable
+external writes.
+
+Use harness setup for client wiring previews:
+  oaf harness setup status --client codex --dry-run --format json
+  oaf harness setup plan --client codex --server oaf --dry-run --format json`],
+    ['connect', `Open Agent Fabric CLI: connect
+
+Usage:
+  oaf connect codex --dry-run --format json
+  oaf connect codex --yes --format json
+  oaf disconnect codex --dry-run --format json
+
+Previews or applies local harness client configuration through the governed
+connection wrapper. It is dry-run by default. --yes writes only the local
+harness client config for the selected agent; it does not enable external
+writes, grant authority, activate memory, or call models.`],
+    ['disconnect', `Open Agent Fabric CLI: disconnect
+
+Usage:
+  oaf disconnect codex --dry-run --format json
+  oaf disconnect codex --yes --format json
+
+Previews or applies removal of local OAF harness client configuration through
+the governed connection wrapper. It is dry-run by default. --yes removes only
+matching local harness config entries; it does not touch project state, memory,
+models, or external services.`],
+    ['harness setup', `Open Agent Fabric CLI: harness setup
+
+Usage:
+  oaf harness setup status --client codex --dry-run --format json
+  oaf harness setup plan --client cursor --server oaf --dry-run --format json
+  oaf harness setup uninstall --client cursor --server oaf --dry-run --format json
+
+Builds dry-run reports for local harness client wiring. This command is preview
+only: it requires --dry-run, does not mutate home config, does not write local
+files, does not grant authority, and does not enable external writes.`],
+    ['context', `Open Agent Fabric CLI: context
+
+Usage:
+  oaf context scan --from codex --root . --dry-run
+  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --dry-run
+  oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --dry-run --format json
+  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
+  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format summary
+  oaf context receive --read-only --root . --target codex --format json
+  oaf context receive --read-only --root . --target codex --format summary
+  oaf context retrieve workspace://AGENTS.md --read-only --root . --format summary
+  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
+  oaf context registry status --read-only --format json
+
+Context commands select local handoff context, preview harness inputs, and read
+pinned context-pack state. Graph preview is dry-run only. Read-only commands do
+not write files, call models, use network access, or expose raw source bodies.
+Retrieve summary verifies locator/hash metadata without printing file content.`],
+    ['context handoff', `Open Agent Fabric CLI: context handoff
+
+Usage:
+  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
+  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format summary
+
+Options:
+  --from <codex[,cursor,claude-code]>  Source harness families to inspect.
+  --target <codex|cursor|claude-code|a2a|generic>  Receiver harness.
+  --include-file <path>                Add reviewed workspace-relative files.
+  --changed <path>                     Add reviewed changed files.
+  --changed-from-git                   Detect changed files with local git.
+  --memory-config <path>               Preflight selected memory source paths.
+  --format json|summary                Emit the validated report or compact operator summary.
+
+Builds a read-only local agent handoff with context-pack proof, MCP readback,
+harness setup dry-run status, and zero-tool MCP proof. It requires --read-only
+and does not write files, import harness history, call models, use network
+access, or expose raw source bodies.`],
+    ['context receive', `Open Agent Fabric CLI: context receive
+
+Usage:
+  oaf context receive --read-only --root . --target codex --format json
+  oaf context receive --read-only --root . --target codex --format summary
+
+Reads the pinned local context-pack registry, current pointer, and use plan
+without rebuilding or writing files. JSON returns the versioned receiver packet;
+summary prints state, recipient proof, packet parts, required reads, and report
+fingerprint. It rejects task text, write flags, MCP stdio mode, raw Markdown
+bodies, source bodies, credentials, provider URLs, and absolute local paths.`],
+    ['context registry', `Open Agent Fabric CLI: context registry
+
+Usage:
+  oaf context registry status --read-only --format json
+
+Reads the pinned local context-pack registry and verifies the current pointer,
+artifact hashes, and source hashes. It requires --read-only and does not rebuild
+packs, write artifacts, call models, use network access, or expose raw source
+bodies.`],
+    ['skill', `Open Agent Fabric CLI: skill
+
+Usage:
+  oaf skill catalog --read-only --root . --format json
+  oaf skill catalog --read-only --root . --format summary
+  oaf skill load-plan --read-only --root . --id skill:oaf-memory --format json
+  oaf skill load-plan --read-only --root . --id skill:oaf-memory --format summary
+
+Skill commands inspect local OAF skill manifests. They do not grant tool
+authority or load raw skill text into the report.`],
+    ['skill catalog', `Open Agent Fabric CLI: skill catalog
+
+Usage:
+  oaf skill catalog --read-only --root . --format json
+  oaf skill catalog --read-only --root . --format summary
+
+Reports side-effect classes, tool IDs, manifest fingerprints, and
+catalog/report fingerprints for workspace skills. It requires --read-only and
+does not include raw skill text, expose absolute filesystem paths, grant tool
+authority, start MCP stdio, call models, use network access, or write local
+files.`],
+    ['skill load-plan', `Open Agent Fabric CLI: skill load-plan
+
+Usage:
+  oaf skill load-plan --read-only --root . --id skill:oaf-memory --format json
+  oaf skill load-plan --read-only --root . --id skill:oaf-memory --format summary
+
+Returns the ordered local reads for one skill: manifest, SKILL.md, and declared
+references. It requires --read-only and does not include raw skill text, grant
+tool authority, start MCP stdio, call models, use network access, or write local
+files.`],
+    ['measure', `Open Agent Fabric CLI: measure
+
+Usage:
+  oaf measure savings --read-only --root . --objective "Ship safely" --step "measure savings" --format json
+  oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
+
+Measure commands emit local evidence about context delivery. They do not claim
+provider billing savings, call models, use network access, or perform external
+writes.`],
+    ['measure context-pack', `Open Agent Fabric CLI: measure context-pack
+
+Usage:
+  oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
+  oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed-from-git --format summary
+
+Measures the same read-only context-pack path used for handoff: selected and
+delivered token estimates, changed-file coverage, MCP readback, timings, and
+safeguards. It requires --read-only and does not include raw source bodies,
+call models, use network access, or write local files.`],
+    ['mcp', `Open Agent Fabric CLI: mcp
+
+Usage:
+  oaf mcp inspect --read-only --root . --format json
+  oaf mcp inspect --read-only --root . --format summary
+  oaf mcp resources --read-only --workspace ws_local --format json
+  oaf mcp resources --read-only --uri oaf://workspace/ws_local/skills/catalog --format json
+  oaf mcp resources --read-only --uri oaf://workspace/ws_local/tools/catalog --format summary
+  oaf mcp resources --read-only --memory-refine --uri oaf://workspace/ws_local/memory/refine --format summary
+  oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
+  oaf mcp server --read-only --root . --stdio
+  oaf mcp stats --read-only --root . --format json
+  oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
+  oaf mcp install --client claude-code --dry-run --format json
+
+MCP commands inspect or expose local read-only resources, run the stdio bridge,
+preview install plans, or report delivery stats. Resource summaries require
+--uri and do not dump full resource bodies. Resource/server paths require
+--read-only; install remains dry-run unless explicitly confirmed by the install
+flow.`],
+    ['memory refine', `Open Agent Fabric CLI: memory refine
+
+Usage:
+  oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --format json
+  oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
+  oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --min-confidence 0.5 --format summary
+
+Scans governed local memory for duplicate, conflicting, stale, and lineage
+residue candidates without applying changes. It also reports ACTIVE facts below
+--min-confidence, which defaults to 0.5. --target-active-facts adds a read-only
+budget preflight from existing candidates only. Summary output prints counts,
+budget status, safeguards, and fingerprint only. It requires
+--read-only and does not create active memory, write proposals, delete facts,
+call models, use network access, or expose raw private bodies. Missing or stale
+SQLite memory schemas return state: "unavailable" with zero candidates.`]
+  ]);
+  return topics.get(key) ?? topics.get(topic);
 }

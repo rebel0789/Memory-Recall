@@ -45,5 +45,18 @@ test('status command does not advertise completed backlog work as next', () => {
   const result = spawnSync(process.execPath, ['scripts/status.mjs'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Next task: none \(checked-in backlog complete\)/);
+  assert.match(result.stdout, /Use OAF today: docs\/usage\/local-agent-handoff\.md/);
+  assert.match(result.stdout, /First safe handoff: npm run oaf -- context handoff --read-only --from codex --root \. --objective "Ship safely" --step "handoff" --target codex --changed-from-git --format summary/);
+  assert.match(result.stdout, /Skill menu: npm run oaf -- skill catalog --read-only --root \. --format summary/);
+  assert.match(result.stdout, /Issue\/PR queue instructions: docs\/agents\/issue-tracker\.md/);
   assert.equal(result.stdout.includes('Next task: OAF-030'), false);
+});
+
+test('bootstrap output only points to task command conditionally', () => {
+  const result = spawnSync(process.execPath, ['scripts/bootstrap.mjs'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /npm run task -- <OAF-ID> \(only when status names a next task\)/);
+  assert.doesNotMatch(result.stdout, /^  npm run task -- <OAF-ID>$/m);
+  assert.match(result.stdout, /npm run oaf -- skill catalog --read-only --root \. --format summary/);
+  assert.match(result.stdout, /docs\/usage\/local-agent-handoff\.md/);
 });

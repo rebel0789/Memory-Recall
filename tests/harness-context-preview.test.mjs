@@ -129,7 +129,7 @@ test('context records are temporary compiler candidates with safe public metadat
   const records = harnessSourcesToContextRecords(scan);
   assert.equal(records.length, 1);
   assert.equal(records[0].kind, 'observation');
-  assert.equal(records[0].category, 'governance');
+  assert.equal(records[0].category, 'evidence');
   assert.equal(records[0].source, 'harness-context:workspace://AGENTS.md');
   assert.equal(records[0].status, 'active');
   assert.equal(records[0].metadata.persisted, false);

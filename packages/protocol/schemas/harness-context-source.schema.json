@@ -39,7 +39,7 @@
       "properties": {
         "locator": {
           "type": "string",
-          "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$",
+          "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}$",
           "maxLength": 640
         },
         "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },

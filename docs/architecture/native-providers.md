@@ -15,6 +15,8 @@ Native providers make the local product useful without optional integrations. Th
 | `native.policy.deterministic` | on | Contextual policy decisions for resources, tools, data classes, approvals, and budgets |
 | `native.context-candidate.exact` | on | Workspace-scoped exact candidate lookup by canonical record ID |
 | `native.context-candidate.lexical` | on | Deterministic lexical candidate lookup over safe record fields |
+| `native.context-candidate.ast-code` | on | Dependency-free JS/TS chunk and symbol candidate source |
+| `native.context-candidate.graph` | on | Locator-only candidate source over the derived JS/TS source graph |
 | `native.context-manifest.local` | on | Workspace-scoped immutable local context manifest persistence |
 | `native.model.ollama` | off | Explicit loopback local-model generation |
 | `native.tool.brokered-local` | on | Reviewed checksum-pinned local tool execution behind brokers |
@@ -164,8 +166,11 @@ server, graph index, executor, or Tree-sitter runtime.
 OAF-011 preserves exact and lexical providers as conformance baselines. Hybrid
 fusion, global reranking, diversity, category caps, and token budgeting live in
 `packages/context-compiler/src/index.mjs`, not in candidate-source providers.
-Vector, graph, temporal, preference, and episode source kinds remain declared
-but unavailable until later tasks add explicit providers.
+Vector, temporal, preference, and episode source kinds remain declared but
+unavailable until later tasks add explicit providers. The native graph source
+is available now as a locator-only wrapper over the derived JS/TS source graph;
+it is still not a graph database, semantic retrieval provider, or authority
+surface.
 
 ## Context manifest provider
 
@@ -211,7 +216,8 @@ The Ollama provider is disabled by default. It requires an explicit loopback
 HTTP base URL and model name, propagates timeout and cancellation to `fetch`,
 and reports unavailable or degraded health locally. It does not download
 models, call hosted APIs, expose provider URLs in events, or silently switch
-providers.
+providers. When Ollama exposes installed-model details, health reports bounded
+local metadata such as family, parameter size, and quantization level.
 
 Both providers are invoked through `packages/model-gateway`, which validates
 structured output, allows at most one repair call to the same provider/model,

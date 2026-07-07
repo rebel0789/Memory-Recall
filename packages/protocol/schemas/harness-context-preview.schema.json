@@ -171,7 +171,7 @@
     "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "locator": {
       "type": "string",
-      "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$",
+      "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}$",
       "maxLength": 640
     },
     "stringList": {
@@ -285,7 +285,7 @@
         "trustClass": { "enum": ["verified", "trusted", "observed", "untrusted"] },
         "scope": { "enum": ["public", "workspace-private"] },
         "status": { "enum": ["active", "verified", "expired", "retracted", "quarantined", "superseded"] },
-        "source": { "type": "string", "pattern": "^harness-context:(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$" },
+        "source": { "type": "string", "pattern": "^harness-context:(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}$" },
         "contentHash": { "$ref": "#/$defs/hash" }
       }
     },
@@ -310,7 +310,7 @@
       "properties": {
         "id": { "type": "string", "pattern": "^hctxrec_[a-f0-9]{16,64}$" },
         "sourceId": { "type": ["string", "null"], "pattern": "^hctx_[a-f0-9]{16,64}$" },
-        "locator": { "type": ["string", "null"], "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$", "maxLength": 640 },
+        "locator": { "type": ["string", "null"], "pattern": "^(workspace|user-selected)://[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}$", "maxLength": 640 },
         "harness": { "type": ["string", "null"] },
         "sourceKind": { "type": ["string", "null"] },
         "kind": { "type": "string", "minLength": 1, "maxLength": 64 },

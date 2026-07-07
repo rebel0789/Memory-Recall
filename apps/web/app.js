@@ -1028,6 +1028,7 @@ export function canReceivePinnedHandoff(state) {
 function pinnedHandoffCommands(targetHarness='codex',includeUsePlan=false) {
   const commands=[
     {label:'Receive pinned pack',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`},
+    {label:'Receive summary',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format summary`},
     {label:'Check registry',command:'npm run oaf -- context registry status --read-only --format json'},
     {label:'Read registry',command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'}
   ];
@@ -1243,8 +1244,10 @@ function renderPinnedReceivePacketPanel(report=null,error=null) {
   const packetTitle=packet.state === 'ready' ? 'Receiver packet ready' : 'Receiver packet needs review';
   const reads=packet.readPlan?.requiredReads ?? [];
   const actions=packet.nextActions ?? [];
+  const partTypes=(packet.messageParts ?? []).map((item)=>item.partType).filter(Boolean);
+  const partSchemas=(packet.messageParts ?? []).map((item)=>[item.partType,item.contentType,item.schemaVersion].filter(Boolean).join(' ')).filter(Boolean);
   const reviewBlockers=contextPackSourceCheckReview(report.registry?.sourceChecks);
-  return `<section class="work-grid receiver-packet" aria-label="Pinned receiver packet"><div class="surface surface-primary"><div class="section-heading"><h2>${packetTitle}</h2>${statusChip(packet.state,packet.state,'Receiver packet state')}</div><p>${esc(packet.summary)}</p><dl class="facts facts-wide"><div><dt>Target</dt><dd>${esc(packet.targetHarness)}</dd></div><div><dt>Required reads</dt><dd>${Number(packet.readPlan?.requiredReadCount ?? 0)}</dd></div><div><dt>Included reads</dt><dd>${Number(packet.readPlan?.includedReadCount ?? 0)}</dd></div><div><dt>Tools exposed</dt><dd>${Number(packet.proof?.toolsExposed ?? 0)}</dd></div><div><dt>External writes</dt><dd>${packet.proof?.externalWritesEnabled?'enabled':'disabled'}</dd></div><div><dt>Report</dt><dd>${esc(shortFingerprint(report.reportFingerprint))}</dd></div></dl><div class="action-row"><button class="button primary" data-action="copy-receiver-packet" type="button">Copy receiver packet</button></div></div><aside class="inspector">${reviewBlockers}<div class="section-heading"><h2>Read first</h2><span>${reads.length} shown</span></div>${reads.length?`<ol class="locator-list compact-list">${reads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.contentHash?'hash verified':'hash unavailable'} · ${esc((item.reasonCodes??[]).slice(0,2).join(', ')||'review')}</small></li>`).join('')}</ol>`:'<p class="muted">No verified read plan is available yet.</p>'}<hr><div class="section-heading"><h2>Next actions</h2><span>read-only</span></div>${contextPackCommandList(actions.slice(0,4).map((item)=>({label:item.label,command:item.command})))}</aside></section>`;
+  return `<section class="work-grid receiver-packet" aria-label="Pinned receiver packet"><div class="surface surface-primary"><div class="section-heading"><h2>${packetTitle}</h2>${statusChip(packet.state,packet.state,'Receiver packet state')}</div><p>${esc(packet.summary)}</p><dl class="facts facts-wide"><div><dt>Target</dt><dd>${esc(packet.targetHarness)}</dd></div><div><dt>Packet parts</dt><dd>${esc(partTypes.join(', ')||'legacy packet')}</dd></div><div><dt>Part schemas</dt><dd>${esc(partSchemas.join(', ')||'unavailable')}</dd></div><div><dt>Required reads</dt><dd>${Number(packet.readPlan?.requiredReadCount ?? 0)}</dd></div><div><dt>Included reads</dt><dd>${Number(packet.readPlan?.includedReadCount ?? 0)}</dd></div><div><dt>Tools exposed</dt><dd>${Number(packet.proof?.toolsExposed ?? 0)}</dd></div><div><dt>External writes</dt><dd>${packet.proof?.externalWritesEnabled?'enabled':'disabled'}</dd></div><div><dt>Report</dt><dd>${esc(shortFingerprint(report.reportFingerprint))}</dd></div></dl><div class="action-row"><button class="button primary" data-action="copy-receiver-packet" type="button">Copy receiver packet</button></div></div><aside class="inspector">${reviewBlockers}<div class="section-heading"><h2>Read first</h2><span>${reads.length} shown</span></div>${reads.length?`<ol class="locator-list compact-list">${reads.map((item)=>`<li><strong>${esc(item.role)}</strong><code>${esc(item.locator)}</code><small>${item.contentHash?'hash verified':'hash unavailable'} · ${esc((item.reasonCodes??[]).slice(0,2).join(', ')||'review')}</small></li>`).join('')}</ol>`:'<p class="muted">No verified read plan is available yet.</p>'}<hr><div class="section-heading"><h2>Next actions</h2><span>read-only</span></div>${contextPackCommandList(actions.slice(0,4).map((item)=>({label:item.label,command:item.command})))}</aside></section>`;
 }
 
 function contextPackSourceCheckReview(sourceChecks=null) {
@@ -1284,7 +1287,13 @@ function contextPackRepositoryPanel(repository=null) {
 
 function renderHandoffStatusPanel(status,scope='default') {
   const routeId=routeByPath.get(status.actionRoute)?.id ?? 'context-pack';
-  const commands=status.preflightCommand ? contextPackCommandList([{label:'Test local handoff',command:status.preflightCommand}]) : '';
+  const preflightCommands=status.preflightCommand
+    ? [
+      {label:'Test local handoff',command:status.preflightCommand},
+      {label:'Test handoff summary',command:status.preflightSummaryCommand}
+    ].filter((item)=>item.command)
+    : [];
+  const commands=preflightCommands.length ? contextPackCommandList(preflightCommands) : '';
   return `<section class="work-grid current-handoff current-handoff-${esc(scope)}" aria-label="Current handoff status"><div class="surface surface-primary"><div class="section-heading"><h2>${esc(status.title)}</h2>${statusChip(status.state,status.statusLabel,'Handoff status')}</div><p>${esc(status.copy)}</p><dl class="facts facts-wide"><div><dt>Target</dt><dd>${esc(status.targetHarness)}</dd></div><div><dt>Fingerprint</dt><dd>${esc(status.fingerprintShort)}</dd></div><div><dt>Selected</dt><dd>${Number(status.selectedLocators)} locators</dd></div><div><dt>Omitted</dt><dd>${Number(status.omittedRefs)} refs</dd></div><div><dt>Use-plan reads</dt><dd>${Number(status.usePlanReads)}</dd></div><div><dt>Reduction</dt><dd>${esc(status.deliveryReductionPercent)}</dd></div><div><dt>MCP readback</dt><dd>${esc(status.readbackStatus)}</dd></div><div><dt>Setup</dt><dd>${esc(status.setupStatus)}</dd></div></dl><div class="action-row"><a class="button ${status.state==='none'?'primary':'secondary'}" href="${esc(status.actionRoute)}" data-route="${esc(routeId)}">${esc(status.actionLabel)}</a></div></div><aside class="inspector"><div class="section-heading"><h2>Use boundary</h2><span>${esc(status.nextAction)}</span></div><dl class="facts compact-facts"><div><dt>Server writes</dt><dd>${status.safeguards.serverWrites?'enabled':'none'}</dd></div><div><dt>Home config writes</dt><dd>${status.safeguards.configWrites?'enabled':'none'}</dd></div><div><dt>Network calls</dt><dd>${Number(status.safeguards.networkCalls)}</dd></div><div><dt>Model calls</dt><dd>${Number(status.safeguards.modelCalls)}</dd></div><div><dt>External writes</dt><dd>${status.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div><div><dt>External adapters</dt><dd>${Number(status.safeguards.externalAdaptersEnabled)}</dd></div><div><dt>Raw bodies</dt><dd>${status.safeguards.rawBodiesRendered?'rendered':'excluded'}</dd></div></dl>${commands?`<hr><div class="section-heading"><h2>Preflight</h2><span>read-only</span></div>${commands}`:''}</aside></section>`;
 }
 
@@ -1579,6 +1588,7 @@ export function buildCurrentHandoffStatusModel({contextPackResult:result=null,se
       readbackStatus:'not run',
       setupStatus:'not previewed',
       preflightCommand:null,
+      preflightSummaryCommand:null,
       safeguards:{
         serverWrites:false,
         configWrites:false,
@@ -1617,6 +1627,7 @@ export function buildCurrentHandoffStatusModel({contextPackResult:result=null,se
     readbackStatus:ui.proof.readbackFingerprintLabel,
     setupStatus:setupPreviewed ? setupSafe ? 'safe preview' : 'review required' : 'not previewed',
     preflightCommand:contextPackPreflightCommand(pack,{memoryConfig:result?.memoryConfig}),
+    preflightSummaryCommand:contextPackPreflightCommand(pack,{memoryConfig:result?.memoryConfig,format:'summary'}),
     safeguards:{
       serverWrites:Boolean(result?.pin?.pinned),
       configWrites:false,
@@ -1646,6 +1657,7 @@ function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
     insertContextPackReceiveCommand(commands,pack);
     const generated=[
       {label:'Test local handoff',command:contextPackPreflightCommand(pack,{memoryConfig})},
+      {label:'Test handoff summary',command:contextPackPreflightCommand(pack,{memoryConfig,format:'summary'})},
       {label:'Copy impact command',command:contextPackImpactCommand(pack)},
       ...contextPackGeneratedUsePlanCommands(pack,usePlan)
     ].filter((item)=>item.command);
@@ -1668,11 +1680,13 @@ function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
   const setupClient=contextPackSetupClient(pack);
   return [
     { label:'Test local handoff', command:contextPackPreflightCommand(pack,{memoryConfig}) },
+    { label:'Test handoff summary', command:contextPackPreflightCommand(pack,{memoryConfig,format:'summary'}) },
     { label:'Copy impact command', command:contextPackImpactCommand(pack) },
     { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
     { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
+    { label:'Receive summary', command:contextPackReceiveSummaryCommand(pack) },
     { label:'Start MCP bridge', command:'oaf mcp resources --read-only --stdio' },
     { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
     { label:'Read use plan', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
@@ -1685,13 +1699,18 @@ function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
 
 function insertContextPackReceiveCommand(commands,pack) {
   const command=contextPackReceiveCommand(pack);
-  if(commands.some((item)=>item.command===command || item.label==='Receive pinned pack'))return;
+  const summaryCommand=contextPackReceiveSummaryCommand(pack);
+  const hasReceive=commands.some((item)=>item.command===command || item.label==='Receive pinned pack');
+  const hasSummary=commands.some((item)=>item.command===summaryCommand || item.label==='Receive summary');
+  if(hasReceive && hasSummary)return;
   const afterVerify=commands.findIndex((item)=>item.label==='Verify pin');
   const afterPin=commands.findIndex((item)=>item.label==='Pin locally');
   const index=afterVerify >= 0 ? afterVerify : afterPin;
-  const item={label:'Receive pinned pack',command};
-  if(index >= 0)commands.splice(index+1,0,item);
-  else commands.push(item);
+  const items=[];
+  if(!hasReceive)items.push({label:'Receive pinned pack',command});
+  if(!hasSummary)items.push({label:'Receive summary',command:summaryCommand});
+  if(index >= 0)commands.splice(index+1,0,...items);
+  else commands.push(...items);
 }
 
 function contextPackImpactCommand(pack) {
@@ -1708,8 +1727,9 @@ function contextPackImpactCommand(pack) {
   return `oaf measure context-pack --read-only --root . --from ${from} --objective ${objective} --step ${step} --target ${target}${selected}${changed} --format json`;
 }
 
-function contextPackPreflightCommand(pack,{memoryConfig=null}={}) {
+function contextPackPreflightCommand(pack,{memoryConfig=null,format='json'}={}) {
   if(!pack)return '';
+  const outputFormat=format === 'summary' ? 'summary' : 'json';
   const target=String(pack?.targetHarness ?? 'generic');
   const objective=quoteShell(pack?.objective ?? 'Ship safely');
   const step=quoteShell(pack?.step ?? 'select context');
@@ -1720,12 +1740,17 @@ function contextPackPreflightCommand(pack,{memoryConfig=null}={}) {
     .join('');
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
   const memoryFlag=normalizeMemoryWorkspaceConfig(memoryConfig).memoryPaths.length ? ' --memory-config oaf.memory.json' : '';
-  return `oaf context handoff --read-only --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed}${memoryFlag} --format json`;
+  return `oaf context handoff --read-only --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed}${memoryFlag} --format ${outputFormat}`;
 }
 
 function contextPackReceiveCommand(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
   return `npm run oaf -- context receive --read-only --root . --target ${target} --format json`;
+}
+
+function contextPackReceiveSummaryCommand(pack) {
+  const target=String(pack?.targetHarness ?? 'generic');
+  return `npm run oaf -- context receive --read-only --root . --target ${target} --format summary`;
 }
 
 function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
@@ -1743,6 +1768,7 @@ function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
     { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
     { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
     { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
+    { label:'Receive summary', command:contextPackReceiveSummaryCommand(pack) },
     { label:'Start MCP bridge', command:'oaf mcp resources --read-only --stdio' },
     { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
     { label:'Read use plan', command:`npm run oaf -- mcp resources --read-only --uri ${uri} --format json` }
@@ -1753,7 +1779,9 @@ function contextPackCommandLabel(command) {
   if(command === 'npm run doctor')return 'Check local setup';
   if(command === 'npm run ci')return 'Run CI';
   if(command.includes('measure context-pack'))return 'Copy impact command';
+  if(command.includes('context handoff') && command.includes('--format summary'))return 'Test handoff summary';
   if(command.includes('context handoff'))return 'Test local handoff';
+  if(command.includes('context receive') && command.includes('--format summary'))return 'Receive summary';
   if(command.includes('context receive'))return 'Receive pinned pack';
   if(command.includes('context registry status'))return 'Verify pin';
   if(command.includes('--stdio'))return 'Start MCP bridge';
@@ -1848,6 +1876,7 @@ function contextPackImpactBriefPanel(brief) {
 
 function contextPackLaunchPath(model,readiness,memoryPreflight=null) {
   const preflight=model.commands.find((item)=>item.label==='Test local handoff') ?? null;
+  const preflightSummary=model.commands.find((item)=>item.label==='Test handoff summary') ?? null;
   const setupPreviewed=readiness.gates?.find?.((gate)=>gate.id==='setup-preview')?.status === 'pass';
   const memoryPreflightStatus=memoryPreflight
     ? `<small>Preflight ${esc(memoryPreflight.state)}; ${Number(memoryPreflight.summary?.reviewItemCount??0)} review item${Number(memoryPreflight.summary?.reviewItemCount??0)===1?'':'s'}; active memory ${Number(memoryPreflight.safeguards?.activeMemoryCreated??0)}.</small>`
@@ -1858,7 +1887,8 @@ function contextPackLaunchPath(model,readiness,memoryPreflight=null) {
   const setupAction=setupPreviewed
     ? '<p class="muted">Setup preview already passed for this browser session.</p>'
     : `<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button>`;
-  return `<section class="surface handoff-use-path" aria-label="Practical handoff path"><div class="handoff-use-path-head"><div><p class="eyebrow">Practical handoff</p><h2>Use this in another local agent session.</h2><p>Copy the locator pack first, keep optional memory proposal files explicit, then pin the reviewed artifacts when another local agent should receive them later.</p></div><dl class="facts compact-facts"><div><dt>Target</dt><dd>${esc(model.targetHarness)}</dd></div><div><dt>Status</dt><dd>${readiness.ready?'ready':'review required'}</dd></div><div><dt>Writes</dt><dd>explicit local pin only</dd></div></dl></div><ol class="use-path-grid"><li><span>1</span><strong>Give the agent context</strong><p>Paste the markdown or launch prompt into the next local harness session.</p><div class="action-row"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button></div></li><li><span>2</span><strong>Add memory only by choice</strong>${memoryControls}</li><li><span>3</span><strong>Pin durable artifacts</strong><p>Write the reviewed pack to fixed local context-pack files and verify the registry immediately.</p><div class="action-row"><button class="button secondary" data-action="pin-context-pack" type="button">Pin locally</button></div></li><li><span>4</span><strong>Connect MCP manually</strong><p>Preview the config snippet when the target harness should read OAF resources.</p>${setupAction}${preflight?contextPackCommandList([preflight]):''}</li></ol></section>`;
+  const preflightCommands=[preflight,preflightSummary].filter(Boolean);
+  return `<section class="surface handoff-use-path" aria-label="Practical handoff path"><div class="handoff-use-path-head"><div><p class="eyebrow">Practical handoff</p><h2>Use this in another local agent session.</h2><p>Copy the locator pack first, keep optional memory proposal files explicit, then pin the reviewed artifacts when another local agent should receive them later.</p></div><dl class="facts compact-facts"><div><dt>Target</dt><dd>${esc(model.targetHarness)}</dd></div><div><dt>Status</dt><dd>${readiness.ready?'ready':'review required'}</dd></div><div><dt>Writes</dt><dd>explicit local pin only</dd></div></dl></div><ol class="use-path-grid"><li><span>1</span><strong>Give the agent context</strong><p>Paste the markdown or launch prompt into the next local harness session.</p><div class="action-row"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button></div></li><li><span>2</span><strong>Add memory only by choice</strong>${memoryControls}</li><li><span>3</span><strong>Pin durable artifacts</strong><p>Write the reviewed pack to fixed local context-pack files and verify the registry immediately.</p><div class="action-row"><button class="button secondary" data-action="pin-context-pack" type="button">Pin locally</button></div></li><li><span>4</span><strong>Connect MCP manually</strong><p>Preview the config snippet when the target harness should read OAF resources.</p>${setupAction}${preflightCommands.length?contextPackCommandList(preflightCommands):''}</li></ol></section>`;
 }
 
 function contextPackOperatorBrief(model,readiness={ready:false}) {
@@ -1871,7 +1901,7 @@ function contextPackOperatorBrief(model,readiness={ready:false}) {
   const reads=brief.topReads.length
     ? `<ol class="locator-list compact-list">${brief.topReads.slice(0,3).map((item)=>`<li><code>${esc(item.locator)}</code><small>${esc(item.role)} · ${item.contentHash?'hash verified':'hash unavailable'}</small></li>`).join('')}</ol>`
     : '<p class="muted">No required local reads were selected yet.</p>';
-  const commands=['Test local handoff','Pin locally','Receive pinned pack','Copy impact command']
+  const commands=['Test local handoff','Test handoff summary','Pin locally','Receive pinned pack','Receive summary','Copy impact command']
     .map((label)=>model.commands.find((item)=>item.label===label))
     .filter(Boolean);
   const commandList=commands.length ? contextPackCommandList(commands) : '<p class="muted">Build a context pack to get read-only proof commands.</p>';

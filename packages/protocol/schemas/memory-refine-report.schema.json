@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-agent-fabric.dev/schemas/memory-refine-report-1.0.json",
+  "title": "Memory Refine Report",
+  "description": "Read-only local temporal-memory refinement report for duplicate and conflicting active facts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "generatedAt",
+    "workspaceId",
+    "scope",
+    "state",
+    "reasonCodes",
+    "source",
+    "summary",
+    "duplicateCandidates",
+    "conflictCandidates",
+    "staleCandidates",
+    "supersessionCandidates",
+    "lineageResidueCandidates",
+    "lowConfidenceCandidates",
+    "derivedArtifacts",
+    "budgetPlan",
+    "safeguards",
+    "reportFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "command": { "const": "memory refine" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "workspaceId": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "scope": { "enum": ["workspace", "session", "agent", "user"] },
+    "state": { "enum": ["ready", "unavailable"] },
+    "reasonCodes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/reasonCode" }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "sqliteRef"],
+      "properties": {
+        "provider": { "const": "provider:native:memory:sqlite" },
+        "sqliteRef": {
+          "type": "string",
+          "pattern": "^workspace://[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scannedFactCount",
+        "activeFactCount",
+        "duplicateCandidateCount",
+        "conflictCandidateCount",
+        "staleCandidateCount",
+        "supersessionCandidateCount",
+        "lineageResidueCandidateCount",
+        "lowConfidenceCandidateCount",
+        "derivedArtifactReviewCount",
+        "refineCandidateCount",
+        "activeMemoryCreated"
+      ],
+      "properties": {
+        "scannedFactCount": { "type": "integer", "minimum": 0, "maximum": 500 },
+        "activeFactCount": { "type": "integer", "minimum": 0, "maximum": 500 },
+        "duplicateCandidateCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "conflictCandidateCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "staleCandidateCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "supersessionCandidateCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "lineageResidueCandidateCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "lowConfidenceCandidateCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "derivedArtifactReviewCount": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "refineCandidateCount": { "type": "integer", "minimum": 0, "maximum": 250 },
+        "activeMemoryCreated": { "const": 0 }
+      }
+    },
+    "duplicateCandidates": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "conflictCandidates": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "staleCandidates": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "supersessionCandidates": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "lineageResidueCandidates": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "lowConfidenceCandidates": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/lowConfidenceCandidate" }
+    },
+    "derivedArtifacts": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/derivedArtifact" }
+    },
+    "budgetPlan": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reasonCodes",
+        "targetActiveFactCount",
+        "currentActiveFactCount",
+        "projectedActiveFactCount",
+        "overBudgetBy",
+        "plannedReviewCount",
+        "plannedReductionCount",
+        "actions"
+      ],
+      "properties": {
+        "state": { "enum": ["within_budget", "review_needed", "insufficient_candidates", "unavailable"] },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reasonCode" }
+        },
+        "targetActiveFactCount": { "type": "integer", "minimum": 1, "maximum": 500 },
+        "currentActiveFactCount": { "type": "integer", "minimum": 0, "maximum": 500 },
+        "projectedActiveFactCount": { "type": "integer", "minimum": 0, "maximum": 500 },
+        "overBudgetBy": { "type": "integer", "minimum": 0, "maximum": 500 },
+        "plannedReviewCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "plannedReductionCount": { "type": "integer", "minimum": 0, "maximum": 500 },
+        "actions": {
+          "type": "array",
+          "maxItems": 50,
+          "items": { "$ref": "#/$defs/budgetAction" }
+        }
+      }
+    },
+    "safeguards": { "$ref": "#/$defs/safeguards" },
+    "reportFingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  },
+  "$defs": {
+    "reasonCode": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "pattern": "^[a-z][a-z0-9_:-]*$"
+    },
+    "safeText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?![\\s\\S]*(?:/Users/|file:///|workspace:///|BEGIN RSA PRIVATE KEY|BEGIN OPENSSH PRIVATE KEY|sk-[A-Za-z0-9_-]{20,}|[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]\\s*[:=]|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[\\s\\S]*$"
+    },
+    "factIdList": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^memfact_[A-Za-z0-9._-]{1,128}$"
+      }
+    },
+    "sourceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]\\s*[:=]|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=)).*$"
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "subject",
+        "predicate",
+        "object",
+        "objects",
+        "factIds",
+        "supersededFactIds",
+        "sourceRefs",
+        "newestFactId",
+        "validUntil",
+        "recommendation"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mref_[a-f0-9]{16}$" },
+        "kind": { "enum": ["duplicate_active_fact", "conflicting_active_fact", "stale_active_fact", "supersession_candidate", "lineage_residue_candidate", "low_confidence_fact"] },
+        "subject": { "$ref": "#/$defs/safeText" },
+        "predicate": { "$ref": "#/$defs/safeText" },
+        "object": {
+          "type": ["string", "null"],
+          "maxLength": 512,
+          "pattern": "^(?![\\s\\S]*(?:/Users/|file:///|workspace:///|BEGIN RSA PRIVATE KEY|BEGIN OPENSSH PRIVATE KEY|sk-[A-Za-z0-9_-]{20,}|[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]\\s*[:=]|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[\\s\\S]*$"
+        },
+        "objects": {
+          "type": ["array", "null"],
+          "minItems": 2,
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/safeText" }
+        },
+        "factIds": { "$ref": "#/$defs/factIdList" },
+        "supersededFactIds": {
+          "type": "array",
+          "maxItems": 50,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^memfact_[A-Za-z0-9._-]{1,128}$"
+          }
+        },
+        "sourceRefs": { "$ref": "#/$defs/sourceRefs" },
+        "newestFactId": { "type": "string", "pattern": "^memfact_[A-Za-z0-9._-]{1,128}$" },
+        "validUntil": { "type": ["string", "null"], "format": "date-time" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "recommendation": { "$ref": "#/$defs/safeText" }
+      }
+    },
+    "lowConfidenceCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "subject",
+        "predicate",
+        "object",
+        "objects",
+        "factIds",
+        "supersededFactIds",
+        "sourceRefs",
+        "newestFactId",
+        "validUntil",
+        "confidence",
+        "minConfidence",
+        "recommendation"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mref_[a-f0-9]{16}$" },
+        "kind": { "const": "low_confidence_fact" },
+        "subject": { "$ref": "#/$defs/safeText" },
+        "predicate": { "$ref": "#/$defs/safeText" },
+        "object": {
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^(?![\\s\\S]*(?:/Users/|file:///|workspace:///|BEGIN RSA PRIVATE KEY|BEGIN OPENSSH PRIVATE KEY|sk-[A-Za-z0-9_-]{20,}|[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]\\s*[:=]|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=))[\\s\\S]*$"
+        },
+        "objects": { "type": "null" },
+        "factIds": { "$ref": "#/$defs/factIdList" },
+        "supersededFactIds": {
+          "type": "array",
+          "maxItems": 0,
+          "items": {
+            "type": "string",
+            "pattern": "^memfact_[A-Za-z0-9._-]{1,128}$"
+          }
+        },
+        "sourceRefs": { "$ref": "#/$defs/sourceRefs" },
+        "newestFactId": { "type": "string", "pattern": "^memfact_[A-Za-z0-9._-]{1,128}$" },
+        "validUntil": { "type": "null" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minConfidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "recommendation": { "$ref": "#/$defs/safeText" }
+      }
+    },
+    "derivedArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "locator", "contentHash", "state", "reasonCodes", "recommendation"],
+      "properties": {
+        "role": { "enum": ["memory_profile"] },
+        "locator": { "const": "workspace://memory/profile.md" },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "state": { "enum": ["review_recommended"] },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reasonCode" }
+        },
+        "recommendation": { "$ref": "#/$defs/safeText" }
+      }
+    },
+    "budgetAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "action",
+        "candidateId",
+        "candidateKind",
+        "reasonCodes",
+        "factIds",
+        "expectedActiveFactReduction",
+        "recommendation"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mbp_[a-f0-9]{16}$" },
+        "action": { "enum": ["review_lineage_residue", "review_duplicate_facts", "review_supersession", "review_low_confidence_fact"] },
+        "candidateId": { "type": "string", "pattern": "^mref_[a-f0-9]{16}$" },
+        "candidateKind": { "enum": ["duplicate_active_fact", "conflicting_active_fact", "stale_active_fact", "supersession_candidate", "lineage_residue_candidate", "low_confidence_fact"] },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reasonCode" }
+        },
+        "factIds": { "$ref": "#/$defs/factIdList" },
+        "expectedActiveFactReduction": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "recommendation": { "$ref": "#/$defs/safeText" }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readOnly",
+        "proposalGated",
+        "canonicalStateMutated",
+        "activeMemoryCreated",
+        "hardDeleted",
+        "networkCalls",
+        "modelCalls",
+        "externalWritesEnabled",
+        "rawSourceBodiesIncluded",
+        "absoluteFilesystemLocationsIncluded"
+      ],
+      "properties": {
+        "readOnly": { "const": true },
+        "proposalGated": { "const": true },
+        "canonicalStateMutated": { "const": false },
+        "activeMemoryCreated": { "const": 0 },
+        "hardDeleted": { "const": false },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "rawSourceBodiesIncluded": { "const": false },
+        "absoluteFilesystemLocationsIncluded": { "const": false }
+      }
+    }
+  }
+}

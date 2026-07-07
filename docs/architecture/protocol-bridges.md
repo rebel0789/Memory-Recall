@@ -27,7 +27,8 @@ oaf mcp resources --read-only --stdio
 ```
 
 exposes sanitized resources for workspace status, the latest context manifest,
-the latest run, memory proposals, and the latest handoff/artifact summary. The
+the latest run, memory proposals, skill catalog summary, per-skill load plans,
+the reviewed tool catalog, and the latest handoff/artifact summary. The
 handoff summary embeds a memory-proposal queue summary with counts,
 fingerprints, and sanitized record metadata only; it does not expose memory text
 or create active memory.
@@ -191,6 +192,10 @@ tool name, grant ID, status, and input fingerprints only.
 
 ## Pending Protocols
 
-A2A, AG-UI, ACP, and CCCC require accepted use-case RFCs before implementation.
-The checked-in CCCC adapter remains planned, disabled, unpinned, and
-unsupported.
+A2A remains pending as a full protocol bridge. The shipped `--target a2a`
+handoff path is only a read-only receiver packet: coordinator-selected embedded
+context with versioned typed safe parts, required local reads, and zero write
+tools.
+
+AG-UI, ACP, and CCCC require accepted use-case RFCs before implementation. The
+checked-in CCCC adapter remains planned, disabled, unpinned, and unsupported.
