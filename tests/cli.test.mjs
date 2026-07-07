@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import { spawnSync } from 'node:child_process';import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';import os from 'node:os';import path from 'node:path';import contextPackHandoffReportSchema from '../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };import contextPackMeasurementReportSchema from '../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };import contextPackReceiveReportSchema from '../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };import memoryRefineReportSchema from '../packages/protocol/schemas/memory-refine-report.schema.json' with { type: 'json' };import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import { spawn, spawnSync } from 'node:child_process';import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';import os from 'node:os';import path from 'node:path';import contextPackHandoffReportSchema from '../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };import contextPackMeasurementReportSchema from '../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };import contextPackReceiveReportSchema from '../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };import memoryRefineReportSchema from '../packages/protocol/schemas/memory-refine-report.schema.json' with { type: 'json' };import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 test('CLI help documents MCP token-saver server',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp server --read-only --root \. --stdio/)});
 test('CLI help documents MCP token-saver install',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp install --client claude-code --dry-run --format json/)});
 test('CLI help is local and documents core commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/Usage:\n  oaf status\n  oaf setup/);assert.match(result.stdout,/oaf task <OAF-ID>/);assert.match(result.stdout,/Start with oaf status; if it says Next task: none, run the First safe handoff command it prints/);assert.match(result.stdout,/Run oaf task only when npm run status names a next task/);assert.match(result.stdout,/oaf setup bootstraps the local checkout/);assert.match(result.stdout,/use oaf harness setup plan\/status for dry-run harness wiring previews/);assert.match(result.stdout,/oaf demo memory-loop --root \. --format json/);assert.match(result.stdout,/oaf context scan --from codex --root \. --dry-run/);assert.match(result.stdout,/oaf context preview --from codex --root \. --objective/);assert.match(result.stdout,/oaf context pack .*--changed src\/auth\.ts .*--changed-from-git/);assert.match(result.stdout,/oaf context handoff --read-only --from codex --root \./);assert.match(result.stdout,/--memory-config oaf\.memory\.json/);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format json/);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format summary/);assert.match(result.stdout,/oaf context registry status --read-only --format json/);assert.match(result.stdout,/oaf context graph preview --root \. --query/);assert.match(result.stdout,/oaf loop plan --read-only --root \./);assert.match(result.stdout,/oaf loop observe --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf loop verify --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf measure savings --read-only --root \./);assert.match(result.stdout,/oaf measure context-pack --read-only --root \./);assert.match(result.stdout,/impact brief/);assert.match(result.stdout,/--format summary/);assert.match(result.stdout,/oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals\/benchmark-truth-floor\/cases.v1.json --format json/);assert.match(result.stdout,/oaf bench sufficiency --read-only --root \. --format json/);assert.match(result.stdout,/oaf bench temporal --read-only --root \. --format json/);assert.match(result.stdout,/oaf bench session --read-only --root \. --format json/);assert.match(result.stdout,/oaf bench realqa --read-only --root \. --format json/);assert.match(result.stdout,/oaf memory ingest --root \. --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory review approve --root \. --sqlite \.local\/memory\.sqlite --proposal mpq_status/);assert.match(result.stdout,/oaf memory sgrep "context manifest"/);assert.match(result.stdout,/oaf memory fact add --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact get --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact history --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf skill load-plan --read-only --root \. --id skill:oaf-memory --format json/);assert.match(result.stdout,/oaf mcp inspect --read-only --root \. --format json/);assert.match(result.stdout,/oaf mcp resources --read-only/);assert.match(result.stdout,/oaf:\/\/workspace\/ws_local\/skills\/catalog/);assert.match(result.stdout,/oaf mcp smoke context-pack/);assert.match(result.stdout,/oaf harness setup status --client codex --dry-run --format json/);assert.match(result.stdout,/oaf harness setup plan --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/oaf harness setup uninstall --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/no external writes/i)});
@@ -1595,6 +1595,39 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
   assert(profile.data.tokenSavingPercent > 0);
   assert.equal(profile.data.profile.acceptedHistoryRecordCount, 1);
   assert.equal(profile.safeguards.canonicalStateMutated, false);
+});
+test('mcp server responds before stdin closes like a real MCP client', async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-open-stdin-'));
+  mkdirSync(path.join(root, '.local'), { recursive: true });
+  writeFileSync(path.join(root, 'PROJECT_STATUS.json'), JSON.stringify({ release: '0.2.0-dev', phase: 'local-test' }, null, 2));
+  const child = spawn(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], { cwd: path.resolve('.'), stdio: ['pipe', 'pipe', 'pipe'] });
+  t.after(() => child.kill('SIGTERM'));
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (chunk) => { stdout += chunk; });
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  const linePromise = new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`initialize response timed out; stdout=${stdout}; stderr=${stderr}`)), 1500);
+    const onData = () => {
+      const first = stdout.split(/\r?\n/u).find(Boolean);
+      if (first) {
+        clearTimeout(timeout);
+        child.stdout.off('data', onData);
+        resolve(first);
+      }
+    };
+    child.stdout.on('data', onData);
+    child.once('exit', (code) => {
+      clearTimeout(timeout);
+      child.stdout.off('data', onData);
+      reject(new Error(`mcp server exited ${code}; stdout=${stdout}; stderr=${stderr}`));
+    });
+  });
+  child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} })}\n`);
+  const line = await linePromise;
+  const response = JSON.parse(line);
+  assert.equal(response.id, 1);
+  assert.equal(response.result.protocolVersion, '2025-06-18');
 });
 test('mcp install dry-run prints exact token-saver config for coding clients without writes', () => {
   const root = path.resolve('.');

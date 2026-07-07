@@ -4711,7 +4711,8 @@ async function mcpServerCommand(values) {
     trustedContext: localMcpTrustedContext(workspaceId),
     tools,
     allowReadOnlyToolsWithoutGrant: true,
-    commandLabel: 'mcp server'
+    commandLabel: 'mcp server',
+    streaming: true
   });
 }
 
@@ -7456,30 +7457,60 @@ async function mcpResourcesStdio({
   trustedContext,
   tools = [],
   allowReadOnlyToolsWithoutGrant = false,
-  commandLabel = 'mcp resources'
+  commandLabel = 'mcp resources',
+  streaming = false
 }) {
-  const input = await readStdinText();
-  if (!input.trim()) {
-    console.error(`${commandLabel} --stdio requires JSON-RPC input on stdin`);
-    process.exitCode = 2;
+  const bridge = createMcpBridge({ trustedContext, resources, tools, allowReadOnlyToolsWithoutGrant });
+  if (!streaming) {
+    const batchInput = await readStdinText(commandLabel);
+    if (!batchInput.trim()) {
+      console.error(`${commandLabel} --stdio requires JSON-RPC input on stdin`);
+      process.exitCode = 2;
+      return;
+    }
+    const messages = parseJsonRpcMessages(batchInput, { commandLabel });
+    for (const message of messages) {
+      const response = await bridge.handle(message);
+      if (response) console.log(JSON.stringify(response));
+    }
     return;
   }
-  const bridge = createMcpBridge({ trustedContext, resources, tools, allowReadOnlyToolsWithoutGrant });
-  const messages = parseJsonRpcMessages(input, { commandLabel });
-  for (const message of messages) {
+  let input = '';
+  let lineNumber = 0;
+  async function handleLine(line) {
+    if (!line.trim()) return;
+    lineNumber += 1;
+    const message = parseJsonRpcMessageLine(line, lineNumber, { commandLabel });
     const response = await bridge.handle(message);
     if (response) console.log(JSON.stringify(response));
   }
+  for await (const chunk of process.stdin) {
+    const buffer = Buffer.from(chunk);
+    input += buffer.toString('utf8');
+    const lines = input.split(/\n/u);
+    input = lines.pop() ?? '';
+    for (const rawLine of lines) {
+      await handleLine(rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine);
+    }
+    if (Buffer.byteLength(input, 'utf8') > MCP_STDIO_MAX_LINE_BYTES) {
+      throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber + 1} exceeds ${MCP_STDIO_MAX_LINE_BYTES} bytes`);
+    }
+  }
+  if (input.trim()) await handleLine(input);
+  if (lineNumber === 0) {
+    console.error(`${commandLabel} --stdio requires JSON-RPC input on stdin`);
+    process.exitCode = 2;
+  }
 }
 
-async function readStdinText() {
+async function readStdinText(commandLabel = 'mcp resources') {
   const chunks = [];
   let byteLength = 0;
   for await (const chunk of process.stdin) {
     const buffer = Buffer.from(chunk);
     byteLength += buffer.length;
     if (byteLength > MCP_STDIO_MAX_STDIN_BYTES) {
-      throw new Error(`mcp resources --stdio input exceeds ${MCP_STDIO_MAX_STDIN_BYTES} bytes`);
+      throw new Error(`${commandLabel} --stdio input exceeds ${MCP_STDIO_MAX_STDIN_BYTES} bytes`);
     }
     chunks.push(buffer);
   }
@@ -7492,26 +7523,27 @@ function parseJsonRpcMessages(input, { commandLabel = 'mcp resources' } = {}) {
   if (lines.length > MCP_STDIO_MAX_MESSAGES) {
     throw new Error(`${commandLabel} --stdio received too many JSON-RPC messages; max ${MCP_STDIO_MAX_MESSAGES}`);
   }
-  return lines.map((line, index) => {
-    const lineNumber = index + 1;
-    const lineBytes = Buffer.byteLength(line, 'utf8');
-    if (lineBytes > MCP_STDIO_MAX_LINE_BYTES) {
-      throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} exceeds ${MCP_STDIO_MAX_LINE_BYTES} bytes`);
-    }
-    let parsed;
-    try {
-      parsed = JSON.parse(line);
-    } catch {
-      throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} is not valid JSON`);
-    }
-    if (Array.isArray(parsed)) {
-      throw new Error(`${commandLabel} --stdio JSON-RPC batches are not supported`);
-    }
-    if (!parsed || typeof parsed !== 'object') {
-      throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} must be an object`);
-    }
-    return parsed;
-  });
+  return lines.map((line, index) => parseJsonRpcMessageLine(line, index + 1, { commandLabel }));
+}
+
+function parseJsonRpcMessageLine(line, lineNumber, { commandLabel = 'mcp resources' } = {}) {
+  const lineBytes = Buffer.byteLength(line, 'utf8');
+  if (lineBytes > MCP_STDIO_MAX_LINE_BYTES) {
+    throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} exceeds ${MCP_STDIO_MAX_LINE_BYTES} bytes`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(line);
+  } catch {
+    throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} is not valid JSON`);
+  }
+  if (Array.isArray(parsed)) {
+    throw new Error(`${commandLabel} --stdio JSON-RPC batches are not supported`);
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error(`${commandLabel} --stdio JSON-RPC line ${lineNumber} must be an object`);
+  }
+  return parsed;
 }
 
 function parseJsonRpcResponseLines(output, { expectedCount }) {
