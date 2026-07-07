@@ -1,8 +1,10 @@
 import { spawnSync } from 'node:child_process';
 
 export function timedSpawn(command, args, options = {}) {
+  const timeCommand = process.env.OAF_TIME_COMMAND ?? '/usr/bin/time';
   const timeArgs = process.platform === 'darwin' ? ['-l'] : ['-v'];
-  return spawnSync('/usr/bin/time', [...timeArgs, command, ...args], options);
+  const timed = spawnSync(timeCommand, [...timeArgs, command, ...args], options);
+  return timed.error?.code === 'ENOENT' ? spawnSync(command, args, options) : timed;
 }
 
 export function peakRssMb(stderr) {

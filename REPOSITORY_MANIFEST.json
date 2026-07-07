@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-07-07T11:33:57.445Z",
+  "generatedAt": "2026-07-07T11:53:21.953Z",
   "fileCount": 869,
-  "totalBytes": 5636084,
+  "totalBytes": 5636769,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -1043,12 +1043,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "37e43547b33240325164a072b3957d406a6e884cfbec2710ed6f057735941938"
+      "sha256": "7a4e701182e173575024e0c0cc95c734dfbf4b67330ed971665b5880fcc7106f"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 2335,
-      "sha256": "54a32d74670655108c50e16e488f322a22f744a976a209194d388ddf21506e9f"
+      "sha256": "23a4a759d75b021a9b982a11bcc5533bcd31b4fba2b7ab1ec66fe4cca93907a7"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1058,7 +1058,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "e16801d74bb222c42215aafed007fdb75f42a993ae6150b0dda26033f7387688"
+      "sha256": "1ab98c01d04287c95dd173694c6affb17f623c33c64bc5424ec914dfee412a96"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -2163,7 +2163,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 975,
-      "sha256": "449822896bb710a3289d5934f092650615f57d7ae0e640aa1814d3ab166f1f68"
+      "sha256": "c589f8a1692bbf9615d84c7ad15a830d3a2224dc56239e653271c09127de9b2f"
     },
     {
       "path": "LICENSE",
@@ -3198,7 +3198,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 55618,
-      "sha256": "6edb6e1e9a9c47f08293b24b8f863c42535c835285590c9e62b67e74a79c3bca"
+      "sha256": "49972dfe08ab9f4d7dfa05df218afa1a2de562f83aaac2526a80ee3c9579480b"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3697,8 +3697,8 @@
     },
     {
       "path": "scripts/timing.mjs",
-      "bytes": 631,
-      "sha256": "f1695dbec04a0e9e5e44c714a4c17027cd725e41561bdae55428d5443b82f7c0"
+      "bytes": 790,
+      "sha256": "99838365c0365e23859f6155c61600436d3acef72543e35b5cfedecd58dd0873"
     },
     {
       "path": "scripts/tool-bounded-smoke.mjs",
@@ -4212,8 +4212,8 @@
     },
     {
       "path": "tests/script-timing.test.mjs",
-      "bytes": 672,
-      "sha256": "2155c9c56ad1b2ea641a1638c72fd4ebc11e26f8e55ff46b7fc464b7538083fd"
+      "bytes": 1198,
+      "sha256": "bcb7b1004d63521227dd0c7ef13f83cff0fc3637c8e5db3f671b5b290d6bab49"
     },
     {
       "path": "tests/skill-catalog.test.mjs",

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { peakRssMb } from '../scripts/timing.mjs';
+import { peakRssMb, timedSpawn } from '../scripts/timing.mjs';
 
 test('platform time RSS parser handles macOS and Linux output', () => {
   assert.equal(peakRssMb('104857600 maximum resident set size'), 100);
@@ -12,4 +12,17 @@ test('platform time RSS parser handles macOS and Linux output', () => {
 test('repository check ignores Cargo build output directories', () => {
   const checkScript = readFileSync(new URL('../scripts/check.mjs', import.meta.url), 'utf8');
   assert.match(checkScript, /ignoredDirectories = new Set\(\[[^\]]*'target'/);
+});
+
+test('timed spawn falls back when platform time binary is unavailable', () => {
+  const previous = process.env.OAF_TIME_COMMAND;
+  process.env.OAF_TIME_COMMAND = '/missing/oaf-time';
+  try {
+    const result = timedSpawn(process.execPath, ['--version'], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^v\d+\./);
+  } finally {
+    if (previous === undefined) delete process.env.OAF_TIME_COMMAND;
+    else process.env.OAF_TIME_COMMAND = previous;
+  }
 });
