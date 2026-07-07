@@ -8122,7 +8122,10 @@ async function readWorkspaceLocator(root, locator) {
   if (AUTO_DETECTED_SECRET_PATH.test(relativePath)) throw new Error('context retrieve refuses secret-like workspace paths');
   const realRoot = await realpath(root);
   const absolute = path.resolve(realRoot, relativePath);
-  const actual = await realpath(absolute);
+  const actual = await realpath(absolute).catch((error) => {
+    if (error.code === 'ENOENT') throw new Error('context retrieve locator is not a file');
+    throw error;
+  });
   if (!isInside(realRoot, actual)) throw new Error('context retrieve locator escapes workspace root');
   const info = await stat(actual);
   if (!info.isFile()) throw new Error('context retrieve locator is not a file');

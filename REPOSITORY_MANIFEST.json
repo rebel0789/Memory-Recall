@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-07-07T07:59:16.274Z",
+  "generatedAt": "2026-07-07T08:34:24.082Z",
   "fileCount": 869,
-  "totalBytes": 5617260,
+  "totalBytes": 5618708,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -442,8 +442,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 380611,
-      "sha256": "3a1b384e845a14967595a88b502650f19b78feb9fd6174fc648a18f0deb553f5"
+      "bytes": 380744,
+      "sha256": "abb0726be1414a4b731b3b07d998df5a13c72c07ad75b1a1c1d893feb24f09e1"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -1043,12 +1043,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "e33c262e7f70d491607baabc00bf344646bce33afc9085cf946c81b08c060f61"
+      "sha256": "9946d70720ede8f16443b590bde8eabc641fb533cc1717223b35c5fe52fd45b3"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 2335,
-      "sha256": "5801ef4b61ada5cf02d23afdee7efda91a8aa0155e492b15470491865691dd36"
+      "sha256": "33d6a58592cf7b7a642a352be12fd43f2666a07e280fd841ab6efdffea4e541f"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1058,7 +1058,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "cd487c9e9a8a49b6cda517249603d1cd51a0c39a3ca414c41b007419edfddd0b"
+      "sha256": "f6f15be7bc8fd17c01e21a4140f22c6ff5f81d0d0f659ab6a2a9a2199b24c2b7"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -2163,7 +2163,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 975,
-      "sha256": "45bb6523a62aa6aafc2f83cbdf4dc5230e18be2da766812e47bcaecd4a16ce36"
+      "sha256": "d579417135d7c82d6c18e6bf6ed7578973f4f2f8fb61408e02a165e5f38967cd"
     },
     {
       "path": "LICENSE",
@@ -3198,7 +3198,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 55618,
-      "sha256": "97d00c400bce36c997bbe492cb561c64b2b1bfe9ae90fd6260192dbab0ce5be0"
+      "sha256": "628fa275242629bf0a91915997948ea9cabf4b3c09ba58639fe931c50e323537"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3947,8 +3947,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 244344,
-      "sha256": "0d0a5f0d872f66fddacc380a666394db54949549edeea2d9ad3327e13c4bb178"
+      "bytes": 244931,
+      "sha256": "1bd10b894afe4feccc12ca113f41f5b2162bc1ff599d471f72668e663f4a072d"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -4222,8 +4222,8 @@
     },
     {
       "path": "tests/source-graph-preview.test.mjs",
-      "bytes": 6596,
-      "sha256": "88122dda1a8f00ad3fbbf26931ca3b2f467dccd0cfd68f7096e5d3f4db18b62f"
+      "bytes": 7324,
+      "sha256": "671d418da845324078ebea17d542de98b58a5d076d897b1db30e9878952e50d6"
     },
     {
       "path": "tests/tool-durable-integration.test.mjs",

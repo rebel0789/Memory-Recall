@@ -1016,6 +1016,13 @@ test('context receive reads pinned Codex context pack without writes or private 
   assert.match(retrieveSummary.stdout,/Summary content included: no/);
   assert.match(retrieveSummary.stdout,/Local files written: 0/);
   assert.equal(retrieveSummary.stdout.includes('RECEIVE CLI SOURCE RAW BODY'),false);
+  const inventedRetrieve=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','retrieve','workspace://src/invented.ts','--read-only','--root',root,'--format','summary'],{encoding:'utf8',env});
+  assert.equal(inventedRetrieve.status,2);
+  assert.match(inventedRetrieve.stderr,/context retrieve locator is not a file/);
+  assert.equal(inventedRetrieve.stdout,'');
+  assert.equal(inventedRetrieve.stderr.includes(root),false);
+  assert.equal(inventedRetrieve.stderr.includes('/Users/rebel'),false);
+  assert.equal(inventedRetrieve.stderr.includes('RECEIVE CLI SOURCE RAW BODY'),false);
   for(const forbidden of ['RECEIVE CLI AGENTS RAW BODY','RECEIVE CLI SELECTED RAW BODY','RECEIVE CLI SOURCE RAW BODY','secret-value','OPENAI_API_KEY','https://provider.example/private',objective,step,'# Context Pack','Launch Prompt',root,home,'/Users/rebel']){
     assert.equal(receive.stdout.includes(forbidden),false,forbidden);
     assert.equal(summary.stdout.includes(forbidden),false,forbidden);
