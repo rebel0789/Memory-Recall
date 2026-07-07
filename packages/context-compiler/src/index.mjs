@@ -6,7 +6,7 @@ const STOP_WORDS = new Set(['a','an','and','are','as','at','be','by','for','from
 export const CONTEXT_VIEW_ALGORITHM = 'oaf_context_view_v1';
 const CONTEXT_VIEW_KINDS = new Set(['auto', 'json', 'log', 'code', 'markdown', 'text']);
 const CONTEXT_VIEW_SECRET = /\b(?:token|secret|password|authorization|api[_-]?key|database_url|db_url|connection_string)\s*[:=]\s*[^\s,;]+/giu;
-const CONTEXT_VIEW_LOCAL_PATH = /(?:\/Users\/[^\s'")]+|\/private\/[^\s'")]+|\/var\/folders\/[^\s'")]+|[A-Za-z]:\\[^\s'")]+)/gu;
+const CONTEXT_VIEW_LOCAL_PATH = /(?:\/Users\/[^\s'")]+|\/home\/[A-Za-z0-9._-]+\/[^\s'")]+|\/private\/[^\s'")]+|\/var\/folders\/[^\s'")]+|[A-Za-z]:\\[^\s'")]+)/gu;
 
 export function estimateTokens(text) { return Math.max(1, Math.ceil(String(text ?? '').length / 4)); }
 export function terms(value) {

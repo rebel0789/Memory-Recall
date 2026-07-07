@@ -1019,6 +1019,16 @@ test('context receive reads pinned Codex context pack without writes or private 
   const retrieveFlagFirst=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','retrieve','--read-only',retrieveHash,'--root',root,'--format','summary'],{encoding:'utf8',env});
   assert.equal(retrieveFlagFirst.status,0,retrieveFlagFirst.stderr);
   assert.match(retrieveFlagFirst.stdout,/Locator: workspace:\/\/src\/auth\.ts/);
+  writeFileSync(path.join(root,'src','private-paths.ts'),"export const linuxPath = '/home/alice/private.txt';\nexport const windowsPath = 'C:\\\\Users\\\\alice\\\\secret.txt';\n");
+  const retrievePrivatePaths=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','retrieve','workspace://src/private-paths.ts','--read-only','--root',root,'--format','json'],{encoding:'utf8',env});
+  assert.equal(retrievePrivatePaths.status,0,retrievePrivatePaths.stderr);
+  const privatePathReport=JSON.parse(retrievePrivatePaths.stdout);
+  assert.equal(privatePathReport.state,'withheld');
+  assert.equal(privatePathReport.contentIncluded,false);
+  assert.equal(privatePathReport.content,null);
+  assert(privatePathReport.reasonCodes.includes('sensitive_content_withheld'));
+  assert.equal(retrievePrivatePaths.stdout.includes('/home/alice/private.txt'),false);
+  assert.equal(retrievePrivatePaths.stdout.includes('C:\\\\Users\\\\alice'),false);
   const inventedRetrieve=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','retrieve','workspace://src/invented.ts','--read-only','--root',root,'--format','summary'],{encoding:'utf8',env});
   assert.equal(inventedRetrieve.status,2);
   assert.match(inventedRetrieve.stderr,/context retrieve locator is not a file/);

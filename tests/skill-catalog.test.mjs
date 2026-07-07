@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -350,6 +351,56 @@ test('skill load-plan CLI returns ordered local reads without raw skill bodies',
   assert.match(writeMode.stderr, /read-only/);
 });
 
+test('skill load-plan rejects symlinked skill files and references', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-skill-symlink-'));
+  const outside = mkdtempSync(path.join(os.tmpdir(), 'oaf-skill-outside-'));
+  mkdirSync(path.join(root, 'skills', 'linked-skill'), { recursive: true });
+  writeFileSync(path.join(outside, 'SKILL.md'), '# Outside\n');
+  writeFileSync(path.join(root, 'skills', 'linked-skill', 'manifest.json'), JSON.stringify({
+    schemaVersion: '1.0.0',
+    id: 'skill:linked-skill',
+    name: 'Linked Skill',
+    description: 'Symlinked skill document should not be loadable.',
+    version: '0.1.0',
+    triggers: ['linked'],
+    tools: [],
+    sideEffectClass: 'read-only',
+    inputSchema: { type: 'object' },
+    outputSchema: { type: 'object' },
+    references: []
+  }, null, 2));
+  symlinkSync(path.join(outside, 'SKILL.md'), path.join(root, 'skills', 'linked-skill', 'SKILL.md'));
+  const env = { ...process.env, OAF_FIXED_NOW: '2026-07-05T00:00:00.000Z' };
+  const linkedSkill = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'skill', 'load-plan', '--read-only', '--root', root, '--id', 'skill:linked-skill', '--format', 'json'], { encoding: 'utf8', env });
+  assert.equal(linkedSkill.status, 2);
+  assert.match(linkedSkill.stderr, /skills\/linked-skill\/SKILL\.md is a symlink/);
+  assert.equal(linkedSkill.stdout, '');
+  assert.equal(linkedSkill.stderr.includes(outside), false);
+
+  mkdirSync(path.join(root, 'skills', 'linked-reference'), { recursive: true });
+  writeFileSync(path.join(root, 'skills', 'linked-reference', 'SKILL.md'), '# Linked Reference\n');
+  writeFileSync(path.join(outside, 'rules.md'), '# Outside Rules\n');
+  writeFileSync(path.join(root, 'skills', 'linked-reference', 'manifest.json'), JSON.stringify({
+    schemaVersion: '1.0.0',
+    id: 'skill:linked-reference',
+    name: 'Linked Reference',
+    description: 'Symlinked reference should not be loadable.',
+    version: '0.1.0',
+    triggers: ['linked-reference'],
+    tools: [],
+    sideEffectClass: 'read-only',
+    inputSchema: { type: 'object' },
+    outputSchema: { type: 'object' },
+    references: ['rules.md']
+  }, null, 2));
+  symlinkSync(path.join(outside, 'rules.md'), path.join(root, 'skills', 'linked-reference', 'rules.md'));
+  const linkedReference = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'skill', 'load-plan', '--read-only', '--root', root, '--id', 'skill:linked-reference', '--format', 'json'], { encoding: 'utf8', env });
+  assert.equal(linkedReference.status, 2);
+  assert.match(linkedReference.stderr, /skills\/linked-reference\/rules\.md is a symlink/);
+  assert.equal(linkedReference.stdout, '');
+  assert.equal(linkedReference.stderr.includes(outside), false);
+});
+
 test('skill catalog keeps loadable-only skills out of the human menu', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-skill-catalog-advertise-'));
   for (const name of ['visible', 'hidden']) {
@@ -455,4 +506,55 @@ test('skill catalog keeps loadable-only skills out of the human menu', () => {
   const stdioPayload = JSON.parse(responses[2].result.contents[0].text);
   assert.equal(stdioPayload.data.summary.loadableOnlySkillCount, 1);
   assert.equal(stdioPayload.data.skills.find((skill) => skill.id === 'skill:hidden').advertised, false);
+});
+
+test('skill catalog blocks skills that depend on disabled reviewed tools', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-skill-disabled-tool-'));
+  mkdirSync(path.join(root, 'skills', 'needs-disabled-tool'), { recursive: true });
+  mkdirSync(path.join(root, 'tools', 'manifests'), { recursive: true });
+  writeFileSync(path.join(root, 'skills', 'needs-disabled-tool', 'SKILL.md'), '# Needs Disabled Tool\n');
+  writeFileSync(path.join(root, 'skills', 'needs-disabled-tool', 'manifest.json'), JSON.stringify({
+    schemaVersion: '1.0.0',
+    id: 'skill:needs-disabled-tool',
+    name: 'Needs Disabled Tool',
+    description: 'A read-only skill that depends on a disabled reviewed tool.',
+    version: '0.1.0',
+    triggers: ['disabled-tool'],
+    tools: ['tool:filesystem-read'],
+    sideEffectClass: 'read-only',
+    inputSchema: { type: 'object' },
+    outputSchema: { type: 'object' },
+    references: []
+  }, null, 2));
+  const toolManifest = readFileSync('tools/manifests/brokered-filesystem-read.json', 'utf8');
+  writeFileSync(path.join(root, 'tools', 'manifests', 'brokered-filesystem-read.json'), toolManifest);
+  writeFileSync(path.join(root, 'tools', 'catalog.json'), JSON.stringify({
+    schemaVersion: '1.0.0',
+    entries: [{
+      toolId: 'tool:filesystem-read',
+      manifestPath: 'tools/manifests/brokered-filesystem-read.json',
+      sha256: createHash('sha256').update(toolManifest).digest('hex'),
+      enabled: false,
+      handlerBindingId: 'handler:brokered:workspace-file-read@1.0.0',
+      reviewStatus: 'reviewed',
+      reviewVersion: 'test-disabled-tool'
+    }]
+  }, null, 2));
+  const env = { ...process.env, OAF_FIXED_NOW: '2026-07-05T00:00:00.000Z' };
+  const catalog = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'skill', 'catalog', '--read-only', '--root', root, '--format', 'json'], { encoding: 'utf8', env });
+  assert.equal(catalog.status, 0, catalog.stderr);
+  const report = JSON.parse(catalog.stdout);
+  assertJsonSchema(skillCatalogReportSchema, report, 'skill catalog disabled tool report');
+  const skill = report.skills.find((item) => item.id === 'skill:needs-disabled-tool');
+  assert.equal(skill.readiness.state, 'blocked');
+  assert.deepEqual(skill.readiness.unreviewedToolIds, []);
+  assert.deepEqual(skill.readiness.disabledToolIds, ['tool:filesystem-read']);
+  assert(skill.readiness.reasonCodes.includes('skill_declares_disabled_tools'));
+
+  const loadPlan = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'skill', 'load-plan', '--read-only', '--root', root, '--id', 'skill:needs-disabled-tool', '--format', 'json'], { encoding: 'utf8', env });
+  assert.equal(loadPlan.status, 0, loadPlan.stderr);
+  const plan = JSON.parse(loadPlan.stdout);
+  assertJsonSchema(skillLoadPlanSchema, plan, 'skill load-plan disabled tool report');
+  assert.equal(plan.skill.readiness.state, 'blocked');
+  assert.deepEqual(plan.skill.readiness.disabledToolIds, ['tool:filesystem-read']);
 });

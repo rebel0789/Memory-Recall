@@ -47,7 +47,7 @@ function noisyLog() {
   const filler = Array.from({ length: 80 }, (_, index) => `debug ${index}: heartbeat session cache warm`).join('\n');
   return [
     '2026-07-03T00:00:00Z info starting auth workflow',
-    'token=super-secret-value /Users/rebel/private.env',
+    'token=super-secret-value /Users/rebel/private.env /home/alice/project/private.txt C:\\Users\\alice\\secret.txt',
     filler,
     '2026-07-03T00:00:03Z ERROR authentication failure: session expired',
     '2026-07-03T00:00:04Z WARN retry failed after token refresh',
@@ -61,6 +61,8 @@ test('explicit context views compact noisy tool output and keep original retriev
   assert(view.viewTokens < view.originalTokens);
   assert(!view.text.includes('super-secret-value'));
   assert(!view.text.includes('/Users/rebel'));
+  assert(!view.text.includes('/home/alice'));
+  assert(!view.text.includes('C:\\Users\\alice'));
 
   const compiled = compileContext(request(), [{
     id: 'obs_tool_output',
@@ -85,6 +87,8 @@ test('explicit context views compact noisy tool output and keep original retriev
   assert(selected.representationHint.reasonCodes.includes('original_recoverable_by_hash'));
   assert(!selected.text.includes('super-secret-value'));
   assert(!selected.text.includes('/Users/rebel'));
+  assert(!selected.text.includes('/home/alice'));
+  assert(!selected.text.includes('C:\\Users\\alice'));
   assert.equal(validateJsonSchema(schema, compiled).valid, true);
 
   const persisted = await compileAndPersistContext(request(), [{

@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-07-07T10:19:11.285Z",
+  "generatedAt": "2026-07-07T10:37:55.641Z",
   "fileCount": 869,
-  "totalBytes": 5624900,
+  "totalBytes": 5633507,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -442,8 +442,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 381454,
-      "sha256": "a29717260b26ef1ff6d0fdcc7ecb0f92c3096a16ae1cbb20e808490a68e4e1c3"
+      "bytes": 382843,
+      "sha256": "f6181a14060c5449b2abf0ca54be40da71ba396b380e90890dacafba39177f29"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -1043,12 +1043,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "f1159811f7c67a7462c94b7c7950eb9238de70740431826530cf98e21f772b53"
+      "sha256": "09a7fd2ceba94e75cc09847a2676a39cc5d983771e786b1d5a5f7d5181a33211"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 2335,
-      "sha256": "bee17ca6832010db32c40c05655ad58855b9123bb280177ab20fa2672166851f"
+      "sha256": "1728294d3d7ff9f482c121e47fc0b37d31a0aabf7379b2e1a0fe69a0bb98f989"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1058,7 +1058,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "c07fbc2ba02b3713d5eeb022a775c896826b6515572ad167cd152fb3aa3bf1b7"
+      "sha256": "167515df25515efc8ab5ec9bf91b798bfbf15746ecf458bdeb1c757e8c8b61c6"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -2163,7 +2163,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 975,
-      "sha256": "b0381bcc0f64e6862e315a51d4e82e94ce5202069fc912b52c26dcc4c3135e70"
+      "sha256": "0b9e7a4eadc9ae6d39bcb95c3052beea3d6690c3bcd06166404786660f8a4bef"
     },
     {
       "path": "LICENSE",
@@ -2252,8 +2252,8 @@
     },
     {
       "path": "packages/context-compiler/src/index.mjs",
-      "bytes": 134626,
-      "sha256": "997f900a6042bfb58285a9e22005c65fbfff227440cb050b5486cf526530121a"
+      "bytes": 134661,
+      "sha256": "8b52e0d4798ba2200b85cbf6b9500b32910cc2670bbbfc6a59f3943dd25eb519"
     },
     {
       "path": "packages/evaluation-lab/package.json",
@@ -2962,13 +2962,13 @@
     },
     {
       "path": "packages/protocol/schemas/skill-catalog-report.schema.json",
-      "bytes": 7453,
-      "sha256": "53adadacece971157751a86c3a89b1aa72cfffd24dfa80a3e89f3cc6880161e1"
+      "bytes": 7618,
+      "sha256": "ba18c773e2e465d7ee54ddbe315e5b7acb7071d991561715dd86d1caac5e5d1f"
     },
     {
       "path": "packages/protocol/schemas/skill-load-plan.schema.json",
-      "bytes": 4560,
-      "sha256": "6cc7a35d41c5b8ee78e8d8798882b10dd63e00ff8eafaeabeaa15fbcc3c90f88"
+      "bytes": 4639,
+      "sha256": "94649407e03d39144dc2f858ee448e183aedbbe5def39c36c2f424040bdd9e0f"
     },
     {
       "path": "packages/protocol/schemas/skill-manifest.schema.json",
@@ -3198,7 +3198,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 55618,
-      "sha256": "d9538a96deb0509cf6a4b74b71eb14385fd7d1e45b11e045ba5b758df4b86012"
+      "sha256": "23eeba9fc326311668394c5f2745df8e3abf60b1e0909a750b3d48586199c6ee"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3947,8 +3947,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 246019,
-      "sha256": "7723d90edc04d072f1498b654b23a191c53cf04e18f1c656bad1e1b19bad8c1c"
+      "bytes": 246953,
+      "sha256": "643f9ca7fc431670540ef8ea8936278f861d7582e195e7919a66292b7cc9d357"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -3992,8 +3992,8 @@
     },
     {
       "path": "tests/context-view.test.mjs",
-      "bytes": 4346,
-      "sha256": "92ead174f1b8379a47b0a0850314974e5a57724b39bffe857e9c45a3ee60efb9"
+      "bytes": 4609,
+      "sha256": "80b607ff0cd6fad9f8e98f2327369038ba266ca93c71395d6acc59a9d7c2ef84"
     },
     {
       "path": "tests/control-api-auth.test.mjs",
@@ -4217,8 +4217,8 @@
     },
     {
       "path": "tests/skill-catalog.test.mjs",
-      "bytes": 24187,
-      "sha256": "908c8de029a9ee6da1dbce650c0e03779a82d761e76335928c233ccc83ae82a2"
+      "bytes": 29929,
+      "sha256": "a6b94ce03b517a56763f8f9ec93ff0bece19b4ba742c0827cd0a40b259240c3f"
     },
     {
       "path": "tests/source-graph-preview.test.mjs",

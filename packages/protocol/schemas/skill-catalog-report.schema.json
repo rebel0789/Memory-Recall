@@ -231,6 +231,12 @@
                   "type": "string"
                 }
               },
+              "disabledToolIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
               "reasonCodes": {
                 "type": "array",
                 "items": {

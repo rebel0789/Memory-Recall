@@ -124,6 +124,7 @@
         "state": { "enum": ["ready", "review", "blocked"] },
         "approvalRequired": { "type": "boolean" },
         "unreviewedToolIds": { "type": "array", "items": { "type": "string" } },
+        "disabledToolIds": { "type": "array", "items": { "type": "string" } },
         "reasonCodes": { "type": "array", "items": { "type": "string" } }
       }
     }

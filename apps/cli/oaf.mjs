@@ -65,7 +65,7 @@ const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOU
 const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/iu;
-const PRIVATE_LOCAL_PATH = /(?:^|[\s"'`(])(?:\/Users|\/private|\/var\/folders)(?:\/|$)/u;
+const PRIVATE_LOCAL_PATH = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)|\/home\/[A-Za-z0-9._-]+(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|[A-Za-z]:\\)/u;
 const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
 const MCP_PRIVATE_MATERIAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
 const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
@@ -4105,28 +4105,18 @@ async function buildSkillCatalogReport({ root, workspaceId, generatedAt }) {
   for (const entry of entries) {
     const directory = path.join(skillsRoot, entry.name);
     const relativeDirectory = `skills/${entry.name}`;
+    await assertSkillCatalogFile({ directory, relativeDirectory, relativePath: 'manifest.json' });
     const manifest = JSON.parse(await readFile(path.join(directory, 'manifest.json'), 'utf8'));
     assertJsonSchema(skillManifestSchema, manifest, `${relativeDirectory}/manifest.json`);
 
-    const skillDocumentPath = path.join(directory, 'SKILL.md');
-    const skillDocument = await stat(skillDocumentPath).catch((error) => {
-      if (error.code === 'ENOENT') return null;
-      throw error;
-    });
-    if (!skillDocument?.isFile()) throw new Error(`${relativeDirectory}/SKILL.md is missing`);
+    await assertSkillCatalogFile({ directory, relativeDirectory, relativePath: 'SKILL.md' });
 
     const references = [];
     for (const reference of manifest.references ?? []) {
       if (typeof reference !== 'string' || !reference || path.isAbsolute(reference) || reference.includes('..')) {
         throw new Error(`${relativeDirectory}/manifest.json has an unsafe reference`);
       }
-      const absolute = path.resolve(directory, reference);
-      if (!isInside(directory, absolute)) throw new Error(`${relativeDirectory}/manifest.json reference escapes skill directory`);
-      const referenceStat = await stat(absolute).catch((error) => {
-        if (error.code === 'ENOENT') return null;
-        throw error;
-      });
-      if (!referenceStat?.isFile()) throw new Error(`${relativeDirectory}/${reference} is missing`);
+      await assertSkillCatalogFile({ directory, relativeDirectory, relativePath: reference });
       references.push(`workspace://${relativeDirectory}/${reference.split(path.sep).join('/')}`);
     }
 
@@ -4217,6 +4207,33 @@ async function buildSkillCatalogReport({ root, workspaceId, generatedAt }) {
   return report;
 }
 
+async function assertSkillCatalogFile({ directory, relativeDirectory, relativePath }) {
+  const absolute = path.resolve(directory, relativePath);
+  if (!isInside(directory, absolute)) throw new Error(`${relativeDirectory}/manifest.json reference escapes skill directory`);
+  const parts = relativePath.split(/[\\/]+/u).slice(0, -1);
+  let current = directory;
+  for (const part of parts) {
+    current = path.join(current, part);
+    const parent = await lstat(current).catch((error) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    });
+    if (!parent) throw new Error(`${relativeDirectory}/${relativePath} is missing`);
+    if (parent.isSymbolicLink()) throw new Error(`${relativeDirectory}/${relativePath} parent is a symlink`);
+    if (!parent.isDirectory()) throw new Error(`${relativeDirectory}/${relativePath} parent is not a directory`);
+  }
+  const entry = await lstat(absolute).catch((error) => {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (!entry) throw new Error(`${relativeDirectory}/${relativePath} is missing`);
+  if (entry.isSymbolicLink()) throw new Error(`${relativeDirectory}/${relativePath} is a symlink`);
+  if (!entry.isFile()) throw new Error(`${relativeDirectory}/${relativePath} is not a file`);
+  const actual = await realpath(absolute);
+  if (!isInside(directory, actual)) throw new Error(`${relativeDirectory}/${relativePath} escapes skill directory`);
+  return actual;
+}
+
 async function buildSkillLoadPlan({ root, workspaceId, skillId, generatedAt }) {
   const catalog = await buildSkillCatalogReport({ root, workspaceId, generatedAt });
   return buildSkillLoadPlanFromCatalog({ catalog, skillId });
@@ -4294,17 +4311,21 @@ function buildSkillLoadPlanFromCatalog({ catalog, skillId }) {
 function skillCatalogReadiness(skill, toolReview) {
   const approvalRequired = skill.sideEffectClass !== 'read-only';
   const reviewedToolIds = new Set(toolReview.state === 'ready' ? toolReview.reviewedToolIds : []);
+  const disabledReviewedToolIds = new Set(toolReview.state === 'ready' ? toolReview.disabledReviewedToolIds : []);
   const unreviewedToolIds = skill.tools.filter((toolId) => !reviewedToolIds.has(toolId));
+  const disabledToolIds = skill.tools.filter((toolId) => disabledReviewedToolIds.has(toolId));
   const reasonCodes = [
     approvalRequired ? 'write_skill_requires_approval' : 'read_only_skill',
     ...(unreviewedToolIds.length ? ['skill_declares_unreviewed_tools'] : []),
+    ...(disabledToolIds.length ? ['skill_declares_disabled_tools'] : []),
     ...(toolReview.state === 'unavailable' ? ['tool_catalog_missing'] : []),
     ...(toolReview.state === 'invalid' ? ['tool_catalog_invalid'] : [])
   ];
   return {
-    state: unreviewedToolIds.length ? 'blocked' : approvalRequired ? 'review' : 'ready',
+    state: unreviewedToolIds.length || disabledToolIds.length ? 'blocked' : approvalRequired ? 'review' : 'ready',
     approvalRequired,
     unreviewedToolIds,
+    disabledToolIds,
     reasonCodes
   };
 }
