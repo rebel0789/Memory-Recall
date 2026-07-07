@@ -22,7 +22,8 @@ console.log(`Next task: ${nextTask}`);
 console.log(`Defaults: network=${status.defaults.network}, externalWrites=${status.defaults.externalWrites}, model=${status.defaults.modelMode}, residency=${status.defaults.dataResidency}`);
 if (nextTask.startsWith('none ')) {
   console.log('Use OAF today: docs/usage/local-agent-handoff.md');
-  console.log('First safe handoff: npm run oaf -- context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed-from-git --format summary');
+  console.log('First safe handoff: npm run handoff:safe');
+  console.log('Expanded handoff: npm run oaf -- context handoff --read-only --from codex --root . --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary');
   console.log('Skill menu: npm run oaf -- skill catalog --read-only --root . --format summary');
   console.log('Issue/PR queue instructions: docs/agents/issue-tracker.md');
 }
