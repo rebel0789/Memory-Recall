@@ -2227,6 +2227,21 @@ test('connect preserves positional agent after boolean flags',()=>{
   assert.equal(existsSync(path.join(home,'.codex','config.toml')),false);
 });
 
+test('connect validates hook config before writing MCP config',()=>{
+  const home=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-connect-hook-preflight-'));
+  mkdirSync(path.join(home,'.codex'),{recursive:true});
+  const hookPath=path.join(home,'.codex','hooks.json');
+  writeFileSync(hookPath,'{"hooks": OPENAI_API_KEY=secret-value /Users/rebel/private.txt');
+  const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','connect','--yes','codex','--home',home,'--format','json'],{encoding:'utf8',env:{...process.env,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z'}});
+  assert.equal(result.status,2);
+  assert.equal(result.stdout,'');
+  assert.equal(existsSync(path.join(home,'.codex','config.toml')),false);
+  assert.equal(readFileSync(hookPath,'utf8'),'{"hooks": OPENAI_API_KEY=secret-value /Users/rebel/private.txt');
+  assert.equal(result.stderr.includes('secret-value'),false);
+  assert.equal(result.stderr.includes('/Users/rebel/private.txt'),false);
+  assert.equal(result.stderr.includes(home),false);
+});
+
 test('harness setup malformed config fails closed without leaking config bodies',()=>{
   const cases=[
     {client:'cursor',file:'.cursor/mcp.json',text:'{"mcpServers": {"oaf": OPENAI_API_KEY=secret-value /Users/rebel/private.txt }'},

@@ -4742,7 +4742,7 @@ export async function buildContextPackReceiveReport({
 
 function harnessSetupUsesRunnableOaf(server) {
   if (!server || !Array.isArray(server.args)) return false;
-  if (server.command === 'oaf') return server.args[0] === 'mcp';
+  if (server.command === 'oaf') return arraysEqual(server.args.slice(0, 1), ['mcp']);
   return false;
 }
 
@@ -5261,12 +5261,12 @@ function harnessSetupSafeguards() {
 }
 
 function desiredHarnessServerSummary(server, { bridgeMode = 'resources' } = {}) {
-  const args = bridgeMode === 'token-saver' ? [...OAF_MCP_TOKEN_SAVER_BINARY_ARGS] : [...OAF_MCP_RESOURCE_BINARY_ARGS];
+  const binaryArgs = bridgeMode === 'token-saver' ? [...OAF_MCP_TOKEN_SAVER_BINARY_ARGS] : [...OAF_MCP_RESOURCE_BINARY_ARGS];
   return {
     name: server,
     transport: 'stdio',
     command: 'oaf',
-    args,
+    args: binaryArgs,
     environmentKeys: [],
     resourceMode: bridgeMode === 'token-saver' ? 'read-only-token-saver' : 'read-only',
     externalWrites: false
@@ -5334,11 +5334,11 @@ function harnessManualConfigSnippet({ client, server, bridgeMode = 'resources', 
 
 function classifyHarnessServer(server, { bridgeMode = 'resources' } = {}) {
   if (!server) return 'absent';
-  const expectedBinaryArgs = bridgeMode === 'token-saver' ? OAF_MCP_TOKEN_SAVER_BINARY_ARGS : OAF_MCP_RESOURCE_BINARY_ARGS;
+  const expected = desiredHarnessServerSummary('oaf', { bridgeMode });
   if (
-    server.command === 'oaf' &&
+    server.command === expected.command &&
     Array.isArray(server.args) &&
-    arraysEqual(server.args, expectedBinaryArgs)
+    arraysEqual(server.args, expected.args)
   ) return 'installed';
   return 'drifted';
 }

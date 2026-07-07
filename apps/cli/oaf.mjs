@@ -7056,7 +7056,7 @@ function buildContextHandoffParts({ launchPrompt, contextPackFingerprint, contex
 
 function harnessSetupUsesRunnableOaf(server) {
   if (!server || !Array.isArray(server.args)) return false;
-  if (server.command === 'oaf') return server.args[0] === 'mcp';
+  if (server.command === 'oaf') return arraysEqual(server.args.slice(0, 1), ['mcp']);
   return false;
 }
 
@@ -8170,9 +8170,14 @@ function relativePathFromContextLocator(locator) {
 }
 
 async function applyConnection({ action, agent, home, setup, generatedAt }) {
-  const mcp = await applyMcpConfig({ action, home, setup, generatedAt });
-  const hooks = await applyHookConfig({ action, home, setup, generatedAt });
-  const operations = [...mcp.operations, ...hooks.operations];
+  const changes = [
+    await prepareMcpConfigChange({ action, home, setup }),
+    await prepareHookConfigChange({ action, home, setup })
+  ];
+  const operations = [];
+  for (const change of changes) {
+    operations.push(change.operation ?? await writeHomeFileIfChanged({ home, generatedAt, ...change }));
+  }
   const localFilesWritten = operations.reduce((sum, operation) => sum + operation.filesWritten, 0);
   return {
     state: operations.some((operation) => operation.changed) ? `${action}ed` : 'unchanged',
@@ -8198,24 +8203,24 @@ function connectionDryRunReceipt() {
   };
 }
 
-async function applyMcpConfig({ action, home, setup, generatedAt }) {
+async function prepareMcpConfigChange({ action, home, setup }) {
   const relativePath = homeRefRelativePath(setup.config.ref);
   const current = await readHomeFile(home, relativePath);
   if (action === 'disconnect' && setup.status.server !== 'installed') {
-    return { operations: [skippedOperation('mcp', setup.config.ref, 'not_installed_or_drifted')] };
+    return { operation: skippedOperation('mcp', setup.config.ref, 'not_installed_or_drifted') };
   }
   const nextText = setup.config.format === 'toml'
     ? nextTomlMcpConfig(current.text, setup.manualConfigSnippet.content, action)
     : nextJsonMcpConfig(current.text, setup.desiredServer, action);
-  return { operations: [await writeHomeFileIfChanged({ home, relativePath, current, nextText, generatedAt, role: 'mcp' })] };
+  return { relativePath, current, nextText, role: 'mcp' };
 }
 
-async function applyHookConfig({ action, home, setup, generatedAt }) {
-  if (!setup.desiredHooks.supported) return { operations: [skippedOperation('hook', setup.manualHookSnippet.configRef, 'unsupported')] };
+async function prepareHookConfigChange({ action, home, setup }) {
+  if (!setup.desiredHooks.supported) return { operation: skippedOperation('hook', setup.manualHookSnippet.configRef, 'unsupported') };
   const relativePath = homeRefRelativePath(setup.manualHookSnippet.configRef);
   const current = await readHomeFile(home, relativePath);
   const nextText = nextJsonHookConfig(current.text, setup.desiredHooks, action);
-  return { operations: [await writeHomeFileIfChanged({ home, relativePath, current, nextText, generatedAt, role: 'hook' })] };
+  return { relativePath, current, nextText, role: 'hook' };
 }
 
 function nextTomlMcpConfig(text, snippet, action) {
