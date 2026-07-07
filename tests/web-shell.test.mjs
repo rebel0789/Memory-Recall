@@ -41,6 +41,7 @@ import {
   renderMemoryGraph,
   renderLoopWorkbenchMemoryFlow,
   renderConsumerStartActions,
+  renderContextPackTokenSaverSummary,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -455,6 +456,21 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.deliveredTokens,80);
   assert.equal(model.deliveredTokenRatio,'8%');
   assert.equal(model.deliveryReductionPercent,'92%');
+  assert.deepEqual(model.tokenSaver,{
+    beforeTokens:1000,
+    afterTokens:80,
+    savedLabel:'92%',
+    selectedFiles:['workspace://AGENTS.md'],
+    excludedFiles:['workspace://.cursor/rules/fabric.mdc'],
+    command:"npm --silent run oaf -- measure context-pack --read-only --root . --from 'codex,cursor' --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --format json"
+  });
+  const tokenSaverHtml=renderContextPackTokenSaverSummary(model);
+  assert.match(tokenSaverHtml,/Token Saver/);
+  assert.match(tokenSaverHtml,/1000 -> 80 tokens/);
+  assert.match(tokenSaverHtml,/workspace:\/\/AGENTS\.md/);
+  assert.match(tokenSaverHtml,/workspace:\/\/\.cursor\/rules\/fabric\.mdc/);
+  assert.match(tokenSaverHtml,/Measure token saver/);
+  assert.match(tokenSaverHtml,/measure context-pack --read-only/);
   assert.deepEqual(model.proof,{
     tokenSaved:'92%',
     selectedTokenRatio:'25%',
