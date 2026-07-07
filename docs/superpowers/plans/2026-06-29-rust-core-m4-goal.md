@@ -22,7 +22,7 @@ All code under `/rust`. Do NOT modify Node files except the existing harnesses. 
 IN: graph.path (multi-hop BFS; --max-hops, --undirected, temporal --at); graph.explain
 (k-hop neighborhood; --depth, temporal); query.graph (Cypher minimal subset + AS OF);
 architecture.overview (one call). All read-only, current-truth filtered, exposed via BOTH
-the CLI and MCP tools. 
+the CLI and MCP tools.
 OUT (scope violation if built): semantic/vector search (separate later opt-in milestone —
 needs the embedding-table sourcing decision), loop runtime, UI, install, cross-repo, more
 ingestion languages, write tools over MCP.

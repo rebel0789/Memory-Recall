@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-07-07T07:06:32.105Z",
+  "generatedAt": "2026-07-07T07:35:58.559Z",
   "fileCount": 869,
-  "totalBytes": 5617676,
+  "totalBytes": 5616903,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -517,8 +517,8 @@
     },
     {
       "path": "CLAUDE.md",
-      "bytes": 1025,
-      "sha256": "19146989bda9a5685f50cf41a8f6457fb7ffb83f53d8def5e3db41b8e3a4dfe9"
+      "bytes": 252,
+      "sha256": "0c3783fef9384e9a8fffa86c6777180108da6c1b2ed4554f33c6e88603216af3"
     },
     {
       "path": "CLEANUP_REPORT.md",
@@ -2163,7 +2163,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 975,
-      "sha256": "7045ba4fc196b11fb2091168acb07ef83cc5adda98437f392e2ab98fba45844b"
+      "sha256": "3a8be1178d963070eee1104ad79d9d44e7fe45501c3add72369f9434bc774058"
     },
     {
       "path": "LICENSE",
