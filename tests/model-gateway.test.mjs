@@ -177,6 +177,47 @@ test('structured output repair stops after one failed repair', async () => {
   assert.equal(provider.calls.length, 2);
 });
 
+test('provider request mutation cannot corrupt caller request or validation schema', async () => {
+  const provider = fakeProvider();
+  provider.generate = async (request) => {
+    provider.calls.push(request);
+    request.outputSchema.properties.answer.type = 'number';
+    request.context.selected[0].text = 'mutated by provider';
+    request.contextManifest.selectedCount = 999;
+    return {
+      schemaVersion: '1.0.0',
+      provider: request.providerId,
+      model: request.model,
+      output: { answer: 'ok' },
+      usage: { inputTokens: 4, outputTokens: 2, durationMs: 1 }
+    };
+  };
+  const gateway = new LocalModelGateway({
+    providers: [provider],
+    defaultProviderId: 'provider:native:model:fake',
+    clock: () => fixedNow
+  });
+  const request = {
+    requestId: 'modelreq_oaf013_provider_mutation',
+    correlationId: 'req_oaf013_provider_mutation',
+    workspaceId: 'ws_local',
+    actorId: 'agent:researcher',
+    objective: 'Resist provider mutation',
+    prompt: 'Return an answer object',
+    contextManifest: manifestRef(),
+    context: { selected: [{ id: 'obs_safe', kind: 'observation', text: 'original context' }] },
+    outputSchema: schema()
+  };
+  const before = structuredClone(request);
+
+  const result = await gateway.generateStructured(request);
+
+  assert.deepEqual(result.output, { answer: 'ok' });
+  assert.deepEqual(request, before);
+  assert.equal(result.contextManifest.selectedCount, 3);
+  assert.equal(provider.calls[0].outputSchema.properties.answer.type, 'number');
+});
+
 test('gateway timeout and cancellation reach the selected provider', async () => {
   let observedSignal = null;
   const provider = fakeProvider();

@@ -9,6 +9,7 @@ import {
 
 const PREVIEW_VERSION = 'oaf-source-graph-preview-1.0.0';
 export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 256 * 1024;
+const MAX_CHANGED_LOCATORS = 16;
 const WORKSPACE_ID = /^[a-z][a-z0-9_-]{0,127}$/u;
 const NODE_KINDS = new Set(['file', 'chunk', 'symbol', 'module']);
 const EDGE_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
@@ -292,7 +293,9 @@ function normalizeKinds(values, allowed, code) {
 function normalizeChangedLocators(values) {
   if (values === null || values === undefined || values === '') return [];
   const list = Array.isArray(values) ? values : String(values).split(',');
-  return [...new Set(list.map((item) => normalizeWorkspaceLocator(item)).filter(Boolean))].sort();
+  const locators = [...new Set(list.map((item) => normalizeWorkspaceLocator(item)).filter(Boolean))].sort();
+  if (locators.length > MAX_CHANGED_LOCATORS) throw new Error('changed_context_too_many_locators');
+  return locators;
 }
 
 function normalizeLocatorPrefix(value) {
