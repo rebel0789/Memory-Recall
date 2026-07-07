@@ -16,6 +16,10 @@ const BASELINE_FILE_CAP = 8;
 const BASELINE_CONTEXT_LINES = 30;
 const SMALL_FILE_LINES = 120;
 
+function progress(message) {
+  console.error(`[rust-eval] ${message}`);
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: ROOT,
@@ -89,6 +93,7 @@ function graphSignature(root, sqlite) {
 }
 
 function cloneExternalRepo(temp) {
+  progress('cloning external eval repo');
   const target = path.join(temp, 'itoa');
   const clone = spawnSync('git', ['clone', '--depth', '1', 'https://github.com/dtolnay/itoa.git', target], {
     cwd: temp,
@@ -100,6 +105,7 @@ function cloneExternalRepo(temp) {
 }
 
 function ingestRepo(root, workers, maxMemoryMb = 350, approve = true) {
+  progress(`ingesting ${path.basename(root)} with ${workers} worker(s)`);
   const temp = mkdtempSync(path.join(os.tmpdir(), 'oaf-rust-m7-ingest-'));
   const sqlite = path.join(temp, 'memory.sqlite');
   const timed = timedJson(RUST_BIN, ['ingest', '--root', root, '--sqlite', sqlite, '--format', 'json', '--workers', String(workers), '--max-memory', String(maxMemoryMb), '--max-file-mb', '2']);
@@ -235,9 +241,11 @@ function estimateTokens(text) {
 }
 
 function evaluateRepo(label, root, queries) {
+  progress(`evaluating ${label}`);
   const ingest = ingestRepo(root, 4);
   try {
     const results = queries.map((query) => {
+      progress(`checking ${label}:${query.id}`);
       const graph = graphAnswer(root, ingest.sqlite, query);
       const fileBaseline = fileBaselineAnswer(root, query);
       return {
@@ -288,7 +296,9 @@ assert.equal(existsSync(RUST_BIN), true, 'run cargo build --release before rust-
 const externalTemp = mkdtempSync(path.join(os.tmpdir(), 'oaf-rust-m7-external-'));
 const externalRepo = cloneExternalRepo(externalTemp);
 try {
+  progress('checking deterministic ingest');
   const oafBench = assertDeterministic(ROOT);
+  progress('checking memory bound');
   const memory = assertMemoryBound(ROOT);
   const evals = [
     evaluateRepo('open-agent-fabric', ROOT, [

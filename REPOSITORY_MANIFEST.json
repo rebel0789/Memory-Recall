@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-07-07T07:35:58.559Z",
+  "generatedAt": "2026-07-07T07:59:16.274Z",
   "fileCount": 869,
-  "totalBytes": 5616903,
+  "totalBytes": 5617260,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -2163,7 +2163,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 975,
-      "sha256": "3a8be1178d963070eee1104ad79d9d44e7fe45501c3add72369f9434bc774058"
+      "sha256": "45bb6523a62aa6aafc2f83cbdf4dc5230e18be2da766812e47bcaecd4a16ce36"
     },
     {
       "path": "LICENSE",
@@ -3597,8 +3597,8 @@
     },
     {
       "path": "scripts/rust-eval.mjs",
-      "bytes": 16722,
-      "sha256": "f8e056ba781738d168af8714bc44a5688791bafb80b34f98acca2aea4289b046"
+      "bytes": 17079,
+      "sha256": "4f8b6d94bd9e6e7352918bf729eaca9646ddb8aa6cc936bebfc1f8e6dd2c8118"
     },
     {
       "path": "scripts/rust-fresh-clone-smoke.mjs",
