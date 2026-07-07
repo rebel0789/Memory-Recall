@@ -1016,6 +1016,9 @@ test('context receive reads pinned Codex context pack without writes or private 
   assert.match(retrieveSummary.stdout,/Summary content included: no/);
   assert.match(retrieveSummary.stdout,/Local files written: 0/);
   assert.equal(retrieveSummary.stdout.includes('RECEIVE CLI SOURCE RAW BODY'),false);
+  const retrieveFlagFirst=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','retrieve','--read-only',retrieveHash,'--root',root,'--format','summary'],{encoding:'utf8',env});
+  assert.equal(retrieveFlagFirst.status,0,retrieveFlagFirst.stderr);
+  assert.match(retrieveFlagFirst.stdout,/Locator: workspace:\/\/src\/auth\.ts/);
   const inventedRetrieve=spawnSync(process.execPath,['apps/cli/oaf.mjs','context','retrieve','workspace://src/invented.ts','--read-only','--root',root,'--format','summary'],{encoding:'utf8',env});
   assert.equal(inventedRetrieve.status,2);
   assert.match(inventedRetrieve.stderr,/context retrieve locator is not a file/);
@@ -2202,6 +2205,16 @@ test('harness setup status reports legacy npm wrappers as drifted',()=>{
   const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','harness','setup','status','--client','codex','--home',home,'--dry-run','--format','json'],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
   assert.equal(JSON.parse(result.stdout).status.server,'drifted');
+});
+
+test('connect preserves positional agent after boolean flags',()=>{
+  const home=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-connect-agent-'));
+  const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','connect','--yes','claude-code','--home',home,'--format','json'],{encoding:'utf8',env:{...process.env,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z'}});
+  assert.equal(result.status,0,result.stderr);
+  const report=JSON.parse(result.stdout);
+  assert.equal(report.agent,'claude-code');
+  assert.equal(existsSync(path.join(home,'.claude','mcp.json')),true);
+  assert.equal(existsSync(path.join(home,'.codex','config.toml')),false);
 });
 
 test('harness setup malformed config fails closed without leaking config bodies',()=>{

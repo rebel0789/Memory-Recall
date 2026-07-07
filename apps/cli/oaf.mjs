@@ -3866,7 +3866,7 @@ async function contextRetrieveCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const target = option(values, '--locator') ?? option(values, '--hash') ?? firstPositional(values);
+  const target = option(values, '--locator') ?? option(values, '--hash') ?? firstPositional(values, new Set(['--locator', '--hash', '--format', '--root', '--workspace']));
   if (!target) {
     console.error('context retrieve requires a workspace locator or sha256 hash');
     process.exitCode = 2;
@@ -3956,7 +3956,7 @@ async function contextGraphPreviewCommand(values) {
 
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
-  const query = option(values, '--query') ?? firstPositional(values) ?? '';
+  const query = option(values, '--query') ?? firstPositional(values, new Set(['--format', '--root', '--workspace', '--query', '--trace', '--start-name', '--start-node', '--changed', '--changed-locator', '--changed-locators', '--node-kinds', '--edge-kinds', '--label-pattern', '--locator-prefix', '--direction', '--limit', '--offset', '--depth', '--sample-limit', '--max-files', '--max-file-bytes'])) ?? '';
   try {
     const { changedLocators } = await resolveChangedLocators(values, { root, workspaceId });
     const preview = await buildSourceGraphPreview({
@@ -6194,7 +6194,7 @@ async function connectionCommand(action, values) {
     return;
   }
   try {
-    const agent = normalizeConnectionAgent(option(values, '--agent') ?? option(values, '--client') ?? firstPositional(values) ?? 'codex');
+    const agent = normalizeConnectionAgent(option(values, '--agent') ?? option(values, '--client') ?? firstPositional(values, new Set(['--agent', '--client', '--home', '--format'])) ?? 'codex');
     const dryRun = !values.includes('--yes');
     const home = option(values, '--home') ?? process.env.HOME ?? process.cwd();
     const setup = await buildHarnessSetupReport({
@@ -8444,7 +8444,7 @@ function unsupportedFlags(values, allowed, valueOptions = new Set()) {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (value.startsWith('--') && !allowed.has(value)) output.push(value);
-    if (valueOptions.has(value) && index + 1 < values.length) index += 1;
+    if (valueOptions.has(value) && index + 1 < values.length && !values[index + 1].startsWith('--')) index += 1;
   }
   return output;
 }
@@ -8477,11 +8477,11 @@ async function resolveChangedLocators(values, { root, workspaceId }) {
   return { changedLocators, detection };
 }
 
-function firstPositional(values) {
+function firstPositional(values, valueOptions = new Set()) {
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (!value.startsWith('--')) return value;
-    if (option(values, value) !== null) index += 1;
+    if (valueOptions.has(value) && index + 1 < values.length && !values[index + 1].startsWith('--')) index += 1;
   }
   return null;
 }
