@@ -74,6 +74,20 @@ test('source graph preview fingerprints are deterministic for fixed input', asyn
   assert.equal(first.search.queryFingerprint, second.search.queryFingerprint);
 });
 
+test('source graph preview omits missing locators from module search results', async () => {
+  const root = await fixtureWorkspace();
+  const preview = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    query: './auth',
+    limit: 10,
+    clock: () => fixedNow
+  });
+  const schema = JSON.parse(await readFile('packages/protocol/schemas/source-graph-preview.schema.json', 'utf8'));
+  assert.equal(validateJsonSchema(schema, preview).valid, true);
+  assert(preview.search.results.some((item) => item.kind === 'module' && item.label === './auth' && !('locator' in item)));
+});
+
 test('source graph preview reports when file caps make results partial', async () => {
   const root = await fixtureWorkspace();
   const preview = await buildSourceGraphPreview({

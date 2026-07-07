@@ -718,7 +718,7 @@ export function searchSourceGraph(graph, {
     offset: boundedOffset,
     hasMore: boundedOffset + boundedLimit < sorted.length,
     omittedCount: Math.max(0, sorted.length - boundedOffset - page.length),
-    results: page.map((item) => Object.freeze({ ...item, score: Number(item.score.toFixed(6)) }))
+    results: page.map((item) => Object.freeze(withDefined({ ...item, score: Number(item.score.toFixed(6)) })))
   });
 }
 

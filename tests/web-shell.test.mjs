@@ -39,6 +39,7 @@ import {
   selectContextPackPinPayload,
   renderMemoryCockpit,
   renderMemoryGraph,
+  renderSourceGraphResult,
   renderLoopWorkbenchMemoryFlow,
   renderConsumerStartActions,
   renderContextPackTokenSaverSummary,
@@ -80,6 +81,46 @@ test('first-use home exposes consumer start actions',()=>{
     assert.match(html,new RegExp(`>${label}<`));
   }
   assert.match(html,/aria-label="First actions"/);
+});
+
+test('source graph preview renders repo map start points',()=>{
+  const report={
+    graph:{
+      graphFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      summary:{
+        fileCount:2,
+        symbolCount:2,
+        nodeCount:6,
+        edgeCount:4,
+        entryPoints:[{nodeId:'sgnode_entry',label:'runAuthWorkflow',locator:'workspace://src/workflow.ts#L3-L7',symbolKind:'function'}],
+        hotspots:[{nodeId:'sgnode_auth',label:'TokenResetService',inbound:2,outbound:1,total:3}]
+      },
+      sampleNodes:[
+        {id:'sgnode_file_workflow',kind:'file',label:'src/workflow.ts',locator:'workspace://src/workflow.ts'},
+        {id:'sgnode_file_auth',kind:'file',label:'src/auth.ts',locator:'workspace://src/auth.ts'},
+        {id:'sgnode_workflow',kind:'symbol',label:'runAuthWorkflow',locator:'workspace://src/workflow.ts#L3-L7',symbolKind:'function'},
+        {id:'sgnode_auth',kind:'symbol',label:'TokenResetService',locator:'workspace://src/auth.ts#L1-L5',symbolKind:'class'}
+      ],
+      sampleEdges:[
+        {kind:'imports',fromNodeId:'sgnode_file_workflow',toNodeId:'sgnode_file_auth'},
+        {kind:'calls',fromNodeId:'sgnode_workflow',toNodeId:'sgnode_auth'}
+      ]
+    },
+    search:{total:1,results:[]},
+    trace:{paths:[]},
+    impact:{affectedSymbols:[]},
+    safeguards:{persisted:false,modelCalls:0,networkCalls:0,graphDatabaseUsed:false,rawBodyIncluded:false}
+  };
+  const html=renderSourceGraphResult(report);
+  assert.match(html,/Repo Map/);
+  assert.match(html,/Read first/);
+  assert.match(html,/workspace:\/\/src\/workflow\.ts#L3-L7/);
+  assert.match(html,/Files/);
+  assert.match(html,/workspace:\/\/src\/auth\.ts/);
+  assert.match(html,/Key symbols/);
+  assert.match(html,/TokenResetService/);
+  assert.match(html,/Import neighbors/);
+  assert.match(html,/src\/workflow\.ts -&gt; src\/auth\.ts/);
 });
 
 test('memory route renders real temporal fact fields and computed token number', async (t) => {
@@ -343,7 +384,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/measure context-pack --read-only/);
   assert.match(app,/Read-only impact brief/);
   assert.match(app,/Change Impact/);
-  assert.match(app,/value="context pack buildContextPackUiModel"/);
+  assert.match(app,/value="where should I start"/);
   assert.match(app,/value="buildContextPackUiModel"/);
   assert.match(app,/name="changedLocator" value="apps\/web\/app\.js"/);
   assert.match(app,/Intake review/);

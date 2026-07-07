@@ -2157,12 +2157,45 @@ function memoryConfigDownloadName() {
 
 function renderSourceGraph() {
   const errorPanel=sourceGraphError?renderApiErrorPanel('Source graph preview failed',sourceGraphError):'';
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Preview source graph</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="context pack buildContextPackUiModel" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="buildContextPackUiModel" placeholder="runAuthWorkflow" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="apps/web/app.js" placeholder="src/auth.ts" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview graph</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No graph preview yet','Run a source graph preview to inspect symbols, calls, and likely diff impact.')}`;
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="where should I start" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="buildContextPackUiModel" placeholder="runAuthWorkflow" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="apps/web/app.js" placeholder="src/auth.ts" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview repo map</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No repo map yet','Preview the repo map to inspect files, symbols, import neighbors, and likely starting points.')}`;
 }
 
-function renderSourceGraphResult(report) {
+export function renderSourceGraphResult(report) {
   const summary=report.graph?.summary ?? {};
-  return `<section class="metric-strip" aria-label="Source graph metrics">${metric(summary.fileCount??0,'Files','Scanned JS/TS')}${metric(summary.symbolCount??0,'Symbols','Static parser')}${metric(summary.nodeCount??0,'Nodes','Metadata graph')}${metric(summary.edgeCount??0,'Edges','Calls and refs')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Search results</h2><span>${Number(report.search?.total??0)} matches</span></div>${sourceGraphSearchList(report.search?.results)}</div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>${esc(shortFingerprint(report.graph?.graphFingerprint))}</span></div>${sourceGraphSafeguards(report.safeguards)}<hr><div class="section-heading"><h2>Sample nodes</h2><span>${report.graph?.sampleNodes?.length??0}</span></div>${sourceGraphNodeList(report.graph?.sampleNodes)}</aside></section><section class="work-grid"><div class="surface"><div class="section-heading"><h2>Trace</h2><span>${report.trace?.paths?.length??0} paths</span></div>${sourceGraphTraceList(report.trace?.paths)}</div><aside class="inspector"><div class="section-heading"><h2>Diff impact</h2><span>${report.impact?.affectedSymbols?.length??0} symbols</span></div>${sourceGraphImpactList(report.impact?.affectedSymbols)}</aside></section>`;
+  return `<section class="metric-strip" aria-label="Source graph metrics">${metric(summary.fileCount??0,'Files','Scanned JS/TS')}${metric(summary.symbolCount??0,'Symbols','Static parser')}${metric(summary.nodeCount??0,'Nodes','Metadata graph')}${metric(summary.edgeCount??0,'Edges','Calls and refs')}</section>${renderRepoMap(report)}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Search results</h2><span>${Number(report.search?.total??0)} matches</span></div>${sourceGraphSearchList(report.search?.results)}</div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>${esc(shortFingerprint(report.graph?.graphFingerprint))}</span></div>${sourceGraphSafeguards(report.safeguards)}<hr><div class="section-heading"><h2>Sample nodes</h2><span>${report.graph?.sampleNodes?.length??0}</span></div>${sourceGraphNodeList(report.graph?.sampleNodes)}</aside></section><section class="work-grid"><div class="surface"><div class="section-heading"><h2>Trace</h2><span>${report.trace?.paths?.length??0} paths</span></div>${sourceGraphTraceList(report.trace?.paths)}</div><aside class="inspector"><div class="section-heading"><h2>Diff impact</h2><span>${report.impact?.affectedSymbols?.length??0} symbols</span></div>${sourceGraphImpactList(report.impact?.affectedSymbols)}</aside></section>`;
+}
+
+function renderRepoMap(report) {
+  const nodes=report.graph?.sampleNodes ?? [];
+  const byId=new Map(nodes.map((node)=>[node.id,node]));
+  const files=nodes.filter((node)=>node.kind==='file').slice(0,6);
+  const symbols=uniqueBy([
+    ...(report.graph?.summary?.entryPoints ?? []),
+    ...(report.graph?.summary?.hotspots ?? []),
+    ...nodes.filter((node)=>node.kind==='symbol')
+  ],(item)=>item.locator ?? item.label).slice(0,6);
+  const imports=(report.graph?.sampleEdges ?? []).filter((edge)=>edge.kind==='imports').map((edge)=>{
+    const from=byId.get(edge.fromNodeId);
+    const to=byId.get(edge.toNodeId);
+    return from&&to?`${from.label} -> ${to.label}`:'';
+  }).filter(Boolean).slice(0,6);
+  const readFirst=(report.graph?.summary?.entryPoints ?? []).map((item)=>item.locator).filter(Boolean).slice(0,6);
+  return `<section class="work-grid repo-map"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>${files.length} files</span></div><div class="split-list"><div><h3>Read first</h3>${sourceGraphTextList(readFirst)}</div><div><h3>Files</h3>${sourceGraphNodeList(files)}</div></div></div><aside class="inspector"><div class="section-heading"><h2>Key symbols</h2><span>${symbols.length}</span></div>${sourceGraphSymbolList(symbols)}<hr><div class="section-heading"><h2>Import neighbors</h2><span>${imports.length}</span></div>${sourceGraphTextList(imports)}</aside></section>`;
+}
+
+function uniqueBy(items,key) {
+  const seen=new Set();
+  return items.filter((item)=>{const value=key(item);if(!value||seen.has(value))return false;seen.add(value);return true;});
+}
+
+function sourceGraphSymbolList(symbols=[]) {
+  if(!symbols.length)return '<p class="muted">No key symbols in the bounded preview.</p>';
+  return `<ol class="compact-list locator-list">${symbols.map((symbol)=>`<li><strong>${esc(symbol.label)}</strong><span>${esc(symbol.symbolKind??'symbol')} · ${esc(symbol.locator??`${Number(symbol.total??0)} links`)}</span></li>`).join('')}</ol>`;
+}
+
+function sourceGraphTextList(items=[]) {
+  if(!items.length)return '<p class="muted">No bounded preview items.</p>';
+  return `<ol class="compact-list locator-list">${items.map((item)=>`<li><strong>${esc(item)}</strong></li>`).join('')}</ol>`;
 }
 
 function sourceGraphSearchList(results=[]) {
