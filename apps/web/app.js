@@ -24,6 +24,12 @@ const routeById = new Map(ROUTES.map(route=>[route.id,route]));
 const routeByPath = new Map(ROUTES.map(route=>[route.path,route]));
 const legacyViews = new Map([['home','/'],['runs','/runs'],['context','/context'],['evidence','/evidence'],['memory','/memory'],['design','/settings']]);
 export const navItems = ROUTES;
+export const CONSUMER_START_ACTIONS = [
+  { label:'Connect', detail:'Preview local harness setup.', route:'/agents-tools', routeId:'agents' },
+  { label:'Save Tokens', detail:'Build a measured context pack.', route:'/context-pack', routeId:'context-pack' },
+  { label:'Add Memory', detail:'Review and approve local memory.', route:'/memory', routeId:'memory' },
+  { label:'View Repo Map', detail:'Inspect files, symbols, and neighbors.', route:'/source-graph', routeId:'source-graph' }
+];
 
 let dashboard=null;
 let shellState={kind:'loading',message:'Loading local workspace state.'};
@@ -1079,7 +1085,11 @@ function contextPackEmptyState(){
 }
 
 function renderPrimaryFlow() {
-  return `<section class="surface primary-flow" aria-label="Primary local context workflow"><div><p class="eyebrow">Start here</p><h2>Build a handoff your next agent can actually use.</h2><p>The pack selects safe local locators, explains omissions, estimates context pressure, maps explicitly changed files, and keeps raw source bodies out of the browser and MCP resources.</p></div><ol class="flow-mini" aria-label="Context pack workflow"><li><strong>1</strong><span>Choose target harness</span></li><li><strong>2</strong><span>Add explicit files and changed locators</span></li><li><strong>3</strong><span>Inspect selected, omitted, and impacted context</span></li><li><strong>4</strong><span>Preview read-only harness setup</span></li></ol><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Build context pack</a><a class="button secondary" href="/source-graph" data-route="source-graph">Preview source graph</a></div></section>`;
+  return `<section class="surface primary-flow consumer-start" aria-label="First-use actions"><div><p class="eyebrow">Start here</p><h2>Choose what you need first.</h2><p>Connect a local agent, save tokens with a context pack, approve memory, or inspect the repository map without enabling external writes.</p></div>${renderConsumerStartActions()}</section>`;
+}
+
+export function renderConsumerStartActions(actions=CONSUMER_START_ACTIONS) {
+  return `<nav class="consumer-actions" aria-label="First actions">${actions.map((action)=>`<a href="${esc(action.route)}" data-route="${esc(action.routeId)}"><strong>${esc(action.label)}</strong><span>${esc(action.detail)}</span></a>`).join('')}</nav>`;
 }
 
 function renderRuns() {
@@ -2235,7 +2245,7 @@ function deniedState(){return authPanel('login','Sign in with the local owner ac
 function authPanel(mode,copy){
   const isBootstrap=mode==='bootstrap';
   const title=isBootstrap?'Set up local owner':'Sign in locally';
-  return `<section class="state-panel state-${isBootstrap?'setup':'denied'} auth-panel"><h2>${title}</h2><p>${esc(copy)}</p><form id="auth-form" data-mode="${mode}" autocomplete="on"><div class="field-grid"><label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap?'rebel':''}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>${isBootstrap?'<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>':''}<label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap?'new-password':'current-password'}" required minlength="12" maxlength="256"></label></div><div class="action-row"><button class="button primary" type="submit">${isBootstrap?'Create owner':'Sign in'}</button>${isBootstrap?'<span class="muted">Local-only. Stored in .local/identity with hashed credentials.</span>':'<span class="muted">No external network or fallback identity provider is used.</span>'}</div></form></section>`;
+  return `<section class="surface consumer-start auth-start" aria-label="First-use actions"><div><p class="eyebrow">After sign-in</p><h2>Choose what you need first.</h2></div>${renderConsumerStartActions()}</section><section class="state-panel state-${isBootstrap?'setup':'denied'} auth-panel"><h2>${title}</h2><p>${esc(copy)}</p><form id="auth-form" data-mode="${mode}" autocomplete="on"><div class="field-grid"><label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap?'rebel':''}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>${isBootstrap?'<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>':''}<label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap?'new-password':'current-password'}" required minlength="12" maxlength="256"></label></div><div class="action-row"><button class="button primary" type="submit">${isBootstrap?'Create owner':'Sign in'}</button>${isBootstrap?'<span class="muted">Local-only. Stored in .local/identity with hashed credentials.</span>':'<span class="muted">No external network or fallback identity provider is used.</span>'}</div></form></section>`;
 }
 function runList(items){if(!items?.length)return statePanel('empty','No runs yet','Execute the synthetic local workflow to populate the event ledger.',true);return `<div class="run-list">${items.map(run=>`<article class="run-row"><header><a href="${runDetailLink(run.id)}" data-run-id="${esc(run.id)}">${esc(run.workflowId)}</a>${statusChip(run.status,run.status,'Run status')}</header><p>${esc(run.objective??'')}</p><div class="meta-row"><span>Version: ${esc(run.workflowVersion??'unknown')}</span><span>Residency: ${esc(run.residency??'local-only')}</span><span>Current step: ${esc(currentStepLabel(run))}</span><span>Owner: local workspace</span><span>Warnings: ${Number(run.warningCount??0)}</span></div><div class="meta-row"><code>${esc(run.id)}</code><span>Started ${date(run.createdAt)}</span><span>${duration(run.createdAt,run.completedAt)}</span></div></article>`).join('')}</div>`}
 function contextSummary(manifest){if(!manifest)return '<div class="state-inline">No context has been compiled.</div>';const percent=Math.min(100,Math.round(manifest.budget.used/manifest.budget.available*100));return `<div class="section-heading"><h2>Context budget</h2><span>${percent}% used</span></div><strong>${manifest.budget.used} / ${manifest.budget.available} estimated tokens</strong><div class="progress" aria-label="${percent}% of context budget used"><span style="width:${percent}%"></span></div><p class="muted">${manifest.selected.length} selected · ${manifest.excluded.length} excluded · ${manifest.conflicts.length} conflicts</p>`}

@@ -7,6 +7,7 @@ import {
   ROUTES,
   SHELL_STATES,
   buildApiErrorUiModel,
+  CONSUMER_START_ACTIONS,
   buildMemoryWorkspaceConfig,
   buildContextSourcePreviewUiModel,
   buildContextPackUiModel,
@@ -39,6 +40,7 @@ import {
   renderMemoryCockpit,
   renderMemoryGraph,
   renderLoopWorkbenchMemoryFlow,
+  renderConsumerStartActions,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -66,6 +68,16 @@ test('web shell exposes stable path routes with legacy query compatibility',()=>
   assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id,'home');
   assert.equal(legacyViewPath('design'),'/settings');
   assert.equal(ROUTES.some(route=>route.id==='content'),true);
+});
+
+test('first-use home exposes consumer start actions',()=>{
+  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.label),['Connect','Save Tokens','Add Memory','View Repo Map']);
+  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.route),['/agents-tools','/context-pack','/memory','/source-graph']);
+  const html=renderConsumerStartActions();
+  for (const label of ['Connect','Save Tokens','Add Memory','View Repo Map']) {
+    assert.match(html,new RegExp(`>${label}<`));
+  }
+  assert.match(html,/aria-label="First actions"/);
 });
 
 test('memory route renders real temporal fact fields and computed token number', async (t) => {
