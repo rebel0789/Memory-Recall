@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "memoryPaths": [
+    {
+      "path": "memory/profile.md",
+      "kind": "episode",
+      "sourceTrust": "unverified",
+      "dataClass": "workspace-private"
+    }
+  ]
+}

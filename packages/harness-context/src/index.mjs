@@ -1,15 +1,17 @@
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import {
   COMPILER_VERSION,
-  compileContext,
+  CONTEXT_SELECTION_POLICY,
   contextSelectionPolicyFingerprint,
   estimateTokens,
   hashRef,
+  selectContextCandidates,
   stableStringify
 } from '../../context-compiler/src/index.mjs';
 import { assertJsonSchema } from '../../protocol/src/schema-validator.mjs';
@@ -43,12 +45,23 @@ export const CONTEXT_PACK_USE_PLAN_VERSION = '0.1.0';
 export const CONTEXT_PACK_REGISTRY_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_SCANNER_VERSION = '0.1.0';
 export const HARNESS_CONTEXT_PREVIEW_VERSION = '0.1.0';
+const HARNESS_CONTEXT_SELECTION_POLICY = Object.freeze({
+  ...CONTEXT_SELECTION_POLICY,
+  policyVersion: '1.0.1',
+  thresholds: Object.freeze({
+    ...CONTEXT_SELECTION_POLICY.thresholds,
+    minimumEvidenceCount: 1
+  })
+});
 export const HARNESS_CONTEXT_BENCHMARK_VERSION = '0.1.0';
 export const HARNESS_SETUP_PLANNER_VERSION = '0.1.0';
 export const LOOP_PLAN_VERSION = '0.1.0';
 export const LOOP_RUN_WORKFLOW_ID = 'workflow:oaf:loop-run';
-export const OAF_MCP_RESOURCE_ARGS = Object.freeze(['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
-export const OAF_MCP_TOKEN_SAVER_ARGS = Object.freeze(['--silent', 'run', 'oaf', '--', 'mcp', 'server', '--read-only', '--root', '.', '--stdio']);
+export const OAF_MCP_RESOURCE_BINARY_ARGS = Object.freeze(['mcp', 'resources', '--read-only', '--stdio']);
+export const OAF_MCP_TOKEN_SAVER_BINARY_ARGS = Object.freeze(['mcp', 'server', '--read-only', '--root', '.', '--stdio']);
+const OAF_HOOK_CONTEXT_COMMAND = 'oaf hook context --read-only --format text';
+const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
+const OAF_CHECKOUT_ARG_PREFIX = Object.freeze(['--silent', 'run', 'oaf', '--']);
 export const REALISTIC_SAVINGS_OBJECTIVE = 'Prove MCP memory token savings on Open Agent Fabric coding-agent work';
 export const REALISTIC_SAVINGS_STEP = 'Compare context.profile delivery with naive candidate file and git history body resend';
 
@@ -68,13 +81,15 @@ const CONTEXT_PACK_USE_PLAN_PATH = 'context-packs/CONTEXT_PACK.use.json';
 const CONTEXT_PACK_REGISTRY_PATH = 'context-packs/registry.json';
 const CONTEXT_PACK_CURRENT_PATH = 'context-packs/current.json';
 const SUPPORTED_HARNESSES = new Set(['codex', 'claude-code', 'cursor']);
-const SUPPORTED_TARGET_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
+const SUPPORTED_TARGET_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'a2a', 'generic']);
 const FORBIDDEN_USER_SELECTED_ROOTS = new Set(['.git', '.local', 'node_modules']);
+const AUTO_DETECTED_CHANGED_SKIP_ROOTS = new Set([...FORBIDDEN_USER_SELECTED_ROOTS, '.scratch']);
 const CONTROL_BYTES = new Set([...Array.from({ length: 9 }, (_, index) => index), 11, 12, ...Array.from({ length: 18 }, (_, index) => index + 14)]);
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/giu;
 const LOCAL_FILE_PATH = /\/Users\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._ -]+)+/gu;
 const LOCAL_USER_ROOT = /\/Users\/[A-Za-z0-9._-]+(?=$|[\s"'`,;).])/gu;
 const HANDOFF_ABSOLUTE_PATH = /(?:\/home\/[A-Za-z0-9._-]+(?:\/[^\s"'`,;).]+)+|\/private\/[^\s"'`,;).]+(?:\/[^\s"'`,;).]+)*|\/var\/folders\/[^\s"'`,;).]+(?:\/[^\s"'`,;).]+)*|[A-Za-z]:\\[^\s"'`,;]+(?:\\[^\s"'`,;]+)+)/gu;
+const HANDOFF_PROMPT_CONTROL = /\b(?:ignore|disregard|override|bypass)\s+(?:all\s+)?(?:previous|prior|above|system|developer)\s+instructions\b|\benable\s+external\s+writes\b|\b(?:curl|wget)\s+https?:\/\/|\brm\s+-rf\b|\bsudo\s+/iu;
 const UNSAFE_PERSISTED_LOCATOR = /(?:https?:|file:|\/Users(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|oaf_session|oaf_ses_|sk-proj|OPENAI_API_KEY|authorization|cookie|token\s*[=:]|secret\s*[=:]|api[_-]?key\s*[=:])/iu;
 const REDACTED_UNSAFE_SOURCE_LOCATOR = 'workspace://context-packs/redacted-unsafe-source-locator';
 const execFileAsync = promisify(execFile);
@@ -441,7 +456,7 @@ function assertSafeHandoffField(value, fieldName) {
   const localPathCount = countMatches(text, LOCAL_FILE_PATH)
     + countMatches(text, LOCAL_USER_ROOT)
     + countMatches(text, HANDOFF_ABSOLUTE_PATH);
-  if (secretCount > 0 || localPathCount > 0) {
+  if (secretCount > 0 || localPathCount > 0 || HANDOFF_PROMPT_CONTROL.test(text)) {
     const error = new Error(`context_pack_${fieldName}_unsafe`);
     error.code = `context_pack_${fieldName}_unsafe`;
     throw error;
@@ -491,9 +506,52 @@ async function cursorRuleDefinitions(root, rootReal) {
   return { definitions, skipped: [] };
 }
 
-async function sourceDefinitions(root, rootReal, harness) {
+function nestedInstructionCandidatePaths(changedLocators, fileName) {
+  const paths = new Set();
+  for (const locator of changedLocators) {
+    const relativePath = stripLineRange(String(locator ?? '').replace(/^workspace:\/\//u, ''));
+    const parts = relativePath.split('/').filter(Boolean);
+    if (parts.length < 2) continue;
+    const directoryParts = parts.slice(0, -1);
+    for (let depth = 1; depth <= directoryParts.length; depth += 1) {
+      const candidate = [...directoryParts.slice(0, depth), fileName].join('/');
+      if (candidate !== fileName) paths.add(candidate);
+    }
+  }
+  return [...paths].sort((left, right) => left.split('/').length - right.split('/').length || left.localeCompare(right));
+}
+
+async function nestedInstructionDefinitions(root, changedLocators, fileName) {
+  const definitions = [];
+  for (const relativePath of nestedInstructionCandidatePaths(changedLocators, fileName)) {
+    const absolutePath = path.resolve(root, relativePath);
+    const declaredRelative = path.relative(root, absolutePath);
+    if (isEscapedRelative(declaredRelative)) continue;
+    try {
+      const info = await lstat(absolutePath);
+      if (!info.isFile() && !info.isSymbolicLink()) continue;
+    } catch {
+      continue;
+    }
+    definitions.push({
+      relativePath,
+      sourceKind: 'instruction',
+      scope: 'repository',
+      trust: 'user-authored'
+    });
+  }
+  return definitions;
+}
+
+async function sourceDefinitions(root, rootReal, harness, { changedLocators = [] } = {}) {
   const definitions = [...(STATIC_PROJECT_SOURCES[harness] ?? [])];
   const skipped = [];
+  if (harness === 'codex') {
+    definitions.push(...await nestedInstructionDefinitions(root, changedLocators, 'AGENTS.md'));
+  }
+  if (harness === 'claude-code') {
+    definitions.push(...await nestedInstructionDefinitions(root, changedLocators, 'CLAUDE.md'));
+  }
   if (harness === 'cursor') {
     const cursorRules = await cursorRuleDefinitions(root, rootReal);
     definitions.push(...cursorRules.definitions);
@@ -552,8 +610,31 @@ function shellQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
+function sourceCheckoutHasOafScript() {
+  return existsSync(path.resolve(process.cwd(), 'package.json')) && existsSync(path.resolve(process.cwd(), 'apps/cli/oaf.mjs'));
+}
+
+function oafCommand(args) {
+  return sourceCheckoutHasOafScript() ? `${OAF_CHECKOUT_COMMAND_PREFIX} ${args}` : `oaf ${args}`;
+}
+
+function oafServerCommand(binaryArgs) {
+  return sourceCheckoutHasOafScript()
+    ? { command: 'npm', args: [...OAF_CHECKOUT_ARG_PREFIX, ...binaryArgs] }
+    : { command: 'oaf', args: binaryArgs };
+}
+
+function isOafServerInvocation(server, binaryArgs) {
+  return Boolean(server) &&
+    Array.isArray(server.args) &&
+    (
+      (server.command === 'oaf' && arraysEqual(server.args, binaryArgs)) ||
+      (server.command === 'npm' && arraysEqual(server.args, [...OAF_CHECKOUT_ARG_PREFIX, ...binaryArgs]))
+    );
+}
+
 function memoryProposalCommand(configPath = 'oaf.memory.json') {
-  return `npm --silent run oaf -- memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`;
+  return oafCommand(`memory proposals --from memoryPaths --config ${shellQuote(configPath)} --root . --dry-run --format json`);
 }
 
 function memoryPreflightSafeguards(report = null) {
@@ -1011,7 +1092,7 @@ function shouldSkipAutoDetectedChangedPath(relativePath) {
   if (/\s/u.test(normalized) || /[\u0000-\u001f\u007f]/u.test(normalized)) return true;
   const parts = normalized.split('/').filter(Boolean);
   if (!parts.length) return true;
-  if (FORBIDDEN_USER_SELECTED_ROOTS.has(parts[0])) return true;
+  if (AUTO_DETECTED_CHANGED_SKIP_ROOTS.has(parts[0])) return true;
   return AUTO_DETECTED_SECRET_PATH.test(normalized);
 }
 
@@ -1105,12 +1186,28 @@ function userSelectedDefinitions(userSelectedFiles) {
   }));
 }
 
+async function pathExistsWithExactCase(root, relativePath) {
+  let directory = root;
+  for (const part of toPosix(relativePath).split('/').filter(Boolean)) {
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      return false;
+    }
+    if (!entries.some((entry) => entry.name === part)) return false;
+    directory = path.join(directory, part);
+  }
+  return true;
+}
+
 async function scanSource({ root, rootReal, harness, definition, workspaceId, maxBytes, createdAt, includeRedactedText = false }) {
   const relativePath = toPosix(definition.relativePath);
   const locator = sourceLocator(definition);
   const absolutePath = path.resolve(root, definition.relativePath);
   const declaredRelative = path.relative(root, absolutePath);
   if (isEscapedRelative(declaredRelative)) return { skipped: skippedSource(harness, relativePath, 'symlink_escape', definition.locatorScheme) };
+  if (!await pathExistsWithExactCase(root, relativePath)) return null;
 
   try {
     await lstat(absolutePath);
@@ -1188,6 +1285,7 @@ async function scanHarnessContextInternal({
   root = process.cwd(),
   harnesses = ['codex', 'claude-code', 'cursor'],
   userSelectedFiles = [],
+  changedLocators = [],
   workspaceId = 'ws_local',
   maxBytes = DEFAULT_MAX_BYTES,
   clock = () => new Date().toISOString()
@@ -1195,11 +1293,12 @@ async function scanHarnessContextInternal({
   const resolvedRoot = path.resolve(root);
   const rootReal = await realpath(resolvedRoot);
   const createdAt = clock();
+  const normalizedChangedLocators = normalizeChangedLocators(changedLocators);
   const accepted = [];
   const skipped = [];
 
   for (const harness of selectedHarnesses(harnesses)) {
-    const harnessSources = await sourceDefinitions(resolvedRoot, rootReal, harness);
+    const harnessSources = await sourceDefinitions(resolvedRoot, rootReal, harness, { changedLocators: normalizedChangedLocators });
     skipped.push(...harnessSources.skipped);
     for (const definition of harnessSources.definitions) {
       const result = await scanSource({ root: resolvedRoot, rootReal, harness, definition, workspaceId, maxBytes, createdAt, includeRedactedText });
@@ -1262,7 +1361,7 @@ function contextRecordId(source) {
 }
 
 function sourceCategory(sourceKind) {
-  if (sourceKind === 'instruction' || sourceKind === 'rule') return 'governance';
+  if (sourceKind === 'instruction' || sourceKind === 'rule') return 'evidence';
   if (sourceKind === 'mcp-config' || sourceKind === 'profile' || sourceKind === 'handoff') return 'evidence';
   if (sourceKind === 'command' || sourceKind === 'skill') return 'procedures';
   if (sourceKind === 'memory') return 'episodes';
@@ -1424,6 +1523,7 @@ export async function buildHarnessContextPreview({
   root = process.cwd(),
   harnesses = ['codex', 'claude-code', 'cursor'],
   userSelectedFiles = [],
+  changedLocators = [],
   workspaceId = 'ws_local',
   objective,
   step,
@@ -1440,6 +1540,7 @@ export async function buildHarnessContextPreview({
     root,
     harnesses,
     userSelectedFiles,
+    changedLocators,
     workspaceId,
     maxBytes,
     clock: () => createdAt
@@ -1463,7 +1564,7 @@ export async function buildHarnessContextPreview({
     now: createdAt,
     trustedTimestamp: createdAt
   };
-  const manifest = compileContext(request, records);
+  const manifest = selectContextCandidates(request, records, { policy: HARNESS_CONTEXT_SELECTION_POLICY }).manifest;
   const selected = manifest.selected.map((item) => safeDecision(item, byRecordId));
   const excluded = manifest.excluded.map((item) => safeDecision(item, byRecordId));
   const candidateTokenCount = records.reduce((sum, record) => sum + record.tokens, 0);
@@ -1559,7 +1660,33 @@ function bulletList(items) {
   return items.length ? items.map((item) => `- ${item}`).join('\n') : '- none';
 }
 
+function instructionReadContext(locator, targetHarness) {
+  if (typeof locator !== 'string' || !locator.startsWith('workspace://')) {
+    return null;
+  }
+  const workspacePath = locator.slice('workspace://'.length);
+  if (workspacePath === 'AGENTS.md' || workspacePath === 'CLAUDE.md') {
+    return {
+      reasonCodes: ['root_instruction'],
+      readHint: `Read ${locator} as root workspace instructions before acting in ${targetHarness}.`
+    };
+  }
+  const instructionFile = workspacePath.endsWith('/AGENTS.md')
+    ? 'AGENTS.md'
+    : workspacePath.endsWith('/CLAUDE.md')
+      ? 'CLAUDE.md'
+      : null;
+  if (!instructionFile) return null;
+  const rootLocator = `workspace://${instructionFile}`;
+  return {
+    reasonCodes: ['scoped_instruction', 'read_after_root_instruction'],
+    readHint: `Read ${rootLocator} first, then read ${locator} as directory-scoped instructions before acting in ${targetHarness}.`
+  };
+}
+
 function decisionForPack(item, targetHarness) {
+  const instructionContext = instructionReadContext(item.locator, targetHarness);
+  const reasonCodes = Array.isArray(item.reasonCodes) ? item.reasonCodes : [];
   return {
     id: item.id,
     locator: item.locator,
@@ -1567,11 +1694,11 @@ function decisionForPack(item, targetHarness) {
     sourceKind: item.sourceKind,
     tokens: item.tokens,
     score: item.score,
-    reasonCodes: item.reasonCodes,
+    reasonCodes: instructionContext ? [...new Set([...reasonCodes, ...instructionContext.reasonCodes])] : reasonCodes,
     contentHash: item.contentHash,
-    readHint: item.locator
+    readHint: instructionContext?.readHint ?? (item.locator
       ? `Read ${item.locator} from the local workspace before acting in ${targetHarness}.`
-      : `Use ${item.id} only as sanitized context metadata.`
+      : `Use ${item.id} only as sanitized context metadata.`)
   };
 }
 
@@ -1795,7 +1922,8 @@ function contextPackCommands({ sourceHarnesses, targetHarness, objective, step, 
     `npm run oaf -- context pack ${base} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
     'npm run oaf -- context registry status --read-only --format json',
     `npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`,
-    'npm --silent run oaf -- mcp resources --read-only --stdio',
+    `npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format summary`,
+    oafCommand('mcp resources --read-only --stdio'),
     'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json',
     'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json',
     `npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json`,
@@ -1818,8 +1946,9 @@ function markdownBridgeCommands(commands) {
   const candidates = Array.isArray(commands) ? commands.filter((command) => typeof command === 'string' && command.trim()) : [];
   return [
     candidates.find((command) => command.includes('context pack') && command.includes('--write --pin')),
-    candidates.find((command) => command.includes('context receive --read-only')),
-    candidates.find((command) => command === 'npm --silent run oaf -- mcp resources --read-only --stdio'),
+    candidates.find((command) => command.includes('context receive --read-only') && command.includes('--format json')),
+    candidates.find((command) => command.includes('context receive --read-only') && command.includes('--format summary')),
+    candidates.find((command) => command === oafCommand('mcp resources --read-only --stdio')),
     candidates.find((command) => command.includes('mcp resources --read-only') && command.includes('context-pack/registry/current')),
     candidates.find((command) => command.includes('mcp resources --read-only') && command.includes('context-pack/use-plan/current')),
     candidates.find((command) => command.includes('harness setup plan') && command.includes('--dry-run'))
@@ -1874,6 +2003,12 @@ function harnessInstructions(targetHarness) {
   if (targetHarness === 'cursor') {
     return [
       'Cursor: load selected .cursor rules with AGENTS.md and keep generated changes inside the active workspace.',
+      ...shared
+    ];
+  }
+  if (targetHarness === 'a2a') {
+    return [
+      'A2A: treat this as typed coordinator-provided context for a stateless receiver; do not assume shared storage or transport authority.',
       ...shared
     ];
   }
@@ -2057,9 +2192,20 @@ async function buildContextPackSourceGraph({
   }
 }
 
-function requiredLocatorsForTarget(targetHarness) {
-  if (targetHarness === 'codex') return ['workspace://AGENTS.md'];
-  if (targetHarness === 'claude-code') return ['workspace://AGENTS.md', 'workspace://CLAUDE.md'];
+function requiredLocatorsForTarget(targetHarness, changedLocators = []) {
+  if (targetHarness === 'codex') {
+    return [
+      'workspace://AGENTS.md',
+      ...nestedInstructionCandidatePaths(changedLocators, 'AGENTS.md').map((relativePath) => `workspace://${relativePath}`)
+    ];
+  }
+  if (targetHarness === 'claude-code') {
+    return [
+      'workspace://AGENTS.md',
+      'workspace://CLAUDE.md',
+      ...nestedInstructionCandidatePaths(changedLocators, 'CLAUDE.md').map((relativePath) => `workspace://${relativePath}`)
+    ];
+  }
   if (targetHarness === 'cursor') return ['workspace://AGENTS.md', 'workspace://.cursorrules', 'workspace://.cursor/mcp.json'];
   return ['workspace://AGENTS.md'];
 }
@@ -3380,7 +3526,8 @@ export async function buildContextPack({
     objective,
     step,
     tokenBudget,
-    requiredLocators: requiredLocatorsForTarget(normalizedTarget),
+    changedLocators: normalizedChangedLocators,
+    requiredLocators: requiredLocatorsForTarget(normalizedTarget, normalizedChangedLocators),
     maxBytes,
     clock
   });
@@ -3518,6 +3665,18 @@ function usePlanCoverage(coverage = {}) {
     covered: Number.isFinite(coverage.covered) ? coverage.covered : 0,
     ratio: Number.isFinite(coverage.ratio) ? coverage.ratio : 0,
     status: ['covered', 'partial', 'not_applicable'].includes(coverage.status) ? coverage.status : 'not_applicable'
+  };
+}
+
+function contextPackRecipientProof({ workspaceId = 'ws_local', targetHarness = 'generic', usePlanResourceUri = null } = {}) {
+  const usePlanUri = usePlanResourceUri ?? `oaf://workspace/${workspaceId}/context-pack/use-plan/current`;
+  return {
+    targetHarness,
+    resourceMode: 'read-only',
+    requiredResourceUris: [usePlanUri, `oaf://workspace/${workspaceId}/context-pack/registry/current`],
+    toolsExposed: 0,
+    externalWritesEnabled: false,
+    externalAdaptersEnabled: 0
   };
 }
 
@@ -3661,18 +3820,25 @@ export function buildContextPackUsePlan(pack, {
   resourceUri = `oaf://workspace/${pack?.workspaceId ?? 'ws_local'}/context-pack/use-plan/current`
 } = {}) {
   const requiredLocalReads = (pack?.utility?.requiredLocalReads ?? []).map(usePlanReadItem);
+  const targetHarness = pack?.targetHarness ?? 'generic';
+  const recipientProof = contextPackRecipientProof({
+    workspaceId: pack?.workspaceId ?? 'ws_local',
+    targetHarness,
+    usePlanResourceUri: resourceUri
+  });
   const plan = {
     schemaVersion: '1.0.0',
     usePlanVersion: CONTEXT_PACK_USE_PLAN_VERSION,
     id: `ctxuse_${idDigest(stableStringify({
       contextPackId: pack?.id,
       contextPackFingerprint: pack?.contextPackFingerprint,
+      targetHarness,
       resourceUri,
       requiredLocalReads
     }))}`,
     workspaceId: pack?.workspaceId ?? 'ws_local',
     generatedAt,
-    targetHarness: pack?.targetHarness ?? 'generic',
+    targetHarness,
     sourceHarnesses: pack?.sourceHarnesses ?? [],
     contextPack: {
       id: pack?.id ?? 'ctxpack_unknown',
@@ -3686,6 +3852,7 @@ export function buildContextPackUsePlan(pack, {
       uri: resourceUri,
       kind: 'context-pack-use-plan'
     },
+    recipientProof,
     repository: pack?.repository ?? repositoryIdentityUnavailable({
       generatedAt,
       reason: 'git_status_failed'
@@ -4403,6 +4570,13 @@ export async function buildContextPackReceiveReport({
   const registryPayload = parseMcpJsonPayload(registryRead);
   const listedResources = resourcesResponse?.result?.resources ?? [];
   const listedTools = toolsResponse?.result?.tools ?? [];
+  const expectedRecipientProof = contextPackRecipientProof({
+    workspaceId,
+    targetHarness: normalizedTarget,
+    usePlanResourceUri
+  });
+  const actualRecipientProof = usePlan?.recipientProof ?? null;
+  const recipientResourceUris = actualRecipientProof?.requiredResourceUris ?? [];
   const currentStatus = registryStatus.current.status;
   const registryBlocking = !registryStatus.registry.exists
     || !registryStatus.currentPointer.exists
@@ -4421,8 +4595,16 @@ export async function buildContextPackReceiveReport({
     noToolsExposed: listedTools.length === 0,
     usePlanResourceRead: usePlanPayload?.resourceKind === 'context-pack-use-plan',
     registryResourceRead: registryPayload?.resourceKind === 'context-pack-registry-status',
+    recipientProofValid: Boolean(actualRecipientProof
+      && actualRecipientProof.targetHarness === expectedRecipientProof.targetHarness
+      && actualRecipientProof.resourceMode === expectedRecipientProof.resourceMode
+      && actualRecipientProof.toolsExposed === 0
+      && actualRecipientProof.externalWritesEnabled === false
+      && actualRecipientProof.externalAdaptersEnabled === 0
+      && recipientResourceUris.length === expectedRecipientProof.requiredResourceUris.length
+      && expectedRecipientProof.requiredResourceUris.every((uri) => recipientResourceUris.includes(uri))),
     setupDryRun: setup.dryRun === true,
-    setupUsesSilentNpm: setup.desiredServer.command === 'npm' && setup.desiredServer.args[0] === '--silent'
+    setupUsesInstalledOaf: harnessSetupUsesRunnableOaf(setup.desiredServer)
   };
   const readyChecks = [
     checks.registryFingerprintVerified,
@@ -4435,8 +4617,9 @@ export async function buildContextPackReceiveReport({
     checks.noToolsExposed,
     checks.usePlanResourceRead,
     checks.registryResourceRead,
+    checks.recipientProofValid,
     checks.setupDryRun,
-    checks.setupUsesSilentNpm
+    checks.setupUsesInstalledOaf
   ];
   const state = registryBlocking
     ? 'blocked'
@@ -4455,12 +4638,12 @@ export async function buildContextPackReceiveReport({
     reasonCodes: item.reasonCodes
   }));
   const commands = {
-    createPinnedContextPack: `npm run oaf -- context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target ${normalizedTarget} --write --pin --out context-packs/CONTEXT_PACK.md --format json`,
-    checkRegistry: `npm --silent run oaf -- context registry status --read-only --root . --workspace ${workspaceId} --format json`,
-    readUsePlan: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --uri ${usePlanResourceUri} --format json`,
-    readRegistry: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --uri ${registryResourceUri} --format json`,
-    previewSetup: `npm --silent run oaf -- harness setup status --client ${setupClient} --server oaf --dry-run --format json`,
-    startReadOnlyBridge: `npm --silent run oaf -- mcp resources --read-only --root . --workspace ${workspaceId} --stdio`
+    createPinnedContextPack: oafCommand(`context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target ${normalizedTarget} --write --pin --out context-packs/CONTEXT_PACK.md --format json`),
+    checkRegistry: oafCommand(`context registry status --read-only --root . --workspace ${workspaceId} --format json`),
+    readUsePlan: oafCommand(`mcp resources --read-only --root . --workspace ${workspaceId} --uri ${usePlanResourceUri} --format json`),
+    readRegistry: oafCommand(`mcp resources --read-only --root . --workspace ${workspaceId} --uri ${registryResourceUri} --format json`),
+    previewSetup: oafCommand(`harness setup status --client ${setupClient} --server oaf --dry-run --format json`),
+    startReadOnlyBridge: oafCommand(`mcp resources --read-only --root . --workspace ${workspaceId} --stdio`)
   };
   const report = {
     schemaVersion: '1.0.0',
@@ -4523,6 +4706,7 @@ export async function buildContextPackReceiveReport({
       safeguards: usePlan?.safeguards ?? null
     },
     receiverPacket: buildContextReceiverPacket({
+      workspaceId,
       state,
       targetHarness: normalizedTarget,
       registryStatus,
@@ -4582,6 +4766,11 @@ export async function buildContextPackReceiveReport({
   return report;
 }
 
+function harnessSetupUsesRunnableOaf(server) {
+  return isOafServerInvocation(server, OAF_MCP_RESOURCE_BINARY_ARGS) ||
+    isOafServerInvocation(server, OAF_MCP_TOKEN_SAVER_BINARY_ARGS);
+}
+
 function defaultReceiveTrustedContext(workspaceId) {
   return {
     principal: {
@@ -4603,9 +4792,10 @@ function defaultReceiveTrustedContext(workspaceId) {
   };
 }
 
-function buildContextReceiverPacket({ state, targetHarness, registryStatus, currentEntry, usePlan, requiredLocalReads, commands, checks, listedTools }) {
+function buildContextReceiverPacket({ workspaceId = 'ws_local', state, targetHarness, registryStatus, currentEntry, usePlan, requiredLocalReads, commands, checks, listedTools }) {
   const contextPackFingerprint = currentEntry?.contextPack?.fingerprint ?? usePlan?.contextPack?.fingerprint ?? null;
   const usePlanFingerprint = currentEntry?.usePlan?.fingerprint ?? usePlan?.usePlanFingerprint ?? null;
+  const recipientProof = usePlan?.recipientProof ?? contextPackRecipientProof({ workspaceId, targetHarness });
   const requiredReadCount = Number(usePlan?.requiredLocalReads?.length ?? 0);
   const packetReads = requiredLocalReads.slice(0, 8).map((item) => ({
     locator: item.locator,
@@ -4620,6 +4810,47 @@ function buildContextReceiverPacket({ state, targetHarness, registryStatus, curr
     : state === 'review'
       ? `Pinned ${targetHarness} context pack needs review before use. Check the registry status and rebuild or re-pin if any source, artifact, target, or fingerprint check is not verified.`
       : `No verified pinned ${targetHarness} context pack is available. Pin a context pack before trying to receive it in an agent harness.`;
+  const fingerprints = {
+    registry: registryStatus.registry.registryFingerprint,
+    currentPointer: registryStatus.currentPointer.pointerFingerprint,
+    contextPack: contextPackFingerprint,
+    usePlan: usePlanFingerprint
+  };
+  const proof = {
+    registryFingerprintVerified: checks.registryFingerprintVerified,
+    currentPointerVerified: checks.currentPointerVerified,
+    currentEntryVerified: checks.currentEntryVerified,
+    targetMatches: checks.currentEntryMatchesTarget,
+    usePlanLoaded: checks.usePlanLoaded,
+    usePlanResourceRead: checks.usePlanResourceRead,
+    registryResourceRead: checks.registryResourceRead,
+    recipientProofValid: checks.recipientProofValid,
+    recipientProof,
+    toolsExposed: listedTools.length,
+    externalWritesEnabled: false,
+    externalAdaptersEnabled: 0,
+    sourceContentIncluded: false,
+    markdownBodyIncluded: false,
+    rawSourceBodiesIncluded: false
+  };
+  const readPlan = {
+    requiredReadCount,
+    includedReadCount: packetReads.length,
+    omittedReadCount: Math.max(0, requiredReadCount - packetReads.length),
+    coverage: usePlan?.coverage ?? null,
+    sourceSelection: usePlan ? {
+      candidateUnitCount: usePlan.sourceSelection.candidateUnitCount,
+      selectedUnitCount: usePlan.sourceSelection.selectedUnitCount,
+      selectedUnitRatio: usePlan.sourceSelection.selectedUnitRatio,
+      estimatedReductionRatio: usePlan.sourceSelection.estimatedReductionRatio
+    } : null,
+    delivery: usePlan ? {
+      deliveredUnitCount: usePlan.delivery.deliveredUnitCount,
+      observedReductionRatio: usePlan.delivery.observedReductionRatio,
+      sourceContentIncluded: usePlan.delivery.sourceContentIncluded
+    } : null,
+    requiredReads: packetReads
+  };
   const nextActions = [
     {
       label: 'Check pinned registry',
@@ -4652,52 +4883,46 @@ function buildContextReceiverPacket({ state, targetHarness, registryStatus, curr
       required: false
     }] : [])
   ];
+  const messageParts = [
+    {
+      schemaVersion: '1.0.0',
+      partType: 'summary',
+      contentType: 'text/plain',
+      text: summary
+    },
+    {
+      schemaVersion: '1.0.0',
+      partType: 'proof',
+      contentType: 'application/json',
+      state,
+      reviewNeeded,
+      fingerprints,
+      proof
+    },
+    {
+      schemaVersion: '1.0.0',
+      partType: 'read_plan',
+      contentType: 'application/json',
+      readPlan
+    },
+    {
+      schemaVersion: '1.0.0',
+      partType: 'next_actions',
+      contentType: 'application/json',
+      nextActions
+    }
+  ];
   return {
     packetVersion: 'oaf-context-receiver-packet-1.0.0',
     state,
     targetHarness,
     summary,
     reviewNeeded,
-    fingerprints: {
-      registry: registryStatus.registry.registryFingerprint,
-      currentPointer: registryStatus.currentPointer.pointerFingerprint,
-      contextPack: contextPackFingerprint,
-      usePlan: usePlanFingerprint
-    },
-    proof: {
-      registryFingerprintVerified: checks.registryFingerprintVerified,
-      currentPointerVerified: checks.currentPointerVerified,
-      currentEntryVerified: checks.currentEntryVerified,
-      targetMatches: checks.currentEntryMatchesTarget,
-      usePlanLoaded: checks.usePlanLoaded,
-      usePlanResourceRead: checks.usePlanResourceRead,
-      registryResourceRead: checks.registryResourceRead,
-      toolsExposed: listedTools.length,
-      externalWritesEnabled: false,
-      externalAdaptersEnabled: 0,
-      sourceContentIncluded: false,
-      markdownBodyIncluded: false,
-      rawSourceBodiesIncluded: false
-    },
-    readPlan: {
-      requiredReadCount,
-      includedReadCount: packetReads.length,
-      omittedReadCount: Math.max(0, requiredReadCount - packetReads.length),
-      coverage: usePlan?.coverage ?? null,
-      sourceSelection: usePlan ? {
-        candidateUnitCount: usePlan.sourceSelection.candidateUnitCount,
-        selectedUnitCount: usePlan.sourceSelection.selectedUnitCount,
-        selectedUnitRatio: usePlan.sourceSelection.selectedUnitRatio,
-        estimatedReductionRatio: usePlan.sourceSelection.estimatedReductionRatio
-      } : null,
-      delivery: usePlan ? {
-        deliveredUnitCount: usePlan.delivery.deliveredUnitCount,
-        observedReductionRatio: usePlan.delivery.observedReductionRatio,
-        sourceContentIncluded: usePlan.delivery.sourceContentIncluded
-      } : null,
-      requiredReads: packetReads
-    },
+    fingerprints,
+    proof,
+    readPlan,
     nextActions,
+    messageParts,
     warnings: [...new Set(registryStatus.warnings ?? [])].sort()
   };
 }
@@ -4958,6 +5183,8 @@ export async function buildHarnessSetupReport({
       server: serverState
     },
     desiredServer: desiredHarnessServerSummary(normalizedServer, { bridgeMode: normalizedBridgeMode }),
+    desiredHooks: desiredHarnessHooks(normalizedClient),
+    manualHookSnippet: harnessManualHookSnippet(normalizedClient),
     manualConfigSnippet: harnessManualConfigSnippet({
       client: normalizedClient,
       server: normalizedServer,
@@ -5059,15 +5286,47 @@ function harnessSetupSafeguards() {
 }
 
 function desiredHarnessServerSummary(server, { bridgeMode = 'resources' } = {}) {
-  const args = bridgeMode === 'token-saver' ? [...OAF_MCP_TOKEN_SAVER_ARGS] : [...OAF_MCP_RESOURCE_ARGS];
+  const binaryArgs = bridgeMode === 'token-saver' ? [...OAF_MCP_TOKEN_SAVER_BINARY_ARGS] : [...OAF_MCP_RESOURCE_BINARY_ARGS];
+  const invocation = oafServerCommand(binaryArgs);
   return {
     name: server,
     transport: 'stdio',
-    command: 'npm',
-    args,
+    command: invocation.command,
+    args: invocation.args,
     environmentKeys: [],
     resourceMode: bridgeMode === 'token-saver' ? 'read-only-token-saver' : 'read-only',
     externalWrites: false
+  };
+}
+
+function desiredHarnessHooks(client) {
+  const supported = ['codex', 'claude-code'].includes(client.id);
+  return {
+    supported,
+    applyMode: 'manual-copy',
+    events: supported ? ['SessionStart', 'UserPromptSubmit', 'PreCompact'] : [],
+    command: supported
+      ? (sourceCheckoutHasOafScript() ? oafCommand('hook context --read-only --format text') : OAF_HOOK_CONTEXT_COMMAND)
+      : null,
+    authority: 'none',
+    externalWrites: false
+  };
+}
+
+function harnessManualHookSnippet(client) {
+  const desired = desiredHarnessHooks(client);
+  const configRef = client.id === 'codex' ? 'home://.codex/hooks.json' : client.id === 'claude-code' ? 'home://.claude/settings.json' : `home://${toPosix(client.configPath)}`;
+  const content = desired.supported
+    ? JSON.stringify({ hooks: Object.fromEntries(desired.events.map((event) => [event, [{ hooks: [{ type: 'command', command: desired.command, timeout: 5 }] }]])) }, null, 2)
+    : '';
+  return {
+    format: 'json',
+    configRef,
+    applyMode: 'manual-copy',
+    content,
+    warning: desired.supported
+      ? 'Preview only. OAF hook commands are read-only and do not grant authority or write memory.'
+      : 'This harness has no OAF hook snippet yet; use the read-only MCP bridge.'
   };
 }
 
@@ -5103,12 +5362,8 @@ function harnessManualConfigSnippet({ client, server, bridgeMode = 'resources', 
 
 function classifyHarnessServer(server, { bridgeMode = 'resources' } = {}) {
   if (!server) return 'absent';
-  const expectedArgs = bridgeMode === 'token-saver' ? OAF_MCP_TOKEN_SAVER_ARGS : OAF_MCP_RESOURCE_ARGS;
-  if (
-    server.command === 'npm' &&
-    Array.isArray(server.args) &&
-    arraysEqual(server.args, expectedArgs)
-  ) return 'installed';
+  const binaryArgs = bridgeMode === 'token-saver' ? OAF_MCP_TOKEN_SAVER_BINARY_ARGS : OAF_MCP_RESOURCE_BINARY_ARGS;
+  if (isOafServerInvocation(server, binaryArgs)) return 'installed';
   return 'drifted';
 }
 

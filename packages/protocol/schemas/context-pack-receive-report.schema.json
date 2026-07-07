@@ -27,7 +27,7 @@
     "command": { "const": "context receive" },
     "generatedAt": { "type": "string", "format": "date-time" },
     "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
-    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
     "state": { "enum": ["ready", "review", "blocked"] },
     "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
     "measurementScope": { "const": "single pinned context-pack registry/use-plan verification, MCP read-only resource proof, and harness setup status dry-run" },
@@ -48,7 +48,7 @@
     "maybeEntryId": { "type": ["string", "null"], "pattern": "^ctxpin_[a-f0-9]{24}$" },
     "usePlanId": { "type": "string", "pattern": "^ctxuse_[a-f0-9]{24}$" },
     "maybeUsePlanId": { "type": ["string", "null"], "pattern": "^ctxuse_[a-f0-9]{24}$" },
-    "harness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "harness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
     "setupClient": { "enum": ["codex", "cursor", "claude-code", "opencode", "aider"] },
     "status": { "enum": ["verified", "tampered", "missing"] },
     "entryStatus": { "enum": ["verified", "stale", "tampered", "review", "missing"] },
@@ -61,9 +61,32 @@
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/reasonCode" }
     },
+    "contextPackResourceUri": {
+      "type": "string",
+      "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/(use-plan|registry)/current$"
+    },
+    "recipientProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetHarness", "resourceMode", "requiredResourceUris", "toolsExposed", "externalWritesEnabled", "externalAdaptersEnabled"],
+      "properties": {
+        "targetHarness": { "$ref": "#/$defs/harness" },
+        "resourceMode": { "const": "read-only" },
+        "requiredResourceUris": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/contextPackResourceUri" }
+        },
+        "toolsExposed": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 }
+      }
+    },
     "locator": {
       "type": "string",
-      "pattern": "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+      "pattern": "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
     },
     "artifactLocator": {
       "type": ["string", "null"],
@@ -126,7 +149,7 @@
         "registryFingerprint": { "$ref": "#/$defs/maybeHash" },
         "currentPointerFingerprint": { "$ref": "#/$defs/maybeHash" },
         "entryCount": { "type": "integer", "minimum": 0, "maximum": 50 },
-        "currentTargetHarness": { "type": ["string", "null"], "enum": ["codex", "claude-code", "cursor", "generic", null] },
+        "currentTargetHarness": { "type": ["string", "null"], "enum": ["codex", "claude-code", "cursor", "a2a", "generic", null] },
         "contextPackFingerprint": { "$ref": "#/$defs/maybeHash" },
         "usePlanFingerprint": { "$ref": "#/$defs/maybeHash" },
         "sourceChecks": { "$ref": "#/$defs/sourceChecks" },
@@ -243,6 +266,8 @@
         "usePlanLoaded",
         "usePlanResourceRead",
         "registryResourceRead",
+        "recipientProofValid",
+        "recipientProof",
         "toolsExposed",
         "externalWritesEnabled",
         "externalAdaptersEnabled",
@@ -258,6 +283,8 @@
         "usePlanLoaded": { "type": "boolean" },
         "usePlanResourceRead": { "type": "boolean" },
         "registryResourceRead": { "type": "boolean" },
+        "recipientProofValid": { "type": "boolean" },
+        "recipientProof": { "$ref": "#/$defs/recipientProof" },
         "toolsExposed": { "type": "integer", "minimum": 0, "maximum": 0 },
         "externalWritesEnabled": { "const": false },
         "externalAdaptersEnabled": { "const": 0 },
@@ -300,6 +327,30 @@
         "required": { "type": "boolean" }
       }
     },
+    "receiverMessagePart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "partType", "contentType"],
+      "minProperties": 3,
+      "maxProperties": 7,
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "partType": { "enum": ["summary", "proof", "read_plan", "next_actions"] },
+        "contentType": { "enum": ["text/plain", "application/json"] },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600,
+          "pattern": "^(?!.*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|https?://|file:|authorization|cookie|secret=|api[_-]?key=)).*$"
+        },
+        "state": { "enum": ["ready", "review", "blocked"] },
+        "reviewNeeded": { "type": "boolean" },
+        "fingerprints": { "$ref": "#/$defs/receiverFingerprints" },
+        "proof": { "$ref": "#/$defs/receiverProof" },
+        "readPlan": { "$ref": "#/$defs/receiverReadPlan" },
+        "nextActions": { "type": "array", "minItems": 1, "maxItems": 5, "items": { "$ref": "#/$defs/receiverNextAction" } }
+      }
+    },
     "receiverPacket": {
       "type": "object",
       "additionalProperties": false,
@@ -313,6 +364,7 @@
         "proof",
         "readPlan",
         "nextActions",
+        "messageParts",
         "warnings"
       ],
       "properties": {
@@ -330,6 +382,7 @@
         "proof": { "$ref": "#/$defs/receiverProof" },
         "readPlan": { "$ref": "#/$defs/receiverReadPlan" },
         "nextActions": { "type": "array", "minItems": 1, "maxItems": 5, "items": { "$ref": "#/$defs/receiverNextAction" } },
+        "messageParts": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/receiverMessagePart" } },
         "warnings": { "$ref": "#/$defs/reasonCodes" }
       }
     },
@@ -397,7 +450,7 @@
         "exists": { "type": "boolean" },
         "resourceUri": { "type": ["string", "null"], "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/use-plan/current$" },
         "id": { "$ref": "#/$defs/maybeUsePlanId" },
-        "targetHarness": { "type": ["string", "null"], "enum": ["codex", "claude-code", "cursor", "generic", null] },
+        "targetHarness": { "type": ["string", "null"], "enum": ["codex", "claude-code", "cursor", "a2a", "generic", null] },
         "contextPackFingerprint": { "$ref": "#/$defs/maybeHash" },
         "usePlanFingerprint": { "$ref": "#/$defs/maybeHash" },
         "requiredReadCount": { "type": "integer", "minimum": 0, "maximum": 128 },
@@ -444,12 +497,17 @@
       "properties": {
         "name": { "const": "oaf" },
         "transport": { "const": "stdio" },
-        "command": { "const": "npm" },
+        "command": { "enum": ["oaf", "npm"] },
         "args": {
           "type": "array",
-          "minItems": 8,
+          "minItems": 4,
           "maxItems": 8,
-          "items": { "enum": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"] }
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 220,
+            "pattern": "^(?!.*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\\s\\S]*$"
+          }
         },
         "environmentKeys": { "type": "array", "maxItems": 0 },
         "resourceMode": { "const": "read-only" },
@@ -519,8 +577,9 @@
         "noToolsExposed",
         "usePlanResourceRead",
         "registryResourceRead",
+        "recipientProofValid",
         "setupDryRun",
-        "setupUsesSilentNpm"
+        "setupUsesInstalledOaf"
       ],
       "properties": {
         "registryFingerprintVerified": { "type": "boolean" },
@@ -533,8 +592,9 @@
         "noToolsExposed": { "type": "boolean" },
         "usePlanResourceRead": { "type": "boolean" },
         "registryResourceRead": { "type": "boolean" },
+        "recipientProofValid": { "type": "boolean" },
         "setupDryRun": { "type": "boolean" },
-        "setupUsesSilentNpm": { "type": "boolean" }
+        "setupUsesInstalledOaf": { "type": "boolean" }
       }
     },
     "safeguards": {

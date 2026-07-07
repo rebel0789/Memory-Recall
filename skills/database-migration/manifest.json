@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:database-migration",
   "name": "Database Migration",
+  "description": "Design ordered, checksummed migrations with compatibility, recovery, and tamper checks.",
   "version": "0.1.0",
   "triggers": [
     "migration",

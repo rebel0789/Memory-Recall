@@ -14,6 +14,7 @@
     "commitSha",
     "measurementScope",
     "launchPrompt",
+    "handoffParts",
     "request",
     "contextPack",
     "usePlan",
@@ -28,15 +29,17 @@
     "command": { "const": "context handoff" },
     "generatedAt": { "type": "string", "format": "date-time" },
     "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
-    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
     "state": { "enum": ["ready", "review"] },
     "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
     "measurementScope": { "const": "single local context-pack build, MCP readback, and harness setup dry-run" },
     "launchPrompt": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "handoffParts": { "$ref": "#/$defs/handoffParts" },
     "request": { "$ref": "#/$defs/request" },
     "contextPack": { "$ref": "#/$defs/contextPack" },
     "usePlan": { "$ref": "#/$defs/usePlan" },
     "memoryProposalPreflight": { "$ref": "#/$defs/memoryProposalPreflight" },
+    "skillCatalog": { "$ref": "#/$defs/skillCatalog" },
     "mcp": { "$ref": "#/$defs/mcp" },
     "commands": { "$ref": "#/$defs/commands" },
     "checks": { "$ref": "#/$defs/checks" },
@@ -52,7 +55,7 @@
     "byteSize": { "type": "integer", "minimum": 0, "maximum": 2000000 },
     "locator": {
       "type": "string",
-      "pattern": "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+      "pattern": "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
     },
     "reasonCode": { "type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[a-z][a-z0-9_:-]*$" },
     "coverage": {
@@ -64,6 +67,57 @@
         "covered": { "$ref": "#/$defs/count" },
         "ratio": { "$ref": "#/$defs/ratio" },
         "status": { "enum": ["not_applicable", "covered", "partial"] }
+      }
+    },
+    "handoffParts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/handoffPart" }
+    },
+    "handoffPart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "order",
+        "partType",
+        "schemaVersion",
+        "title",
+        "resourceUri",
+        "commandKey",
+        "fingerprint",
+        "payloadIncluded",
+        "reasonCodes"
+      ],
+      "properties": {
+        "order": { "type": "integer", "minimum": 1, "maximum": 8 },
+        "partType": {
+          "enum": ["launch_instruction", "context_pack_resource", "use_plan_resource", "safeguards"]
+        },
+        "schemaVersion": { "const": "1.0.0" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^(?![\\s\\S]*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=))[\\s\\S]*$"
+        },
+        "resourceUri": {
+          "type": ["string", "null"],
+          "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/(?:current|use-plan/current)$"
+        },
+        "commandKey": {
+          "type": ["string", "null"],
+          "enum": ["readCurrentContextPack", null]
+        },
+        "fingerprint": { "$ref": "#/$defs/hash" },
+        "payloadIncluded": { "const": false },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reasonCode" }
+        }
       }
     },
     "request": {
@@ -181,6 +235,7 @@
       "required": [
         "resourceUri",
         "contextPackFingerprint",
+        "usePlanFingerprint",
         "requiredReadCount",
         "requiredLocalReads",
         "truncatedRequiredReadCount",
@@ -190,6 +245,7 @@
       "properties": {
         "resourceUri": { "type": "string", "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/use-plan/current$" },
         "contextPackFingerprint": { "$ref": "#/$defs/hash" },
+        "usePlanFingerprint": { "$ref": "#/$defs/hash" },
         "requiredReadCount": { "type": "integer", "minimum": 0, "maximum": 128 },
         "requiredLocalReads": {
           "type": "array",
@@ -220,7 +276,7 @@
         "configured": { "type": "boolean" },
         "configRef": {
           "type": ["string", "null"],
-          "pattern": "^workspace://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+          "pattern": "^workspace://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}$"
         },
         "command": {
           "type": "string",
@@ -302,6 +358,115 @@
         }
       }
     },
+    "skillCatalogSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "advertisedSkillCount",
+        "loadableOnlySkillCount",
+        "readOnlyCount",
+        "reversibleWriteCount",
+        "consequentialWriteCount",
+        "writableSkillCount",
+        "bySideEffectClass",
+        "uniqueToolCount",
+        "toolIds",
+        "advertisedToolCount",
+        "advertisedToolIds"
+      ],
+      "properties": {
+        "total": { "$ref": "#/$defs/count" },
+        "advertisedSkillCount": { "$ref": "#/$defs/count" },
+        "loadableOnlySkillCount": { "$ref": "#/$defs/count" },
+        "readOnlyCount": { "$ref": "#/$defs/count" },
+        "reversibleWriteCount": { "$ref": "#/$defs/count" },
+        "consequentialWriteCount": { "$ref": "#/$defs/count" },
+        "writableSkillCount": { "$ref": "#/$defs/count" },
+        "bySideEffectClass": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["read-only", "reversible-write", "consequential-write"],
+          "properties": {
+            "read-only": { "$ref": "#/$defs/count" },
+            "reversible-write": { "$ref": "#/$defs/count" },
+            "consequential-write": { "$ref": "#/$defs/count" }
+          }
+        },
+        "uniqueToolCount": { "$ref": "#/$defs/count" },
+        "toolIds": {
+          "type": "array",
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^tool:[A-Za-z0-9._:-]{1,120}$" }
+        },
+        "advertisedToolCount": { "$ref": "#/$defs/count" },
+        "advertisedToolIds": {
+          "type": "array",
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^tool:[A-Za-z0-9._:-]{1,120}$" }
+        }
+      }
+    },
+    "skillCatalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "configured",
+        "command",
+        "summary",
+        "catalogFingerprint",
+        "reasonCodes",
+        "safeguards"
+      ],
+      "properties": {
+        "state": { "enum": ["ready", "unavailable"] },
+        "configured": { "type": "boolean" },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "^(?:oaf|npm --silent run oaf --) skill catalog --read-only --root \\. --format json$"
+        },
+        "summary": { "$ref": "#/$defs/skillCatalogSummary" },
+        "catalogFingerprint": { "$ref": "#/$defs/maybeHash" },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reasonCode" }
+        },
+        "safeguards": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "readOnly",
+            "localFilesWritten",
+            "networkCalls",
+            "modelCalls",
+            "rawSkillTextIncluded",
+            "absoluteFilesystemLocationsIncluded",
+            "externalWritesEnabled",
+            "toolAuthorityGranted",
+            "catalogReportFingerprint"
+          ],
+          "properties": {
+            "readOnly": { "const": true },
+            "localFilesWritten": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "networkCalls": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "modelCalls": { "type": "integer", "minimum": 0, "maximum": 0 },
+            "rawSkillTextIncluded": { "const": false },
+            "absoluteFilesystemLocationsIncluded": { "const": false },
+            "externalWritesEnabled": { "const": false },
+            "toolAuthorityGranted": { "const": false },
+            "catalogReportFingerprint": { "$ref": "#/$defs/maybeHash" }
+          }
+        }
+      }
+    },
     "desiredServer": {
       "type": "object",
       "additionalProperties": false,
@@ -309,12 +474,17 @@
       "properties": {
         "name": { "const": "oaf" },
         "transport": { "const": "stdio" },
-        "command": { "const": "npm" },
+        "command": { "enum": ["oaf", "npm"] },
         "args": {
           "type": "array",
-          "minItems": 8,
+          "minItems": 4,
           "maxItems": 8,
-          "items": { "enum": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"] }
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 220,
+            "pattern": "^(?!.*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\\s\\S]*$"
+          }
         },
         "environmentKeys": { "type": "array", "maxItems": 0 },
         "resourceMode": { "const": "read-only" },
@@ -386,12 +556,24 @@
     "commands": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["previewSetup", "startMcpBridge", "readCurrentContextPack", "renderMarkdown"],
+      "required": ["previewSetup", "startMcpBridge", "readCurrentContextPack", "renderMarkdown", "refineMemory"],
       "properties": {
         "previewSetup": { "type": "string", "minLength": 1, "maxLength": 2000 },
         "startMcpBridge": { "type": "string", "minLength": 1, "maxLength": 6000 },
         "readCurrentContextPack": { "type": "string", "minLength": 1, "maxLength": 6000 },
-        "renderMarkdown": { "type": "string", "minLength": 1, "maxLength": 6000 }
+        "renderMarkdown": { "type": "string", "minLength": 1, "maxLength": 6000 },
+        "refineMemory": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "^(?:oaf|npm --silent run oaf --) memory refine --read-only --root \\. --sqlite \\.local/memory\\.sqlite --target-active-facts 200 --format json$"
+        },
+        "catalogSkills": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "pattern": "^(?:oaf|npm --silent run oaf --) skill catalog --read-only --root \\. --format json$"
+        }
       }
     },
     "checks": {
@@ -404,7 +586,7 @@
         "noToolsExposed",
         "noMarkdownBody",
         "setupDryRun",
-        "setupUsesSilentNpm"
+        "setupUsesInstalledOaf"
       ],
       "properties": {
         "contextPackFingerprintMatchesMcp": { "const": true },
@@ -413,7 +595,7 @@
         "noToolsExposed": { "const": true },
         "noMarkdownBody": { "const": true },
         "setupDryRun": { "const": true },
-        "setupUsesSilentNpm": { "const": true }
+        "setupUsesInstalledOaf": { "const": true }
       }
     },
     "safeguards": {

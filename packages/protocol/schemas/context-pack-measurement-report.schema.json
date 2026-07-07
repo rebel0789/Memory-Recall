@@ -27,7 +27,7 @@
     "command": { "const": "measure context-pack" },
     "generatedAt": { "type": "string", "format": "date-time" },
     "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
-    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
     "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
     "measurementScope": { "const": "single local context-pack build plus stdio readback" },
     "request": { "$ref": "#/$defs/request" },
@@ -216,7 +216,7 @@
         "briefVersion": { "const": "oaf-context-impact-brief-1.0.0" },
         "generatedAt": { "type": "string", "format": "date-time" },
         "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
-        "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+        "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
         "status": { "enum": ["ready", "review"] },
         "request": {
           "type": "object",

@@ -12,6 +12,7 @@
     "model.generate.text",
     "model.structured-output",
     "model.local-loopback",
+    "model.local-metadata",
     "model.safe-events",
     "model.bounded-repair"
   ],
@@ -27,6 +28,7 @@
   "experimental": true,
   "notes": [
     "Requires a separately installed Ollama server and an explicitly selected local model.",
+    "Health checks report safe installed-model metadata such as family, parameter size, and quantization level when Ollama provides it.",
     "Never falls back to a cloud provider."
   ]
 }

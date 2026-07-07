@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { buildOafReadOnlyResourceCatalog, createMcpBridge } from '../packages/protocol-bridges/src/index.mjs';
 import { buildContextPackUsePlan } from '../packages/harness-context/src/index.mjs';
+import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
+import mcpReadOnlyResourceSchema from '../packages/protocol/schemas/mcp-readonly-resource.schema.json' with { type: 'json' };
+import memoryRefineReport from '../examples/protocol/memory-refine-report.json' with { type: 'json' };
 
 const trustedContext = {
   principal: {
@@ -38,6 +41,60 @@ function readTool(handler = async ({ arguments: args }) => ({ content: [{ type: 
   };
 }
 
+function skillLoadPlan(overrides = {}) {
+  return {
+    schemaVersion: '1.0.0',
+    command: 'skill load-plan',
+    generatedAt: '2026-07-05T00:00:00.000Z',
+    workspaceId: 'ws_mcp',
+    rootRef: 'workspace://.',
+    skill: {
+      id: 'skill:oaf-memory',
+      name: 'OAF Memory Mapper',
+      description: 'Map project decisions into proposal-gated OAF memory.',
+      version: '0.1.0',
+      advertised: true,
+      directoryRef: 'workspace://skills/oaf-memory',
+      manifestRef: 'workspace://skills/oaf-memory/manifest.json',
+      skillRef: 'workspace://skills/oaf-memory/SKILL.md',
+      sideEffectClass: 'reversible-write',
+      triggers: ['/oaf-memory'],
+      tools: ['tool:filesystem-read'],
+      references: [],
+      readiness: {
+        state: 'review',
+        approvalRequired: true,
+        unreviewedToolIds: [],
+        reasonCodes: ['write_skill_requires_approval']
+      },
+      manifestFingerprint: `sha256:${'a'.repeat(64)}`,
+      checks: {
+        manifestValid: true,
+        skillDocumentPresent: true,
+        referencesPresent: true
+      }
+    },
+    requiredLocalReads: [
+      { order: 1, kind: 'manifest', ref: 'workspace://skills/oaf-memory/manifest.json', reason: 'Validate skill metadata before reading instructions.' },
+      { order: 2, kind: 'skill', ref: 'workspace://skills/oaf-memory/SKILL.md', reason: 'Read instructions only after the trigger matches.' }
+    ],
+    catalogFingerprint: `sha256:${'b'.repeat(64)}`,
+    safeguards: {
+      readOnly: true,
+      canonicalStateMutated: false,
+      localFilesWritten: 0,
+      externalWritesEnabled: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      rawSkillTextIncluded: false,
+      toolAuthorityGranted: false,
+      absoluteFilesystemLocationsIncluded: false
+    },
+    loadPlanFingerprint: `sha256:${'c'.repeat(64)}`,
+    ...overrides
+  };
+}
+
 function writeTool() {
   return {
     name: 'oaf.writeDraft',
@@ -56,6 +113,61 @@ function resource() {
     description: 'Sanitized run summary',
     mimeType: 'application/json',
     read: async () => [{ uri: 'oaf://workspace/ws_mcp/runs/run_demo', mimeType: 'application/json', text: '{"status":"completed"}' }]
+  };
+}
+
+function toolCatalog(overrides = {}) {
+  return {
+    state: 'ready',
+    configured: true,
+    summary: {
+      toolCount: 1,
+      enabledToolCount: 1,
+      reviewedToolCount: 1,
+      disabledToolCount: 0,
+      operationCount: 1,
+      sideEffectClassCounts: { 'read-only': 1 },
+      writableOperationCount: 0,
+      approvalRequiredOperationCount: 0,
+      idempotencyRequiredOperationCount: 0,
+      networkTargetCount: 0,
+      credentialReferenceCount: 0
+    },
+    tools: [{
+      id: 'tool:filesystem-read',
+      name: 'Read bounded workspace files',
+      version: '1.0.0',
+      enabled: true,
+      reviewStatus: 'reviewed',
+      reviewVersion: 'OAF-015',
+      manifestRef: 'workspace://tools/manifests/brokered-filesystem-read.json',
+      reviewedManifestSha256: `sha256:${'c'.repeat(64)}`,
+      manifestFingerprint: `sha256:${'d'.repeat(64)}`,
+      operations: [{
+        name: 'readFile',
+        sideEffectClass: 'read-only',
+        approvalRequired: false,
+        idempotencyRequired: false,
+        dataClasses: ['workspace-private'],
+        filesystemReadScopes: ['workspace:root'],
+        filesystemWriteScopes: [],
+        networkTargetCount: 0,
+        credentialReferenceCount: 0
+      }]
+    }],
+    toolCatalogFingerprint: `sha256:${'e'.repeat(64)}`,
+    reasonCodes: ['tool_catalog_validated'],
+    safeguards: {
+      readOnly: true,
+      localFilesWritten: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      toolAuthorityGranted: false,
+      manifestTextIncluded: false,
+      absoluteFilesystemLocationsIncluded: false,
+      remoteEndpointDetailsIncluded: false
+    },
+    ...overrides
   };
 }
 
@@ -341,6 +453,8 @@ test('MCP bridge initializes and lists tools/resources only with trusted identit
   assert.deepEqual(tools.result.tools.map((tool) => tool.name), ['oaf.readRun']);
   const resources = await bridge.handle({ jsonrpc: '2.0', id: 3, method: 'resources/list' });
   assert.deepEqual(resources.result.resources.map((item) => item.uri), ['oaf://workspace/ws_mcp/runs/run_demo']);
+  assert.equal(resources.result.resources[0].title, 'run_demo');
+  assert.deepEqual(resources.result.resources[0].annotations, { audience: ['assistant'], priority: 0.5 });
   const prompts = await bridge.handle({ jsonrpc: '2.0', id: 4, method: 'prompts/list' });
   assert.deepEqual(prompts.result, { prompts: [] });
 });
@@ -613,6 +727,9 @@ test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped reso
     'oaf://workspace/ws_mcp/memory/proposals',
     'oaf://workspace/ws_mcp/handoff/latest'
   ]);
+  const contextResource = listed.result.resources.find((item) => item.uri === 'oaf://workspace/ws_mcp/context/latest');
+  assert.equal(contextResource.title, 'Latest context manifest summary');
+  assert.deepEqual(contextResource.annotations, { audience: ['assistant'], priority: 0.9 });
 
   const first = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context/latest' } });
   const second = await bridge.handle({ jsonrpc: '2.0', id: 3, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context/latest' } });
@@ -663,6 +780,98 @@ test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped reso
   assert.equal(handoffText.includes('token=secret-value'), false);
   assert.equal(handoffText.includes('run_other'), false);
   assert.equal(JSON.stringify(state), before);
+});
+
+test('OAF read-only MCP resource catalog exposes sanitized skill load plans', async () => {
+  const resources = buildOafReadOnlyResourceCatalog({
+    skillLoadPlans: [skillLoadPlan()],
+    workspaceId: 'ws_mcp',
+    generatedAt: '2026-07-05T00:00:00.000Z'
+  });
+  const bridge = createMcpBridge({ trustedContext, resources });
+  const listed = await bridge.handle({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
+  assert(listed.result.resources.some((item) => item.uri === 'oaf://workspace/ws_mcp/skills/oaf-memory/load-plan'));
+
+  const read = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/skills/oaf-memory/load-plan' } });
+  const payload = JSON.parse(read.result.contents[0].text);
+  assertJsonSchema(mcpReadOnlyResourceSchema, payload, 'mcp skill load-plan resource payload');
+  assert.equal(payload.resourceKind, 'skill-load-plan');
+  assert.equal(payload.provenance.source, 'local-skill-load-plan');
+  assert.equal(payload.data.skill.id, 'skill:oaf-memory');
+  assert.deepEqual(payload.data.requiredLocalReads.map((item) => item.ref), [
+    'workspace://skills/oaf-memory/manifest.json',
+    'workspace://skills/oaf-memory/SKILL.md'
+  ]);
+  assert.equal(payload.data.safeguards.rawSkillTextIncluded, undefined);
+  assert.equal(payload.data.safeguards.skillTextIncluded, false);
+  assert.equal(payload.data.safeguards.toolAuthorityGranted, false);
+  assert.equal(JSON.stringify(payload).includes('/Users/rebel'), false);
+  assert.equal(JSON.stringify(payload).includes('Never auto-approve'), false);
+});
+
+test('OAF read-only MCP resource catalog exposes memory refine reports without writes', async () => {
+  const resources = buildOafReadOnlyResourceCatalog({
+    memoryRefineReport,
+    workspaceId: 'ws_mcp',
+    generatedAt: '2026-07-05T00:00:00.000Z'
+  });
+  const bridge = createMcpBridge({ trustedContext, resources });
+  const listed = await bridge.handle({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
+  assert(listed.result.resources.some((item) => item.uri === 'oaf://workspace/ws_mcp/memory/refine'));
+
+  const read = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/memory/refine' } });
+  const payload = JSON.parse(read.result.contents[0].text);
+  assertJsonSchema(mcpReadOnlyResourceSchema, payload, 'mcp memory refine resource payload');
+  assert.equal(payload.resourceKind, 'memory-refine-report');
+  assert.equal(payload.provenance.source, 'local-memory-refine');
+  assert.equal(payload.data.command, 'memory refine');
+  assert.equal(payload.data.summary.lowConfidenceCandidateCount, 1);
+  assert.equal(payload.data.safeguards.readOnly, true);
+  assert.equal(payload.data.safeguards.canonicalStateMutated, false);
+  assert.equal(payload.data.safeguards.networkCalls, 0);
+  assert.equal(payload.data.safeguards.modelCalls, 0);
+  assert.equal(JSON.stringify(payload).includes('/Users/rebel'), false);
+  assert.equal(JSON.stringify(payload).includes('OPENAI_API_KEY'), false);
+});
+
+test('OAF read-only MCP resource catalog exposes reviewed tool catalog without grants', async () => {
+  const resources = buildOafReadOnlyResourceCatalog({
+    toolCatalog: toolCatalog(),
+    workspaceId: 'ws_mcp',
+    generatedAt: '2026-07-05T00:00:00.000Z'
+  });
+  const bridge = createMcpBridge({ trustedContext, resources });
+  const listed = await bridge.handle({ jsonrpc: '2.0', id: 1, method: 'resources/list' });
+  assert(listed.result.resources.some((item) => item.uri === 'oaf://workspace/ws_mcp/tools/catalog'));
+
+  const read = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/tools/catalog' } });
+  const payload = JSON.parse(read.result.contents[0].text);
+  assertJsonSchema(mcpReadOnlyResourceSchema, payload, 'mcp tool catalog resource payload');
+  assert.equal(payload.resourceKind, 'tool-catalog-summary');
+  assert.equal(payload.provenance.source, 'local-tool-catalog');
+  assert.equal(payload.data.summary.toolCount, 1);
+  assert.equal(payload.data.summary.operationCount, 1);
+  assert.equal(payload.data.tools[0].id, 'tool:filesystem-read');
+  assert.equal(payload.data.tools[0].operations[0].sideEffectClass, 'read-only');
+  assert.equal(payload.data.safeguards.toolAuthorityGranted, false);
+  assert.equal(payload.data.safeguards.manifestTextIncluded, false);
+  assert.equal(JSON.stringify(payload).includes('/Users/rebel'), false);
+  assert.equal(JSON.stringify(payload).includes('handler:'), false);
+});
+
+test('OAF read-only MCP resource catalog rejects unsafe skill load plans', () => {
+  assert.throws(
+    () => buildOafReadOnlyResourceCatalog({
+      skillLoadPlans: [skillLoadPlan({
+        requiredLocalReads: [
+          { order: 1, kind: 'manifest', ref: 'workspace://skills/oaf-memory/manifest.json', reason: 'ok' },
+          { order: 2, kind: 'skill', ref: 'file:///Users/rebel/private/SKILL.md', reason: 'bad' }
+        ]
+      })],
+      workspaceId: 'ws_mcp'
+    }),
+    /skill load plan failed schema validation|skill load plan contains unsafe/
+  );
 });
 
 test('OAF read-only MCP resource catalog can expose an opt-in current context-pack summary', async () => {

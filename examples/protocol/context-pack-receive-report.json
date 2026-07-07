@@ -25,7 +25,11 @@
       "verified": 3,
       "stale": 0,
       "unavailable": 0,
-      "verifiedLocators": ["workspace://AGENTS.md", "user-selected://notes/handoff.md", "workspace://src/auth.ts"],
+      "verifiedLocators": [
+        "workspace://AGENTS.md",
+        "user-selected://notes/handoff.md",
+        "workspace://src/auth.ts"
+      ],
       "staleLocators": [],
       "unavailableLocators": []
     },
@@ -36,7 +40,9 @@
         "expectedHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         "actualHash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         "status": "verified",
-        "reasonCodes": ["artifact_hash_verified"]
+        "reasonCodes": [
+          "artifact_hash_verified"
+        ]
       },
       {
         "role": "use-plan",
@@ -44,7 +50,9 @@
         "expectedHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
         "actualHash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
         "status": "verified",
-        "reasonCodes": ["artifact_hash_verified"]
+        "reasonCodes": [
+          "artifact_hash_verified"
+        ]
       }
     ],
     "warnings": []
@@ -65,7 +73,11 @@
         "represented": true,
         "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
         "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex.",
-        "reasonCodes": ["explicit_requirement", "selected_context", "token_efficient"]
+        "reasonCodes": [
+          "explicit_requirement",
+          "selected_context",
+          "token_efficient"
+        ]
       },
       {
         "locator": "user-selected://notes/handoff.md",
@@ -74,7 +86,11 @@
         "represented": true,
         "contentHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
         "readHint": "Read user-selected://notes/handoff.md from the local workspace because it was explicitly included for this handoff.",
-        "reasonCodes": ["content_hash_verified", "explicit_user_file", "read_before_handoff"]
+        "reasonCodes": [
+          "content_hash_verified",
+          "explicit_user_file",
+          "read_before_handoff"
+        ]
       },
       {
         "locator": "workspace://src/auth.ts",
@@ -83,13 +99,27 @@
         "represented": true,
         "contentHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
         "readHint": "Read workspace://src/auth.ts from the local workspace before editing or reviewing this changed file.",
-        "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"]
+        "reasonCodes": [
+          "changed_locator_supplied",
+          "content_hash_verified",
+          "read_before_edit"
+        ]
       }
     ],
     "truncatedRequiredReadCount": 0,
     "coverage": {
-      "changedLocators": { "total": 1, "covered": 1, "ratio": 1, "status": "covered" },
-      "graphHints": { "total": 4, "covered": 3, "ratio": 0.75, "status": "partial" }
+      "changedLocators": {
+        "total": 1,
+        "covered": 1,
+        "ratio": 1,
+        "status": "covered"
+      },
+      "graphHints": {
+        "total": 4,
+        "covered": 3,
+        "ratio": 0.75,
+        "status": "partial"
+      }
     },
     "sourceSelection": {
       "candidateUnitCount": 2400,
@@ -145,6 +175,18 @@
       "usePlanLoaded": true,
       "usePlanResourceRead": true,
       "registryResourceRead": true,
+      "recipientProofValid": true,
+      "recipientProof": {
+        "targetHarness": "codex",
+        "resourceMode": "read-only",
+        "requiredResourceUris": [
+          "oaf://workspace/ws_local/context-pack/use-plan/current",
+          "oaf://workspace/ws_local/context-pack/registry/current"
+        ],
+        "toolsExposed": 0,
+        "externalWritesEnabled": false,
+        "externalAdaptersEnabled": 0
+      },
       "toolsExposed": 0,
       "externalWritesEnabled": false,
       "externalAdaptersEnabled": 0,
@@ -157,8 +199,18 @@
       "includedReadCount": 3,
       "omittedReadCount": 0,
       "coverage": {
-        "changedLocators": { "total": 1, "covered": 1, "ratio": 1, "status": "covered" },
-        "graphHints": { "total": 4, "covered": 3, "ratio": 0.75, "status": "partial" }
+        "changedLocators": {
+          "total": 1,
+          "covered": 1,
+          "ratio": 1,
+          "status": "covered"
+        },
+        "graphHints": {
+          "total": 4,
+          "covered": 3,
+          "ratio": 0.75,
+          "status": "partial"
+        }
       },
       "sourceSelection": {
         "candidateUnitCount": 2400,
@@ -177,21 +229,33 @@
           "role": "selected_context",
           "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
           "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex.",
-          "reasonCodes": ["explicit_requirement", "selected_context", "token_efficient"]
+          "reasonCodes": [
+            "explicit_requirement",
+            "selected_context",
+            "token_efficient"
+          ]
         },
         {
           "locator": "user-selected://notes/handoff.md",
           "role": "explicit_user_selected",
           "contentHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
           "readHint": "Read user-selected://notes/handoff.md from the local workspace because it was explicitly included for this handoff.",
-          "reasonCodes": ["content_hash_verified", "explicit_user_file", "read_before_handoff"]
+          "reasonCodes": [
+            "content_hash_verified",
+            "explicit_user_file",
+            "read_before_handoff"
+          ]
         },
         {
           "locator": "workspace://src/auth.ts",
           "role": "changed_locator",
           "contentHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
           "readHint": "Read workspace://src/auth.ts from the local workspace before editing or reviewing this changed file.",
-          "reasonCodes": ["changed_locator_supplied", "content_hash_verified", "read_before_edit"]
+          "reasonCodes": [
+            "changed_locator_supplied",
+            "content_hash_verified",
+            "read_before_edit"
+          ]
         }
       ]
     },
@@ -221,7 +285,156 @@
         "required": false
       }
     ],
-    "warnings": []
+    "warnings": [],
+    "messageParts": [
+      {
+        "schemaVersion": "1.0.0",
+        "partType": "summary",
+        "contentType": "text/plain",
+        "text": "Pinned codex context pack verified. Read the listed local locators before editing; this packet excludes raw source, markdown, prompts, credentials, provider URLs, local paths, and hidden reasoning."
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "partType": "proof",
+        "contentType": "application/json",
+        "state": "ready",
+        "reviewNeeded": false,
+        "fingerprints": {
+          "registry": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "currentPointer": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "contextPack": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "usePlan": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        "proof": {
+          "registryFingerprintVerified": true,
+          "currentPointerVerified": true,
+          "currentEntryVerified": true,
+          "targetMatches": true,
+          "usePlanLoaded": true,
+          "usePlanResourceRead": true,
+          "registryResourceRead": true,
+          "recipientProofValid": true,
+          "recipientProof": {
+            "targetHarness": "codex",
+            "resourceMode": "read-only",
+            "requiredResourceUris": [
+              "oaf://workspace/ws_local/context-pack/use-plan/current",
+              "oaf://workspace/ws_local/context-pack/registry/current"
+            ],
+            "toolsExposed": 0,
+            "externalWritesEnabled": false,
+            "externalAdaptersEnabled": 0
+          },
+          "toolsExposed": 0,
+          "externalWritesEnabled": false,
+          "externalAdaptersEnabled": 0,
+          "sourceContentIncluded": false,
+          "markdownBodyIncluded": false,
+          "rawSourceBodiesIncluded": false
+        }
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "partType": "read_plan",
+        "contentType": "application/json",
+        "readPlan": {
+          "requiredReadCount": 3,
+          "includedReadCount": 3,
+          "omittedReadCount": 0,
+          "coverage": {
+            "changedLocators": {
+              "total": 1,
+              "covered": 1,
+              "ratio": 1,
+              "status": "covered"
+            },
+            "graphHints": {
+              "total": 4,
+              "covered": 3,
+              "ratio": 0.75,
+              "status": "partial"
+            }
+          },
+          "sourceSelection": {
+            "candidateUnitCount": 2400,
+            "selectedUnitCount": 960,
+            "selectedUnitRatio": 0.4,
+            "estimatedReductionRatio": 0.6
+          },
+          "delivery": {
+            "deliveredUnitCount": 720,
+            "observedReductionRatio": 0.7,
+            "sourceContentIncluded": false
+          },
+          "requiredReads": [
+            {
+              "locator": "workspace://AGENTS.md",
+              "role": "selected_context",
+              "contentHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+              "readHint": "Read workspace://AGENTS.md from the local workspace before acting in codex.",
+              "reasonCodes": [
+                "explicit_requirement",
+                "selected_context",
+                "token_efficient"
+              ]
+            },
+            {
+              "locator": "user-selected://notes/handoff.md",
+              "role": "explicit_user_selected",
+              "contentHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+              "readHint": "Read user-selected://notes/handoff.md from the local workspace because it was explicitly included for this handoff.",
+              "reasonCodes": [
+                "content_hash_verified",
+                "explicit_user_file",
+                "read_before_handoff"
+              ]
+            },
+            {
+              "locator": "workspace://src/auth.ts",
+              "role": "changed_locator",
+              "contentHash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+              "readHint": "Read workspace://src/auth.ts from the local workspace before editing or reviewing this changed file.",
+              "reasonCodes": [
+                "changed_locator_supplied",
+                "content_hash_verified",
+                "read_before_edit"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "partType": "next_actions",
+        "contentType": "application/json",
+        "nextActions": [
+          {
+            "label": "Check pinned registry",
+            "command": "npm --silent run oaf -- context registry status --read-only --root . --workspace ws_local --format json",
+            "reasonCode": "verify_pinned_registry",
+            "required": true
+          },
+          {
+            "label": "Read pinned use plan",
+            "command": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
+            "reasonCode": "read_required_local_locators",
+            "required": true
+          },
+          {
+            "label": "Preview harness MCP setup",
+            "command": "npm --silent run oaf -- harness setup status --client codex --server oaf --dry-run --format json",
+            "reasonCode": "confirm_read_only_bridge_config",
+            "required": true
+          },
+          {
+            "label": "Start read-only MCP bridge",
+            "command": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --stdio",
+            "reasonCode": "serve_sanitized_resources_only",
+            "required": false
+          }
+        ]
+      }
+    ]
   },
   "mcp": {
     "mode": "read-only",
@@ -250,7 +463,16 @@
       "name": "oaf",
       "transport": "stdio",
       "command": "npm",
-      "args": ["--silent", "run", "oaf", "--", "mcp", "resources", "--read-only", "--stdio"],
+      "args": [
+        "--silent",
+        "run",
+        "oaf",
+        "--",
+        "mcp",
+        "resources",
+        "--read-only",
+        "--stdio"
+      ],
       "environmentKeys": [],
       "resourceMode": "read-only",
       "externalWrites": false
@@ -264,7 +486,7 @@
     }
   },
   "commands": {
-    "createPinnedContextPack": "npm run oaf -- context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json",
+    "createPinnedContextPack": "npm --silent run oaf -- context pack --from codex --root . --objective '<reviewed-objective>' --step '<reviewed-step>' --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json",
     "checkRegistry": "npm --silent run oaf -- context registry status --read-only --root . --workspace ws_local --format json",
     "readUsePlan": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json",
     "readRegistry": "npm --silent run oaf -- mcp resources --read-only --root . --workspace ws_local --uri oaf://workspace/ws_local/context-pack/registry/current --format json",
@@ -282,8 +504,9 @@
     "noToolsExposed": true,
     "usePlanResourceRead": true,
     "registryResourceRead": true,
+    "recipientProofValid": true,
     "setupDryRun": true,
-    "setupUsesSilentNpm": true
+    "setupUsesInstalledOaf": true
   },
   "safeguards": {
     "readOnly": true,

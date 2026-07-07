@@ -28,7 +28,7 @@
     "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
     "transport": { "const": "stdio" },
     "resourceUri": { "type": "string", "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/current$" },
-    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
     "measurementScope": { "const": "single local stdio invocation" },
     "request": { "$ref": "#/$defs/request" },
     "bridge": { "$ref": "#/$defs/bridge" },
@@ -42,7 +42,7 @@
     "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "locator": {
       "type": "string",
-      "pattern": "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+      "pattern": "^(workspace|user-selected)://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))(?!.*(?:^|/)\\.git(?:/|$))(?!.*(?:^|/)\\.local(?:/|$))(?!.*(?:^|/)node_modules(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
     },
     "request": {
       "type": "object",
@@ -63,8 +63,8 @@
       "additionalProperties": false,
       "required": ["invocation", "jsonRpcMessageCount", "responseCount", "resourcesListed", "toolsExposed"],
       "properties": {
-        "invocation": { "const": "oaf mcp resources --read-only --context-pack --stdio" },
-        "jsonRpcMessageCount": { "type": "integer", "minimum": 4, "maximum": 4 },
+        "invocation": { "enum": ["oaf mcp resources --read-only --context-pack --stdio", "npm --silent run oaf -- mcp resources --read-only --context-pack --stdio"] },
+        "jsonRpcMessageCount": { "type": "integer", "minimum": 5, "maximum": 5 },
         "responseCount": { "type": "integer", "minimum": 4, "maximum": 4 },
         "resourcesListed": { "type": "integer", "minimum": 1, "maximum": 64 },
         "toolsExposed": { "type": "integer", "minimum": 0, "maximum": 0 }
@@ -141,13 +141,14 @@
     "checks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["initialized", "resourceListed", "resourceRead", "noToolsExposed", "noMarkdownBody"],
+      "required": ["initialized", "resourceListed", "resourceRead", "noToolsExposed", "noMarkdownBody", "initializedNotificationAccepted"],
       "properties": {
         "initialized": { "const": true },
         "resourceListed": { "const": true },
         "resourceRead": { "const": true },
         "noToolsExposed": { "const": true },
-        "noMarkdownBody": { "const": true }
+        "noMarkdownBody": { "const": true },
+        "initializedNotificationAccepted": { "const": true }
       }
     },
     "safeguards": {

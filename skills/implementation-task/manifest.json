@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:implementation-task",
   "name": "Implementation Task",
+  "description": "Execute one issue-sized implementation or bug fix with scoped tests and handoff evidence.",
   "version": "0.1.0",
   "triggers": [
     "OAF task",

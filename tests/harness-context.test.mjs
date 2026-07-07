@@ -36,6 +36,50 @@ test('scans Codex AGENTS.md without exposing raw content', async () => {
   assert(!serialized.includes('/Users/rebel/private.txt'));
 });
 
+test('scans Codex nested AGENTS.md for changed locators without exposing raw content', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'apps', 'cli'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Read root instructions first.');
+  await writeFile(path.join(root, 'apps', 'cli', 'AGENTS.md'), 'NESTED RAW CLI INSTRUCTION: keep stdout stable.');
+
+  const report = await scanHarnessContext({
+    root,
+    harnesses: ['codex'],
+    changedLocators: ['apps/cli/oaf.mjs'],
+    workspaceId: 'ws_local',
+    clock: fixedClock
+  });
+
+  assert.deepEqual(report.sources.map((source) => source.provenance.locator), [
+    'workspace://AGENTS.md',
+    'workspace://apps/cli/AGENTS.md'
+  ]);
+  assert.equal(report.summary.totalSkipped, 0);
+  assert(!JSON.stringify(report).includes('NESTED RAW CLI INSTRUCTION'));
+});
+
+test('scans Claude Code nested CLAUDE.md for changed locators without exposing raw content', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'packages', 'runtime'), { recursive: true });
+  await writeFile(path.join(root, 'CLAUDE.md'), 'Read root Claude instructions first.');
+  await writeFile(path.join(root, 'packages', 'runtime', 'CLAUDE.md'), 'NESTED RAW CLAUDE INSTRUCTION: preserve runtime events.');
+
+  const report = await scanHarnessContext({
+    root,
+    harnesses: ['claude-code'],
+    changedLocators: ['packages/runtime/index.mjs'],
+    workspaceId: 'ws_local',
+    clock: fixedClock
+  });
+
+  assert.deepEqual(report.sources.map((source) => source.provenance.locator), [
+    'workspace://CLAUDE.md',
+    'workspace://packages/runtime/CLAUDE.md'
+  ]);
+  assert.equal(report.summary.totalSkipped, 0);
+  assert(!JSON.stringify(report).includes('NESTED RAW CLAUDE INSTRUCTION'));
+});
+
 test('redacts authorization tokens and local paths with spaces from reports', async () => {
   const root = await workspace();
   await writeFile(path.join(root, 'AGENTS.md'), [
@@ -72,6 +116,16 @@ test('summary omits ordinary non-secret body text', async () => {
   assert.equal(report.sources[0].summary.includes('instruction'), true);
   assert.equal(report.sources[0].summary.includes('AGENTS.md'), true);
   assert(!JSON.stringify(report).includes('unique plain project convention'));
+});
+
+test('does not mislabel lowercase agents.md as AGENTS.md on case-insensitive filesystems', async () => {
+  const root = await workspace();
+  await writeFile(path.join(root, 'agents.md'), 'lowercase raw convention should not be mislabeled');
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', clock: fixedClock });
+
+  assert.equal(report.summary.totalAccepted, 0);
+  assert(!JSON.stringify(report).includes('lowercase raw convention'));
 });
 
 test('scans Claude Code and Cursor documented project files', async () => {

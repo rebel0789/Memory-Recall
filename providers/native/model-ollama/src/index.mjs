@@ -48,6 +48,26 @@ function outputTooLarge(operation) {
   return error;
 }
 
+function safeString(value, maxLength = 160) {
+  return typeof value === 'string' && value.trim() ? value.slice(0, maxLength) : null;
+}
+
+function safeOllamaModelMetadata(model) {
+  if (!model || typeof model !== 'object' || Array.isArray(model)) return null;
+  const details = model.details && typeof model.details === 'object' && !Array.isArray(model.details) ? model.details : {};
+  return {
+    name: safeString(model.name),
+    digest: safeString(model.digest, 256),
+    sizeBytes: Number.isFinite(model.size) ? model.size : null,
+    modifiedAt: safeString(model.modified_at),
+    format: safeString(details.format),
+    family: safeString(details.family),
+    families: Array.isArray(details.families) ? details.families.map((item) => safeString(item)).filter(Boolean).slice(0, 16) : [],
+    parameterSize: safeString(details.parameter_size),
+    quantizationLevel: safeString(details.quantization_level)
+  };
+}
+
 async function readResponseText(response, operation, maxBytes = MAX_MODEL_BYTES) {
   if (!response.body?.getReader) {
     const text = await response.text();
@@ -99,15 +119,26 @@ export class OllamaModelProvider {
     try {
       const response = await withTimeout(this.fetchImpl, new URL('/api/tags', this.baseUrl), { method: 'GET', headers: { accept: 'application/json' } }, Math.min(this.timeoutMs, 5000));
       const value = await readJsonResponse(response, 'Ollama health check');
-      const models = Array.isArray(value.models) ? value.models.map((item) => item.name).filter(Boolean) : [];
-      return { status: models.includes(this.model) ? 'healthy' : 'degraded', local: true, details: { provider: PROVIDER_ID, model: this.model, modelAvailable: models.includes(this.model), installedModels: models.length } };
+      const installed = Array.isArray(value.models) ? value.models : [];
+      const selected = installed.find((item) => item?.name === this.model) ?? null;
+      return {
+        status: selected ? 'healthy' : 'degraded',
+        local: true,
+        details: {
+          provider: PROVIDER_ID,
+          model: this.model,
+          modelAvailable: Boolean(selected),
+          installedModels: installed.filter((item) => typeof item?.name === 'string' && item.name).length,
+          modelMetadata: safeOllamaModelMetadata(selected)
+        }
+      };
     } catch (error) {
       return { status: 'unavailable', local: true, details: { provider: PROVIDER_ID, model: this.model, error: error.code ?? 'ollama_unavailable' } };
     }
   }
 
   async capabilities() {
-    return ['model.generate.text', 'model.structured-output', 'model.local-loopback', 'model.safe-events', 'model.bounded-repair'];
+    return ['model.generate.text', 'model.structured-output', 'model.local-loopback', 'model.local-metadata', 'model.safe-events', 'model.bounded-repair'];
   }
 
   profile() {
@@ -126,7 +157,7 @@ export class OllamaModelProvider {
         safeEvents: true,
         boundedRepair: true
       },
-      capabilityIds: ['model.generate.text', 'model.structured-output', 'model.local-loopback', 'model.safe-events', 'model.bounded-repair'],
+      capabilityIds: ['model.generate.text', 'model.structured-output', 'model.local-loopback', 'model.local-metadata', 'model.safe-events', 'model.bounded-repair'],
       limits: {
         maxInputBytes: MAX_MODEL_BYTES,
         maxOutputBytes: MAX_MODEL_BYTES,

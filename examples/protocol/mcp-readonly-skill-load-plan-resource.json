@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.0.0",
+  "resourceKind": "skill-load-plan",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-07-05T00:00:00.000Z",
+  "provenance": {
+    "producer": "open-agent-fabric.protocol-bridges",
+    "producerVersion": "0.1.0",
+    "source": "local-skill-load-plan",
+    "sourceFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "privateContentIncluded": false,
+    "instructionTextIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "remoteEndpointDetailsIncluded": false
+  },
+  "data": {
+    "schemaVersion": "1.0.0",
+    "command": "skill load-plan",
+    "generatedAt": "2026-07-05T00:00:00.000Z",
+    "workspaceId": "ws_local",
+    "rootRef": "workspace://.",
+    "skill": {
+      "id": "skill:oaf-memory",
+      "name": "OAF Memory Mapper",
+      "description": "Map project decisions, entities, relationships, and supersessions into proposal-gated OAF memory.",
+      "version": "0.1.0",
+      "advertised": true,
+      "directoryRef": "workspace://skills/oaf-memory",
+      "manifestRef": "workspace://skills/oaf-memory/manifest.json",
+      "skillRef": "workspace://skills/oaf-memory/SKILL.md",
+      "sideEffectClass": "reversible-write",
+      "triggers": ["/oaf-memory"],
+      "tools": ["tool:filesystem-read"],
+      "references": [],
+      "readiness": {
+        "state": "review",
+        "approvalRequired": true,
+        "unreviewedToolIds": [],
+        "reasonCodes": ["write_skill_requires_approval"]
+      },
+      "manifestFingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "checks": {
+        "manifestValid": true,
+        "skillDocumentPresent": true,
+        "referencesPresent": true
+      }
+    },
+    "requiredLocalReads": [
+      {
+        "order": 1,
+        "kind": "manifest",
+        "ref": "workspace://skills/oaf-memory/manifest.json",
+        "reason": "Validate skill metadata before reading instructions."
+      },
+      {
+        "order": 2,
+        "kind": "skill",
+        "ref": "workspace://skills/oaf-memory/SKILL.md",
+        "reason": "Read instructions only after the trigger matches."
+      }
+    ],
+    "catalogFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "safeguards": {
+      "readOnly": true,
+      "canonicalStateMutated": false,
+      "localFilesWritten": 0,
+      "externalWritesEnabled": false,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "toolAuthorityGranted": false,
+      "absoluteFilesystemLocationsIncluded": false,
+      "skillTextIncluded": false
+    },
+    "loadPlanFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  "resourceFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

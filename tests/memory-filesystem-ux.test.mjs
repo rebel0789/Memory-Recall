@@ -194,6 +194,8 @@ test('memoryPaths config is explicit and workspace-relative only', () => {
   assert.equal(config.memoryPaths[1].sourceRole, 'memory-file');
   assert.throws(() => normalizeMemoryPathsConfig({ memoryPaths: ['/Users/rebel/private.md'] }), /workspace-relative/);
   assert.throws(() => normalizeMemoryPathsConfig({ memoryPaths: ['../outside.md'] }), /workspace-relative/);
+  assert.throws(() => normalizeMemoryPathsConfig({ memoryPaths: ['memory/profile.md'] }), /generated OAF reports/);
+  assert.throws(() => normalizeMemoryPathsConfig({ memoryPaths: ['context-packs/current.json'] }), /generated OAF reports/);
 });
 
 test('memory sgrep returns lifecycle, evidence, and explicit context manifest reason codes', () => {

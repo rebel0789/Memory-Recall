@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.0.0",
+  "resourceKind": "tool-catalog-summary",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-07-07T00:00:00.000Z",
+  "provenance": {
+    "producer": "open-agent-fabric.protocol-bridges",
+    "producerVersion": "0.1.0",
+    "source": "local-tool-catalog",
+    "sourceFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "activeMemoryCreated": 0,
+    "sourceSnapshotsWritten": 0,
+    "privateContentIncluded": false,
+    "instructionTextIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "remoteEndpointDetailsIncluded": false
+  },
+  "data": {
+    "state": "ready",
+    "configured": true,
+    "summary": {
+      "toolCount": 1,
+      "enabledToolCount": 1,
+      "reviewedToolCount": 1,
+      "disabledToolCount": 0,
+      "operationCount": 1,
+      "sideEffectClassCounts": {
+        "read-only": 1
+      },
+      "writableOperationCount": 0,
+      "approvalRequiredOperationCount": 0,
+      "idempotencyRequiredOperationCount": 0,
+      "networkTargetCount": 0,
+      "credentialReferenceCount": 0
+    },
+    "tools": [
+      {
+        "id": "tool:filesystem-read",
+        "name": "Read bounded workspace files",
+        "version": "1.0.0",
+        "enabled": true,
+        "reviewStatus": "reviewed",
+        "reviewVersion": "OAF-015",
+        "manifestRef": "workspace://tools/manifests/brokered-filesystem-read.json",
+        "reviewedManifestSha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "manifestFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "operations": [
+          {
+            "name": "readFile",
+            "sideEffectClass": "read-only",
+            "approvalRequired": false,
+            "idempotencyRequired": false,
+            "dataClasses": ["workspace-private"],
+            "filesystemReadScopes": ["workspace:root"],
+            "filesystemWriteScopes": [],
+            "networkTargetCount": 0,
+            "credentialReferenceCount": 0
+          }
+        ]
+      }
+    ],
+    "toolCatalogFingerprint": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "reasonCodes": ["tool_catalog_validated"],
+    "safeguards": {
+      "readOnly": true,
+      "localFilesWritten": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "toolAuthorityGranted": false,
+      "manifestTextIncluded": false,
+      "absoluteFilesystemLocationsIncluded": false,
+      "remoteEndpointDetailsIncluded": false
+    }
+  },
+  "resourceFingerprint": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+}

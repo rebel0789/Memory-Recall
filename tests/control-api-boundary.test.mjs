@@ -105,6 +105,7 @@ async function startServer(t, overrides = {}) {
     identityStore,
     runWorkflow,
     compileContext,
+    memoryDatabasePath: path.join(identityRoot, 'memory.sqlite'),
     clock: () => '2026-06-19T10:00:00.000Z',
     correlationIdFactory: () => 'req_generated-00000000-0000-4000-8000-000000000000',
     logger,
@@ -645,6 +646,8 @@ test('context pack pin route is protected and writes only fixed local artifacts'
   assert.equal(received.body.receiverPacket.state, 'ready');
   assert.equal(received.body.receiverPacket.proof.toolsExposed, 0);
   assert.equal(received.body.receiverPacket.readPlan.requiredReads.some((item) => item.locator === 'workspace://src/web.ts'), true);
+  assert.deepEqual(received.body.receiverPacket.messageParts.map((item) => item.partType), ['summary', 'proof', 'read_plan', 'next_actions']);
+  assert.equal(received.body.receiverPacket.messageParts.find((item) => item.partType === 'read_plan').readPlan.requiredReads.some((item) => item.locator === 'workspace://src/web.ts'), true);
   assert.equal(received.body.safeguards.readOnly, true);
   assert.equal(received.body.safeguards.localFilesWritten, 0);
   assert.equal(received.body.safeguards.externalWritesEnabled, false);
@@ -865,7 +868,11 @@ test('harness setup plan route is protected plan-only and does not expose home c
   assert.equal(response.body.config.serverCount, 1);
   assert.equal(response.body.diff.redacted, true);
   assert.deepEqual(response.body.diff.operations, [{ op: 'add', target: 'mcpServers.oaf', before: 'absent', after: 'read-only-oaf-mcp-stdio', summary: 'add oaf with read-only OAF MCP stdio resource bridge' }]);
+  assert.equal(response.body.desiredServer.command, 'npm');
   assert.deepEqual(response.body.desiredServer.args, ['--silent', 'run', 'oaf', '--', 'mcp', 'resources', '--read-only', '--stdio']);
+  assert.equal(response.body.desiredHooks.supported, false);
+  assert.equal(response.body.desiredHooks.authority, 'none');
+  assert.equal(response.body.manualHookSnippet.applyMode, 'manual-copy');
   assert.equal(response.body.manualConfigSnippet.format, 'json');
   assert.equal(response.body.manualConfigSnippet.configRef, 'home://.cursor/mcp.json');
   assert.equal(response.body.manualConfigSnippet.applyMode, 'manual-copy');

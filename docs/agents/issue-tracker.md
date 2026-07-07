@@ -24,8 +24,13 @@ External PRs run through the same labels and states as issues. Collaborator-owne
 Use the `gh pr` equivalents:
 
 - **Read a PR**: `gh pr view <number> --comments` and `gh pr diff <number>` for the diff.
-- **List external PRs for triage**: `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments` then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE` and exclude maintainer or collaborator associations.
+- **List PRs for triage**: `gh pr list --state open --json number,title,author,isDraft,mergeStateStatus,mergeable,statusCheckRollup,labels,headRefName,updatedAt,url`. When open issues are empty, inspect open PRs before inventing backlog work. Maintainer-owned `CLEAN` PRs are release/review queue; bot or external `UNSTABLE` PRs are triage queue.
+- **Detect superseded PRs**: compare `gh pr diff <number> --name-only` with the active branch (`git diff --name-only origin/main...HEAD`), staged (`git diff --cached --name-only`), and unstaged (`git diff --name-only`) file lists before cherry-picking or merging old green PRs into an active branch.
 - **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
+
+For status-only queue checks, stop after listing issues/PRs and reading check
+state; do not comment, label, close, merge, or publish without an explicit user
+request.
 
 GitHub shares one number space across issues and PRs, so a bare `#42` may be either. Resolve with `gh pr view 42` and fall back to `gh issue view 42`.
 

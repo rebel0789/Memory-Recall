@@ -47,7 +47,7 @@
       "additionalProperties": false,
       "required": ["locator", "format"],
       "properties": {
-        "locator": { "type": "string", "pattern": "^workspace://memory/[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,256}\\.md$" },
+        "locator": { "type": "string", "pattern": "^workspace://memory/[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,256}\\.md$" },
         "format": { "const": "markdown" }
       }
     },

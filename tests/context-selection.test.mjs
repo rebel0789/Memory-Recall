@@ -168,6 +168,15 @@ test('weighted rank fusion is deterministic and ignores arbitrary provider score
   assert(breakdown.fusion.contributions.every((item) => Number.isFinite(item.contribution)));
 });
 
+test('code identifier terms split camel case for task relevance', () => {
+  const result = selectContextCandidates(request({ objective: 'query client', step: 'query client', requiredEntities: [], tokenBudget: 40 }), [
+    candidate({ id: 'obs_identifier', text: 'QueryClient', tags: [], relations: [], tokens: 2 }, { localRank: 2 }),
+    candidate({ id: 'obs_partial', text: 'query', tags: [], relations: [], tokens: 2 }, { localRank: 1 })
+  ]);
+
+  assert.equal(selectedIds(result)[0], 'obs_identifier');
+});
+
 test('diversity, category caps, and smallest-sufficient stopping prefer complementary evidence', () => {
   const candidates = [
     candidate({ id: 'obs_auth_a', text: 'Authentication failure happened after session expiry in the local agent.', tags: ['topic:auth'], tokens: 12 }, { localRank: 1 }),
@@ -188,6 +197,65 @@ test('diversity, category caps, and smallest-sufficient stopping prefer compleme
   assert.equal(result.selection.categoryBudgets.evidence.cap, CONTEXT_SELECTION_POLICY.categoryBudgets.evidence.cap);
   assert.equal(result.selection.categoryBudgets.evidence.softReserveTokens, 28);
   assert.equal(result.selection.categoryBudgets.evidence.selectedCount, 2);
+});
+
+test('source-path chunks are diversified before selecting another chunk from the same file', () => {
+  const result = selectContextCandidates(request({ requiredEntities: [], tokenBudget: 80 }), [
+    candidate({ id: 'obs_file_a_1', text: 'Authentication cache invalidation query client primary evidence.', tokens: 12, metadata: { path: 'src/queryClient.ts', chunk: 1 } }, { localRank: 1 }),
+    candidate({ id: 'obs_file_a_2', text: 'Authentication cache invalidation observer secondary detail.', tokens: 12, metadata: { path: 'src/queryClient.ts', chunk: 2 } }, { localRank: 2 }),
+    candidate({ id: 'obs_file_b_1', text: 'Authentication cache invalidation query cache related evidence.', tokens: 12, metadata: { path: 'src/queryCache.ts', chunk: 1 } }, { localRank: 3 })
+  ]);
+
+  assert.deepEqual(new Set(selectedIds(result)), new Set(['obs_file_a_1', 'obs_file_b_1']));
+  assert(!selectedIds(result).includes('obs_file_a_2'));
+});
+
+test('minimum budget utilization prevents early sufficient stops for code search', () => {
+  const policy = JSON.parse(JSON.stringify(CONTEXT_SELECTION_POLICY));
+  policy.policyVersion = '1.0.1';
+  policy.categoryBudgets.evidence.cap = 10;
+  policy.thresholds.minimumEvidenceCount = 2;
+  policy.thresholds.minimumBudgetUtilization = 0.5;
+  policy.thresholds.marginalUtility = 0.01;
+  policy.diversity.diversityWeight = 0;
+  policy.limits.maxSelectedCandidates = 10;
+
+  const result = selectContextCandidates(request({ requiredEntities: [], tokenBudget: 100 }), [
+    candidate({ id: 'obs_budget_a', text: 'Authentication context compiler evidence resolver alpha.', tokens: 5 }, { localRank: 1 }),
+    candidate({ id: 'obs_budget_b', text: 'Authentication context compiler evidence resolver beta.', tokens: 5 }, { localRank: 2 }),
+    candidate({ id: 'obs_budget_c', text: 'Authentication context compiler evidence resolver gamma.', tokens: 5 }, { localRank: 3 }),
+    candidate({ id: 'obs_budget_d', text: 'Authentication context compiler evidence resolver delta.', tokens: 5 }, { localRank: 4 }),
+    candidate({ id: 'obs_budget_detail', text: 'Authentication context compiler implementation detail with broader surrounding source evidence.', tokens: 45 }, { localRank: 5 })
+  ], { policy });
+
+  assert(result.selection.selectedCandidateCount > 2);
+  assert(result.selection.selectedTokenCount >= 50);
+  assert.equal(result.selection.sufficiency.state, 'sufficient');
+});
+
+test('bounded selector reuses pairwise similarity work across many candidates', () => {
+  const policy = JSON.parse(JSON.stringify(CONTEXT_SELECTION_POLICY));
+  policy.policyVersion = '1.0.1';
+  policy.categoryBudgets.evidence.cap = 30;
+  policy.thresholds.minimumEvidenceCount = 20;
+  policy.thresholds.marginalUtility = 0.01;
+  policy.limits.maxSelectedCandidates = 20;
+  policy.limits.maxCandidates = 80;
+  policy.limits.maxTotalCandidateTokens = 100000;
+  policy.similarity.maxPairwiseComparisons = 1600;
+
+  const candidates = Array.from({ length: 60 }, (_, index) => candidate({
+    id: `obs_many_${String(index).padStart(2, '0')}`,
+    text: `Authentication context manifest evidence for module ${index} resolver${index} scheduler${index} storage${index} policy${index}.`,
+    tags: ['topic:auth', `module:${index}`],
+    relations: ['topic:auth'],
+    tokens: 8
+  }, { localRank: index + 1, localScore: 1 / (index + 1) }));
+
+  const result = selectContextCandidates(request({ tokenBudget: 1000 }), candidates, { policy });
+
+  assert.equal(result.selection.selectedCandidateCount, 20);
+  assert(result.selection.bounds.pairwiseSimilarityComparisons <= policy.similarity.maxPairwiseComparisons);
 });
 
 test('sufficiency requires the configured minimum evidence count', () => {

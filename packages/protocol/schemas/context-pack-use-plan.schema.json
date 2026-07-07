@@ -30,7 +30,7 @@
     "id": { "type": "string", "pattern": "^ctxuse_[a-f0-9]{24}$" },
     "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
     "generatedAt": { "type": "string", "format": "date-time" },
-    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
     "sourceHarnesses": { "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": { "enum": ["codex", "claude-code", "cursor"] } },
     "contextPack": {
       "type": "object",
@@ -54,6 +54,7 @@
         "kind": { "const": "context-pack-use-plan" }
       }
     },
+    "recipientProof": { "$ref": "#/$defs/recipientProof" },
     "repository": { "$ref": "#/$defs/repositoryIdentity" },
     "requestedInputs": {
       "type": "object",
@@ -179,6 +180,29 @@
   "$defs": {
     "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "nullableFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+    "mcpResourceUri": {
+      "type": "string",
+      "pattern": "^oaf://workspace/ws_[A-Za-z0-9._:-]{1,120}/context-pack/(use-plan|registry)/current$"
+    },
+    "recipientProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targetHarness", "resourceMode", "requiredResourceUris", "toolsExposed", "externalWritesEnabled", "externalAdaptersEnabled"],
+      "properties": {
+        "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
+        "resourceMode": { "const": "read-only" },
+        "requiredResourceUris": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/mcpResourceUri" }
+        },
+        "toolsExposed": { "const": 0 },
+        "externalWritesEnabled": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 }
+      }
+    },
     "repositoryIdentity": {
       "type": "object",
       "additionalProperties": false,
@@ -209,7 +233,7 @@
     },
     "locator": {
       "type": "string",
-      "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
+      "pattern": "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$",
       "maxLength": 640
     },
     "coverage": {

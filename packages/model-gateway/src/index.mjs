@@ -229,6 +229,10 @@ function schemaValidation(outputSchema, output) {
   }
 }
 
+function providerRequestWithSignal(request, signal) {
+  return { ...structuredClone(request), signal };
+}
+
 async function callProviderWithTimeout(provider, request, { timeoutMs, parentSignal }) {
   const controller = new AbortController();
   let timer;
@@ -255,7 +259,7 @@ async function callProviderWithTimeout(provider, request, { timeoutMs, parentSig
   try {
     if (parentSignal?.aborted) throw gatewayError('model_cancelled', 'model request cancelled', { retryable: false });
     return await Promise.race([
-      provider.generate({ ...request, signal: controller.signal }),
+      provider.generate(providerRequestWithSignal(request, controller.signal)),
       timeout,
       cancellation
     ]);

@@ -130,6 +130,21 @@ function registry(sourceOverrides = []) {
   ]);
 }
 
+function rankedHit(context, localRank, localScore) {
+  return {
+    sourceId: 'provider:native:context-candidate:ranked',
+    sourceKind: 'temporal',
+    sourceVersion: '1.0.0',
+    retrievalMethod: 'fixture',
+    localRank,
+    localScore,
+    reasonCodes: ['fixture_match'],
+    queryFingerprint: context.queryFingerprint,
+    accessDecisionRef: context.accessDecisionRef,
+    retrievedAt: fixedNow
+  };
+}
+
 test('exact and lexical sources generate provenance-rich candidates before compiler selection', async () => {
   const result = await generateContextCandidates(request({ requiredIds: ['mem_required'] }), {
     registry: registry(),
@@ -141,7 +156,7 @@ test('exact and lexical sources generate provenance-rich candidates before compi
   assert.equal(result.status, 'succeeded');
   assert.deepEqual(result.warnings, []);
   assert.deepEqual(result.reports.map((report) => [report.sourceKind, report.status]), [['exact', 'succeeded'], ['lexical', 'succeeded']]);
-  assert.deepEqual(result.candidates.map((candidate) => candidate.record.id), ['mem_lexical', 'mem_required']);
+  assert.deepEqual(result.candidates.map((candidate) => candidate.record.id), ['mem_required', 'mem_lexical']);
 
   const required = result.candidates.find((candidate) => candidate.record.id === 'mem_required');
   assert.equal(required.record.workspaceId, 'ws_local');
@@ -381,6 +396,39 @@ test('candidate union merges same identity hits and fails closed on hash conflic
     }),
     /candidate_identity_conflict/
   );
+});
+
+test('candidate preselection cap keeps source-ranked hits before lexical id order', async () => {
+  const rankSource = {
+    descriptor: () => ({
+      schemaVersion: '1.0.0',
+      id: 'provider:native:context-candidate:ranked',
+      kind: 'temporal',
+      version: '1.0.0',
+      enabled: true,
+      methods: ['fixture']
+    }),
+    health: async () => ({ status: 'healthy' }),
+    query: async (_request, context) => ({
+      candidates: [
+        { record: { id: 'z_best', kind: 'evidence', workspaceId: 'ws_local', text: 'best ranked candidate', dataClass: 'workspace-private', trustClass: 'observed', scope: 'workspace-private', source: 'fixture' }, sourceHit: rankedHit(context, 1, 0.9) },
+        { record: { id: 'm_second', kind: 'evidence', workspaceId: 'ws_local', text: 'second ranked candidate', dataClass: 'workspace-private', trustClass: 'observed', scope: 'workspace-private', source: 'fixture' }, sourceHit: rankedHit(context, 2, 0.8) },
+        { record: { id: 'a_third', kind: 'evidence', workspaceId: 'ws_local', text: 'third ranked candidate', dataClass: 'workspace-private', trustClass: 'observed', scope: 'workspace-private', source: 'fixture' }, sourceHit: rankedHit(context, 3, 0.7) }
+      ]
+    })
+  };
+
+  const result = await generateContextCandidates(request({
+    sourcePlan: [{ kind: 'temporal', required: false, limit: 3 }],
+    totalCandidateLimit: 2
+  }), {
+    registry: registry([rankSource]),
+    recordReader: createFixtureRecordReader(records()),
+    policyService: createPolicyService({ decisionIdFactory: () => 'poldet_candidate_allow', clock: () => fixedNow }),
+    trustedContext: trustedContext()
+  });
+
+  assert.deepEqual(result.candidates.map((candidate) => candidate.record.id), ['z_best', 'm_second']);
 });
 
 test('invalid optional source batches do not leak earlier candidates', async () => {

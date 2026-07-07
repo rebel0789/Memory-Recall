@@ -162,7 +162,7 @@
         "id": { "$ref": "#/$defs/entryId" },
         "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
         "createdAt": { "type": "string", "format": "date-time" },
-        "targetHarness": { "enum": ["codex", "claude-code", "cursor", "generic"] },
+        "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
         "contextPack": { "$ref": "#/$defs/contextPackRef" },
         "usePlan": { "$ref": "#/$defs/usePlanRef" },
         "artifactChecks": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/artifactCheck" } },

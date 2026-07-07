@@ -1,0 +1,179 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "memory refine",
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "workspaceId": "ws_local",
+  "scope": "workspace",
+  "state": "ready",
+  "reasonCodes": ["memory_schema_ready"],
+  "source": {
+    "provider": "provider:native:memory:sqlite",
+    "sqliteRef": "workspace://.local/memory.sqlite"
+  },
+  "summary": {
+    "scannedFactCount": 4,
+    "activeFactCount": 3,
+    "duplicateCandidateCount": 1,
+    "conflictCandidateCount": 1,
+    "staleCandidateCount": 1,
+    "supersessionCandidateCount": 1,
+    "lineageResidueCandidateCount": 1,
+    "lowConfidenceCandidateCount": 1,
+    "derivedArtifactReviewCount": 1,
+    "refineCandidateCount": 6,
+    "activeMemoryCreated": 0
+  },
+  "duplicateCandidates": [
+    {
+      "id": "mref_1111111111111111",
+      "kind": "duplicate_active_fact",
+      "subject": "auth",
+      "predicate": "token_expiry",
+      "object": "60 minutes",
+      "objects": null,
+      "factIds": ["memfact_auth_expiry_a", "memfact_auth_expiry_b"],
+      "supersededFactIds": ["memfact_auth_expiry_a"],
+      "sourceRefs": ["DECISIONS.md", "memory/duplicate.md"],
+      "newestFactId": "memfact_auth_expiry_b",
+      "validUntil": null,
+      "recommendation": "Review duplicate ACTIVE facts through the normal memory review flow."
+    }
+  ],
+  "conflictCandidates": [
+    {
+      "id": "mref_2222222222222222",
+      "kind": "conflicting_active_fact",
+      "subject": "auth",
+      "predicate": "token_expiry",
+      "object": null,
+      "objects": ["15 minutes", "60 minutes"],
+      "factIds": ["memfact_auth_expiry_b", "memfact_auth_expiry_c"],
+      "supersededFactIds": [],
+      "sourceRefs": ["DECISIONS.md", "memory/current.md"],
+      "newestFactId": "memfact_auth_expiry_c",
+      "validUntil": null,
+      "recommendation": "Approve a superseding fact or reject the stale candidate."
+    }
+  ],
+  "staleCandidates": [
+    {
+      "id": "mref_3333333333333333",
+      "kind": "stale_active_fact",
+      "subject": "auth",
+      "predicate": "refresh_window",
+      "object": "30 days",
+      "objects": null,
+      "factIds": ["memfact_refine_stale"],
+      "supersededFactIds": [],
+      "sourceRefs": ["memory/stale.md"],
+      "newestFactId": "memfact_refine_stale",
+      "validUntil": "2026-06-22T00:00:00.000Z",
+      "recommendation": "Review expired ACTIVE fact through the normal memory review flow."
+    }
+  ],
+  "supersessionCandidates": [
+    {
+      "id": "mref_4444444444444444",
+      "kind": "supersession_candidate",
+      "subject": "auth",
+      "predicate": "token_expiry",
+      "object": "15 minutes",
+      "objects": ["15 minutes", "60 minutes"],
+      "factIds": ["memfact_auth_expiry_b", "memfact_auth_expiry_c"],
+      "supersededFactIds": ["memfact_auth_expiry_b"],
+      "sourceRefs": ["DECISIONS.md", "memory/current.md"],
+      "newestFactId": "memfact_auth_expiry_c",
+      "validUntil": null,
+      "recommendation": "Newest ACTIVE value can supersede older values once evidence is reviewed."
+    }
+  ],
+  "lineageResidueCandidates": [
+    {
+      "id": "mref_5555555555555555",
+      "kind": "lineage_residue_candidate",
+      "subject": "auth",
+      "predicate": "session_owner",
+      "object": "local admin",
+      "objects": null,
+      "factIds": ["memfact_auth_lineage_residue"],
+      "supersededFactIds": [],
+      "sourceRefs": ["memory/rejected.md"],
+      "newestFactId": "memfact_auth_lineage_residue",
+      "validUntil": null,
+      "recommendation": "Review ACTIVE fact whose proposal lineage is missing or rejected."
+    }
+  ],
+  "lowConfidenceCandidates": [
+    {
+      "id": "mref_6666666666666666",
+      "kind": "low_confidence_fact",
+      "subject": "auth",
+      "predicate": "session_owner",
+      "object": "local admin",
+      "objects": null,
+      "factIds": ["memfact_auth_lineage_residue"],
+      "supersededFactIds": [],
+      "sourceRefs": ["memory/rejected.md"],
+      "newestFactId": "memfact_auth_lineage_residue",
+      "validUntil": null,
+      "confidence": 0.3,
+      "minConfidence": 0.5,
+      "recommendation": "Review low-confidence ACTIVE fact through the normal memory review flow."
+    }
+  ],
+  "derivedArtifacts": [
+    {
+      "role": "memory_profile",
+      "locator": "workspace://memory/profile.md",
+      "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state": "review_recommended",
+      "reasonCodes": ["derived_memory_profile_may_contain_residue", "refine_candidates_present"],
+      "recommendation": "Regenerate or review the derived memory profile after memory refine candidates are resolved."
+    }
+  ],
+  "budgetPlan": {
+    "state": "review_needed",
+    "reasonCodes": ["target_active_fact_budget_exceeded"],
+    "targetActiveFactCount": 1,
+    "currentActiveFactCount": 3,
+    "projectedActiveFactCount": 1,
+    "overBudgetBy": 2,
+    "plannedReviewCount": 2,
+    "plannedReductionCount": 2,
+    "actions": [
+      {
+        "id": "mbp_1111111111111111",
+        "action": "review_duplicate_facts",
+        "candidateId": "mref_1111111111111111",
+        "candidateKind": "duplicate_active_fact",
+        "reasonCodes": ["duplicate_active_fact"],
+        "factIds": ["memfact_auth_expiry_a"],
+        "expectedActiveFactReduction": 1,
+        "recommendation": "Review duplicate ACTIVE facts through the normal memory review flow."
+      },
+      {
+        "id": "mbp_2222222222222222",
+        "action": "review_supersession",
+        "candidateId": "mref_4444444444444444",
+        "candidateKind": "supersession_candidate",
+        "reasonCodes": ["newer_value_available"],
+        "factIds": ["memfact_auth_expiry_b"],
+        "expectedActiveFactReduction": 1,
+        "recommendation": "Newest ACTIVE value can supersede older values once evidence is reviewed."
+      }
+    ]
+  },
+  "safeguards": {
+    "readOnly": true,
+    "proposalGated": true,
+    "canonicalStateMutated": false,
+    "activeMemoryCreated": 0,
+    "hardDeleted": false,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "externalWritesEnabled": false,
+    "rawSourceBodiesIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false
+  },
+  "reportFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

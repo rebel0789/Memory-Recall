@@ -6,9 +6,9 @@
 
 **Open Agent Fabric (OAF)** is a local-first reliability and context operating system for AI agents. It keeps context intentional, capabilities controlled, decisions evidence-backed, runs replayable, memory governed, and agent definitions portable.
 
-This repository is an **agent-ready development kit**, not a claim that the full production platform already exists. It contains a runnable offline vertical slice, native local provider baselines, stable contracts, brand and product guidance, security boundaries, deterministic tests and evaluations, a machine-readable backlog, and disabled adapter contracts for the upstream projects studied during architecture research.
+This repository is an **agent-ready development kit**, not a claim that the full production platform already exists. It contains a runnable offline vertical slice, native local provider baselines, stable contracts, brand and product guidance, security boundaries, deterministic tests and evaluations, a machine-readable backlog, and disabled integration contracts for upstream projects studied during architecture research.
 
-> Build the brain. Adapt the organs. Fork only when ownership is unavoidable.
+> Build the whole tool. Own the boundaries. Integrate only when the contract is clear.
 
 ## Ship-ready local memory path
 
@@ -46,6 +46,10 @@ generic token savings versus RAG, hosted memory, or cloud sync.
   manifests, and source-graph hints into PENDING proposals only;
 - `oaf memory review`, `oaf memory approve`, and `oaf memory reject` for the
   trust step from candidate proposal to ACTIVE fact;
+- `oaf memory refine --read-only --root . --sqlite .local/memory.sqlite` for
+  duplicate, conflicting, stale, supersession, and lineage-residue candidates
+  before recall drift becomes trusted context; add `--target-active-facts N`
+  for a read-only memory budget preflight from existing candidates;
 - `oaf memory remember --batch facts.json` for host-agent extracted memory maps
   from `skills/oaf-memory`, including supersession and confidence labels;
 - read-only `oaf mcp server` exposing `memory.recall`, `context.profile`, and
@@ -82,6 +86,36 @@ capability status and limitations.
 
 Requirement: Node.js 22 or newer.
 
+Local package path, from this repository:
+
+```bash
+npm pack
+npm install -g ./open-agent-fabric-0.2.0-dev.tgz
+oaf setup
+oaf verify
+oaf connect codex --dry-run --format json
+oaf hook install --agent codex --dry-run --format json
+oaf hook install --agent claude-code --dry-run --format json
+```
+
+Source-checkout path, without a global install:
+
+```bash
+npm run oaf -- setup
+npm run oaf -- verify
+npm run oaf -- connect codex --dry-run --format json
+npm run oaf -- hook install --agent codex --dry-run --format json
+npm run oaf -- hook install --agent claude-code --dry-run --format json
+```
+
+`setup` runs the existing local bootstrap. `verify` runs the handoff
+verification gate. `connect --dry-run` previews the read-only MCP and hook
+setup. `connect --yes` is the narrow opt-in writer for Codex and Claude Code
+home config; it creates backups and receipts and can be undone with
+`disconnect --yes`. Hook install/uninstall commands remain dry-run receipt and
+manual-snippet commands. The tarball is local-install ready; the npm registry
+and marketplace are not published.
+
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
 npm run local:run
@@ -100,6 +134,11 @@ npm --silent run oaf -- memory review --root . --sqlite .local/memory.sqlite --f
 
 # Promote reviewed facts explicitly. Use a narrower source when you want less.
 npm --silent run oaf -- memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
+
+# Audit active facts before handing them to another agent. This is read-only.
+npm --silent run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --format json
+# Optional: preview the review work needed to fit an active-fact budget.
+npm --silent run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
 
 # Pull what a coding agent receives over the read-only MCP server.
 printf '%s\n' \
@@ -120,10 +159,84 @@ command. The installed server does not import harness history, enable write
 tools, call cloud/model APIs, or claim provider billing-token savings.
 In short: it does not import harness history, enable write tools, call cloud/model APIs, or claim provider billing-token savings.
 
-For context-pack handoff paths across Codex, Cursor, and Claude Code, read
-`docs/usage/local-agent-handoff.md`.
+First practical path: open **Context Pack**, keep the target as Codex or choose
+your local harness from **Inputs to review**, click **Preview sources**, use
+**Detect current git changes** or add changed files manually, optionally list
+reviewed memory preflight sources, then build the pack. Use the **Practical
+handoff** path: copy Markdown or the launch prompt, copy/download
+`oaf.memory.json` only if you chose memory files, run the read-only handoff
+preflight command, and preview MCP setup only when the target harness should
+read OAF resources. The brief shows
+changed-file coverage, required reads, hash proof, affected symbols, and proof
+commands without source bodies. Fabric Map and Agents & Tools show the same
+current handoff status without installing anything. This is a dry-run locator
+handoff with read-only MCP proof; it does not import harness history, create
+active memory, write harness config, or enable external adapters.
 
-The offline bootstrap installs no runtime npm dependencies. The optional Ollama provider requires a separately installed loopback Ollama server and never falls back to a cloud model.
+If the repository already has an explicitly pinned CLI handoff, the Context Pack
+page also shows **Pinned handoff status** by reading
+`context-packs/registry.json` and `context-packs/current.json` through the
+loopback API. Verified pins expose a browser **Receive pinned pack** action,
+copyable receiver packet, read-only receive command, and MCP use-plan read
+command; stale or review pins withhold the use-plan resource until the registry
+verifies again. Registry verification also redacts unsafe persisted source
+locators before status output, so poisoned local metadata cannot surface
+provider URLs, session-token strings, or absolute user paths as trusted status.
+
+For a pinned local pack that another harness can consume without retyping the
+objective, write and pin first, then receive the pinned artifact:
+
+```bash
+npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
+npm run oaf -- context receive --read-only --root . --target codex --format json
+npm run oaf -- context receive --read-only --root . --target codex --format summary
+```
+
+`context receive` reads `context-packs/current.json`, the pinned use-plan, and
+the registry only. It returns `ready`, `review`, or `blocked` with hashes,
+required local reads, a compact `receiverPacket` with versioned typed safe message parts,
+MCP zero-tool recipient proof, and harness status. Use `--format summary` for a
+compact operator preflight over the same proof. It does not rebuild the pack, accept
+objective/step text, write files, or expose raw source or Markdown bodies. Direct
+`--context-pack-use context-packs/*.use.json` MCP reads are also rejected before
+resource exposure if the use-plan contains unsafe local paths, provider URLs,
+session/token markers, or secret-like strings.
+
+For a single CLI preflight before handing work to Codex:
+
+```bash
+oaf context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+oaf context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format summary
+```
+
+Add `--memory-config oaf.memory.json` only when you want the report to preflight
+explicitly selected local memory source files. The handoff still stays read-only:
+it reports proposal/quarantine counts, warning codes, fingerprints, and a dry-run
+proposal command, but it does not write proposal files, activate memory, or expose
+memory text/source bodies.
+
+For a compact diff-aware impact brief with the same read-only MCP proof:
+
+```bash
+oaf measure context-pack --read-only --from codex --root . --objective "Prepare handoff" --step "impact brief" --target codex --changed apps/web/app.js --format json
+```
+
+Use `--format summary` for a compact operator-facing stdout report over the
+same validated measurement object.
+
+The measurement report includes selected/delivered handoff token estimates,
+observed local build/readback timings, and aggregate changed-file body tokens
+kept out of the handoff. It does not claim provider billing tokens, production
+latency, raw source inclusion, model calls, network calls, or external writes.
+
+For the full copy-paste operator path across the browser, CLI, Codex, Cursor,
+and Claude Code, read `docs/usage/local-agent-handoff.md`.
+
+The offline bootstrap installs no runtime npm dependencies. The optional Ollama
+provider requires a separately installed loopback Ollama server and never falls
+back to a cloud model. Its health check reports safe local model metadata from
+Ollama, including quantization level when present; OAF does not download,
+select, or modify weights.
 
 ## Give this repository to a coding agent
 
@@ -143,7 +256,7 @@ The operating path is:
 4. `PRODUCT.md`
 5. `DESIGN.md`
 6. `docs/START_HERE.md`
-7. `docs/adr/0012-build-the-brain-adapt-the-organs.md`
+7. `docs/adr/0012-build-the-whole-tool-own-the-boundaries.md`
 8. `docs/implementation/AGENT_EXECUTION_PLAYBOOK.md`
 9. `npm run task -- <OAF-ID>` only when `npm run status` names a next task
 
@@ -154,8 +267,10 @@ Most long-running agents do not fail because they lack stored information. They 
 OAF makes these first-class primitives:
 
 - context selection and context manifests;
+- source graph, retrieval, compaction, and code intelligence;
 - provenance, temporal validity, and supersession;
 - deterministic permissions and approvals;
+- hook-driven context routing that never grants authority;
 - an agent flight recorder and safe replay;
 - shadow comparisons and learning proposals;
 - portable Agent Packs;
@@ -196,6 +311,8 @@ See `REPOSITORY_MAP.md` for ownership and dependency boundaries.
 
 ```bash
 npm run status                 # implemented, reference, planned, disabled
+npm run oaf -- setup           # local bootstrap wrapper
+npm run oaf -- verify          # handoff verification wrapper
 npm run task -- <OAF-ID>       # only when status names a next task
 npm run doctor                 # environment and local safety checks
 npm run protocol:validate      # v1 valid, invalid, and compatibility fixtures
@@ -207,12 +324,16 @@ npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" 
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
 npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
 npm run oaf -- context receive --read-only --root . --target codex --format json  # after --write --pin
-npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+npm run oaf -- context receive --read-only --root . --target codex --format summary
+npm run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
+npm run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
 npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
 npm run oaf -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
 npm run oaf -- harness setup status --client codex --dry-run --format json
 npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json
+npm run oaf -- hook install --agent codex --dry-run --format json
+npm run oaf -- hook uninstall --agent codex --dry-run --format json
 npm run dev                    # local API and dashboard
 npm run ci                     # checks, protocol, tests, evaluations
 npm run verify:handoff         # full handoff gate plus manifests
@@ -221,11 +342,11 @@ npm run manifest               # file hashes for release and review
 
 ## Integration policy
 
-The core is Apache-2.0. Upstream projects are optional adapter targets; their source is not vendored. Every external adapter records an exact commit, checksum, license review, trust boundary, capability set, installation mode, maintainer, and conformance evidence before it can be enabled.
+The core is Apache-2.0. Upstream projects are research inputs, benchmark inputs, or optional integration targets; their source is not vendored. OAF owns the default local tool experience. Every external integration records an exact commit, checksum, license review, trust boundary, capability set, installation mode, maintainer, and conformance evidence before it can be enabled.
 
 Read:
 
-- `docs/adr/0012-build-the-brain-adapt-the-organs.md`
+- `docs/adr/0012-build-the-whole-tool-own-the-boundaries.md`
 - `docs/architecture/native-providers.md`
 - `docs/architecture/adapter-contracts.md`
 - `adapters/CONFORMANCE.md`
@@ -235,3 +356,11 @@ Read:
 ## Status
 
 Development kit: **0.2.0-dev**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.
+
+| Surface | Status |
+| --- | --- |
+| Source checkout | Local-ready reference path |
+| npm package tarball | Local-ready install path |
+| npm registry | Not published |
+| Marketplace / plugin registry | Not ready |
+| Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |

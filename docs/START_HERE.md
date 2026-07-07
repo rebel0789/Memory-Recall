@@ -40,7 +40,7 @@
 - `docs/architecture/native-providers.md`
 - `docs/architecture/agent-packs.md`
 - `docs/architecture/flight-recorder.md`
-- `docs/adr/0012-build-the-brain-adapt-the-organs.md`
+- `docs/adr/0012-build-the-whole-tool-own-the-boundaries.md`
 - `docs/architecture/trust-boundaries.md`
 - `docs/adr/`
 - `rfcs/`

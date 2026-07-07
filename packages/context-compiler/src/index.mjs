@@ -3,10 +3,26 @@ import { prefixedId, nowIso, assertPlainObject, stableStringify as protocolStabl
 
 export const COMPILER_VERSION = '0.2.0';
 const STOP_WORDS = new Set(['a','an','and','are','as','at','be','by','for','from','in','is','it','of','on','or','that','the','this','to','with']);
+export const CONTEXT_VIEW_ALGORITHM = 'oaf_context_view_v1';
+const CONTEXT_VIEW_KINDS = new Set(['auto', 'json', 'log', 'code', 'markdown', 'text']);
+const CONTEXT_VIEW_SECRET = /\b(?:token|secret|password|authorization|api[_-]?key|database_url|db_url|connection_string)\s*[:=]\s*[^\s,;]+/giu;
+const CONTEXT_VIEW_LOCAL_PATH = /(?:\/Users\/[^\s'")]+|\/home\/[A-Za-z0-9._-]+\/[^\s'")]+|\/private\/[^\s'")]+|\/var\/folders\/[^\s'")]+|[A-Za-z]:\\[^\s'")]+)/gu;
 
 export function estimateTokens(text) { return Math.max(1, Math.ceil(String(text ?? '').length / 4)); }
 export function terms(value) {
-  return new Set(String(value ?? '').toLowerCase().replace(/[^a-z0-9_:-]+/g,' ').split(/\s+/).filter(term => term.length > 1 && !STOP_WORDS.has(term)));
+  const out = [];
+  const seen = new Set();
+  const expanded = String(value ?? '')
+    .replace(/([A-Z]+)([A-Z][a-z])/gu, '$1 $2')
+    .replace(/([a-z0-9])([A-Z])/gu, '$1 $2');
+  for (const raw of expanded.toLowerCase().replace(/[^a-z0-9_./:-]+/g,' ').split(/\s+/)) {
+    for (const term of [raw, ...raw.split(/[_.:/-]+/u).filter(Boolean)]) {
+      if (term.length <= 1 || STOP_WORDS.has(term) || seen.has(term)) continue;
+      seen.add(term);
+      out.push(term);
+    }
+  }
+  return new Set(out);
 }
 function overlapScore(query, record) {
   const q=terms(query), r=terms([record.text,...(record.tags??[]),...(record.relations??[])].join(' '));
@@ -36,7 +52,7 @@ function isTemporallyValid(record, now) {
 function normalizeRecord(record) {
   assertPlainObject(record,'record');
   if (!record.id || !record.kind || !record.text) throw new Error('record requires id, kind, and text');
-  return {scope:'workspace-private',status:'active',confidence:.5,authority:.5,tags:[],relations:[],source:'unknown',...record,tokens:Number.isInteger(record.tokens)?record.tokens:estimateTokens(record.text)};
+  return applyContextView({scope:'workspace-private',status:'active',confidence:.5,authority:.5,tags:[],relations:[],source:'unknown',...record,tokens:Number.isInteger(record.tokens)?record.tokens:estimateTokens(record.text)});
 }
 function decision(item) {
   return {id:item.record.id,kind:item.record.kind,tokens:item.record.tokens,score:Number(item.score.toFixed(4)),reasonCodes:[...new Set(item.reasonCodes)],source:item.record.source,text:item.record.text};
@@ -150,6 +166,132 @@ function sha256(value) {
 
 export function hashRef(value) {
   return `sha256:${sha256(value)}`;
+}
+
+function redactContextViewText(value) {
+  return String(value ?? '')
+    .replace(CONTEXT_VIEW_SECRET, '[redacted-secret]')
+    .replace(CONTEXT_VIEW_LOCAL_PATH, '[redacted-local-path]');
+}
+
+function boundedText(value, maxTokens) {
+  const text = String(value ?? '').trim();
+  const maxChars = Math.max(16, maxTokens * 4);
+  return text.length > maxChars ? `${text.slice(0, maxChars - 3).trimEnd()}...` : text;
+}
+
+function classifyContextViewKind(text, explicit = 'auto') {
+  if (CONTEXT_VIEW_KINDS.has(explicit) && explicit !== 'auto') return explicit;
+  const trimmed = text.trim();
+  if (/^[\[{]/u.test(trimmed)) return 'json';
+  if (/^\s*#{1,6}\s|\n\s*[-*]\s/u.test(text)) return 'markdown';
+  if (/\b(?:error|warn|exception|traceback|failed|fatal)\b/iu.test(text) && text.split(/\r?\n/u).length > 4) return 'log';
+  if (/\b(?:import|export|function|class|const|let|fn|struct|impl)\b/u.test(text)) return 'code';
+  return 'text';
+}
+
+function jsonShape(value, depth = 0) {
+  if (depth > 2) return Array.isArray(value) ? `array(${value.length})` : typeof value;
+  if (Array.isArray(value)) {
+    const sample = value.slice(0, 3).map((item) => jsonShape(item, depth + 1)).join(', ');
+    return `array(${value.length})${sample ? ` of ${sample}` : ''}`;
+  }
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort();
+    const shown = keys.slice(0, 12).map((key) => `${key}: ${jsonShape(value[key], depth + 1)}`);
+    return `object keys(${keys.length}): ${shown.join('; ')}${keys.length > shown.length ? '; ...' : ''}`;
+  }
+  return typeof value;
+}
+
+function compactLines(text, { first = 4, last = 6, important = /./u, maxLines = 32 } = {}) {
+  const lines = text.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
+  if (lines.length <= maxLines) return lines.join('\n');
+  const chosen = new Map();
+  function add(index) {
+    if (index >= 0 && index < lines.length) chosen.set(index, lines[index]);
+  }
+  for (let index = 0; index < first; index++) add(index);
+  for (let index = 0; index < lines.length; index++) if (important.test(lines[index])) add(index);
+  for (let index = Math.max(first, lines.length - last); index < lines.length; index++) add(index);
+  const entries = [...chosen.entries()].sort((a, b) => a[0] - b[0]).slice(0, maxLines);
+  const omitted = Math.max(0, lines.length - entries.length);
+  return [...entries.map(([, line]) => line), ...(omitted ? [`... ${omitted} lines omitted ...`] : [])].join('\n');
+}
+
+function compactContextViewText(text, kind, maxTokens) {
+  if (kind === 'json') {
+    try {
+      return boundedText(`json ${jsonShape(JSON.parse(text))}`, maxTokens);
+    } catch {
+      return boundedText(compactLines(text, { first: 6, last: 6, important: /["{}\[\],:]/u }), maxTokens);
+    }
+  }
+  if (kind === 'log') return boundedText(compactLines(text, { important: /\b(?:error|warn|exception|traceback|failed|fatal)\b/iu }), maxTokens);
+  if (kind === 'code') return boundedText(compactLines(text, { first: 8, last: 4, important: /^\s*(?:import|export|class|function|const|let|fn|struct|impl)\b/u }), maxTokens);
+  if (kind === 'markdown') return boundedText(compactLines(text, { first: 6, last: 4, important: /^\s*(?:#{1,6}\s|[-*]\s)/u }), maxTokens);
+  return boundedText(compactLines(text, { first: 6, last: 4, important: /\b(?:must|should|error|decision|policy|todo|fix|fail)\b/iu }), maxTokens);
+}
+
+export function createContextView(value, { contentKind = 'auto', maxTokens = 160 } = {}) {
+  const original = String(value ?? '');
+  const redacted = redactContextViewText(original);
+  const kind = classifyContextViewKind(redacted, contentKind);
+  const boundedMaxTokens = Math.max(16, Math.min(4096, Number.isInteger(maxTokens) ? maxTokens : 160));
+  const text = compactContextViewText(redacted, kind, boundedMaxTokens);
+  const originalTokens = estimateTokens(original);
+  const viewTokens = estimateTokens(text);
+  return {
+    schemaVersion: '1.0.0',
+    algorithm: CONTEXT_VIEW_ALGORITHM,
+    contentKind: kind,
+    text,
+    originalTokens,
+    viewTokens,
+    originalContentHash: hashRef(original),
+    viewContentHash: hashRef(text),
+    reductionRatio: originalTokens ? Number((1 - viewTokens / originalTokens).toFixed(6)) : 0,
+    recoverableBy: 'originalContentHash',
+    reasonCodes: [...new Set([
+      'context_view_compacted',
+      `${kind}_context_view`,
+      ...(redacted !== original ? ['unsafe_material_redacted'] : [])
+    ])].sort()
+  };
+}
+
+function applyContextView(record) {
+  const config = record.metadata?.contextView;
+  if (!config || config.enabled !== true) return record;
+  const view = createContextView(record.text, {
+    contentKind: config.contentKind ?? config.kind ?? 'auto',
+    maxTokens: Number.isInteger(config.maxTokens) ? config.maxTokens : 160
+  });
+  if (view.viewTokens >= record.tokens) return record;
+  const contextAssembly = record.metadata?.contextAssembly && typeof record.metadata.contextAssembly === 'object' ? record.metadata.contextAssembly : {};
+  const reasonCodes = [...new Set([...(Array.isArray(contextAssembly.reasonCodes) ? contextAssembly.reasonCodes : []), ...view.reasonCodes, 'original_recoverable_by_hash'])].sort();
+  return {
+    ...record,
+    text: view.text,
+    tokens: view.viewTokens,
+    metadata: {
+      ...(record.metadata ?? {}),
+      contextAssembly: { ...contextAssembly, tier: contextAssembly.tier ?? 'full', reasonCodes },
+      contextView: { ...config, enabled: true },
+      contextCompression: {
+        schemaVersion: '1.0.0',
+        algorithm: view.algorithm,
+        contentKind: view.contentKind,
+        originalContentHash: view.originalContentHash,
+        viewContentHash: view.viewContentHash,
+        originalTokens: Number.isInteger(record.tokens) ? record.tokens : view.originalTokens,
+        viewTokens: view.viewTokens,
+        reductionRatio: view.reductionRatio,
+        recoverableBy: view.recoverableBy,
+        reasonCodes: view.reasonCodes
+      }
+    }
+  };
 }
 
 const COMPRESSED_PROFILE_REPORT_VERSION = '1.0.0';
@@ -616,7 +758,7 @@ export async function generateContextCandidates(request, {
   }
 
   const candidates = [...candidateMap.values()]
-    .sort((a, b) => a.record.id.localeCompare(b.record.id))
+    .sort(compareCandidatePreselection)
     .slice(0, candidateRequest.totalCandidateLimit)
     .map((candidate) => ({
       ...candidate,
@@ -635,8 +777,10 @@ export async function generateContextCandidates(request, {
 }
 
 export async function compileContextFromSources(request, options = {}) {
-  const candidateGeneration = await generateContextCandidates(request, options);
+  const { selectionPolicy = CONTEXT_SELECTION_POLICY, ...candidateOptions } = options;
+  const candidateGeneration = await generateContextCandidates(request, candidateOptions);
   const selected = selectContextCandidates(request, candidateGeneration.candidates, {
+    policy: selectionPolicy,
     candidateGeneration,
     warnings: candidateGeneration.warnings
   });
@@ -821,6 +965,12 @@ function compareHits(a, b) {
   return a.sourceKind.localeCompare(b.sourceKind) || a.sourceId.localeCompare(b.sourceId) || a.localRank - b.localRank || a.retrievalMethod.localeCompare(b.retrievalMethod);
 }
 
+function compareCandidatePreselection(a, b) {
+  const bestRank = (candidate) => Math.min(...candidate.hits.map((hit) => hit.localRank));
+  const bestScore = (candidate) => Math.max(...candidate.hits.map((hit) => hit.localScore));
+  return bestRank(a) - bestRank(b) || bestScore(b) - bestScore(a) || a.record.tokens - b.record.tokens || a.record.id.localeCompare(b.record.id);
+}
+
 export const SELECTION_REASON_CODES = Object.freeze([
   'required',
   'explicit_requirement',
@@ -939,7 +1089,8 @@ export const CONTEXT_SELECTION_POLICY = deepFreeze({
   thresholds: {
     minimumUtility: 0.35,
     marginalUtility: 0.2,
-    minimumEvidenceCount: 2
+    minimumEvidenceCount: 2,
+    minimumBudgetUtilization: 0
   },
   limits: {
     maxSelectedCandidates: 12,
@@ -962,6 +1113,42 @@ export const CONTEXT_SELECTION_POLICY = deepFreeze({
   ]
 });
 
+export const CODE_SEARCH_CONTEXT_SELECTION_POLICY = deepFreeze({
+  ...deepClone(CONTEXT_SELECTION_POLICY),
+  policyVersion: '1.0.4',
+  sourceWeights: {
+    ...CONTEXT_SELECTION_POLICY.sourceWeights,
+    lexical: 8,
+    'ast-code': 8
+  },
+  featureWeights: {
+    ...CONTEXT_SELECTION_POLICY.featureWeights,
+    sourceFusion: 24,
+    tokenEfficiency: 2
+  },
+  categoryBudgets: Object.fromEntries(Object.entries(CONTEXT_SELECTION_POLICY.categoryBudgets).map(([category, value]) => [
+    category,
+    category === 'evidence' ? { ...value, cap: 50, softReserveRatio: 0.8 } : value
+  ])),
+  thresholds: {
+    ...CONTEXT_SELECTION_POLICY.thresholds,
+    minimumEvidenceCount: 20,
+    minimumBudgetUtilization: 0.65,
+    minimumUtility: 0.2,
+    marginalUtility: 0.05
+  },
+  limits: {
+    ...CONTEXT_SELECTION_POLICY.limits,
+    maxSelectedCandidates: 50,
+    maxCandidates: 100,
+    maxTotalCandidateTokens: 100000
+  },
+  similarity: {
+    ...CONTEXT_SELECTION_POLICY.similarity,
+    maxPairwiseComparisons: 100000
+  }
+});
+
 const SELECTION_POLICY_KEYS = new Set([
   'schemaVersion',
   'policyVersion',
@@ -979,7 +1166,7 @@ const SELECTION_POLICY_KEYS = new Set([
 const FUSION_KEYS = new Set(['method', 'rrfK']);
 const DIVERSITY_KEYS = new Set(['method', 'diversityWeight', 'coverageBonus', 'kindCoverageBonus', 'duplicateSimilarityThreshold', 'nearDuplicateSimilarityThreshold']);
 const SIMILARITY_KEYS = new Set(['normalization', 'shingleSize', 'maxTextBytes', 'minTokenLength', 'maxTokens', 'maxPairwiseComparisons']);
-const THRESHOLD_KEYS = new Set(['minimumUtility', 'marginalUtility', 'minimumEvidenceCount']);
+const THRESHOLD_KEYS = new Set(['minimumUtility', 'marginalUtility', 'minimumEvidenceCount', 'minimumBudgetUtilization']);
 const LIMIT_KEYS = new Set(['maxSelectedCandidates', 'maxCandidates', 'maxSourceHitsPerCandidate', 'maxScoreFactorsPerCandidate', 'maxCandidateTokens', 'maxTotalCandidateTokens', 'requiredBudgetRatio']);
 const TOKEN_ESTIMATION_KEYS = new Set(['method', 'zeroTokensAllowed']);
 const CATEGORY_BUDGET_KEYS = new Set(['cap', 'softReserveRatio']);
@@ -1058,6 +1245,7 @@ export function validateContextSelectionPolicy(policy = CONTEXT_SELECTION_POLICY
     assertFiniteRange(policy.thresholds.minimumUtility, 0, 100, 'thresholds.minimumUtility');
     assertFiniteRange(policy.thresholds.marginalUtility, 0, 100, 'thresholds.marginalUtility');
     assertIntegerInRange(policy.thresholds.minimumEvidenceCount, 0, 20, 'thresholds.minimumEvidenceCount');
+    assertFiniteRange(policy.thresholds.minimumBudgetUtilization, 0, 1, 'thresholds.minimumBudgetUtilization');
     assertPlainObject(policy.limits, 'context selection policy limits');
     assertNoUnknown(policy.limits, LIMIT_KEYS, 'context selection policy limits');
     for (const key of ['maxSelectedCandidates', 'maxCandidates', 'maxSourceHitsPerCandidate', 'maxScoreFactorsPerCandidate', 'maxCandidateTokens', 'maxTotalCandidateTokens']) assertIntegerInRange(policy.limits[key], 1, 100000, `limits.${key}`);
@@ -1163,7 +1351,7 @@ function normalizeSelectionCandidate(candidate, index, request, policy) {
   const tokens = Number.isInteger(record.tokens) ? record.tokens : estimateTokens(record.text);
   if ((!policy.tokenEstimation.zeroTokensAllowed && tokens < 1) || tokens < 0 || tokens > policy.limits.maxCandidateTokens) throw new TypeError('invalid_token_estimate');
   if (byteLength(record.text) > MAX_CANDIDATE_TEXT_BYTES) throw new TypeError('malformed_candidate:text_too_large');
-  const contentHash = recordFingerprint(record);
+  const contentHash = record.metadata?.contextCompression?.originalContentHash ?? recordFingerprint(record);
   if ((record.contentHash || record.fingerprint) && !/^sha256:[a-f0-9]{64}$/.test(record.contentHash ?? record.fingerprint)) throw new TypeError('malformed_candidate:content_hash');
   const hits = Array.isArray(item.hits) && item.hits.length
     ? item.hits.slice(0, policy.limits.maxSourceHitsPerCandidate).map((hit, hitIndex) => normalizeSelectionHit(hit, hitIndex))
@@ -1353,7 +1541,17 @@ function reasonCodesForScored({ record, values, required, governance, utility })
 
 function normalizeTextTokens(text, policy) {
   const limited = Buffer.from(String(text ?? ''), 'utf8').subarray(0, policy.similarity.maxTextBytes).toString('utf8');
-  return limited.normalize('NFKC').toLowerCase().replace(/[^a-z0-9_:-]+/g, ' ').split(/\s+/).filter((token) => token.length >= policy.similarity.minTokenLength).slice(0, policy.similarity.maxTokens);
+  const expanded = limited.normalize('NFKC')
+    .replace(/([A-Z]+)([A-Z][a-z])/gu, '$1 $2')
+    .replace(/([a-z0-9])([A-Z])/gu, '$1 $2');
+  const tokens = [];
+  for (const raw of expanded.toLowerCase().replace(/[^a-z0-9_./:-]+/g, ' ').split(/\s+/)) {
+    for (const token of [raw, ...raw.split(/[_.:/-]+/u).filter(Boolean)]) {
+      if (token.length >= policy.similarity.minTokenLength) tokens.push(token);
+      if (tokens.length >= policy.similarity.maxTokens) return tokens;
+    }
+  }
+  return tokens;
 }
 
 function shinglesFor(text, policy) {
@@ -1374,7 +1572,11 @@ function jaccard(left, right) {
 function similarity(left, right, policy) {
   if (left.record.id === right.record.id) return 1;
   if (left.record.contentHash && left.record.contentHash === right.record.contentHash) return 1;
-  return jaccard(left.shingles, right.shingles);
+  const overlap = jaccard(left.shingles, right.shingles);
+  const leftPath = left.record.metadata?.path;
+  const rightPath = right.record.metadata?.path;
+  if (typeof leftPath === 'string' && leftPath && leftPath === rightPath) return Math.max(overlap, policy.diversity.nearDuplicateSimilarityThreshold);
+  return overlap;
 }
 
 function clamp01(value) {
@@ -1408,10 +1610,13 @@ function decisionFromScored(item, score, reasonCodes, order = null) {
     source: safeManifestSource(item.record.source),
     text: item.record.text
   };
+  if (item.record.contentHash) result.contentHash = item.record.contentHash;
   if (order !== null) result.order = order;
   if (item.category) result.category = item.category;
   const representationHint = normalizeRepresentationHint(item.record.metadata?.contextAssembly);
   if (representationHint) result.representationHint = representationHint;
+  const contextView = normalizeContextViewForManifest(item.record.metadata?.contextCompression);
+  if (contextView) result.contextView = contextView;
   return result;
 }
 
@@ -1505,19 +1710,31 @@ export function selectContextCandidates(request, inputCandidates, {
 
   const optional = scored.filter((item) => !item.required && !item.governance && !selected.some((decision) => decision.id === item.record.id));
   const optionalState = new Map(optional.map((item) => [item.record.id, item]));
+  const redundancyState = new Map();
+  function redundancyFor(item) {
+    const state = redundancyState.get(item.record.id) ?? { compared: 0, score: 0 };
+    while (state.compared < selectedScored.length) {
+      const selectedItem = selectedScored[state.compared];
+      state.compared += 1;
+      if (item.record.workspaceId !== selectedItem.record.workspaceId) continue;
+      pairwiseComparisons += 1;
+      if (pairwiseComparisons > selectionPolicy.similarity.maxPairwiseComparisons) throw new Error('similarity_comparison_limit_exceeded');
+      state.score = Math.max(state.score, similarity(item, selectedItem, selectionPolicy));
+    }
+    redundancyState.set(item.record.id, state);
+    return round(state.score);
+  }
   let iterations = 0;
   while (optionalState.size && selected.length < selectionPolicy.limits.maxSelectedCandidates) {
     iterations += 1;
     let best = null;
     for (const item of optionalState.values()) {
-      const redundancy = maxSimilarity(item, selectedScored, selectionPolicy);
-      pairwiseComparisons += redundancy.comparisons;
-      if (pairwiseComparisons > selectionPolicy.similarity.maxPairwiseComparisons) throw new Error('similarity_comparison_limit_exceeded');
+      const redundancyScore = redundancyFor(item);
       const newEntityCoverage = [...(item.record.tags ?? []), ...(item.record.relations ?? [])].some((entity) => (selectionRequest.requiredEntities ?? []).includes(entity) && !selectedEntities.has(entity));
       const newKindCoverage = !selectedScored.some((selectedItem) => selectedItem.category === item.category);
       const coverageBonus = (newEntityCoverage ? selectionPolicy.diversity.coverageBonus : 0) + (newKindCoverage ? selectionPolicy.diversity.kindCoverageBonus : 0);
-      const marginalUtility = round(item.rawUtility - (selectionPolicy.diversity.diversityWeight * redundancy.score) + coverageBonus);
-      const decorated = { ...item, redundancyPenalty: round(redundancy.score), marginalUtility, coverageBonus: round(coverageBonus), newEntityCoverage, newKindCoverage };
+      const marginalUtility = round(item.rawUtility - (selectionPolicy.diversity.diversityWeight * redundancyScore) + coverageBonus);
+      const decorated = { ...item, redundancyPenalty: redundancyScore, marginalUtility, coverageBonus: round(coverageBonus), newEntityCoverage, newKindCoverage };
       if (!best || compareMarginal(decorated, best) < 0) best = decorated;
     }
     if (!best) break;
@@ -1538,10 +1755,10 @@ export function selectContextCandidates(request, inputCandidates, {
     selectedByCategory.set(best.category, categoryCount + 1);
     used += best.record.tokens;
     for (const entity of [...(best.record.tags ?? []), ...(best.record.relations ?? [])]) if ((selectionRequest.requiredEntities ?? []).includes(entity)) selectedEntities.add(entity);
-    if (isSufficient({ request: selectionRequest, selectedScored, conflicts, policy: selectionPolicy }) && evidenceCount(selectedScored) >= selectionPolicy.thresholds.minimumEvidenceCount) {
+    if (isSufficient({ request: selectionRequest, selectedScored, conflicts, policy: selectionPolicy, selectedTokenCount: used }) && evidenceCount(selectedScored) >= selectionPolicy.thresholds.minimumEvidenceCount) {
       for (const item of [...optionalState.values()].sort((a, b) => a.record.id.localeCompare(b.record.id))) {
-        const redundancy = maxSimilarity(item, selectedScored, selectionPolicy);
-        excluded.push(exclusion(item, item.rawUtility, redundancy.score >= selectionPolicy.diversity.duplicateSimilarityThreshold ? ['redundant'] : ['insufficient_marginal_utility']));
+        const redundancyScore = redundancyFor(item);
+        excluded.push(exclusion(item, item.rawUtility, redundancyScore >= selectionPolicy.diversity.duplicateSimilarityThreshold ? ['redundant'] : ['insufficient_marginal_utility']));
       }
       optionalState.clear();
       break;
@@ -1553,7 +1770,7 @@ export function selectContextCandidates(request, inputCandidates, {
   const eligibleCoverage = coverageFor(eligible.map((item) => item.record), requiredEntities);
   const selectedCoverage = coverageFor(selectedScored.map((item) => item.record), requiredEntities);
   const sufficiency = {
-    state: isSufficient({ request: selectionRequest, selectedScored, conflicts, policy: selectionPolicy }) ? 'sufficient' : 'insufficient',
+    state: isSufficient({ request: selectionRequest, selectedScored, conflicts, policy: selectionPolicy, selectedTokenCount: used }) ? 'sufficient' : 'insufficient',
     requiredIds: {
       requested: [...requiredIds].sort(),
       resolved: requiredEligible.map((item) => item.record.id).sort(),
@@ -1634,22 +1851,11 @@ function compareMarginal(a, b) {
   return b.marginalUtility - a.marginalUtility || a.record.tokens - b.record.tokens || a.record.id.localeCompare(b.record.id);
 }
 
-function maxSimilarity(item, selected, policy) {
-  let score = 0;
-  let comparisons = 0;
-  for (const selectedItem of selected) {
-    if (item.record.workspaceId !== selectedItem.record.workspaceId) continue;
-    comparisons += 1;
-    score = Math.max(score, similarity(item, selectedItem, policy));
-  }
-  return { score: round(score), comparisons };
-}
-
 function evidenceCount(items) {
   return items.filter((item) => item.category === 'evidence').length;
 }
 
-function isSufficient({ request, selectedScored, conflicts, policy }) {
+function isSufficient({ request, selectedScored, conflicts, policy, selectedTokenCount = 0 }) {
   const requiredIds = new Set(request.requiredIds ?? []);
   for (const id of requiredIds) if (!selectedScored.some((item) => item.record.id === id)) return false;
   if ((request.requiredEntities ?? []).length) {
@@ -1658,6 +1864,7 @@ function isSufficient({ request, selectedScored, conflicts, policy }) {
     for (const entity of request.requiredEntities) if (!selectedEntities.has(entity)) return false;
   }
   if (evidenceCount(selectedScored) < policy.thresholds.minimumEvidenceCount) return false;
+  if (selectedTokenCount / Math.max(1, request.tokenBudget) < (policy.thresholds.minimumBudgetUtilization ?? 0)) return false;
   if (conflicts.length && !conflicts.every((conflict) => conflict.records.every((record) => selectedScored.some((item) => item.record.id === record.id)))) return false;
   return true;
 }
@@ -1749,6 +1956,25 @@ function normalizeRepresentationHint(value) {
   };
 }
 
+function normalizeContextViewForManifest(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (value.algorithm !== CONTEXT_VIEW_ALGORITHM) return null;
+  if (!/^sha256:[a-f0-9]{64}$/u.test(value.originalContentHash ?? '') || !/^sha256:[a-f0-9]{64}$/u.test(value.viewContentHash ?? '')) return null;
+  return {
+    algorithm: value.algorithm,
+    contentKind: CONTEXT_VIEW_KINDS.has(value.contentKind) && value.contentKind !== 'auto' ? value.contentKind : 'text',
+    originalContentHash: value.originalContentHash,
+    viewContentHash: value.viewContentHash,
+    originalTokens: Math.max(1, Number(value.originalTokens ?? 1)),
+    viewTokens: Math.max(1, Number(value.viewTokens ?? 1)),
+    reductionRatio: round(Number(value.reductionRatio ?? 0)),
+    recoverableBy: value.recoverableBy === 'originalContentHash' ? 'originalContentHash' : 'manual_review',
+    reasonCodes: Array.isArray(value.reasonCodes)
+      ? [...new Set(value.reasonCodes.filter((item) => typeof item === 'string' && /^[a-z][a-z0-9_:-]*$/u.test(item)))].sort().slice(0, 12)
+      : ['context_view_compacted']
+  };
+}
+
 function durableManifestId({ request, runId, selectedIds }) {
   return `ctx_${sha256(stableStringify({
     workspaceId: request.workspaceId ?? 'ws_local',
@@ -1762,6 +1988,11 @@ function durableManifestId({ request, runId, selectedIds }) {
 }
 
 function manifestContentHash(item) {
+  if (item.contentHash && /^sha256:[a-f0-9]{64}$/u.test(item.contentHash)) return item.contentHash;
+  return legacyManifestContentHash(item);
+}
+
+function legacyManifestContentHash(item) {
   return hashRef(stableStringify({
     id: item.id,
     kind: item.kind,
@@ -1782,6 +2013,7 @@ function representationForItem(item) {
   const tier = CONTEXT_REPRESENTATION_TIERS.includes(requestedTier) ? requestedTier : 'full';
   let text = originalText;
   let reasonCodes = normalizeRepresentationHint(item.representationHint)?.reasonCodes ?? ['full_context_required'];
+  const originalTokens = Number.isInteger(item.contextView?.originalTokens) ? item.contextView.originalTokens : item.tokens;
   if (tier === 'snippet') {
     const limit = 240;
     text = originalText.length > limit ? `${originalText.slice(0, limit)}...` : originalText;
@@ -1800,7 +2032,7 @@ function representationForItem(item) {
   return {
     tier,
     text,
-    originalTokens: item.tokens,
+    originalTokens,
     representedTokens,
     reasonCodes
   };
@@ -1897,7 +2129,7 @@ function buildLegacyAssembly(selected, { policy = LEGACY_CONTEXT_ASSEMBLY_POLICY
       tokens: item.tokens,
       source: item.source,
       text: item.text,
-      contentHash: manifestContentHash(item)
+      contentHash: legacyManifestContentHash(item)
     }));
     sections.push({
       id: sectionId,
@@ -1982,9 +2214,9 @@ function manifestDeltaFrom(previousManifest, durable, assembly) {
 }
 
 function tokenBudgetReport({ manifest, assembly, selection, request, deltaFrom }) {
-  const selectedOriginalTokens = (manifest.selected ?? []).reduce((sum, item) => sum + Number(item.tokens ?? 0), 0);
+  const selectedOriginalTokens = (manifest.selected ?? []).reduce((sum, item) => sum + Number(item.contextView?.originalTokens ?? item.tokens ?? 0), 0);
   const assembledTokens = assembly.totalTokens;
-  const candidateTokens = Number(selection?.totalCandidateTokenCount ?? selectedOriginalTokens);
+  const candidateTokens = Math.max(Number(selection?.totalCandidateTokenCount ?? selectedOriginalTokens), selectedOriginalTokens);
   const requiredIds = new Set(request.requiredIds ?? []);
   const requiredSelected = (manifest.selected ?? []).filter((item) => requiredIds.has(item.id)).length;
   const requestedEntities = new Set(request.requiredEntities ?? []);
@@ -2000,6 +2232,14 @@ function tokenBudgetReport({ manifest, assembly, selection, request, deltaFrom }
           recordId: item.id,
           tier: item.representation.tier,
           reasonCodes: item.representation.reasonCodes ?? []
+        });
+      }
+      const selectedItem = (manifest.selected ?? []).find((record) => record.id === item.id);
+      if (selectedItem?.contextView) {
+        compressionLossNotes.push({
+          recordId: item.id,
+          tier: 'context-view',
+          reasonCodes: selectedItem.contextView.reasonCodes ?? []
         });
       }
     }

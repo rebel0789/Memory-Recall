@@ -15,9 +15,17 @@ function nextTaskLabel(statusNextTask, tasks) {
   return 'none (checked-in backlog complete)';
 }
 
+const nextTask = nextTaskLabel(status.nextTask, backlog.tasks ?? []);
+
 console.log(`${status.project} ${status.release} — ${status.phase}`);
-console.log(`Next task: ${nextTaskLabel(status.nextTask, backlog.tasks ?? [])}`);
+console.log(`Next task: ${nextTask}`);
 console.log(`Defaults: network=${status.defaults.network}, externalWrites=${status.defaults.externalWrites}, model=${status.defaults.modelMode}, residency=${status.defaults.dataResidency}`);
+if (nextTask.startsWith('none ')) {
+  console.log('Use OAF today: docs/usage/local-agent-handoff.md');
+  console.log('First safe handoff: npm run oaf -- context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed-from-git --format summary');
+  console.log('Skill menu: npm run oaf -- skill catalog --read-only --root . --format summary');
+  console.log('Issue/PR queue instructions: docs/agents/issue-tracker.md');
+}
 const groups = Map.groupBy(status.capabilities, (item) => item.status);
 for (const state of ['implemented', 'reference', 'experimental', 'specified', 'disabled', 'unsupported']) {
   const items = groups.get(state) ?? [];

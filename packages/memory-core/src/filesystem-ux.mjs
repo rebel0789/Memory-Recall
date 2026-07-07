@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 const REPORT_VERSION = '1.0.0';
-const SAFE_TARGET = /^[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$/;
+const SAFE_TARGET = /^[A-Za-z0-9._~!$&'()*+,;=:@%/\[\]-]+$/;
 const ACCEPTED_PROFILE_STATUSES = new Set(['active']);
 const PENDING_PROPOSAL_STATUSES = new Set(['proposed', 'quarantined']);
 const SEARCH_STATUSES = new Set(['active', 'verified']);
@@ -112,6 +112,14 @@ function ageDays(updatedAt, generatedAt) {
 
 function sourceRoleForPath(relativePath) {
   return String(relativePath ?? '').split('/').at(-1) === 'MEMORY.md' ? 'memory-index' : 'memory-file';
+}
+
+function isGeneratedMemorySourcePath(relativePath) {
+  const normalized = String(relativePath ?? '').replace(/^\/+/u, '');
+  return normalized === 'memory/profile.md' ||
+    normalized.startsWith('memory/proposals/') ||
+    normalized.startsWith('context-packs/') ||
+    normalized.startsWith('.local/');
 }
 
 export function redactMemoryText(value, { maxLength = 320 } = {}) {
@@ -405,6 +413,7 @@ export function normalizeMemoryPathsConfig(config, { maxPaths = 32 } = {}) {
       throw new Error(`memoryPaths[${index}] path must be workspace-relative`);
     }
     if (!SAFE_TARGET.test(relativePath)) throw new Error(`memoryPaths[${index}] path contains unsupported characters`);
+    if (isGeneratedMemorySourcePath(relativePath)) throw new Error(`memoryPaths[${index}] path must not point at generated OAF reports`);
     return {
       path: relativePath,
       kind: value.kind ?? 'episode',

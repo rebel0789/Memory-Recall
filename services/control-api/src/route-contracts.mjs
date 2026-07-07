@@ -1116,10 +1116,26 @@ export function createApiRouteContracts(limits = {}) {
       warning: boundedString(200)
     }
   };
+  const manualHookSnippet = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['format', 'configRef', 'applyMode', 'content', 'warning'],
+    properties: {
+      format: { const: 'json' },
+      configRef: { type: 'string', pattern: '^home://[A-Za-z0-9._/-]{1,240}$', maxLength: 256 },
+      applyMode: { const: 'manual-copy' },
+      content: {
+        type: 'string',
+        maxLength: 4000,
+        pattern: '^(?![\\s\\S]*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\\s\\S]*$'
+      },
+      warning: boundedString(200)
+    }
+  };
   const harnessSetupPlanResponse = {
     type: 'object',
     additionalProperties: false,
-    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'bridgeMode', 'config', 'status', 'desiredServer', 'manualConfigSnippet', 'diff', 'safeguards', 'planFingerprint'],
+    required: ['schemaVersion', 'plannerVersion', 'command', 'dryRun', 'generatedAt', 'client', 'clientLabel', 'server', 'bridgeMode', 'config', 'status', 'desiredServer', 'desiredHooks', 'manualConfigSnippet', 'manualHookSnippet', 'diff', 'safeguards', 'planFingerprint'],
     properties: {
       schemaVersion: { const: '1.0.0' },
       plannerVersion: boundedString(32),
@@ -1157,19 +1173,42 @@ export function createApiRouteContracts(limits = {}) {
         properties: {
           name: { const: 'oaf' },
           transport: { const: 'stdio' },
-          command: { const: 'npm' },
+          command: { enum: ['oaf', 'npm'] },
           args: {
             type: 'array',
-            minItems: 8,
+            minItems: 4,
             maxItems: 8,
-            items: boundedString(32)
+            items: {
+              type: 'string',
+              minLength: 1,
+              maxLength: 220,
+              pattern: "^(?!.*(?:/Users|/private|/var/folders|token=|OPENAI_API_KEY|authorization|cookie|secret=|api[_-]?key=|npx|uvx|curl))[\\s\\S]*$"
+            }
           },
           environmentKeys: { type: 'array', maxItems: 0 },
           resourceMode: { const: 'read-only' },
           externalWrites: { const: false }
         }
       },
+      desiredHooks: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['supported', 'applyMode', 'events', 'command', 'authority', 'externalWrites'],
+        properties: {
+          supported: { type: 'boolean' },
+          applyMode: { const: 'manual-copy' },
+          events: {
+            type: 'array',
+            maxItems: 3,
+            items: { enum: ['SessionStart', 'UserPromptSubmit', 'PreCompact'] }
+          },
+          command: { type: ['string', 'null'], maxLength: 240 },
+          authority: { const: 'none' },
+          externalWrites: { const: false }
+        }
+      },
       manualConfigSnippet,
+      manualHookSnippet,
       diff: {
         type: 'object',
         additionalProperties: false,

@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "skill load-plan",
+  "generatedAt": "2026-07-05T00:00:00.000Z",
+  "workspaceId": "ws_local",
+  "rootRef": "workspace://.",
+  "skill": {
+    "id": "skill:oaf-memory",
+    "name": "OAF Memory Mapper",
+    "description": "Map project decisions, entities, relationships, and supersessions into proposal-gated OAF memory.",
+    "version": "0.1.0",
+    "advertised": true,
+    "directoryRef": "workspace://skills/oaf-memory",
+    "manifestRef": "workspace://skills/oaf-memory/manifest.json",
+    "skillRef": "workspace://skills/oaf-memory/SKILL.md",
+    "sideEffectClass": "reversible-write",
+    "triggers": [
+      "/oaf-memory",
+      "map this project into OAF",
+      "remember my decisions",
+      "set up OAF memory"
+    ],
+    "tools": [
+      "tool:filesystem-read",
+      "tool:git-read",
+      "tool:shell-sandbox",
+      "tool:workspace-write"
+    ],
+    "references": [],
+    "readiness": {
+      "state": "blocked",
+      "approvalRequired": true,
+      "unreviewedToolIds": [
+        "tool:git-read",
+        "tool:shell-sandbox"
+      ],
+      "reasonCodes": [
+        "write_skill_requires_approval",
+        "skill_declares_unreviewed_tools"
+      ]
+    },
+    "manifestFingerprint": "sha256:e43c13ccd4833606502507cb02253e347b8d0a0843b8caf2f880a2b38fb84ed3",
+    "checks": {
+      "manifestValid": true,
+      "skillDocumentPresent": true,
+      "referencesPresent": true
+    }
+  },
+  "requiredLocalReads": [
+    {
+      "order": 1,
+      "kind": "manifest",
+      "ref": "workspace://skills/oaf-memory/manifest.json",
+      "reason": "Validate skill metadata before reading instructions."
+    },
+    {
+      "order": 2,
+      "kind": "skill",
+      "ref": "workspace://skills/oaf-memory/SKILL.md",
+      "reason": "Read instructions only after the trigger matches."
+    }
+  ],
+  "catalogFingerprint": "sha256:6f2f444d51cd90aee5e28aba3080712029c6a3996c66bc059be9130a03c1c299",
+  "safeguards": {
+    "readOnly": true,
+    "canonicalStateMutated": false,
+    "localFilesWritten": 0,
+    "externalWritesEnabled": false,
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "rawSkillTextIncluded": false,
+    "toolAuthorityGranted": false,
+    "absoluteFilesystemLocationsIncluded": false
+  },
+  "loadPlanFingerprint": "sha256:fad68c5430fdd6b49ecfcf202869c8b387e300b70feae23d7ddf7e326e626d1e"
+}

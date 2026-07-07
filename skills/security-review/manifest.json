@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:security-review",
   "name": "Security Review",
+  "description": "Review trust boundaries, permissions, data exposure, approvals, sandboxing, and logs.",
   "version": "0.1.0",
   "triggers": [
     "security review",

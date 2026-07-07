@@ -147,3 +147,36 @@ test('source graph preview rejects unsafe changed locators', async () => {
     /source_graph_preview_locator_invalid/
   );
 });
+
+test('source graph preview rejects oversized changed locator sets', async () => {
+  const root = await fixtureWorkspace();
+  await assert.rejects(
+    () => buildSourceGraphPreview({
+      root,
+      workspaceId: 'ws_local',
+      query: 'token',
+      changedLocators: Array.from({ length: 17 }, (_, index) => `workspace://src/file-${index}.ts`),
+      clock: () => fixedNow
+    }),
+    /changed_context_too_many_locators/
+  );
+});
+
+test('source graph preview does not represent missing changed locators', async () => {
+  const root = await fixtureWorkspace();
+  const preview = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    query: 'invented locator',
+    changedLocators: ['workspace://src/invented.ts'],
+    clock: () => fixedNow
+  });
+
+  assert.deepEqual(preview.impact.changedLocators, ['workspace://src/invented.ts']);
+  assert.deepEqual(preview.impact.representedChangedLocators, []);
+  assert.deepEqual(preview.impact.affectedSymbols, []);
+  const serialized = JSON.stringify(preview);
+  assert(!serialized.includes('RAW BODY SENTINEL'));
+  assert(!serialized.includes(root));
+  assert(!serialized.includes('/Users/'));
+});

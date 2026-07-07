@@ -2704,8 +2704,8 @@ fn context_pack_payload(
             "sourceCandidateTokenCount": 0,
             "sourceSelectedTokenCount": 0,
             "sourceSelectedTokenRatio": 0,
-            "deliveredTokenCount": 1073,
-            "deliveredByteSize": 4290,
+            "deliveredTokenCount": 1095,
+            "deliveredByteSize": 4378,
             "deliveredTokenRatio": 0,
             "observedTokenReductionRatio": 0,
             "sourceContentTokenCountIncluded": 0,
@@ -2752,12 +2752,12 @@ fn context_pack_payload(
             "role": "agent-handoff",
             "contentType": "text/markdown",
             "contentHash": format!("sha256:{}", sha256_hex("context-pack-markdown")),
-            "byteSize": 4290
+            "byteSize": 4378
         }],
         "markdownArtifact": {
             "included": false,
             "contentHash": format!("sha256:{}", sha256_hex("context-pack-markdown")),
-            "byteSize": 4290
+            "byteSize": 4378
         },
         "safeguards": {
             "readOnly": true,
@@ -4088,13 +4088,60 @@ fn detect_changes_tool() -> Value {
     })
 }
 
+fn mcp_resource(
+    workspace_id: &str,
+    suffix: &str,
+    name: &str,
+    description: &str,
+    priority: f64,
+) -> Value {
+    json!({
+        "uri": format!("oaf://workspace/{workspace_id}/{suffix}"),
+        "name": name,
+        "title": name,
+        "description": description,
+        "mimeType": "application/json",
+        "annotations": { "audience": ["assistant"], "priority": priority }
+    })
+}
+
 fn mcp_resources(workspace_id: &str) -> Value {
     json!([
-        { "uri": format!("oaf://workspace/{workspace_id}/status"), "name": "OAF workspace status", "description": "Sanitized local OAF workspace status and default safety posture.", "mimeType": "application/json" },
-        { "uri": format!("oaf://workspace/{workspace_id}/context/latest"), "name": "Latest context manifest summary", "description": "Sanitized selected and excluded context manifest summary.", "mimeType": "application/json" },
-        { "uri": format!("oaf://workspace/{workspace_id}/runs/latest"), "name": "Latest run summary", "description": "Sanitized latest run and recent event timeline without event bodies.", "mimeType": "application/json" },
-        { "uri": format!("oaf://workspace/{workspace_id}/memory/proposals"), "name": "Memory proposal summary", "description": "Proposal-only memory queue summary without memory text.", "mimeType": "application/json" },
-        { "uri": format!("oaf://workspace/{workspace_id}/handoff/latest"), "name": "Handoff bundle summary", "description": "Sanitized handoff and artifact summary for local agent review.", "mimeType": "application/json" }
+        mcp_resource(
+            workspace_id,
+            "status",
+            "OAF workspace status",
+            "Sanitized local OAF workspace status and default safety posture.",
+            0.8
+        ),
+        mcp_resource(
+            workspace_id,
+            "context/latest",
+            "Latest context manifest summary",
+            "Sanitized selected and excluded context manifest summary.",
+            0.9
+        ),
+        mcp_resource(
+            workspace_id,
+            "runs/latest",
+            "Latest run summary",
+            "Sanitized latest run and recent event timeline without event bodies.",
+            0.6
+        ),
+        mcp_resource(
+            workspace_id,
+            "memory/proposals",
+            "Memory proposal summary",
+            "Proposal-only memory queue summary without memory text.",
+            0.55
+        ),
+        mcp_resource(
+            workspace_id,
+            "handoff/latest",
+            "Handoff bundle summary",
+            "Sanitized handoff and artifact summary for local agent review.",
+            0.85
+        )
     ])
 }
 

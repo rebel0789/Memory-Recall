@@ -2,6 +2,7 @@
   "schemaVersion": "1.0.0",
   "id": "skill:adapter-addition",
   "name": "Adapter Addition",
+  "description": "Add disabled, pinned integration adapters through license, security, and conformance gates.",
   "version": "0.1.0",
   "triggers": [
     "new adapter",

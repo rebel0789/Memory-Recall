@@ -37,6 +37,67 @@
     "sha256Ref": {
       "type": "string",
       "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "contextView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "contentKind",
+        "originalContentHash",
+        "viewContentHash",
+        "originalTokens",
+        "viewTokens",
+        "reductionRatio",
+        "recoverableBy",
+        "reasonCodes"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "oaf_context_view_v1"
+        },
+        "contentKind": {
+          "enum": [
+            "json",
+            "log",
+            "code",
+            "markdown",
+            "text"
+          ]
+        },
+        "originalContentHash": {
+          "$ref": "#/$defs/sha256Ref"
+        },
+        "viewContentHash": {
+          "$ref": "#/$defs/sha256Ref"
+        },
+        "originalTokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "viewTokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reductionRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "recoverableBy": {
+          "enum": [
+            "originalContentHash",
+            "manual_review"
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_:-]*$"
+          }
+        }
+      }
     }
   },
   "required": [
@@ -236,8 +297,14 @@
           "text": {
             "type": "string"
           },
+          "contentHash": {
+            "$ref": "#/$defs/sha256Ref"
+          },
           "representationHint": {
             "$ref": "#/$defs/representationHint"
+          },
+          "contextView": {
+            "$ref": "#/$defs/contextView"
           }
         }
       }
@@ -296,8 +363,14 @@
           "text": {
             "type": "string"
           },
+          "contentHash": {
+            "$ref": "#/$defs/sha256Ref"
+          },
           "representationHint": {
             "$ref": "#/$defs/representationHint"
+          },
+          "contextView": {
+            "$ref": "#/$defs/contextView"
           }
         }
       }

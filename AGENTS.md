@@ -2,7 +2,7 @@
 
 ## Mission
 
-Develop Open Agent Fabric into a local-first, model-neutral platform for inspectable agents. Optimize for correctness, evidence, portability, and safe evolution—not feature count or autonomous behavior.
+Develop Open Agent Fabric into the complete local-first, model-neutral tool for inspectable agents. Optimize for correctness, evidence, portability, and safe evolution, not feature count or autonomous behavior.
 
 ## Read order before changing code
 
@@ -31,7 +31,7 @@ Do not load all research notes or every skill into context. Retrieve only what t
 - native SQLite/FTS5 memory and content-addressed artifact providers,
 - optional loopback-only Ollama provider,
 - portable Agent Packs, safe replay plans, and learning proposals,
-- provider ports and external adapter conformance fixtures,
+- provider ports and disabled integration conformance fixtures,
 - synthetic Content Intelligence workflow,
 - tests, protocol compatibility fixtures, and evaluations.
 
@@ -81,7 +81,7 @@ This repo uses a single-context layout: root `CONTEXT.md` when present, plus arc
 
 1. **Canonical events:** state-changing operations emit append-only events.
 2. **Context manifests:** every model call records selected and excluded context with reason codes.
-3. **Build the brain, adapt the organs:** native reliability primitives stay core; external projects and frameworks live behind adapters.
+3. **Own the tool boundary:** OAF ships the default runtime, context, memory, source-graph, tool, hook, UI, and CLI experience. Integrations may accelerate inputs or scale a backend, but they never own canonical state or authority.
 4. **Deterministic authority:** permissions, budgets, approvals, retries, and transitions are code—not model decisions.
 5. **No silent memory overwrite:** use lifecycle states and `supersedes` links.
 6. **Observations are not interpretations:** keep collected data separate from model analysis.
@@ -98,10 +98,10 @@ This repo uses a single-context layout: root `CONTEXT.md` when present, plus arc
 
 ```text
 UI → Control API → Application services → Domain contracts
-                         ↙ native providers   ↘ external adapters
+                         ↙ native providers   ↘ optional integrations
 ```
 
-- Domain packages cannot import native providers or external adapters.
+- Domain packages cannot import native providers or optional integrations.
 - Adapters may import domain contracts.
 - UI cannot access storage directly.
 - Workflows invoke capabilities through the registry.
@@ -159,7 +159,7 @@ A change is complete only when:
 5. Document locality, paths, limits, and production limitations.
 6. Do not introduce a remote fallback.
 
-## Adding an adapter
+## Adding an optional integration adapter
 
 1. Create `adapters/<category>/<name>/`.
 2. Add `adapter.json` using the adapter schema.

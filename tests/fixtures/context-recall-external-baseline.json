@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "1.0.0",
+  "baselineId": "external-baseline-a",
+  "results": [
+    {
+      "caseId": "ctxrec_native_sqlite_memory",
+      "budget": 8000,
+      "selectedFiles": [
+        "providers/native/memory-sqlite/src/index.mjs",
+        "tests/native-memory-sqlite.test.mjs",
+        "docs/architecture/native-providers.md"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_context_pack_measure",
+      "budget": 8000,
+      "selectedFiles": [
+        "apps/cli/oaf.mjs",
+        "tests/cli-measure-context-pack.test.mjs",
+        "packages/protocol/schemas/context-pack-measurement-report.schema.json"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_truth_floor_benchmark",
+      "budget": 8000,
+      "selectedFiles": [
+        "packages/evaluation-lab/src/index.mjs",
+        "evals/benchmark-truth-floor/cases.v1.json",
+        "tests/benchmark-truth-floor.test.mjs"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_ast_source_graph",
+      "budget": 8000,
+      "selectedFiles": [
+        "providers/native/context-candidate-ast-code/src/index.mjs",
+        "tests/ast-code-candidate-source.test.mjs"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_memory_write_gate",
+      "budget": 8000,
+      "selectedFiles": [
+        "packages/memory-core/src/index.mjs",
+        "tests/memory-core.test.mjs"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_policy_evaluator",
+      "budget": 8000,
+      "selectedFiles": [
+        "packages/policy/src/index.mjs",
+        "tests/policy-contextual.test.mjs",
+        "docs/architecture/native-providers.md"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_agent_pack",
+      "budget": 8000,
+      "selectedFiles": [
+        "packages/agentpack/src/index.mjs",
+        "tests/agentpack.test.mjs",
+        "docs/architecture/agent-packs.md"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_safe_replay",
+      "budget": 8000,
+      "selectedFiles": [
+        "packages/replay/src/index.mjs",
+        "tests/replay.test.mjs",
+        "docs/architecture/flight-recorder.md"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_local_identity",
+      "budget": 8000,
+      "selectedFiles": [
+        "providers/native/identity-local/src/index.mjs",
+        "tests/native-identity-store.test.mjs",
+        "docs/architecture/native-providers.md"
+      ],
+      "returnedTokens": 7000
+    },
+    {
+      "caseId": "ctxrec_ollama_loopback",
+      "budget": 8000,
+      "selectedFiles": [
+        "providers/native/model-ollama/src/index.mjs",
+        "tests/native-model-ollama.test.mjs",
+        "docs/architecture/native-providers.md"
+      ],
+      "returnedTokens": 7000
+    }
+  ]
+}

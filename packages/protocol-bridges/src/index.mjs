@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { validateJsonSchema } from '../../protocol/src/schema-validator.mjs';
 import contextPackUsePlanSchema from '../../protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
+import skillLoadPlanSchema from '../../protocol/schemas/skill-load-plan.schema.json' with { type: 'json' };
 
 export const PROTOCOL_BRIDGES_VERSION = '0.1.0';
 export const MCP_BRIDGE_PROTOCOL_VERSION = '2025-06-18';
@@ -202,12 +203,40 @@ function publicTool(tool) {
   };
 }
 
+function resourcePriority(uri) {
+  if (uri.endsWith('/context-pack/use-plan/current')) return 1;
+  if (uri.endsWith('/context-pack/current')) return 0.95;
+  if (uri.endsWith('/context/latest')) return 0.9;
+  if (uri.endsWith('/handoff/latest')) return 0.85;
+  if (uri.endsWith('/status')) return 0.8;
+  if (uri.endsWith('/memory/refine')) return 0.75;
+  if (uri.endsWith('/skills/catalog') || uri.endsWith('/tools/catalog')) return 0.7;
+  if (uri.endsWith('/load-plan')) return 0.65;
+  if (uri.endsWith('/runs/latest')) return 0.6;
+  if (uri.endsWith('/memory/proposals')) return 0.55;
+  return 0.5;
+}
+
+function resourceAnnotations(resource) {
+  const annotations = resource.annotations ?? {};
+  const audience = Array.isArray(annotations.audience)
+    ? [...new Set(annotations.audience.filter((item) => item === 'user' || item === 'assistant'))]
+    : ['assistant'];
+  const priority = Number.isFinite(annotations.priority) ? annotations.priority : resourcePriority(resource.uri);
+  return {
+    audience: audience.length ? audience : ['assistant'],
+    priority: Math.max(0, Math.min(1, priority))
+  };
+}
+
 function publicResource(resource) {
   return {
     uri: resource.uri,
     name: resource.name,
+    title: resource.title ?? resource.name,
     description: resource.description,
-    mimeType: resource.mimeType ?? 'application/json'
+    mimeType: resource.mimeType ?? 'application/json',
+    annotations: resourceAnnotations(resource)
   };
 }
 
@@ -256,7 +285,7 @@ function safeLocalLocator(value, scheme) {
   const segments = pathname.split('/');
   if (segments.some((segment) => !segment || ['.', '..', '.git', '.local', 'node_modules', 'Users', 'private'].includes(segment))) return null;
   if (segments.length >= 2 && segments[0] === 'var' && segments[1] === 'folders') return null;
-  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@/-]+$/u.test(pathname)) return null;
+  if (!/^[A-Za-z0-9._~!$&'()*+,;=:@/\[\]-]+$/u.test(pathname)) return null;
   return value;
 }
 
@@ -272,6 +301,34 @@ function safeLocator(value) {
 
 function safeId(value) {
   return typeof value === 'string' && /^[A-Za-z0-9._:@/-]{1,160}$/.test(value) ? value : null;
+}
+
+function skillResourceSegment(value) {
+  const match = typeof value === 'string' ? /^workspace:\/\/skills\/([a-z0-9][a-z0-9-]{0,120})$/u.exec(value) : null;
+  return match?.[1] ?? null;
+}
+
+function safeSkillLoadPlanForResource(plan) {
+  if (!isPlainObject(plan)) return null;
+  const result = validateJsonSchema(skillLoadPlanSchema, plan);
+  if (!result.valid) throw new ProtocolBridgeError('mcp_invalid_skill_load_plan', 'skill load plan failed schema validation');
+  const blocked = scanStrings(plan, UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE);
+  if (blocked) throw new ProtocolBridgeError('mcp_unsafe_skill_load_plan', 'skill load plan contains unsafe private locator data');
+  const { rawSkillTextIncluded, ...safeguards } = isPlainObject(plan.safeguards) ? plan.safeguards : {};
+  return {
+    ...plan,
+    safeguards: {
+      ...safeguards,
+      skillTextIncluded: rawSkillTextIncluded === true
+    }
+  };
+}
+
+function safeToolCatalogForResource(catalog) {
+  if (!isPlainObject(catalog)) return null;
+  const blocked = scanStrings(catalog, UNSAFE_CONTEXT_PACK_USE_PLAN_VALUE);
+  if (blocked) throw new ProtocolBridgeError('mcp_unsafe_tool_catalog', 'tool catalog contains unsafe private data');
+  return catalog;
 }
 
 function safeReferenceId(value) {
@@ -717,8 +774,10 @@ function jsonResource(uri, name, description, readPayload) {
   return {
     uri,
     name,
+    title: name,
     description,
     mimeType: 'application/json',
+    annotations: { audience: ['assistant'], priority: resourcePriority(uri) },
     read: async () => {
       const payload = readPayload();
       return [{ uri, mimeType: 'application/json', text: JSON.stringify(payload) }];
@@ -732,6 +791,10 @@ export function buildOafReadOnlyResourceCatalog({
   currentContextPack = null,
   currentContextPackUsePlan = null,
   currentContextPackRegistryStatus = null,
+  memoryRefineReport = null,
+  skillCatalog = null,
+  skillLoadPlans = [],
+  toolCatalog = null,
   workspaceId = 'ws_local',
   generatedAt = new Date().toISOString()
 } = {}) {
@@ -887,7 +950,79 @@ export function buildOafReadOnlyResourceCatalog({
       data: currentContextPackRegistryStatus
     })));
   }
+  if (isPlainObject(memoryRefineReport)) {
+    resources.push(jsonResource(`${base}/memory/refine`, 'Memory refine report', 'Read-only governed memory refinement report without source bodies.', () => createResourcePayload({
+      resourceKind: 'memory-refine-report',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-memory-refine',
+      data: safeMemoryRefineReportForResource(memoryRefineReport)
+    })));
+  }
+  if (isPlainObject(skillCatalog)) {
+    resources.push(jsonResource(`${base}/skills/catalog`, 'Skill catalog summary', 'Sanitized governed skill catalog summary with reviewed tool reconciliation.', () => createResourcePayload({
+      resourceKind: 'skill-catalog-summary',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-skill-catalog',
+      data: skillCatalog
+    })));
+  }
+  const safeToolCatalog = safeToolCatalogForResource(toolCatalog);
+  if (safeToolCatalog) {
+    resources.push(jsonResource(`${base}/tools/catalog`, 'Tool catalog summary', 'Sanitized reviewed tool catalog summary without grants or execution authority.', () => createResourcePayload({
+      resourceKind: 'tool-catalog-summary',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-tool-catalog',
+      data: safeToolCatalog
+    })));
+  }
+  for (const plan of Array.isArray(skillLoadPlans) ? skillLoadPlans : []) {
+    const safePlan = safeSkillLoadPlanForResource(plan);
+    const segment = skillResourceSegment(safePlan?.skill?.directoryRef);
+    if (!segment) continue;
+    resources.push(jsonResource(`${base}/skills/${segment}/load-plan`, `${segment} skill load plan`, 'Sanitized ordered local read plan for one governed skill.', () => createResourcePayload({
+      resourceKind: 'skill-load-plan',
+      workspaceId: safeWorkspaceId,
+      generatedAt,
+      provenanceSource: 'local-skill-load-plan',
+      data: safePlan
+    })));
+  }
   return resources;
+}
+
+function safeMemoryRefineReportForResource(report) {
+  return {
+    command: report.command,
+    state: report.state,
+    reasonCodes: Array.isArray(report.reasonCodes) ? report.reasonCodes : [],
+    summary: isPlainObject(report.summary) ? report.summary : {},
+    budgetPlan: isPlainObject(report.budgetPlan) ? {
+      state: report.budgetPlan.state,
+      reasonCodes: Array.isArray(report.budgetPlan.reasonCodes) ? report.budgetPlan.reasonCodes : [],
+      targetActiveFactCount: report.budgetPlan.targetActiveFactCount,
+      currentActiveFactCount: report.budgetPlan.currentActiveFactCount,
+      projectedActiveFactCount: report.budgetPlan.projectedActiveFactCount,
+      overBudgetBy: report.budgetPlan.overBudgetBy,
+      plannedReviewCount: report.budgetPlan.plannedReviewCount,
+      plannedReductionCount: report.budgetPlan.plannedReductionCount
+    } : null,
+    reportFingerprint: report.reportFingerprint,
+    safeguards: {
+      readOnly: report.safeguards?.readOnly === true,
+      proposalGated: report.safeguards?.proposalGated === true,
+      canonicalStateMutated: report.safeguards?.canonicalStateMutated === true,
+      activeMemoryCreated: Number(report.safeguards?.activeMemoryCreated ?? 0),
+      hardDeleted: report.safeguards?.hardDeleted === true,
+      networkCalls: Number(report.safeguards?.networkCalls ?? 0),
+      modelCalls: Number(report.safeguards?.modelCalls ?? 0),
+      externalWritesEnabled: report.safeguards?.externalWritesEnabled === true,
+      sourceTextVisible: false,
+      localLocationsVisible: false
+    }
+  };
 }
 
 export async function buildContextPackReadbackProof({

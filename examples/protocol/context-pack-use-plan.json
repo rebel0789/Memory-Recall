@@ -18,6 +18,17 @@
     "uri": "oaf://workspace/ws_local/context-pack/use-plan/current",
     "kind": "context-pack-use-plan"
   },
+  "recipientProof": {
+    "targetHarness": "codex",
+    "resourceMode": "read-only",
+    "requiredResourceUris": [
+      "oaf://workspace/ws_local/context-pack/use-plan/current",
+      "oaf://workspace/ws_local/context-pack/registry/current"
+    ],
+    "toolsExposed": 0,
+    "externalWritesEnabled": false,
+    "externalAdaptersEnabled": 0
+  },
   "requestedInputs": {
     "sourceHarnesses": ["codex"],
     "userSelectedLocators": ["user-selected://notes/handoff.md"],

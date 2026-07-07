@@ -17,7 +17,7 @@ const releaseFiles = [
   '1.0-PROVENANCE.json'
 ];
 
-const excludedDirs = new Set(['.git', '.local', 'node_modules', 'coverage', 'graphify-out']);
+const excludedDirs = new Set(['.git', '.local', '.scratch', 'node_modules', 'coverage', 'graphify-out', 'target']);
 const binaryExtensions = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.zip']);
 
 async function readJson(root, relative) {
@@ -261,6 +261,21 @@ async function buildProvenance(root, evidence, files, outputs) {
   };
 }
 
+function distributionStateTable() {
+  return table(['Surface', 'Status', 'Evidence'], [
+    ['Source checkout', 'local-ready reference', '`npm run bootstrap`, `npm run verify:handoff`, `npm run ci`'],
+    ['npm package tarball', 'local-ready install path', '`npm pack` tarball installs the `oaf` bin; `package.json` remains `private: true` to prevent registry publication'],
+    ['npm registry', 'not published', 'Publication requires explicit maintainer approval'],
+    ['Marketplace / plugin registry', 'not ready', 'No signed public distribution or marketplace submission is claimed'],
+    ['Client hooks', 'opt-in local writer with dry-run default', '`connect --dry-run` previews; `connect --yes` writes fixed Codex/Claude read-only entries with backups']
+  ]);
+}
+
+function publicAdapterName(adapter, index) {
+  if (adapter.id === 'adapter:tool:ecc') return adapter.id;
+  return `optional-adapter-${String(index + 1).padStart(2, '0')}`;
+}
+
 function readinessReport(evidence, summary) {
   const nextTask = evidence.nextTask ?? 'none; checked-in backlog complete';
   return `# 1.0 Readiness Report
@@ -268,6 +283,10 @@ function readinessReport(evidence, summary) {
 Status: ${summary.status}
 
 Publication state: ${summary.publicationStatus}. OAF-030 prepares the final integration pull request and release-candidate evidence only. It does not merge the product branch or publish a product 1.0 release.
+
+## Distribution State
+
+${distributionStateTable()}
 
 ## Verified Current State
 
@@ -387,8 +406,8 @@ ${table(['Provider', 'Contract', 'Locality', 'Enabled'], providers.map((provider
 
 ## External Adapters
 
-${table(['Adapter', 'Status', 'Enabled', 'License', 'Pinned commit'], adapters.map((adapter) => [
-  adapter.id,
+${table(['Adapter', 'Status', 'Enabled', 'License', 'Pinned commit'], adapters.map((adapter, index) => [
+  publicAdapterName(adapter, index),
   adapter.status,
   String(adapter.enabledByDefault),
   adapter.license,
@@ -450,8 +469,8 @@ An adapter can be certified only after exact upstream pinning, license review, c
 
 ## Current Catalog
 
-${table(['Adapter', 'Status', 'Enabled', 'License', 'Commit', 'Checksum'], adapters.map((adapter) => [
-  adapter.id,
+${table(['Adapter', 'Status', 'Enabled', 'License', 'Commit', 'Checksum'], adapters.map((adapter, index) => [
+  publicAdapterName(adapter, index),
   adapter.status,
   String(adapter.enabledByDefault),
   adapter.license,
@@ -468,8 +487,8 @@ function thirdPartyReview(adapters) {
 
 The Apache-2.0 core includes no vendored source from optional upstream projects. Optional projects remain adapter targets unless individually reviewed.
 
-${table(['Project / Adapter', 'Status', 'License Review', 'Distribution Boundary'], adapters.map((adapter) => [
-  adapter.id,
+${table(['Project / Adapter', 'Status', 'License Review', 'Distribution Boundary'], adapters.map((adapter, index) => [
+  publicAdapterName(adapter, index),
   adapter.status,
   adapter.license,
   adapter.id === 'adapter:tool:ecc' ? 'No-install experimental adapter boundary' : 'Planning metadata only; not distributed as enabled code'

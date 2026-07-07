@@ -25,3 +25,17 @@ An Agent Pack is the reproducible, reviewable description of an agent or coordin
 6. Record activation as an event.
 
 A valid pack can still be denied if it requests authority the workspace does not grant.
+
+## Skill Catalog
+
+The local skill inventory is inspectable without loading skill instruction bodies:
+
+```bash
+oaf skill catalog --read-only --root . --format json
+```
+
+The report validates every `skills/*/manifest.json` file against the skill
+manifest schema, verifies the matching `SKILL.md` and declared references exist,
+and returns workspace-relative refs, manifest fingerprints, side-effect classes,
+descriptions, trigger labels, and tool IDs. It does not write files, call
+models, use network access, expose absolute paths, or include raw skill text.

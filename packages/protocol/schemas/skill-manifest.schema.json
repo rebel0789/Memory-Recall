@@ -7,6 +7,7 @@
     "schemaVersion",
     "id",
     "name",
+    "description",
     "version",
     "triggers",
     "tools",
@@ -24,8 +25,16 @@
     "name": {
       "type": "string"
     },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
     "version": {
       "type": "string"
+    },
+    "advertise": {
+      "type": "boolean"
     },
     "triggers": {
       "type": "array",
