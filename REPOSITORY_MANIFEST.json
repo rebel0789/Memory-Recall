@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-07-07T09:03:17.365Z",
+  "generatedAt": "2026-07-07T09:28:53.469Z",
   "fileCount": 869,
-  "totalBytes": 5620944,
+  "totalBytes": 5622948,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -442,8 +442,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 380744,
-      "sha256": "abb0726be1414a4b731b3b07d998df5a13c72c07ad75b1a1c1d893feb24f09e1"
+      "bytes": 380870,
+      "sha256": "73030961b8dfa380a80bcf288d6cd695081d3e98266c19e1571e56aa9af303e2"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -2163,7 +2163,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 975,
-      "sha256": "4acb558de237dd7f1a0bcbfc95eda2fb95e2a4ca53fa0575977ed4d745c85ddb"
+      "sha256": "5ec5314f325d3b6508c097cbc42d2abe4666c18a021cc159d9237fa44ef8a48a"
     },
     {
       "path": "LICENSE",
@@ -2352,8 +2352,8 @@
     },
     {
       "path": "packages/protocol-bridges/src/index.mjs",
-      "bytes": 59039,
-      "sha256": "ba6b5af5b5384b79ca44ee22e77fea2d249fc31bcc4d6a01b3021aa155ac36cc"
+      "bytes": 60336,
+      "sha256": "a59f45d6145c89ed81bba1f9c5241fc5eca806c7ec9f101472dd92354e01da7d"
     },
     {
       "path": "packages/protocol/AGENTS.md",
@@ -3947,8 +3947,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 244931,
-      "sha256": "1bd10b894afe4feccc12ca113f41f5b2162bc1ff599d471f72668e663f4a072d"
+      "bytes": 245053,
+      "sha256": "f2fb4a4b588368a36881d1e536b8bffe6fccb257466aee50c203d4cb6c9de1a9"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -4182,8 +4182,8 @@
     },
     {
       "path": "tests/protocol-bridges.test.mjs",
-      "bytes": 44324,
-      "sha256": "2c323403a74edaad691b3ddaccea32f83865ce2c3a95149512a743f7475f5245"
+      "bytes": 44783,
+      "sha256": "4964477dcc409716bde38d2d2c82a0eaf924dece760d35ecccfb5135a1fce19b"
     },
     {
       "path": "tests/protocol-fingerprint-utils.test.mjs",

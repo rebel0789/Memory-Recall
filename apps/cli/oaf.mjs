@@ -6289,7 +6289,7 @@ async function mcpResourcesCommand(values) {
     schemaVersion: '1.0.0',
     mode: 'read-only',
     workspaceId,
-    resources: resources.map(({ uri: resourceUri, name, description, mimeType }) => ({ uri: resourceUri, name, description, mimeType })),
+    resources: resources.map(({ uri: resourceUri, name, title, description, mimeType, annotations }) => ({ uri: resourceUri, name, title, description, mimeType, annotations })),
     safeguards: {
       canonicalStateMutated: false,
       externalWritesEnabled: false,
@@ -6377,12 +6377,14 @@ async function buildMcpResourceCatalogForValues(values) {
 
 function buildMcpInspectReport({ workspaceId, generatedAt, resources, tools, optionalAvailability }) {
   const inspectedResources = resources.map((resource) => {
-    const metadataText = [resource.uri, resource.name, resource.description, resource.mimeType].filter(Boolean).join(' ');
+    const metadataText = [resource.uri, resource.name, resource.title, resource.description, resource.mimeType].filter(Boolean).join(' ');
     return {
       uri: resource.uri,
       name: resource.name,
+      title: resource.title,
       description: resource.description,
       mimeType: resource.mimeType,
+      annotations: resource.annotations,
       resourceKind: inferMcpResourceKind(resource.uri),
       contextTier: inferMcpResourceContextTier(resource.uri),
       visibility: 'listed',

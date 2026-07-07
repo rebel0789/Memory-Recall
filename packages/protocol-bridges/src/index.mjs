@@ -203,12 +203,40 @@ function publicTool(tool) {
   };
 }
 
+function resourcePriority(uri) {
+  if (uri.endsWith('/context-pack/use-plan/current')) return 1;
+  if (uri.endsWith('/context-pack/current')) return 0.95;
+  if (uri.endsWith('/context/latest')) return 0.9;
+  if (uri.endsWith('/handoff/latest')) return 0.85;
+  if (uri.endsWith('/status')) return 0.8;
+  if (uri.endsWith('/memory/refine')) return 0.75;
+  if (uri.endsWith('/skills/catalog') || uri.endsWith('/tools/catalog')) return 0.7;
+  if (uri.endsWith('/load-plan')) return 0.65;
+  if (uri.endsWith('/runs/latest')) return 0.6;
+  if (uri.endsWith('/memory/proposals')) return 0.55;
+  return 0.5;
+}
+
+function resourceAnnotations(resource) {
+  const annotations = resource.annotations ?? {};
+  const audience = Array.isArray(annotations.audience)
+    ? [...new Set(annotations.audience.filter((item) => item === 'user' || item === 'assistant'))]
+    : ['assistant'];
+  const priority = Number.isFinite(annotations.priority) ? annotations.priority : resourcePriority(resource.uri);
+  return {
+    audience: audience.length ? audience : ['assistant'],
+    priority: Math.max(0, Math.min(1, priority))
+  };
+}
+
 function publicResource(resource) {
   return {
     uri: resource.uri,
     name: resource.name,
+    title: resource.title ?? resource.name,
     description: resource.description,
-    mimeType: resource.mimeType ?? 'application/json'
+    mimeType: resource.mimeType ?? 'application/json',
+    annotations: resourceAnnotations(resource)
   };
 }
 
@@ -746,8 +774,10 @@ function jsonResource(uri, name, description, readPayload) {
   return {
     uri,
     name,
+    title: name,
     description,
     mimeType: 'application/json',
+    annotations: { audience: ['assistant'], priority: resourcePriority(uri) },
     read: async () => {
       const payload = readPayload();
       return [{ uri, mimeType: 'application/json', text: JSON.stringify(payload) }];

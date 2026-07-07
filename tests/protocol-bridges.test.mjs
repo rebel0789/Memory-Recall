@@ -453,6 +453,8 @@ test('MCP bridge initializes and lists tools/resources only with trusted identit
   assert.deepEqual(tools.result.tools.map((tool) => tool.name), ['oaf.readRun']);
   const resources = await bridge.handle({ jsonrpc: '2.0', id: 3, method: 'resources/list' });
   assert.deepEqual(resources.result.resources.map((item) => item.uri), ['oaf://workspace/ws_mcp/runs/run_demo']);
+  assert.equal(resources.result.resources[0].title, 'run_demo');
+  assert.deepEqual(resources.result.resources[0].annotations, { audience: ['assistant'], priority: 0.5 });
   const prompts = await bridge.handle({ jsonrpc: '2.0', id: 4, method: 'prompts/list' });
   assert.deepEqual(prompts.result, { prompts: [] });
 });
@@ -725,6 +727,9 @@ test('OAF read-only MCP resource catalog exposes sanitized workspace-scoped reso
     'oaf://workspace/ws_mcp/memory/proposals',
     'oaf://workspace/ws_mcp/handoff/latest'
   ]);
+  const contextResource = listed.result.resources.find((item) => item.uri === 'oaf://workspace/ws_mcp/context/latest');
+  assert.equal(contextResource.title, 'Latest context manifest summary');
+  assert.deepEqual(contextResource.annotations, { audience: ['assistant'], priority: 0.9 });
 
   const first = await bridge.handle({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context/latest' } });
   const second = await bridge.handle({ jsonrpc: '2.0', id: 3, method: 'resources/read', params: { uri: 'oaf://workspace/ws_mcp/context/latest' } });
