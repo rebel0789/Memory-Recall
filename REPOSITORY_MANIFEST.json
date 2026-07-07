@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "generatedAt": "2026-07-07T11:09:54.712Z",
+  "generatedAt": "2026-07-07T11:33:57.445Z",
   "fileCount": 869,
-  "totalBytes": 5634473,
+  "totalBytes": 5636084,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -442,8 +442,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 382811,
-      "sha256": "29a8be973b1c68cff91ce3936295202bd898395b3e0af6c1d0088c77b0256800"
+      "bytes": 382967,
+      "sha256": "8cf21416e168a7aa6ff7ad90fe78e870cbfcd11f993a9308d47d31e588c862c7"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -1043,12 +1043,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 1849,
-      "sha256": "dd8f7290bf1952009761d35183dd926658dd00e2007a228c958afcbb73b4a0d5"
+      "sha256": "37e43547b33240325164a072b3957d406a6e884cfbec2710ed6f057735941938"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 2335,
-      "sha256": "426c192bef6849b223a38fc3860487f72cf065219fdc78b5afcbe4b70e294ed0"
+      "sha256": "54a32d74670655108c50e16e488f322a22f744a976a209194d388ddf21506e9f"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1058,7 +1058,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1112,
-      "sha256": "f2de5f7a1e36b513936d879986eb3fb64c36b8961844f5b8c9aa5186b2574229"
+      "sha256": "e16801d74bb222c42215aafed007fdb75f42a993ae6150b0dda26033f7387688"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -2163,7 +2163,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 975,
-      "sha256": "951671e2ae40c89b7c09bb4a833ab3fcc3b46c6440f9ade2877ff9f997f58714"
+      "sha256": "449822896bb710a3289d5934f092650615f57d7ae0e640aa1814d3ab166f1f68"
     },
     {
       "path": "LICENSE",
@@ -3198,7 +3198,7 @@
     {
       "path": "PROJECT_STATUS.json",
       "bytes": 55618,
-      "sha256": "dd896f8bf9b406abb560896a6963352490092f40d262650b3a71cc5072560629"
+      "sha256": "6edb6e1e9a9c47f08293b24b8f863c42535c835285590c9e62b67e74a79c3bca"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3947,8 +3947,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 247959,
-      "sha256": "3e9431956c267f9d5cc94379a2158594fcb196511cf4f33785e15c5e81acf49f"
+      "bytes": 249414,
+      "sha256": "bab7f5db0080ca8a72772b424e5d88c0e42a1ccf75551fa1843f84ab47b03b80"
     },
     {
       "path": "tests/content-intelligence.test.mjs",

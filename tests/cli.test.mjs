@@ -1694,6 +1694,24 @@ test('mcp install apply requires matching confirmation before writing config', (
   assert.deepEqual(afterReport.desiredServer.args, expectedArgs);
 });
 
+test('mcp install codex TOML escapes backslash paths', () => {
+  const parent = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-toml-'));
+  const root = path.join(parent, 'C:\\Program Files\\workspace');
+  const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-toml-home-'));
+  mkdirSync(root, { recursive: true });
+  const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'codex', '--home', home, '--root', root, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(preview.status, 0, preview.stderr);
+  const report = JSON.parse(preview.stdout);
+  const escapedRoot = report.workspaceRoot.replaceAll('\\', '\\\\');
+  assert.equal(report.manualConfigSnippet.content.includes(escapedRoot), true);
+  const applied = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'codex', '--home', home, '--root', root, '--apply', '--confirm', report.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(applied.status, 0, applied.stderr);
+  assert.equal(readFileSync(path.join(home, '.codex', 'config.toml'), 'utf8').includes(escapedRoot), true);
+  const after = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'codex', '--home', home, '--root', root, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(after.status, 0, after.stderr);
+  assert.equal(JSON.parse(after.stdout).status.server, 'installed');
+});
+
 test('mcp install emits portable server config that works from another cwd', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-portable-root-'));
   const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-portable-home-'));

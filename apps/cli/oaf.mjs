@@ -5835,8 +5835,8 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
 function buildMcpInstallManualConfigSnippet({ client, server, configRef, serverConfig }) {
   let content;
   if (client.format === 'toml') {
-    const args = serverConfig.args.map((item) => `"${String(item).replaceAll('"', '\\"')}"`).join(', ');
-    content = `[mcp_servers.${server}]\ncommand = "${String(serverConfig.command).replaceAll('"', '\\"')}"\nargs = [${args}]`;
+    const args = serverConfig.args.map(tomlString).join(', ');
+    content = `[mcp_servers.${server}]\ncommand = ${tomlString(serverConfig.command)}\nargs = [${args}]`;
   } else {
     content = JSON.stringify({ mcpServers: { [server]: serverConfig } }, null, 2);
   }
@@ -5881,11 +5881,19 @@ function readMcpInstallTomlServerConfig(text, server) {
   const match = text.match(new RegExp(`(?:^|\\n)\\[mcp_servers\\.${escaped}\\]\\n([\\s\\S]*?)(?=\\n\\[|$)`, 'u'));
   if (!match) return null;
   const body = match[1];
-  const command = body.match(/(?:^|\n)\s*command\s*=\s*"((?:\\.|[^"\\])*)"/u)?.[1]?.replaceAll('\\"', '"');
+  const command = parseTomlStringBody(body.match(/(?:^|\n)\s*command\s*=\s*"((?:\\.|[^"\\])*)"/u)?.[1]);
   const argsText = body.match(/(?:^|\n)\s*args\s*=\s*\[([^\]]*)\]/u)?.[1] ?? '';
-  const args = [...argsText.matchAll(/"((?:\\.|[^"\\])*)"/gu)].map((item) => item[1].replaceAll('\\"', '"'));
+  const args = [...argsText.matchAll(/"((?:\\.|[^"\\])*)"/gu)].map((item) => parseTomlStringBody(item[1]));
   if (!command) return null;
   return { command, args };
+}
+
+function tomlString(value) {
+  return `"${String(value).replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
+}
+
+function parseTomlStringBody(value) {
+  return typeof value === 'string' ? value.replaceAll('\\\\', '\\').replaceAll('\\"', '"') : undefined;
 }
 
 function arraysEqual(left, right) {
@@ -5994,8 +6002,8 @@ function mergeMcpInstallJson(text, server, serverConfig) {
 function mergeMcpInstallToml(text, server, serverConfig) {
   const sectionPattern = new RegExp(`(?:^|\\n)\\[mcp_servers\\.${server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\n(?:[^\\[]|\\[(?!mcp_servers\\.))*`, 'u');
   const withoutExisting = text.replace(sectionPattern, (match) => match.startsWith('\n') ? '\n' : '');
-  const args = serverConfig.args.map((item) => `"${String(item).replaceAll('"', '\\"')}"`).join(', ');
-  const section = `[mcp_servers.${server}]\ncommand = "${serverConfig.command}"\nargs = [${args}]\n`;
+  const args = serverConfig.args.map(tomlString).join(', ');
+  const section = `[mcp_servers.${server}]\ncommand = ${tomlString(serverConfig.command)}\nargs = [${args}]\n`;
   const prefix = withoutExisting.trimEnd();
   return `${prefix ? `${prefix}\n\n` : ''}${section}`;
 }
