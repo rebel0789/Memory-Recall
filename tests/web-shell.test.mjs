@@ -42,6 +42,7 @@ import {
   renderLoopWorkbenchMemoryFlow,
   renderConsumerStartActions,
   renderContextPackTokenSaverSummary,
+  renderMemoryIntakePanel,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -166,6 +167,11 @@ test('memory route renders real temporal fact fields and computed token number',
   };
   const model = buildMemoryCockpitModel(cockpit);
   const html = renderMemoryCockpit(cockpit);
+  const intakeHtml = renderMemoryIntakePanel({
+    command:'memory preview',
+    summary:{proposalCount:1,activeMemoryCreated:0},
+    proposalFacts:[{id:'mpq_preview',status:'preview',sourceLocator:'workspace://memory/inbox.md',subject:'project:oaf',predicate:'release_status',object:'release-candidate'}]
+  },null,{sourceLocator:'memory/inbox.md',text:'Fact: project:oaf release_status release-candidate.'});
   assert.equal(model.tokenBudget.estimatedDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
   assert.equal(model.savings.beforeDeliveryTokens, profile.contextBudget.historyTokensAvailable);
   assert.equal(model.savings.afterDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
@@ -177,7 +183,13 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.match(html, new RegExp(`${model.tokenSavingPercent}% token saving`));
   assert.match(html, /<dt>Active facts<\/dt><dd>1<\/dd>/);
   assert.match(html, /<dt>Pending proposals<\/dt><dd>1<\/dd>/);
+  assert.match(html, /id="memory-intake-form"/);
+  assert.match(html, /Preview proposals/);
+  assert.match(html, /Queue proposals/);
   assert.match(html, /data-action="approve-memory-proposal"/);
+  assert.match(intakeHtml, /memory preview/);
+  assert.match(intakeHtml, /project:oaf release_status/);
+  assert.match(intakeHtml, /active memory created/);
   assert.match(html, new RegExp(`<dt>Naive baseline</dt><dd>${profile.contextBudget.historyTokensAvailable}</dd>`));
   assert.match(html, new RegExp(`<dt>OAF compressed</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
   assert.match(html, /<dt>Provider billing<\/dt><dd>not claimed<\/dd>/);
@@ -269,6 +281,8 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/data-action="copy-receiver-packet"/);
   assert.match(app,/data-action="copy-command"/);
   assert.match(app,/function copyCommand/);
+  assert.match(app,/async function submitMemoryIntake/);
+  assert.match(app,/api\('\/api\/memory\/proposals'/);
   assert.match(app,/async function writeClipboardText/);
   assert.match(app,/Export plan explicitly/);
   assert.match(app,/Current handoff status/);

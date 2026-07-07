@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
-import { readFile, stat } from 'node:fs/promises';
+import { mkdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { FileStateStore } from '../../../packages/storage/src/file-store.mjs';
@@ -15,6 +15,7 @@ import {
   buildSourceGraphPreview
 } from '../../../packages/source-graph/src/index.mjs';
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
+import { extractTemporalFactProposalsFromEpisode } from '../../../packages/memory-core/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
 import { sha256Hex, stableStringify } from '../../../packages/protocol/src/fingerprint.mjs';
@@ -512,6 +513,60 @@ async function approveMemoryProposal({ provider, workspaceId, proposalId, genera
   return { ...report, reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}` };
 }
 
+function memoryIntakeSourceLocator(value) {
+  const locator = String(value ?? '').trim();
+  return locator.startsWith('workspace://') ? locator : `workspace://${locator}`;
+}
+
+function summarizeMemoryIntakeProposal(proposal) {
+  const payload = proposal.payload ?? {};
+  return {
+    id: proposal.id,
+    status: proposal.status ?? 'preview',
+    sourceLocator: proposal.sourceLocator,
+    subject: payload.subject ?? null,
+    predicate: payload.predicate ?? null,
+    object: payload.object ?? null,
+    text: payload.text ?? null
+  };
+}
+
+async function intakeMemoryProposal({ provider, workspaceId, body, generatedAt }) {
+  const sourceLocator = memoryIntakeSourceLocator(body.sourceLocator);
+  const episode = { workspaceId, scope: 'workspace', sourceLocator, observedAt: generatedAt, text: body.text };
+  const dryRun = body.dryRun !== false;
+  if (!dryRun && body.confirm !== true) {
+    throw new ApiError(400, 'request_validation_failed', PUBLIC_MESSAGES.request_validation_failed, { issues: [{ path: '$.body.confirm', code: 'const' }] });
+  }
+  const extracted = dryRun ? extractTemporalFactProposalsFromEpisode(episode) : null;
+  const queued = dryRun ? extracted.proposals : await provider.proposeTemporalFactsFromEpisode(episode);
+  const proposalFacts = queued.map(summarizeMemoryIntakeProposal);
+  const report = {
+    schemaVersion: '1.0.0',
+    command: dryRun ? 'memory preview' : 'memory propose',
+    generatedAt,
+    workspaceId,
+    sourceLocator,
+    summary: {
+      proposalCount: proposalFacts.length,
+      skippedUnsafeCount: dryRun ? Number(extracted.safeguards?.skippedUnsafeCount ?? 0) : Number(queued.skippedUnsafeCount ?? 0),
+      activeMemoryCreated: 0
+    },
+    proposalFacts,
+    safeguards: {
+      dryRun,
+      proposalGated: true,
+      canonicalStateMutated: !dryRun,
+      activeMemoryCreated: 0,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      rawSourceBodiesIncluded: false
+    }
+  };
+  return { ...report, reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}` };
+}
+
 async function buildMcpStatsSummaryFromFile({ statsPath, workspaceId, generatedAt }) {
   const empty = {
     schemaVersion: '1.0.0',
@@ -744,6 +799,11 @@ export function createControlApiServer({
           entity: context.query.entity ?? '',
           query: context.query.query ?? ''
         }));
+      case 'intakeMemoryProposal':
+        return withMemoryProvider(
+          async (provider) => intakeMemoryProposal({ provider, workspaceId: context.workspaceId, body: context.body, generatedAt: clock() }),
+          { readOnly: context.body.dryRun !== false }
+        );
       case 'approveMemoryProposal':
         return withMemoryProvider(
           async (provider) => approveMemoryProposal({ provider, workspaceId: context.workspaceId, proposalId: context.params.proposalId, generatedAt: clock() }),
@@ -1080,7 +1140,11 @@ export function createControlApiServer({
       await stat(memoryDatabasePath);
       provider = new SQLiteMemoryProvider({ filename: memoryDatabasePath, clock, migrate: false, readOnly });
     } catch {
-      provider = new SQLiteMemoryProvider({ filename: ':memory:', clock });
+      if (readOnly) provider = new SQLiteMemoryProvider({ filename: ':memory:', clock });
+      else {
+        await mkdir(path.dirname(memoryDatabasePath), { recursive: true });
+        provider = new SQLiteMemoryProvider({ filename: memoryDatabasePath, clock });
+      }
     }
     try {
       return await operation(provider);
@@ -1541,6 +1605,7 @@ function routeResourceType(contract) {
     case 'previewContextGraph':
       return 'context';
     case 'getMemoryGraph':
+    case 'intakeMemoryProposal':
     case 'approveMemoryProposal':
       return 'memory';
     case 'planHarnessSetup':

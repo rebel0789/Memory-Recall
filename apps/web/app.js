@@ -48,6 +48,9 @@ let loopWorkbench=null;
 let loopWorkbenchError=null;
 let memoryCockpit=null;
 let memoryCockpitError=null;
+let memoryIntakeResult=null;
+let memoryIntakeError=null;
+let memoryIntakeDraft={sourceLocator:'memory/inbox.md',text:''};
 let memoryGraph=null;
 let memoryGraphError=null;
 let memoryGraphOptions={history:false,query:'',entity:'',communities:false};
@@ -882,12 +885,50 @@ async function approveMemoryProposal(event) {
   try{
     await api(`/api/memory/proposals/${encodeURIComponent(proposalId)}/approve`,{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),confirm:true})});
     await loadMemoryCockpit();
+    memoryIntakeResult=null;
     render();
     document.querySelector('#live-status').textContent='Memory proposal approved.';
   }catch(error){
     memoryCockpitError=error.message;
     render();
     document.querySelector('#live-status').textContent=error.message;
+  }
+}
+
+async function submitMemoryIntake(event) {
+  event.preventDefault();
+  const form=event.currentTarget;
+  const submitter=event.submitter;
+  const dryRun=submitter?.value!=='queue';
+  const data=new FormData(form);
+  memoryIntakeDraft={
+    sourceLocator:String(data.get('sourceLocator') ?? '').trim(),
+    text:String(data.get('text') ?? '').trim()
+  };
+  if(!memoryIntakeDraft.text)return;
+  if(!dryRun && !globalThis.confirm?.('Queue memory proposals for explicit approval?'))return;
+  const previous=submitter?.textContent ?? '';
+  if(submitter){
+    submitter.disabled=true;
+    submitter.textContent=dryRun?'Previewing...':'Queuing...';
+  }
+  document.querySelector('#live-status').textContent=dryRun?'Previewing memory proposals.':'Queuing memory proposals.';
+  try{
+    memoryIntakeResult=await api('/api/memory/proposals',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),sourceLocator:memoryIntakeDraft.sourceLocator,text:memoryIntakeDraft.text,dryRun,confirm:!dryRun})});
+    memoryIntakeError=null;
+    if(!dryRun)await loadMemoryCockpit();
+    render();
+    document.querySelector('#live-status').textContent=dryRun?'Memory proposal preview ready.':'Memory proposals queued for approval.';
+  }catch(error){
+    memoryIntakeResult=null;
+    memoryIntakeError=error.message;
+    render();
+    document.querySelector('#live-status').textContent=error.message;
+  }finally{
+    if(submitter?.isConnected){
+      submitter.disabled=false;
+      submitter.textContent=previous;
+    }
   }
 }
 
@@ -916,6 +957,7 @@ function render() {
   root.querySelectorAll('[data-action=receive-pinned-handoff]').forEach(button=>button.addEventListener('click',receivePinnedHandoff));
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
   root.querySelector('#memory-graph-form')?.addEventListener('submit',submitMemoryGraph);
+  root.querySelector('#memory-intake-form')?.addEventListener('submit',submitMemoryIntake);
   root.querySelector('#memory-graph-history')?.addEventListener('change',toggleMemoryGraphHistory);
   root.querySelector('#memory-graph-communities')?.addEventListener('change',toggleMemoryGraphCommunities);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
@@ -2196,9 +2238,21 @@ function memoryGraphLegend(nodes=[]) {
   return types.map((type)=>`<span><i style="background:${memoryGraphNodeColor(type,0,false)}"></i>${esc(type)}</span>`).join('');
 }
 
+export function renderMemoryIntakePanel(result=null,error=null,draft={sourceLocator:'memory/inbox.md',text:''}) {
+  const rows=Array.isArray(result?.proposalFacts) && result.proposalFacts.length
+    ? `<ol class="compact-list locator-list">${result.proposalFacts.map((item)=>`<li><strong>${esc(item.subject)} ${esc(item.predicate)}</strong><span>${esc(item.object)}</span><small>${esc(item.id)} · ${esc(item.status)} · ${esc(item.sourceLocator)}</small></li>`).join('')}</ol>`
+    : '<p class="muted">No proposal facts extracted yet.</p>';
+  const resultPanel=result
+    ? `<div class="state-panel state-success"><h2>${esc(result.command)}</h2><p>${Number(result.summary?.proposalCount ?? 0)} proposal${Number(result.summary?.proposalCount ?? 0)===1?'':'s'} · ${Number(result.summary?.activeMemoryCreated ?? 0)} active memory created</p>${rows}</div>`
+    : '';
+  const errorPanel=error?statePanel('error','Memory intake failed',error):'';
+  return `<section class="surface memory-intake" aria-label="Add Memory"><div class="section-heading"><div><p class="eyebrow">Add Memory</p><h2>Preview first, approve after.</h2></div><span>proposal-gated</span></div><form id="memory-intake-form" class="stacked-form"><label class="field"><span>Source path</span><input name="sourceLocator" value="${esc(draft.sourceLocator ?? 'memory/inbox.md')}" required maxlength="512" placeholder="memory/inbox.md"></label><label class="field"><span>Memory text</span><textarea name="text" required maxlength="8000" placeholder="Fact: project:oaf release_status release-candidate.">${esc(draft.text ?? '')}</textarea><small>Use simple fact lines. Preview creates no active memory.</small></label><div class="action-row"><button class="button secondary" name="mode" value="preview" type="submit">Preview proposals</button><button class="button primary" name="mode" value="queue" type="submit">Queue proposals</button><span class="muted">Approval stays explicit in the proposal queue.</span></div></form>${errorPanel}${resultPanel}</section>`;
+}
+
 export function renderMemoryCockpit(cockpit = null) {
   const model=buildMemoryCockpitModel(cockpit);
-  if(!model.ready)return statePanel('empty','No native memory store loaded','Run the local memory-loop demo to seed temporal facts and proposal-gated extraction records.');
+  const intake=renderMemoryIntakePanel(memoryIntakeResult,memoryIntakeError,memoryIntakeDraft);
+  if(!model.ready)return `${intake}${statePanel('empty','No native memory store loaded','Run the local memory-loop demo to seed temporal facts and proposal-gated extraction records.')}`;
   const facts=model.facts.length
     ? `<div class="memory-list">${model.facts.map((fact)=>`<article class="memory-diff state-${esc(fact.status)}"><header><div><code>${esc(fact.id)}</code><h3>${esc(fact.subject)} ${esc(fact.predicate)}</h3></div>${statusChip(fact.status,fact.status,'Temporal fact status')}</header><p>${esc(fact.text)}</p><dl class="facts compact-facts"><div><dt>Scope</dt><dd>${esc(fact.scope)}</dd></div><div><dt>Object</dt><dd>${esc(fact.object)}</dd></div><div><dt>Valid from</dt><dd>${date(fact.validFrom)}</dd></div><div><dt>Valid until</dt><dd>${fact.validUntil?date(fact.validUntil):'open'}</dd></div><div><dt>Superseded by</dt><dd>${esc(fact.supersededBy)}</dd></div><div><dt>Episode</dt><dd>${esc(fact.provenance.episodeId)}</dd></div></dl><div class="reason-list">${fact.supersessionChain.map((id)=>`<span class="reason">${esc(id)}</span>`).join('')}</div><p class="muted">Source ${esc(fact.provenance.source)}${fact.provenance.summary?` · ${esc(fact.provenance.summary)}`:''}</p></article>`).join('')}</div>`
     : statePanel('empty','No temporal facts yet','The native SQLite provider is reachable, but this workspace has no bi-temporal facts.');
@@ -2208,7 +2262,7 @@ export function renderMemoryCockpit(cockpit = null) {
   const toolStats=model.mcpStats.byTool.length
     ? `<ol class="compact-list locator-list">${model.mcpStats.byTool.map((item)=>`<li><strong>${esc(item.toolName)} · ${item.callCount}</strong><span>${item.deliveredTokens} delivered · ${item.tokensSaved} saved</span></li>`).join('')}</ol>`
     : '<p class="muted">No MCP delivery calls recorded for this workspace yet.</p>';
-  return `<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.savings.percent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>OAF compressed</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>MCP delivery stats</h2><dl class="facts compact-facts"><div><dt>Available</dt><dd>${model.mcpStats.available?'yes':'no'}</dd></div><div><dt>Baseline</dt><dd>${model.mcpStats.baselineTokens}</dd></div><div><dt>Saving</dt><dd>${model.mcpStats.tokenSavingPercent}%</dd></div><div><dt>Basis</dt><dd>${esc(model.mcpStats.basis)}</dd></div></dl>${toolStats}<hr><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider and MCP delivery telemetry through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
+  return `${intake}<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.savings.percent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>OAF compressed</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>MCP delivery stats</h2><dl class="facts compact-facts"><div><dt>Available</dt><dd>${model.mcpStats.available?'yes':'no'}</dd></div><div><dt>Baseline</dt><dd>${model.mcpStats.baselineTokens}</dd></div><div><dt>Saving</dt><dd>${model.mcpStats.tokenSavingPercent}%</dd></div><div><dt>Basis</dt><dd>${esc(model.mcpStats.basis)}</dd></div></dl>${toolStats}<hr><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider and MCP delivery telemetry through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
 }
 
 function renderEvidence() {
