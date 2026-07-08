@@ -1,33 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1520 760" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">Memory Recall README card</title>
-  <desc id="desc">Memory Recall local repo memory and context card with verified token-saving metrics.</desc>
-  <rect width="1520" height="760" rx="0" fill="#0A0B0D"/>
-  <path d="M0 628h1520v132H0z" fill="#111827"/>
+  <desc id="desc">Memory Recall local repo memory and context card with read-only MCP, governed memory, and verified context reduction metrics.</desc>
+  <rect width="1600" height="900" fill="#080B0D"/>
+  <path d="M0 704h1600v196H0z" fill="#0F172A"/>
   <g opacity=".18" fill="none" stroke="#56E0C4" stroke-width="2">
-    <path d="M96 118h420M96 174h540M96 230h380M996 112h328M996 168h240M996 224h344"/>
-    <path d="M786 72v590M842 72v590M898 72v590"/>
+    <path d="M112 118h420M112 174h548M112 230h356M112 286h468"/>
+    <path d="M1078 118h356M1078 174h268M1078 230h390M1078 286h312"/>
+    <path d="M792 76v586M852 76v586M912 76v586"/>
   </g>
-  <g transform="translate(100 90)">
+  <g transform="translate(112 94)">
+    <rect x="0" y="0" width="314" height="42" rx="8" fill="#10201D" stroke="#1F8A77"/>
+    <text x="18" y="28" fill="#9AF5E1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" font-weight="700">LOCAL-FIRST AGENT CONTEXT</text>
+  </g>
+  <g transform="translate(112 178)">
     <g fill="none" stroke="#56E0C4" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M38 50 86 24l48 26v56l-48 44-48-28Z"/>
-      <path d="m38 50 48 28 48-28M86 78v72"/>
+      <path d="M52 60 108 30l56 30v66l-56 50-56-32Z"/>
+      <path d="m52 60 56 32 56-32M108 92v84"/>
     </g>
-    <circle cx="86" cy="78" r="13" fill="#0A0B0D" stroke="#F7F7F4" stroke-width="7"/>
+    <circle cx="108" cy="92" r="15" fill="#080B0D" stroke="#F8FAFC" stroke-width="7"/>
   </g>
-  <text x="268" y="155" fill="#F7F7F4" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="76" font-weight="760">Memory Recall</text>
-  <text x="102" y="260" fill="#DDE2E8" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="40" font-weight="520">Local repo memory and context for coding agents.</text>
-  <text x="102" y="324" fill="#98A4B3" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="31">Governed SQLite memory, read-only MCP, source-aware handoffs, no API key.</text>
-  <g transform="translate(102 420)" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
-    <rect width="344" height="134" rx="8" fill="#F7F7F4"/>
-    <text x="28" y="58" fill="#0A0B0D" font-size="42" font-weight="760">72%</text>
-    <text x="28" y="98" fill="#334155" font-size="24">session token reduction</text>
-    <rect x="384" width="344" height="134" rx="8" fill="#16362F"/>
-    <text x="412" y="58" fill="#56E0C4" font-size="42" font-weight="760">84.6%</text>
-    <text x="412" y="98" fill="#C9FFF3" font-size="24">Rust graph-query reduction</text>
-    <rect x="768" width="344" height="134" rx="8" fill="#1F2937"/>
-    <text x="796" y="58" fill="#F7F7F4" font-size="42" font-weight="760">0 keys</text>
-    <text x="796" y="98" fill="#CBD5E1" font-size="24">local-first by default</text>
+  <text x="290" y="264" fill="#F8FAFC" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="82" font-weight="800">Memory Recall</text>
+  <text x="114" y="380" fill="#E5EDF6" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="40" font-weight="650">Give coding agents the repo truth they need.</text>
+  <text x="114" y="434" fill="#A9B7C8" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="28">Governed memory, read-only MCP, Rust code intelligence, no API key.</text>
+
+  <g transform="translate(112 520)" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <rect width="306" height="112" rx="8" fill="#111827" stroke="#263241"/>
+    <text x="24" y="44" fill="#56E0C4" font-size="22" font-weight="800">Repo signals</text>
+    <text x="24" y="78" fill="#CBD5E1" font-size="19">git, docs, source graph</text>
+    <path d="M326 56h64" stroke="#56E0C4" stroke-width="4" stroke-linecap="round"/>
+    <path d="m376 42 18 14-18 14" fill="none" stroke="#56E0C4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="410" width="306" height="112" rx="8" fill="#10201D" stroke="#1F8A77"/>
+    <text x="434" y="44" fill="#9AF5E1" font-size="22" font-weight="800">Governed memory</text>
+    <text x="434" y="78" fill="#D6FFF6" font-size="19">proposals before trust</text>
+    <path d="M736 56h64" stroke="#56E0C4" stroke-width="4" stroke-linecap="round"/>
+    <path d="m786 42 18 14-18 14" fill="none" stroke="#56E0C4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="820" width="306" height="112" rx="8" fill="#111827" stroke="#263241"/>
+    <text x="844" y="44" fill="#F8FAFC" font-size="22" font-weight="800">Read-only MCP</text>
+    <text x="844" y="78" fill="#CBD5E1" font-size="19">locators, hashes, proof</text>
+    <path d="M1146 56h64" stroke="#56E0C4" stroke-width="4" stroke-linecap="round"/>
+    <path d="m1196 42 18 14-18 14" fill="none" stroke="#56E0C4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="1230" width="258" height="112" rx="8" fill="#1B2433" stroke="#334155"/>
+    <text x="1254" y="44" fill="#F8FAFC" font-size="22" font-weight="800">Agent handoff</text>
+    <text x="1254" y="78" fill="#CBD5E1" font-size="19">Codex, Claude, Cursor</text>
   </g>
-  <text x="102" y="674" fill="#DDE2E8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="30">npm install -g memory-recall  &amp;&amp;  recall handoff</text>
-  <text x="102" y="716" fill="#7C8796" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="22">Measured locally. Delivery-token estimates, not provider billing claims.</text>
+
+  <g transform="translate(112 724)" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <rect width="330" height="112" rx="8" fill="#F8FAFC"/>
+    <text x="24" y="48" fill="#080B0D" font-size="42" font-weight="800">72%</text>
+    <text x="24" y="82" fill="#334155" font-size="20">session delivery reduction</text>
+
+    <rect x="366" width="330" height="112" rx="8" fill="#16362F"/>
+    <text x="390" y="48" fill="#56E0C4" font-size="42" font-weight="800">84.6%</text>
+    <text x="390" y="82" fill="#C9FFF3" font-size="20">Rust graph-query reduction</text>
+
+    <rect x="732" width="330" height="112" rx="8" fill="#1F2937"/>
+    <text x="756" y="48" fill="#F8FAFC" font-size="42" font-weight="800">0 keys</text>
+    <text x="756" y="82" fill="#CBD5E1" font-size="20">no hosted account required</text>
+
+    <text x="1102" y="44" fill="#E5EDF6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22">npm i -g memory-recall</text>
+    <text x="1102" y="82" fill="#56E0C4" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="22">recall handoff</text>
+  </g>
 </svg>
