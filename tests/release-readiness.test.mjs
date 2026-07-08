@@ -26,8 +26,8 @@ test('release readiness artifacts are generated and checked in without drift', a
   assert.deepEqual(unexpectedDrift, []);
   if (existsSync('.git')) assert.deepEqual(result.drift, []);
   assert.equal(result.placeholderResult.passed, true);
-  assert.equal(result.summary.publicationStatus, 'not-published');
-  assert.equal(result.summary.finalMergeStatus, 'not-merged');
+  assert.equal(result.summary.publicationStatus, 'npm-ready-not-published');
+  assert.equal(result.summary.finalMergeStatus, 'merged-to-main');
   assert.equal(result.summary.humanApprovalRequired, true);
 });
 
@@ -221,9 +221,9 @@ test('release readiness quality snapshot matches current release evidence', asyn
   assert.match(report, /\| Recorded evaluation assertions \| 144 \|/);
   assert.match(report, /Counts are a dated snapshot; command results and HANDOFF_VERIFICATION\.json are authoritative\./);
   assert.match(report, /\| Source checkout \| local-ready reference \|/);
-  assert.match(report, /\| npm package tarball \| local-ready install path \|/);
-  assert.match(report, /\| npm registry \| not published \|/);
-  assert.match(report, /\| Marketplace \/ plugin registry \| not ready \|/);
+  assert.match(report, /\| npm package tarball \| publish-ready install path \|/);
+  assert.match(report, /\| npm registry \| ready; not published \|/);
+  assert.match(report, /\| Marketplace \/ plugin registry \| pending target registry \|/);
   assert.match(report, /\| Client hooks \| opt-in local writer with dry-run default \|/);
   assert.match(report, /`connect --dry-run` previews; `connect --yes` writes fixed Codex\/Claude read-only entries with backups/);
   assert.match(report, /npm run consumer:smoke/);

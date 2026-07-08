@@ -8,6 +8,12 @@ not leak raw source bodies or perform hidden writes.
 First run `npm run status`; when it reports `Next task: none`, use the
 `First safe handoff` command it prints or continue below.
 
+After registry publication, install globally with:
+
+```bash
+npm install -g open-agent-fabric
+```
+
 After a global install, the shortest useful command is:
 
 ```bash
@@ -48,7 +54,7 @@ From the repository root:
 
 ```bash
 npm pack
-npm install -g ./open-agent-fabric-0.2.0-dev.tgz
+npm install -g ./open-agent-fabric-1.0.0.tgz
 oaf setup
 oaf verify
 ```
@@ -61,9 +67,10 @@ npm run oaf -- verify
 ```
 
 These are local wrappers for the existing bootstrap and handoff verification
-gates. The tarball path is local-install ready; registry publication and
-marketplace distribution still require maintainer approval. For the fully
-expanded source-checkout path:
+gates. The package metadata is npm-ready; registry publication still requires
+maintainer npm authentication and explicit approval. Marketplace distribution
+follows after a published npm URL and target registry requirements are known.
+For the fully expanded source-checkout path:
 
 `oaf setup` is checkout bootstrap, not harness wiring. Use browser **Preview
 setup** or `oaf harness setup plan/status --dry-run` when you want a manual MCP

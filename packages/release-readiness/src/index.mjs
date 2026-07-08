@@ -200,8 +200,8 @@ function releaseReadinessSummary(evidence, adapters, placeholderResult) {
   const enabledAdapters = adapters.filter((adapter) => adapter.enabledByDefault);
   return {
     status: 'release-candidate-ready-for-human-approval',
-    publicationStatus: 'not-published',
-    finalMergeStatus: 'not-merged',
+    publicationStatus: 'npm-ready-not-published',
+    finalMergeStatus: 'merged-to-main',
     humanApprovalRequired: true,
     signing: {
       status: 'not-configured-in-repository',
@@ -268,9 +268,9 @@ async function buildProvenance(root, evidence, files, outputs) {
 function distributionStateTable() {
   return table(['Surface', 'Status', 'Evidence'], [
     ['Source checkout', 'local-ready reference', '`npm run bootstrap`, `npm run verify:handoff`, `npm run ci`'],
-    ['npm package tarball', 'local-ready install path', '`npm pack` tarball installs the `oaf` bin; `package.json` remains `private: true` to prevent registry publication'],
-    ['npm registry', 'not published', 'Publication requires explicit maintainer approval'],
-    ['Marketplace / plugin registry', 'not ready', 'No signed public distribution or marketplace submission is claimed'],
+    ['npm package tarball', 'publish-ready install path', '`npm pack` tarball installs the `oaf` bin; package metadata is public-publish ready'],
+    ['npm registry', 'ready; not published', 'Package name is available; `npm publish --access public` requires maintainer npm auth and explicit approval'],
+    ['Marketplace / plugin registry', 'pending target registry', 'Prepare submission after npm URL and target registry manifest requirements are known'],
     ['Client hooks', 'opt-in local writer with dry-run default', '`connect --dry-run` previews; `connect --yes` writes fixed Codex/Claude read-only entries with backups']
   ]);
 }
@@ -286,7 +286,7 @@ function readinessReport(evidence, summary) {
 
 Status: ${summary.status}
 
-Publication state: ${summary.publicationStatus}. OAF-030 prepares the final integration pull request and release-candidate evidence only. It does not merge the product branch or publish a product 1.0 release.
+Publication state: ${summary.publicationStatus}. The release-candidate branch is merged to main, npm metadata is publish-ready, and publication still requires explicit maintainer approval.
 
 ## Distribution State
 
@@ -319,8 +319,8 @@ ${markdownList(evidence.optionalCommands.map((command) => `\`${command}\``))}
 
 ## Release Decision
 
-- Final merge requires human approval.
 - Product 1.0 publication requires human approval.
+- Marketplace or plugin registry submission requires an npm package URL and target registry manifest requirements.
 - Signing requires a protected maintainer environment; no signing key is stored in this repository.
 - External adapters remain disabled by default.
 - External publishing remains disabled.
@@ -525,7 +525,6 @@ function releaseChecklist(summary) {
 
 ## Human Approval Required
 
-- [ ] Final integration PR merge.
 - [ ] Product 1.0 release tag creation.
 - [ ] Artifact signing in protected maintainer environment.
 - [ ] Product 1.0 release publication.

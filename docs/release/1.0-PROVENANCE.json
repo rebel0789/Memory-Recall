@@ -3,7 +3,7 @@
   "predicateType": "https://openagentfabric.dev/provenance/release-readiness/v1",
   "subject": {
     "name": "open-agent-fabric",
-    "version": "0.2.0-dev",
+    "version": "1.0.0",
     "releaseCandidate": "1.0-readiness"
   },
   "buildType": "local-deterministic-source-readiness",
@@ -21,9 +21,9 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:6f8fba5c18348e402b949918f3621b24a5dfd4e12812c2a86629a3c646056748",
-    "package-lock.json": "sha256:15af2e29fa1b1fec125c550839d9ae8fc9c0b2adc72881b1db22493352d0851e",
-    "PROJECT_STATUS.json": "sha256:2aab1986fb6d946d37a1ef224b6e4f57282827f4b07cc5f29b6eb77f43a7d360",
+    "package.json": "sha256:bd6d983e10372959e63a0cfe2e148a62ba23e4039be33b8a4d502417fff47a47",
+    "package-lock.json": "sha256:6a1a5b53b0e8e39e9711f9ff6f58a38b892bd756533e8a5a4229cd88716627e3",
+    "PROJECT_STATUS.json": "sha256:16229207387d7935a763dcc3d6300415459f1cd48dcbe7202e87b2dc6e3fd0ec",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
     "THIRD_PARTY.md": "sha256:adbbffba498346ac25ff8f064db76ae93543d3c1990d37f1137d9122f0742dd7",
