@@ -2851,7 +2851,7 @@ async function submitSourceGraph(event){
     render();
   }finally{
     button.disabled=false;
-    button.textContent='Preview graph';
+    button.textContent='Preview repo map';
   }
 }
 

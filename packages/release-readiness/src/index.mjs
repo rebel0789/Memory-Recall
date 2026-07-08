@@ -153,6 +153,9 @@ async function collectWorkflowEvidence(root, files) {
       'npm run release:readiness',
       'npm run release:readiness:check'
     ],
+    optionalCommands: [
+      'npm run consumer:browser-smoke'
+    ],
     commandCoverage: [...commands].sort(),
     externalAdapters: capabilities.get('adapters.external'),
     publishing: capabilities.get('publishing.external'),
@@ -309,6 +312,10 @@ ${table(['Area', 'Evidence'], [
 ## Required Final Gates
 
 ${markdownList(evidence.requiredCommands.map((command) => `\`${command}\``))}
+
+## Optional Local Evidence Gates
+
+${markdownList(evidence.optionalCommands.map((command) => `\`${command}\``))}
 
 ## Release Decision
 
@@ -512,6 +519,7 @@ function releaseChecklist(summary) {
 - [x] Security review generated.
 - [x] Migration, backup, restore, upgrade, and rollback evidence linked.
 - [x] Consumer-simple gates are runnable with \`npm run consumer:smoke\`: temp HOME install proof, real MCP client smoke, local web/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene.
+- [x] Optional rendered browser proof is runnable with \`npm run consumer:browser-smoke\`: Playwright-driven bootstrap, Connect, Token Saver, Add Memory, Repo Map, console-error, and mobile overflow checks against a temp workspace.
 - [x] External-write defaults remain off.
 - [x] Owner URLs and contacts use repository-specific GitHub ownership.
 

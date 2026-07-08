@@ -93,6 +93,7 @@
     "oaf": "node apps/cli/oaf.mjs",
     "native:smoke": "node scripts/native-smoke.mjs",
     "consumer:smoke": "node scripts/consumer-smoke.mjs",
+    "consumer:browser-smoke": "npm exec --yes --package=playwright -- sh -c 'NODE_PATH=\"$(dirname \"$(dirname \"$(command -v playwright)\")\")\" node scripts/consumer-browser-smoke.mjs'",
     "ops:smoke": "node scripts/operations-smoke.mjs",
     "release:readiness": "node scripts/release-readiness.mjs",
     "release:readiness:check": "node scripts/release-readiness-check.mjs",
