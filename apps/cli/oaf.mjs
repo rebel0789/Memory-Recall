@@ -77,6 +77,7 @@ const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-
 const MEMORY_BATCH_UNSAFE_TEXT = /(?:^|[\s('"`])\/(?:[A-Za-z0-9._-]+\/)+[^\s)'"<>]+|file:\/\/|[A-Za-z]:\\|\n|\r/iu;
 const MEMORY_BATCH_CONFIDENCES = new Set(['extracted', 'inferred', 'ambiguous']);
 const REALQA_QUERY_STOPWORDS = new Set(['what', 'which', 'who', 'where', 'when', 'why', 'how', 'is', 'the', 'a', 'an', 'by', 'does', 'do', 'for', 'to', 'of', 'provider', 'default', 'implements']);
+const EXPLICIT_CHANGED_LOCATOR_OPTIONS = new Set(['--changed', '--changed-locator']);
 const MCP_INSTALL_CLIENTS = new Map([
   ['codex', { id: 'codex', format: 'toml', configPath: '.codex/config.toml' }],
   ['cursor', { id: 'cursor', format: 'json', configPath: '.cursor/mcp.json' }],
@@ -7357,12 +7358,20 @@ function buildLargeContextMeasurement({ values, changedLocators, detection }) {
   };
 }
 
-function valuesWithChangedShard(values, shard) {
+function explicitChangedLocatorCount(values) {
+  return new Set([...options(values, '--changed'), ...options(values, '--changed-locator')]).size;
+}
+
+function valuesWithChangedShard(values, shard, { includeExplicitChanged = false } = {}) {
   const output = [];
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (value === '--all-shards') continue;
     if (value === '--changed-shard') {
+      index += 1;
+      continue;
+    }
+    if (!includeExplicitChanged && EXPLICIT_CHANGED_LOCATOR_OPTIONS.has(value)) {
       index += 1;
       continue;
     }
@@ -7372,13 +7381,37 @@ function valuesWithChangedShard(values, shard) {
   return output;
 }
 
+function valuesWithExplicitChangedOnly(values) {
+  const output = [];
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === '--all-shards' || value === '--changed-from-git') continue;
+    if (value === '--changed-shard') {
+      index += 1;
+      continue;
+    }
+    if (value === '--changed-from' && values[index + 1] === 'git') {
+      index += 1;
+      continue;
+    }
+    output.push(value);
+  }
+  return output;
+}
+
 function sumReports(reports, read) {
   return reports.reduce((total, report) => total + Number(read(report) ?? 0), 0);
 }
 
-function buildContextPackAllShardsMeasurementReportFromReports(reports) {
+function buildContextPackAllShardsMeasurementReportFromReports(reports, { gitShardCount = null, totalGitChangedLocatorCount = null } = {}) {
   const first = reports[0];
   const last = reports[reports.length - 1];
+  const gitReports = reports.filter((report) => report.largeContext.source === 'git-status-porcelain');
+  const explicitReports = reports.filter((report) => report.largeContext.source !== 'git-status-porcelain');
+  const firstGit = gitReports[0] ?? first;
+  const lastGit = gitReports[gitReports.length - 1] ?? last;
+  const expectedShardCount = Number(gitShardCount ?? firstGit.largeContext.changedLocatorShardCount ?? 0) + explicitReports.length;
+  const totalChangedLocatorCount = Number(totalGitChangedLocatorCount ?? firstGit.largeContext.totalChangedLocatorCount ?? 0) + sumReports(explicitReports, (report) => report.largeContext.measuredChangedLocatorCount);
   const baselineUnitCount = sumReports(reports, (report) => report.tokenSaver.baselineUnitCount);
   const deliveredUnitCount = sumReports(reports, (report) => report.tokenSaver.deliveredUnitCount);
   const savedUnitCount = Math.max(0, baselineUnitCount - deliveredUnitCount);
@@ -7391,13 +7424,13 @@ function buildContextPackAllShardsMeasurementReportFromReports(reports) {
     commitSha: first.commitSha,
     measurementScope: 'local context-pack shard build plus stdio readback per shard',
     summary: {
-      changedLocatorShardCount: first.largeContext.changedLocatorShardCount,
+      changedLocatorShardCount: expectedShardCount,
       shardsMeasured: reports.length,
-      totalChangedLocatorCount: first.largeContext.totalChangedLocatorCount,
+      totalChangedLocatorCount,
       measuredChangedLocatorCount: sumReports(reports, (report) => report.largeContext.measuredChangedLocatorCount),
-      omittedBeforeCount: Number(first.largeContext.omittedBeforeCount ?? 0),
-      omittedAfterCount: Number(last.largeContext.omittedAfterCount ?? 0),
-      allChangesMeasured: reports.length === first.largeContext.changedLocatorShardCount && Number(last.largeContext.omittedAfterCount ?? 0) === 0
+      omittedBeforeCount: Number(firstGit.largeContext.omittedBeforeCount ?? 0),
+      omittedAfterCount: Number(lastGit.largeContext.omittedAfterCount ?? 0),
+      allChangesMeasured: reports.length === expectedShardCount && Number(lastGit.largeContext.omittedAfterCount ?? 0) === 0
     },
     tokenSaver: {
       basis: 'selected-context-plus-changed-source-resend',
@@ -7412,6 +7445,7 @@ function buildContextPackAllShardsMeasurementReportFromReports(reports) {
       providerBillingClaimed: false
     },
     shards: reports.map((report) => ({
+      source: report.largeContext.source,
       changedLocatorShard: report.largeContext.changedLocatorShard,
       measuredChangedLocatorCount: report.largeContext.measuredChangedLocatorCount,
       savedUnitCount: report.tokenSaver.savedUnitCount,
@@ -7445,12 +7479,20 @@ function buildContextPackAllShardsMeasurementReportFromReports(reports) {
 
 async function buildContextPackAllShardsMeasurementReport(values, { objective, step }) {
   const first = await buildContextPackMeasurementReport(valuesWithChangedShard(values, 1), { objective, step });
-  const shardCount = Math.max(1, Number(first.largeContext.changedLocatorShardCount ?? 1));
-  const reports = [first];
+  const gitTotalChangedLocatorCount = Number(first.largeContext.totalChangedLocatorCount ?? 0);
+  const shardCount = gitTotalChangedLocatorCount > 0 ? Math.max(1, Number(first.largeContext.changedLocatorShardCount ?? 1)) : 0;
+  const reports = gitTotalChangedLocatorCount > 0 ? [first] : [];
   for (let shard = 2; shard <= shardCount; shard += 1) {
     reports.push(await buildContextPackMeasurementReport(valuesWithChangedShard(values, shard), { objective, step }));
   }
-  return buildContextPackAllShardsMeasurementReportFromReports(reports);
+  if (explicitChangedLocatorCount(values) > 0) {
+    reports.push(await buildContextPackMeasurementReport(valuesWithExplicitChangedOnly(values), { objective, step }));
+  }
+  if (reports.length === 0) reports.push(first);
+  return buildContextPackAllShardsMeasurementReportFromReports(reports, {
+    gitShardCount: shardCount,
+    totalGitChangedLocatorCount: gitTotalChangedLocatorCount
+  });
 }
 
 async function buildMemoryProposalPreflight(values, { root, workspaceId, generatedAt }) {
