@@ -66,6 +66,30 @@ test('memory remember and decision-log ingest serve only the superseding real de
   assert.equal(recall.data.summary.proposalFactCount,0);
   assert.equal(recall.data.activeFacts[0].subject,'auth');
 });
+test('mcp server accepts an absolute sqlite path through a workspace symlink',()=>{
+  const actualRoot=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-mcp-absolute-sqlite-actual-'));
+  const linkRoot=path.join(os.tmpdir(),`oaf-cli-mcp-absolute-sqlite-link-${process.pid}-${Date.now()}`);
+  try {
+    symlinkSync(actualRoot,linkRoot,'dir');
+  } catch {
+    return;
+  }
+  mkdirSync(path.join(actualRoot,'.local'),{recursive:true});
+  writeFileSync(path.join(actualRoot,'DECISIONS.md'),'Decision: project:hono source_graph_files files_200.');
+  const sqliteViaLink=path.join(linkRoot,'.local','memory.sqlite');
+  const env={...process.env,OAF_FIXED_NOW:'2026-07-08T22:40:00.000Z'};
+  const remember=spawnSync(process.execPath,['apps/cli/oaf.mjs','memory','remember','--root',linkRoot,'--sqlite',sqliteViaLink,'--subject','project:hono','--predicate','source_graph_files','--object','files_200','--source','workspace://DECISIONS.md','--format','json'],{encoding:'utf8',env});
+  assert.equal(remember.status,0,remember.stderr);
+  const input=[
+    JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize',params:{}}),
+    JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'memory.recall',arguments:{client:'absolute-sqlite-test',query:'source graph files',scope:'workspace',limit:4}}})
+  ].join('\n');
+  const mcp=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','server','--read-only','--root',linkRoot,'--sqlite',sqliteViaLink,'--stdio'],{encoding:'utf8',env,input});
+  assert.equal(mcp.status,0,mcp.stderr);
+  const recall=JSON.parse(JSON.parse(mcp.stdout.trim().split(/\n/u)[1]).result.content[0].text);
+  assert.equal(recall.data.available,true);
+  assert.equal(recall.data.activeFacts[0].object,'files_200');
+});
 test('memory remember is idempotent for repeated governed writes',()=>{
   const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-memory-remember-idempotent-'));
   mkdirSync(path.join(root,'.local'),{recursive:true});

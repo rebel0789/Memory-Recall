@@ -54,7 +54,7 @@ From the repository root:
 
 ```bash
 npm pack
-npm install -g ./memory-recall-1.0.2.tgz
+npm install -g ./memory-recall-1.0.3.tgz
 recall setup
 recall verify
 ```

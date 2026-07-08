@@ -1,6 +1,6 @@
 {
   "name": "memory-recall",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "description": "Local-first repo memory and context for coding agents.",
   "keywords": [

@@ -193,7 +193,7 @@ boundaries.
 
 ## Status
 
-Development kit: **1.0.2**.
+Development kit: **1.0.3**.
 
 | Surface | Status |
 | --- | --- |

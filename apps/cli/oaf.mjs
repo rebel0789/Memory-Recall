@@ -8224,15 +8224,30 @@ async function inspectFile(filePath) {
 
 async function resolveWorkspaceSqlitePath(root, sqlitePath, commandName, { mustExist }) {
   const requested = sqlitePath ?? '.local/memory.sqlite';
+  const lexicalRoot = path.resolve(root);
   const realRoot = await realpath(root);
-  const absolute = path.isAbsolute(requested) ? path.resolve(requested) : path.resolve(realRoot, requested);
-  if (!isInside(realRoot, absolute)) {
-    throw new Error(`${commandName} --sqlite must stay inside --root`);
-  }
-  const existing = await stat(absolute).catch((error) => {
+  const requestedAbsolute = path.isAbsolute(requested) ? path.resolve(requested) : path.resolve(realRoot, requested);
+  const existing = await stat(requestedAbsolute).catch((error) => {
     if (error.code === 'ENOENT') return null;
     throw error;
   });
+  let absolute = requestedAbsolute;
+  if (existing) {
+    absolute = await realpath(requestedAbsolute);
+  } else {
+    const parentReal = await realpath(path.dirname(requestedAbsolute)).catch((error) => {
+      if (error.code === 'ENOENT') return null;
+      throw error;
+    });
+    if (parentReal) {
+      absolute = path.join(parentReal, path.basename(requestedAbsolute));
+    } else if (isInside(lexicalRoot, requestedAbsolute)) {
+      absolute = path.resolve(realRoot, path.relative(lexicalRoot, requestedAbsolute));
+    }
+  }
+  if (!isInside(realRoot, absolute)) {
+    throw new Error(`${commandName} --sqlite must stay inside --root`);
+  }
   if (mustExist && !existing?.isFile()) {
     throw new Error(`${commandName} requires an existing SQLite database at --sqlite or .local/memory.sqlite; no database is created`);
   }
