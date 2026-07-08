@@ -511,7 +511,7 @@ function releaseChecklist(summary) {
 - [x] License and third-party notice review generated.
 - [x] Security review generated.
 - [x] Migration, backup, restore, upgrade, and rollback evidence linked.
-- [x] Consumer-simple gates are runnable with \`npm run consumer:smoke\`: temp HOME install proof, real MCP client smoke, browser smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene.
+- [x] Consumer-simple gates are runnable with \`npm run consumer:smoke\`: temp HOME install proof, real MCP client smoke, local web/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene.
 - [x] External-write defaults remain off.
 - [x] Owner URLs and contacts use repository-specific GitHub ownership.
 
