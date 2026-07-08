@@ -44,6 +44,7 @@ import {
   renderConsumerStartActions,
   renderContextPackTokenSaverSummary,
   renderMemoryIntakePanel,
+  shouldLoadProtectedShellData,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -83,6 +84,12 @@ test('first-use home exposes consumer start actions',()=>{
   assert.match(html,/aria-label="First actions"/);
 });
 
+test('shell defers protected workspace loads until local session evidence exists',()=>{
+  assert.equal(shouldLoadProtectedShellData({ bootstrapRequired:true, csrfTokenValue:'csrf_1' }),false);
+  assert.equal(shouldLoadProtectedShellData({ bootstrapRequired:false, csrfTokenValue:'' }),false);
+  assert.equal(shouldLoadProtectedShellData({ bootstrapRequired:false, csrfTokenValue:'csrf_1' }),true);
+});
+
 test('source graph preview renders repo map start points',()=>{
   const report={
     graph:{
@@ -108,11 +115,18 @@ test('source graph preview renders repo map start points',()=>{
     },
     search:{total:1,results:[]},
     trace:{paths:[]},
-    impact:{affectedSymbols:[]},
+    impact:{
+      changedLocators:['workspace://src/auth.ts'],
+      representedChangedLocators:['workspace://src/auth.ts'],
+      affectedSymbols:[{name:'TokenResetService',locator:'workspace://src/auth.ts#L1-L5',symbolKind:'class'}]
+    },
     safeguards:{persisted:false,modelCalls:0,networkCalls:0,graphDatabaseUsed:false,rawBodyIncluded:false}
   };
   const html=renderSourceGraphResult(report);
   assert.match(html,/Repo Map/);
+  assert.match(html,/Start here/);
+  assert.match(html,/runAuthWorkflow/);
+  assert.match(html,/Changed impact/);
   assert.match(html,/Read first/);
   assert.match(html,/workspace:\/\/src\/workflow\.ts#L3-L7/);
   assert.match(html,/Files/);
@@ -231,6 +245,19 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.match(intakeHtml, /memory preview/);
   assert.match(intakeHtml, /project:oaf release_status/);
   assert.match(intakeHtml, /active memory created/);
+  const failedIntakeHtml = renderMemoryIntakePanel(null, {
+    message: 'The request did not match the API contract.',
+    issues: [{ path: '$.body.text', code: 'memory_extraction_invalid' }]
+  });
+  assert.match(failedIntakeHtml, /Memory intake failed/);
+  assert.match(failedIntakeHtml, /Memory text/);
+  assert.match(failedIntakeHtml, /Use simple Fact or Decision lines/);
+  const emptyIntakeHtml = renderMemoryIntakePanel({
+    command: 'memory preview',
+    summary: { proposalCount: 0, activeMemoryCreated: 0 },
+    proposalFacts: []
+  });
+  assert.match(emptyIntakeHtml, /Try: Fact: project:oaf release_status release-candidate/);
   assert.match(html, new RegExp(`<dt>Naive baseline</dt><dd>${profile.contextBudget.historyTokensAvailable}</dd>`));
   assert.match(html, new RegExp(`<dt>OAF compressed</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
   assert.match(html, /<dt>Provider billing<\/dt><dd>not claimed<\/dd>/);
@@ -282,6 +309,8 @@ test('memory graph route renders governed graph canvas controls', async () => {
   assert.match(html, /History facts/);
   assert.match(html, /Superseded/);
   assert.match(html, /Provenance/);
+  assert.match(html, /Valid from/);
+  assert.match(html, /Valid until/);
   assert.match(html, /workspace:\/\/providers\/native\/memory-sqlite\/provider\.json/);
   assert.match(source, /\/api\/memory\/graph/);
 });
@@ -390,8 +419,9 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/Read-only impact brief/);
   assert.match(app,/Change Impact/);
   assert.match(app,/value="where should I start"/);
-  assert.match(app,/value="buildContextPackUiModel"/);
-  assert.match(app,/name="changedLocator" value="apps\/web\/app\.js"/);
+  assert.match(app,/name="startName" value="" placeholder="optional function or class name"/);
+  assert.match(app,/name="changedLocator" value="" placeholder="src\/index\.js"/);
+  assert.doesNotMatch(app,/name="changedLocator" value="apps\/web\/app\.js"/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
   assert.match(app,/Pinned handoff status/);
@@ -519,18 +549,43 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.deepEqual(model.tokenSaver,{
     beforeTokens:1000,
     afterTokens:80,
+    hasMeasuredBaseline:true,
     savedLabel:'92%',
+    changedSourceAvoidedLabel:'800 tokens (100%)',
     selectedFiles:['workspace://AGENTS.md'],
+    requiredReadFiles:['workspace://AGENTS.md','workspace://apps/web/app.js'],
     excludedFiles:['workspace://.cursor/rules/fabric.mdc'],
     command:"npm --silent run oaf -- measure context-pack --read-only --root . --from 'codex,cursor' --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --format json"
   });
   const tokenSaverHtml=renderContextPackTokenSaverSummary(model);
   assert.match(tokenSaverHtml,/Token Saver/);
-  assert.match(tokenSaverHtml,/1000 -> 80 tokens/);
+  assert.match(tokenSaverHtml,/1000 -&gt; 80 tokens/);
+  assert.match(tokenSaverHtml,/Required reads/);
   assert.match(tokenSaverHtml,/workspace:\/\/AGENTS\.md/);
+  assert.match(tokenSaverHtml,/workspace:\/\/apps\/web\/app\.js/);
   assert.match(tokenSaverHtml,/workspace:\/\/\.cursor\/rules\/fabric\.mdc/);
   assert.match(tokenSaverHtml,/Measure token saver/);
   assert.match(tokenSaverHtml,/measure context-pack --read-only/);
+  assert.match(tokenSaverHtml,/Provider billing/);
+  assert.match(tokenSaverHtml,/not claimed/);
+  const unmeasuredTokenSaverHtml=renderContextPackTokenSaverSummary({
+    ...model,
+    omittedRefs:0,
+    tokenSaver:{
+      ...model.tokenSaver,
+      beforeTokens:0,
+      afterTokens:1185,
+      hasMeasuredBaseline:false,
+      savedLabel:'not measured',
+      changedSourceAvoidedLabel:'1649 tokens (100%)'
+    }
+  });
+  assert.match(unmeasuredTokenSaverHtml,/1185 token handoff/);
+  assert.match(unmeasuredTokenSaverHtml,/1649 tokens \(100%\) changed source avoided/);
+  assert.match(unmeasuredTokenSaverHtml,/Baseline/);
+  assert.match(unmeasuredTokenSaverHtml,/Provider billing/);
+  assert.match(unmeasuredTokenSaverHtml,/not claimed/);
+  assert.doesNotMatch(unmeasuredTokenSaverHtml,/0 -&gt; 1185 tokens/);
   assert.deepEqual(model.proof,{
     tokenSaved:'92%',
     selectedTokenRatio:'25%',
@@ -1072,14 +1127,16 @@ test('web shell maps API validation issues to bounded recovery copy',()=>{
     issues:[
       {path:'$.body.changedLocators',code:'max_items'},
       {path:'$.body.client',code:'enum'},
-      {path:'$.body.objective',code:'context_pack_objective_secret_like'}
+      {path:'$.body.objective',code:'context_pack_objective_secret_like'},
+      {path:'$.body.text',code:'memory_extraction_invalid'}
     ]
   });
   assert.equal(model.message,'The request did not match the API contract.');
   assert.equal(model.correlationId,'req_client-00000000-0000-4000-8000-000000000001');
-  assert.deepEqual(model.issues.map((issue)=>issue.label),['Changed files','Client','Objective']);
+  assert.deepEqual(model.issues.map((issue)=>issue.label),['Changed files','Client','Objective','Memory text']);
   assert.match(model.issues[0].detail,/workspace-relative paths/);
   assert.match(model.issues[2].detail,/Do not include secrets/);
+  assert.match(model.issues[3].detail,/Fact or Decision/);
 });
 
 test('web shell redacts unsafe issue tokens before rendering recovery copy',()=>{

@@ -12,10 +12,9 @@ job is to read a project the way a senior engineer would, build a map of its
 entities, relationships, and decisions, detect what has *changed over time*, and
 record that map into OAF's governed memory.
 
-This is the same pattern as graphify: a skill turns the host agent into the
-extractor. The difference is the output — instead of a static graph, you produce
-**governed, temporally-correct facts** that OAF keeps current and serves to coding
-agents over MCP.
+This skill turns the host agent into the semantic extractor. The output is not a
+static graph: you produce **governed, temporally-correct facts** that OAF keeps
+current and serves to coding agents over MCP.
 
 OAF also has a deterministic Rust structural pass for local documents:
 
@@ -69,25 +68,24 @@ Priority order:
 Derive the project subject from the actual repo (package name or folder), e.g.
 `project:notes-api` — never a hardcoded name.
 
-**Complement, don't duplicate (the graphify rule).** OAF's built-in
+**Complement, don't duplicate.** OAF's built-in
 `oaf memory ingest` already captures the cheap structural facts for free — commit
 subjects, file/module structure, config defaults. Do **not** re-extract those.
 Spend your intelligence on what heuristics provably cannot do: **decisions, the
 rationale behind them (WHY), what changed over time (supersession), and cross-file
-relationships.** That division — deterministic structural pass + AI semantic pass —
-is exactly how graphify splits AST extraction from its semantic subagents.
+relationships.** That division keeps source extraction cheap while reserving
+host-agent judgment for meaning.
 
 **Scale with parallel chunks.** For a large repo, do not read everything in one
 pass. Split the high-signal sources into chunks of a handful of files and dispatch
 a subagent per chunk to extract its fragment in parallel, then merge the fragments
-into one `facts.json` (dedup by `subject|predicate|object`). This is graphify's
-core scalability technique. For a small repo, a single pass is fine.
+into one `facts.json` (dedup by `subject|predicate|object`). This is the core
+scalability technique. For a small repo, a single pass is fine.
 
 ### Step 2 — Extract the fact map
 
 For each source, extract durable facts as `{subject, predicate, object, source}`
-triples. Together these form a map of the project — like graphify's nodes and
-edges, but as governed facts. Capture three kinds:
+triples. Together these form a governed map of the project. Capture three kinds:
 
 - **Entities & relationships** (the map):
   `notes-api | uses | hmac-tokens`, `auth.mjs | exports | issueToken`,
@@ -100,20 +98,17 @@ edges, but as governed facts. Capture three kinds:
 Rules for good facts:
 - Subjects/predicates are short, lowercase, **deterministic** identifiers
   (`snake_case`); the same entity must always produce the same subject id so it
-  dedups across chunks (graphify's deterministic-id rule). Objects are a short
-  value or identifier.
+  dedups across chunks. Objects are a short value or identifier.
 - Prefer durable, load-bearing facts an agent would need to act correctly. Skip
   trivia, formatting, and ephemeral noise.
 - One fact = one claim. Do not pack multiple claims into one object string.
 
-**Predicate vocabulary.** Prefer a controlled set so the map stays queryable
-(graphify uses a fixed relation taxonomy for the same reason). Reach for these
-first; only invent a new predicate when none fits:
+**Predicate vocabulary.** Prefer a controlled set so the map stays queryable.
+Reach for these first; only invent a new predicate when none fits:
 `uses`, `depends_on`, `implements`, `exposes`, `default`, `config`, `decision`,
 `constraint`, `convention`, `owns`, `relates_to`.
 
-**Confidence (the audit trail).** Tag every fact with how you know it, mirroring
-graphify's EXTRACTED / INFERRED / AMBIGUOUS:
+**Confidence (the audit trail).** Tag every fact with how you know it:
 - `extracted` — stated explicitly in a source (a decision log line, a config
   value). Record it.
 - `inferred` — a reasonable read of the code/structure, not stated outright.

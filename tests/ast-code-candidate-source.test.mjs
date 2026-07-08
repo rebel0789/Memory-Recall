@@ -476,6 +476,31 @@ test('native source graph exposes sanitized graph search trace and diff impact o
   assert(!serialized.includes('missing close brace'));
 });
 
+test('source graph diff impact preserves CommonJS changed-file symbols under tight limits', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'oaf-cjs-impact-'));
+  await mkdir(path.join(root, 'lib'), { recursive: true });
+  await writeFile(path.join(root, 'lib', 'index.js'), [
+    "function alpha() { return 'a'; }",
+    "function bravo() { return alpha(); }",
+    "function charlie() { return bravo(); }",
+    'module.exports = bravo;'
+  ].join('\n'));
+  const index = await buildJsTsSourceIndex({
+    root,
+    workspaceId: 'ws_cjs',
+    clock: () => fixedNow
+  });
+  const graph = buildSourceGraphFromIndex(index, { builtAt: fixedNow });
+  const impact = mapSourceGraphDiffImpact(graph, {
+    changedLocators: ['workspace://lib/index.js'],
+    depth: 2,
+    limit: 2
+  });
+
+  assert.deepEqual(impact.representedChangedLocators, ['workspace://lib/index.js']);
+  assert(impact.affectedSymbols.some((item) => item.name === 'alpha'));
+});
+
 test('source index fingerprints are stable across collection timestamps', async () => {
   const root = await fixtureWorkspace();
   const first = await buildJsTsSourceIndex({

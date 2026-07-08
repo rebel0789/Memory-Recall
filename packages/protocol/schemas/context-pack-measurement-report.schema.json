@@ -14,6 +14,8 @@
     "measurementScope",
     "request",
     "contextPack",
+    "tokenSaver",
+    "largeContext",
     "sourceGraph",
     "impactBrief",
     "mcpReadback",
@@ -32,6 +34,8 @@
     "measurementScope": { "const": "single local context-pack build plus stdio readback" },
     "request": { "$ref": "#/$defs/request" },
     "contextPack": { "$ref": "#/$defs/contextPack" },
+    "tokenSaver": { "$ref": "#/$defs/tokenSaver" },
+    "largeContext": { "$ref": "#/$defs/largeContext" },
     "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
     "impactBrief": { "$ref": "#/$defs/impactBrief" },
     "mcpReadback": { "$ref": "#/$defs/mcpReadback" },
@@ -148,6 +152,62 @@
         "contentTokenCountIncluded": { "const": 0 },
         "observedAvoidanceRatio": { "$ref": "#/$defs/ratio" },
         "sourceContentIncluded": { "const": false }
+      }
+    },
+    "tokenSaver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis",
+        "baselineUnitCount",
+        "deliveredUnitCount",
+        "savedUnitCount",
+        "reductionRatio",
+        "selectedUnitCount",
+        "changedSourceUnitCount",
+        "changedSourceUnitCountIncluded",
+        "sourceContentIncluded",
+        "providerBillingClaimed"
+      ],
+      "properties": {
+        "basis": { "const": "selected-context-plus-changed-source-resend" },
+        "baselineUnitCount": { "$ref": "#/$defs/count" },
+        "deliveredUnitCount": { "$ref": "#/$defs/count" },
+        "savedUnitCount": { "$ref": "#/$defs/count" },
+        "reductionRatio": { "$ref": "#/$defs/ratio" },
+        "selectedUnitCount": { "$ref": "#/$defs/count" },
+        "changedSourceUnitCount": { "$ref": "#/$defs/count" },
+        "changedSourceUnitCountIncluded": { "const": 0 },
+        "sourceContentIncluded": { "const": false },
+        "providerBillingClaimed": { "const": false }
+      }
+    },
+    "largeContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "changedLocatorShard",
+        "changedLocatorShardSize",
+        "changedLocatorShardCount",
+        "totalChangedLocatorCount",
+        "measuredChangedLocatorCount",
+        "omittedBeforeCount",
+        "omittedAfterCount",
+        "allChangesMeasured",
+        "nextChangedShard"
+      ],
+      "properties": {
+        "source": { "enum": ["explicit", "git-status-porcelain", "unavailable"] },
+        "changedLocatorShard": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "changedLocatorShardSize": { "const": 16 },
+        "changedLocatorShardCount": { "$ref": "#/$defs/count" },
+        "totalChangedLocatorCount": { "$ref": "#/$defs/count" },
+        "measuredChangedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "omittedBeforeCount": { "$ref": "#/$defs/count" },
+        "omittedAfterCount": { "$ref": "#/$defs/count" },
+        "allChangesMeasured": { "type": "boolean" },
+        "nextChangedShard": { "type": ["integer", "null"], "minimum": 1, "maximum": 1000000 }
       }
     },
     "sourceGraph": {

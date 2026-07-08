@@ -13,6 +13,7 @@ const SAFE_HASH = /^sha256:[a-f0-9]{64}$/;
 const CLAUDE_CODE_INDEX_LINE_CAP = 200;
 const CLAUDE_CODE_INDEX_BYTE_CAP = 25 * 1024;
 const CLAUDE_CODE_SELECTION_REVIEW_LIMIT = 5;
+const SOURCE_DIAGNOSTIC_COUNT_MAX = 10_000_000;
 const STALE_MEMORY_SOURCE_DAYS = 1;
 const SECRET_PATTERNS = [
   /sk-[A-Za-z0-9_-]{20,}/g,
@@ -280,8 +281,8 @@ function memorySourceDiagnosticsForRecord(record, { generatedAt }) {
   const sourceUpdatedAt = safeIsoTimestamp(metadata.sourceUpdatedAt ?? record.updatedAt ?? record.createdAt);
   const sourceAgeDays = sourceUpdatedAt ? ageDays(sourceUpdatedAt, generatedAt) : null;
   const sourceRole = safeMemorySourceRole(metadata.sourceRole ?? sourceRoleForPath(metadata.sourceLocator ?? record.source));
-  const lineCount = safeCount(metadata.sourceLineCount);
-  const byteSize = safeCount(metadata.sourceByteSize);
+  const lineCount = safeCount(metadata.sourceLineCount, SOURCE_DIAGNOSTIC_COUNT_MAX);
+  const byteSize = safeCount(metadata.sourceByteSize, SOURCE_DIAGNOSTIC_COUNT_MAX);
   const warnings = new Set(safeTokenList(metadata.sourceWarnings, 'warning_redacted'));
   if (sourceRole === 'memory-index' && lineCount > CLAUDE_CODE_INDEX_LINE_CAP) warnings.add('memory_index_line_cap_risk');
   if (sourceRole === 'memory-index' && byteSize > CLAUDE_CODE_INDEX_BYTE_CAP) warnings.add('memory_index_byte_cap_risk');

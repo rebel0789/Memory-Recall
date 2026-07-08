@@ -31,6 +31,8 @@
     "maximum_candidate_count",
     "unresolved_required_record",
     "malformed_candidate",
-    "candidate_ineligible"
+    "candidate_ineligible",
+    "candidate_token_limit_exceeded",
+    "candidate_text_limit_exceeded"
   ]
 }

@@ -538,8 +538,17 @@ async function intakeMemoryProposal({ provider, workspaceId, body, generatedAt }
   if (!dryRun && body.confirm !== true) {
     throw new ApiError(400, 'request_validation_failed', PUBLIC_MESSAGES.request_validation_failed, { issues: [{ path: '$.body.confirm', code: 'const' }] });
   }
-  const extracted = dryRun ? extractTemporalFactProposalsFromEpisode(episode) : null;
-  const queued = dryRun ? extracted.proposals : await provider.proposeTemporalFactsFromEpisode(episode);
+  let extracted = null;
+  let queued = null;
+  try {
+    extracted = dryRun ? extractTemporalFactProposalsFromEpisode(episode) : null;
+    queued = dryRun ? extracted.proposals : await provider.proposeTemporalFactsFromEpisode(episode);
+  } catch (error) {
+    if (isMemoryExtractionInputError(error)) {
+      throw new ApiError(400, 'request_validation_failed', PUBLIC_MESSAGES.request_validation_failed, { issues: [{ path: '$.body.text', code: 'memory_extraction_invalid' }] });
+    }
+    throw error;
+  }
   const proposalFacts = queued.map(summarizeMemoryIntakeProposal);
   const report = {
     schemaVersion: '1.0.0',
@@ -565,6 +574,10 @@ async function intakeMemoryProposal({ provider, workspaceId, body, generatedAt }
     }
   };
   return { ...report, reportFingerprint: `sha256:${sha256Hex(stableStringify(report))}` };
+}
+
+function isMemoryExtractionInputError(error) {
+  return /^(sourceLocator must be a safe workspace locator|subject|predicate|object) /u.test(error?.message ?? '');
 }
 
 async function buildMcpStatsSummaryFromFile({ statsPath, workspaceId, generatedAt }) {
@@ -1695,6 +1708,10 @@ function normalizeHarnesses(value) {
   return String(value ?? 'all').split(',').map((item) => aliases.get(item.trim()) ?? item.trim()).filter(Boolean);
 }
 
+export function resolveServeSourceGraphRoot({ env = process.env, cwd = process.cwd() } = {}) {
+  return path.resolve(env.OAF_WORKSPACE_ROOT ?? cwd);
+}
+
 function securityHeaders() {
   return {
     'x-content-type-options': 'nosniff',
@@ -1710,10 +1727,19 @@ async function main() {
   const host = process.env.OAF_HOST ?? '127.0.0.1';
   const port = Number(process.env.OAF_PORT ?? 4310);
   const dataDir = process.env.OAF_DATA_DIR ?? '.local';
+  const sourceGraphRoot = resolveServeSourceGraphRoot();
   const store = await new FileStateStore(dataDir).init();
   const identityStore = await new LocalIdentityStore({ directory: path.join(dataDir, 'identity') }).init();
   const manifestRepository = new FilesystemContextManifestRepository({ root: path.join(dataDir, 'context-manifests') });
-  const api = createControlApiServer({ store, identityStore, manifestRepository, memoryDatabasePath: path.join(dataDir, 'memory.sqlite') });
+  const api = createControlApiServer({
+    store,
+    identityStore,
+    manifestRepository,
+    sourceGraphRoot,
+    harnessSetupHome: process.env.HOME ?? sourceGraphRoot,
+    memoryDatabasePath: path.join(dataDir, 'memory.sqlite'),
+    mcpStatsPath: path.join(dataDir, 'mcp-stats.jsonl')
+  });
   api.server.listen(port, host, () => {
     console.log(`Open Agent Fabric local bootstrap: http://${host}:${port}`);
     console.log('No external writes are enabled. Press Ctrl+C to stop.');

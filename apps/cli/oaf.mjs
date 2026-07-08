@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
-import { appendFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rename as renameFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createReadStream, existsSync, realpathSync } from 'node:fs';
+import { appendFile, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename as renameFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -68,6 +68,7 @@ const MCP_STDIO_MAX_MESSAGES = boundedEnvInteger('OAF_MCP_STDIO_MAX_MESSAGES', 1
 const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOUT_MS', 30_000, { min: 1, max: 60_000 });
 const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
+const MEMORY_PATH_MAX_BYTES = 8 * 1024 * 1024;
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/iu;
 const PRIVATE_LOCAL_PATH = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)|\/home\/[A-Za-z0-9._-]+(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|[A-Za-z]:\\)/u;
 const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
@@ -96,14 +97,84 @@ const commands = new Map([
   ['task', ['scripts/task.mjs', ...args]]
 ]);
 
+function defaultHandoffArgs() {
+  return [
+    '--read-only',
+    '--from',
+    'codex',
+    '--root',
+    '.',
+    '--objective',
+    'Ship safely',
+    '--step',
+    'handoff',
+    '--target',
+    'codex',
+    '--changed-from-git',
+    '--format',
+    'summary'
+  ];
+}
+
+function defaultTokenSaverArgs() {
+  return [
+    '--read-only',
+    '--root',
+    '.',
+    '--from',
+    'codex',
+    '--objective',
+    'Ship safely',
+    '--step',
+    'impact brief',
+    '--target',
+    'codex',
+    '--changed-from-git',
+    '--format',
+    'summary'
+  ];
+}
+
+function contextPackValueOptions() {
+  return new Set(['--root', '--workspace', '--from', '--objective', '--step', '--target', '--target-harness', '--include-file', '--changed', '--changed-locator', '--changed-from', '--changed-shard', '--token-budget', '--budget', '--format']);
+}
+
+function mergeDefaultArgs(defaults, overrides, valueOptions) {
+  if (overrides.length === 0) return defaults;
+  const overridden = new Set(overrides.filter((value) => value.startsWith('--')));
+  const merged = [];
+  for (let index = 0; index < defaults.length; index += 1) {
+    const value = defaults[index];
+    if (overridden.has(value)) {
+      if (valueOptions.has(value)) index += 1;
+      continue;
+    }
+    merged.push(value);
+  }
+  return [...merged, ...overrides];
+}
+
 if (!isHelpCommand(command) && args.some(isHelpCommand)) {
   help(command, args.find((value) => !isHelpCommand(value)));
 } else if (command === 'demo' && args[0] === 'memory-loop') {
   await demoMemoryLoopCommand(args.slice(1));
+} else if (command === 'serve') {
+  process.exitCode = await runNode(commands.get(command), {
+    cwd: process.cwd(),
+    env: { ...process.env, OAF_WORKSPACE_ROOT: process.env.OAF_WORKSPACE_ROOT ?? process.cwd() }
+  });
+} else if (command === 'status') {
+  process.exitCode = await runNode(commands.get(command), {
+    env: { ...process.env, OAF_PACKAGE_ROOT: PACKAGE_ROOT, OAF_INVOKED_CWD: process.cwd() }
+  });
 } else if (commands.has(command)) {
   process.exitCode = await runNode(commands.get(command));
 } else if (command === 'context') {
   await contextCommand(args);
+} else if (command === 'handoff') {
+  await contextCommand(['handoff', ...mergeDefaultArgs(defaultHandoffArgs(), args, contextPackValueOptions())]);
+} else if (command === 'token-saver') {
+  await measureCommand(['context-pack', ...mergeDefaultArgs(defaultTokenSaverArgs(), args, contextPackValueOptions())]);
 } else if (command === 'benchmark' || command === 'bench') {
   await benchmarkCommand(args);
 } else if (command === 'memory') {
@@ -531,7 +602,12 @@ async function openMemoryReviewProvider(values, { readOnly, commandName, allowMi
 }
 
 async function memoryReviewListCommand(values) {
-  if (!validateJsonFormat(values)) return;
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('memory review only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
   const valueOptions = new Set(['--root', '--sqlite', '--workspace', '--workspace-id', '--scope', '--limit', '--format']);
   const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
   if (unsupported.length > 0) {
@@ -574,10 +650,33 @@ async function memoryReviewListCommand(values) {
       },
       reportFingerprint: null
     };
-    console.log(JSON.stringify({ ...report, reportFingerprint: stableJsonFingerprint(report) }, null, 2));
+    const output = { ...report, reportFingerprint: stableJsonFingerprint(report) };
+    console.log(format === 'summary' ? renderMemoryReviewSummary(output) : JSON.stringify(output, null, 2));
   } finally {
     provider.close();
   }
+}
+
+function renderMemoryReviewSummary(report) {
+  const first = report.proposalFacts.slice(0, 5).map((item) => `- ${item.id}: ${item.subject} ${item.predicate}`).join('\n') || '- none';
+  return [
+    '# Memory Review',
+    `Workspace: ${report.workspaceId}`,
+    `SQLite: ${report.source.sqliteRef}`,
+    `Pending proposals: ${report.summary.pendingProposalCount}`,
+    `Active memory created: ${report.summary.activeMemoryCreated}`,
+    '',
+    'Next proposals',
+    first,
+    '',
+    'Safeguards',
+    `Read-only: ${report.safeguards.readOnly ? 'pass' : 'no'}`,
+    `Proposal gated: ${report.safeguards.proposalGated ? 'yes' : 'no'}`,
+    `Canonical state mutated: ${report.safeguards.canonicalStateMutated ? 'yes' : 'no'}`,
+    `Network calls: ${report.safeguards.networkCalls}`,
+    `Model calls: ${report.safeguards.modelCalls}`,
+    `Report fingerprint: ${report.reportFingerprint}`
+  ].join('\n');
 }
 
 async function memoryRefineCommand(values) {
@@ -1207,14 +1306,21 @@ async function memoryRememberCommand(values) {
   const proposalInput = buildMemoryRememberProposalInput({ workspaceId, scope, subject, predicate, object, source: normalizeWorkspaceLocator(source), generatedAt, supersedes });
   try {
     const queued = await provider.enqueueProposal(proposalInput);
-    const approved = await provider.approveProposalFact({
-      workspaceId,
-      id: queued.id,
-      workerId: 'memory-remember',
-      approvedAt: generatedAt
-    });
-    const history = await provider.getTemporalFactHistory({ workspaceId, scope, subject, predicate, limit: 50 });
+    const historyBeforeApproval = await provider.getTemporalFactHistory({ workspaceId, scope, subject, predicate, limit: 50 });
+    const existingFact = historyBeforeApproval.find((item) => item.proposalQueueId === queued.id);
+    const approved = queued.status === 'applied' && existingFact
+      ? { proposal: queued, fact: existingFact }
+      : await provider.approveProposalFact({
+        workspaceId,
+        id: queued.id,
+        workerId: 'memory-remember',
+        approvedAt: generatedAt
+      });
+    const history = queued.status === 'applied'
+      ? historyBeforeApproval
+      : await provider.getTemporalFactHistory({ workspaceId, scope, subject, predicate, limit: 50 });
     const supersededFacts = history.filter((item) => item.supersededBy === approved.fact.id);
+    const activeMemoryCreated = queued.status === 'applied' && existingFact ? 0 : 1;
     const report = {
       schemaVersion: '1.0.0',
       command: 'memory remember',
@@ -1226,7 +1332,8 @@ async function memoryRememberCommand(values) {
         sourceLocator: source
       },
       summary: {
-        activeMemoryCreated: 1,
+        activeMemoryCreated,
+        duplicateFactSkipped: activeMemoryCreated === 0 ? 1 : 0,
         supersededFactCount: supersededFacts.length,
         pendingProposalCount: 0
       },
@@ -1237,7 +1344,7 @@ async function memoryRememberCommand(values) {
         readOnly: false,
         proposalGated: true,
         canonicalStateMutated: true,
-        activeMemoryCreated: 1,
+        activeMemoryCreated,
         hardDeleted: false,
         networkCalls: 0,
         modelCalls: 0,
@@ -1362,6 +1469,7 @@ function buildMemoryRememberProposalInput({ workspaceId, scope, subject, predica
   return {
     id: proposalId,
     workspaceId,
+    fingerprint: sha256Hex(stableStringify({ workspaceId, scope, subject, predicate, object, sourceHash })),
     sourceLocator: source,
     sourceHash,
     enqueuedAt,
@@ -1951,11 +2059,12 @@ async function measureContextPackCommand(values) {
     '--changed',
     '--changed-locator',
     '--changed-from',
+    '--changed-shard',
     '--token-budget',
     '--budget',
     '--format'
   ]);
-  const unsupported = unsupportedFlags(values, new Set(['--read-only', '--changed-from-git', ...valueOptions]), valueOptions);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', '--changed-from-git', '--all-shards', ...valueOptions]), valueOptions);
   if (unsupported.length > 0) {
     console.error(`measure context-pack unsupported option: ${unsupported[0]}`);
     process.exitCode = 2;
@@ -1978,6 +2087,16 @@ async function measureContextPackCommand(values) {
   if (!objective || !step) {
     console.error('measure context-pack requires --objective <text> and --step <text>');
     process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--all-shards')) {
+    if (!gitChangedLocatorsRequested(values)) {
+      console.error('measure context-pack --all-shards requires --changed-from-git');
+      process.exitCode = 2;
+      return;
+    }
+    const report = await buildContextPackAllShardsMeasurementReport(values, { objective, step });
+    console.log(format === 'summary' ? renderContextPackAllShardsMeasurementSummary(report) : JSON.stringify(report, null, 2));
     return;
   }
   const report = await buildContextPackMeasurementReport(values, { objective, step });
@@ -3952,8 +4071,8 @@ async function contextGraphPreviewCommand(values) {
   }
 
   const format = option(values, '--format') ?? 'json';
-  if (format !== 'json') {
-    console.error('context graph preview only supports --format json');
+  if (!['json', 'summary'].includes(format)) {
+    console.error('context graph preview only supports --format json or summary');
     process.exitCode = 2;
     return;
   }
@@ -3983,11 +4102,41 @@ async function contextGraphPreviewCommand(values) {
       maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
       clock: fixedNow
     });
-    console.log(JSON.stringify(preview, null, 2));
+    console.log(format === 'summary' ? renderSourceGraphPreviewSummary(preview) : JSON.stringify(preview, null, 2));
   } catch (error) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+function renderSourceGraphPreviewSummary(preview) {
+  const summary = preview.graph?.summary ?? {};
+  const impact = preview.impact ?? {};
+  const hotspots = (summary.hotspots ?? []).slice(0, 5).map((item) => item.label).join(', ') || 'none';
+  const entryPoints = (summary.entryPoints ?? []).slice(0, 5).map((item) => item.label).join(', ') || 'none';
+  const changedTotal = impact.changedLocators?.length ?? 0;
+  const representedTotal = impact.representedChangedLocators?.length ?? 0;
+  const warnings = [...(preview.warningCodes ?? []), ...(impact.warningCodes ?? [])].filter(Boolean).join(', ') || 'none';
+  return [
+    '# Repo Map',
+    `Status: ${preview.status ?? 'ready'}`,
+    `Files: ${summary.fileCount ?? 0}`,
+    `Symbols: ${summary.symbolCount ?? 0}`,
+    `Nodes: ${summary.nodeCount ?? 0}`,
+    `Edges: ${summary.edgeCount ?? 0}`,
+    `Hotspots: ${hotspots}`,
+    `Entry points: ${entryPoints}`,
+    `Changed coverage: ${representedTotal}/${changedTotal}`,
+    `Affected symbols: ${impact.affectedSymbolCount ?? impact.affectedSymbols?.length ?? 0}`,
+    `Warnings: ${warnings}`,
+    '',
+    'Safeguards',
+    `Read-only: ${preview.safeguards?.persisted === false ? 'pass' : 'unknown'}`,
+    `Network calls: ${preview.safeguards?.networkCalls ?? 0}`,
+    `Model calls: ${preview.safeguards?.modelCalls ?? 0}`,
+    `External adapters enabled: ${preview.safeguards?.externalAdaptersEnabled ?? 0}`,
+    `Raw source bodies included: ${preview.safeguards?.rawBodyIncluded ? 'yes' : 'no'}`
+  ].join('\n');
 }
 
 async function mcpCommand(values) {
@@ -6725,6 +6874,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   for (const value of options(values, '--changed')) childArgs.push('--changed', value);
   for (const value of options(values, '--changed-locator')) childArgs.push('--changed-locator', value);
   if (gitChangedLocatorsRequested(values)) childArgs.push('--changed-from-git');
+  if (option(values, '--changed-shard')) childArgs.push('--changed-shard', String(changedShard(values)));
 
   const messages = [
     { jsonrpc: '2.0', id: 1, method: 'initialize' },
@@ -7149,6 +7299,142 @@ function summarizeMemoryProposalReport(report, { configRef, command }) {
   };
 }
 
+function buildTokenSaverMeasurement({ selection, delivery, changedSourceBudget }) {
+  const selectedUnitCount = Number(selection.selectedTokenCount ?? 0);
+  const changedSourceUnitCount = Number(changedSourceBudget?.contentTokenCount ?? 0);
+  const changedSourceUnitCountIncluded = Number(changedSourceBudget?.contentTokenCountIncluded ?? 0);
+  const deliveredUnitCount = Number(delivery.deliveredTokenCount ?? 0);
+  const baselineUnitCount = selectedUnitCount + changedSourceUnitCount;
+  const savedUnitCount = Math.max(0, baselineUnitCount - deliveredUnitCount);
+  const reductionRatio = baselineUnitCount > 0 ? Number((savedUnitCount / baselineUnitCount).toFixed(6)) : 0;
+  return {
+    basis: 'selected-context-plus-changed-source-resend',
+    baselineUnitCount,
+    deliveredUnitCount,
+    savedUnitCount,
+    reductionRatio,
+    selectedUnitCount,
+    changedSourceUnitCount,
+    changedSourceUnitCountIncluded,
+    sourceContentIncluded: false,
+    providerBillingClaimed: false
+  };
+}
+
+function changedShard(values) {
+  return parseIntegerOption(values, '--changed-shard', 1);
+}
+
+function buildLargeContextMeasurement({ values, changedLocators, detection }) {
+  const shardSize = 16;
+  const explicitCount = [...options(values, '--changed'), ...options(values, '--changed-locator')].length;
+  const detectionAvailable = detection?.status === 'available';
+  const detectedTotal = detectionAvailable ? Number(detection.totalChangedLocatorCount ?? 0) : 0;
+  const source = explicitCount > 0 && detectedTotal === 0 ? 'explicit' : (detection?.source ?? 'explicit');
+  const shard = source === 'git-status-porcelain' ? changedShard(values) : 1;
+  const total = detectionAvailable ? Math.max(detectedTotal, changedLocators.length) : changedLocators.length;
+  const measured = changedLocators.length;
+  const omittedBefore = source === 'git-status-porcelain' ? Math.min(total, Math.max(0, (shard - 1) * shardSize)) : 0;
+  const omittedAfter = source === 'git-status-porcelain' ? Math.max(0, total - omittedBefore - measured) : 0;
+  return {
+    source,
+    changedLocatorShard: shard,
+    changedLocatorShardSize: shardSize,
+    changedLocatorShardCount: total > 0 ? Math.ceil(total / shardSize) : 0,
+    totalChangedLocatorCount: total,
+    measuredChangedLocatorCount: measured,
+    omittedBeforeCount: omittedBefore,
+    omittedAfterCount: omittedAfter,
+    allChangesMeasured: omittedBefore + omittedAfter === 0,
+    nextChangedShard: omittedAfter > 0 ? shard + 1 : null
+  };
+}
+
+function valuesWithChangedShard(values, shard) {
+  const output = [];
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === '--all-shards') continue;
+    if (value === '--changed-shard') {
+      index += 1;
+      continue;
+    }
+    output.push(value);
+  }
+  output.push('--changed-shard', String(shard));
+  return output;
+}
+
+function sumReports(reports, read) {
+  return reports.reduce((total, report) => total + Number(read(report) ?? 0), 0);
+}
+
+function buildContextPackAllShardsMeasurementReportFromReports(reports) {
+  const first = reports[0];
+  const last = reports[reports.length - 1];
+  const baselineUnitCount = sumReports(reports, (report) => report.tokenSaver.baselineUnitCount);
+  const deliveredUnitCount = sumReports(reports, (report) => report.tokenSaver.deliveredUnitCount);
+  const savedUnitCount = Math.max(0, baselineUnitCount - deliveredUnitCount);
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'measure context-pack all-shards',
+    generatedAt: first.generatedAt,
+    workspaceId: first.workspaceId,
+    targetHarness: first.targetHarness,
+    commitSha: first.commitSha,
+    measurementScope: 'local context-pack shard build plus stdio readback per shard',
+    summary: {
+      changedLocatorShardCount: first.largeContext.changedLocatorShardCount,
+      shardsMeasured: reports.length,
+      totalChangedLocatorCount: first.largeContext.totalChangedLocatorCount,
+      measuredChangedLocatorCount: sumReports(reports, (report) => report.largeContext.measuredChangedLocatorCount),
+      omittedBeforeCount: Number(first.largeContext.omittedBeforeCount ?? 0),
+      omittedAfterCount: Number(last.largeContext.omittedAfterCount ?? 0),
+      allChangesMeasured: reports.length === first.largeContext.changedLocatorShardCount && Number(last.largeContext.omittedAfterCount ?? 0) === 0
+    },
+    tokenSaver: {
+      basis: 'selected-context-plus-changed-source-resend',
+      baselineUnitCount,
+      deliveredUnitCount,
+      savedUnitCount,
+      reductionRatio: baselineUnitCount > 0 ? Number((savedUnitCount / baselineUnitCount).toFixed(6)) : 0,
+      changedSourceUnitCount: sumReports(reports, (report) => report.tokenSaver.changedSourceUnitCount),
+      changedSourceUnitCountIncluded: sumReports(reports, (report) => report.tokenSaver.changedSourceUnitCountIncluded),
+      sourceContentIncluded: reports.some((report) => report.tokenSaver.sourceContentIncluded === true),
+      providerBillingClaimed: false
+    },
+    shards: reports.map((report) => ({
+      changedLocatorShard: report.largeContext.changedLocatorShard,
+      measuredChangedLocatorCount: report.largeContext.measuredChangedLocatorCount,
+      savedUnitCount: report.tokenSaver.savedUnitCount,
+      reductionRatio: report.tokenSaver.reductionRatio,
+      reportFingerprint: report.reportFingerprint
+    })),
+    safeguards: {
+      readOnly: reports.every((report) => report.safeguards.readOnly === true),
+      localFilesWritten: sumReports(reports, (report) => report.safeguards.localFilesWritten),
+      networkCalls: sumReports(reports, (report) => report.safeguards.networkCalls),
+      modelCalls: sumReports(reports, (report) => report.safeguards.modelCalls),
+      externalWritesEnabled: reports.some((report) => report.safeguards.externalWritesEnabled === true),
+      sourceContentIncluded: reports.some((report) => report.safeguards.sourceContentIncluded === true),
+      productionBenchmarkClaimed: false
+    },
+    reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
+  };
+  report.reportFingerprint = fingerprintJson({ ...report, reportFingerprint: null });
+  return report;
+}
+
+async function buildContextPackAllShardsMeasurementReport(values, { objective, step }) {
+  const first = await buildContextPackMeasurementReport(valuesWithChangedShard(values, 1), { objective, step });
+  const shardCount = Math.max(1, Number(first.largeContext.changedLocatorShardCount ?? 1));
+  const reports = [first];
+  for (let shard = 2; shard <= shardCount; shard += 1) {
+    reports.push(await buildContextPackMeasurementReport(valuesWithChangedShard(values, shard), { objective, step }));
+  }
+  return buildContextPackAllShardsMeasurementReportFromReports(reports);
+}
+
 async function buildMemoryProposalPreflight(values, { root, workspaceId, generatedAt }) {
   const configuredPath = option(values, '--memory-config');
   if (!configuredPath) {
@@ -7182,6 +7468,7 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 4096));
   const generatedAt = fixedNow();
   const { changedLocators, detection } = await resolveChangedLocators(values, { root, workspaceId });
+  const largeContext = buildLargeContextMeasurement({ values, changedLocators, detection });
   const started = process.hrtime.bigint();
   const pack = await buildContextPack({
     root,
@@ -7200,12 +7487,17 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
   const usePlan = buildContextPackUsePlan(pack, { generatedAt });
   const impactBrief = buildContextPackImpactBrief(pack, {
     generatedAt,
-    changedLocatorSource: detection ? 'git-status-porcelain' : 'explicit',
+    changedLocatorSource: largeContext.source === 'git-status-porcelain' ? 'git-status-porcelain' : 'explicit',
     usePlanFingerprint: usePlan.usePlanFingerprint
   });
   const summary = pack.sourceGraph.summary ?? {};
   const selection = pack.utility.sourceSelection;
   const delivery = pack.delivery ?? {};
+  const tokenSaver = buildTokenSaverMeasurement({
+    selection,
+    delivery,
+    changedSourceBudget: pack.utility.changedSourceBudget
+  });
   const report = {
     schemaVersion: '1.0.0',
     command: 'measure context-pack',
@@ -7241,6 +7533,8 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
       changedLocatorCoverage: pack.utility.changedLocatorCoverage,
       graphHintCoverage: pack.utility.graphHintCoverage
     },
+    tokenSaver,
+    largeContext,
     sourceGraph: {
       status: pack.sourceGraph.status,
       previewVersion: pack.sourceGraph.previewVersion,
@@ -7328,12 +7622,28 @@ function deliveryBudgetStatus(report) {
 
 function renderContextPackMeasurementSummary(report) {
   const changed = report.contextPack.changedSourceBudget;
+  const tokenSaver = report.tokenSaver;
+  const largeContext = report.largeContext;
   return [
     '# Context Pack Measurement',
     '',
     `Target harness: ${report.targetHarness}`,
     `Commit: ${report.commitSha ?? 'unavailable'}`,
     `Report fingerprint: ${report.reportFingerprint}`,
+    '',
+    '## Token Saver',
+    `Practical baseline units: ${Number(tokenSaver.baselineUnitCount)}`,
+    `Delivered handoff units: ${Number(tokenSaver.deliveredUnitCount)}`,
+    `Saved units: ${Number(tokenSaver.savedUnitCount)} (${ratioPercent(tokenSaver.reductionRatio)})`,
+    `Basis: ${tokenSaver.basis}`,
+    `Provider billing claimed: ${tokenSaver.providerBillingClaimed === true ? 'yes' : 'no'}`,
+    '',
+    '## Large Context',
+    `Changed locator shard: ${Number(largeContext.changedLocatorShard)} / ${Number(largeContext.changedLocatorShardCount)}`,
+    `Changed locators measured: ${Number(largeContext.measuredChangedLocatorCount)} / ${Number(largeContext.totalChangedLocatorCount)}`,
+    `Omitted before shard: ${Number(largeContext.omittedBeforeCount)}`,
+    `Omitted after shard: ${Number(largeContext.omittedAfterCount)}`,
+    `Next shard: ${largeContext.nextChangedShard === null ? 'none' : `--changed-shard ${largeContext.nextChangedShard}`}`,
     '',
     '## Selection and Delivery',
     `Candidate units: ${Number(report.contextPack.candidateUnitCount)}`,
@@ -7370,6 +7680,39 @@ function renderContextPackMeasurementSummary(report) {
     `Model calls: ${Number(report.safeguards.modelCalls)}`,
     `External writes enabled: ${report.safeguards.externalWritesEnabled === true ? 'yes' : 'no'}`,
     `External adapters enabled: ${Number(report.safeguards.externalAdaptersEnabled)}`,
+    `Raw source bodies included: ${report.safeguards.sourceContentIncluded === true ? 'yes' : 'no'}`,
+    `Production benchmark claimed: ${report.safeguards.productionBenchmarkClaimed === true ? 'yes' : 'no'}`
+  ].join('\n');
+}
+
+function renderContextPackAllShardsMeasurementSummary(report) {
+  return [
+    '# Context Pack Measurement All Shards',
+    '',
+    `Target harness: ${report.targetHarness}`,
+    `Commit: ${report.commitSha ?? 'unavailable'}`,
+    `Report fingerprint: ${report.reportFingerprint}`,
+    '',
+    '## Token Saver',
+    `Practical baseline units: ${Number(report.tokenSaver.baselineUnitCount)}`,
+    `Delivered handoff units: ${Number(report.tokenSaver.deliveredUnitCount)}`,
+    `Saved units: ${Number(report.tokenSaver.savedUnitCount)} (${ratioPercent(report.tokenSaver.reductionRatio)})`,
+    `Basis: ${report.tokenSaver.basis}`,
+    `Provider billing claimed: ${report.tokenSaver.providerBillingClaimed === true ? 'yes' : 'no'}`,
+    '',
+    '## Large Context',
+    `Shards measured: ${Number(report.summary.shardsMeasured)} / ${Number(report.summary.changedLocatorShardCount)}`,
+    `Changed locators measured: ${Number(report.summary.measuredChangedLocatorCount)} / ${Number(report.summary.totalChangedLocatorCount)}`,
+    `Omitted before first shard: ${Number(report.summary.omittedBeforeCount)}`,
+    `Omitted after last shard: ${Number(report.summary.omittedAfterCount)}`,
+    `All changes measured: ${report.summary.allChangesMeasured === true ? 'yes' : 'no'}`,
+    '',
+    '## Safeguards',
+    `Read-only: ${passFail(report.safeguards.readOnly)}`,
+    `Local files written: ${Number(report.safeguards.localFilesWritten)}`,
+    `Network calls: ${Number(report.safeguards.networkCalls)}`,
+    `Model calls: ${Number(report.safeguards.modelCalls)}`,
+    `External writes enabled: ${report.safeguards.externalWritesEnabled === true ? 'yes' : 'no'}`,
     `Raw source bodies included: ${report.safeguards.sourceContentIncluded === true ? 'yes' : 'no'}`,
     `Production benchmark claimed: ${report.safeguards.productionBenchmarkClaimed === true ? 'yes' : 'no'}`
   ].join('\n');
@@ -7707,11 +8050,12 @@ async function loadMemoryPathProposalRecords(values, { workspaceId, root }) {
       dataClass: entry.dataClass,
       metadata: {
         sourceLocator: locator,
-        sourceHash: `sha256:${createHash('sha256').update(text).digest('hex')}`,
+        sourceHash: source.contentHash,
         sourceRole: entry.sourceRole,
         sourceLineCount: source.lineCount,
         sourceByteSize: source.byteSize,
         sourceUpdatedAt: source.updatedAt,
+        sourceWarnings: source.warnings,
         proposalSource: 'memoryPaths'
       },
       now: fixedNow()
@@ -7727,14 +8071,59 @@ async function readWorkspaceMemoryPath(root, relativePath) {
   if (!isInside(realRoot, actual)) throw new Error(`memoryPath escapes workspace root: ${relativePath}`);
   const info = await stat(actual);
   if (!info.isFile()) throw new Error(`memoryPath is not a file: ${relativePath}`);
-  if (info.size > 64 * 1024) throw new Error(`memoryPath exceeds 64 KiB: ${relativePath}`);
-  const text = await readFile(actual, 'utf8');
+  const truncated = info.size > MEMORY_PATH_MAX_BYTES;
+  const [inspection, text] = await Promise.all([
+    inspectFile(actual),
+    truncated ? readFileHeadTail(actual, info.size, MEMORY_PATH_MAX_BYTES) : readFile(actual, 'utf8')
+  ]);
   return {
     text,
     locator: `workspace://${relativePath}`,
-    lineCount: text ? text.split(/\r\n|\r|\n/u).length : 0,
+    lineCount: inspection.lineCount,
     byteSize: info.size,
-    updatedAt: info.mtime.toISOString()
+    updatedAt: info.mtime.toISOString(),
+    contentHash: inspection.contentHash,
+    warnings: truncated ? ['memory_path_truncated_to_8_mib'] : []
+  };
+}
+
+async function readFileHeadTail(filePath, fileSize, maxBytes) {
+  const handle = await open(filePath, 'r');
+  try {
+    const headBytes = Math.floor(maxBytes / 2);
+    const tailBytes = maxBytes - headBytes;
+    const head = Buffer.alloc(headBytes);
+    const tail = Buffer.alloc(tailBytes);
+    const headRead = await handle.read(head, 0, headBytes, 0);
+    const tailStart = Math.max(0, fileSize - tailBytes);
+    const tailRead = await handle.read(tail, 0, tailBytes, tailStart);
+    return [
+      head.subarray(0, headRead.bytesRead).toString('utf8'),
+      `[... OAF memoryPath excerpt omitted ${Math.max(0, tailStart - headRead.bytesRead)} bytes; full-file hash recorded ...]`,
+      tail.subarray(0, tailRead.bytesRead).toString('utf8')
+    ].join('\n\n');
+  } finally {
+    await handle.close();
+  }
+}
+
+async function inspectFile(filePath) {
+  const digest = createHash('sha256');
+  let byteSize = 0;
+  let newlineCount = 0;
+  await new Promise((resolve, reject) => {
+    createReadStream(filePath)
+      .on('data', (chunk) => {
+        digest.update(chunk);
+        byteSize += chunk.length;
+        for (const byte of chunk) if (byte === 10) newlineCount += 1;
+      })
+      .on('error', reject)
+      .on('end', resolve);
+  });
+  return {
+    contentHash: `sha256:${digest.digest('hex')}`,
+    lineCount: byteSize === 0 ? 0 : newlineCount + 1
   };
 }
 
@@ -8548,13 +8937,15 @@ function gitChangedLocatorsRequested(values) {
 async function resolveChangedLocators(values, { root, workspaceId }) {
   const explicit = [...options(values, '--changed'), ...options(values, '--changed-locator')];
   if (!gitChangedLocatorsRequested(values)) return { changedLocators: explicit, detection: null };
-  const detection = await detectGitChangedLocators({ root, workspaceId, clock: fixedNow });
+  const shard = changedShard(values);
+  const detection = await detectGitChangedLocators({ root, workspaceId, offset: (shard - 1) * 16, clock: fixedNow });
   if (detection.status !== 'available') {
     console.error(`local git changed-file detection unavailable: ${detection.reason}`);
     return { changedLocators: explicit, detection };
   }
   if (detection.truncated) {
-    console.error(`local git changed-file detection capped at ${detection.changedLocators.length} locators; review explicit --changed entries for omitted files`);
+    const shardCount = detection.totalChangedLocatorCount > 0 ? Math.ceil(detection.totalChangedLocatorCount / 16) : 0;
+    console.error(`local git changed-file detection measuring shard ${shard}/${shardCount}; ${detection.changedLocators.length} of ${detection.totalChangedLocatorCount} locators in this run`);
   }
   const changedLocators = [...new Set([...explicit, ...detection.changedLocators])].sort();
   if (changedLocators.length > 16) throw new Error('changed_context_too_many_locators');
@@ -8623,11 +9014,11 @@ function realComparablePath(value) {
   }
 }
 
-function runNode(nodeArgs) {
+function runNode(nodeArgs, { cwd = PACKAGE_ROOT, env = process.env } = {}) {
   return new Promise((resolve, reject) => {
     const [script, ...rest] = nodeArgs;
     const resolvedScript = path.isAbsolute(script) ? script : path.join(PACKAGE_ROOT, script);
-    const child = spawn(process.execPath, [resolvedScript, ...rest], { stdio: 'inherit', env: process.env, cwd: PACKAGE_ROOT });
+    const child = spawn(process.execPath, [resolvedScript, ...rest], { stdio: 'inherit', env, cwd });
     child.on('error', reject);
     child.on('exit', (code) => resolve(code ?? 1));
   });
@@ -8660,6 +9051,11 @@ Usage:
   oaf check
   oaf eval
   oaf manifest
+  oaf handoff
+  oaf handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed-from-git --format summary
+  oaf token-saver
+  oaf token-saver --all-shards
+  oaf token-saver --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed-from-git --format summary
   oaf context --request request.json --records records.json
   oaf context profile --records memory-export.json --objective "Ship safely" --step "select compact memory" --token-budget 4096 --format json
   oaf context scan --from codex --root . --dry-run
@@ -8674,7 +9070,7 @@ Usage:
   oaf context retrieve workspace://AGENTS.md --read-only --root . --format json
   oaf context retrieve workspace://AGENTS.md --read-only --root . --format summary
   oaf context registry status --read-only --format json
-  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format json
+  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format summary
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --root . --plan loop-plan.json --execute-commands --format json
   oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
@@ -8696,7 +9092,7 @@ Usage:
   oaf memory remember --root . --sqlite .local/memory.sqlite --subject auth --predicate token_expiry --object "15 minutes" --supersedes-subject auth --supersedes-predicate token_expiry --source workspace://DECISIONS.md --format json
   oaf memory remember --batch facts.json --root . --sqlite .local/memory.sqlite --format json
   oaf memory ingest --root . --sqlite .local/memory.sqlite --format json
-  oaf memory review --root . --sqlite .local/memory.sqlite --format json
+  oaf memory review --root . --sqlite .local/memory.sqlite --format summary
   oaf memory approve mpq_status --root . --sqlite .local/memory.sqlite --format json
   oaf memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
   oaf memory approve --all --root . --sqlite .local/memory.sqlite --format json
@@ -8789,15 +9185,16 @@ files, does not grant authority, and does not enable external writes.`],
     ['context', `Open Agent Fabric CLI: context
 
 Usage:
+  oaf handoff
   oaf context scan --from codex --root . --dry-run
-  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --dry-run
-  oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --dry-run --format json
+  oaf context preview --from codex --root . --objective "Ship safely" --step "select context" --include-file notes/handoff.md --dry-run
+  oaf context pack --from codex --root . --objective "Ship safely" --step "handoff" --target codex --include-file notes/handoff.md --changed src/auth.ts --dry-run --format json
   oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format summary
   oaf context receive --read-only --root . --target codex --format json
   oaf context receive --read-only --root . --target codex --format summary
   oaf context retrieve workspace://AGENTS.md --read-only --root . --format summary
-  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
+  oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format summary
   oaf context registry status --read-only --format json
 
 Context commands select local handoff context, preview harness inputs, and read
@@ -8807,6 +9204,7 @@ Retrieve summary verifies locator/hash metadata without printing file content.`]
     ['context handoff', `Open Agent Fabric CLI: context handoff
 
 Usage:
+  oaf handoff
   oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format summary
 
@@ -8823,6 +9221,29 @@ Builds a read-only local agent handoff with context-pack proof, MCP readback,
 harness setup dry-run status, and zero-tool MCP proof. It requires --read-only
 and does not write files, import harness history, call models, use network
 access, or expose raw source bodies.`],
+    ['handoff', `Open Agent Fabric CLI: handoff
+
+Usage:
+  oaf handoff
+  oaf handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed-from-git --format summary
+  oaf context handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
+
+Runs the read-only context handoff flow. With no flags it defaults to a compact
+Codex summary for the current repository and local git changes. It does not
+write files, import harness history, call models, use network access, enable
+external adapters, create active memory, or expose raw source bodies.`],
+    ['token-saver', `Open Agent Fabric CLI: token-saver
+
+Usage:
+  oaf token-saver
+  oaf token-saver --all-shards
+  oaf token-saver --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed-from-git --format summary
+  oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
+
+Runs the read-only context-pack measurement flow. With no flags it measures the
+current repository and local git changes. It does not write files, call models,
+use network access, enable external adapters, include raw source bodies, or
+claim provider billing-token savings.`],
     ['context receive', `Open Agent Fabric CLI: context receive
 
 Usage:

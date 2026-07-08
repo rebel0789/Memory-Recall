@@ -15,7 +15,7 @@ The Builder Workspace is the later developer-facing vertical. It coordinates cod
 ## Adapter roles
 
 - CCCC: collaboration and obligations, not workflow authority.
-- Graphify or Understand Anything: derived repository graphs.
+- Source graph providers: derived repository graphs and impact evidence.
 - Open Design: optional design workspace and artifact generation.
 - Oracle: optional cross-model advisory panel, never an authority.
 - ECC: reviewed procedures only; never bulk-load an entire prompt library.

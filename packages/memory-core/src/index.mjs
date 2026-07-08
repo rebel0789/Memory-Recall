@@ -146,12 +146,12 @@ function normalizeExtractionObjectText(value) {
 }
 
 function isUnsafeExtractionError(error) {
-  return /^(subject|predicate|object) (?:must be safe extraction|is required)/u.test(error?.message ?? '');
+  return /^(subject|predicate|object) (?:must be (?:a )?safe extraction|is required)/u.test(error?.message ?? '');
 }
 
 function extractionSentences(text) {
   return String(text ?? '')
-    .split(/[.\n]/u)
+    .split(/\n|(?<=\S)\.(?=\s|$)/u)
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 50);

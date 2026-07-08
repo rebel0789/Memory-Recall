@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
 import { once } from 'node:events';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createControlApiServer } from '../services/control-api/src/server.mjs';
+import { createControlApiServer, resolveServeSourceGraphRoot } from '../services/control-api/src/server.mjs';
 import { API_ROUTE_CONTRACTS } from '../services/control-api/src/route-contracts.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
 
@@ -28,6 +28,145 @@ class SpyStore {
   }
   async reset() { this.resets += 1; this.state = baseState(); return structuredClone(this.state); }
 }
+
+async function freePort() {
+  const server = http.createServer();
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const { port } = server.address();
+  await new Promise((resolve) => server.close(resolve));
+  return port;
+}
+
+function cookieHeader(headers) {
+  const raw = typeof headers.getSetCookie === 'function' ? headers.getSetCookie() : headers.get('set-cookie')?.split(/,(?=\s*oaf_)/) ?? [];
+  return raw.map((item) => item.split(';')[0]).join('; ');
+}
+
+function csrfFromCookie(cookie) {
+  return /(?:^|;\s*)oaf_csrf=([^;]+)/.exec(cookie)?.[1] ?? '';
+}
+
+test('serve source graph root defaults to launched repository cwd with env override', () => {
+  assert.equal(resolveServeSourceGraphRoot({ env: {}, cwd: '/tmp/project' }), path.resolve('/tmp/project'));
+  assert.equal(resolveServeSourceGraphRoot({ env: { OAF_WORKSPACE_ROOT: '/tmp/other-project' }, cwd: '/tmp/project' }), path.resolve('/tmp/other-project'));
+});
+
+test('cli serve inspects the repository it is launched from', async (t) => {
+  const sourceRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-root-'));
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-data-'));
+  const home = await mkdtemp(path.join(os.tmpdir(), 'oaf-cli-serve-home-'));
+  t.after(async () => {
+    await rm(sourceRoot, { recursive: true, force: true });
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(home, { recursive: true, force: true });
+  });
+  await mkdir(path.join(sourceRoot, 'src'), { recursive: true });
+  await writeFile(path.join(sourceRoot, 'src', 'web.ts'), 'export function servedWorkspaceRootFixture(){ return true; }\n');
+  const port = await freePort();
+  const child = spawn(process.execPath, [path.resolve('apps/cli/oaf.mjs'), 'serve'], {
+    cwd: sourceRoot,
+    env: { ...process.env, OAF_PORT: String(port), OAF_DATA_DIR: dataDir, HOME: home },
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  let output = '';
+  let childExited = false;
+  const childExit = once(child, 'exit').then(() => {
+    childExited = true;
+  });
+  child.stdout.on('data', (chunk) => { output += chunk; });
+  child.stderr.on('data', (chunk) => { output += chunk; });
+  t.after(async () => {
+    if (!childExited) {
+      try {
+        process.kill(-child.pid, 'SIGTERM');
+      } catch {}
+    }
+    await Promise.race([
+      childExit,
+      new Promise((resolve) => setTimeout(resolve, 1000))
+    ]);
+    if (!childExited) {
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+      } catch {}
+    }
+    await Promise.race([
+      childExit,
+      new Promise((resolve) => setTimeout(resolve, 1000))
+    ]);
+  });
+
+  const base = `http://127.0.0.1:${port}`;
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    try {
+      const status = await fetch(`${base}/api/auth/bootstrap-status`);
+      if (status.ok) break;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert.match(output, /Open Agent Fabric local bootstrap/);
+  const bootstrap = await fetch(`${base}/api/auth/bootstrap`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base },
+    body: JSON.stringify({
+      username: 'owner',
+      displayName: 'Local Owner',
+      password: 'correct horse battery staple',
+      workspaceId: 'ws_local',
+      workspaceName: 'Local Workspace'
+    })
+  });
+  const bootstrapText = await bootstrap.text();
+  assert.equal(bootstrap.status, 201, bootstrapText);
+  const cookie = cookieHeader(bootstrap.headers);
+  const graph = await fetch(`${base}/api/context/graph/preview`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: base,
+      cookie,
+      'x-csrf-token': csrfFromCookie(cookie)
+    },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      changedLocators: ['src/web.ts'],
+      maxFiles: 50
+    })
+  });
+  const graphText = await graph.text();
+  assert.equal(graph.status, 200, graphText);
+  const body = JSON.parse(graphText);
+  assert.deepEqual(body.impact.changedLocators, ['workspace://src/web.ts']);
+  assert.deepEqual(body.impact.representedChangedLocators, ['workspace://src/web.ts']);
+});
+
+test('memory intake previews facts that mention workspace source paths', async (t) => {
+  const api = await startServer(t);
+  const response = await fetch(`${api.base}/api/memory/proposals`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: api.base,
+      cookie: api.auth.cookie,
+      'x-csrf-token': api.auth.csrf
+    },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      sourceLocator: 'notes/hono-routing.md',
+      text: 'Fact: project:hono routing_core src/hono-base.ts and src/compose.ts.',
+      dryRun: true
+    })
+  });
+  const text = await response.text();
+  assert.equal(response.status, 200, text);
+  const body = JSON.parse(text);
+  assert.equal(body.command, 'memory preview');
+  assert.equal(body.summary.proposalCount, 1);
+  assert.equal(body.proposalFacts[0].subject, 'project:hono');
+  assert.equal(body.proposalFacts[0].object, 'src/hono-base.ts and src/compose.ts');
+});
 
 async function startServer(t, overrides = {}) {
   const store = overrides.store ?? new SpyStore();
@@ -208,6 +347,8 @@ test('context pack route is protected and does not mutate run state', async (t) 
   await writeFile(path.join(sourceGraphRoot, 'CLAUDE.md'), 'API RAW CLAUDE BODY should never be returned.');
   await writeFile(path.join(sourceGraphRoot, '.cursor', 'rules', 'fabric.mdc'), 'API RAW CURSOR BODY should never be returned.');
   await writeFile(path.join(sourceGraphRoot, 'notes', 'memory.md'), 'API RAW MEMORY BODY should never be returned. Prefer local-only context handoffs.');
+  const largeMemoryTail = 'API_LARGE_MEMORY_TAIL_SHOULD_NOT_LEAK';
+  await writeFile(path.join(sourceGraphRoot, 'notes', 'large-memory.md'), `project:oaf large_context browser_preflight\n${'ctx '.repeat(2_400_000)}${largeMemoryTail}`);
   await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const webBoundary = true;\n');
   const api = await startServer(t, { sourceGraphRoot });
   const denied = await request(api.base, '/api/context/pack', {
@@ -402,6 +543,21 @@ test('context pack route is protected and does not mutate run state', async (t) 
   assert.equal(memoryPreflight.text.includes('local-only context handoffs'), false);
   assert.equal(memoryPreflight.text.includes('/Users/'), false);
   assert.equal(memoryPreflight.text.includes('notes/memory.md'), false);
+
+  const largeMemoryPreflight = await request(api.base, '/api/context/pack/memory-preflight', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      memoryConfig: { schemaVersion: '1.0.0', memoryPaths: [{ path: 'notes/large-memory.md', kind: 'episode' }] }
+    })
+  });
+  assert.equal(largeMemoryPreflight.status, 200, largeMemoryPreflight.text);
+  assert.equal(largeMemoryPreflight.body.summary.proposalCount, 1);
+  assert.equal(largeMemoryPreflight.body.diagnostics.warningCodes.includes('memory_path_truncated_to_8_mib'), true);
+  assert.equal(largeMemoryPreflight.body.safeguards.activeMemoryCreated, 0);
+  assert.equal(largeMemoryPreflight.text.includes(largeMemoryTail), false);
+  assert.equal(largeMemoryPreflight.text.includes('notes/large-memory.md'), false);
 
   const invalidMemoryPreflight = await request(api.base, '/api/context/pack/memory-preflight', {
     method: 'POST',

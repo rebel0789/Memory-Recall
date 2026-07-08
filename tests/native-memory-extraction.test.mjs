@@ -27,6 +27,16 @@ test('offline fact extraction is deterministic ADD-only and proposal-gated', asy
   ]);
   assert.equal(first.proposals[0].payload.provenance.episodeId, first.episode.id);
 
+  const pathEpisode = {
+    ...episode,
+    sourceLocator: 'workspace://notes/hono-routing.md',
+    text: 'Fact: project:hono routing_core src/hono-base.ts and src/compose.ts.'
+  };
+  const pathProposal = extractTemporalFactProposalsFromEpisode(pathEpisode).proposals[0];
+  assert.equal(pathProposal.payload.subject, 'project:hono');
+  assert.equal(pathProposal.payload.predicate, 'routing_core');
+  assert.equal(pathProposal.payload.object, 'src/hono-base.ts and src/compose.ts');
+
   const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-memory-extract-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const provider = new SQLiteMemoryProvider({ filename: path.join(directory, 'memory.sqlite'), clock: () => '2026-06-26T11:00:00.000Z' });

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -106,6 +106,8 @@ test('npm package excludes private scratch local config and generated state', ()
   assert.equal(paths.includes('README.md'), true);
   assert.equal(paths.includes('apps/cli/oaf.mjs'), true);
   assert.equal(paths.includes('scripts/verify-handoff.mjs'), true);
+  assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);
+  assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), false);
 });
 
 test('installed npm package setup does not re-pack generated local state', () => {
@@ -169,12 +171,20 @@ test('installed npm package setup does not re-pack generated local state', () =>
   }
 });
 
-test('package-facing markdown docs avoid competitor names', () => {
+test('package-facing and product markdown docs avoid competitor names', () => {
   const result = spawnSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   const [pack] = JSON.parse(result.stdout);
-  const docs = pack.files.map((file) => file.path).filter((filePath) => filePath.endsWith('.md'));
-  const forbidden = /Headroom|AgentMemory|Graphiti|Zep|Mem0|Letta|LangMem|Supermemory|Microsoft ISE|TrueFoundry|MemRefine|Deployment-Time Memorization|Experience Compression Spectrum|create-context-graph|DataHub|Neo4j Labs|Neo4j|headroom|agentmemory|graphiti|mem0|letta|langmem|supermemory|microsoft ise|truefoundry|memrefine|deployment-time memorization|experience compression spectrum|datahub|neo4j labs|neo4j/;
+  const productDocs = readdirSync('docs/product')
+    .filter((filePath) => filePath.endsWith('.md'))
+    .map((filePath) => path.join('docs/product', filePath));
+  const docs = [
+    ...new Set([
+      ...pack.files.map((file) => file.path).filter((filePath) => filePath.endsWith('.md')),
+      ...productDocs
+    ])
+  ];
+  const forbidden = /Headroom|AgentMemory|Graphiti|Zep|Mem0|Letta|LangMem|Supermemory|Microsoft ISE|TrueFoundry|MemRefine|Deployment-Time Memorization|Experience Compression Spectrum|create-context-graph|DataHub|Neo4j Labs|Neo4j|Graphify|Understand Anything|codebase-memory-mcp|DeusData|\bcbm\b/i;
 
   for (const filePath of docs) {
     const body = readFileSync(filePath, 'utf8');

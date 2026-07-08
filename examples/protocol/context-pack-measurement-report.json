@@ -51,6 +51,30 @@
       "status": "partial"
     }
   },
+  "tokenSaver": {
+    "basis": "selected-context-plus-changed-source-resend",
+    "baselineUnitCount": 2560,
+    "deliveredUnitCount": 720,
+    "savedUnitCount": 1840,
+    "reductionRatio": 0.71875,
+    "selectedUnitCount": 960,
+    "changedSourceUnitCount": 1600,
+    "changedSourceUnitCountIncluded": 0,
+    "sourceContentIncluded": false,
+    "providerBillingClaimed": false
+  },
+  "largeContext": {
+    "source": "git-status-porcelain",
+    "changedLocatorShard": 1,
+    "changedLocatorShardSize": 16,
+    "changedLocatorShardCount": 1,
+    "totalChangedLocatorCount": 1,
+    "measuredChangedLocatorCount": 1,
+    "omittedBeforeCount": 0,
+    "omittedAfterCount": 0,
+    "allChangesMeasured": true,
+    "nextChangedShard": null
+  },
   "sourceGraph": {
     "status": "available",
     "previewVersion": "oaf-source-graph-preview-1.0.0",

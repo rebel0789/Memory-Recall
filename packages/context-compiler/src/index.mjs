@@ -1022,7 +1022,9 @@ export const EXCLUSION_REASON_CODES = Object.freeze([
   'maximum_candidate_count',
   'unresolved_required_record',
   'malformed_candidate',
-  'candidate_ineligible'
+  'candidate_ineligible',
+  'candidate_token_limit_exceeded',
+  'candidate_text_limit_exceeded'
 ]);
 
 export const CONTEXT_SELECTION_POLICY = deepFreeze({
@@ -1346,21 +1348,44 @@ function validateSelectionRequest(request) {
 function normalizeSelectionCandidate(candidate, index, request, policy) {
   assertPlainObject(candidate, 'selection candidate');
   const item = candidate.record ? candidate : directCandidateFromRecord(candidate);
-  const record = normalizeRecord(item.record);
+  let record = normalizeRecord(item.record);
   if (!record.id || !record.kind || !record.text) throw new TypeError('malformed_candidate');
-  const tokens = Number.isInteger(record.tokens) ? record.tokens : estimateTokens(record.text);
-  if ((!policy.tokenEstimation.zeroTokensAllowed && tokens < 1) || tokens < 0 || tokens > policy.limits.maxCandidateTokens) throw new TypeError('invalid_token_estimate');
-  if (byteLength(record.text) > MAX_CANDIDATE_TEXT_BYTES) throw new TypeError('malformed_candidate:text_too_large');
-  const contentHash = record.metadata?.contextCompression?.originalContentHash ?? recordFingerprint(record);
+  const originalContentHash = recordFingerprint(record);
+  const originalTokenEstimate = Number.isInteger(record.tokens) ? record.tokens : estimateTokens(record.text);
+  if ((!policy.tokenEstimation.zeroTokensAllowed && originalTokenEstimate < 1) || originalTokenEstimate < 0) throw new TypeError('invalid_token_estimate');
+  let tokens = originalTokenEstimate;
+  const ineligibleReasons = [];
+  if (byteLength(record.text) > MAX_CANDIDATE_TEXT_BYTES) {
+    const truncatedText = Buffer.from(record.text, 'utf8').subarray(0, MAX_CANDIDATE_TEXT_BYTES).toString('utf8');
+    record = { ...record, text: truncatedText };
+    tokens = Number.isInteger(item.record?.tokens) ? Math.min(item.record.tokens, policy.limits.maxCandidateTokens) : estimateTokens(truncatedText);
+    ineligibleReasons.push('candidate_text_limit_exceeded');
+  }
+  if (tokens > policy.limits.maxCandidateTokens || originalTokenEstimate > policy.limits.maxCandidateTokens) {
+    tokens = policy.limits.maxCandidateTokens;
+    ineligibleReasons.push('candidate_token_limit_exceeded');
+  }
+  const contentHash = record.metadata?.contextCompression?.originalContentHash ?? originalContentHash;
   if ((record.contentHash || record.fingerprint) && !/^sha256:[a-f0-9]{64}$/.test(record.contentHash ?? record.fingerprint)) throw new TypeError('malformed_candidate:content_hash');
   const hits = Array.isArray(item.hits) && item.hits.length
     ? item.hits.slice(0, policy.limits.maxSourceHitsPerCandidate).map((hit, hitIndex) => normalizeSelectionHit(hit, hitIndex))
     : directCandidateFromRecord(record).hits;
+  const metadata = ineligibleReasons.length ? {
+    ...(record.metadata ?? {}),
+    retrieval: {
+      ...(record.metadata?.retrieval ?? {}),
+      candidateEligible: false,
+      ineligibleReason: ineligibleReasons[0],
+      ineligibleReasons: [...new Set(ineligibleReasons)].sort(),
+      originalTokenEstimate
+    }
+  } : record.metadata;
   return {
     schemaVersion: '1.0.0',
     record: {
       ...record,
       tokens,
+      metadata,
       workspaceId: record.workspaceId ?? request.workspaceId,
       dataClass: record.dataClass ?? record.metadata?.dataClass ?? (record.scope === 'public' ? 'public' : 'workspace-private'),
       trustClass: record.trustClass ?? record.metadata?.trustClass ?? 'observed',
@@ -1440,7 +1465,12 @@ function eligibilityReasons(candidate, request, supersededIds) {
   if (record.dataClass === 'secret') reasons.push('secret_context_denied', 'data_class_denied');
   else if (!request.allowedDataClasses.includes(record.dataClass ?? 'workspace-private')) reasons.push('data_class_denied');
   if (!request.allowedTrustClasses.includes(record.trustClass ?? 'observed')) reasons.push('trust_class_denied');
-  if (record.metadata?.retrieval?.candidateEligible === false) reasons.push('candidate_ineligible');
+  if (record.metadata?.retrieval?.candidateEligible === false) {
+    reasons.push('candidate_ineligible');
+    for (const reason of record.metadata.retrieval.ineligibleReasons ?? [record.metadata.retrieval.ineligibleReason]) {
+      if (typeof reason === 'string') reasons.push(reason);
+    }
+  }
   if (record.status === 'expired') reasons.push('status_expired', 'expired');
   if (record.status === 'retracted') reasons.push('status_retracted', 'retracted');
   if (record.status === 'quarantined') reasons.push('status_quarantined', 'quarantined');

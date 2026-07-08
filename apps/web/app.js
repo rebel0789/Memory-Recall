@@ -103,6 +103,8 @@ const API_ISSUE_HINTS = new Map([
   ['$.body.objective',['Objective','Use a plain task summary. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
   ['$.body.step',['Step','Use a short current-step label. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
   ['$.body.tokenBudget',['Token budget','Use a positive number within the field limit.']],
+  ['$.body.sourceLocator',['Source locator','Use a workspace-relative source file such as notes/memory.md.']],
+  ['$.body.text',['Memory text','Use simple Fact or Decision lines with safe subject, predicate, and object text.']],
   ['$.body.targetHarness',['Target','Choose Codex, Claude Code, Cursor, or Generic agent.']],
   ['$.body.from',['Source families','Use supported source families only, such as codex, cursor, or claude-code.']],
   ['$.body.workspaceId',['Workspace','Use the current local workspace.']]
@@ -786,6 +788,10 @@ function csrfToken() {
   return /(?:^|;\s*)oaf_csrf=([^;]+)/.exec(globalThis.document?.cookie ?? '')?.[1] ?? '';
 }
 
+export function shouldLoadProtectedShellData({ bootstrapRequired = false, csrfTokenValue = '' } = {}) {
+  return bootstrapRequired === false && String(csrfTokenValue ?? '').trim().length > 0;
+}
+
 async function api(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   if (options.body && !headers.has('content-type')) headers.set('content-type','application/json');
@@ -818,6 +824,17 @@ async function load() {
   shellState={kind:'loading',message:'Loading local workspace state.'};
   render();
   try {
+    const bootstrap = await api('/api/auth/bootstrap-status');
+    if (bootstrap?.bootstrapRequired) {
+      dashboard = { error:{ status:503, code:'bootstrap_required', message:'Local owner setup is required.' }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
+      shellState = classifyDashboardState(dashboard);
+      return;
+    }
+    if (!shouldLoadProtectedShellData({ bootstrapRequired: false, csrfTokenValue: csrfToken() })) {
+      dashboard = { error:{ status:401, code:'authentication_required', message:'Local authentication required.' }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
+      shellState = classifyDashboardState(dashboard);
+      return;
+    }
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
     await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit(), loadMemoryGraph()]);
     shellState = classifyDashboardState(dashboard);
@@ -921,7 +938,7 @@ async function submitMemoryIntake(event) {
     document.querySelector('#live-status').textContent=dryRun?'Memory proposal preview ready.':'Memory proposals queued for approval.';
   }catch(error){
     memoryIntakeResult=null;
-    memoryIntakeError=error.message;
+    memoryIntakeError=error;
     render();
     document.querySelector('#live-status').textContent=error.message;
   }finally{
@@ -1327,14 +1344,25 @@ function renderContextPackResult(pack,markdown) {
 }
 
 export function renderContextPackTokenSaverSummary(model) {
-  const selected=model.tokenSaver.selectedFiles.length
-    ? `<ol class="locator-list compact-list">${model.tokenSaver.selectedFiles.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ol>`
-    : '<p class="muted">No selected files measured yet.</p>';
+  const requiredReads=(model.tokenSaver.requiredReadFiles?.length ? model.tokenSaver.requiredReadFiles : model.tokenSaver.selectedFiles) ?? [];
+  const selected=requiredReads.length
+    ? `<ol class="locator-list compact-list">${requiredReads.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ol>`
+    : '<p class="muted">No required reads measured yet.</p>';
   const excluded=model.tokenSaver.excludedFiles.length
     ? `<ol class="locator-list compact-list">${model.tokenSaver.excludedFiles.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ol>`
     : `<p class="muted">${Number(model.omittedRefs)} omitted refs; build a pack to inspect exact excluded locators.</p>`;
   const command=model.tokenSaver.command ? contextPackCommandList([{label:'Measure token saver',command:model.tokenSaver.command}]) : '';
-  return `<section class="surface token-saver-summary" aria-label="Token Saver summary"><div class="section-heading"><div><p class="eyebrow">Token Saver</p><h2>${Number(model.tokenSaver.beforeTokens)} -> ${Number(model.tokenSaver.afterTokens)} tokens</h2></div><span>${esc(model.tokenSaver.savedLabel)} saved</span></div><div class="handoff-brief-grid"><article><h3>Proof</h3><dl class="facts compact-facts"><div><dt>Before</dt><dd>${Number(model.tokenSaver.beforeTokens)} tokens</dd></div><div><dt>After</dt><dd>${Number(model.tokenSaver.afterTokens)} tokens</dd></div><div><dt>Reduction</dt><dd>${esc(model.tokenSaver.savedLabel)}</dd></div></dl></article><article><h3>Selected files</h3>${selected}</article><article><h3>Excluded files</h3>${excluded}</article></div>${command}</section>`;
+  const hasMeasuredBaseline=model.tokenSaver.hasMeasuredBaseline === true;
+  const heading=hasMeasuredBaseline
+    ? `${Number(model.tokenSaver.beforeTokens)} -> ${Number(model.tokenSaver.afterTokens)} tokens`
+    : `${Number(model.tokenSaver.afterTokens)} token handoff`;
+  const badge=hasMeasuredBaseline
+    ? `${model.tokenSaver.savedLabel} saved`
+    : `${model.tokenSaver.changedSourceAvoidedLabel} changed source avoided`;
+  const proof=hasMeasuredBaseline
+    ? `<dl class="facts compact-facts"><div><dt>Before</dt><dd>${Number(model.tokenSaver.beforeTokens)} tokens</dd></div><div><dt>After</dt><dd>${Number(model.tokenSaver.afterTokens)} tokens</dd></div><div><dt>Reduction</dt><dd>${esc(model.tokenSaver.savedLabel)}</dd></div><div><dt>Provider billing</dt><dd>not claimed</dd></div></dl>`
+    : `<dl class="facts compact-facts"><div><dt>Handoff</dt><dd>${Number(model.tokenSaver.afterTokens)} tokens</dd></div><div><dt>Changed source avoided</dt><dd>${esc(model.tokenSaver.changedSourceAvoidedLabel)}</dd></div><div><dt>Baseline</dt><dd>run measure command</dd></div><div><dt>Provider billing</dt><dd>not claimed</dd></div></dl>`;
+  return `<section class="surface token-saver-summary" aria-label="Token Saver summary"><div class="section-heading"><div><p class="eyebrow">Token Saver</p><h2>${esc(heading)}</h2></div><span>${esc(badge)}</span></div><div class="handoff-brief-grid"><article><h3>Proof</h3>${proof}</article><article><h3>Required reads</h3>${selected}</article><article><h3>Excluded files</h3>${excluded}</article></div>${command}</section>`;
 }
 
 function contextPackPinSummary(pin=null) {
@@ -1396,6 +1424,13 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
   const rawBodiesExcluded=pack?.delivery?.sourceContentsIncluded===false && pack?.safeguards?.rawBodyIncluded===false;
   const commands=contextPackHarnessCommands(pack,usePlan,{memoryConfig});
   const tokenSaverCommand=commands.find((item)=>item.label==='Copy impact command')?.command ?? '';
+  const requiredReadFiles=[...new Set([
+    ...(Array.isArray(pack?.readFirst) ? pack.readFirst : []).map((item)=>String(item.locator ?? '')).filter(Boolean),
+    ...(Array.isArray(pack?.utility?.requiredLocalReads) ? pack.utility.requiredLocalReads : [])
+      .filter((item)=>item?.required===true)
+      .map((item)=>String(item.locator ?? ''))
+      .filter(Boolean)
+  ])].slice(0,6);
   return {
     targetHarness:String(pack?.targetHarness ?? 'generic'),
     sourceFamilies,
@@ -1453,8 +1488,11 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     tokenSaver:{
       beforeTokens:candidateTokens,
       afterTokens:deliveredTokens,
+      hasMeasuredBaseline:candidateTokens > 0,
       savedLabel:deliveryReductionLabel,
+      changedSourceAvoidedLabel,
       selectedFiles:(Array.isArray(pack?.readFirst) ? pack.readFirst : []).map((item)=>String(item.locator ?? '')).filter(Boolean).slice(0,5),
+      requiredReadFiles,
       excludedFiles:(Array.isArray(pack?.excluded) ? pack.excluded : []).map((item)=>String(item.locator ?? '')).filter(Boolean).slice(0,5),
       command:tokenSaverCommand
     },
@@ -2157,7 +2195,7 @@ function memoryConfigDownloadName() {
 
 function renderSourceGraph() {
   const errorPanel=sourceGraphError?renderApiErrorPanel('Source graph preview failed',sourceGraphError):'';
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="where should I start" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="buildContextPackUiModel" placeholder="runAuthWorkflow" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="apps/web/app.js" placeholder="src/auth.ts" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview repo map</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No repo map yet','Preview the repo map to inspect files, symbols, import neighbors, and likely starting points.')}`;
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="where should I start" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="" placeholder="optional function or class name" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="" placeholder="src/index.js" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview repo map</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No repo map yet','Preview the repo map to inspect files, symbols, import neighbors, and likely starting points.')}`;
 }
 
 export function renderSourceGraphResult(report) {
@@ -2180,12 +2218,20 @@ function renderRepoMap(report) {
     return from&&to?`${from.label} -> ${to.label}`:'';
   }).filter(Boolean).slice(0,6);
   const readFirst=(report.graph?.summary?.entryPoints ?? []).map((item)=>item.locator).filter(Boolean).slice(0,6);
-  return `<section class="work-grid repo-map"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>${files.length} files</span></div><div class="split-list"><div><h3>Read first</h3>${sourceGraphTextList(readFirst)}</div><div><h3>Files</h3>${sourceGraphNodeList(files)}</div></div></div><aside class="inspector"><div class="section-heading"><h2>Key symbols</h2><span>${symbols.length}</span></div>${sourceGraphSymbolList(symbols)}<hr><div class="section-heading"><h2>Import neighbors</h2><span>${imports.length}</span></div>${sourceGraphTextList(imports)}</aside></section>`;
+  return `<section class="work-grid repo-map"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>${files.length} files</span></div>${sourceGraphStartHere(report)}<div class="split-list"><div><h3>Read first</h3>${sourceGraphTextList(readFirst)}</div><div><h3>Files</h3>${sourceGraphNodeList(files)}</div></div></div><aside class="inspector"><div class="section-heading"><h2>Key symbols</h2><span>${symbols.length}</span></div>${sourceGraphSymbolList(symbols)}<hr><div class="section-heading"><h2>Import neighbors</h2><span>${imports.length}</span></div>${sourceGraphTextList(imports)}</aside></section>`;
 }
 
 function uniqueBy(items,key) {
   const seen=new Set();
   return items.filter((item)=>{const value=key(item);if(!value||seen.has(value))return false;seen.add(value);return true;});
+}
+
+function sourceGraphStartHere(report) {
+  const entry=report.graph?.summary?.entryPoints?.[0];
+  const changed=report.impact?.representedChangedLocators?.[0] ?? report.impact?.changedLocators?.[0];
+  const affected=report.impact?.affectedSymbols?.[0];
+  if(!entry && !changed && !affected)return '';
+  return `<div class="state-panel state-success"><h3>Start here</h3><p>${entry?`Begin at ${esc(entry.label)} (${esc(entry.locator)}).`:'Use the read-first list below.'}${changed?` Changed impact: ${esc(changed)}${affected?` touches ${esc(affected.name)}`:''}.`:''}</p></div>`;
 }
 
 function sourceGraphSymbolList(symbols=[]) {
@@ -2270,7 +2316,7 @@ export function renderMemoryGraph(report = null, options = {}, error = null) {
 }
 
 function memoryGraphEdgeList(edges=[]) {
-  return `<ol class="compact-list locator-list">${edges.map((edge)=>`<li><strong>${esc(edge.from)} ${esc(edge.predicate)} ${esc(edge.to)}</strong><span>${edge.current?'Current':'Superseded'} · ${edge.supersededBy?`superseded by ${esc(edge.supersededBy)}`:'current winner'}</span><small>Provenance ${esc(edge.source)}</small></li>`).join('')}</ol>`;
+  return `<ol class="compact-list locator-list">${edges.map((edge)=>`<li><strong>${esc(edge.from)} ${esc(edge.predicate)} ${esc(edge.to)}</strong><span>${edge.current?'Current':'Superseded'} · ${edge.supersededBy?`superseded by ${esc(edge.supersededBy)}`:'current winner'}</span><small>Valid from ${date(edge.validFrom)} · Valid until ${edge.validUntil?date(edge.validUntil):'open'} · Provenance ${esc(edge.source)}</small></li>`).join('')}</ol>`;
 }
 
 function memoryGraphLegend(nodes=[]) {
@@ -2282,11 +2328,11 @@ function memoryGraphLegend(nodes=[]) {
 export function renderMemoryIntakePanel(result=null,error=null,draft={sourceLocator:'memory/inbox.md',text:''}) {
   const rows=Array.isArray(result?.proposalFacts) && result.proposalFacts.length
     ? `<ol class="compact-list locator-list">${result.proposalFacts.map((item)=>`<li><strong>${esc(item.subject)} ${esc(item.predicate)}</strong><span>${esc(item.object)}</span><small>${esc(item.id)} · ${esc(item.status)} · ${esc(item.sourceLocator)}</small></li>`).join('')}</ol>`
-    : '<p class="muted">No proposal facts extracted yet.</p>';
+    : '<p class="muted">No proposal facts extracted yet. Try: Fact: project:oaf release_status release-candidate.</p>';
   const resultPanel=result
     ? `<div class="state-panel state-success"><h2>${esc(result.command)}</h2><p>${Number(result.summary?.proposalCount ?? 0)} proposal${Number(result.summary?.proposalCount ?? 0)===1?'':'s'} · ${Number(result.summary?.activeMemoryCreated ?? 0)} active memory created</p>${rows}</div>`
     : '';
-  const errorPanel=error?statePanel('error','Memory intake failed',error):'';
+  const errorPanel=error?renderApiErrorPanel('Memory intake failed',error):'';
   return `<section class="surface memory-intake" aria-label="Add Memory"><div class="section-heading"><div><p class="eyebrow">Add Memory</p><h2>Preview first, approve after.</h2></div><span>proposal-gated</span></div><form id="memory-intake-form" class="stacked-form"><label class="field"><span>Source path</span><input name="sourceLocator" value="${esc(draft.sourceLocator ?? 'memory/inbox.md')}" required maxlength="512" placeholder="memory/inbox.md"></label><label class="field"><span>Memory text</span><textarea name="text" required maxlength="8000" placeholder="Fact: project:oaf release_status release-candidate.">${esc(draft.text ?? '')}</textarea><small>Use simple fact lines. Preview creates no active memory.</small></label><div class="action-row"><button class="button secondary" name="mode" value="preview" type="submit">Preview proposals</button><button class="button primary" name="mode" value="queue" type="submit">Queue proposals</button><span class="muted">Approval stays explicit in the proposal queue.</span></div></form>${errorPanel}${resultPanel}</section>`;
 }
 

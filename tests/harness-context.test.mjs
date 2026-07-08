@@ -197,13 +197,14 @@ test('user-selected context rejects path escapes and local state roots', async (
 
 test('skips oversized AGENTS.md with a sanitized workspace locator', async () => {
   const root = await workspace();
-  await writeFile(path.join(root, 'AGENTS.md'), 'x'.repeat(70_000));
+  const body = 'x'.repeat(70_000);
+  await writeFile(path.join(root, 'AGENTS.md'), body);
 
   const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', maxBytes: 1024, clock: fixedClock });
 
   assert.equal(report.summary.totalAccepted, 0);
   assert.equal(report.summary.totalSkipped, 1);
-  assert.deepEqual(report.skipped, [{ harness: 'codex', locator: 'workspace://AGENTS.md', reason: 'oversized' }]);
+  assert.deepEqual(report.skipped, [{ harness: 'codex', locator: 'workspace://AGENTS.md', reason: 'oversized', contentHash: sha256Ref(body), byteSize: 70_000 }]);
 });
 
 test('skips symlink AGENTS.md that escapes the workspace without exposing outside body', async () => {

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { lstat, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { createReadStream, existsSync } from 'node:fs';
+import { lstat, mkdir, mkdtemp, open, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -69,6 +69,8 @@ const DEFAULT_MAX_BYTES = 65_536;
 const DEFAULT_CHANGED_HASH_MAX_BYTES = 262_144;
 const DEFAULT_SOURCE_GRAPH_MAX_FILE_BYTES = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES;
 const MAX_SOURCE_GRAPH_FILE_BYTES = 1024 * 1024;
+const MAX_OVERSIZED_CONTEXT_HASH_BYTES = 8 * 1024 * 1024;
+const MEMORY_PATH_MAX_BYTES = 8 * 1024 * 1024;
 const MAX_USER_SELECTED_FILES = 16;
 const MAX_CHANGED_LOCATORS = 16;
 const MARKDOWN_SELECTED_LIMIT = 16;
@@ -560,12 +562,15 @@ async function sourceDefinitions(root, rootReal, harness, { changedLocators = []
   return { definitions, skipped };
 }
 
-function skippedSource(harness, relativePath, reason, locatorScheme = 'workspace') {
-  return {
+function skippedSource(harness, relativePath, reason, locatorScheme = 'workspace', metadata = {}) {
+  const result = {
     harness,
     locator: `${locatorScheme === 'user-selected' ? 'user-selected' : 'workspace'}://${toPosix(relativePath)}`,
     reason
   };
+  if (typeof metadata.contentHash === 'string') result.contentHash = metadata.contentHash;
+  if (Number.isInteger(metadata.byteSize)) result.byteSize = metadata.byteSize;
+  return result;
 }
 
 function normalizeUserSelectedFilePath(value) {
@@ -718,19 +723,64 @@ async function readWorkspaceMemoryPath(root, relativePath) {
   if (!isInside(realRoot, actual)) throw new Error(`memoryPath escapes workspace root: ${safePath}`);
   const info = await stat(actual);
   if (!info.isFile()) throw new Error(`memoryPath is not a file: ${safePath}`);
-  if (info.size > 64 * 1024) throw new Error(`memoryPath exceeds 64 KiB: ${safePath}`);
-  const text = await readFile(actual, 'utf8');
+  const truncated = info.size > MEMORY_PATH_MAX_BYTES;
+  const [inspection, text] = await Promise.all([
+    inspectFile(actual),
+    truncated ? readFileHeadTail(actual, info.size, MEMORY_PATH_MAX_BYTES) : readFile(actual, 'utf8')
+  ]);
   return {
     text,
     locator: `workspace://${safePath}`,
-    lineCount: text ? text.split(/\r\n|\r|\n/u).length : 0,
+    lineCount: inspection.lineCount,
     byteSize: info.size,
-    updatedAt: info.mtime.toISOString()
+    updatedAt: info.mtime.toISOString(),
+    contentHash: inspection.contentHash,
+    warnings: truncated ? ['memory_path_truncated_to_8_mib'] : []
   };
 }
 
 function deterministicMemoryId(locator, text) {
   return `mem_${createHash('sha256').update(`${locator}\0${text}`).digest('hex').slice(0, 16)}`;
+}
+
+async function readFileHeadTail(filePath, fileSize, maxBytes) {
+  const handle = await open(filePath, 'r');
+  try {
+    const headBytes = Math.floor(maxBytes / 2);
+    const tailBytes = maxBytes - headBytes;
+    const head = Buffer.alloc(headBytes);
+    const tail = Buffer.alloc(tailBytes);
+    const headRead = await handle.read(head, 0, headBytes, 0);
+    const tailStart = Math.max(0, fileSize - tailBytes);
+    const tailRead = await handle.read(tail, 0, tailBytes, tailStart);
+    return [
+      head.subarray(0, headRead.bytesRead).toString('utf8'),
+      `[... OAF memoryPath excerpt omitted ${Math.max(0, tailStart - headRead.bytesRead)} bytes; full-file hash recorded ...]`,
+      tail.subarray(0, tailRead.bytesRead).toString('utf8')
+    ].join('\n\n');
+  } finally {
+    await handle.close();
+  }
+}
+
+async function inspectFile(filePath) {
+  const digest = createHash('sha256');
+  let byteSize = 0;
+  let newlineCount = 0;
+  await new Promise((resolve, reject) => {
+    createReadStream(filePath)
+      .on('data', (chunk) => {
+        digest.update(chunk);
+        byteSize += chunk.length;
+        for (const byte of chunk) if (byte === 10) newlineCount += 1;
+      })
+      .on('error', reject)
+      .on('end', resolve);
+  });
+  return {
+    contentHash: `sha256:${digest.digest('hex')}`,
+    lineCount: byteSize === 0 ? 0 : newlineCount + 1
+  };
 }
 
 async function memoryProposalRecordsFromConfig(config, { root, workspaceId, generatedAt }) {
@@ -749,11 +799,12 @@ async function memoryProposalRecordsFromConfig(config, { root, workspaceId, gene
       dataClass: entry.dataClass,
       metadata: {
         sourceLocator: locator,
-        sourceHash: hash(text),
+        sourceHash: source.contentHash,
         sourceRole: entry.sourceRole,
         sourceLineCount: source.lineCount,
         sourceByteSize: source.byteSize,
         sourceUpdatedAt: source.updatedAt,
+        sourceWarnings: source.warnings,
         proposalSource: 'memoryPaths'
       },
       now: generatedAt
@@ -1107,10 +1158,12 @@ export async function detectGitChangedLocators({
   root = process.cwd(),
   workspaceId = 'ws_local',
   maxLocators = MAX_CHANGED_LOCATORS,
+  offset = 0,
   clock = () => new Date().toISOString()
 } = {}) {
   const generatedAt = clock();
   const limit = Math.max(0, Math.min(MAX_CHANGED_LOCATORS, Number.isInteger(maxLocators) ? maxLocators : MAX_CHANGED_LOCATORS));
+  const start = Math.max(0, Number.isInteger(offset) ? offset : 0);
   try {
     const { stdout } = await execFileAsync(
       'git',
@@ -1143,7 +1196,7 @@ export async function detectGitChangedLocators({
       }
     }
     const changedLocators = [...new Set(accepted)].sort();
-    const limited = changedLocators.slice(0, limit);
+    const limited = changedLocators.slice(start, start + limit);
     const omittedChangedLocatorCount = Math.max(0, changedLocators.length - limited.length);
     const warnings = [];
     if (omittedChangedLocatorCount > 0) warnings.push('git_changed_locators_truncated');
@@ -1227,7 +1280,15 @@ async function scanSource({ root, rootReal, harness, definition, workspaceId, ma
 
   const info = await stat(realPath);
   if (!info.isFile()) return { skipped: skippedSource(harness, relativePath, 'unsupported_file', definition.locatorScheme) };
-  if (info.size > maxBytes) return { skipped: skippedSource(harness, relativePath, 'oversized', definition.locatorScheme) };
+  if (info.size > maxBytes) {
+    if (info.size <= MAX_OVERSIZED_CONTEXT_HASH_BYTES) {
+      const bodyBuffer = await readFile(realPath);
+      if (!isControlCharacterBuffer(bodyBuffer)) {
+        return { skipped: skippedSource(harness, relativePath, 'oversized', definition.locatorScheme, { contentHash: hash(bodyBuffer), byteSize: info.size }) };
+      }
+    }
+    return { skipped: skippedSource(harness, relativePath, 'oversized', definition.locatorScheme) };
+  }
 
   const bodyBuffer = await readFile(realPath);
   if (isControlCharacterBuffer(bodyBuffer)) return { skipped: skippedSource(harness, relativePath, 'binary', definition.locatorScheme) };
@@ -1778,6 +1839,7 @@ function buildContextPackUtility({ selected, sourceGraph, preview, requestedInpu
   const reads = [];
   const seen = new Set();
   const scanSourceByLocator = new Map((preview.scan?.sources ?? []).map((source) => [source.locator, source]));
+  const skippedSourceByLocator = new Map((preview.scan?.skipped ?? []).map((source) => [source.locator, source]));
   const representedChangedLocators = new Set(sourceGraph.impact.representedChangedLocators ?? []);
   const addRead = (item) => {
     const key = `${item.role}:${item.locator}`;
@@ -1801,16 +1863,18 @@ function buildContextPackUtility({ selected, sourceGraph, preview, requestedInpu
   for (const locator of requestedInputs.userSelectedLocators) {
     if (reads.some((item) => item.locator === locator)) continue;
     const source = scanSourceByLocator.get(locator);
+    const skipped = skippedSourceByLocator.get(locator);
     addRead(requiredReadItem({
       locator,
       role: 'explicit_user_selected',
       required: true,
       represented: Boolean(source),
-      contentHash: source?.contentHash ?? null,
+      contentHash: source?.contentHash ?? skipped?.contentHash ?? null,
       reasonCodes: [
         'explicit_user_file',
         'read_before_handoff',
-        source?.contentHash ? 'content_hash_verified' : 'content_hash_unavailable'
+        source?.contentHash || skipped?.contentHash ? 'content_hash_verified' : 'content_hash_unavailable',
+        skipped?.reason
       ],
       readHint: `Read ${locator} from the local workspace because it was explicitly included for this handoff.`
     }));
@@ -2114,7 +2178,7 @@ function compactSourceGraphImpact(impact, changedLocators) {
     locator: item.locator,
     depth: Number(item.depth ?? 0),
     reasonCodes: Array.isArray(item.reasonCodes) && item.reasonCodes.length ? item.reasonCodes : ['changed_locator_impact'],
-    readHint: `Inspect ${item.locator} because it may be affected by ${changedLocators.join(', ')}.`
+    readHint: `Inspect ${item.locator} because it may be affected by ${changedLocators.join(', ')}.`.slice(0, 512)
   }));
   return {
     changedLocators,
@@ -2152,7 +2216,6 @@ async function buildContextPackSourceGraph({
     });
     const results = compactSourceGraphResults(preview.search.results);
     const warnings = [];
-    if (!results.length) warnings.push('source_graph_no_locator_matches');
     if (preview.graph.diagnostics.length) warnings.push('source_graph_diagnostics_present');
     const representedChangedLocators = new Set(preview.impact?.representedChangedLocators ?? []);
     if (normalizedChangedLocators.some((locator) => !representedChangedLocators.has(locator))) {

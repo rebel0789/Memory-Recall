@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -26,6 +27,10 @@ async function workspace() {
 
 function repeatedWords(prefix, count) {
   return Array.from({ length: count }, (_, index) => `${prefix}-${index}`).join(' ');
+}
+
+function sha256Ref(value) {
+  return `sha256:${createHash('sha256').update(value).digest('hex')}`;
 }
 
 function assertRequiredRead(usePlan, locator, role) {
@@ -672,6 +677,7 @@ test('context pack source graph represents large JS changed files within the has
   assert.deepEqual(pack.sourceGraph.impact.changedLocators, ['workspace://apps/web/app.js']);
   assert.deepEqual(pack.sourceGraph.impact.representedChangedLocators, ['workspace://apps/web/app.js']);
   assert(pack.sourceGraph.impact.affectedSymbols.some((item) => item.name === 'largeUiChangedSymbol'));
+  assert.equal(pack.sourceGraph.warnings.includes('source_graph_no_locator_matches'), false);
   assert.equal(pack.sourceGraph.warnings.includes('source_graph_changed_locator_unmatched'), false);
   assert.equal(pack.utility.status, 'ready');
   assert.deepEqual(pack.utility.changedLocatorCoverage, { total: 1, covered: 1, ratio: 1, status: 'covered' });
@@ -687,6 +693,38 @@ test('context pack source graph represents large JS changed files within the has
   assert(!serialized.includes('large-ui-body-sentinel'));
   assert(!serialized.includes(root));
   assert(!serialized.includes('/Users/'));
+});
+
+test('context pack bounds affected-symbol read hints for many changed locators', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'apps', 'web'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Review broad changed-file impact before handoff.');
+  await writeFile(path.join(root, 'apps', 'web', 'app.js'), [
+    'export function broadImpactChangedSymbol() {',
+    '  return true;',
+    '}'
+  ].join('\n'));
+  const changedLocators = [
+    'apps/web/app.js',
+    ...Array.from({ length: 15 }, (_, index) => `src/very-long-feature-area-name-for-impact/component-${String(index).padStart(2, '0')}-missing-entrypoint.ts`)
+  ];
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    changedLocators,
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Prepare broad handoff with many changed entrypoints',
+    step: 'measure source graph impact safely',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+
+  assertJsonSchema(contextPackSchema, pack, 'context pack with many changed locator read hints');
+  assert.equal(pack.sourceGraph.impact.changedLocators.length, 16);
+  assert.equal(pack.sourceGraph.impact.affectedSymbols.length > 0, true);
+  assert.equal(pack.sourceGraph.impact.affectedSymbols.every((item) => item.readHint.length <= 512), true);
 });
 
 test('context pack accepts Next.js dynamic route changed locators', async () => {
@@ -1068,4 +1106,32 @@ test('context pack preserves explicit user-selected files even when excluded by 
   assert.match(markdown, /user-selected:\/\/notes\/large-handoff\.md/);
   assert.doesNotMatch(markdown, /RAW LARGE USER BODY/);
   assert.doesNotMatch(JSON.stringify(pack), /RAW LARGE USER BODY/);
+});
+
+test('context pack marks oversized explicit user-selected files as oversized reads', async () => {
+  const root = await workspace();
+  await mkdir(path.join(root, 'notes'), { recursive: true });
+  await writeFile(path.join(root, 'AGENTS.md'), 'Always read repository instructions first.');
+  const hugeBody = 'huge context '.repeat(7000);
+  await writeFile(path.join(root, 'notes', 'huge.md'), hugeBody);
+
+  const pack = await buildContextPack({
+    root,
+    harnesses: ['codex'],
+    userSelectedFiles: ['notes/huge.md'],
+    workspaceId: 'ws_local',
+    targetHarness: 'codex',
+    objective: 'Continue with huge local context present',
+    step: 'preserve oversized read evidence',
+    tokenBudget: 4096,
+    clock: fixedClock
+  });
+
+  const explicitRead = pack.utility.requiredLocalReads.find((item) => item.locator === 'user-selected://notes/huge.md' && item.role === 'explicit_user_selected');
+  assert(explicitRead);
+  assert.equal(explicitRead.required, true);
+  assert.equal(explicitRead.represented, false);
+  assert.equal(explicitRead.contentHash, sha256Ref(hugeBody));
+  assert.equal(explicitRead.reasonCodes.includes('content_hash_verified'), true);
+  assert.equal(explicitRead.reasonCodes.includes('oversized'), true);
 });

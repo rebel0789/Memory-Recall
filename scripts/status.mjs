@@ -1,7 +1,11 @@
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
-const status = JSON.parse(await readFile('PROJECT_STATUS.json', 'utf8'));
-const backlog = JSON.parse(await readFile('planning/backlog.json', 'utf8'));
+const packageRoot = process.env.OAF_PACKAGE_ROOT ?? process.cwd();
+const invokedCwd = process.env.OAF_INVOKED_CWD ?? process.cwd();
+const status = JSON.parse(await readFile(path.join(packageRoot, 'PROJECT_STATUS.json'), 'utf8'));
+const backlog = JSON.parse(await readFile(path.join(packageRoot, 'planning/backlog.json'), 'utf8'));
 
 function readyTasks(tasks) {
   const completed = new Set(tasks.filter((task) => task.status === 'completed').map((task) => task.id));
@@ -16,16 +20,19 @@ function nextTaskLabel(statusNextTask, tasks) {
 }
 
 const nextTask = nextTaskLabel(status.nextTask, backlog.tasks ?? []);
+const sourceCheckout = existsSync(path.join(invokedCwd, 'package.json')) && existsSync(path.join(invokedCwd, 'apps/cli/oaf.mjs'));
+const oaf = (args) => sourceCheckout ? `npm run oaf -- ${args}` : `oaf ${args}`;
 
 console.log(`${status.project} ${status.release} — ${status.phase}`);
 console.log(`Next task: ${nextTask}`);
 console.log(`Defaults: network=${status.defaults.network}, externalWrites=${status.defaults.externalWrites}, model=${status.defaults.modelMode}, residency=${status.defaults.dataResidency}`);
 if (nextTask.startsWith('none ')) {
-  console.log('Use OAF today: docs/usage/local-agent-handoff.md');
-  console.log('First safe handoff: npm run handoff:safe');
-  console.log('Expanded handoff: npm run oaf -- context handoff --read-only --from codex --root . --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary');
-  console.log('Skill menu: npm run oaf -- skill catalog --read-only --root . --format summary');
-  console.log('Issue/PR queue instructions: docs/agents/issue-tracker.md');
+  console.log(sourceCheckout ? 'Use OAF today: docs/usage/local-agent-handoff.md' : 'Use OAF today: build a read-only context handoff in this repository.');
+  console.log(`First safe handoff: ${sourceCheckout ? oaf('handoff') : 'oaf handoff'}`);
+  console.log(`Measure token saver: ${sourceCheckout ? oaf('token-saver') : 'oaf token-saver'}`);
+  console.log(`Expanded handoff: ${oaf('context handoff --read-only --from codex --root . --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary')}`);
+  console.log(sourceCheckout ? `Skill menu: ${oaf('skill catalog --read-only --root . --format summary')}` : 'Skill menu: available when this repository has a skills/ directory.');
+  console.log(sourceCheckout ? 'Issue/PR queue instructions: docs/agents/issue-tracker.md' : 'Issue/PR queue instructions: run from the OAF source checkout docs when maintaining OAF itself.');
 }
 const groups = Map.groupBy(status.capabilities, (item) => item.status);
 for (const state of ['implemented', 'reference', 'experimental', 'specified', 'disabled', 'unsupported']) {
