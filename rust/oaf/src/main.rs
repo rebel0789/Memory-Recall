@@ -3106,6 +3106,7 @@ fn remember_report(config: &CliConfig, source: &str, report: ApproveReport) -> V
         "source": { "provider": PROVIDER, "sqliteRef": config.sqlite_ref, "sourceLocator": source },
         "summary": {
             "activeMemoryCreated": report.active_memory_created,
+            "duplicateFactSkipped": 0,
             "supersededFactCount": report.superseded_fact_count,
             "pendingProposalCount": report.pending_proposal_count
         },
