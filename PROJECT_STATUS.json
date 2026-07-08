@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "release": "0.2.0-dev",
+  "release": "1.0.0",
   "phase": "1.0-release-candidate-readiness",
   "nextTask": null,
   "defaults": {
@@ -711,7 +711,7 @@
         "docs/release/1.0-RELEASE-CHECKLIST.md"
       ],
       "limitations": [
-        "Release-candidate readiness evidence only; product 1.0 is not published",
+        "Release-candidate readiness evidence is merged to main; npm metadata is publish-ready, but product 1.0 is not published",
         "Final merge, tag creation, artifact signing, and product release publication require explicit maintainer approval",
         "No signing keys, release credentials, hosted publishing automation, external writes, or external adapter activation are added"
       ]

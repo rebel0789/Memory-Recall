@@ -86,11 +86,22 @@ capability status and limitations.
 
 Requirement: Node.js 22 or newer.
 
-Local package path, from this repository:
+Registry install after publication:
+
+```bash
+npm install -g open-agent-fabric
+oaf setup
+oaf verify
+oaf connect codex --dry-run --format json
+oaf hook install --agent codex --dry-run --format json
+oaf hook install --agent claude-code --dry-run --format json
+```
+
+Local package path, before publication or when testing this checkout:
 
 ```bash
 npm pack
-npm install -g ./open-agent-fabric-0.2.0-dev.tgz
+npm install -g ./open-agent-fabric-1.0.0.tgz
 oaf setup
 oaf verify
 oaf connect codex --dry-run --format json
@@ -113,8 +124,9 @@ verification gate. `connect --dry-run` previews the read-only MCP and hook
 setup. `connect --yes` is the narrow opt-in writer for Codex and Claude Code
 home config; it creates backups and receipts and can be undone with
 `disconnect --yes`. Hook install/uninstall commands remain dry-run receipt and
-manual-snippet commands. The tarball is local-install ready; the npm registry
-and marketplace are not published.
+manual-snippet commands. The package is npm-ready but publication still requires
+maintainer approval and npm authentication; marketplace submission follows a
+published npm URL and target registry requirements.
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
@@ -355,12 +367,12 @@ Read:
 
 ## Status
 
-Development kit: **0.2.0-dev**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.
+Development kit: **1.0.0**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.
 
 | Surface | Status |
 | --- | --- |
 | Source checkout | Local-ready reference path |
-| npm package tarball | Local-ready install path |
-| npm registry | Not published |
-| Marketplace / plugin registry | Not ready |
+| npm package tarball | Publish-ready install path |
+| npm registry | Ready; not published |
+| Marketplace / plugin registry | Pending target registry |
 | Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |

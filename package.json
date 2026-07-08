@@ -1,9 +1,25 @@
 {
   "name": "open-agent-fabric",
-  "version": "0.2.0-dev",
-  "private": true,
+  "version": "1.0.0",
   "type": "module",
   "description": "Local-first, evidence-first infrastructure for inspectable AI agents.",
+  "keywords": [
+    "agent",
+    "ai-agents",
+    "context",
+    "memory",
+    "mcp",
+    "local-first",
+    "developer-tools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rebel0789/open-agent-fabric.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rebel0789/open-agent-fabric/issues"
+  },
+  "homepage": "https://github.com/rebel0789/open-agent-fabric#readme",
   "engines": {
     "node": ">=22"
   },
@@ -105,6 +121,9 @@
     "protocol:validate": "node scripts/validate-protocol.mjs"
   },
   "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "oaf": "apps/cli/oaf.mjs"
   }
