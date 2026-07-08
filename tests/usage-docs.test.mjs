@@ -21,12 +21,12 @@ test('public usage docs avoid stale task and missing context-file examples', () 
   assert.equal(docs.includes('oaf task OAF-004'), false);
   assert.match(docs, /npm run task -- <OAF-ID>` only when status names a next task/);
   assert.match(docs, /docs\/usage\/local-agent-handoff\.md/);
-  assert.match(docs, /oaf handoff/);
-  assert.match(docs, /oaf token-saver/);
+  assert.match(docs, /forge handoff/);
+  assert.match(docs, /forge token-saver/);
   assert.match(docs, /copy and run/);
   assert.match(docs, /mcp install --client claude-code --dry-run --format json/);
-  assert.match(docs, /npm run oaf -- memory refine --read-only --root \. --sqlite \.local\/memory\.sqlite --target-active-facts 200 --format json/);
-  assert.match(docs, /npm run oaf -- context handoff --read-only --from codex --root \. --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps\/web\/app\.js --format json/);
+  assert.match(docs, /npm run forge -- memory refine --read-only --root \. --sqlite \.local\/memory\.sqlite --target-active-facts 200 --format json/);
+  assert.match(docs, /npm run forge -- context handoff --read-only --from codex --root \. --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps\/web\/app\.js --format json/);
   assert.match(docs, /--apply --confirm <fingerprint>/);
   assert.match(docs, /does\s+not import harness history, enable write tools, call cloud\/model APIs, or claim\s+provider billing-token savings/);
 
@@ -38,7 +38,7 @@ test('local handoff guide documents read-only Codex Cursor and Claude paths', ()
   const guide = read('docs/usage/local-agent-handoff.md');
 
   assert.match(guide, /target codex --changed-from-git --format json/);
-  assert.match(guide, /After a global install, the shortest useful command is:\n\n```bash\noaf handoff\n```/);
+  assert.match(guide, /After a global install, the shortest useful command is:\n\n```bash\nforge handoff\n```/);
   assert.match(guide, /npm run handoff:safe/);
   assert.match(guide, /First run `npm run status`; when it reports `Next task: none`, use the\n`First safe handoff` command it prints or continue below\./);
   assert.match(guide, /npm ci --ignore-scripts --no-audit --no-fund\nnpm run bootstrap\nnpm run doctor\nnpm run verify:handoff\nnpm run status\nnpm run dev/);
@@ -70,9 +70,9 @@ test('local handoff guide documents read-only skill catalog preflight', () => {
   const guide = read('docs/usage/local-agent-handoff.md');
 
   assert.match(guide, /Skill Catalog Preflight/);
-  assert.match(guide, /oaf skill catalog --read-only --root \. --format json/);
+  assert.match(guide, /forge skill catalog --read-only --root \. --format json/);
   assert.match(guide, /oaf:\/\/workspace\/ws_local\/skills\/catalog/);
-  assert.match(guide, /oaf mcp inspect --read-only --root \. --format summary/);
+  assert.match(guide, /forge mcp inspect --read-only --root \. --format summary/);
   assert.match(guide, /--format summary/);
   assert.match(guide, /listed MCP resources and server tools by context tier/);
   assert.match(guide, /descriptions, side-effect\s+classes, tool\s+IDs, per-skill\s+activation readiness, manifest fingerprints, and\s+catalog\/report fingerprints/);

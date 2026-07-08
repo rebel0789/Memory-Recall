@@ -1,39 +1,66 @@
 # MemoryForge
 
 <p align="center">
-  <img src="assets/brand/wordmark.svg" alt="MemoryForge" width="520">
+  <img src="assets/brand/readme-card.svg" alt="MemoryForge: local repo memory and context for coding agents" width="760">
 </p>
 
-**MemoryForge** is local-first repo memory and context for coding agents. It keeps context intentional, capabilities controlled, decisions evidence-backed, runs replayable, memory governed, and agent definitions portable.
+**MemoryForge** is local repo memory and context for coding agents. It turns a
+repository into a governed, read-only MCP context source so Codex, Claude Code,
+Cursor, and other local agents can start with the right facts instead of a giant
+pasted transcript.
 
-This repository is an **agent-ready development kit**, not a claim that the full production platform already exists. It contains a runnable offline vertical slice, native local provider baselines, stable contracts, brand and product guidance, security boundaries, deterministic tests and evaluations, a machine-readable backlog, and disabled integration contracts for upstream projects studied during architecture research.
+It is built for the unglamorous moment every developer hits: a new agent session
+needs project truth, changed-file impact, accepted memory, and proof that no
+hidden write or cloud call happened.
 
-> Build the whole tool. Own the boundaries. Integrate only when the contract is clear.
+```bash
+npm install -g memoryforge
+forge setup
+forge mcp install --client claude-code --dry-run --format json
+forge memory ingest --root . --sqlite .local/memory.sqlite --format json
+forge memory review --root . --sqlite .local/memory.sqlite --format summary
+forge handoff
+```
 
-## Ship-ready local memory path
+No hosted account. No model API key. No silent memory capture.
 
-OAF now has a verified local profile for governed coding-agent memory over a
-real workspace. It ingests repository facts into a local SQLite store as
-proposals, requires explicit approval before facts become ACTIVE, serves active
-facts first through read-only MCP, and sends cursor deltas during a session so
-repeat pulls do not resend the same context.
+## Why Try It
 
-Verified local benchmarks:
+| Need | MemoryForge gives you |
+| --- | --- |
+| New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
+| Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
+| Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
+| Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
+| Codebase context | Source graph hints, locator-only context packs, and manifest-backed selection. |
 
-- Temporal correctness: `oaf bench temporal --read-only --root .` returned
-  `100%` correct and `100%` clean for current facts while stale values were
-  present in the raw timeline.
-- Session delivery: `oaf bench session --read-only --root .` returned `100%`
-  correctness and a `76%` delivered-token reduction versus full resend
-  (`651` delta tokens vs `2664` full-resend tokens). This is the measured
-  session-delta path, not a provider billing claim.
-- Real repo questions: `oaf bench realqa --read-only --root .` returned `100%`
-  after structured governed ingest on 12 questions derived from this repo.
+## Verified Numbers
 
-Plain tradeoff: on static lookup, OAF ties keyword search more than it beats it.
-The edge is correctness when facts change, proposal governance before trust, and
-cheap repeat delivery through MCP cursors. It does not claim semantic retrieval,
-generic token savings versus RAG, hosted memory, or cloud sync.
+These are local measurements from this repository. They are delivery-token
+estimates and correctness checks, not provider billing claims.
+
+| Test | Result | Command |
+| --- | ---: | --- |
+| Session delta delivery | 72% fewer delivered tokens, 100% correct | `forge bench session --read-only --root . --format json` |
+| Rust graph-query evaluation | 84.6% fewer delivered tokens, 62.5% fewer tool calls | `node scripts/rust-eval.mjs` |
+| Current fact recall with stale facts present | 100% correct, 100% clean | `forge bench temporal --read-only --root . --format json` |
+| Real repo QA after governed ingest | 12/12 answered | `forge bench realqa --read-only --root . --format json` |
+| Practical context-pack report | 84.35% smaller than practical baseline | `npm run token-saver` |
+
+The honest tradeoff: MemoryForge is strongest when context changes over time,
+handoffs repeat, and the next agent needs reviewed local truth. It is not a
+hosted memory API, semantic embedding service, graph database, or billing-meter
+replacement.
+
+## How It Compares
+
+| Category | Usually strong at | MemoryForge position |
+| --- | --- | --- |
+| Hosted memory APIs | Cross-app memory, cloud connectors, managed retrieval | Better when a hosted memory backend is desired. MemoryForge is better for local-first repo handoff with no API key. |
+| Persistent agent memory frameworks | Long-term personalization and retrieval across products | Stronger as general memory layers. MemoryForge is narrower: repo-scoped, proposal-gated, and inspectable. |
+| Temporal graph memory | Changing facts, provenance, entity relationships | MemoryForge has local temporal facts and supersession, but does not claim a full temporal graph database. |
+| Code graph MCP tools | Static code graph search and token-heavy repo compression | MemoryForge combines code locators with governed memory, handoff manifests, MCP proof, and local UX. |
+| IDE indexing | Smooth editor-native search | MemoryForge is more explicit: it shows what was selected, excluded, pinned, and delivered. |
 
 ## What works now
 
@@ -41,18 +68,18 @@ generic token savings versus RAG, hosted memory, or cloud sync.
   server, model API, or external network required;
 - native SQLite/FTS5 governed memory with temporal facts, supersession, entity
   edges, proposal queue, explicit approve/reject, and no hard delete;
-- `oaf memory ingest --root . --sqlite .local/memory.sqlite` for deterministic
+- `forge memory ingest --root . --sqlite .local/memory.sqlite` for deterministic
   offline extraction from git history, key docs, project status, provider
   manifests, and source-graph hints into PENDING proposals only;
-- `oaf memory review`, `oaf memory approve`, and `oaf memory reject` for the
+- `forge memory review`, `forge memory approve`, and `forge memory reject` for the
   trust step from candidate proposal to ACTIVE fact;
-- `oaf memory refine --read-only --root . --sqlite .local/memory.sqlite` for
+- `forge memory refine --read-only --root . --sqlite .local/memory.sqlite` for
   duplicate, conflicting, stale, supersession, and lineage-residue candidates
   before recall drift becomes trusted context; add `--target-active-facts N`
   for a read-only memory budget preflight from existing candidates;
-- `oaf memory remember --batch facts.json` for host-agent extracted memory maps
+- `forge memory remember --batch facts.json` for host-agent extracted memory maps
   from `skills/oaf-memory`, including supersession and confidence labels;
-- read-only `oaf mcp server` exposing `memory.recall`, `context.profile`, and
+- read-only `forge mcp server` exposing `memory.recall`, `context.profile`, and
   `context.pack` over local stdio with active facts separated from proposals;
 - persisted MCP cursors and `since` deltas so repeat `memory.recall` and
   `context.profile` calls send only changed current truth, including after a
@@ -112,11 +139,11 @@ forge hook install --agent claude-code --dry-run --format json
 Source-checkout path, without a global install:
 
 ```bash
-npm run oaf -- setup
-npm run oaf -- verify
-npm run oaf -- connect codex --dry-run --format json
-npm run oaf -- hook install --agent codex --dry-run --format json
-npm run oaf -- hook install --agent claude-code --dry-run --format json
+npm run forge -- setup
+npm run forge -- verify
+npm run forge -- connect codex --dry-run --format json
+npm run forge -- hook install --agent codex --dry-run --format json
+npm run forge -- hook install --agent claude-code --dry-run --format json
 ```
 
 `setup` runs the existing local bootstrap. `verify` runs the handoff
@@ -133,31 +160,31 @@ npm ci --ignore-scripts --no-audit --no-fund
 npm run local:run
 
 # Preview the exact Claude Code MCP config. This writes nothing.
-npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --dry-run --format json
-# Short default preview also works: npm run oaf -- mcp install --client claude-code --dry-run --format json
+npm --silent run forge -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --dry-run --format json
+# Short default preview also works: npm run forge -- mcp install --client claude-code --dry-run --format json
 
 # Apply only after preview by feeding the matching fingerprint back.
-CONFIRM="$(npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --dry-run --format json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).planFingerprint))')"
-npm --silent run oaf -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --apply --confirm "$CONFIRM" --format json
+CONFIRM="$(npm --silent run forge -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --dry-run --format json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).planFingerprint))')"
+npm --silent run forge -- mcp install --client claude-code --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --apply --confirm "$CONFIRM" --format json
 
 # Populate governed memory from this repo. Ingest creates proposals, not trust.
-npm --silent run oaf -- memory ingest --root . --sqlite .local/memory.sqlite --format json
-npm --silent run oaf -- memory review --root . --sqlite .local/memory.sqlite --format json
+npm --silent run forge -- memory ingest --root . --sqlite .local/memory.sqlite --format json
+npm --silent run forge -- memory review --root . --sqlite .local/memory.sqlite --format json
 
 # Promote reviewed facts explicitly. Use a narrower source when you want less.
-npm --silent run oaf -- memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
+npm --silent run forge -- memory approve --all-from workspace://PROJECT_STATUS.json --root . --sqlite .local/memory.sqlite --format json
 
 # Audit active facts before handing them to another agent. This is read-only.
-npm --silent run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --format json
+npm --silent run forge -- memory refine --read-only --root . --sqlite .local/memory.sqlite --format json
 # Optional: preview the review work needed to fit an active-fact budget.
-npm --silent run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
+npm --silent run forge -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
 
 # Pull what a coding agent receives over the read-only MCP server.
 printf '%s\n' \
 '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
 '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"memory.recall","arguments":{"client":"readme-quickstart","query":"default durable workflow provider","scope":"workspace","limit":8}}}' \
 '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"context.profile","arguments":{"client":"readme-quickstart","objective":"default durable workflow provider","scope":"workspace","limit":8,"budget":512}}}' \
-| npm --silent run oaf -- mcp server --read-only --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --stdio
+| npm --silent run forge -- mcp server --read-only --root "$PWD" --sqlite "$PWD/.local/memory.sqlite" --stdio
 ```
 
 The install command writes only the `oaf` MCP server entry after
@@ -165,7 +192,7 @@ The install command writes only the `oaf` MCP server entry after
 commands never auto-activate facts. Rejections and supersessions are recorded,
 not hard-deleted.
 
-Manual install flow: run `npm run oaf -- mcp install --client claude-code --dry-run --format json`,
+Manual install flow: run `npm run forge -- mcp install --client claude-code --dry-run --format json`,
 review the preview, then run the printed `--apply --confirm <fingerprint>`
 command. The installed server does not import harness history, enable write
 tools, call cloud/model APIs, or claim provider billing-token savings.
@@ -178,7 +205,7 @@ reviewed memory preflight sources, then build the pack. Use the **Practical
 handoff** path: copy Markdown or the launch prompt, copy/download
 `oaf.memory.json` only if you chose memory files, run the read-only handoff
 preflight command, and preview MCP setup only when the target harness should
-read OAF resources. The brief shows
+read MemoryForge resources. The brief shows
 changed-file coverage, required reads, hash proof, affected symbols, and proof
 commands without source bodies. Fabric Map and Agents & Tools show the same
 current handoff status without installing anything. This is a dry-run locator
@@ -199,9 +226,9 @@ For a pinned local pack that another harness can consume without retyping the
 objective, write and pin first, then receive the pinned artifact:
 
 ```bash
-npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
-npm run oaf -- context receive --read-only --root . --target codex --format json
-npm run oaf -- context receive --read-only --root . --target codex --format summary
+npm run forge -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
+npm run forge -- context receive --read-only --root . --target codex --format json
+npm run forge -- context receive --read-only --root . --target codex --format summary
 ```
 
 `context receive` reads `context-packs/current.json`, the pinned use-plan, and
@@ -217,8 +244,8 @@ session/token markers, or secret-like strings.
 For a single CLI preflight before handing work to Codex:
 
 ```bash
-oaf context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
-oaf context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format summary
+forge context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+forge context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format summary
 ```
 
 Add `--memory-config oaf.memory.json` only when you want the report to preflight
@@ -230,7 +257,7 @@ memory text/source bodies.
 For a compact diff-aware impact brief with the same read-only MCP proof:
 
 ```bash
-oaf measure context-pack --read-only --from codex --root . --objective "Prepare handoff" --step "impact brief" --target codex --changed apps/web/app.js --format json
+forge measure context-pack --read-only --from codex --root . --objective "Prepare handoff" --step "impact brief" --target codex --changed apps/web/app.js --format json
 ```
 
 Use `--format summary` for a compact operator-facing stdout report over the
@@ -247,7 +274,7 @@ and Claude Code, read `docs/usage/local-agent-handoff.md`.
 The offline bootstrap installs no runtime npm dependencies. The optional Ollama
 provider requires a separately installed loopback Ollama server and never falls
 back to a cloud model. Its health check reports safe local model metadata from
-Ollama, including quantization level when present; OAF does not download,
+Ollama, including quantization level when present; MemoryForge does not download,
 select, or modify weights.
 
 ## Give this repository to a coding agent
@@ -256,7 +283,7 @@ Tell the agent:
 
 ```text
 Read ASSIGN_TO_AGENT.md and AGENTS.md. Run `npm run verify:handoff`, then `npm run status`.
-If status names a next OAF task, run `npm run task -- <OAF-ID>` and complete that task only. If status says the backlog is complete, do not invent a task.
+If status names a next internal OAF task, run `npm run task -- <OAF-ID>` and complete that task only. If status says the backlog is complete, do not invent a task.
 Keep npm run ci green, and report using the required handoff template for task work.
 ```
 
@@ -276,7 +303,7 @@ The operating path is:
 
 Most long-running agents do not fail because they lack stored information. They fail because weak, stale, conflicting, unsafe, or irrelevant information competes for attention, while actions and improvements are difficult to inspect.
 
-OAF makes these first-class primitives:
+MemoryForge makes these first-class primitives:
 
 - context selection and context manifests;
 - source graph, retrieval, compaction, and code intelligence;
@@ -323,29 +350,29 @@ See `REPOSITORY_MAP.md` for ownership and dependency boundaries.
 
 ```bash
 npm run status                 # implemented, reference, planned, disabled
-npm run oaf -- setup           # local bootstrap wrapper
-npm run oaf -- verify          # handoff verification wrapper
+npm run forge -- setup           # local bootstrap wrapper
+npm run forge -- verify          # handoff verification wrapper
 npm run task -- <OAF-ID>       # only when status names a next task
 npm run doctor                 # environment and local safety checks
 npm run protocol:validate      # v1 valid, invalid, and compatibility fixtures
 npm run native:smoke           # native memory, artifacts, Agent Pack, model
 npm run demo                   # complete synthetic workflow
-npm run oaf -- context scan --from codex --root . --dry-run
-npm run oaf -- context preview --from codex --root . --objective "Prepare handoff" --step "select harness context" --dry-run
-npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file CONTEXT.md --changed apps/web/app.js --dry-run --format markdown
-npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
-npm run oaf -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
-npm run oaf -- context receive --read-only --root . --target codex --format json  # after --write --pin
-npm run oaf -- context receive --read-only --root . --target codex --format summary
-npm run oaf -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
-npm run oaf -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
-npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
-npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
-npm run oaf -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
-npm run oaf -- harness setup status --client codex --dry-run --format json
-npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json
-npm run oaf -- hook install --agent codex --dry-run --format json
-npm run oaf -- hook uninstall --agent codex --dry-run --format json
+npm run forge -- context scan --from codex --root . --dry-run
+npm run forge -- context preview --from codex --root . --objective "Prepare handoff" --step "select harness context" --dry-run
+npm run forge -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --include-file CONTEXT.md --changed apps/web/app.js --dry-run --format markdown
+npm run forge -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --out context-packs/CONTEXT_PACK.md --format json
+npm run forge -- context pack --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json
+npm run forge -- context receive --read-only --root . --target codex --format json  # after --write --pin
+npm run forge -- context receive --read-only --root . --target codex --format summary
+npm run forge -- memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
+npm run forge -- context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+npm run forge -- mcp resources --read-only --context-pack --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --uri oaf://workspace/ws_local/context-pack/current --format json
+npm run forge -- mcp smoke context-pack --read-only --from codex --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps/web/app.js --format json
+npm run forge -- context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --dry-run --format json
+npm run forge -- harness setup status --client codex --dry-run --format json
+npm run forge -- harness setup plan --client cursor --server oaf --dry-run --format json
+npm run forge -- hook install --agent codex --dry-run --format json
+npm run forge -- hook uninstall --agent codex --dry-run --format json
 npm run dev                    # local API and dashboard
 npm run ci                     # checks, protocol, tests, evaluations
 npm run verify:handoff         # full handoff gate plus manifests
@@ -354,7 +381,7 @@ npm run manifest               # file hashes for release and review
 
 ## Integration policy
 
-The core is Apache-2.0. Upstream projects are research inputs, benchmark inputs, or optional integration targets; their source is not vendored. OAF owns the default local tool experience. Every external integration records an exact commit, checksum, license review, trust boundary, capability set, installation mode, maintainer, and conformance evidence before it can be enabled.
+The core is Apache-2.0. Upstream projects are research inputs, benchmark inputs, or optional integration targets; their source is not vendored. MemoryForge owns the default local tool experience. Every external integration records an exact commit, checksum, license review, trust boundary, capability set, installation mode, maintainer, and conformance evidence before it can be enabled.
 
 Read:
 

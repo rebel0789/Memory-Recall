@@ -9123,14 +9123,30 @@ function isHelpCommand(value) {
   return ['help', '--help', '-h'].includes(value);
 }
 
+function helpCommandName() {
+  if (process.env.npm_lifecycle_event === 'forge') return 'forge';
+  return path.basename(process.argv[1] ?? '') === 'forge' ? 'forge' : 'oaf';
+}
+
+function renderHelpText(text) {
+  const command = helpCommandName();
+  if (command === 'oaf') return text;
+  return text
+    .replaceAll('Open Agent Fabric CLI', 'MemoryForge CLI')
+    .replace(
+      /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|handoff|token-saver|context|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
+      `${command} `
+    );
+}
+
 function help(topic, subtopic) {
   const topicHelp = helpTopic(topic, subtopic);
   if (topicHelp) {
-    console.log(topicHelp);
+    console.log(renderHelpText(topicHelp));
     return;
   }
 
-  console.log(`Open Agent Fabric CLI
+  console.log(renderHelpText(`Open Agent Fabric CLI
 
 Usage:
   oaf status
@@ -9228,7 +9244,7 @@ Usage:
 Start with oaf status; if it says Next task: none, run the First safe handoff command it prints.
 Run oaf task only when npm run status names a next task.
 oaf setup bootstraps the local checkout; use oaf harness setup plan/status for dry-run harness wiring previews.
-The default bootstrap is local-only and enables no external writes.`);
+The default bootstrap is local-only and enables no external writes.`));
 }
 
 function helpTopic(topic, subtopic) {

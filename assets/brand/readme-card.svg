@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1520 760" role="img" aria-labelledby="title desc">
+  <title id="title">MemoryForge README card</title>
+  <desc id="desc">MemoryForge local repo memory and context card with verified token-saving metrics.</desc>
+  <rect width="1520" height="760" rx="0" fill="#0A0B0D"/>
+  <path d="M0 628h1520v132H0z" fill="#111827"/>
+  <g opacity=".18" fill="none" stroke="#56E0C4" stroke-width="2">
+    <path d="M96 118h420M96 174h540M96 230h380M996 112h328M996 168h240M996 224h344"/>
+    <path d="M786 72v590M842 72v590M898 72v590"/>
+  </g>
+  <g transform="translate(100 90)">
+    <g fill="none" stroke="#56E0C4" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M38 50 86 24l48 26v56l-48 44-48-28Z"/>
+      <path d="m38 50 48 28 48-28M86 78v72"/>
+    </g>
+    <circle cx="86" cy="78" r="13" fill="#0A0B0D" stroke="#F7F7F4" stroke-width="7"/>
+  </g>
+  <text x="268" y="155" fill="#F7F7F4" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="76" font-weight="760">MemoryForge</text>
+  <text x="102" y="260" fill="#DDE2E8" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="40" font-weight="520">Local repo memory and context for coding agents.</text>
+  <text x="102" y="324" fill="#98A4B3" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="31">Governed SQLite memory, read-only MCP, source-aware handoffs, no API key.</text>
+  <g transform="translate(102 420)" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif">
+    <rect width="344" height="134" rx="8" fill="#F7F7F4"/>
+    <text x="28" y="58" fill="#0A0B0D" font-size="42" font-weight="760">72%</text>
+    <text x="28" y="98" fill="#334155" font-size="24">session token reduction</text>
+    <rect x="384" width="344" height="134" rx="8" fill="#16362F"/>
+    <text x="412" y="58" fill="#56E0C4" font-size="42" font-weight="760">84.6%</text>
+    <text x="412" y="98" fill="#C9FFF3" font-size="24">Rust graph-query reduction</text>
+    <rect x="768" width="344" height="134" rx="8" fill="#1F2937"/>
+    <text x="796" y="58" fill="#F7F7F4" font-size="42" font-weight="760">0 keys</text>
+    <text x="796" y="98" fill="#CBD5E1" font-size="24">local-first by default</text>
+  </g>
+  <text x="102" y="674" fill="#DDE2E8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="30">npm install -g memoryforge  &&  forge handoff</text>
+  <text x="102" y="716" fill="#7C8796" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="22">Measured locally. Delivery-token estimates, not provider billing claims.</text>
+</svg>

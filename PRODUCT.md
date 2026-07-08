@@ -1,8 +1,10 @@
 # Product Contract
 
-## Working name
+## Public name
 
-**Open Agent Fabric** is the working name. Perform trademark and domain checks before a public 1.0 release. Architecture and package contracts must not depend on the final marketing name.
+**MemoryForge** is the public name. Architecture and internal package contracts
+must not depend on the marketing name; existing OAF identifiers remain
+compatibility/internal IDs until a planned migration needs them.
 
 ## Promise
 
