@@ -2,45 +2,92 @@
   "$id": "https://open-agent-fabric.dev/schemas/context-pack-measurement-report-1.0.json",
   "title": "Context pack measurement report",
   "description": "Observed local read-only measurement of an OAF context pack build and MCP stdio resource readback.",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "command",
-    "generatedAt",
-    "workspaceId",
-    "targetHarness",
-    "commitSha",
-    "measurementScope",
-    "request",
-    "contextPack",
-    "sourceGraph",
-    "impactBrief",
-    "mcpReadback",
-    "timings",
-    "checks",
-    "safeguards",
-    "reportFingerprint"
+  "oneOf": [
+    { "$ref": "#/$defs/singleMeasurementReport" },
+    { "$ref": "#/$defs/allShardsMeasurementReport" }
   ],
-  "properties": {
-    "schemaVersion": { "const": "1.0.0" },
-    "command": { "const": "measure context-pack" },
-    "generatedAt": { "type": "string", "format": "date-time" },
-    "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
-    "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
-    "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
-    "measurementScope": { "const": "single local context-pack build plus stdio readback" },
-    "request": { "$ref": "#/$defs/request" },
-    "contextPack": { "$ref": "#/$defs/contextPack" },
-    "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
-    "impactBrief": { "$ref": "#/$defs/impactBrief" },
-    "mcpReadback": { "$ref": "#/$defs/mcpReadback" },
-    "timings": { "$ref": "#/$defs/timings" },
-    "checks": { "$ref": "#/$defs/checks" },
-    "safeguards": { "$ref": "#/$defs/safeguards" },
-    "reportFingerprint": { "$ref": "#/$defs/hash" }
-  },
   "$defs": {
+    "singleMeasurementReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "command",
+        "generatedAt",
+        "workspaceId",
+        "targetHarness",
+        "commitSha",
+        "measurementScope",
+        "request",
+        "contextPack",
+        "tokenSaver",
+        "largeContext",
+        "sourceGraph",
+        "impactBrief",
+        "mcpReadback",
+        "timings",
+        "checks",
+        "safeguards",
+        "reportFingerprint"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "command": { "const": "measure context-pack" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+        "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
+        "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "measurementScope": { "const": "single local context-pack build plus stdio readback" },
+        "request": { "$ref": "#/$defs/request" },
+        "contextPack": { "$ref": "#/$defs/contextPack" },
+        "tokenSaver": { "$ref": "#/$defs/tokenSaver" },
+        "largeContext": { "$ref": "#/$defs/largeContext" },
+        "sourceGraph": { "$ref": "#/$defs/sourceGraph" },
+        "impactBrief": { "$ref": "#/$defs/impactBrief" },
+        "mcpReadback": { "$ref": "#/$defs/mcpReadback" },
+        "timings": { "$ref": "#/$defs/timings" },
+        "checks": { "$ref": "#/$defs/checks" },
+        "safeguards": { "$ref": "#/$defs/safeguards" },
+        "reportFingerprint": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "allShardsMeasurementReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "command",
+        "generatedAt",
+        "workspaceId",
+        "targetHarness",
+        "commitSha",
+        "measurementScope",
+        "summary",
+        "tokenSaver",
+        "shards",
+        "safeguards",
+        "reportFingerprint"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "command": { "const": "measure context-pack all-shards" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "workspaceId": { "type": "string", "pattern": "^ws_[A-Za-z0-9._:-]{1,120}$" },
+        "targetHarness": { "enum": ["codex", "claude-code", "cursor", "a2a", "generic"] },
+        "commitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "measurementScope": { "const": "local context-pack shard build plus stdio readback per shard" },
+        "summary": { "$ref": "#/$defs/allShardsSummary" },
+        "tokenSaver": { "$ref": "#/$defs/tokenSaver" },
+        "shards": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 62500,
+          "items": { "$ref": "#/$defs/allShardsShard" }
+        },
+        "safeguards": { "$ref": "#/$defs/safeguards" },
+        "reportFingerprint": { "$ref": "#/$defs/hash" }
+      }
+    },
     "hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
     "maybeHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
     "locator": { "type": "string", "pattern": "^(workspace|user-selected)://[^\\r\\n]{1,320}$" },
@@ -49,6 +96,48 @@
     "duration": { "type": "integer", "minimum": 0, "maximum": 600000 },
     "byteSize": { "type": "integer", "minimum": 0, "maximum": 2000000 },
     "warningCode": { "type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[a-z][a-z0-9_:-]*$" },
+    "allShardsSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changedLocatorShardCount",
+        "shardsMeasured",
+        "totalChangedLocatorCount",
+        "measuredChangedLocatorCount",
+        "omittedBeforeCount",
+        "omittedAfterCount",
+        "allChangesMeasured"
+      ],
+      "properties": {
+        "changedLocatorShardCount": { "$ref": "#/$defs/count" },
+        "shardsMeasured": { "$ref": "#/$defs/count" },
+        "totalChangedLocatorCount": { "$ref": "#/$defs/count" },
+        "measuredChangedLocatorCount": { "$ref": "#/$defs/count" },
+        "omittedBeforeCount": { "$ref": "#/$defs/count" },
+        "omittedAfterCount": { "$ref": "#/$defs/count" },
+        "allChangesMeasured": { "type": "boolean" }
+      }
+    },
+    "allShardsShard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "changedLocatorShard",
+        "measuredChangedLocatorCount",
+        "savedUnitCount",
+        "reductionRatio",
+        "reportFingerprint"
+      ],
+      "properties": {
+        "source": { "enum": ["explicit", "git-status-porcelain", "unavailable"] },
+        "changedLocatorShard": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "measuredChangedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "savedUnitCount": { "$ref": "#/$defs/count" },
+        "reductionRatio": { "$ref": "#/$defs/ratio" },
+        "reportFingerprint": { "$ref": "#/$defs/hash" }
+      }
+    },
     "request": {
       "type": "object",
       "additionalProperties": false,
@@ -148,6 +237,62 @@
         "contentTokenCountIncluded": { "const": 0 },
         "observedAvoidanceRatio": { "$ref": "#/$defs/ratio" },
         "sourceContentIncluded": { "const": false }
+      }
+    },
+    "tokenSaver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis",
+        "baselineUnitCount",
+        "deliveredUnitCount",
+        "savedUnitCount",
+        "reductionRatio",
+        "selectedUnitCount",
+        "changedSourceUnitCount",
+        "changedSourceUnitCountIncluded",
+        "sourceContentIncluded",
+        "providerBillingClaimed"
+      ],
+      "properties": {
+        "basis": { "const": "selected-context-plus-changed-source-resend" },
+        "baselineUnitCount": { "$ref": "#/$defs/count" },
+        "deliveredUnitCount": { "$ref": "#/$defs/count" },
+        "savedUnitCount": { "$ref": "#/$defs/count" },
+        "reductionRatio": { "$ref": "#/$defs/ratio" },
+        "selectedUnitCount": { "$ref": "#/$defs/count" },
+        "changedSourceUnitCount": { "$ref": "#/$defs/count" },
+        "changedSourceUnitCountIncluded": { "const": 0 },
+        "sourceContentIncluded": { "const": false },
+        "providerBillingClaimed": { "const": false }
+      }
+    },
+    "largeContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "changedLocatorShard",
+        "changedLocatorShardSize",
+        "changedLocatorShardCount",
+        "totalChangedLocatorCount",
+        "measuredChangedLocatorCount",
+        "omittedBeforeCount",
+        "omittedAfterCount",
+        "allChangesMeasured",
+        "nextChangedShard"
+      ],
+      "properties": {
+        "source": { "enum": ["explicit", "git-status-porcelain", "unavailable"] },
+        "changedLocatorShard": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "changedLocatorShardSize": { "const": 16 },
+        "changedLocatorShardCount": { "$ref": "#/$defs/count" },
+        "totalChangedLocatorCount": { "$ref": "#/$defs/count" },
+        "measuredChangedLocatorCount": { "type": "integer", "minimum": 0, "maximum": 16 },
+        "omittedBeforeCount": { "$ref": "#/$defs/count" },
+        "omittedAfterCount": { "$ref": "#/$defs/count" },
+        "allChangesMeasured": { "type": "boolean" },
+        "nextChangedShard": { "type": ["integer", "null"], "minimum": 1, "maximum": 1000000 }
       }
     },
     "sourceGraph": {

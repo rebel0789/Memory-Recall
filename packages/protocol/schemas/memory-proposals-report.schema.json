@@ -91,8 +91,8 @@
         "sourceLocator": { "type": "string", "minLength": 1, "maxLength": 180, "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[A-Za-z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|AUTHORIZATION|PRIVATE[_-]?KEY|DATABASE_URL|DB_URL|CONNECTION_STRING)=)).*$" },
         "sourceRole": { "enum": ["memory-index", "memory-file", "harness-profile", "workspace-note"] },
         "sourceHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
-        "lineCount": { "type": "integer", "minimum": 0, "maximum": 1000000 },
-        "byteSize": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "lineCount": { "type": "integer", "minimum": 0, "maximum": 10000000 },
+        "byteSize": { "type": "integer", "minimum": 0, "maximum": 10000000 },
         "sourceUpdatedAt": { "type": ["string", "null"], "format": "date-time" },
         "ageDays": { "type": ["integer", "null"], "minimum": 0, "maximum": 1000000 },
         "warnings": { "$ref": "#/$defs/stringList" }

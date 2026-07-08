@@ -952,7 +952,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-07-07",
+    "asOf": "2026-07-08",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run local:run",
@@ -972,7 +972,7 @@
       "npm run native:smoke",
       "npm run verify:handoff"
     ],
-    "testsExpected": 501,
+    "testsExpected": 528,
     "protocolFixturesExpected": 167,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

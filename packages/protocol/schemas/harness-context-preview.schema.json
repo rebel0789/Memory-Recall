@@ -250,7 +250,9 @@
       "properties": {
         "harness": { "enum": ["codex", "claude-code", "cursor", "opencode", "windsurf", "generic-mcp"] },
         "locator": { "$ref": "#/$defs/locator" },
-        "reason": { "enum": ["secret_like_value", "local_path", "oversized", "binary", "symlink_escape", "unsupported_file"] }
+        "reason": { "enum": ["secret_like_value", "local_path", "oversized", "binary", "symlink_escape", "unsupported_file"] },
+        "contentHash": { "$ref": "#/$defs/hash" },
+        "byteSize": { "type": "integer", "minimum": 0, "maximum": 8388608 }
       }
     },
     "candidate": {

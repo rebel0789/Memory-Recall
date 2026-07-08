@@ -33,6 +33,7 @@ const SUPPORTED_SCHEMA_KEYS = new Set([
   'required',
   'properties',
   'items',
+  'oneOf',
   'const',
   'enum',
   'minLength',
@@ -62,6 +63,15 @@ function assertSupportedSchema(schema, path = '$') {
   }
   for (const [key, value] of Object.entries(schema.properties ?? {})) assertSupportedSchema(value, `${path}.properties.${key}`);
   if (schema.items) assertSupportedSchema(schema.items, `${path}.items`);
+  if (schema.oneOf) {
+    if (!Array.isArray(schema.oneOf)) {
+      const error = new Error(`Unsupported JSON Schema keyword at ${path}: oneOf`);
+      error.code = 'unsupported_schema_keyword';
+      error.keyword = 'oneOf';
+      throw error;
+    }
+    schema.oneOf.forEach((item, index) => assertSupportedSchema(item, `${path}.oneOf[${index}]`));
+  }
   if (schema.additionalProperties && typeof schema.additionalProperties === 'object') assertSupportedSchema(schema.additionalProperties, `${path}.additionalProperties`);
   for (const [key, value] of Object.entries(schema.$defs ?? {})) assertSupportedSchema(value, `${path}.$defs.${key}`);
 }
@@ -75,6 +85,21 @@ function validateNode(schema, value, path, rootSchema, errors) {
     if (!resolved) errors.push({ path, keyword: '$ref', message: `unable to resolve ${schema.$ref}` });
     else validateNode(resolved, value, path, rootSchema, errors);
     return;
+  }
+  if (schema.oneOf) {
+    const matches = schema.oneOf.filter((item) => {
+      const branchErrors = [];
+      validateNode(item, value, path, rootSchema, branchErrors);
+      return branchErrors.length === 0;
+    }).length;
+    if (matches !== 1) {
+      errors.push({
+        path,
+        keyword: 'oneOf',
+        message: matches === 0 ? 'must match exactly one schema' : 'must match only one schema'
+      });
+      return;
+    }
   }
   if (schema.type !== undefined && !typesMatch(schema.type, value)) {
     errors.push({ path, keyword: 'type', message: `expected ${JSON.stringify(schema.type)}, received ${valueType(value)}` });

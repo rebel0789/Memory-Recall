@@ -2704,8 +2704,8 @@ fn context_pack_payload(
             "sourceCandidateTokenCount": 0,
             "sourceSelectedTokenCount": 0,
             "sourceSelectedTokenRatio": 0,
-            "deliveredTokenCount": 1095,
-            "deliveredByteSize": 4378,
+            "deliveredTokenCount": 1086,
+            "deliveredByteSize": 4344,
             "deliveredTokenRatio": 0,
             "observedTokenReductionRatio": 0,
             "sourceContentTokenCountIncluded": 0,
@@ -2725,7 +2725,7 @@ fn context_pack_payload(
             "omittedCount": 0,
             "results": [],
             "impact": { "changedLocators": [], "representedChangedLocators": [], "affectedSymbolCount": 0, "omittedAffectedSymbolCount": 0, "affectedSymbols": [] },
-            "warnings": ["source_graph_no_locator_matches"],
+            "warnings": [],
             "safeguards": {
                 "dryRun": true,
                 "persisted": false,
@@ -2746,18 +2746,18 @@ fn context_pack_payload(
             "changedLocatorCoverage": { "total": 0, "covered": 0, "ratio": 0, "status": "not_applicable" },
             "sourceSelection": { "selectedUnitRatio": 0, "estimatedReductionRatio": 0 }
         },
-        "warnings": ["dry_run_no_import", "external_writes_disabled", "no_selected_context", "raw_context_bodies_omitted", "source_graph_no_locator_matches"],
+        "warnings": ["dry_run_no_import", "external_writes_disabled", "no_selected_context", "raw_context_bodies_omitted"],
         "files": [{
             "path": "workspace://CONTEXT_PACK.md",
             "role": "agent-handoff",
             "contentType": "text/markdown",
             "contentHash": format!("sha256:{}", sha256_hex("context-pack-markdown")),
-            "byteSize": 4378
+            "byteSize": 4344
         }],
         "markdownArtifact": {
             "included": false,
             "contentHash": format!("sha256:{}", sha256_hex("context-pack-markdown")),
-            "byteSize": 4378
+            "byteSize": 4344
         },
         "safeguards": {
             "readOnly": true,
@@ -3106,6 +3106,7 @@ fn remember_report(config: &CliConfig, source: &str, report: ApproveReport) -> V
         "source": { "provider": PROVIDER, "sqliteRef": config.sqlite_ref, "sourceLocator": source },
         "summary": {
             "activeMemoryCreated": report.active_memory_created,
+            "duplicateFactSkipped": 0,
             "supersededFactCount": report.superseded_fact_count,
             "pendingProposalCount": report.pending_proposal_count
         },

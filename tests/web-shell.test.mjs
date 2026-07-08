@@ -7,6 +7,7 @@ import {
   ROUTES,
   SHELL_STATES,
   buildApiErrorUiModel,
+  CONSUMER_START_ACTIONS,
   buildMemoryWorkspaceConfig,
   buildContextSourcePreviewUiModel,
   buildContextPackUiModel,
@@ -38,7 +39,12 @@ import {
   selectContextPackPinPayload,
   renderMemoryCockpit,
   renderMemoryGraph,
+  renderSourceGraphResult,
   renderLoopWorkbenchMemoryFlow,
+  renderConsumerStartActions,
+  renderContextPackTokenSaverSummary,
+  renderMemoryIntakePanel,
+  shouldLoadProtectedShellData,
   shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
@@ -66,6 +72,69 @@ test('web shell exposes stable path routes with legacy query compatibility',()=>
   assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id,'home');
   assert.equal(legacyViewPath('design'),'/settings');
   assert.equal(ROUTES.some(route=>route.id==='content'),true);
+});
+
+test('first-use home exposes consumer start actions',()=>{
+  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.label),['Connect','Save Tokens','Add Memory','View Repo Map']);
+  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.route),['/agents-tools','/context-pack','/memory','/source-graph']);
+  const html=renderConsumerStartActions();
+  for (const label of ['Connect','Save Tokens','Add Memory','View Repo Map']) {
+    assert.match(html,new RegExp(`>${label}<`));
+  }
+  assert.match(html,/aria-label="First actions"/);
+});
+
+test('shell defers protected workspace loads until local session evidence exists',()=>{
+  assert.equal(shouldLoadProtectedShellData({ bootstrapRequired:true, csrfTokenValue:'csrf_1' }),false);
+  assert.equal(shouldLoadProtectedShellData({ bootstrapRequired:false, csrfTokenValue:'' }),false);
+  assert.equal(shouldLoadProtectedShellData({ bootstrapRequired:false, csrfTokenValue:'csrf_1' }),true);
+});
+
+test('source graph preview renders repo map start points',()=>{
+  const report={
+    graph:{
+      graphFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      summary:{
+        fileCount:2,
+        symbolCount:2,
+        nodeCount:6,
+        edgeCount:4,
+        entryPoints:[{nodeId:'sgnode_entry',label:'runAuthWorkflow',locator:'workspace://src/workflow.ts#L3-L7',symbolKind:'function'}],
+        hotspots:[{nodeId:'sgnode_auth',label:'TokenResetService',inbound:2,outbound:1,total:3}]
+      },
+      sampleNodes:[
+        {id:'sgnode_file_workflow',kind:'file',label:'src/workflow.ts',locator:'workspace://src/workflow.ts'},
+        {id:'sgnode_file_auth',kind:'file',label:'src/auth.ts',locator:'workspace://src/auth.ts'},
+        {id:'sgnode_workflow',kind:'symbol',label:'runAuthWorkflow',locator:'workspace://src/workflow.ts#L3-L7',symbolKind:'function'},
+        {id:'sgnode_auth',kind:'symbol',label:'TokenResetService',locator:'workspace://src/auth.ts#L1-L5',symbolKind:'class'}
+      ],
+      sampleEdges:[
+        {kind:'imports',fromNodeId:'sgnode_file_workflow',toNodeId:'sgnode_file_auth'},
+        {kind:'calls',fromNodeId:'sgnode_workflow',toNodeId:'sgnode_auth'}
+      ]
+    },
+    search:{total:1,results:[]},
+    trace:{paths:[]},
+    impact:{
+      changedLocators:['workspace://src/auth.ts'],
+      representedChangedLocators:['workspace://src/auth.ts'],
+      affectedSymbols:[{name:'TokenResetService',locator:'workspace://src/auth.ts#L1-L5',symbolKind:'class'}]
+    },
+    safeguards:{persisted:false,modelCalls:0,networkCalls:0,graphDatabaseUsed:false,rawBodyIncluded:false}
+  };
+  const html=renderSourceGraphResult(report);
+  assert.match(html,/Repo Map/);
+  assert.match(html,/Start here/);
+  assert.match(html,/runAuthWorkflow/);
+  assert.match(html,/Changed impact/);
+  assert.match(html,/Read first/);
+  assert.match(html,/workspace:\/\/src\/workflow\.ts#L3-L7/);
+  assert.match(html,/Files/);
+  assert.match(html,/workspace:\/\/src\/auth\.ts/);
+  assert.match(html,/Key symbols/);
+  assert.match(html,/TokenResetService/);
+  assert.match(html,/Import neighbors/);
+  assert.match(html,/src\/workflow\.ts -&gt; src\/auth\.ts/);
 });
 
 test('memory route renders real temporal fact fields and computed token number', async (t) => {
@@ -153,6 +222,11 @@ test('memory route renders real temporal fact fields and computed token number',
   };
   const model = buildMemoryCockpitModel(cockpit);
   const html = renderMemoryCockpit(cockpit);
+  const intakeHtml = renderMemoryIntakePanel({
+    command:'memory preview',
+    summary:{proposalCount:1,activeMemoryCreated:0},
+    proposalFacts:[{id:'mpq_preview',status:'preview',sourceLocator:'workspace://memory/inbox.md',subject:'project:oaf',predicate:'release_status',object:'release-candidate'}]
+  },null,{sourceLocator:'memory/inbox.md',text:'Fact: project:oaf release_status release-candidate.'});
   assert.equal(model.tokenBudget.estimatedDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
   assert.equal(model.savings.beforeDeliveryTokens, profile.contextBudget.historyTokensAvailable);
   assert.equal(model.savings.afterDeliveryTokens, profile.contextBudget.estimatedDeliveryTokens);
@@ -164,7 +238,26 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.match(html, new RegExp(`${model.tokenSavingPercent}% token saving`));
   assert.match(html, /<dt>Active facts<\/dt><dd>1<\/dd>/);
   assert.match(html, /<dt>Pending proposals<\/dt><dd>1<\/dd>/);
+  assert.match(html, /id="memory-intake-form"/);
+  assert.match(html, /Preview proposals/);
+  assert.match(html, /Queue proposals/);
   assert.match(html, /data-action="approve-memory-proposal"/);
+  assert.match(intakeHtml, /memory preview/);
+  assert.match(intakeHtml, /project:oaf release_status/);
+  assert.match(intakeHtml, /active memory created/);
+  const failedIntakeHtml = renderMemoryIntakePanel(null, {
+    message: 'The request did not match the API contract.',
+    issues: [{ path: '$.body.text', code: 'memory_extraction_invalid' }]
+  });
+  assert.match(failedIntakeHtml, /Memory intake failed/);
+  assert.match(failedIntakeHtml, /Memory text/);
+  assert.match(failedIntakeHtml, /Use simple Fact or Decision lines/);
+  const emptyIntakeHtml = renderMemoryIntakePanel({
+    command: 'memory preview',
+    summary: { proposalCount: 0, activeMemoryCreated: 0 },
+    proposalFacts: []
+  });
+  assert.match(emptyIntakeHtml, /Try: Fact: project:oaf release_status release-candidate/);
   assert.match(html, new RegExp(`<dt>Naive baseline</dt><dd>${profile.contextBudget.historyTokensAvailable}</dd>`));
   assert.match(html, new RegExp(`<dt>OAF compressed</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
   assert.match(html, /<dt>Provider billing<\/dt><dd>not claimed<\/dd>/);
@@ -212,6 +305,13 @@ test('memory graph route renders governed graph canvas controls', async () => {
   assert.match(html, /id="memory-graph-communities"/);
   assert.match(html, /provider:native:memory:sqlite/);
   assert.match(html, /legacy-view/);
+  assert.match(html, /Current facts/);
+  assert.match(html, /History facts/);
+  assert.match(html, /Superseded/);
+  assert.match(html, /Provenance/);
+  assert.match(html, /Valid from/);
+  assert.match(html, /Valid until/);
+  assert.match(html, /workspace:\/\/providers\/native\/memory-sqlite\/provider\.json/);
   assert.match(source, /\/api\/memory\/graph/);
 });
 
@@ -256,6 +356,8 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/data-action="copy-receiver-packet"/);
   assert.match(app,/data-action="copy-command"/);
   assert.match(app,/function copyCommand/);
+  assert.match(app,/async function submitMemoryIntake/);
+  assert.match(app,/api\('\/api\/memory\/proposals'/);
   assert.match(app,/async function writeClipboardText/);
   assert.match(app,/Export plan explicitly/);
   assert.match(app,/Current handoff status/);
@@ -316,9 +418,10 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/measure context-pack --read-only/);
   assert.match(app,/Read-only impact brief/);
   assert.match(app,/Change Impact/);
-  assert.match(app,/value="context pack buildContextPackUiModel"/);
-  assert.match(app,/value="buildContextPackUiModel"/);
-  assert.match(app,/name="changedLocator" value="apps\/web\/app\.js"/);
+  assert.match(app,/value="where should I start"/);
+  assert.match(app,/name="startName" value="" placeholder="optional function or class name"/);
+  assert.match(app,/name="changedLocator" value="" placeholder="src\/index\.js"/);
+  assert.doesNotMatch(app,/name="changedLocator" value="apps\/web\/app\.js"/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
   assert.match(app,/Pinned handoff status/);
@@ -443,6 +546,46 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(model.deliveredTokens,80);
   assert.equal(model.deliveredTokenRatio,'8%');
   assert.equal(model.deliveryReductionPercent,'92%');
+  assert.deepEqual(model.tokenSaver,{
+    beforeTokens:1000,
+    afterTokens:80,
+    hasMeasuredBaseline:true,
+    savedLabel:'92%',
+    changedSourceAvoidedLabel:'800 tokens (100%)',
+    selectedFiles:['workspace://AGENTS.md'],
+    requiredReadFiles:['workspace://AGENTS.md','workspace://apps/web/app.js'],
+    excludedFiles:['workspace://.cursor/rules/fabric.mdc'],
+    command:"npm --silent run oaf -- measure context-pack --read-only --root . --from 'codex,cursor' --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --format json"
+  });
+  const tokenSaverHtml=renderContextPackTokenSaverSummary(model);
+  assert.match(tokenSaverHtml,/Token Saver/);
+  assert.match(tokenSaverHtml,/1000 -&gt; 80 tokens/);
+  assert.match(tokenSaverHtml,/Required reads/);
+  assert.match(tokenSaverHtml,/workspace:\/\/AGENTS\.md/);
+  assert.match(tokenSaverHtml,/workspace:\/\/apps\/web\/app\.js/);
+  assert.match(tokenSaverHtml,/workspace:\/\/\.cursor\/rules\/fabric\.mdc/);
+  assert.match(tokenSaverHtml,/Measure token saver/);
+  assert.match(tokenSaverHtml,/measure context-pack --read-only/);
+  assert.match(tokenSaverHtml,/Provider billing/);
+  assert.match(tokenSaverHtml,/not claimed/);
+  const unmeasuredTokenSaverHtml=renderContextPackTokenSaverSummary({
+    ...model,
+    omittedRefs:0,
+    tokenSaver:{
+      ...model.tokenSaver,
+      beforeTokens:0,
+      afterTokens:1185,
+      hasMeasuredBaseline:false,
+      savedLabel:'not measured',
+      changedSourceAvoidedLabel:'1649 tokens (100%)'
+    }
+  });
+  assert.match(unmeasuredTokenSaverHtml,/1185 token handoff/);
+  assert.match(unmeasuredTokenSaverHtml,/1649 tokens \(100%\) changed source avoided/);
+  assert.match(unmeasuredTokenSaverHtml,/Baseline/);
+  assert.match(unmeasuredTokenSaverHtml,/Provider billing/);
+  assert.match(unmeasuredTokenSaverHtml,/not claimed/);
+  assert.doesNotMatch(unmeasuredTokenSaverHtml,/0 -&gt; 1185 tokens/);
   assert.deepEqual(model.proof,{
     tokenSaved:'92%',
     selectedTokenRatio:'25%',
@@ -984,14 +1127,16 @@ test('web shell maps API validation issues to bounded recovery copy',()=>{
     issues:[
       {path:'$.body.changedLocators',code:'max_items'},
       {path:'$.body.client',code:'enum'},
-      {path:'$.body.objective',code:'context_pack_objective_secret_like'}
+      {path:'$.body.objective',code:'context_pack_objective_secret_like'},
+      {path:'$.body.text',code:'memory_extraction_invalid'}
     ]
   });
   assert.equal(model.message,'The request did not match the API contract.');
   assert.equal(model.correlationId,'req_client-00000000-0000-4000-8000-000000000001');
-  assert.deepEqual(model.issues.map((issue)=>issue.label),['Changed files','Client','Objective']);
+  assert.deepEqual(model.issues.map((issue)=>issue.label),['Changed files','Client','Objective','Memory text']);
   assert.match(model.issues[0].detail,/workspace-relative paths/);
   assert.match(model.issues[2].detail,/Do not include secrets/);
+  assert.match(model.issues[3].detail,/Fact or Decision/);
 });
 
 test('web shell redacts unsafe issue tokens before rendering recovery copy',()=>{

@@ -296,6 +296,21 @@ test('eligibility remains fail closed before scoring optional candidates', () =>
   assert(reasons.obs_retracted.includes('retracted'));
 });
 
+test('oversized optional candidates are excluded without aborting selection', () => {
+  const result = selectContextCandidates(request({ requiredEntities: [], tokenBudget: 80 }), [
+    candidate({ id: 'obs_small', text: 'Authentication context manifest evidence fits the review task.', tokens: 12 }),
+    candidate({ id: 'obs_large', text: 'Authentication '.repeat(40000), tokens: 40000 })
+  ]);
+  const excluded = result.manifest.excluded.find((item) => item.id === 'obs_large');
+
+  assert(selectedIds(result).includes('obs_small'));
+  assert(excluded);
+  assert(excluded.reasonCodes.includes('candidate_ineligible'));
+  assert(excluded.reasonCodes.includes('candidate_token_limit_exceeded'));
+  assert.equal(excluded.tokens, CONTEXT_SELECTION_POLICY.limits.maxCandidateTokens);
+  assert.match(excluded.contentHash, /^sha256:[a-f0-9]{64}$/);
+});
+
 test('direct and source-based paths share the same selection engine', async () => {
   const records = [
     record({ id: 'decision_auth', kind: 'decision', text: 'Use passkeys for authentication.', tags: ['topic:auth'], tokens: 12 }),

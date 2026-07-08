@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -106,6 +106,8 @@ test('npm package excludes private scratch local config and generated state', ()
   assert.equal(paths.includes('README.md'), true);
   assert.equal(paths.includes('apps/cli/oaf.mjs'), true);
   assert.equal(paths.includes('scripts/verify-handoff.mjs'), true);
+  assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);
+  assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), true);
 });
 
 test('installed npm package setup does not re-pack generated local state', () => {
@@ -169,12 +171,20 @@ test('installed npm package setup does not re-pack generated local state', () =>
   }
 });
 
-test('package-facing markdown docs avoid competitor names', () => {
+test('package-facing and product markdown docs avoid competitor names', () => {
   const result = spawnSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   const [pack] = JSON.parse(result.stdout);
-  const docs = pack.files.map((file) => file.path).filter((filePath) => filePath.endsWith('.md'));
-  const forbidden = /Headroom|AgentMemory|Graphiti|Zep|Mem0|Letta|LangMem|Supermemory|Microsoft ISE|TrueFoundry|MemRefine|Deployment-Time Memorization|Experience Compression Spectrum|create-context-graph|DataHub|Neo4j Labs|Neo4j|headroom|agentmemory|graphiti|mem0|letta|langmem|supermemory|microsoft ise|truefoundry|memrefine|deployment-time memorization|experience compression spectrum|datahub|neo4j labs|neo4j/;
+  const productDocs = readdirSync('docs/product')
+    .filter((filePath) => filePath.endsWith('.md'))
+    .map((filePath) => path.join('docs/product', filePath));
+  const docs = [
+    ...new Set([
+      ...pack.files.map((file) => file.path).filter((filePath) => filePath.endsWith('.md')),
+      ...productDocs
+    ])
+  ];
+  const forbidden = /Headroom|AgentMemory|Graphiti|Zep|Mem0|Letta|LangMem|Supermemory|Microsoft ISE|TrueFoundry|MemRefine|Deployment-Time Memorization|Experience Compression Spectrum|create-context-graph|DataHub|Neo4j Labs|Neo4j|Graphify|Understand Anything|codebase-memory-mcp|DeusData|\bcbm\b/i;
 
   for (const filePath of docs) {
     const body = readFileSync(filePath, 'utf8');
@@ -216,9 +226,15 @@ test('release readiness quality snapshot matches current release evidence', asyn
   assert.match(report, /\| Marketplace \/ plugin registry \| not ready \|/);
   assert.match(report, /\| Client hooks \| opt-in local writer with dry-run default \|/);
   assert.match(report, /`connect --dry-run` previews; `connect --yes` writes fixed Codex\/Claude read-only entries with backups/);
+  assert.match(report, /npm run consumer:smoke/);
+  assert.match(report, /npm run consumer:browser-smoke/);
   assert.match(reproducibility, /## Recorded Quality Snapshot/);
   assert.match(reproducibility, new RegExp(`\\| Tests \\| ${declaredTests} \\|`));
   assert.match(reproducibility, new RegExp(`\\| Protocol fixtures \\| ${protocolFixtures} \\|`));
+
+  const checklist = artifacts.files['1.0-RELEASE-CHECKLIST.md'];
+  assert.match(checklist, /Consumer-simple gates are runnable with `npm run consumer:smoke`: temp HOME install proof, real MCP client smoke, local web\/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene/);
+  assert.match(checklist, /Optional rendered browser proof is runnable with `npm run consumer:browser-smoke`: Playwright-driven bootstrap, Connect, Token Saver, Add Memory, Memory Graph temporal history, Repo Map, console-error, and mobile overflow checks against a temp workspace/);
 });
 
 test('release readiness preserves package license and adapter checksum evidence', async () => {

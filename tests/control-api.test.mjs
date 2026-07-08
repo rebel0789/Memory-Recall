@@ -279,6 +279,43 @@ test('memory graph route serves governed current and temporal history graph', as
 
 test('memory cockpit approval endpoint promotes one pending proposal', async () => {
   const auth = await login();
+  const previewResponse = await fetch(`${base}/api/memory/proposals`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      sourceLocator: 'memory/intake.md',
+      text: 'Fact: memory-cockpit intake_flow explicit-approval.',
+      dryRun: true
+    })
+  });
+  const previewText = await previewResponse.text();
+  assert.equal(previewResponse.status, 200, previewText);
+  const preview = JSON.parse(previewText);
+  assert.equal(preview.command, 'memory preview');
+  assert.equal(preview.summary.proposalCount, 1);
+  assert.equal(preview.summary.activeMemoryCreated, 0);
+  assert.equal(preview.proposalFacts[0].subject, 'memory-cockpit');
+
+  const queueResponse = await fetch(`${base}/api/memory/proposals`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      sourceLocator: 'memory/intake.md',
+      text: 'Fact: memory-cockpit intake_flow explicit-approval.',
+      dryRun: false,
+      confirm: true
+    })
+  });
+  const queueText = await queueResponse.text();
+  assert.equal(queueResponse.status, 200, queueText);
+  const queued = JSON.parse(queueText);
+  assert.equal(queued.command, 'memory propose');
+  assert.equal(queued.summary.activeMemoryCreated, 0);
+  assert.equal(queued.proposalFacts[0].status, 'pending');
+  assert.equal(queued.proposalFacts[0].id, preview.proposalFacts[0].id);
+
   const response = await fetch(`${base}/api/memory/proposals/mpq_api_cockpit/approve`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
@@ -290,10 +327,38 @@ test('memory cockpit approval endpoint promotes one pending proposal', async () 
   assert.equal(body.command, 'memory approve');
   assert.equal(body.summary.activeMemoryCreated, 1);
   assert.equal(body.fact.id, 'memfact_api_cockpit');
+  const intakeApprove = await fetch(`${base}/api/memory/proposals/${queued.proposalFacts[0].id}/approve`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', confirm: true })
+  });
+  const intakeApproveText = await intakeApprove.text();
+  assert.equal(intakeApprove.status, 201, intakeApproveText);
+  const intakeBody = JSON.parse(intakeApproveText);
+  assert.equal(intakeBody.fact.subject, 'memory-cockpit');
+  assert.equal(intakeBody.fact.predicate, 'intake_flow');
+  const retryQueueResponse = await fetch(`${base}/api/memory/proposals`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      sourceLocator: 'memory/intake.md',
+      text: 'Fact: memory-cockpit intake_flow explicit-approval.',
+      dryRun: false,
+      confirm: true
+    })
+  });
+  const retryQueueText = await retryQueueResponse.text();
+  assert.equal(retryQueueResponse.status, 200, retryQueueText);
+  const retryQueue = JSON.parse(retryQueueText);
+  assert.equal(retryQueue.command, 'memory propose');
+  assert.equal(retryQueue.summary.proposalCount, 0);
+  assert.deepEqual(retryQueue.proposalFacts, []);
   const cockpit = await fetch(`${base}/api/memory/cockpit?workspaceId=ws_local`, { headers: { cookie: auth.cookie } });
   const after = await cockpit.json();
   assert(after.facts.some((fact) => fact.id === 'memfact_api_cockpit' && fact.status === 'active'));
-  assert.equal(after.summary.activeFactCount, 7);
+  assert(after.facts.some((fact) => fact.subject === 'memory-cockpit' && fact.predicate === 'intake_flow' && fact.status === 'active'));
+  assert.equal(after.summary.activeFactCount, 8);
 });
 
 test('loop workbench route wires compressed profile plan proposal and fact from native memory', async () => {
@@ -305,8 +370,8 @@ test('loop workbench route wires compressed profile plan proposal and fact from 
   assert.equal(body.memoryLoop.objective, 'Use native memory to complete a local feedback loop');
   assert(body.memoryLoop.compressedProfile.contextBudget.estimatedDeliveryTokens > 0);
   assert.equal(body.memoryLoop.loopPlan.contextBudget.estimatedDeliveryTokens, body.memoryLoop.compressedProfile.contextBudget.estimatedDeliveryTokens);
-  assert.match(body.memoryLoop.extractionProposal.id, /^mpq_api_/);
-  assert.match(body.memoryLoop.memoryFact.id, /^memfact_api_/);
+  assert.match(body.memoryLoop.extractionProposal.id, /^mpq_/);
+  assert.match(body.memoryLoop.memoryFact.id, /^memfact_/);
   assert.equal(Number.isNaN(Date.parse(body.memoryLoop.memoryFact.validity.validFrom)), false);
   assert.equal(body.tokenBudget.aggregatedEstimatedDeliveryTokens, body.memoryLoop.loopPlan.contextBudget.estimatedDeliveryTokens);
   assert.equal(body.safeguards.networkCalls, 0);

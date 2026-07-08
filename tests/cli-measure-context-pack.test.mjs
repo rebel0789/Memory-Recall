@@ -107,6 +107,10 @@ test('measure context-pack summary renders operator proof without raw bodies or 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /^# Context Pack Measurement/m);
   assert.match(result.stdout, /Target harness: codex/);
+  assert.match(result.stdout, /## Token Saver/);
+  assert.match(result.stdout, /Practical baseline units:/);
+  assert.match(result.stdout, /Saved units:/);
+  assert.match(result.stdout, /Provider billing claimed: no/);
   assert.match(result.stdout, /Observed delivery reduction:/);
   assert.match(result.stdout, /Delivery budget status:/);
   assert.match(result.stdout, /Changed source tokens included: 0/);
@@ -167,6 +171,15 @@ test('measure context-pack records read-only git changed-file detection against 
   assert.equal(report.contextPack.changedSourceBudget.locatorCount, 1);
   assert.equal(report.contextPack.changedSourceBudget.sourceContentIncluded, false);
   assert.equal(report.contextPack.changedSourceBudget.observedAvoidanceRatio, 1);
+  assert.equal(report.tokenSaver.basis, 'selected-context-plus-changed-source-resend');
+  assert.equal(report.tokenSaver.selectedUnitCount, report.contextPack.selectedUnitCount);
+  assert.equal(report.tokenSaver.changedSourceUnitCount, report.contextPack.changedSourceBudget.contentTokenCount);
+  assert.equal(report.tokenSaver.changedSourceUnitCountIncluded, 0);
+  assert.equal(report.tokenSaver.baselineUnitCount, report.contextPack.selectedUnitCount + report.contextPack.changedSourceBudget.contentTokenCount);
+  assert.equal(report.tokenSaver.deliveredUnitCount, report.contextPack.deliveredUnitCount);
+  assert.equal(report.tokenSaver.savedUnitCount, Math.max(0, report.tokenSaver.baselineUnitCount - report.tokenSaver.deliveredUnitCount));
+  assert.equal(report.tokenSaver.sourceContentIncluded, false);
+  assert.equal(report.tokenSaver.providerBillingClaimed, false);
   assert.equal(report.mcpReadback.transport, 'stdio');
   assert.equal(report.mcpReadback.toolsExposed, 0);
   assert.equal(report.checks.contextPackFingerprintMatchesMcp, true);
@@ -182,4 +195,83 @@ test('measure context-pack records read-only git changed-file detection against 
   assert.equal(result.stdout.includes(root), false);
   assert.equal(result.stdout.includes('/Users/'), false);
   assert.equal(existsSync(path.join(root, 'context-packs')), false);
+});
+
+test('measure context-pack reports explicit changed files sanely when git has no changes', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-measure-explicit-clean-'));
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  writeFileSync(path.join(root, 'AGENTS.md'), 'Explicit clean repo measurement instructions.');
+  writeFileSync(path.join(root, 'src', 'auth.ts'), 'export function explicitCleanSymbol() { return true; }\n');
+
+  git(root, ['init']);
+  git(root, ['-c', 'user.name=OAF Test', '-c', 'user.email=oaf@example.invalid', 'add', 'AGENTS.md', 'src/auth.ts']);
+  git(root, ['-c', 'user.name=OAF Test', '-c', 'user.email=oaf@example.invalid', 'commit', '-m', 'baseline']);
+
+  const env = { ...process.env, OAF_FIXED_NOW: '2026-06-25T00:00:00.000Z' };
+  const result = runMeasure([...baseArgs(root), '--changed-from-git', '--changed', 'src/auth.ts'], { env });
+
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.largeContext.source, 'explicit');
+  assert.equal(report.largeContext.changedLocatorShardCount, 1);
+  assert.equal(report.largeContext.totalChangedLocatorCount, 1);
+  assert.equal(report.largeContext.measuredChangedLocatorCount, 1);
+  assert.equal(report.largeContext.allChangesMeasured, true);
+  assert.equal(report.impactBrief.request.changedLocatorSource, 'explicit');
+});
+
+test('measure context-pack can inspect a later git changed-file shard', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-measure-git-shard-'));
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  writeFileSync(path.join(root, 'AGENTS.md'), 'Shard measurement instructions.');
+
+  git(root, ['init']);
+  git(root, ['-c', 'user.name=OAF Test', '-c', 'user.email=oaf@example.invalid', 'add', 'AGENTS.md']);
+  git(root, ['-c', 'user.name=OAF Test', '-c', 'user.email=oaf@example.invalid', 'commit', '-m', 'baseline']);
+
+  for (let index = 0; index < 20; index += 1) {
+    writeFileSync(path.join(root, 'src', `shard-${String(index).padStart(2, '0')}.ts`), `export const shard${index}=true;\n`);
+  }
+
+  const env = { ...process.env, OAF_FIXED_NOW: '2026-06-25T00:00:00.000Z' };
+  const result = runMeasure([...baseArgs(root), '--changed-from-git', '--changed-shard', '2'], { env });
+
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assertJsonSchema(contextPackMeasurementReportSchema, report, 'context pack measurement report');
+  assert.equal(report.largeContext.changedLocatorShard, 2);
+  assert.equal(report.largeContext.changedLocatorShardSize, 16);
+  assert.equal(report.largeContext.totalChangedLocatorCount, 20);
+  assert.equal(report.largeContext.measuredChangedLocatorCount, 4);
+  assert.equal(report.largeContext.omittedBeforeCount, 16);
+  assert.equal(report.largeContext.omittedAfterCount, 0);
+  assert.equal(report.largeContext.allChangesMeasured, false);
+  assert.equal(report.request.changedLocatorCount, 4);
+  assert.equal(report.impactBrief.impact.changedLocators.every((locator) => /shard-1[6-9]\.ts/u.test(locator)), true);
+});
+
+test('measure context-pack all-shards summarizes every git changed-file shard', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-measure-git-all-shards-'));
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  writeFileSync(path.join(root, 'AGENTS.md'), 'All shard measurement instructions.');
+
+  git(root, ['init']);
+  git(root, ['-c', 'user.name=OAF Test', '-c', 'user.email=oaf@example.invalid', 'add', 'AGENTS.md']);
+  git(root, ['-c', 'user.name=OAF Test', '-c', 'user.email=oaf@example.invalid', 'commit', '-m', 'baseline']);
+
+  for (let index = 0; index < 20; index += 1) {
+    writeFileSync(path.join(root, 'src', `all-${String(index).padStart(2, '0')}.ts`), `export const allShard${index}='ALL_SHARDS_RAW_BODY_${index}';\n`);
+  }
+
+  const env = { ...process.env, OAF_FIXED_NOW: '2026-06-25T00:00:00.000Z' };
+  const result = runMeasure([...baseArgs(root).slice(0, -2), '--changed-from-git', '--all-shards', '--format', 'summary'], { env });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^# Context Pack Measurement All Shards/m);
+  assert.match(result.stdout, /Shards measured: 2 \/ 2/);
+  assert.match(result.stdout, /Changed locators measured: 20 \/ 20/);
+  assert.match(result.stdout, /Provider billing claimed: no/);
+  assert.doesNotMatch(result.stdout, /ALL_SHARDS_RAW_BODY_/);
+  assert.equal(result.stdout.includes(root), false);
+  assert.equal(result.stdout.includes('/Users/'), false);
 });

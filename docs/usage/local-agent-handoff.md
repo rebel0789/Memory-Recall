@@ -8,6 +8,24 @@ not leak raw source bodies or perform hidden writes.
 First run `npm run status`; when it reports `Next task: none`, use the
 `First safe handoff` command it prints or continue below.
 
+After a global install, the shortest useful command is:
+
+```bash
+oaf handoff
+```
+
+From the source checkout, the equivalent convenience script is:
+
+```bash
+npm run handoff:safe
+```
+
+To measure the same context-pack path as a token-saver report:
+
+```bash
+oaf token-saver
+```
+
 ## What This Solves
 
 Use OAF when a coding-agent session is about to continue work in the same repo
@@ -109,6 +127,15 @@ external adapters, or create active memory.
 Use this path when you want a repeatable command before launching the next
 agent.
 
+For the default Codex handoff summary over the current repository and local git
+changes:
+
+```bash
+oaf handoff
+```
+
+For an explicit JSON report:
+
 ```bash
 oaf context handoff \
   --read-only \
@@ -165,6 +192,12 @@ When `--target-active-facts` is provided, the same read-only report includes a
 whether the target can be reached without inventing facts or mutating memory.
 
 For a smaller impact report:
+
+```bash
+oaf token-saver
+```
+
+For the expanded command:
 
 ```bash
 oaf measure context-pack \

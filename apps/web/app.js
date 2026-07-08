@@ -24,6 +24,12 @@ const routeById = new Map(ROUTES.map(route=>[route.id,route]));
 const routeByPath = new Map(ROUTES.map(route=>[route.path,route]));
 const legacyViews = new Map([['home','/'],['runs','/runs'],['context','/context'],['evidence','/evidence'],['memory','/memory'],['design','/settings']]);
 export const navItems = ROUTES;
+export const CONSUMER_START_ACTIONS = [
+  { label:'Connect', detail:'Preview local harness setup.', route:'/agents-tools', routeId:'agents' },
+  { label:'Save Tokens', detail:'Build a measured context pack.', route:'/context-pack', routeId:'context-pack' },
+  { label:'Add Memory', detail:'Review and approve local memory.', route:'/memory', routeId:'memory' },
+  { label:'View Repo Map', detail:'Inspect files, symbols, and neighbors.', route:'/source-graph', routeId:'source-graph' }
+];
 
 let dashboard=null;
 let shellState={kind:'loading',message:'Loading local workspace state.'};
@@ -42,6 +48,9 @@ let loopWorkbench=null;
 let loopWorkbenchError=null;
 let memoryCockpit=null;
 let memoryCockpitError=null;
+let memoryIntakeResult=null;
+let memoryIntakeError=null;
+let memoryIntakeDraft={sourceLocator:'memory/inbox.md',text:''};
 let memoryGraph=null;
 let memoryGraphError=null;
 let memoryGraphOptions={history:false,query:'',entity:'',communities:false};
@@ -94,6 +103,8 @@ const API_ISSUE_HINTS = new Map([
   ['$.body.objective',['Objective','Use a plain task summary. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
   ['$.body.step',['Step','Use a short current-step label. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
   ['$.body.tokenBudget',['Token budget','Use a positive number within the field limit.']],
+  ['$.body.sourceLocator',['Source locator','Use a workspace-relative source file such as notes/memory.md.']],
+  ['$.body.text',['Memory text','Use simple Fact or Decision lines with safe subject, predicate, and object text.']],
   ['$.body.targetHarness',['Target','Choose Codex, Claude Code, Cursor, or Generic agent.']],
   ['$.body.from',['Source families','Use supported source families only, such as codex, cursor, or claude-code.']],
   ['$.body.workspaceId',['Workspace','Use the current local workspace.']]
@@ -777,6 +788,10 @@ function csrfToken() {
   return /(?:^|;\s*)oaf_csrf=([^;]+)/.exec(globalThis.document?.cookie ?? '')?.[1] ?? '';
 }
 
+export function shouldLoadProtectedShellData({ bootstrapRequired = false, csrfTokenValue = '' } = {}) {
+  return bootstrapRequired === false && String(csrfTokenValue ?? '').trim().length > 0;
+}
+
 async function api(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   if (options.body && !headers.has('content-type')) headers.set('content-type','application/json');
@@ -809,6 +824,17 @@ async function load() {
   shellState={kind:'loading',message:'Loading local workspace state.'};
   render();
   try {
+    const bootstrap = await api('/api/auth/bootstrap-status');
+    if (bootstrap?.bootstrapRequired) {
+      dashboard = { error:{ status:503, code:'bootstrap_required', message:'Local owner setup is required.' }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
+      shellState = classifyDashboardState(dashboard);
+      return;
+    }
+    if (!shouldLoadProtectedShellData({ bootstrapRequired: false, csrfTokenValue: csrfToken() })) {
+      dashboard = { error:{ status:401, code:'authentication_required', message:'Local authentication required.' }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
+      shellState = classifyDashboardState(dashboard);
+      return;
+    }
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
     await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit(), loadMemoryGraph()]);
     shellState = classifyDashboardState(dashboard);
@@ -876,12 +902,50 @@ async function approveMemoryProposal(event) {
   try{
     await api(`/api/memory/proposals/${encodeURIComponent(proposalId)}/approve`,{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),confirm:true})});
     await loadMemoryCockpit();
+    memoryIntakeResult=null;
     render();
     document.querySelector('#live-status').textContent='Memory proposal approved.';
   }catch(error){
     memoryCockpitError=error.message;
     render();
     document.querySelector('#live-status').textContent=error.message;
+  }
+}
+
+async function submitMemoryIntake(event) {
+  event.preventDefault();
+  const form=event.currentTarget;
+  const submitter=event.submitter;
+  const dryRun=submitter?.value!=='queue';
+  const data=new FormData(form);
+  memoryIntakeDraft={
+    sourceLocator:String(data.get('sourceLocator') ?? '').trim(),
+    text:String(data.get('text') ?? '').trim()
+  };
+  if(!memoryIntakeDraft.text)return;
+  if(!dryRun && !globalThis.confirm?.('Queue memory proposals for explicit approval?'))return;
+  const previous=submitter?.textContent ?? '';
+  if(submitter){
+    submitter.disabled=true;
+    submitter.textContent=dryRun?'Previewing...':'Queuing...';
+  }
+  document.querySelector('#live-status').textContent=dryRun?'Previewing memory proposals.':'Queuing memory proposals.';
+  try{
+    memoryIntakeResult=await api('/api/memory/proposals',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),sourceLocator:memoryIntakeDraft.sourceLocator,text:memoryIntakeDraft.text,dryRun,confirm:!dryRun})});
+    memoryIntakeError=null;
+    if(!dryRun)await loadMemoryCockpit();
+    render();
+    document.querySelector('#live-status').textContent=dryRun?'Memory proposal preview ready.':'Memory proposals queued for approval.';
+  }catch(error){
+    memoryIntakeResult=null;
+    memoryIntakeError=error;
+    render();
+    document.querySelector('#live-status').textContent=error.message;
+  }finally{
+    if(submitter?.isConnected){
+      submitter.disabled=false;
+      submitter.textContent=previous;
+    }
   }
 }
 
@@ -910,6 +974,7 @@ function render() {
   root.querySelectorAll('[data-action=receive-pinned-handoff]').forEach(button=>button.addEventListener('click',receivePinnedHandoff));
   root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
   root.querySelector('#memory-graph-form')?.addEventListener('submit',submitMemoryGraph);
+  root.querySelector('#memory-intake-form')?.addEventListener('submit',submitMemoryIntake);
   root.querySelector('#memory-graph-history')?.addEventListener('change',toggleMemoryGraphHistory);
   root.querySelector('#memory-graph-communities')?.addEventListener('change',toggleMemoryGraphCommunities);
   root.querySelector('#harness-setup-form')?.addEventListener('submit',submitHarnessSetupPlan);
@@ -1079,7 +1144,11 @@ function contextPackEmptyState(){
 }
 
 function renderPrimaryFlow() {
-  return `<section class="surface primary-flow" aria-label="Primary local context workflow"><div><p class="eyebrow">Start here</p><h2>Build a handoff your next agent can actually use.</h2><p>The pack selects safe local locators, explains omissions, estimates context pressure, maps explicitly changed files, and keeps raw source bodies out of the browser and MCP resources.</p></div><ol class="flow-mini" aria-label="Context pack workflow"><li><strong>1</strong><span>Choose target harness</span></li><li><strong>2</strong><span>Add explicit files and changed locators</span></li><li><strong>3</strong><span>Inspect selected, omitted, and impacted context</span></li><li><strong>4</strong><span>Preview read-only harness setup</span></li></ol><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Build context pack</a><a class="button secondary" href="/source-graph" data-route="source-graph">Preview source graph</a></div></section>`;
+  return `<section class="surface primary-flow consumer-start" aria-label="First-use actions"><div><p class="eyebrow">Start here</p><h2>Choose what you need first.</h2><p>Connect a local agent, save tokens with a context pack, approve memory, or inspect the repository map without enabling external writes.</p></div>${renderConsumerStartActions()}</section>`;
+}
+
+export function renderConsumerStartActions(actions=CONSUMER_START_ACTIONS) {
+  return `<nav class="consumer-actions" aria-label="First actions">${actions.map((action)=>`<a href="${esc(action.route)}" data-route="${esc(action.routeId)}"><strong>${esc(action.label)}</strong><span>${esc(action.detail)}</span></a>`).join('')}</nav>`;
 }
 
 function renderRuns() {
@@ -1271,7 +1340,29 @@ function renderContextPackResult(pack,markdown) {
   const memoryPreflight=contextPackResult?.memoryProposalPreflight ?? null;
   const memoryActions=model.memoryConfig.configured?`<button class="button secondary" data-action="copy-memory-config" type="button">Copy memory config</button><button class="button secondary" data-action="download-memory-config" type="button">Download memory config</button><button class="button secondary" data-action="run-memory-preflight" type="button">Run memory preflight</button>`:'';
   const artifactHeading=readiness.ready?'Handoff ready':'Handoff needs review';
-  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${contextPackLaunchPath(model,readiness,memoryPreflight)}${contextPackOperatorBrief(model,readiness)}${renderHandoffStatusPanel(handoff,'context-pack')}${contextPackPinSummary(contextPackResult?.pin)}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${artifactHeading}</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="pin-context-pack" type="button">Pin locally</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button>${memoryActions}<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}${model.memoryConfig.configured?`<hr><div class="section-heading"><h2>Memory preflight</h2><span>${model.memoryConfig.pathCount} files</span></div>${contextPackMemoryConfigPanel(model.memoryConfig,memoryPreflight)}`:''}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Repository</h2><span>${esc(pack.repository?.gitStatusAvailable?'git':'unavailable')}</span></div>${contextPackRepositoryPanel(pack.repository)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+  return `<section class="context-value-ledger" aria-label="Context pack proof metrics">${contextPackProofLedger(model.proof)}</section>${renderContextPackTokenSaverSummary(model)}${contextPackLaunchPath(model,readiness,memoryPreflight)}${contextPackOperatorBrief(model,readiness)}${renderHandoffStatusPanel(handoff,'context-pack')}${contextPackPinSummary(contextPackResult?.pin)}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>${artifactHeading}</h2><span title="${esc(pack.contextPackFingerprint)}">${esc(model.fingerprintShort)}</span></div><div class="artifact-actions"><button class="button primary" data-action="copy-pack" type="button">Copy markdown</button><button class="button secondary" data-action="copy-launch-prompt" type="button">Copy launch prompt</button><button class="button secondary" data-action="pin-context-pack" type="button">Pin locally</button><button class="button secondary" data-action="download-pack" type="button">Download .md</button><button class="button secondary" data-action="download-use-plan" type="button">Download use plan</button>${memoryActions}<button class="button secondary" data-action="preview-pack-setup" data-client="${esc(model.setupClient)}" type="button">Preview setup</button><a class="button secondary" href="/source-graph" data-route="source-graph">Inspect graph</a></div><textarea id="context-pack-output" class="pack-output" readonly>${esc(markdown)}</textarea></div><aside class="inspector">${contextPackReadinessPanel(readiness)}<hr><div class="section-heading"><h2>Impact brief</h2><span>${esc(model.impactBrief.status)}</span></div>${contextPackImpactBriefPanel(model.impactBrief)}<hr><div class="section-heading"><h2>Utility read plan</h2><span>${esc(model.utility.status)}</span></div>${contextPackUtilityPanel(model.utility)}<hr><div class="section-heading"><h2>Use now</h2><span>Export plan explicitly</span></div>${contextPackCommandList(model.commands)}<hr><div class="section-heading"><h2>Intake review</h2><span>${esc(model.sourceFamilyLabel)}</span></div>${contextPackIntakeReview(model.intakeReview)}${model.memoryConfig.configured?`<hr><div class="section-heading"><h2>Memory preflight</h2><span>${model.memoryConfig.pathCount} files</span></div>${contextPackMemoryConfigPanel(model.memoryConfig,memoryPreflight)}`:''}<hr><div class="section-heading"><h2>Readback proof</h2><span>${esc(model.proof.readbackFingerprintLabel)}</span></div>${contextPackReadbackProof(model.proof)}<hr><div class="section-heading"><h2>Repository</h2><span>${esc(pack.repository?.gitStatusAvailable?'git':'unavailable')}</span></div>${contextPackRepositoryPanel(pack.repository)}<hr><div class="section-heading"><h2>Change Impact</h2><span>${model.changedLocators}</span></div>${contextPackChangeImpact(pack.sourceGraph?.impact)}<hr><div class="section-heading"><h2>Selected locators</h2><span>${pack.readFirst.length}</span></div>${contextPackLocatorList(pack.readFirst)}<hr><div class="section-heading"><h2>Omitted refs</h2><span>${Number(pack.omissions?.excludedCount??0)}</span></div>${contextPackOmissionList(pack.omissions)}<hr><div class="section-heading"><h2>Graph hints</h2><span>${esc(pack.sourceGraph?.status??'unavailable')}</span></div>${contextPackSourceGraphList(pack.sourceGraph)}<hr><div class="section-heading"><h2>Warnings</h2><span>${model.warningCount}</span></div>${reasons(pack.warnings)}<hr><dl class="facts"><div><dt>Target</dt><dd>${esc(pack.targetHarness)}</dd></div><div><dt>Candidate tokens</dt><dd>${Number(pack.preview.candidateTokenCount??0)}</dd></div><div><dt>Selected source tokens</dt><dd>${Number(pack.preview.selectedTokenCount??0)} (${esc(model.selectedTokenRatio)})</dd></div><div><dt>Delivered handoff tokens</dt><dd>${model.deliveredTokens} (${esc(model.deliveredTokenRatio)})</dd></div><div><dt>Delivery reduction</dt><dd>${esc(model.deliveryReductionPercent)}</dd></div><div><dt>Use-plan reads</dt><dd>${model.usePlanReadCount}</dd></div><div><dt>Observed build time</dt><dd>${esc(model.proof.observedDurationLabel)}</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl></aside></section>${setupResult?renderHarnessSetupResult(setupResult):''}`;
+}
+
+export function renderContextPackTokenSaverSummary(model) {
+  const requiredReads=(model.tokenSaver.requiredReadFiles?.length ? model.tokenSaver.requiredReadFiles : model.tokenSaver.selectedFiles) ?? [];
+  const selected=requiredReads.length
+    ? `<ol class="locator-list compact-list">${requiredReads.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ol>`
+    : '<p class="muted">No required reads measured yet.</p>';
+  const excluded=model.tokenSaver.excludedFiles.length
+    ? `<ol class="locator-list compact-list">${model.tokenSaver.excludedFiles.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ol>`
+    : `<p class="muted">${Number(model.omittedRefs)} omitted refs; build a pack to inspect exact excluded locators.</p>`;
+  const command=model.tokenSaver.command ? contextPackCommandList([{label:'Measure token saver',command:model.tokenSaver.command}]) : '';
+  const hasMeasuredBaseline=model.tokenSaver.hasMeasuredBaseline === true;
+  const heading=hasMeasuredBaseline
+    ? `${Number(model.tokenSaver.beforeTokens)} -> ${Number(model.tokenSaver.afterTokens)} tokens`
+    : `${Number(model.tokenSaver.afterTokens)} token handoff`;
+  const badge=hasMeasuredBaseline
+    ? `${model.tokenSaver.savedLabel} saved`
+    : `${model.tokenSaver.changedSourceAvoidedLabel} changed source avoided`;
+  const proof=hasMeasuredBaseline
+    ? `<dl class="facts compact-facts"><div><dt>Before</dt><dd>${Number(model.tokenSaver.beforeTokens)} tokens</dd></div><div><dt>After</dt><dd>${Number(model.tokenSaver.afterTokens)} tokens</dd></div><div><dt>Reduction</dt><dd>${esc(model.tokenSaver.savedLabel)}</dd></div><div><dt>Provider billing</dt><dd>not claimed</dd></div></dl>`
+    : `<dl class="facts compact-facts"><div><dt>Handoff</dt><dd>${Number(model.tokenSaver.afterTokens)} tokens</dd></div><div><dt>Changed source avoided</dt><dd>${esc(model.tokenSaver.changedSourceAvoidedLabel)}</dd></div><div><dt>Baseline</dt><dd>run measure command</dd></div><div><dt>Provider billing</dt><dd>not claimed</dd></div></dl>`;
+  return `<section class="surface token-saver-summary" aria-label="Token Saver summary"><div class="section-heading"><div><p class="eyebrow">Token Saver</p><h2>${esc(heading)}</h2></div><span>${esc(badge)}</span></div><div class="handoff-brief-grid"><article><h3>Proof</h3>${proof}</article><article><h3>Required reads</h3>${selected}</article><article><h3>Excluded files</h3>${excluded}</article></div>${command}</section>`;
 }
 
 function contextPackPinSummary(pin=null) {
@@ -1331,6 +1422,15 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
     : null;
   const deliveryReductionLabel=deliveryReductionPercent===null ? 'not measured' : `${deliveryReductionPercent}%`;
   const rawBodiesExcluded=pack?.delivery?.sourceContentsIncluded===false && pack?.safeguards?.rawBodyIncluded===false;
+  const commands=contextPackHarnessCommands(pack,usePlan,{memoryConfig});
+  const tokenSaverCommand=commands.find((item)=>item.label==='Copy impact command')?.command ?? '';
+  const requiredReadFiles=[...new Set([
+    ...(Array.isArray(pack?.readFirst) ? pack.readFirst : []).map((item)=>String(item.locator ?? '')).filter(Boolean),
+    ...(Array.isArray(pack?.utility?.requiredLocalReads) ? pack.utility.requiredLocalReads : [])
+      .filter((item)=>item?.required===true)
+      .map((item)=>String(item.locator ?? ''))
+      .filter(Boolean)
+  ])].slice(0,6);
   return {
     targetHarness:String(pack?.targetHarness ?? 'generic'),
     sourceFamilies,
@@ -1385,7 +1485,18 @@ export function buildContextPackUiModel(pack,markdown='',meta={}) {
       externalWritesLabel:pack?.safeguards?.externalWritesEnabled===false?'disabled':pack?.safeguards?.externalWritesEnabled===true?'enabled':'check',
       activeMemoryLabel:safeguardCountLabel(pack?.safeguards?.activeMemoryCreated)
     },
-    commands:contextPackHarnessCommands(pack,usePlan,{memoryConfig})
+    tokenSaver:{
+      beforeTokens:candidateTokens,
+      afterTokens:deliveredTokens,
+      hasMeasuredBaseline:candidateTokens > 0,
+      savedLabel:deliveryReductionLabel,
+      changedSourceAvoidedLabel,
+      selectedFiles:(Array.isArray(pack?.readFirst) ? pack.readFirst : []).map((item)=>String(item.locator ?? '')).filter(Boolean).slice(0,5),
+      requiredReadFiles,
+      excludedFiles:(Array.isArray(pack?.excluded) ? pack.excluded : []).map((item)=>String(item.locator ?? '')).filter(Boolean).slice(0,5),
+      command:tokenSaverCommand
+    },
+    commands
   };
 }
 
@@ -2084,12 +2195,53 @@ function memoryConfigDownloadName() {
 
 function renderSourceGraph() {
   const errorPanel=sourceGraphError?renderApiErrorPanel('Source graph preview failed',sourceGraphError):'';
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Preview source graph</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="context pack buildContextPackUiModel" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="buildContextPackUiModel" placeholder="runAuthWorkflow" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="apps/web/app.js" placeholder="src/auth.ts" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview graph</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No graph preview yet','Run a source graph preview to inspect symbols, calls, and likely diff impact.')}`;
+  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="where should I start" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="" placeholder="optional function or class name" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="" placeholder="src/index.js" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview repo map</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No repo map yet','Preview the repo map to inspect files, symbols, import neighbors, and likely starting points.')}`;
 }
 
-function renderSourceGraphResult(report) {
+export function renderSourceGraphResult(report) {
   const summary=report.graph?.summary ?? {};
-  return `<section class="metric-strip" aria-label="Source graph metrics">${metric(summary.fileCount??0,'Files','Scanned JS/TS')}${metric(summary.symbolCount??0,'Symbols','Static parser')}${metric(summary.nodeCount??0,'Nodes','Metadata graph')}${metric(summary.edgeCount??0,'Edges','Calls and refs')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Search results</h2><span>${Number(report.search?.total??0)} matches</span></div>${sourceGraphSearchList(report.search?.results)}</div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>${esc(shortFingerprint(report.graph?.graphFingerprint))}</span></div>${sourceGraphSafeguards(report.safeguards)}<hr><div class="section-heading"><h2>Sample nodes</h2><span>${report.graph?.sampleNodes?.length??0}</span></div>${sourceGraphNodeList(report.graph?.sampleNodes)}</aside></section><section class="work-grid"><div class="surface"><div class="section-heading"><h2>Trace</h2><span>${report.trace?.paths?.length??0} paths</span></div>${sourceGraphTraceList(report.trace?.paths)}</div><aside class="inspector"><div class="section-heading"><h2>Diff impact</h2><span>${report.impact?.affectedSymbols?.length??0} symbols</span></div>${sourceGraphImpactList(report.impact?.affectedSymbols)}</aside></section>`;
+  return `<section class="metric-strip" aria-label="Source graph metrics">${metric(summary.fileCount??0,'Files','Scanned JS/TS')}${metric(summary.symbolCount??0,'Symbols','Static parser')}${metric(summary.nodeCount??0,'Nodes','Metadata graph')}${metric(summary.edgeCount??0,'Edges','Calls and refs')}</section>${renderRepoMap(report)}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Search results</h2><span>${Number(report.search?.total??0)} matches</span></div>${sourceGraphSearchList(report.search?.results)}</div><aside class="inspector"><div class="section-heading"><h2>Safeguards</h2><span>${esc(shortFingerprint(report.graph?.graphFingerprint))}</span></div>${sourceGraphSafeguards(report.safeguards)}<hr><div class="section-heading"><h2>Sample nodes</h2><span>${report.graph?.sampleNodes?.length??0}</span></div>${sourceGraphNodeList(report.graph?.sampleNodes)}</aside></section><section class="work-grid"><div class="surface"><div class="section-heading"><h2>Trace</h2><span>${report.trace?.paths?.length??0} paths</span></div>${sourceGraphTraceList(report.trace?.paths)}</div><aside class="inspector"><div class="section-heading"><h2>Diff impact</h2><span>${report.impact?.affectedSymbols?.length??0} symbols</span></div>${sourceGraphImpactList(report.impact?.affectedSymbols)}</aside></section>`;
+}
+
+function renderRepoMap(report) {
+  const nodes=report.graph?.sampleNodes ?? [];
+  const byId=new Map(nodes.map((node)=>[node.id,node]));
+  const files=nodes.filter((node)=>node.kind==='file').slice(0,6);
+  const symbols=uniqueBy([
+    ...(report.graph?.summary?.entryPoints ?? []),
+    ...(report.graph?.summary?.hotspots ?? []),
+    ...nodes.filter((node)=>node.kind==='symbol')
+  ],(item)=>item.locator ?? item.label).slice(0,6);
+  const imports=(report.graph?.sampleEdges ?? []).filter((edge)=>edge.kind==='imports').map((edge)=>{
+    const from=byId.get(edge.fromNodeId);
+    const to=byId.get(edge.toNodeId);
+    return from&&to?`${from.label} -> ${to.label}`:'';
+  }).filter(Boolean).slice(0,6);
+  const readFirst=(report.graph?.summary?.entryPoints ?? []).map((item)=>item.locator).filter(Boolean).slice(0,6);
+  return `<section class="work-grid repo-map"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>${files.length} files</span></div>${sourceGraphStartHere(report)}<div class="split-list"><div><h3>Read first</h3>${sourceGraphTextList(readFirst)}</div><div><h3>Files</h3>${sourceGraphNodeList(files)}</div></div></div><aside class="inspector"><div class="section-heading"><h2>Key symbols</h2><span>${symbols.length}</span></div>${sourceGraphSymbolList(symbols)}<hr><div class="section-heading"><h2>Import neighbors</h2><span>${imports.length}</span></div>${sourceGraphTextList(imports)}</aside></section>`;
+}
+
+function uniqueBy(items,key) {
+  const seen=new Set();
+  return items.filter((item)=>{const value=key(item);if(!value||seen.has(value))return false;seen.add(value);return true;});
+}
+
+function sourceGraphStartHere(report) {
+  const entry=report.graph?.summary?.entryPoints?.[0];
+  const changed=report.impact?.representedChangedLocators?.[0] ?? report.impact?.changedLocators?.[0];
+  const affected=report.impact?.affectedSymbols?.[0];
+  if(!entry && !changed && !affected)return '';
+  return `<div class="state-panel state-success"><h3>Start here</h3><p>${entry?`Begin at ${esc(entry.label)} (${esc(entry.locator)}).`:'Use the read-first list below.'}${changed?` Changed impact: ${esc(changed)}${affected?` touches ${esc(affected.name)}`:''}.`:''}</p></div>`;
+}
+
+function sourceGraphSymbolList(symbols=[]) {
+  if(!symbols.length)return '<p class="muted">No key symbols in the bounded preview.</p>';
+  return `<ol class="compact-list locator-list">${symbols.map((symbol)=>`<li><strong>${esc(symbol.label)}</strong><span>${esc(symbol.symbolKind??'symbol')} · ${esc(symbol.locator??`${Number(symbol.total??0)} links`)}</span></li>`).join('')}</ol>`;
+}
+
+function sourceGraphTextList(items=[]) {
+  if(!items.length)return '<p class="muted">No bounded preview items.</p>';
+  return `<ol class="compact-list locator-list">${items.map((item)=>`<li><strong>${esc(item)}</strong></li>`).join('')}</ol>`;
 }
 
 function sourceGraphSearchList(results=[]) {
@@ -2152,11 +2304,19 @@ export function renderMemoryGraph(report = null, options = {}, error = null) {
   const focusList=focus
     ? `<ol class="compact-list locator-list">${focus.nodes.slice(0,12).map((node)=>`<li><strong>${esc(node.name)}</strong><span>${esc(node.type)} · degree ${Number(node.degree??0)} · community ${Number(node.community??0)}</span></li>`).join('')}</ol>`
     : '<p class="muted">Click a node or search for an entity to focus its governed neighborhood.</p>';
+  const currentEdges=model.edges.filter((edge)=>edge.current).slice(0,12);
   const staleEdges=model.edges.filter((edge)=>!edge.current).slice(0,12);
+  const currentList=currentEdges.length
+    ? memoryGraphEdgeList(currentEdges)
+    : '<p class="muted">No current graph facts are visible.</p>';
   const historyList=staleEdges.length
-    ? `<ol class="compact-list locator-list">${staleEdges.map((edge)=>`<li><strong>${esc(edge.from)} ${esc(edge.predicate)} ${esc(edge.to)}</strong><span>${esc(edge.status)} · superseded by ${esc(edge.supersededBy??'none')}</span></li>`).join('')}</ol>`
+    ? memoryGraphEdgeList(staleEdges)
     : '<p class="muted">No superseded graph edges are visible in this mode.</p>';
-  return `<section class="metric-strip" aria-label="Governed memory graph metrics">${metric(model.summary.nodeCount,'Nodes',`${model.summary.currentNodeCount??0} current`)}${metric(model.summary.edgeCount,'Edges',`${model.summary.currentEdgeCount??0} current`)}${metric(model.summary.communityCount,'Communities',model.communityMethod)}${metric(model.summary.historyEdgeCount??0,'History edges',model.mode==='history'?'visible':'hidden')}</section><section class="memory-graph-shell"><div class="surface surface-primary"><div class="section-heading"><h2>Governed knowledge graph</h2><span>${esc(model.mode)} · ${esc(shortFingerprint(model.reportFingerprint))}</span></div><form id="memory-graph-form" class="memory-graph-toolbar"><label class="field memory-graph-search"><span>Search entity</span><input name="query" value="${esc(query)}" placeholder="provider:native:memory:sqlite" maxlength="512"></label><label class="toggle-field"><input id="memory-graph-history" name="history" type="checkbox"${historyChecked}> <span>Show history</span></label><label class="toggle-field"><input id="memory-graph-communities" name="communities" type="checkbox"${communityChecked}> <span>Community colors</span></label><button class="button primary" type="submit">Refresh graph</button></form><div class="memory-graph-canvas-wrap"><canvas id="memory-graph-canvas" width="1120" height="640" role="img" aria-label="Interactive governed memory graph"></canvas></div><div class="memory-graph-legend">${memoryGraphLegend(model.nodes)}</div></div><aside class="inspector"><h2>Focus neighborhood</h2>${focusList}<hr><h2>Temporal history</h2>${historyList}<hr><dl class="facts compact-facts"><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div><div><dt>Read-only</dt><dd>${model.safeguards.readOnly?'yes':'no'}</dd></div><div><dt>Model calls</dt><dd>${Number(model.safeguards.modelCalls??0)}</dd></div><div><dt>Network</dt><dd>${Number(model.safeguards.networkCalls??0)}</dd></div><div><dt>External writes</dt><dd>${model.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div></dl></aside></section>`;
+  return `<section class="metric-strip" aria-label="Governed memory graph metrics">${metric(model.summary.nodeCount,'Nodes',`${model.summary.currentNodeCount??0} current`)}${metric(model.summary.edgeCount,'Edges',`${model.summary.currentEdgeCount??0} current`)}${metric(model.summary.communityCount,'Communities',model.communityMethod)}${metric(model.summary.historyEdgeCount??0,'History edges',model.mode==='history'?'visible':'hidden')}</section><section class="memory-graph-shell"><div class="surface surface-primary"><div class="section-heading"><h2>Governed knowledge graph</h2><span>${esc(model.mode)} · ${esc(shortFingerprint(model.reportFingerprint))}</span></div><form id="memory-graph-form" class="memory-graph-toolbar"><label class="field memory-graph-search"><span>Search entity</span><input name="query" value="${esc(query)}" placeholder="provider:native:memory:sqlite" maxlength="512"></label><label class="toggle-field"><input id="memory-graph-history" name="history" type="checkbox"${historyChecked}> <span>Show history</span></label><label class="toggle-field"><input id="memory-graph-communities" name="communities" type="checkbox"${communityChecked}> <span>Community colors</span></label><button class="button primary" type="submit">Refresh graph</button></form><div class="memory-graph-canvas-wrap"><canvas id="memory-graph-canvas" width="1120" height="640" role="img" aria-label="Interactive governed memory graph"></canvas></div><div class="memory-graph-legend">${memoryGraphLegend(model.nodes)}</div></div><aside class="inspector"><h2>Current facts</h2>${currentList}<hr><h2>History facts</h2>${historyList}<hr><h2>Focus neighborhood</h2>${focusList}<hr><dl class="facts compact-facts"><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div><div><dt>Read-only</dt><dd>${model.safeguards.readOnly?'yes':'no'}</dd></div><div><dt>Model calls</dt><dd>${Number(model.safeguards.modelCalls??0)}</dd></div><div><dt>Network</dt><dd>${Number(model.safeguards.networkCalls??0)}</dd></div><div><dt>External writes</dt><dd>${model.safeguards.externalWritesEnabled?'enabled':'disabled'}</dd></div></dl></aside></section>`;
+}
+
+function memoryGraphEdgeList(edges=[]) {
+  return `<ol class="compact-list locator-list">${edges.map((edge)=>`<li><strong>${esc(edge.from)} ${esc(edge.predicate)} ${esc(edge.to)}</strong><span>${edge.current?'Current':'Superseded'} · ${edge.supersededBy?`superseded by ${esc(edge.supersededBy)}`:'current winner'}</span><small>Valid from ${date(edge.validFrom)} · Valid until ${edge.validUntil?date(edge.validUntil):'open'} · Provenance ${esc(edge.source)}</small></li>`).join('')}</ol>`;
 }
 
 function memoryGraphLegend(nodes=[]) {
@@ -2165,9 +2325,21 @@ function memoryGraphLegend(nodes=[]) {
   return types.map((type)=>`<span><i style="background:${memoryGraphNodeColor(type,0,false)}"></i>${esc(type)}</span>`).join('');
 }
 
+export function renderMemoryIntakePanel(result=null,error=null,draft={sourceLocator:'memory/inbox.md',text:''}) {
+  const rows=Array.isArray(result?.proposalFacts) && result.proposalFacts.length
+    ? `<ol class="compact-list locator-list">${result.proposalFacts.map((item)=>`<li><strong>${esc(item.subject)} ${esc(item.predicate)}</strong><span>${esc(item.object)}</span><small>${esc(item.id)} · ${esc(item.status)} · ${esc(item.sourceLocator)}</small></li>`).join('')}</ol>`
+    : '<p class="muted">No proposal facts extracted yet. Try: Fact: project:oaf release_status release-candidate.</p>';
+  const resultPanel=result
+    ? `<div class="state-panel state-success"><h2>${esc(result.command)}</h2><p>${Number(result.summary?.proposalCount ?? 0)} proposal${Number(result.summary?.proposalCount ?? 0)===1?'':'s'} · ${Number(result.summary?.activeMemoryCreated ?? 0)} active memory created</p>${rows}</div>`
+    : '';
+  const errorPanel=error?renderApiErrorPanel('Memory intake failed',error):'';
+  return `<section class="surface memory-intake" aria-label="Add Memory"><div class="section-heading"><div><p class="eyebrow">Add Memory</p><h2>Preview first, approve after.</h2></div><span>proposal-gated</span></div><form id="memory-intake-form" class="stacked-form"><label class="field"><span>Source path</span><input name="sourceLocator" value="${esc(draft.sourceLocator ?? 'memory/inbox.md')}" required maxlength="512" placeholder="memory/inbox.md"></label><label class="field"><span>Memory text</span><textarea name="text" required maxlength="8000" placeholder="Fact: project:oaf release_status release-candidate.">${esc(draft.text ?? '')}</textarea><small>Use simple fact lines. Preview creates no active memory.</small></label><div class="action-row"><button class="button secondary" name="mode" value="preview" type="submit">Preview proposals</button><button class="button primary" name="mode" value="queue" type="submit">Queue proposals</button><span class="muted">Approval stays explicit in the proposal queue.</span></div></form>${errorPanel}${resultPanel}</section>`;
+}
+
 export function renderMemoryCockpit(cockpit = null) {
   const model=buildMemoryCockpitModel(cockpit);
-  if(!model.ready)return statePanel('empty','No native memory store loaded','Run the local memory-loop demo to seed temporal facts and proposal-gated extraction records.');
+  const intake=renderMemoryIntakePanel(memoryIntakeResult,memoryIntakeError,memoryIntakeDraft);
+  if(!model.ready)return `${intake}${statePanel('empty','No native memory store loaded','Run the local memory-loop demo to seed temporal facts and proposal-gated extraction records.')}`;
   const facts=model.facts.length
     ? `<div class="memory-list">${model.facts.map((fact)=>`<article class="memory-diff state-${esc(fact.status)}"><header><div><code>${esc(fact.id)}</code><h3>${esc(fact.subject)} ${esc(fact.predicate)}</h3></div>${statusChip(fact.status,fact.status,'Temporal fact status')}</header><p>${esc(fact.text)}</p><dl class="facts compact-facts"><div><dt>Scope</dt><dd>${esc(fact.scope)}</dd></div><div><dt>Object</dt><dd>${esc(fact.object)}</dd></div><div><dt>Valid from</dt><dd>${date(fact.validFrom)}</dd></div><div><dt>Valid until</dt><dd>${fact.validUntil?date(fact.validUntil):'open'}</dd></div><div><dt>Superseded by</dt><dd>${esc(fact.supersededBy)}</dd></div><div><dt>Episode</dt><dd>${esc(fact.provenance.episodeId)}</dd></div></dl><div class="reason-list">${fact.supersessionChain.map((id)=>`<span class="reason">${esc(id)}</span>`).join('')}</div><p class="muted">Source ${esc(fact.provenance.source)}${fact.provenance.summary?` · ${esc(fact.provenance.summary)}`:''}</p></article>`).join('')}</div>`
     : statePanel('empty','No temporal facts yet','The native SQLite provider is reachable, but this workspace has no bi-temporal facts.');
@@ -2177,7 +2349,7 @@ export function renderMemoryCockpit(cockpit = null) {
   const toolStats=model.mcpStats.byTool.length
     ? `<ol class="compact-list locator-list">${model.mcpStats.byTool.map((item)=>`<li><strong>${esc(item.toolName)} · ${item.callCount}</strong><span>${item.deliveredTokens} delivered · ${item.tokensSaved} saved</span></li>`).join('')}</ol>`
     : '<p class="muted">No MCP delivery calls recorded for this workspace yet.</p>';
-  return `<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.savings.percent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>OAF compressed</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>MCP delivery stats</h2><dl class="facts compact-facts"><div><dt>Available</dt><dd>${model.mcpStats.available?'yes':'no'}</dd></div><div><dt>Baseline</dt><dd>${model.mcpStats.baselineTokens}</dd></div><div><dt>Saving</dt><dd>${model.mcpStats.tokenSavingPercent}%</dd></div><div><dt>Basis</dt><dd>${esc(model.mcpStats.basis)}</dd></div></dl>${toolStats}<hr><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider and MCP delivery telemetry through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
+  return `${intake}<section class="surface memory-token-hero" aria-label="Memory token savings"><div class="section-heading"><div><p class="eyebrow">Native memory profile</p><h2>${model.savings.percent}% token saving</h2></div><span>${esc(shortFingerprint(model.reportFingerprint))}</span></div><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>OAF compressed</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>History avoided</dt><dd>${model.tokenBudget.historyTokensAvoided}</dd></div><div><dt>Delivery tokens</dt><dd>${model.tokenBudget.estimatedDeliveryTokens}</dd></div><div><dt>History tokens</dt><dd>${model.tokenBudget.historyTokensAvailable}</dd></div><div><dt>Profile tokens</dt><dd>${model.tokenBudget.profileTokens}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div><div><dt>Generated</dt><dd>${date(model.generatedAt)}</dd></div></dl></section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Bi-temporal facts</h2><span>${model.facts.length} facts</span></div>${facts}</div><aside class="inspector"><h2>MCP delivery stats</h2><dl class="facts compact-facts"><div><dt>Available</dt><dd>${model.mcpStats.available?'yes':'no'}</dd></div><div><dt>Baseline</dt><dd>${model.mcpStats.baselineTokens}</dd></div><div><dt>Saving</dt><dd>${model.mcpStats.tokenSavingPercent}%</dd></div><div><dt>Basis</dt><dd>${esc(model.mcpStats.basis)}</dd></div></dl>${toolStats}<hr><h2>Proposal queue</h2>${queue}<hr><p class="muted">This route reads the native SQLite provider and MCP delivery telemetry through the Control API. It does not create active memory, call a model, or render raw source bodies.</p></aside></section>`;
 }
 
 function renderEvidence() {
@@ -2235,7 +2407,7 @@ function deniedState(){return authPanel('login','Sign in with the local owner ac
 function authPanel(mode,copy){
   const isBootstrap=mode==='bootstrap';
   const title=isBootstrap?'Set up local owner':'Sign in locally';
-  return `<section class="state-panel state-${isBootstrap?'setup':'denied'} auth-panel"><h2>${title}</h2><p>${esc(copy)}</p><form id="auth-form" data-mode="${mode}" autocomplete="on"><div class="field-grid"><label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap?'rebel':''}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>${isBootstrap?'<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>':''}<label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap?'new-password':'current-password'}" required minlength="12" maxlength="256"></label></div><div class="action-row"><button class="button primary" type="submit">${isBootstrap?'Create owner':'Sign in'}</button>${isBootstrap?'<span class="muted">Local-only. Stored in .local/identity with hashed credentials.</span>':'<span class="muted">No external network or fallback identity provider is used.</span>'}</div></form></section>`;
+  return `<section class="surface consumer-start auth-start" aria-label="First-use actions"><div><p class="eyebrow">After sign-in</p><h2>Choose what you need first.</h2></div>${renderConsumerStartActions()}</section><section class="state-panel state-${isBootstrap?'setup':'denied'} auth-panel"><h2>${title}</h2><p>${esc(copy)}</p><form id="auth-form" data-mode="${mode}" autocomplete="on"><div class="field-grid"><label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap?'rebel':''}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>${isBootstrap?'<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>':''}<label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap?'new-password':'current-password'}" required minlength="12" maxlength="256"></label></div><div class="action-row"><button class="button primary" type="submit">${isBootstrap?'Create owner':'Sign in'}</button>${isBootstrap?'<span class="muted">Local-only. Stored in .local/identity with hashed credentials.</span>':'<span class="muted">No external network or fallback identity provider is used.</span>'}</div></form></section>`;
 }
 function runList(items){if(!items?.length)return statePanel('empty','No runs yet','Execute the synthetic local workflow to populate the event ledger.',true);return `<div class="run-list">${items.map(run=>`<article class="run-row"><header><a href="${runDetailLink(run.id)}" data-run-id="${esc(run.id)}">${esc(run.workflowId)}</a>${statusChip(run.status,run.status,'Run status')}</header><p>${esc(run.objective??'')}</p><div class="meta-row"><span>Version: ${esc(run.workflowVersion??'unknown')}</span><span>Residency: ${esc(run.residency??'local-only')}</span><span>Current step: ${esc(currentStepLabel(run))}</span><span>Owner: local workspace</span><span>Warnings: ${Number(run.warningCount??0)}</span></div><div class="meta-row"><code>${esc(run.id)}</code><span>Started ${date(run.createdAt)}</span><span>${duration(run.createdAt,run.completedAt)}</span></div></article>`).join('')}</div>`}
 function contextSummary(manifest){if(!manifest)return '<div class="state-inline">No context has been compiled.</div>';const percent=Math.min(100,Math.round(manifest.budget.used/manifest.budget.available*100));return `<div class="section-heading"><h2>Context budget</h2><span>${percent}% used</span></div><strong>${manifest.budget.used} / ${manifest.budget.available} estimated tokens</strong><div class="progress" aria-label="${percent}% of context budget used"><span style="width:${percent}%"></span></div><p class="muted">${manifest.selected.length} selected · ${manifest.excluded.length} excluded · ${manifest.conflicts.length} conflicts</p>`}
@@ -2679,7 +2851,7 @@ async function submitSourceGraph(event){
     render();
   }finally{
     button.disabled=false;
-    button.textContent='Preview graph';
+    button.textContent='Preview repo map';
   }
 }
 

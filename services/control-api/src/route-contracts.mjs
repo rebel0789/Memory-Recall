@@ -171,6 +171,7 @@ export function createApiRouteContracts(limits = {}) {
     buildContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     pinContextPack: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     preflightContextPackMemory: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
+    intakeMemoryProposal: Math.min(limits.bodyBytes ?? 1_000_000, 12 * 1024),
     approveMemoryProposal: Math.min(limits.bodyBytes ?? 1_000_000, 2 * 1024),
     previewContextSources: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     detectGitChanges: Math.min(limits.bodyBytes ?? 1_000_000, 1024),
@@ -1083,6 +1084,60 @@ export function createApiRouteContracts(limits = {}) {
       confirm: { const: true }
     }
   };
+  const memoryIntakeRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId', 'sourceLocator', 'text', 'dryRun'],
+    properties: {
+      workspaceId,
+      sourceLocator: workspaceLocatorInput,
+      text: boundedString(8000),
+      dryRun: { type: 'boolean' },
+      confirm: { type: 'boolean' }
+    }
+  };
+  const memoryIntakeResponse = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['schemaVersion', 'command', 'generatedAt', 'workspaceId', 'sourceLocator', 'summary', 'proposalFacts', 'safeguards', 'reportFingerprint'],
+    properties: {
+      schemaVersion: { const: '1.0.0' },
+      command: { enum: ['memory preview', 'memory propose'] },
+      generatedAt: { type: 'string', format: 'date-time' },
+      workspaceId,
+      sourceLocator: { type: 'string', pattern: "^workspace://(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$", maxLength: 524 },
+      summary: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['proposalCount', 'skippedUnsafeCount', 'activeMemoryCreated'],
+        properties: {
+          proposalCount: { type: 'integer', minimum: 0, maximum: 50 },
+          skippedUnsafeCount: { type: 'integer', minimum: 0, maximum: 50 },
+          activeMemoryCreated: { const: 0 }
+        }
+      },
+      proposalFacts: {
+        type: 'array',
+        maxItems: 50,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'status', 'sourceLocator', 'subject', 'predicate', 'object', 'text'],
+          properties: {
+            id: { type: 'string', pattern: '^mpq_[A-Za-z0-9._-]{1,128}$', maxLength: 132 },
+            status: { enum: ['preview', 'pending'] },
+            sourceLocator: { type: 'string', maxLength: 524 },
+            subject: { type: ['string', 'null'], maxLength: 128 },
+            predicate: { type: ['string', 'null'], maxLength: 128 },
+            object: { type: ['string', 'null'], maxLength: 240 },
+            text: { type: ['string', 'null'], maxLength: 512 }
+          }
+        }
+      },
+      safeguards: { type: 'object', additionalProperties: true },
+      reportFingerprint: { type: 'string', pattern: '^sha256:[a-f0-9]{64}$', maxLength: 80 }
+    }
+  };
   const memoryApprovalResponse = {
     type: 'object',
     additionalProperties: false,
@@ -1567,6 +1622,21 @@ export function createApiRouteContracts(limits = {}) {
       allowsBody: false,
       streams: false,
       responses: { 200: memoryGraphResponse }
+    },
+    {
+      method: 'POST',
+      path: '/api/memory/proposals',
+      operationId: 'intakeMemoryProposal',
+      security: { authenticated: true, action: 'memory.approve', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {}, required: [] },
+      headers: {},
+      requestMediaType: 'application/json',
+      requestBodySchema: memoryIntakeRequest,
+      maxBodyBytes: routeBodyBytes.intakeMemoryProposal,
+      allowsBody: true,
+      streams: false,
+      responses: { 200: memoryIntakeResponse }
     },
     {
       method: 'POST',

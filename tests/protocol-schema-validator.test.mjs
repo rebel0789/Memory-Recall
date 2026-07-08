@@ -32,6 +32,8 @@ test('schema assertion returns value or a stable error code', async () => {
 test('validator enforces bounded collection keywords and rejects unsupported schema keywords', () => {
   assert.deepEqual(validateJsonSchema({ type: 'array', maxItems: 1 }, ['a', 'b']).errors.map((item) => item.keyword), ['maxItems']);
   assert.deepEqual(validateJsonSchema({ type: 'object', maxProperties: 1 }, { a: 1, b: 2 }).errors.map((item) => item.keyword), ['maxProperties']);
+  assert.equal(validateJsonSchema({ oneOf: [{ type: 'string' }, { type: 'number' }] }, 'x').valid, true);
+  assert.deepEqual(validateJsonSchema({ oneOf: [{ type: 'string' }, { type: 'string', minLength: 1 }] }, 'x').errors.map((item) => item.keyword), ['oneOf']);
   assert.throws(
     () => validateJsonSchema({ type: 'string', unevaluatedProperties: false }, 'x'),
     (error) => error.code === 'unsupported_schema_keyword' && error.keyword === 'unevaluatedProperties'

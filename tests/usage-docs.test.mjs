@@ -21,6 +21,8 @@ test('public usage docs avoid stale task and missing context-file examples', () 
   assert.equal(docs.includes('oaf task OAF-004'), false);
   assert.match(docs, /npm run task -- <OAF-ID>` only when status names a next task/);
   assert.match(docs, /docs\/usage\/local-agent-handoff\.md/);
+  assert.match(docs, /oaf handoff/);
+  assert.match(docs, /oaf token-saver/);
   assert.match(docs, /copy and run/);
   assert.match(docs, /mcp install --client claude-code --dry-run --format json/);
   assert.match(docs, /npm run oaf -- memory refine --read-only --root \. --sqlite \.local\/memory\.sqlite --target-active-facts 200 --format json/);
@@ -36,6 +38,8 @@ test('local handoff guide documents read-only Codex Cursor and Claude paths', ()
   const guide = read('docs/usage/local-agent-handoff.md');
 
   assert.match(guide, /target codex --changed-from-git --format json/);
+  assert.match(guide, /After a global install, the shortest useful command is:\n\n```bash\noaf handoff\n```/);
+  assert.match(guide, /npm run handoff:safe/);
   assert.match(guide, /First run `npm run status`; when it reports `Next task: none`, use the\n`First safe handoff` command it prints or continue below\./);
   assert.match(guide, /npm ci --ignore-scripts --no-audit --no-fund\nnpm run bootstrap\nnpm run doctor\nnpm run verify:handoff\nnpm run status\nnpm run dev/);
   assert.match(guide, /Create a first local handoff/);

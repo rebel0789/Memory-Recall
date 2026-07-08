@@ -90,7 +90,7 @@ hard-deletes it. The temporal fact table has its own FTS5 index.
 `oaf memory search/path/explain` adds the first local hybrid retrieval surface:
 FTS5 matches seed the result set, entity edges add graph-neighbor facts,
 temporal ranking prefers recent valid facts, and scoped digests provide a compact
-graphify-style handoff summary. Semantic sqlite-vec ranking is reported as
+source-graph handoff summary. Semantic sqlite-vec ranking is reported as
 skipped when no local embedder is available; no network or model API is called.
 Offline fact extraction is ADD-only and deterministic: safe `subject predicate
 object` triples from an episode enqueue reviewable proposals with provenance and

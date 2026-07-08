@@ -189,6 +189,31 @@ paths:
           description: Read-only governed memory graph projection with current-truth and historical temporal edges.
           headers:
             x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+  /api/memory/proposals:
+    post:
+      operationId: intakeMemoryProposal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [workspaceId, sourceLocator, text, dryRun]
+              properties:
+                workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
+                sourceLocator: { type: string, minLength: 1, maxLength: 512 }
+                text: { type: string, minLength: 1, maxLength: 8000 }
+                dryRun: { type: boolean }
+                confirm: { type: boolean }
+      responses:
+        '200':
+          description: Previews or queues proposal-gated memory facts without creating active memory.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
   /api/memory/proposals/{proposalId}/approve:
     post:
       operationId: approveMemoryProposal

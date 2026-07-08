@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const backlog = JSON.parse(await readFile('planning/backlog.json', 'utf8'));
 const status = JSON.parse(await readFile('PROJECT_STATUS.json', 'utf8'));
 const packageJson = JSON.parse(await readFile('package.json', 'utf8'));
+const cliPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'apps/cli/oaf.mjs');
 
 function readyTasks() {
   const completed = new Set(backlog.tasks.filter((task) => task.status === 'completed').map((task) => task.id));
@@ -47,18 +52,34 @@ test('status command does not advertise completed backlog work as next', () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Next task: none \(checked-in backlog complete\)/);
   assert.match(result.stdout, /Use OAF today: docs\/usage\/local-agent-handoff\.md/);
-  assert.match(result.stdout, /First safe handoff: npm run handoff:safe/);
+  assert.match(result.stdout, /First safe handoff: npm run oaf -- handoff/);
+  assert.match(result.stdout, /Measure token saver: npm run oaf -- token-saver/);
   assert.match(result.stdout, /Expanded handoff: npm run oaf -- context handoff --read-only --from codex --root \. --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary/);
   assert.match(result.stdout, /Skill menu: npm run oaf -- skill catalog --read-only --root \. --format summary/);
   assert.match(result.stdout, /Issue\/PR queue instructions: docs\/agents\/issue-tracker\.md/);
   assert.equal(result.stdout.includes('Next task: OAF-030'), false);
 });
 
+test('packaged status prints installed oaf commands outside the source checkout', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-status-installed-'));
+  writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'consumer-project' }));
+  const result = spawnSync(process.execPath, [cliPath, 'status'], { cwd: root, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /First safe handoff: oaf handoff/);
+  assert.match(result.stdout, /Measure token saver: oaf token-saver/);
+  assert.match(result.stdout, /Expanded handoff: oaf context handoff --read-only/);
+  assert.match(result.stdout, /Skill menu: available when this repository has a skills\/ directory\./);
+  assert.doesNotMatch(result.stdout, /npm run handoff:safe/);
+  assert.doesNotMatch(result.stdout, /npm run oaf --/);
+  assert.doesNotMatch(result.stdout, /Skill menu: oaf skill catalog/);
+});
+
 test('first safe handoff has a package script', () => {
   assert.equal(
     packageJson.scripts['handoff:safe'],
-    'npm --silent run oaf -- context handoff --read-only --from codex --root . --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary'
+    'npm --silent run oaf -- handoff'
   );
+  assert.equal(packageJson.scripts['token-saver'], 'npm --silent run oaf -- token-saver');
 });
 
 test('bootstrap output only points to task command conditionally', () => {

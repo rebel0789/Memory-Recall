@@ -1421,6 +1421,7 @@ export class SQLiteMemoryProvider {
         workspaceId: proposal.workspaceId,
         sourceLocator: proposal.sourceLocator,
         sourceHash: proposal.sourceHash,
+        fingerprint: proposal.fingerprint,
         payload: {
           kind: 'fact',
           scope: proposal.payload.scope,
@@ -1527,6 +1528,11 @@ export class SQLiteMemoryProvider {
     if (!FINGERPRINT_PATTERN.test(fingerprint)) throw new Error('fingerprint must be a 64 character hex string');
     const id = input.id ?? prefixedId('mpq');
     if (!QUEUE_ID_PATTERN.test(id)) throw new Error('queue id must be a safe mpq_ identifier');
+    const existingById = rowToQueueRecord(this.database.prepare('SELECT * FROM memory_proposal_queue WHERE id = ?').get(id));
+    if (existingById) {
+      if (existingById.workspaceId !== workspaceId) throw new Error('memory proposal id collision across workspaces');
+      return existingById;
+    }
     const now = this.clock();
     const values = {
       id,

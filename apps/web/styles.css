@@ -112,6 +112,14 @@ code,dd,.meta-row span,.reason{overflow-wrap:anywhere;word-break:break-word}
 .primary-flow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:var(--space-20,20px);align-items:end}
 .primary-flow h2{font-size:26px;line-height:1.12;margin:0}
 .primary-flow p{color:var(--slate);max-width:var(--layout-prose)}
+.consumer-start{align-items:stretch}
+.auth-start{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.9fr);gap:var(--space-20,20px)}
+.auth-start h2{margin:0}
+.consumer-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-10,10px)}
+.consumer-actions a{border:1px solid var(--border);border-radius:var(--radius-control);background:var(--surface-2);padding:var(--space-14,14px);min-height:88px;align-items:start;justify-content:start;display:grid;gap:var(--space-6,6px);color:var(--paper)}
+.consumer-actions a:hover{background:var(--surface-3);text-decoration:none}
+.consumer-actions strong{font-size:16px;line-height:1.2}
+.consumer-actions span{color:var(--slate);font-size:13px;line-height:1.35}
 .flow-mini,.guide-steps{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-8)}
 .flow-mini li,.guide-steps li{border-top:1px solid var(--border);padding-top:var(--space-8);display:grid;grid-template-columns:30px 1fr;gap:var(--space-8);align-items:center}
 .flow-mini strong,.guide-steps strong{width:26px;height:26px;border-radius:999px;background:var(--surface-3);display:grid;place-items:center;color:var(--signal);font-size:12px}
@@ -318,6 +326,8 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .memory-graph-toolbar{grid-template-columns:1fr 1fr}
   .memory-graph-toolbar .button,.memory-graph-search{grid-column:1/-1}
   .primary-flow{grid-template-columns:1fr}
+  .auth-start{grid-template-columns:1fr}
+  .consumer-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
   .first-handoff-guide{grid-template-columns:1fr}
   .fabric-node-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
   .fabric-scoreboard{grid-template-columns:repeat(5,minmax(0,1fr))}
@@ -327,9 +337,9 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
 }
 
 @media(max-width:700px){
-  .app-shell{display:block}
+  .app-shell{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;height:100dvh;min-height:100dvh;overflow:hidden}
   .sidebar{display:none}
-  main{padding:var(--space-18,18px) var(--space-14,14px) 104px}
+  main{grid-column:1;grid-row:1;min-height:0;overflow:auto;padding:var(--space-18,18px) var(--space-14,14px)}
   h1{font-size:32px}
   .topbar{flex-direction:column}
   .top-actions{width:100%}
@@ -349,6 +359,10 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .summary-list{grid-template-columns:1fr}
   .diff-grid,.evidence-columns{grid-template-columns:1fr}
   .fabric-node-grid,.flow-steps{grid-template-columns:1fr}
+  .consumer-actions{grid-template-columns:1fr}
+  .auth-start .consumer-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .auth-start .consumer-actions a{min-height:64px;padding:var(--space-12)}
+  .auth-start .consumer-actions span{display:none}
   .guide-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
   .guide-steps li{grid-template-columns:1fr;align-content:start}
   .fabric-scoreboard{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -358,7 +372,7 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .fabric-links li{grid-template-columns:1fr;gap:4px}
   .fabric-links strong{text-align:left}
   .fabric-links strong:before,.fabric-links strong:after{display:none}
-  .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;max-width:100vw;overflow-x:auto;overflow-y:hidden;border-top:1px solid var(--border);background:var(--surface);padding:var(--space-8);contain:layout}
+  .bottom-nav{grid-column:1;grid-row:2;align-self:end;position:static;z-index:30;display:flex;max-width:100vw;overflow-x:auto;overflow-y:hidden;border-top:1px solid var(--border);background:var(--surface);padding:var(--space-8);contain:layout}
   .bottom-nav a{flex:0 0 74px;display:grid;justify-items:center;gap:2px;padding:6px;min-height:56px;font-size:12px}
   .bottom-nav .nav-code{width:24px;height:24px}
 }

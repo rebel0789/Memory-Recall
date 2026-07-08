@@ -197,13 +197,31 @@ test('user-selected context rejects path escapes and local state roots', async (
 
 test('skips oversized AGENTS.md with a sanitized workspace locator', async () => {
   const root = await workspace();
-  await writeFile(path.join(root, 'AGENTS.md'), 'x'.repeat(70_000));
+  const body = 'x'.repeat(70_000);
+  await writeFile(path.join(root, 'AGENTS.md'), body);
 
   const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', maxBytes: 1024, clock: fixedClock });
 
   assert.equal(report.summary.totalAccepted, 0);
   assert.equal(report.summary.totalSkipped, 1);
-  assert.deepEqual(report.skipped, [{ harness: 'codex', locator: 'workspace://AGENTS.md', reason: 'oversized' }]);
+  assert.deepEqual(report.skipped, [{ harness: 'codex', locator: 'workspace://AGENTS.md', reason: 'oversized', contentHash: sha256Ref(body), byteSize: 70_000 }]);
+});
+
+test('oversized skipped source omits content hash after secret redaction', async () => {
+  const root = await workspace();
+  const rawBody = `${'x'.repeat(70_000)}\nAPI_KEY=oversized-secret-value\nRead /Users/rebel/private.txt`;
+  await writeFile(path.join(root, 'AGENTS.md'), rawBody);
+
+  const report = await scanHarnessContext({ root, harnesses: ['codex'], workspaceId: 'ws_local', maxBytes: 1024, clock: fixedClock });
+  const rawHash = sha256Ref(rawBody);
+
+  assert.equal(report.summary.totalAccepted, 0);
+  assert.equal(report.summary.totalSkipped, 1);
+  assert.deepEqual(report.skipped, [{ harness: 'codex', locator: 'workspace://AGENTS.md', reason: 'oversized', byteSize: Buffer.byteLength(rawBody, 'utf8') }]);
+  const serialized = JSON.stringify(report);
+  assert.equal(serialized.includes(rawHash), false);
+  assert.equal(serialized.includes('oversized-secret-value'), false);
+  assert.equal(serialized.includes('/Users/rebel/private.txt'), false);
 });
 
 test('skips symlink AGENTS.md that escapes the workspace without exposing outside body', async () => {

@@ -12,6 +12,8 @@ node_modules/
 output/
 docs/research/
 docs/superpowers/
+adapters/**/README.md
+adapters/**/UPSTREAM.lock
 .env
 *.log
 *.zip

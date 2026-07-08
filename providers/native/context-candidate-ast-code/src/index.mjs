@@ -718,7 +718,7 @@ export function searchSourceGraph(graph, {
     offset: boundedOffset,
     hasMore: boundedOffset + boundedLimit < sorted.length,
     omittedCount: Math.max(0, sorted.length - boundedOffset - page.length),
-    results: page.map((item) => Object.freeze({ ...item, score: Number(item.score.toFixed(6)) }))
+    results: page.map((item) => Object.freeze(withDefined({ ...item, score: Number(item.score.toFixed(6)) })))
   });
 }
 
@@ -797,6 +797,10 @@ export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 
   const boundedLimit = boundedInteger(limit, 'source_graph_diff_limit', 1, 500);
   const changed = new Set(changedLocators.map(fileLocatorFor));
   const startNodes = graph.nodes.filter((node) => node.kind === 'file' && changed.has(node.locator));
+  const sameFileSymbolNodes = graph.nodes
+    .filter((node) => node.kind === 'symbol' && changed.has(fileLocatorFor(node.locator)))
+    .sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
+  const seedNodes = [...startNodes, ...sameFileSymbolNodes].slice(0, boundedLimit);
   const representedChangedLocators = startNodes.map((node) => node.locator).sort();
   const adjacency = new Map();
   for (const edge of graph.edges) {
@@ -808,9 +812,9 @@ export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 
     adjacency.set(edge.toNodeId, toValues);
   }
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const impactedNodes = new Set(startNodes.map((node) => node.id));
+  const impactedNodes = new Set(seedNodes.map((node) => node.id));
   const impactedEdges = new Set();
-  const queue = startNodes.map((node) => ({ nodeId: node.id, depth: 0 }));
+  const queue = startNodes.filter((node) => impactedNodes.has(node.id)).map((node) => ({ nodeId: node.id, depth: 0 }));
   while (queue.length && impactedNodes.size < boundedLimit) {
     const item = queue.shift();
     if (item.depth >= boundedDepth) continue;
