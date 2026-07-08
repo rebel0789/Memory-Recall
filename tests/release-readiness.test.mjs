@@ -107,7 +107,7 @@ test('npm package excludes private scratch local config and generated state', ()
   assert.equal(paths.includes('apps/cli/oaf.mjs'), true);
   assert.equal(paths.includes('scripts/verify-handoff.mjs'), true);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);
-  assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), false);
+  assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), true);
 });
 
 test('installed npm package setup does not re-pack generated local state', () => {

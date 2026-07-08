@@ -163,11 +163,30 @@ async function readBoundedFile(file, limit, code) {
 }
 
 function validateSchemaSubset(schema, label) {
+  const disallowed = findDisallowedToolSchemaKeyword(schema);
+  if (disallowed) throw toolError('tool_manifest_invalid', `${label} uses unsupported JSON Schema keyword`);
   try {
     validateJsonSchema(schema, {});
   } catch (error) {
     if (error.code === 'unsupported_schema_keyword') throw toolError('tool_manifest_invalid', `${label} uses unsupported JSON Schema keyword`);
   }
+}
+
+function findDisallowedToolSchemaKeyword(schema) {
+  if (!schema || typeof schema !== 'object') return null;
+  if (Array.isArray(schema)) {
+    for (const item of schema) {
+      const found = findDisallowedToolSchemaKeyword(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if ('oneOf' in schema) return 'oneOf';
+  for (const value of Object.values(schema)) {
+    const found = findDisallowedToolSchemaKeyword(value);
+    if (found) return found;
+  }
+  return null;
 }
 
 function validateFilesystemShape(value, label) {

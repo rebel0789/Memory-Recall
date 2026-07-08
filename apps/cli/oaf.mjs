@@ -7405,6 +7405,7 @@ function buildContextPackAllShardsMeasurementReportFromReports(reports) {
       deliveredUnitCount,
       savedUnitCount,
       reductionRatio: baselineUnitCount > 0 ? Number((savedUnitCount / baselineUnitCount).toFixed(6)) : 0,
+      selectedUnitCount: sumReports(reports, (report) => report.tokenSaver.selectedUnitCount),
       changedSourceUnitCount: sumReports(reports, (report) => report.tokenSaver.changedSourceUnitCount),
       changedSourceUnitCountIncluded: sumReports(reports, (report) => report.tokenSaver.changedSourceUnitCountIncluded),
       sourceContentIncluded: reports.some((report) => report.tokenSaver.sourceContentIncluded === true),
@@ -7419,16 +7420,26 @@ function buildContextPackAllShardsMeasurementReportFromReports(reports) {
     })),
     safeguards: {
       readOnly: reports.every((report) => report.safeguards.readOnly === true),
+      canonicalStateMutated: reports.some((report) => report.safeguards.canonicalStateMutated === true),
       localFilesWritten: sumReports(reports, (report) => report.safeguards.localFilesWritten),
+      externalWritesEnabled: reports.some((report) => report.safeguards.externalWritesEnabled === true),
+      externalAdaptersEnabled: sumReports(reports, (report) => report.safeguards.externalAdaptersEnabled),
       networkCalls: sumReports(reports, (report) => report.safeguards.networkCalls),
       modelCalls: sumReports(reports, (report) => report.safeguards.modelCalls),
-      externalWritesEnabled: reports.some((report) => report.safeguards.externalWritesEnabled === true),
+      activeMemoryCreated: sumReports(reports, (report) => report.safeguards.activeMemoryCreated),
+      sourceSnapshotsWritten: sumReports(reports, (report) => report.safeguards.sourceSnapshotsWritten),
+      privateBodiesIncluded: reports.some((report) => report.safeguards.privateBodiesIncluded === true),
+      objectiveTextIncluded: reports.some((report) => report.safeguards.objectiveTextIncluded === true),
+      stepTextIncluded: reports.some((report) => report.safeguards.stepTextIncluded === true),
+      markdownBodyIncluded: reports.some((report) => report.safeguards.markdownBodyIncluded === true),
       sourceContentIncluded: reports.some((report) => report.safeguards.sourceContentIncluded === true),
+      absoluteFilesystemLocationsIncluded: reports.some((report) => report.safeguards.absoluteFilesystemLocationsIncluded === true),
       productionBenchmarkClaimed: false
     },
     reportFingerprint: 'sha256:0000000000000000000000000000000000000000000000000000000000000000'
   };
   report.reportFingerprint = fingerprintJson({ ...report, reportFingerprint: null });
+  assertJsonSchema(contextPackMeasurementReportSchema, report, 'context-pack all-shards measurement report');
   return report;
 }
 
