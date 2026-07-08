@@ -205,6 +205,7 @@ test('release readiness SBOM and provenance preserve disabled adapters and local
   assert.equal(provenance.sourcePolicy.finalProductPublicationRequiresHumanApproval, true);
   assert.equal(provenance.sourcePolicy.mergePerformedByThisTask, false);
   assert.equal(provenance.generatedFiles.includes('1.0-READINESS-REPORT.md'), true);
+  assert.equal(provenance.generatedFiles.includes('1.0-MARKETPLACE-MANIFEST.json'), true);
 });
 
 test('release readiness quality snapshot matches current release evidence', async () => {
@@ -223,7 +224,7 @@ test('release readiness quality snapshot matches current release evidence', asyn
   assert.match(report, /\| Source checkout \| local-ready reference \|/);
   assert.match(report, /\| npm package tarball \| publish-ready install path \|/);
   assert.match(report, /\| npm registry \| ready; not published \|/);
-  assert.match(report, /\| Marketplace \/ plugin registry \| pending target registry \|/);
+  assert.match(report, /\| Marketplace \/ plugin registry \| manifest prepared; not submitted \|/);
   assert.match(report, /\| Client hooks \| opt-in local writer with dry-run default \|/);
   assert.match(report, /`connect --dry-run` previews; `connect --yes` writes fixed Codex\/Claude read-only entries with backups/);
   assert.match(report, /npm run consumer:smoke/);
@@ -235,6 +236,22 @@ test('release readiness quality snapshot matches current release evidence', asyn
   const checklist = artifacts.files['1.0-RELEASE-CHECKLIST.md'];
   assert.match(checklist, /Consumer-simple gates are runnable with `npm run consumer:smoke`: temp HOME install proof, real MCP client smoke, local web\/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene/);
   assert.match(checklist, /Optional rendered browser proof is runnable with `npm run consumer:browser-smoke`: Playwright-driven bootstrap, Connect, Token Saver, Add Memory, Memory Graph temporal history, Repo Map, console-error, and mobile overflow checks against a temp workspace/);
+});
+
+test('marketplace manifest is prepared without claiming submission', async () => {
+  const artifacts = await buildReleaseReadinessArtifacts(process.cwd());
+  const manifest = JSON.parse(artifacts.files['1.0-MARKETPLACE-MANIFEST.json']);
+
+  assert.equal(manifest.status, 'prepared-not-submitted');
+  assert.equal(manifest.package.name, 'open-agent-fabric');
+  assert.equal(manifest.package.version, '1.0.0');
+  assert.equal(manifest.package.install, 'npm install -g open-agent-fabric');
+  assert.deepEqual(manifest.package.bins, ['oaf']);
+  assert.equal(manifest.safeguards.networkDefault, 'deny');
+  assert.equal(manifest.safeguards.externalWrites, false);
+  assert.equal(manifest.safeguards.externalAdaptersEnabledByDefault, false);
+  assert.equal(manifest.submissionBlockers.includes('npm package URL after publication'), true);
+  assert.equal(manifest.submissionBlockers.includes('target marketplace manifest requirements'), true);
 });
 
 test('release readiness preserves package license and adapter checksum evidence', async () => {

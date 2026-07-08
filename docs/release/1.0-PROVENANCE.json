@@ -23,7 +23,7 @@
   "sourceHashes": {
     "package.json": "sha256:bd6d983e10372959e63a0cfe2e148a62ba23e4039be33b8a4d502417fff47a47",
     "package-lock.json": "sha256:6a1a5b53b0e8e39e9711f9ff6f58a38b892bd756533e8a5a4229cd88716627e3",
-    "PROJECT_STATUS.json": "sha256:16229207387d7935a763dcc3d6300415459f1cd48dcbe7202e87b2dc6e3fd0ec",
+    "PROJECT_STATUS.json": "sha256:edf3dd5993d5ac19db0de79fff778439ed1cb7e4dc25c1688296639fcc255468",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
     "THIRD_PARTY.md": "sha256:adbbffba498346ac25ff8f064db76ae93543d3c1990d37f1137d9122f0742dd7",
@@ -33,6 +33,7 @@
   "generatedFiles": [
     "1.0-ADAPTER-CERTIFICATION.md",
     "1.0-COMPATIBILITY-MATRIX.md",
+    "1.0-MARKETPLACE-MANIFEST.json",
     "1.0-NORTH-STAR-GAP-AUDIT.md",
     "1.0-PROVENANCE.json",
     "1.0-READINESS-REPORT.md",

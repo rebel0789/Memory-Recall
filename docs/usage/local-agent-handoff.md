@@ -68,8 +68,9 @@ npm run oaf -- verify
 
 These are local wrappers for the existing bootstrap and handoff verification
 gates. The package metadata is npm-ready; registry publication still requires
-maintainer npm authentication and explicit approval. Marketplace distribution
-follows after a published npm URL and target registry requirements are known.
+maintainer npm authentication and explicit approval. The marketplace manifest is
+prepared, but submission still needs a published npm URL and target registry
+requirements.
 For the fully expanded source-checkout path:
 
 `oaf setup` is checkout bootstrap, not harness wiring. Use browser **Preview

@@ -12,6 +12,7 @@ const releaseFiles = [
   '1.0-REPRODUCIBILITY.md',
   '1.0-ADAPTER-CERTIFICATION.md',
   '1.0-THIRD-PARTY-NOTICE-REVIEW.md',
+  '1.0-MARKETPLACE-MANIFEST.json',
   '1.0-RELEASE-CHECKLIST.md',
   '1.0-SBOM.json',
   '1.0-PROVENANCE.json'
@@ -233,6 +234,41 @@ function buildSbom(evidence, packages, providers, adapters) {
   };
 }
 
+function buildMarketplaceManifest(evidence) {
+  return {
+    schemaVersion: '1.0.0',
+    manifestKind: 'oaf-marketplace-submission',
+    status: 'prepared-not-submitted',
+    name: 'Open Agent Fabric',
+    package: {
+      registry: 'npm',
+      name: evidence.project,
+      version: evidence.version,
+      install: 'npm install -g open-agent-fabric',
+      bins: ['oaf']
+    },
+    submissionBlockers: [
+      'npm package URL after publication',
+      'target marketplace manifest requirements',
+      'maintainer approval for submission'
+    ],
+    capabilities: [
+      'local-first agent handoff',
+      'context pack measurement',
+      'read-only MCP resources',
+      'proposal-gated memory',
+      'source graph preview'
+    ],
+    safeguards: {
+      networkDefault: evidence.defaults.network,
+      externalWrites: evidence.defaults.externalWrites,
+      modelMode: evidence.defaults.modelMode,
+      externalAdaptersEnabledByDefault: false,
+      writeToolsEnabledByDefault: false
+    }
+  };
+}
+
 async function buildProvenance(root, evidence, files, outputs) {
   const sourceHashes = {};
   for (const relative of ['package.json', 'package-lock.json', 'PROJECT_STATUS.json', 'planning/backlog.json', 'adapters/catalog.json', 'THIRD_PARTY.md', 'SECURITY.md', 'GOVERNANCE.md']) {
@@ -270,7 +306,7 @@ function distributionStateTable() {
     ['Source checkout', 'local-ready reference', '`npm run bootstrap`, `npm run verify:handoff`, `npm run ci`'],
     ['npm package tarball', 'publish-ready install path', '`npm pack` tarball installs the `oaf` bin; package metadata is public-publish ready'],
     ['npm registry', 'ready; not published', 'Package name is available; `npm publish --access public` requires maintainer npm auth and explicit approval'],
-    ['Marketplace / plugin registry', 'pending target registry', 'Prepare submission after npm URL and target registry manifest requirements are known'],
+    ['Marketplace / plugin registry', 'manifest prepared; not submitted', '`docs/release/1.0-MARKETPLACE-MANIFEST.json` is ready to adapt after npm URL and target registry requirements are known'],
     ['Client hooks', 'opt-in local writer with dry-run default', '`connect --dry-run` previews; `connect --yes` writes fixed Codex/Claude read-only entries with backups']
   ]);
 }
@@ -320,7 +356,7 @@ ${markdownList(evidence.optionalCommands.map((command) => `\`${command}\``))}
 ## Release Decision
 
 - Product 1.0 publication requires human approval.
-- Marketplace or plugin registry submission requires an npm package URL and target registry manifest requirements.
+- Marketplace or plugin registry submission has a prepared manifest; submission still requires an npm package URL, target registry requirements, and human approval.
 - Signing requires a protected maintainer environment; no signing key is stored in this repository.
 - External adapters remain disabled by default.
 - External publishing remains disabled.
@@ -544,6 +580,7 @@ export async function buildReleaseReadinessArtifacts(root = process.cwd()) {
 
   const outputNames = [...releaseFiles].sort();
   const sbom = buildSbom(evidence, packages, providers, adapters);
+  const marketplaceManifest = buildMarketplaceManifest(evidence);
   const provenance = await buildProvenance(root, evidence, files, outputNames);
 
   return {
@@ -557,6 +594,7 @@ export async function buildReleaseReadinessArtifacts(root = process.cwd()) {
       '1.0-REPRODUCIBILITY.md': reproducibility(evidence),
       '1.0-ADAPTER-CERTIFICATION.md': adapterCertification(adapters),
       '1.0-THIRD-PARTY-NOTICE-REVIEW.md': thirdPartyReview(adapters),
+      '1.0-MARKETPLACE-MANIFEST.json': `${JSON.stringify(marketplaceManifest, null, 2)}\n`,
       '1.0-RELEASE-CHECKLIST.md': releaseChecklist(summary),
       '1.0-SBOM.json': `${JSON.stringify(sbom, null, 2)}\n`,
       '1.0-PROVENANCE.json': `${JSON.stringify(provenance, null, 2)}\n`
