@@ -130,7 +130,7 @@ capability status and limitations.
 
 Requirement: Node.js 22 or newer.
 
-Registry install after publication:
+Registry install:
 
 ```bash
 npm install -g memory-recall
@@ -141,11 +141,11 @@ recall hook install --agent codex --dry-run --format json
 recall hook install --agent claude-code --dry-run --format json
 ```
 
-Local package path, before publication or when testing this checkout:
+Local package path, when testing this checkout:
 
 ```bash
 npm pack
-npm install -g ./memory-recall-1.0.0.tgz
+npm install -g ./memory-recall-1.0.1.tgz
 recall setup
 recall verify
 recall connect codex --dry-run --format json
@@ -168,9 +168,9 @@ verification gate. `connect --dry-run` previews the read-only MCP and hook
 setup. `connect --yes` is the narrow opt-in writer for Codex and Claude Code
 home config; it creates backups and receipts and can be undone with
 `disconnect --yes`. Hook install/uninstall commands remain dry-run receipt and
-manual-snippet commands. The package is npm-ready but publication still requires
-maintainer approval and npm authentication; the marketplace manifest is prepared,
-but submission still needs a published npm URL and target registry requirements.
+manual-snippet commands. The package is live on npm; future patch releases still
+require maintainer approval and npm authentication. The marketplace manifest is
+prepared, but submission still needs target registry requirements.
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
@@ -411,12 +411,12 @@ Read:
 
 ## Status
 
-Development kit: **1.0.0**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.
+Development kit: **1.0.1**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.
 
 | Surface | Status |
 | --- | --- |
 | Source checkout | Local-ready reference path |
 | npm package tarball | Publish-ready install path |
-| npm registry | Ready; not published |
+| npm registry | Published |
 | Marketplace / plugin registry | Manifest prepared; not submitted |
 | Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |

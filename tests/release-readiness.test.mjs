@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { buildReleaseReadinessArtifacts, verifyReleaseReadinessArtifacts } from '../packages/release-readiness/src/index.mjs';
+import packageJson from '../package.json' with { type: 'json' };
 
 async function countDeclaredNodeTests() {
   const testFiles = (await readdir('tests')).filter((file) => file.endsWith('.test.mjs')).sort();
@@ -26,7 +27,7 @@ test('release readiness artifacts are generated and checked in without drift', a
   assert.deepEqual(unexpectedDrift, []);
   if (existsSync('.git')) assert.deepEqual(result.drift, []);
   assert.equal(result.placeholderResult.passed, true);
-  assert.equal(result.summary.publicationStatus, 'npm-ready-not-published');
+  assert.equal(result.summary.publicationStatus, 'npm-published');
   assert.equal(result.summary.finalMergeStatus, 'merged-to-main');
   assert.equal(result.summary.humanApprovalRequired, true);
 });
@@ -226,8 +227,8 @@ test('release readiness quality snapshot matches current release evidence', asyn
   assert.match(report, /Counts are a dated snapshot; command results and HANDOFF_VERIFICATION\.json are authoritative\./);
   assert.match(report, /\| Source checkout \| local-ready reference \|/);
   assert.match(report, /\| npm package tarball \| publish-ready install path \|/);
-  assert.match(report, /\| npm registry \| ready; not published \|/);
-  assert.match(report, /\.github\/workflows\/npm-publish\.yml/);
+  assert.match(report, /\| npm registry \| published \|/);
+  assert.match(report, /patch releases still require maintainer npm auth and explicit approval/);
   assert.match(report, /\| Marketplace \/ plugin registry \| manifest prepared; not submitted \|/);
   assert.match(report, /\| Client hooks \| opt-in local writer with dry-run default \|/);
   assert.match(report, /`connect --dry-run` previews; `connect --yes` writes fixed Codex\/Claude read-only entries with backups/);
@@ -249,13 +250,14 @@ test('marketplace manifest is prepared without claiming submission', async () =>
 
   assert.equal(manifest.status, 'prepared-not-submitted');
   assert.equal(manifest.package.name, 'memory-recall');
-  assert.equal(manifest.package.version, '1.0.0');
+  assert.equal(manifest.package.version, packageJson.version);
   assert.equal(manifest.package.install, 'npm install -g memory-recall');
+  assert.equal(manifest.package.url, `https://www.npmjs.com/package/memory-recall/v/${packageJson.version}`);
   assert.deepEqual(manifest.package.bins, ['recall', 'oaf']);
   assert.equal(manifest.safeguards.networkDefault, 'deny');
   assert.equal(manifest.safeguards.externalWrites, false);
   assert.equal(manifest.safeguards.externalAdaptersEnabledByDefault, false);
-  assert.equal(manifest.submissionBlockers.includes('npm package URL after publication'), true);
+  assert.equal(manifest.submissionBlockers.includes('npm package URL after publication'), false);
   assert.equal(manifest.submissionBlockers.includes('target marketplace manifest requirements'), true);
 });
 

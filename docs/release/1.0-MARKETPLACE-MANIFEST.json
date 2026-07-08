@@ -6,15 +6,15 @@
   "package": {
     "registry": "npm",
     "name": "memory-recall",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "install": "npm install -g memory-recall",
+    "url": "https://www.npmjs.com/package/memory-recall/v/1.0.1",
     "bins": [
       "recall",
       "oaf"
     ]
   },
   "submissionBlockers": [
-    "npm package URL after publication",
     "target marketplace manifest requirements",
     "maintainer approval for submission"
   ],

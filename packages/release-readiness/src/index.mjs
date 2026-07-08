@@ -201,7 +201,7 @@ function releaseReadinessSummary(evidence, adapters, placeholderResult) {
   const enabledAdapters = adapters.filter((adapter) => adapter.enabledByDefault);
   return {
     status: 'release-candidate-ready-for-human-approval',
-    publicationStatus: 'npm-ready-not-published',
+    publicationStatus: 'npm-published',
     finalMergeStatus: 'merged-to-main',
     humanApprovalRequired: true,
     signing: {
@@ -245,10 +245,10 @@ function buildMarketplaceManifest(evidence) {
       name: evidence.project,
       version: evidence.version,
       install: `npm install -g ${evidence.project}`,
+      url: `https://www.npmjs.com/package/${evidence.project}/v/${evidence.version}`,
       bins: ['recall', 'oaf']
     },
     submissionBlockers: [
-      'npm package URL after publication',
       'target marketplace manifest requirements',
       'maintainer approval for submission'
     ],
@@ -305,8 +305,8 @@ function distributionStateTable() {
   return table(['Surface', 'Status', 'Evidence'], [
     ['Source checkout', 'local-ready reference', '`npm run bootstrap`, `npm run verify:handoff`, `npm run ci`'],
     ['npm package tarball', 'publish-ready install path', '`npm pack` tarball installs the `recall` and `oaf` bins; package metadata is public-publish ready'],
-    ['npm registry', 'ready; not published', 'Package name is available; `.github/workflows/npm-publish.yml` is manual-only and still requires maintainer npm auth and explicit approval'],
-    ['Marketplace / plugin registry', 'manifest prepared; not submitted', '`docs/release/1.0-MARKETPLACE-MANIFEST.json` is ready to adapt after npm URL and target registry requirements are known'],
+    ['npm registry', 'published', '`memory-recall` is live on npm; patch releases still require maintainer npm auth and explicit approval'],
+    ['Marketplace / plugin registry', 'manifest prepared; not submitted', '`docs/release/1.0-MARKETPLACE-MANIFEST.json` is ready to adapt after target registry requirements are known'],
     ['Client hooks', 'opt-in local writer with dry-run default', '`connect --dry-run` previews; `connect --yes` writes fixed Codex/Claude read-only entries with backups']
   ]);
 }
@@ -322,7 +322,7 @@ function readinessReport(evidence, summary) {
 
 Status: ${summary.status}
 
-Publication state: ${summary.publicationStatus}. The release-candidate branch is merged to main, npm metadata is publish-ready, and publication still requires explicit maintainer approval.
+Publication state: ${summary.publicationStatus}. The release-candidate branch is merged to main, npm metadata is publish-ready, and each new npm version still requires explicit maintainer approval.
 
 ## Distribution State
 
@@ -355,8 +355,8 @@ ${markdownList(evidence.optionalCommands.map((command) => `\`${command}\``))}
 
 ## Release Decision
 
-- Product 1.0 publication requires human approval.
-- Marketplace or plugin registry submission has a prepared manifest; submission still requires an npm package URL, target registry requirements, and human approval.
+- Product publication remains maintainer-approved per npm version.
+- Marketplace or plugin registry submission has a prepared manifest; submission still requires target registry requirements and human approval.
 - Signing requires a protected maintainer environment; no signing key is stored in this repository.
 - npm publication is manual-only through the protected \`npm-release\` environment or a local maintainer shell.
 - External adapters remain disabled by default.
