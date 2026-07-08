@@ -224,6 +224,7 @@ test('release readiness quality snapshot matches current release evidence', asyn
   assert.match(report, /\| Source checkout \| local-ready reference \|/);
   assert.match(report, /\| npm package tarball \| publish-ready install path \|/);
   assert.match(report, /\| npm registry \| ready; not published \|/);
+  assert.match(report, /\.github\/workflows\/npm-publish\.yml/);
   assert.match(report, /\| Marketplace \/ plugin registry \| manifest prepared; not submitted \|/);
   assert.match(report, /\| Client hooks \| opt-in local writer with dry-run default \|/);
   assert.match(report, /`connect --dry-run` previews; `connect --yes` writes fixed Codex\/Claude read-only entries with backups/);
@@ -236,6 +237,7 @@ test('release readiness quality snapshot matches current release evidence', asyn
   const checklist = artifacts.files['1.0-RELEASE-CHECKLIST.md'];
   assert.match(checklist, /Consumer-simple gates are runnable with `npm run consumer:smoke`: temp HOME install proof, real MCP client smoke, local web\/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene/);
   assert.match(checklist, /Optional rendered browser proof is runnable with `npm run consumer:browser-smoke`: Playwright-driven bootstrap, Connect, Token Saver, Add Memory, Memory Graph temporal history, Repo Map, console-error, and mobile overflow checks against a temp workspace/);
+  assert.match(checklist, /Manual npm publish workflow is prepared with typed confirmation, protected environment, release gates, dry run, Trusted Publishing\/OIDC preference, and explicit token fallback/);
 });
 
 test('marketplace manifest is prepared without claiming submission', async () => {
