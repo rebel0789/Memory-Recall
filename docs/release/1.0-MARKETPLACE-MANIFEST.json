@@ -2,14 +2,14 @@
   "schemaVersion": "1.0.0",
   "manifestKind": "oaf-marketplace-submission",
   "status": "prepared-not-submitted",
-  "name": "MemoryForge",
+  "name": "Memory Recall",
   "package": {
     "registry": "npm",
-    "name": "memoryforge",
+    "name": "memory-recall",
     "version": "1.0.0",
-    "install": "npm install -g memoryforge",
+    "install": "npm install -g memory-recall",
     "bins": [
-      "forge",
+      "recall",
       "oaf"
     ]
   },

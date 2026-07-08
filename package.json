@@ -1,5 +1,5 @@
 {
-  "name": "memoryforge",
+  "name": "memory-recall",
   "version": "1.0.0",
   "type": "module",
   "description": "Local-first repo memory and context for coding agents.",
@@ -103,10 +103,9 @@
     "db:test:postgres": "node scripts/postgres-recovery-test.mjs",
     "manifest": "node scripts/generate-manifest.mjs",
     "status": "node scripts/status.mjs",
-    "handoff:safe": "npm --silent run forge -- handoff",
-    "token-saver": "npm --silent run forge -- token-saver",
+    "handoff:safe": "npm --silent run recall -- handoff",
+    "token-saver": "npm --silent run recall -- token-saver",
     "task": "node scripts/task.mjs",
-    "forge": "node apps/cli/oaf.mjs",
     "oaf": "node apps/cli/oaf.mjs",
     "native:smoke": "node scripts/native-smoke.mjs",
     "consumer:smoke": "node scripts/consumer-smoke.mjs",
@@ -119,14 +118,15 @@
     "workflow:worker": "node scripts/workflow-worker.mjs",
     "workflow:inspect": "node scripts/workflow-inspect.mjs",
     "verify:handoff": "node scripts/verify-handoff.mjs",
-    "protocol:validate": "node scripts/validate-protocol.mjs"
+    "protocol:validate": "node scripts/validate-protocol.mjs",
+    "recall": "node apps/cli/oaf.mjs"
   },
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public"
   },
   "bin": {
-    "forge": "apps/cli/oaf.mjs",
-    "oaf": "apps/cli/oaf.mjs"
+    "oaf": "apps/cli/oaf.mjs",
+    "recall": "apps/cli/oaf.mjs"
   }
 }

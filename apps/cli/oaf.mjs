@@ -9124,15 +9124,15 @@ function isHelpCommand(value) {
 }
 
 function helpCommandName() {
-  if (process.env.npm_lifecycle_event === 'forge') return 'forge';
-  return path.basename(process.argv[1] ?? '') === 'forge' ? 'forge' : 'oaf';
+  if (process.env.npm_lifecycle_event === 'recall') return 'recall';
+  return path.basename(process.argv[1] ?? '') === 'recall' ? 'recall' : 'oaf';
 }
 
 function renderHelpText(text) {
   const command = helpCommandName();
   if (command === 'oaf') return text;
   return text
-    .replaceAll('Open Agent Fabric CLI', 'MemoryForge CLI')
+    .replaceAll('Open Agent Fabric CLI', 'Memory Recall CLI')
     .replace(
       /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|handoff|token-saver|context|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
       `${command} `

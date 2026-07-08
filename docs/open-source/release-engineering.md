@@ -22,7 +22,7 @@ external writes.
 
 `.github/workflows/npm-publish.yml` is the maintainer publication lane for the
 public npm package. It is manual-only (`workflow_dispatch`), requires the exact
-`publish memoryforge@VERSION` confirmation text, runs CI, native smoke,
+`publish memory-recall@VERSION` confirmation text, runs CI, native smoke,
 consumer smoke, release-readiness verification, and an npm publish dry run before
 the real publish step, and uses the protected `npm-release` environment.
 

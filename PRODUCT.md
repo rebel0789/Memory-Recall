@@ -2,7 +2,7 @@
 
 ## Public name
 
-**MemoryForge** is the public name. Architecture and internal package contracts
+**Memory Recall** is the public name. Architecture and internal package contracts
 must not depend on the marketing name; existing OAF identifiers remain
 compatibility/internal IDs until a planned migration needs them.
 
