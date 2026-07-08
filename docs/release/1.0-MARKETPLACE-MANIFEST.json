@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "manifestKind": "oaf-marketplace-submission",
+  "status": "prepared-not-submitted",
+  "name": "Open Agent Fabric",
+  "package": {
+    "registry": "npm",
+    "name": "open-agent-fabric",
+    "version": "1.0.0",
+    "install": "npm install -g open-agent-fabric",
+    "bins": [
+      "oaf"
+    ]
+  },
+  "submissionBlockers": [
+    "npm package URL after publication",
+    "target marketplace manifest requirements",
+    "maintainer approval for submission"
+  ],
+  "capabilities": [
+    "local-first agent handoff",
+    "context pack measurement",
+    "read-only MCP resources",
+    "proposal-gated memory",
+    "source graph preview"
+  ],
+  "safeguards": {
+    "networkDefault": "deny",
+    "externalWrites": false,
+    "modelMode": "deterministic",
+    "externalAdaptersEnabledByDefault": false,
+    "writeToolsEnabledByDefault": false
+  }
+}

@@ -125,8 +125,8 @@ setup. `connect --yes` is the narrow opt-in writer for Codex and Claude Code
 home config; it creates backups and receipts and can be undone with
 `disconnect --yes`. Hook install/uninstall commands remain dry-run receipt and
 manual-snippet commands. The package is npm-ready but publication still requires
-maintainer approval and npm authentication; marketplace submission follows a
-published npm URL and target registry requirements.
+maintainer approval and npm authentication; the marketplace manifest is prepared,
+but submission still needs a published npm URL and target registry requirements.
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
@@ -374,5 +374,5 @@ Development kit: **1.0.0**. Run `npm run status` for the current checked-in task
 | Source checkout | Local-ready reference path |
 | npm package tarball | Publish-ready install path |
 | npm registry | Ready; not published |
-| Marketplace / plugin registry | Pending target registry |
+| Marketplace / plugin registry | Manifest prepared; not submitted |
 | Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |
