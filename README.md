@@ -1,6 +1,17 @@
 # MemoryForge
 
 <p align="center">
+  <a href="https://github.com/rebel0789/open-agent-fabric/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/rebel0789/open-agent-fabric/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/rebel0789/open-agent-fabric/actions/workflows/rust.yml"><img alt="Rust" src="https://github.com/rebel0789/open-agent-fabric/actions/workflows/rust.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/rebel0789/open-agent-fabric/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/rebel0789/open-agent-fabric/actions/workflows/codeql.yml/badge.svg?branch=main"></a>
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-0A0B0D?labelColor=56E0C4"></a>
+  <a href="package.json"><img alt="Node.js 22+" src="https://img.shields.io/badge/node-%3E%3D22-0A0B0D?labelColor=56E0C4"></a>
+  <a href="docs/release/1.0-MARKETPLACE-MANIFEST.json"><img alt="Package: memoryforge" src="https://img.shields.io/badge/package-memoryforge-0A0B0D?labelColor=56E0C4"></a>
+  <a href="docs/usage/local-agent-handoff.md"><img alt="Local-first" src="https://img.shields.io/badge/local--first-no%20API%20key-0A0B0D?labelColor=56E0C4"></a>
+  <a href="docs/architecture/protocol-bridges.md"><img alt="MCP: read-only" src="https://img.shields.io/badge/MCP-read--only-0A0B0D?labelColor=56E0C4"></a>
+</p>
+
+<p align="center">
   <img src="assets/brand/readme-card.svg" alt="MemoryForge: local repo memory and context for coding agents" width="760">
 </p>
 

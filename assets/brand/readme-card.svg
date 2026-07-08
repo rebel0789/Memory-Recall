@@ -28,6 +28,6 @@
     <text x="796" y="58" fill="#F7F7F4" font-size="42" font-weight="760">0 keys</text>
     <text x="796" y="98" fill="#CBD5E1" font-size="24">local-first by default</text>
   </g>
-  <text x="102" y="674" fill="#DDE2E8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="30">npm install -g memoryforge  &&  forge handoff</text>
+  <text x="102" y="674" fill="#DDE2E8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="30">npm install -g memoryforge  &amp;&amp;  forge handoff</text>
   <text x="102" y="716" fill="#7C8796" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="22">Measured locally. Delivery-token estimates, not provider billing claims.</text>
 </svg>
