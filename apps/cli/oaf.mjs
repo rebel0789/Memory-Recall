@@ -139,13 +139,20 @@ function contextPackValueOptions() {
   return new Set(['--root', '--workspace', '--from', '--objective', '--step', '--target', '--target-harness', '--include-file', '--changed', '--changed-locator', '--changed-from', '--changed-shard', '--token-budget', '--budget', '--format']);
 }
 
-function mergeDefaultArgs(defaults, overrides, valueOptions) {
+function contextPackOptionAliases() {
+  return new Map([
+    ['--target', '--target'],
+    ['--target-harness', '--target']
+  ]);
+}
+
+function mergeDefaultArgs(defaults, overrides, valueOptions, aliases = new Map()) {
   if (overrides.length === 0) return defaults;
-  const overridden = new Set(overrides.filter((value) => value.startsWith('--')));
+  const overridden = new Set(overrides.filter((value) => value.startsWith('--')).map((value) => aliases.get(value) ?? value));
   const merged = [];
   for (let index = 0; index < defaults.length; index += 1) {
     const value = defaults[index];
-    if (overridden.has(value)) {
+    if (overridden.has(aliases.get(value) ?? value)) {
       if (valueOptions.has(value)) index += 1;
       continue;
     }
@@ -172,9 +179,9 @@ if (!isHelpCommand(command) && args.some(isHelpCommand)) {
 } else if (command === 'context') {
   await contextCommand(args);
 } else if (command === 'handoff') {
-  await contextCommand(['handoff', ...mergeDefaultArgs(defaultHandoffArgs(), args, contextPackValueOptions())]);
+  await contextCommand(['handoff', ...mergeDefaultArgs(defaultHandoffArgs(), args, contextPackValueOptions(), contextPackOptionAliases())]);
 } else if (command === 'token-saver') {
-  await measureCommand(['context-pack', ...mergeDefaultArgs(defaultTokenSaverArgs(), args, contextPackValueOptions())]);
+  await measureCommand(['context-pack', ...mergeDefaultArgs(defaultTokenSaverArgs(), args, contextPackValueOptions(), contextPackOptionAliases())]);
 } else if (command === 'benchmark' || command === 'bench') {
   await benchmarkCommand(args);
 } else if (command === 'memory') {
