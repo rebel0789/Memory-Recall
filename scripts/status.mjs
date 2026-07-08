@@ -21,18 +21,18 @@ function nextTaskLabel(statusNextTask, tasks) {
 
 const nextTask = nextTaskLabel(status.nextTask, backlog.tasks ?? []);
 const sourceCheckout = existsSync(path.join(invokedCwd, 'package.json')) && existsSync(path.join(invokedCwd, 'apps/cli/oaf.mjs'));
-const oaf = (args) => sourceCheckout ? `npm run oaf -- ${args}` : `oaf ${args}`;
+const forge = (args) => sourceCheckout ? `npm run forge -- ${args}` : `forge ${args}`;
 
 console.log(`${status.project} ${status.release} — ${status.phase}`);
 console.log(`Next task: ${nextTask}`);
 console.log(`Defaults: network=${status.defaults.network}, externalWrites=${status.defaults.externalWrites}, model=${status.defaults.modelMode}, residency=${status.defaults.dataResidency}`);
 if (nextTask.startsWith('none ')) {
-  console.log(sourceCheckout ? 'Use OAF today: docs/usage/local-agent-handoff.md' : 'Use OAF today: build a read-only context handoff in this repository.');
-  console.log(`First safe handoff: ${sourceCheckout ? oaf('handoff') : 'oaf handoff'}`);
-  console.log(`Measure token saver: ${sourceCheckout ? oaf('token-saver') : 'oaf token-saver'}`);
-  console.log(`Expanded handoff: ${oaf('context handoff --read-only --from codex --root . --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary')}`);
-  console.log(sourceCheckout ? `Skill menu: ${oaf('skill catalog --read-only --root . --format summary')}` : 'Skill menu: available when this repository has a skills/ directory.');
-  console.log(sourceCheckout ? 'Issue/PR queue instructions: docs/agents/issue-tracker.md' : 'Issue/PR queue instructions: run from the OAF source checkout docs when maintaining OAF itself.');
+  console.log(sourceCheckout ? 'Use MemoryForge today: docs/usage/local-agent-handoff.md' : 'Use MemoryForge today: build a read-only context handoff in this repository.');
+  console.log(`First safe handoff: ${forge('handoff')}`);
+  console.log(`Measure token saver: ${forge('token-saver')}`);
+  console.log(`Expanded handoff: ${forge('context handoff --read-only --from codex --root . --objective "Ship safely" --step handoff --target codex --changed-from-git --format summary')}`);
+  console.log(sourceCheckout ? `Skill menu: ${forge('skill catalog --read-only --root . --format summary')}` : 'Skill menu: available when this repository has a skills/ directory.');
+  console.log(sourceCheckout ? 'Issue/PR queue instructions: docs/agents/issue-tracker.md' : 'Issue/PR queue instructions: run from the MemoryForge source checkout docs when maintaining MemoryForge itself.');
 }
 const groups = Map.groupBy(status.capabilities, (item) => item.status);
 for (const state of ['implemented', 'reference', 'experimental', 'specified', 'disabled', 'unsupported']) {
