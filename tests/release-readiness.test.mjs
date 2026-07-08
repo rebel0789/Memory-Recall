@@ -226,12 +226,13 @@ test('release readiness quality snapshot matches current release evidence', asyn
   assert.match(report, /\| Marketplace \/ plugin registry \| not ready \|/);
   assert.match(report, /\| Client hooks \| opt-in local writer with dry-run default \|/);
   assert.match(report, /`connect --dry-run` previews; `connect --yes` writes fixed Codex\/Claude read-only entries with backups/);
+  assert.match(report, /npm run consumer:smoke/);
   assert.match(reproducibility, /## Recorded Quality Snapshot/);
   assert.match(reproducibility, new RegExp(`\\| Tests \\| ${declaredTests} \\|`));
   assert.match(reproducibility, new RegExp(`\\| Protocol fixtures \\| ${protocolFixtures} \\|`));
 
   const checklist = artifacts.files['1.0-RELEASE-CHECKLIST.md'];
-  assert.match(checklist, /Consumer-simple gates cover temp HOME install proof, real MCP client smoke, browser smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene/);
+  assert.match(checklist, /Consumer-simple gates are runnable with `npm run consumer:smoke`: temp HOME install proof, real MCP client smoke, browser smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene/);
 });
 
 test('release readiness preserves package license and adapter checksum evidence', async () => {
