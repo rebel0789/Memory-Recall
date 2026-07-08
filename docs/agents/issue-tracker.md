@@ -1,6 +1,6 @@
 # Issue tracker: GitHub with local drafts
 
-Issues and PRDs for this repo live in GitHub Issues for `rebel0789/open-agent-fabric`. Use the `gh` CLI for canonical issue operations.
+Issues and PRDs for this repo live in GitHub Issues for `rebel0789/Memory-Recall`. Use the `gh` CLI for canonical issue operations.
 
 Local markdown under `.scratch/` may be used for offline notes, private scratch work, or draft issue/PRD shaping before publishing to GitHub. Local markdown is not the canonical tracker unless the user explicitly asks for a local-only draft.
 

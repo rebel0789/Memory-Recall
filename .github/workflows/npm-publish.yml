@@ -7,7 +7,7 @@ on:
         required: true
         type: string
       confirm:
-        description: Type publish memoryforge@VERSION
+        description: Type publish memory-recall@VERSION
         required: true
         type: string
       auth_mode:
@@ -40,7 +40,7 @@ jobs:
           INPUT_CONFIRM: ${{ inputs.confirm }}
         run: |
           ACTUAL_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).version")"
-          EXPECTED_CONFIRM="publish memoryforge@${ACTUAL_VERSION}"
+          EXPECTED_CONFIRM="publish memory-recall@${ACTUAL_VERSION}"
           if [ "$INPUT_VERSION" != "$ACTUAL_VERSION" ]; then
             echo "Input version $INPUT_VERSION does not match package.json version $ACTUAL_VERSION" >&2
             exit 1

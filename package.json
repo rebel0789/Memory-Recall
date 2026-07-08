@@ -14,12 +14,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rebel0789/open-agent-fabric.git"
+    "url": "git+https://github.com/rebel0789/Memory-Recall.git"
   },
   "bugs": {
-    "url": "https://github.com/rebel0789/open-agent-fabric/issues"
+    "url": "https://github.com/rebel0789/Memory-Recall/issues"
   },
-  "homepage": "https://github.com/rebel0789/open-agent-fabric#readme",
+  "homepage": "https://github.com/rebel0789/Memory-Recall#readme",
   "engines": {
     "node": ">=22"
   },

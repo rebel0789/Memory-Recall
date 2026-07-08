@@ -21,7 +21,7 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:63fb16ef564a37bb3ffbcfa7793d13ac71a891b28a04517c75761d8e159c3321",
+    "package.json": "sha256:e98afaa7243a36b46e705069cb0993d507c87d87209632b59b443f5aaae7a72d",
     "package-lock.json": "sha256:61852317a15ee5710ccdbdc5b06bf223cf18d183776086850d01131943cbd2da",
     "PROJECT_STATUS.json": "sha256:edf3dd5993d5ac19db0de79fff778439ed1cb7e4dc25c1688296639fcc255468",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",

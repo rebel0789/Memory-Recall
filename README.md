@@ -1,9 +1,9 @@
 # Memory Recall
 
 <p align="center">
-  <a href="https://github.com/rebel0789/open-agent-fabric/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/rebel0789/open-agent-fabric/actions/workflows/ci.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/rebel0789/open-agent-fabric/actions/workflows/rust.yml"><img alt="Rust" src="https://github.com/rebel0789/open-agent-fabric/actions/workflows/rust.yml/badge.svg?branch=main"></a>
-  <a href="https://github.com/rebel0789/open-agent-fabric/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/rebel0789/open-agent-fabric/actions/workflows/codeql.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/rebel0789/Memory-Recall/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/rebel0789/Memory-Recall/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/rebel0789/Memory-Recall/actions/workflows/rust.yml"><img alt="Rust" src="https://github.com/rebel0789/Memory-Recall/actions/workflows/rust.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/rebel0789/Memory-Recall/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/rebel0789/Memory-Recall/actions/workflows/codeql.yml/badge.svg?branch=main"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-0A0B0D?labelColor=56E0C4"></a>
   <a href="package.json"><img alt="Node.js 22+" src="https://img.shields.io/badge/node-%3E%3D22-0A0B0D?labelColor=56E0C4"></a>
   <a href="docs/release/1.0-MARKETPLACE-MANIFEST.json"><img alt="Package: memory-recall" src="https://img.shields.io/badge/package-memory-recall-0A0B0D?labelColor=56E0C4"></a>
