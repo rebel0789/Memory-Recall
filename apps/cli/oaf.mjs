@@ -7381,7 +7381,18 @@ function valuesWithChangedShard(values, shard, { includeExplicitChanged = false 
   return output;
 }
 
-function valuesWithExplicitChangedOnly(values) {
+function canonicalChangedLocatorForDedupe(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw.includes('\0') || raw.includes('\\')) return null;
+  const withoutScheme = raw.startsWith('workspace://') ? raw.slice('workspace://'.length) : raw;
+  const normalized = path.posix.normalize(withoutScheme.replace(/^\.\//u, ''));
+  const parts = normalized.split('/').filter(Boolean);
+  if (!parts.length || normalized.startsWith('../') || normalized === '..' || path.posix.isAbsolute(normalized)) return null;
+  if (parts.some((part) => part === '..')) return null;
+  return `workspace://${parts.join('/')}`;
+}
+
+function valuesWithExplicitChangedOnly(values, { excludeChangedLocators = new Set() } = {}) {
   const output = [];
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
@@ -7394,6 +7405,14 @@ function valuesWithExplicitChangedOnly(values) {
       index += 1;
       continue;
     }
+    if (EXPLICIT_CHANGED_LOCATOR_OPTIONS.has(value)) {
+      const changedLocator = values[index + 1];
+      const canonical = canonicalChangedLocatorForDedupe(changedLocator);
+      if (canonical && excludeChangedLocators.has(canonical)) {
+        index += 1;
+        continue;
+      }
+    }
     output.push(value);
   }
   return output;
@@ -7401,6 +7420,17 @@ function valuesWithExplicitChangedOnly(values) {
 
 function sumReports(reports, read) {
   return reports.reduce((total, report) => total + Number(read(report) ?? 0), 0);
+}
+
+function changedLocatorSetFromReports(reports) {
+  const locators = new Set();
+  for (const report of reports) {
+    for (const locator of report.impactBrief?.impact?.changedLocators ?? []) {
+      const canonical = canonicalChangedLocatorForDedupe(locator);
+      if (canonical) locators.add(canonical);
+    }
+  }
+  return locators;
 }
 
 function buildContextPackAllShardsMeasurementReportFromReports(reports, { gitShardCount = null, totalGitChangedLocatorCount = null } = {}) {
@@ -7486,7 +7516,12 @@ async function buildContextPackAllShardsMeasurementReport(values, { objective, s
     reports.push(await buildContextPackMeasurementReport(valuesWithChangedShard(values, shard), { objective, step }));
   }
   if (explicitChangedLocatorCount(values) > 0) {
-    reports.push(await buildContextPackMeasurementReport(valuesWithExplicitChangedOnly(values), { objective, step }));
+    const explicitOnlyValues = valuesWithExplicitChangedOnly(values, {
+      excludeChangedLocators: changedLocatorSetFromReports(reports)
+    });
+    if (explicitChangedLocatorCount(explicitOnlyValues) > 0) {
+      reports.push(await buildContextPackMeasurementReport(explicitOnlyValues, { objective, step }));
+    }
   }
   if (reports.length === 0) reports.push(first);
   return buildContextPackAllShardsMeasurementReportFromReports(reports, {

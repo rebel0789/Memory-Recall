@@ -2158,6 +2158,36 @@ test('measure context-pack all-shards JSON stays on the measurement schema',()=>
   assert.equal(report.safeguards.productionBenchmarkClaimed,false);
   assert.equal(result.stdout.includes(root),false);
 });
+test('measure context-pack all-shards de-duplicates explicit locators already detected by git',()=>{
+  const root=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-measure-all-shards-dedupe-'));
+  mkdirSync(path.join(root,'src'),{recursive:true});
+  writeFileSync(path.join(root,'package.json'),JSON.stringify({name:'all-shards-dedupe-fixture'},null,2));
+  writeFileSync(path.join(root,'AGENTS.md'),'Measure duplicate all-shards locators without inflated savings.');
+  writeFileSync(path.join(root,'src','changed.ts'),'export const changed = 1;\n');
+  const gitInit=spawnSync('git',['init'],{cwd:root,encoding:'utf8'});
+  assert.equal(gitInit.status,0,gitInit.stderr);
+  const gitAddBaseline=spawnSync('git',['add','package.json','AGENTS.md','src/changed.ts'],{cwd:root,encoding:'utf8'});
+  assert.equal(gitAddBaseline.status,0,gitAddBaseline.stderr);
+  const gitCommitBaseline=spawnSync('git',['-c','user.name=OAF Test','-c','user.email=oaf@example.invalid','commit','-m','baseline'],{cwd:root,encoding:'utf8'});
+  assert.equal(gitCommitBaseline.status,0,gitCommitBaseline.stderr);
+  writeFileSync(path.join(root,'src','changed.ts'),'export const changed = 2;\n');
+  const env={...process.env,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z',OAF_COMMIT_SHA:'abcdefabcdefabcdefabcdefabcdefabcdefabcd'};
+  const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','measure','context-pack','--read-only','--root',root,'--from','codex','--objective','Measure duplicate all-shards locator safely','--step','dedupe explicit git locator','--target','codex','--changed-from-git','--changed','./src/changed.ts','--all-shards','--format','json'],{encoding:'utf8',env});
+  assert.equal(result.status,0,result.stderr);
+  const report=JSON.parse(result.stdout);
+  assertJsonSchema(contextPackMeasurementReportSchema,report,'context pack all-shards dedupe measurement report');
+  assert.equal(report.command,'measure context-pack all-shards');
+  assert.equal(report.summary.changedLocatorShardCount,1);
+  assert.equal(report.summary.shardsMeasured,1);
+  assert.equal(report.summary.totalChangedLocatorCount,1);
+  assert.equal(report.summary.measuredChangedLocatorCount,1);
+  assert.equal(report.summary.allChangesMeasured,true);
+  assert.deepEqual(report.shards.map((shard)=>shard.source),['git-status-porcelain']);
+  assert.deepEqual(report.shards.map((shard)=>shard.measuredChangedLocatorCount),[1]);
+  assert.equal(report.safeguards.sourceContentIncluded,false);
+  assert.equal(report.safeguards.productionBenchmarkClaimed,false);
+  assert.equal(result.stdout.includes(root),false);
+});
 test('mcp resources CLI rejects write-capable mode requests',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','resources','--format','json'],{encoding:'utf8'});assert.equal(result.status,2);assert.match(result.stderr,/--read-only/);});
 
 test('mcp stdio prompts list returns empty prompt catalog',()=>{
