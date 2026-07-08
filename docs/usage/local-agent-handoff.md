@@ -1,8 +1,8 @@
 # Local Agent Handoff Guide
 
-This guide is the shortest path for using MemoryForge today. It is for a
+This guide is the shortest path for using Memory Recall today. It is for a
 developer who wants to hand the current repository to another local coding
-agent with less noise, explicit changed-file context, and proof that MemoryForge did
+agent with less noise, explicit changed-file context, and proof that Memory Recall did
 not leak raw source bodies or perform hidden writes.
 
 First run `npm run status`; when it reports `Next task: none`, use the
@@ -11,13 +11,13 @@ First run `npm run status`; when it reports `Next task: none`, use the
 After registry publication, install globally with:
 
 ```bash
-npm install -g memoryforge
+npm install -g memory-recall
 ```
 
 After a global install, the shortest useful command is:
 
 ```bash
-forge handoff
+recall handoff
 ```
 
 From the source checkout, the equivalent convenience script is:
@@ -29,19 +29,19 @@ npm run handoff:safe
 To measure the same context-pack path as a token-saver report:
 
 ```bash
-forge token-saver
+recall token-saver
 ```
 
 ## What This Solves
 
-Use MemoryForge when a coding-agent session is about to continue work in the same repo
+Use Memory Recall when a coding-agent session is about to continue work in the same repo
 and you need a compact, reviewable handoff:
 
 - selected local context locators instead of a giant pasted transcript;
 - explicit changed-file impact and required local reads;
 - source graph hints for JavaScript and TypeScript files;
 - read-only MCP resource proof for local harnesses;
-- a delivery-budget estimate for the handoff MemoryForge actually gives the agent;
+- a delivery-budget estimate for the handoff Memory Recall actually gives the agent;
 - safeguards showing zero model calls, network calls, external writes, adapter
   enablement, active memory creation, or source-body inclusion.
 
@@ -54,16 +54,16 @@ From the repository root:
 
 ```bash
 npm pack
-npm install -g ./memoryforge-1.0.0.tgz
-forge setup
-forge verify
+npm install -g ./memory-recall-1.0.0.tgz
+recall setup
+recall verify
 ```
 
 Without a global install:
 
 ```bash
-npm run forge -- setup
-npm run forge -- verify
+npm run recall -- setup
+npm run recall -- verify
 ```
 
 These are local wrappers for the existing bootstrap and handoff verification
@@ -73,7 +73,7 @@ prepared, but submission still needs a published npm URL and target registry
 requirements.
 For the fully expanded source-checkout path:
 
-`forge setup` is checkout bootstrap, not harness wiring. Use browser **Preview
+`recall setup` is checkout bootstrap, not harness wiring. Use browser **Preview
 setup** or `forge harness setup plan/status --dry-run` when you want a manual MCP
 config preview for Codex, Cursor, or Claude Code.
 
@@ -123,7 +123,7 @@ agent session.
    omissions, changed-file coverage, and proof commands when you need deeper
    trace detail.
 11. Use **Preview setup** when you want a generated Codex, Cursor, or Claude
-   Code MCP config snippet. The snippet is a manual-copy template only; MemoryForge
+   Code MCP config snippet. The snippet is a manual-copy template only; Memory Recall
    does not write harness config files.
 
 The browser path writes context-pack files only when you click **Pin locally**.
@@ -139,13 +139,13 @@ For the default Codex handoff summary over the current repository and local git
 changes:
 
 ```bash
-forge handoff
+recall handoff
 ```
 
 For an explicit JSON report:
 
 ```bash
-forge context handoff \
+recall context handoff \
   --read-only \
   --from codex \
   --root . \
@@ -160,7 +160,7 @@ The report returns a launch prompt, required local reads, use-plan fingerprint,
 MCP context-pack readback proof, harness setup dry-run status, and zero-tool
 MCP proof.
 
-Use `--target a2a` when the next worker is another agent service. MemoryForge still
+Use `--target a2a` when the next worker is another agent service. Memory Recall still
 builds coordinator-selected embedded context with versioned typed safe parts, required
 local reads, and read-only resource URIs; it does not create shared agent state,
 write tools, active memory, raw source bodies, or external credentials.
@@ -174,7 +174,7 @@ workspace-relative `--memory-config oaf.memory.json`. The config must name
 explicit `memoryPaths`; the handoff report only returns counts, warning codes,
 fingerprints, and the matching dry-run `memory proposals` command. It does not
 create proposal Markdown, activate memory, import harness transcripts, or include
-memory/source text in the report. Do not point `memoryPaths` at MemoryForge-generated
+memory/source text in the report. Do not point `memoryPaths` at Memory Recall-generated
 outputs such as `memory/profile.md`, `memory/proposals/*`, `context-packs/*`, or
 `.local/*`; those reports are rejected as memory sources.
 
@@ -182,9 +182,9 @@ Before using an existing SQLite memory store for a handoff, you can audit active
 facts without mutating the database:
 
 ```bash
-forge memory refine --read-only --root . --sqlite .local/memory.sqlite --format json
-forge memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
-forge memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --min-confidence 0.5 --format summary
+recall memory refine --read-only --root . --sqlite .local/memory.sqlite --format json
+recall memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --format json
+recall memory refine --read-only --root . --sqlite .local/memory.sqlite --target-active-facts 200 --min-confidence 0.5 --format summary
 ```
 
 The report lists duplicate, conflicting, stale, supersession, lineage-residue,
@@ -193,7 +193,7 @@ not approve, reject, supersede, delete, call models, use network access, or
 include memory source bodies. If refine candidates exist and `memory/profile.md`
 exists, it reports the derived profile locator and hash for review without
 exposing profile text.
-If the SQLite file is missing or has no MemoryForge memory tables yet, the command still
+If the SQLite file is missing or has no Memory Recall memory tables yet, the command still
 returns JSON with `state: "unavailable"` and zero candidates.
 When `--target-active-facts` is provided, the same read-only report includes a
 `budgetPlan` that ranks existing candidates by review priority and estimates
@@ -202,13 +202,13 @@ whether the target can be reached without inventing facts or mutating memory.
 For a smaller impact report:
 
 ```bash
-forge token-saver
+recall token-saver
 ```
 
 For the expanded command:
 
 ```bash
-forge measure context-pack \
+recall measure context-pack \
   --read-only \
   --from codex \
   --root . \
@@ -227,25 +227,25 @@ exact paths manually.
 
 ## Skill Catalog Preflight
 
-Use this when you want to see which local MemoryForge skills a coding agent may be
+Use this when you want to see which local Memory Recall skills a coding agent may be
 asked to load before you start a handoff:
 
 ```bash
-forge skill catalog --read-only --root . --format json
+recall skill catalog --read-only --root . --format json
 ```
 
 When a trigger matches one skill, ask for its local read plan before loading
 instructions:
 
 ```bash
-forge skill load-plan --read-only --root . --id skill:oaf-memory --format json
-forge skill load-plan --read-only --root . --id skill:oaf-memory --format summary
+recall skill load-plan --read-only --root . --id skill:oaf-memory --format json
+recall skill load-plan --read-only --root . --id skill:oaf-memory --format summary
 ```
 
 The same summary is also available through the read-only MCP resource catalog:
 
 ```bash
-forge mcp resources --read-only \
+recall mcp resources --read-only \
   --uri oaf://workspace/ws_local/skills/catalog \
   --format json
 ```
@@ -253,7 +253,7 @@ forge mcp resources --read-only \
 Per-skill load plans are available after the catalog validates:
 
 ```bash
-forge mcp resources --read-only \
+recall mcp resources --read-only \
   --uri oaf://workspace/ws_local/skills/oaf-memory/load-plan \
   --format json
 ```
@@ -261,7 +261,7 @@ forge mcp resources --read-only \
 To inspect the full read-only MCP surface without reading resource bodies:
 
 ```bash
-forge mcp inspect --read-only --root . --format summary
+recall mcp inspect --read-only --root . --format summary
 ```
 
 Use `--format summary` for a compact operator report. The inspect report groups
@@ -275,7 +275,7 @@ MCP server, call models, use network access, or write local files. A manifest ca
 set `advertise: false` to keep a skill loadable through JSON/MCP metadata while
 omitting it from the compact human skill menu.
 
-`forge context handoff --read-only` includes the same safe catalog summary when a
+`recall context handoff --read-only` includes the same safe catalog summary when a
 workspace `skills/` directory is present, plus the `catalogSkills` command for
 full local inspection.
 
@@ -289,7 +289,7 @@ Use this only when you want a checked local artifact under `context-packs/` that
 another harness can receive without retyping the objective and step.
 
 ```bash
-npm run forge -- context pack \
+npm run recall -- context pack \
   --from codex \
   --root . \
   --objective "Prepare handoff" \
@@ -300,7 +300,7 @@ npm run forge -- context pack \
   --out context-packs/CONTEXT_PACK.md \
   --format json
 
-npm run forge -- context receive \
+npm run recall -- context receive \
   --read-only \
   --root . \
   --target codex \
@@ -313,7 +313,7 @@ proof, read-plan, and next-action message parts. Use `--format summary` for a
 copyable operator preflight with the same state, proof, read counts, and report
 fingerprint. It does not rebuild the pack, accept task text, write files, expose
 raw Markdown bodies, or enable MCP write tools.
-Use `forge context retrieve <workspace-locator-or-sha256> --read-only --format summary`
+Use `recall context retrieve <workspace-locator-or-sha256> --read-only --format summary`
 to verify a required local read by hash without printing file content.
 
 If `context receive` reports `blocked` or `review`, use its
@@ -332,58 +332,58 @@ to share it.
 Codex:
 
 ```bash
-forge context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed-from-git --format json
-npm run forge -- harness setup status --client codex --dry-run --format json
-npm run forge -- harness setup plan --client codex --server oaf --dry-run --format json
-npm run forge -- harness setup uninstall --client codex --server oaf --dry-run --format json
+recall context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --changed-from-git --format json
+npm run recall -- harness setup status --client codex --dry-run --format json
+npm run recall -- harness setup plan --client codex --server oaf --dry-run --format json
+npm run recall -- harness setup uninstall --client codex --server oaf --dry-run --format json
 ```
 
 Cursor:
 
 ```bash
-forge context handoff --read-only --from codex,cursor --root . --objective "Prepare handoff" --step "select next agent context" --target cursor --changed-from-git --format json
+recall context handoff --read-only --from codex,cursor --root . --objective "Prepare handoff" --step "select next agent context" --target cursor --changed-from-git --format json
 ```
 
 Claude Code:
 
 ```bash
-forge context handoff --read-only --from codex,claude-code --root . --objective "Prepare handoff" --step "select next agent context" --target claude-code --changed-from-git --format json
-npm run forge -- harness setup status --client claude-code --dry-run --format json
-npm run forge -- harness setup plan --client claude-code --server oaf --dry-run --format json
-npm run forge -- harness setup uninstall --client claude-code --server oaf --dry-run --format json
+recall context handoff --read-only --from codex,claude-code --root . --objective "Prepare handoff" --step "select next agent context" --target claude-code --changed-from-git --format json
+npm run recall -- harness setup status --client claude-code --dry-run --format json
+npm run recall -- harness setup plan --client claude-code --server oaf --dry-run --format json
+npm run recall -- harness setup uninstall --client claude-code --server oaf --dry-run --format json
 ```
 
 Cursor setup preview:
 
 ```bash
-npm run forge -- harness setup plan --client cursor --server oaf --dry-run --format json
+npm run recall -- harness setup plan --client cursor --server oaf --dry-run --format json
 ```
 
 Claude Code setup preview:
 
 ```bash
-npm run forge -- harness setup plan --client claude-code --server oaf --dry-run --format json
+npm run recall -- harness setup plan --client claude-code --server oaf --dry-run --format json
 ```
 
 Read-only hook receipt preview:
 
 ```bash
-npm run forge -- connect codex --dry-run --format json
-npm run forge -- connect claude-code --dry-run --format json
-npm run forge -- hook install --agent codex --dry-run --format json
-npm run forge -- hook install --agent claude-code --dry-run --format json
-npm run forge -- hook uninstall --agent codex --dry-run --format json
+npm run recall -- connect codex --dry-run --format json
+npm run recall -- connect claude-code --dry-run --format json
+npm run recall -- hook install --agent codex --dry-run --format json
+npm run recall -- hook install --agent claude-code --dry-run --format json
+npm run recall -- hook uninstall --agent codex --dry-run --format json
 ```
 
 The `harness setup` and `hook install` commands are dry-run previews. They
 report redacted config operations but do not edit `.codex`, `.cursor`, Claude
-Code, or other home configuration files. `forge connect <agent> --yes` is the
+Code, or other home configuration files. `recall connect <agent> --yes` is the
 narrow opt-in writer for Codex and Claude Code only: it writes the fixed
 read-only MCP and hook entries, creates backups, and reports a receipt.
-`forge disconnect <agent> --yes` removes those MemoryForge-owned entries. Each preview
+`recall disconnect <agent> --yes` removes those Memory Recall-owned entries. Each preview
 also includes a generated
 `manualConfigSnippet` or `manualHookSnippet` for the selected harness. It is
-derived from MemoryForge's fixed read-only MCP and hook commands, not from your existing
+derived from Memory Recall's fixed read-only MCP and hook commands, not from your existing
 config body.
 
 Generated Context Pack Markdown now includes **Bridge Commands** for pinning a
@@ -428,7 +428,7 @@ checkout, then run `context receive --read-only` again.
 
 ## Unsupported Today
 
-MemoryForge does not yet provide production authentication, automatic transcript import,
+Memory Recall does not yet provide production authentication, automatic transcript import,
 automatic active memory creation, real harness config writes, hosted model
 providers, external connectors, browser automation, write-capable MCP tools,
 graph databases, vector databases, external publishing, or signed public

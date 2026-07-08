@@ -129,12 +129,12 @@ test('installed npm package setup does not re-pack generated local state', () =>
   const installed = spawnSync('npm', ['install', '-g', '--prefix', prefix, tarball, '--ignore-scripts', '--no-audit', '--no-fund'], { encoding: 'utf8', env: { ...process.env, HOME: home } });
   assert.equal(installed.status, 0, installed.stderr);
 
-  const packageRoot = path.join(prefix, 'lib', 'node_modules', 'memoryforge');
-  const forge = path.join(prefix, 'bin', 'forge');
+  const packageRoot = path.join(prefix, 'lib', 'node_modules', 'memory-recall');
+  const recall = path.join(prefix, 'bin', 'recall');
   const oaf = path.join(prefix, 'bin', 'oaf');
-  assert.equal(existsSync(forge), true);
+  assert.equal(existsSync(recall), true);
   assert.equal(existsSync(oaf), true);
-  const setup = spawnSync(forge, ['setup'], { cwd: work, encoding: 'utf8', env: { ...process.env, HOME: home } });
+  const setup = spawnSync(recall, ['setup'], { cwd: work, encoding: 'utf8', env: { ...process.env, HOME: home } });
   assert.equal(setup.status, 0, setup.stderr);
   assert.equal(existsSync(path.join(packageRoot, '.local', 'state.json')), true);
   const env = { ...process.env, HOME: home, PATH: `${path.join(prefix, 'bin')}${path.delimiter}${process.env.PATH}` };
@@ -248,10 +248,10 @@ test('marketplace manifest is prepared without claiming submission', async () =>
   const manifest = JSON.parse(artifacts.files['1.0-MARKETPLACE-MANIFEST.json']);
 
   assert.equal(manifest.status, 'prepared-not-submitted');
-  assert.equal(manifest.package.name, 'memoryforge');
+  assert.equal(manifest.package.name, 'memory-recall');
   assert.equal(manifest.package.version, '1.0.0');
-  assert.equal(manifest.package.install, 'npm install -g memoryforge');
-  assert.deepEqual(manifest.package.bins, ['forge', 'oaf']);
+  assert.equal(manifest.package.install, 'npm install -g memory-recall');
+  assert.deepEqual(manifest.package.bins, ['recall', 'oaf']);
   assert.equal(manifest.safeguards.networkDefault, 'deny');
   assert.equal(manifest.safeguards.externalWrites, false);
   assert.equal(manifest.safeguards.externalAdaptersEnabledByDefault, false);

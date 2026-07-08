@@ -2,7 +2,7 @@
 
 ## Brand idea
 
-MemoryForge is infrastructure with a human-readable face. It should feel **calm, exact, open, and capable**--never mystical, loud, or falsely autonomous.
+Memory Recall is infrastructure with a human-readable face. It should feel **calm, exact, open, and capable**--never mystical, loud, or falsely autonomous.
 
 ## Positioning
 
@@ -61,13 +61,13 @@ Use system fonts to keep the product local and fast. Do not include font files.
 - Keep clear space equal to one node diameter.
 - Use one color at small sizes.
 - Do not rotate, distort, add gradients, or animate continuously.
-- Wordmark: "MemoryForge"; legacy technical shorthand: `OAF`.
+- Wordmark: "Memory Recall"; legacy technical shorthand: `OAF`.
 
 ## Naming
 
-- CLI: `forge`; compatibility alias: `oaf`
+- CLI: `recall`; compatibility alias: `oaf`
 - Environment variables: `OAF_*`
-- npm package: `memoryforge`; internal workspace packages may keep `@open-agent-fabric/*` until a planned scope migration
+- npm package: `memory-recall`; internal workspace packages may keep `@open-agent-fabric/*` until a planned scope migration
 - Event types: lowercase dot notation such as `run.started`
 - IDs: readable prefixes such as `run_`, `evt_`, `mem_`, `ctx_`
 

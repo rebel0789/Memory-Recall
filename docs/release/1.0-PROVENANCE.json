@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "predicateType": "https://openagentfabric.dev/provenance/release-readiness/v1",
   "subject": {
-    "name": "memoryforge",
+    "name": "memory-recall",
     "version": "1.0.0",
     "releaseCandidate": "1.0-readiness"
   },
@@ -21,8 +21,8 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:1223aea724af249ec1cbc3c3569ff13d129950a31b5f5f785624accc9c5ce17e",
-    "package-lock.json": "sha256:0ec77bad70998e8be4418f2955ad1b7f6cad4e54f1e91789f7f0db3be03101c1",
+    "package.json": "sha256:db8932bf40ffbb40c64baac9c2911f02c523fe44a0597550d5aa74d8f0092ea3",
+    "package-lock.json": "sha256:2c6525fcd15bc16addda3fe8e6b74994a311a50e0b558a41514de25ec9603f0d",
     "PROJECT_STATUS.json": "sha256:edf3dd5993d5ac19db0de79fff778439ed1cb7e4dc25c1688296639fcc255468",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
