@@ -8,7 +8,7 @@ not leak raw source bodies or perform hidden writes.
 First run `npm run status`; when it reports `Next task: none`, use the
 `First safe handoff` command it prints or continue below.
 
-After registry publication, install globally with:
+Install globally with:
 
 ```bash
 npm install -g memory-recall
@@ -54,7 +54,7 @@ From the repository root:
 
 ```bash
 npm pack
-npm install -g ./memory-recall-1.0.0.tgz
+npm install -g ./memory-recall-1.0.1.tgz
 recall setup
 recall verify
 ```
@@ -67,14 +67,13 @@ npm run recall -- verify
 ```
 
 These are local wrappers for the existing bootstrap and handoff verification
-gates. The package metadata is npm-ready; registry publication still requires
+gates. The package is live on npm. Future patch releases still require
 maintainer npm authentication and explicit approval. The marketplace manifest is
-prepared, but submission still needs a published npm URL and target registry
-requirements.
+prepared, but submission still needs target registry requirements.
 For the fully expanded source-checkout path:
 
 `recall setup` is checkout bootstrap, not harness wiring. Use browser **Preview
-setup** or `forge harness setup plan/status --dry-run` when you want a manual MCP
+setup** or `recall harness setup plan/status --dry-run` when you want a manual MCP
 config preview for Codex, Cursor, or Claude Code.
 
 ```bash

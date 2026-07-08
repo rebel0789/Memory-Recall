@@ -51,6 +51,19 @@ while build output stays out of the tarball.
 | Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
 | Codebase context | Source graph hints, locator-only context packs, and manifest-backed selection. |
 
+## Documentation
+
+- [Quickstart](docs/usage/local-agent-handoff.md)
+- [Codex setup](docs/usage/codex-setup.md)
+- [Claude Code setup](docs/usage/claude-code-setup.md)
+- [Cursor setup](docs/usage/cursor-setup.md)
+- [MCP server reference](docs/usage/mcp-server-reference.md)
+- [Memory lifecycle](docs/usage/memory-lifecycle.md)
+- [Token savings measurement](docs/usage/token-savings.md)
+- [Rust acceleration](docs/usage/rust-acceleration.md)
+- [Security model](docs/usage/security-model.md)
+- [Troubleshooting](docs/usage/troubleshooting.md)
+
 ## Verified Numbers
 
 These are local measurements from this repository. They are delivery-token
