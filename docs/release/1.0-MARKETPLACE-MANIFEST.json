@@ -2,13 +2,14 @@
   "schemaVersion": "1.0.0",
   "manifestKind": "oaf-marketplace-submission",
   "status": "prepared-not-submitted",
-  "name": "Open Agent Fabric",
+  "name": "MemoryForge",
   "package": {
     "registry": "npm",
-    "name": "open-agent-fabric",
+    "name": "memoryforge",
     "version": "1.0.0",
-    "install": "npm install -g open-agent-fabric",
+    "install": "npm install -g memoryforge",
     "bins": [
+      "forge",
       "oaf"
     ]
   },
