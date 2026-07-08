@@ -2,13 +2,13 @@
   "schemaVersion": "1.0.0",
   "format": "oaf-release-readiness-sbom",
   "releaseCandidate": "1.0-readiness",
-  "project": "open-agent-fabric",
+  "project": "memoryforge",
   "packageVersion": "1.0.0",
   "dependencyPolicy": "bootstrap dependency-free; optional integrations remain disabled adapters",
   "packages": [
     {
       "path": "package.json",
-      "name": "open-agent-fabric",
+      "name": "memoryforge",
       "version": "1.0.0",
       "license": "Apache-2.0",
       "private": false,

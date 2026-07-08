@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "predicateType": "https://openagentfabric.dev/provenance/release-readiness/v1",
   "subject": {
-    "name": "open-agent-fabric",
+    "name": "memoryforge",
     "version": "1.0.0",
     "releaseCandidate": "1.0-readiness"
   },
@@ -21,8 +21,8 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:bd6d983e10372959e63a0cfe2e148a62ba23e4039be33b8a4d502417fff47a47",
-    "package-lock.json": "sha256:6a1a5b53b0e8e39e9711f9ff6f58a38b892bd756533e8a5a4229cd88716627e3",
+    "package.json": "sha256:e99793fe6188e6cd123420709b7fc02ec26d745605fa14fcd4fa7b05e9baaf4e",
+    "package-lock.json": "sha256:0ec77bad70998e8be4418f2955ad1b7f6cad4e54f1e91789f7f0db3be03101c1",
     "PROJECT_STATUS.json": "sha256:edf3dd5993d5ac19db0de79fff778439ed1cb7e4dc25c1688296639fcc255468",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",

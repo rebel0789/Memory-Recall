@@ -1,8 +1,8 @@
 {
-  "name": "open-agent-fabric",
+  "name": "memoryforge",
   "version": "1.0.0",
   "type": "module",
-  "description": "Local-first, evidence-first infrastructure for inspectable AI agents.",
+  "description": "Local-first repo memory and context for coding agents.",
   "keywords": [
     "agent",
     "ai-agents",
@@ -125,6 +125,7 @@
     "access": "public"
   },
   "bin": {
+    "forge": "apps/cli/oaf.mjs",
     "oaf": "apps/cli/oaf.mjs"
   }
 }

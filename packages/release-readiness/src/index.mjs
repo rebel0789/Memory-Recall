@@ -239,13 +239,13 @@ function buildMarketplaceManifest(evidence) {
     schemaVersion: '1.0.0',
     manifestKind: 'oaf-marketplace-submission',
     status: 'prepared-not-submitted',
-    name: 'Open Agent Fabric',
+    name: 'MemoryForge',
     package: {
       registry: 'npm',
       name: evidence.project,
       version: evidence.version,
-      install: 'npm install -g open-agent-fabric',
-      bins: ['oaf']
+      install: `npm install -g ${evidence.project}`,
+      bins: ['forge', 'oaf']
     },
     submissionBlockers: [
       'npm package URL after publication',
@@ -304,7 +304,7 @@ async function buildProvenance(root, evidence, files, outputs) {
 function distributionStateTable() {
   return table(['Surface', 'Status', 'Evidence'], [
     ['Source checkout', 'local-ready reference', '`npm run bootstrap`, `npm run verify:handoff`, `npm run ci`'],
-    ['npm package tarball', 'publish-ready install path', '`npm pack` tarball installs the `oaf` bin; package metadata is public-publish ready'],
+    ['npm package tarball', 'publish-ready install path', '`npm pack` tarball installs the `forge` and `oaf` bins; package metadata is public-publish ready'],
     ['npm registry', 'ready; not published', 'Package name is available; `.github/workflows/npm-publish.yml` is manual-only and still requires maintainer npm auth and explicit approval'],
     ['Marketplace / plugin registry', 'manifest prepared; not submitted', '`docs/release/1.0-MARKETPLACE-MANIFEST.json` is ready to adapt after npm URL and target registry requirements are known'],
     ['Client hooks', 'opt-in local writer with dry-run default', '`connect --dry-run` previews; `connect --yes` writes fixed Codex/Claude read-only entries with backups']

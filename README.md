@@ -1,10 +1,10 @@
-# Open Agent Fabric
+# MemoryForge
 
 <p align="center">
-  <img src="assets/brand/wordmark.svg" alt="Open Agent Fabric" width="520">
+  <img src="assets/brand/wordmark.svg" alt="MemoryForge" width="520">
 </p>
 
-**Open Agent Fabric (OAF)** is a local-first reliability and context operating system for AI agents. It keeps context intentional, capabilities controlled, decisions evidence-backed, runs replayable, memory governed, and agent definitions portable.
+**MemoryForge** is local-first repo memory and context for coding agents. It keeps context intentional, capabilities controlled, decisions evidence-backed, runs replayable, memory governed, and agent definitions portable.
 
 This repository is an **agent-ready development kit**, not a claim that the full production platform already exists. It contains a runnable offline vertical slice, native local provider baselines, stable contracts, brand and product guidance, security boundaries, deterministic tests and evaluations, a machine-readable backlog, and disabled integration contracts for upstream projects studied during architecture research.
 
@@ -89,24 +89,24 @@ Requirement: Node.js 22 or newer.
 Registry install after publication:
 
 ```bash
-npm install -g open-agent-fabric
-oaf setup
-oaf verify
-oaf connect codex --dry-run --format json
-oaf hook install --agent codex --dry-run --format json
-oaf hook install --agent claude-code --dry-run --format json
+npm install -g memoryforge
+forge setup
+forge verify
+forge connect codex --dry-run --format json
+forge hook install --agent codex --dry-run --format json
+forge hook install --agent claude-code --dry-run --format json
 ```
 
 Local package path, before publication or when testing this checkout:
 
 ```bash
 npm pack
-npm install -g ./open-agent-fabric-1.0.0.tgz
-oaf setup
-oaf verify
-oaf connect codex --dry-run --format json
-oaf hook install --agent codex --dry-run --format json
-oaf hook install --agent claude-code --dry-run --format json
+npm install -g ./memoryforge-1.0.0.tgz
+forge setup
+forge verify
+forge connect codex --dry-run --format json
+forge hook install --agent codex --dry-run --format json
+forge hook install --agent claude-code --dry-run --format json
 ```
 
 Source-checkout path, without a global install:
