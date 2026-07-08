@@ -1,0 +1,108 @@
+{
+  "id": "locomo-smoke-v1",
+  "version": "1.0.0",
+  "samples": [
+    {
+      "sample_id": "conv-smoke",
+      "conversation": {
+        "speaker_a": "Ava",
+        "speaker_b": "Mina",
+        "session_1_date_time": "9:00 am on 1 May, 2023",
+        "session_1": [
+          {
+            "speaker": "Ava",
+            "dia_id": "D1:1",
+            "text": "I joined the robotics club yesterday and started building a rover."
+          },
+          {
+            "speaker": "Mina",
+            "dia_id": "D1:2",
+            "text": "That sounds useful for your engineering plans."
+          }
+        ],
+        "session_2_date_time": "10:00 am on 8 May, 2023",
+        "session_2": [
+          {
+            "speaker": "Ava",
+            "dia_id": "D2:1",
+            "text": "The rover won the school demo because the sensor rig worked."
+          },
+          {
+            "speaker": "Mina",
+            "dia_id": "D2:2",
+            "text": "You should mention the sensor work in your portfolio."
+          }
+        ]
+      },
+      "observation": {
+        "session_1_observation": {
+          "Ava": [
+            [
+              "Ava joined the robotics club and began building a rover.",
+              "D1:1"
+            ]
+          ],
+          "Mina": [
+            [
+              "Mina connected Ava's robotics work to engineering plans.",
+              "D1:2"
+            ]
+          ]
+        },
+        "session_2_observation": {
+          "Ava": [
+            [
+              "Ava's rover won the school demo because the sensor rig worked.",
+              "D2:1"
+            ]
+          ],
+          "Mina": [
+            [
+              "Mina recommended adding the sensor work to Ava's portfolio.",
+              "D2:2"
+            ]
+          ]
+        }
+      },
+      "session_summary": {
+        "session_1_summary": "Ava joined robotics and started a rover.",
+        "session_2_summary": "Ava's rover won a demo because the sensor rig worked."
+      },
+      "event_summary": {
+        "events_session_1": {
+          "Ava": [
+            "Ava joins a robotics club."
+          ],
+          "Mina": [],
+          "date": "1 May, 2023"
+        }
+      },
+      "qa": [
+        {
+          "question": "What club did Ava join?",
+          "answer": "robotics club",
+          "evidence": [
+            "D1:1"
+          ],
+          "category": 4
+        },
+        {
+          "question": "Why did Ava's rover win the school demo?",
+          "answer": "the sensor rig worked",
+          "evidence": [
+            "D2:1"
+          ],
+          "category": 1
+        },
+        {
+          "question": "When did Ava join the robotics club?",
+          "answer": "yesterday before 1 May 2023",
+          "evidence": [
+            "D1:1"
+          ],
+          "category": 2
+        }
+      ]
+    }
+  ]
+}

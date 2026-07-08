@@ -90,11 +90,14 @@ estimates and correctness checks, not provider billing claims.
 | Rust graph-query evaluation | 84.6% fewer delivered tokens, 62.5% fewer tool calls | `node scripts/rust-eval.mjs` |
 | Current fact recall with stale facts present | 100% correct, 100% clean | `recall bench temporal --read-only --root . --format json` |
 | Real repo QA after governed ingest | 12/12 answered | `recall bench realqa --read-only --root . --format json` |
+| LoCoMo retrieval coverage | 78% evidence-any recall, 84.79% fewer delivered tokens | `recall bench locomo --read-only --root . --dataset /path/to/locomo10.json --limit 48 --budget 4096 --format json` |
 | Practical context-pack report | 84.35% smaller than practical baseline | `npm run token-saver` |
 
 Memory Recall is strongest when context changes over time, handoffs repeat, and
 the next agent needs reviewed local truth. It is not a hosted memory API,
 semantic embedding service, graph database, or billing-meter replacement.
+The LoCoMo number is model-free retrieval coverage, not official generative QA
+F1; the command does not call a model API.
 
 ## How It Compares
 

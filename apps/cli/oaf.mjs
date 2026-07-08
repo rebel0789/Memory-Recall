@@ -77,6 +77,7 @@ const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-
 const MEMORY_BATCH_UNSAFE_TEXT = /(?:^|[\s('"`])\/(?:[A-Za-z0-9._-]+\/)+[^\s)'"<>]+|file:\/\/|[A-Za-z]:\\|\n|\r/iu;
 const MEMORY_BATCH_CONFIDENCES = new Set(['extracted', 'inferred', 'ambiguous']);
 const REALQA_QUERY_STOPWORDS = new Set(['what', 'which', 'who', 'where', 'when', 'why', 'how', 'is', 'the', 'a', 'an', 'by', 'does', 'do', 'for', 'to', 'of', 'provider', 'default', 'implements']);
+const LOCOMO_ANSWER_STOPWORDS = new Set(['the', 'and', 'for', 'with', 'from', 'that', 'this', 'her', 'his', 'their', 'was', 'were', 'would', 'likely', 'since']);
 const EXPLICIT_CHANGED_LOCATOR_OPTIONS = new Set(['--changed', '--changed-locator']);
 const MCP_INSTALL_CLIENTS = new Map([
   ['codex', { id: 'codex', format: 'toml', configPath: '.codex/config.toml' }],
@@ -2547,9 +2548,10 @@ async function benchmarkCommand(values) {
   if (values[0] === 'temporal') return await benchmarkTemporalCommand(values.slice(1));
   if (values[0] === 'session') return await benchmarkSessionCommand(values.slice(1));
   if (values[0] === 'realqa') return await benchmarkRealQaCommand(values.slice(1));
+  if (values[0] === 'locomo') return await benchmarkLocomoCommand(values.slice(1));
 
   if (values[0] !== 'truth-floor') {
-    console.error('benchmark requires truth-floor, sufficiency, temporal, session, or realqa');
+    console.error('benchmark requires truth-floor, sufficiency, temporal, session, realqa, or locomo');
     process.exitCode = 2;
     return;
   }
@@ -2588,6 +2590,564 @@ async function benchmarkCommand(values) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function benchmarkLocomoCommand(values) {
+  if (!values.includes('--read-only')) {
+    console.error('bench locomo requires --read-only');
+    process.exitCode = 2;
+    return;
+  }
+  if (values.includes('--write') || values.includes('--out') || values.includes('--pin') || values.includes('--use-out')) {
+    console.error('bench locomo is read-only and does not write or pin workspace artifacts');
+    process.exitCode = 2;
+    return;
+  }
+  const valueOptions = new Set(['--root', '--workspace', '--workspace-id', '--budget', '--token-budget', '--limit', '--sample', '--dataset', '--memory-source', '--miss-limit', '--format']);
+  const unsupported = unsupportedFlags(values, new Set(['--read-only', ...valueOptions]), valueOptions);
+  if (unsupported.length > 0) {
+    console.error(`bench locomo unsupported option: ${unsupported[0]}`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'json';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('bench locomo only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const report = await buildLocomoBenchmarkReport(values);
+    console.log(format === 'summary' ? renderLocomoBenchmarkSummary(report) : JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+async function buildLocomoBenchmarkReport(values) {
+  const root = path.resolve(option(values, '--root') ?? process.cwd());
+  const rootStat = await stat(root).catch(() => null);
+  if (!rootStat?.isDirectory()) throw new Error('bench locomo --root must point at a local workspace directory');
+  const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
+  const generatedAt = fixedNow();
+  const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 1024));
+  const recallLimit = parseIntegerOption(values, '--limit', 12);
+  const sampleLimit = parseIntegerOption(values, '--sample', 0);
+  const missLimit = parseIntegerOption(values, '--miss-limit', 12);
+  const memorySource = option(values, '--memory-source') ?? 'turns+observations';
+  const datasetPath = option(values, '--dataset') ?? 'evals/locomo/smoke.v1.json';
+  const dataset = await loadLocomoDataset(datasetPath);
+  const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-locomo-'));
+  const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
+  const cases = [];
+  const categoryStats = new Map();
+  const sampleStats = [];
+  let activeMemoryCreated = 0;
+  let baselineTokens = 0;
+  let selectedBaselineTokens = 0;
+  const started = Date.now();
+  try {
+    const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+    const provider = new SQLiteMemoryProvider({ filename: scratchSqlite, clock: () => generatedAt });
+    try {
+      for (const sample of dataset.samples) {
+        const locomoSample = normalizeLocomoSample(sample);
+        baselineTokens += locomoSample.fullConversationTokens;
+        activeMemoryCreated += await addLocomoBenchmarkFacts(provider, { sample: locomoSample, workspaceId, memorySource });
+        let sampleQuestionCount = 0;
+        for (const qa of locomoSample.qa) {
+          if (sampleLimit > 0 && cases.length >= sampleLimit) break;
+          sampleQuestionCount += 1;
+          selectedBaselineTokens += locomoSample.fullConversationTokens;
+          const queryStarted = Date.now();
+          const retrievalQuery = locomoRetrievalQuery(qa.question);
+          const recall = await provider.searchTemporalMemory({
+            workspaceId,
+            scope: 'workspace',
+            query: retrievalQuery,
+            at: generatedAt,
+            limit: recallLimit
+          });
+          const retrieved = recall.results.map((item) => item.fact);
+          const deliveredText = locomoRetrievedText(retrieved);
+          const evidenceHits = locomoEvidenceHits(retrieved, qa.evidence);
+          const answerScored = qa.category !== 5 && Boolean(qa.answer);
+          const answerCovered = answerScored ? locomoAnswerCovered(deliveredText, qa.answer) : null;
+          const deliveredTokens = estimateTokens(deliveredText);
+          const category = locomoCategoryLabel(qa.category);
+          const item = {
+            id: qa.id,
+            sampleId: locomoSample.sampleId,
+            category,
+            question: qa.question,
+            retrievalQuery,
+            evidenceCount: qa.evidence.length,
+            retrievedFactCount: retrieved.length,
+            deliveredTokens,
+            baselineTokens: locomoSample.fullConversationTokens,
+            tokenReductionPercent: locomoSample.fullConversationTokens ? Number(((1 - deliveredTokens / locomoSample.fullConversationTokens) * 100).toFixed(2)) : 0,
+            evidenceAnyHit: evidenceHits.any,
+            evidenceAllHit: evidenceHits.all,
+            evidenceHitCount: evidenceHits.hitCount,
+            answerScored,
+            answerCovered,
+            latencyMs: Date.now() - queryStarted
+          };
+          cases.push(item);
+          updateLocomoCategoryStats(categoryStats, item);
+        }
+        sampleStats.push({
+          sampleId: locomoSample.sampleId,
+          sessionCount: locomoSample.sessionCount,
+          turnCount: locomoSample.turnCount,
+          qaCount: sampleQuestionCount,
+          fullConversationTokens: locomoSample.fullConversationTokens
+        });
+        if (sampleLimit > 0 && cases.length >= sampleLimit) break;
+      }
+    } finally {
+      provider.close();
+    }
+  } finally {
+    await rm(scratchRoot, { recursive: true, force: true }).catch(() => {});
+  }
+  const totals = summarizeLocomoCases(cases);
+  const report = {
+    schemaVersion: '1.0.0',
+    command: 'bench locomo',
+    generatedAt,
+    workspaceId,
+    dataset: {
+      id: dataset.id,
+      version: dataset.version,
+      ref: datasetPath.startsWith('/') ? 'local-absolute-dataset' : `workspace://${toPosix(datasetPath)}`,
+      sampleCount: dataset.samples.length,
+      evaluatedSampleCount: sampleStats.length,
+      qaCount: dataset.samples.reduce((sum, sample) => sum + (Array.isArray(sample.qa) ? sample.qa.length : 0), 0),
+      evaluatedQaCount: cases.length
+    },
+    benchmarkType: {
+      name: 'locomo-model-free-retrieval-coverage',
+      officialGenerativeQaF1: false,
+      reason: 'Memory Recall local benches do not call model APIs; this measures retrieved context coverage and token delivery, not generated answers.',
+      scoredSignals: ['evidence_any_recall', 'evidence_all_recall', 'answer_string_coverage_non_adversarial', 'delivered_tokens', 'retrieval_latency']
+    },
+    budget: {
+      tokenBudget,
+      recallLimit,
+      unit: 'estimated delivery tokens per question',
+      estimator: 'ceil(chars/4)'
+    },
+    source: {
+      memoryProvider: 'provider:native:memory:sqlite',
+      scratchStore: 'os-temp-sqlite',
+      memorySource,
+      activeMemoryCreated,
+      proposalGated: true
+    },
+    totals,
+    categoryBreakdown: [...categoryStats.values()].map(finalizeLocomoCategoryStats),
+    samples: sampleStats,
+    tokenDelivery: {
+      selectedFullConversationTokens: selectedBaselineTokens,
+      retrievedContextTokens: totals.deliveredTokens,
+      reductionPercent: selectedBaselineTokens ? Number(((1 - totals.deliveredTokens / selectedBaselineTokens) * 100).toFixed(2)) : 0,
+      baseline: 'full conversation text per question',
+      providerBillingClaimed: false
+    },
+    misses: cases
+      .filter((item) => !item.evidenceAllHit || (item.answerScored && !item.answerCovered))
+      .slice(0, missLimit)
+      .map((item) => ({
+        id: item.id,
+        sampleId: item.sampleId,
+        category: item.category,
+        evidenceAnyHit: item.evidenceAnyHit,
+        evidenceAllHit: item.evidenceAllHit,
+        answerCovered: item.answerCovered,
+        deliveredTokens: item.deliveredTokens,
+        tokenReductionPercent: item.tokenReductionPercent
+      })),
+    antiGaming: {
+      retrievalUsesQuestionOnly: true,
+      goldAnswerNotUsedForRetrieval: true,
+      evidenceIdsNotUsedForRetrieval: true,
+      transcriptBodiesExcludedFromReport: true,
+      adversarialAnswerGenerationNotScored: true
+    },
+    safeguards: {
+      readOnly: true,
+      workspaceFilesWritten: 0,
+      scratchFilesWritten: activeMemoryCreated > 0 ? 1 : 0,
+      proposalGated: true,
+      activeMemoryCreated,
+      hardDeleted: false,
+      deterministicOffline: true,
+      networkCalls: 0,
+      modelCalls: 0,
+      externalWritesEnabled: false,
+      rawConversationBodiesIncluded: false,
+      rawMcpPayloadsIncluded: false,
+      providerBillingClaimed: false
+    },
+    durationMs: Date.now() - started,
+    reportFingerprint: null
+  };
+  return { ...report, reportFingerprint: stableJsonFingerprint(report) };
+}
+
+async function loadLocomoDataset(datasetPath) {
+  const parsed = JSON.parse(await readFile(datasetPath, 'utf8'));
+  const samples = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.samples) ? parsed.samples : []);
+  if (samples.length < 1) throw new Error('bench locomo dataset requires at least one sample');
+  return {
+    id: Array.isArray(parsed) ? 'locomo-json-array' : String(parsed.id ?? 'locomo-json-array'),
+    version: Array.isArray(parsed) ? 'external' : String(parsed.version ?? 'external'),
+    samples
+  };
+}
+
+function normalizeLocomoSample(sample) {
+  if (!sample || typeof sample !== 'object' || Array.isArray(sample)) throw new Error('bench locomo sample must be an object');
+  const sampleId = sanitizeLocomoId(sample.sample_id ?? sample.sampleId ?? 'sample');
+  const conversation = sample.conversation && typeof sample.conversation === 'object' && !Array.isArray(sample.conversation) ? sample.conversation : {};
+  const sessions = locomoSessionIndexes(conversation);
+  const turns = [];
+  for (const sessionIndex of sessions) {
+    const sessionTurns = Array.isArray(conversation[`session_${sessionIndex}`]) ? conversation[`session_${sessionIndex}`] : [];
+    const sessionAt = locomoSessionTimestamp(conversation[`session_${sessionIndex}_date_time`], sessionIndex);
+    for (const [turnIndex, turn] of sessionTurns.entries()) {
+      if (!turn || typeof turn !== 'object') continue;
+      const diaId = sanitizeLocomoDiaId(turn.dia_id ?? `D${sessionIndex}:${turnIndex + 1}`);
+      const speaker = String(turn.speaker ?? 'speaker').trim() || 'speaker';
+      const text = String(turn.text ?? '').trim();
+      if (!text) continue;
+      const extras = [
+        turn.blip_caption ? `image caption: ${String(turn.blip_caption).trim()}` : '',
+        turn.query ? `image query: ${String(turn.query).trim()}` : ''
+      ].filter(Boolean).join(' ');
+      turns.push({
+        sampleId,
+        sessionIndex,
+        turnIndex,
+        diaId,
+        speaker,
+        text,
+        memoryText: `${speaker} in ${diaId}: ${text}${extras ? ` ${extras}` : ''}`,
+        observedAt: new Date(Date.parse(sessionAt) + turnIndex * 1000).toISOString()
+      });
+    }
+  }
+  const observations = locomoObservationFacts(sample.observation, { sampleId });
+  const qa = (Array.isArray(sample.qa) ? sample.qa : []).map((item, index) => normalizeLocomoQa(item, { sampleId, index })).filter(Boolean);
+  const transcriptText = turns.map((turn) => `${turn.diaId} ${turn.speaker}: ${turn.text}`).join('\n');
+  return {
+    sampleId,
+    sessionCount: sessions.length,
+    turnCount: turns.length,
+    turns,
+    observations,
+    qa,
+    fullConversationTokens: estimateTokens(transcriptText)
+  };
+}
+
+function locomoSessionIndexes(conversation) {
+  return Object.keys(conversation)
+    .map((key) => /^session_(\d+)$/u.exec(key)?.[1])
+    .filter(Boolean)
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .sort((left, right) => left - right);
+}
+
+function locomoSessionTimestamp(rawValue, sessionIndex) {
+  const raw = String(rawValue ?? '').trim();
+  const parsed = raw ? Date.parse(raw.replace(/\bon\b/iu, '')) : Number.NaN;
+  if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();
+  return new Date(Date.UTC(2026, 0, Math.max(1, sessionIndex), 0, 0, 0)).toISOString();
+}
+
+function locomoObservationFacts(observation, { sampleId }) {
+  if (!observation || typeof observation !== 'object' || Array.isArray(observation)) return [];
+  const facts = [];
+  for (const [key, value] of Object.entries(observation)) {
+    const sessionIndex = Number(/^session_(\d+)_observation$/u.exec(key)?.[1] ?? 0);
+    if (!sessionIndex || !value || typeof value !== 'object' || Array.isArray(value)) continue;
+    for (const [speaker, items] of Object.entries(value)) {
+      if (!Array.isArray(items)) continue;
+      for (const [index, item] of items.entries()) {
+        const text = Array.isArray(item) ? String(item[0] ?? '').trim() : String(item ?? '').trim();
+        const evidence = Array.isArray(item) ? [String(item[1] ?? '').trim()].filter(Boolean) : [];
+        if (!text) continue;
+        facts.push({
+          sampleId,
+          kind: 'observation',
+          sessionIndex,
+          index,
+          speaker: String(speaker ?? 'speaker').trim() || 'speaker',
+          text,
+          evidence,
+          observedAt: locomoSessionTimestamp(null, sessionIndex)
+        });
+      }
+    }
+  }
+  return facts;
+}
+
+function normalizeLocomoQa(item, { sampleId, index }) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+  const question = String(item.question ?? '').trim();
+  if (!question) return null;
+  const category = Number(item.category ?? 0);
+  const answer = item.answer === undefined || item.answer === null ? '' : String(item.answer).trim();
+  const adversarialAnswer = item.adversarial_answer === undefined || item.adversarial_answer === null ? '' : String(item.adversarial_answer).trim();
+  const evidence = Array.isArray(item.evidence) ? item.evidence.map((value) => sanitizeLocomoDiaId(value)).filter(Boolean) : [];
+  return {
+    id: `locomo_${sampleId}_qa_${index + 1}`,
+    question,
+    answer,
+    adversarialAnswer,
+    category,
+    evidence
+  };
+}
+
+async function addLocomoBenchmarkFacts(provider, { sample, workspaceId, memorySource }) {
+  const includeTurns = memorySource === 'turns' || memorySource === 'turns+observations' || memorySource === 'all';
+  const includeObservations = memorySource === 'observations' || memorySource === 'turns+observations' || memorySource === 'all';
+  if (!includeTurns && !includeObservations) throw new Error('bench locomo --memory-source must be turns, observations, turns+observations, or all');
+  let count = 0;
+  if (includeTurns) {
+    for (const turn of sample.turns) {
+      count += await addLocomoFact(provider, {
+        workspaceId,
+        sampleId: sample.sampleId,
+        factKey: `turn:${turn.diaId}`,
+        sourceLocator: `workspace://evals/locomo/${sample.sampleId}/${turn.diaId}.md`,
+        subject: `locomo:${sample.sampleId}:${turn.speaker}`,
+        predicate: 'dialog_turn',
+        object: turn.memoryText,
+        text: turn.memoryText,
+        observedAt: turn.observedAt,
+        metadata: {
+          kind: 'turn',
+          sampleId: sample.sampleId,
+          diaId: turn.diaId,
+          evidenceIds: [turn.diaId],
+          sessionIndex: turn.sessionIndex,
+          speaker: turn.speaker
+        }
+      });
+    }
+  }
+  if (includeObservations) {
+    for (const observation of sample.observations) {
+      const sourceDia = observation.evidence[0] ?? `S${observation.sessionIndex}:${observation.index + 1}`;
+      count += await addLocomoFact(provider, {
+        workspaceId,
+        sampleId: sample.sampleId,
+        factKey: `observation:${observation.sessionIndex}:${observation.index}`,
+        sourceLocator: `workspace://evals/locomo/${sample.sampleId}/observation-${observation.sessionIndex}-${observation.index + 1}.md`,
+        subject: `locomo:${sample.sampleId}:${observation.speaker}`,
+        predicate: 'observation',
+        object: observation.text,
+        text: `${observation.speaker} observation from ${sourceDia}: ${observation.text}`,
+        observedAt: observation.observedAt,
+        metadata: {
+          kind: 'observation',
+          sampleId: sample.sampleId,
+          diaId: sourceDia,
+          evidenceIds: observation.evidence,
+          sessionIndex: observation.sessionIndex,
+          speaker: observation.speaker
+        }
+      });
+    }
+  }
+  return count;
+}
+
+async function addLocomoFact(provider, { workspaceId, sampleId, factKey, sourceLocator, subject, predicate, object, text, observedAt, metadata }) {
+  const idHash = createHash('sha256').update(`${sampleId}:${factKey}`).digest('hex').slice(0, 24);
+  const proposalId = `mpq_locomo_${idHash}`;
+  const proposal = await provider.enqueueProposal({
+    id: proposalId,
+    workspaceId,
+    sourceLocator,
+    sourceHash: `sha256:${createHash('sha256').update(`${sourceLocator}\0${text}`).digest('hex')}`,
+    payload: { kind: 'fact', subject, predicate, object, text, observedAt }
+  });
+  if (proposal.status !== 'applied') {
+    await provider.claimProposal({ workspaceId, workerId: 'locomo-bench', leaseUntil: '2999-01-01T00:00:00.000Z', limit: 25 });
+    await provider.recordProposalResult({ workspaceId, id: proposal.id, workerId: 'locomo-bench', status: 'applied', result: { accepted: true } });
+  }
+  await provider.addTemporalFact({
+    id: `memfact_locomo_${idHash}`,
+    workspaceId,
+    scope: 'workspace',
+    subject,
+    predicate,
+    object,
+    text,
+    source: sourceLocator,
+    proposalQueueId: proposal.id,
+    validFrom: observedAt,
+    supersedeSubjectPredicate: false,
+    metadata,
+    episode: {
+      id: `mep_locomo_${idHash}`,
+      sourceLocator,
+      summary: text.slice(0, 400),
+      observedAt,
+      metadata
+    }
+  });
+  return 1;
+}
+
+function locomoRetrievedText(facts) {
+  return facts.map((fact) => [
+    fact.source,
+    fact.subject,
+    fact.predicate,
+    fact.text
+  ].filter(Boolean).join('\n')).join('\n\n');
+}
+
+function locomoEvidenceHits(facts, evidence) {
+  const required = new Set((evidence ?? []).map(sanitizeLocomoDiaId).filter(Boolean));
+  if (required.size === 0) return { any: false, all: false, hitCount: 0 };
+  const seen = new Set();
+  for (const fact of facts) {
+    for (const id of fact.metadata?.evidenceIds ?? []) {
+      const normalized = sanitizeLocomoDiaId(id);
+      if (required.has(normalized)) seen.add(normalized);
+    }
+    const diaId = sanitizeLocomoDiaId(fact.metadata?.diaId ?? '');
+    if (required.has(diaId)) seen.add(diaId);
+  }
+  return { any: seen.size > 0, all: seen.size === required.size, hitCount: seen.size };
+}
+
+function locomoAnswerCovered(text, answer) {
+  const haystack = normalizeLocomoAnswer(text);
+  const normalizedAnswer = normalizeLocomoAnswer(answer);
+  if (!normalizedAnswer) return false;
+  if (haystack.includes(normalizedAnswer)) return true;
+  const tokens = normalizedAnswer.split(' ').filter((token) => token.length >= 3 && !LOCOMO_ANSWER_STOPWORDS.has(token));
+  if (tokens.length === 0) return false;
+  const hits = tokens.filter((token) => haystack.includes(token)).length;
+  return hits / tokens.length >= (tokens.length <= 2 ? 1 : 0.67);
+}
+
+function locomoRetrievalQuery(question) {
+  const stopwords = new Set(['what', 'which', 'where', 'when', 'who', 'why', 'how', 'did', 'does', 'do', 'was', 'were', 'would', 'could', 'should', 'the', 'a', 'an', 'to', 'for', 'of', 'in', 'on', 'at', 'is', 'are', 'be', 'been', 'had', 'has', 'have', 'with', 'from', 'after', 'before', 'likely', 'current']);
+  const tokens = [...new Set(normalizeLocomoAnswer(question).split(' ').filter((token) => token.length >= 3 && !stopwords.has(token)))];
+  return tokens.slice(0, 12).join(' ') || String(question ?? '').trim();
+}
+
+function normalizeLocomoAnswer(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^\p{Letter}\p{Number}]+/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+function locomoCategoryLabel(category) {
+  const labels = new Map([
+    [1, 'category-1'],
+    [2, 'category-2-temporal'],
+    [3, 'category-3-commonsense'],
+    [4, 'category-4-single-hop'],
+    [5, 'category-5-adversarial']
+  ]);
+  return labels.get(Number(category)) ?? `category-${category || 'unknown'}`;
+}
+
+function updateLocomoCategoryStats(stats, item) {
+  const current = stats.get(item.category) ?? {
+    category: item.category,
+    count: 0,
+    evidenceAnyHitCount: 0,
+    evidenceAllHitCount: 0,
+    answerScoredCount: 0,
+    answerCoveredCount: 0,
+    deliveredTokens: 0,
+    baselineTokens: 0,
+    latencyMs: 0
+  };
+  current.count += 1;
+  current.evidenceAnyHitCount += item.evidenceAnyHit ? 1 : 0;
+  current.evidenceAllHitCount += item.evidenceAllHit ? 1 : 0;
+  current.answerScoredCount += item.answerScored ? 1 : 0;
+  current.answerCoveredCount += item.answerCovered ? 1 : 0;
+  current.deliveredTokens += item.deliveredTokens;
+  current.baselineTokens += item.baselineTokens;
+  current.latencyMs += item.latencyMs;
+  stats.set(item.category, current);
+}
+
+function finalizeLocomoCategoryStats(item) {
+  return {
+    ...item,
+    evidenceAnyRecallPercent: sufficiencyPercent(item.evidenceAnyHitCount, item.count),
+    evidenceAllRecallPercent: sufficiencyPercent(item.evidenceAllHitCount, item.count),
+    answerCoveragePercent: sufficiencyPercent(item.answerCoveredCount, item.answerScoredCount),
+    averageDeliveredTokens: item.count ? Math.round(item.deliveredTokens / item.count) : 0,
+    tokenReductionPercent: item.baselineTokens ? Number(((1 - item.deliveredTokens / item.baselineTokens) * 100).toFixed(2)) : 0,
+    averageLatencyMs: item.count ? Math.round(item.latencyMs / item.count) : 0
+  };
+}
+
+function summarizeLocomoCases(cases) {
+  const count = cases.length;
+  const evidenceAnyHitCount = cases.filter((item) => item.evidenceAnyHit).length;
+  const evidenceAllHitCount = cases.filter((item) => item.evidenceAllHit).length;
+  const answerScored = cases.filter((item) => item.answerScored);
+  const answerCoveredCount = answerScored.filter((item) => item.answerCovered).length;
+  const deliveredTokens = cases.reduce((sum, item) => sum + item.deliveredTokens, 0);
+  const baselineTokens = cases.reduce((sum, item) => sum + item.baselineTokens, 0);
+  const latencyMs = cases.reduce((sum, item) => sum + item.latencyMs, 0);
+  return {
+    qaCount: count,
+    evidenceAnyHitCount,
+    evidenceAllHitCount,
+    evidenceAnyRecallPercent: sufficiencyPercent(evidenceAnyHitCount, count),
+    evidenceAllRecallPercent: sufficiencyPercent(evidenceAllHitCount, count),
+    answerScoredCount: answerScored.length,
+    answerCoveredCount,
+    answerCoveragePercent: sufficiencyPercent(answerCoveredCount, answerScored.length),
+    deliveredTokens,
+    averageDeliveredTokens: count ? Math.round(deliveredTokens / count) : 0,
+    baselineTokens,
+    averageBaselineTokens: count ? Math.round(baselineTokens / count) : 0,
+    tokenReductionPercent: baselineTokens ? Number(((1 - deliveredTokens / baselineTokens) * 100).toFixed(2)) : 0,
+    averageLatencyMs: count ? Math.round(latencyMs / count) : 0,
+    maxLatencyMs: cases.reduce((max, item) => Math.max(max, item.latencyMs), 0)
+  };
+}
+
+function renderLocomoBenchmarkSummary(report) {
+  return [
+    `LoCoMo retrieval benchmark: evidence-any ${report.totals.evidenceAnyRecallPercent}% / evidence-all ${report.totals.evidenceAllRecallPercent}% / answer-string ${report.totals.answerCoveragePercent}%`,
+    `Questions: ${report.dataset.evaluatedQaCount}/${report.dataset.qaCount}`,
+    `Delivered tokens: ${report.tokenDelivery.retrievedContextTokens} vs full-conversation ${report.tokenDelivery.selectedFullConversationTokens} (${report.tokenDelivery.reductionPercent}% smaller)`,
+    `Average latency: ${report.totals.averageLatencyMs}ms`,
+    `Official generative QA F1 claimed: no`
+  ].join('\n');
+}
+
+function sanitizeLocomoId(value) {
+  return String(value ?? 'sample').replace(/[^A-Za-z0-9._-]+/gu, '-').slice(0, 80) || 'sample';
+}
+
+function sanitizeLocomoDiaId(value) {
+  return String(value ?? '').trim().replace(/[^A-Za-z0-9:._-]+/gu, '-').slice(0, 80);
 }
 
 async function benchmarkTemporalCommand(values) {
@@ -9214,6 +9774,7 @@ Usage:
   oaf bench temporal --read-only --root . --format json
   oaf bench session --read-only --root . --format json
   oaf bench realqa --read-only --root . --format json
+  oaf bench locomo --read-only --root . --dataset evals/locomo/smoke.v1.json --format json
   oaf memory profile --records memory-export.json --root . --dry-run --format json
   oaf memory remember --root . --sqlite .local/memory.sqlite --subject auth --predicate token_expiry --object "15 minutes" --supersedes-subject auth --supersedes-predicate token_expiry --source workspace://DECISIONS.md --format json
   oaf memory remember --batch facts.json --root . --sqlite .local/memory.sqlite --format json

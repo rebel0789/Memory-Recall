@@ -49,6 +49,19 @@ callers, callees, file outlines, repository outlines, deterministic
 fingerprints, and absence of raw source body or local path leakage. The source
 is dependency-free and does not execute project code.
 
+`evals/locomo/smoke.v1.json` is a tiny LoCoMo-shaped parser and safety fixture
+for `recall bench locomo`. It is not a representative score. Run the public
+LoCoMo dataset separately with:
+
+```bash
+recall bench locomo --read-only --root . --dataset /path/to/locomo10.json --format json
+```
+
+The LoCoMo bench reports model-free retrieval coverage: evidence recall,
+non-adversarial answer-string coverage, delivered tokens, token reduction
+against full-conversation context, and local latency. It does not report
+official generative QA F1 because the command does not call a model API.
+
 The persisted-manifest eval also checks manifest `etag`s, explicit token
 accounting reports, and `deltaFrom` summaries between repeated local manifest
 builds. These checks are deterministic and do not enable memory imports,
