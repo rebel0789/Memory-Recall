@@ -158,7 +158,7 @@ Local package path, when testing this checkout:
 
 ```bash
 npm pack
-npm install -g ./memory-recall-1.0.1.tgz
+npm install -g ./memory-recall-1.0.2.tgz
 recall setup
 recall verify
 recall connect codex --dry-run --format json
@@ -424,7 +424,7 @@ Read:
 
 ## Status
 
-Development kit: **1.0.1**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.
+Development kit: **1.0.2**. Run `npm run status` for the current checked-in task state. Run `npm run task -- <OAF-ID>` only when status names a next task.
 
 | Surface | Status |
 | --- | --- |

@@ -3,7 +3,7 @@
   "predicateType": "https://openagentfabric.dev/provenance/release-readiness/v1",
   "subject": {
     "name": "memory-recall",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "releaseCandidate": "1.0-readiness"
   },
   "buildType": "local-deterministic-source-readiness",
@@ -21,8 +21,8 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:e98afaa7243a36b46e705069cb0993d507c87d87209632b59b443f5aaae7a72d",
-    "package-lock.json": "sha256:61852317a15ee5710ccdbdc5b06bf223cf18d183776086850d01131943cbd2da",
+    "package.json": "sha256:7603124b1a99f4521f7934fc668ce6357a5ca6b322633f54acff40d8a21c7634",
+    "package-lock.json": "sha256:6c00f6bc75ee4c4965cce7abc146f22b5f473c856c2216c641ff2468456bbd60",
     "PROJECT_STATUS.json": "sha256:edf3dd5993d5ac19db0de79fff778439ed1cb7e4dc25c1688296639fcc255468",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",

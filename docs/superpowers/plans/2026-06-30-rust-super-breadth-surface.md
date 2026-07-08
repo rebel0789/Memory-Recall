@@ -64,7 +64,7 @@ agents with TWO commands and a per-agent manifest set. Reimplement that simplici
 THIRD_PARTY):
 - NATIVE AGENT-PLUGIN distribution: ship OAF as an agent plugin via each agent's own marketplace/plugin
   system, so a user installs with their agent's native command (e.g. Claude Code `/plugin marketplace add
-  rebel0789/open-agent-fabric` + `/plugin install`, `codex plugin marketplace add ...`, Copilot, etc.).
+  rebel0789/Memory-Recall` + `/plugin install`, `codex plugin marketplace add ...`, Copilot, etc.).
   Generate the per-agent manifests like ponytail's (`.claude-plugin/marketplace.json` + `plugin.json`, a
   codex plugin manifest, `gemini-extension.json`, `opencode.json`, `.cursor`, `.windsurf`, `.kiro`,
   `plugin.yaml` declaring provided MCP/skills/commands/hooks). Each plugin wires the OAF MCP server + the
