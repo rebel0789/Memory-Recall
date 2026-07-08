@@ -518,11 +518,13 @@ function memoryIntakeSourceLocator(value) {
   return locator.startsWith('workspace://') ? locator : `workspace://${locator}`;
 }
 
-function summarizeMemoryIntakeProposal(proposal) {
+function summarizeMemoryIntakeProposal(proposal, { dryRun = false } = {}) {
   const payload = proposal.payload ?? {};
+  const status = dryRun ? 'preview' : proposal.status === 'pending' ? 'pending' : null;
+  if (!status) return null;
   return {
     id: proposal.id,
-    status: proposal.status ?? 'preview',
+    status,
     sourceLocator: proposal.sourceLocator,
     subject: payload.subject ?? null,
     predicate: payload.predicate ?? null,
@@ -549,7 +551,7 @@ async function intakeMemoryProposal({ provider, workspaceId, body, generatedAt }
     }
     throw error;
   }
-  const proposalFacts = queued.map(summarizeMemoryIntakeProposal);
+  const proposalFacts = queued.map((proposal) => summarizeMemoryIntakeProposal(proposal, { dryRun })).filter(Boolean);
   const report = {
     schemaVersion: '1.0.0',
     command: dryRun ? 'memory preview' : 'memory propose',

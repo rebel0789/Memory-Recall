@@ -168,6 +168,43 @@ test('memory intake previews facts that mention workspace source paths', async (
   assert.equal(body.proposalFacts[0].object, 'src/hono-base.ts and src/compose.ts');
 });
 
+test('memory intake duplicate after approval stays proposal gated', async (t) => {
+  const api = await startServer(t);
+  const payload = {
+    workspaceId: 'ws_local',
+    sourceLocator: 'memory/inbox.md',
+    text: 'Fact: project:oaf browser_smoke release_candidate_checked.',
+    dryRun: false,
+    confirm: true
+  };
+  const queue = await fetch(`${api.base}/api/memory/proposals`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify(payload)
+  });
+  const queueText = await queue.text();
+  assert.equal(queue.status, 200, queueText);
+  const queued = JSON.parse(queueText);
+  assert.equal(queued.proposalFacts[0].status, 'pending');
+  const approve = await fetch(`${api.base}/api/memory/proposals/${queued.proposalFacts[0].id}/approve`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', confirm: true })
+  });
+  const approveText = await approve.text();
+  assert.equal(approve.status, 201, approveText);
+  const duplicate = await fetch(`${api.base}/api/memory/proposals`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify(payload)
+  });
+  const duplicateText = await duplicate.text();
+  assert.equal(duplicate.status, 200, duplicateText);
+  const duplicateBody = JSON.parse(duplicateText);
+  assert.equal(duplicateBody.summary.activeMemoryCreated, 0);
+  assert.deepEqual(duplicateBody.proposalFacts, []);
+});
+
 async function startServer(t, overrides = {}) {
   const store = overrides.store ?? new SpyStore();
   const identityRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-boundary-identity-'));
