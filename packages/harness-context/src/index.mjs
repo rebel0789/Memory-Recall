@@ -1284,7 +1284,10 @@ async function scanSource({ root, rootReal, harness, definition, workspaceId, ma
     if (info.size <= MAX_OVERSIZED_CONTEXT_HASH_BYTES) {
       const bodyBuffer = await readFile(realPath);
       if (!isControlCharacterBuffer(bodyBuffer)) {
-        return { skipped: skippedSource(harness, relativePath, 'oversized', definition.locatorScheme, { contentHash: hash(bodyBuffer), byteSize: info.size }) };
+        const redactions = redact(bodyBuffer.toString('utf8'));
+        const metadata = { byteSize: info.size };
+        if (redactions.secretCount === 0 && redactions.localPathCount === 0) metadata.contentHash = hash(redactions.redacted);
+        return { skipped: skippedSource(harness, relativePath, 'oversized', definition.locatorScheme, metadata) };
       }
     }
     return { skipped: skippedSource(harness, relativePath, 'oversized', definition.locatorScheme) };
