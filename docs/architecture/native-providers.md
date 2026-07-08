@@ -57,9 +57,9 @@ activated actors, and lifecycle events. Search uses SQLite FTS5 over local
 records; it is not vector retrieval, graph search, hosted memory, or external
 sync.
 
-OAF-031 adds a filesystem UX layer over canonical memory. `oaf memory profile`
+OAF-031 adds a filesystem UX layer over canonical memory. `recall memory profile`
 generates `memory/profile.md` from accepted active OAF memory only.
-`oaf memory proposals` generates `memory/proposals/*.md` reports for pending
+`recall memory proposals` generates `memory/proposals/*.md` reports for pending
 and quarantined records. These files are generated reports: editing them does
 not create or update canonical memory. `memoryPaths` config entries are
 explicit workspace-relative proposal sources only, bounded to local files and
@@ -69,25 +69,25 @@ warnings, and markdown memory-index cap warnings. These diagnostics are
 review-only signals; they do not create active memory or change retrieval
 policy by themselves.
 
-`oaf context profile` builds a read-only compressed profile for context
+`recall context profile` builds a read-only compressed profile for context
 selection: static long-term memory plus dynamic recent memory are converted into
 bounded synthetic Context Compiler records, then selected under the normal token
 budget. Its `contextBudget` reports estimated delivery tokens, accepted-history
 tokens available, history tokens avoided, and the measured reduction ratio. It
 does not replay raw history, call a model, open the network, or create memory.
 
-`oaf memory sgrep` is a local source-grounded memory search command, not a
+`recall memory sgrep` is a local source-grounded memory search command, not a
 replacement for shell `grep`. It returns lifecycle state, evidence IDs, and
 context-manifest reason codes when an explicit manifest is supplied. The
 provider also includes a SQLite proposal queue with idempotent fingerprints,
 leases, retry-to-pending, and poison/error records for local reconciliation.
 Temporal facts are stored in separate `fact`, `entity`, `edge`, and `episode`
 tables with `validFrom`, `validUntil`, `supersededBy`, and episode provenance.
-`oaf memory fact add/get/history` writes and reads that temporal surface through
+`recall memory fact add/get/history` writes and reads that temporal surface through
 the native provider. Fact writes require an applied proposal queue record; a
 contradicting fact supersedes the old row by closing its valid window and never
 hard-deletes it. The temporal fact table has its own FTS5 index.
-`oaf memory search/path/explain` adds the first local hybrid retrieval surface:
+`recall memory search/path/explain` adds the first local hybrid retrieval surface:
 FTS5 matches seed the result set, entity edges add graph-neighbor facts,
 temporal ranking prefers recent valid facts, and scoped digests provide a compact
 source-graph handoff summary. Semantic sqlite-vec ranking is reported as

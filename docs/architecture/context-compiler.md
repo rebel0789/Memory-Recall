@@ -76,7 +76,7 @@ evidence, examples, and other context. The selector reuses pairwise redundancy
 work across iterations and stops at the smallest sufficient set instead of
 filling the window.
 
-`oaf context profile` uses the same selector for compressed memory injection.
+`recall context profile` uses the same selector for compressed memory injection.
 Accepted active memory records are summarized into bounded static and dynamic
 profile candidates, then selected under the normal context budget. The emitted
 `contextBudget` reports local token estimates for delivered profile context

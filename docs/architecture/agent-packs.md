@@ -31,7 +31,7 @@ A valid pack can still be denied if it requests authority the workspace does not
 The local skill inventory is inspectable without loading skill instruction bodies:
 
 ```bash
-oaf skill catalog --read-only --root . --format json
+recall skill catalog --read-only --root . --format json
 ```
 
 The report validates every `skills/*/manifest.json` file against the skill

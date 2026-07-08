@@ -104,7 +104,7 @@ Definition of Done · Hard boundaries · Attach prompt.**
   validation commands, Source Graph hints, and Context Pack / use-plan refs.
 - **Adds:** the loop's `intent` spine; a measured `contextBudget`.
 - **New artifacts:** `loop-plan.schema.json`; valid + invalid fixtures;
-  `buildLoopPlan()` in harness-context; `oaf loop plan` CLI; one focused test.
+  `buildLoopPlan()` in harness-context; `recall loop plan` CLI; one focused test.
 - **Reuses:** buildContextPack sanitizer/fingerprint; schema validator.
 - **Side-effect class:** read-only (no file reads in the helper, no commands).
 - **DoD:** schema + 2 fixtures + helper + CLI + 1 test file + PROJECT_STATUS entry
@@ -122,7 +122,7 @@ Definition of Done · Hard boundaries · Attach prompt.**
 - **New artifacts:** `loop-observation.schema.json` (records per command: the
   command string, exit code, duration ms, pass/fail, a **redacted** truncated
   output summary, and a content hash — never raw multi-KB logs); valid + invalid
-  fixtures; `recordLoopObservation()` helper; `oaf loop observe` CLI; one focused
+  fixtures; `recordLoopObservation()` helper; `recall loop observe` CLI; one focused
   test.
 - **Reuses:** event ledger (append observation events); redaction helpers; the
   Loop Plan as the source of which commands are allowed to run.
@@ -162,7 +162,7 @@ Definition of Done · Hard boundaries · Attach prompt.**
   recorder; output is a verification report + a proposal. **No auto-merge.**
 - **Adds:** the `action` + `adjustment` stages; the reliability core.
 - **New artifacts:** `loop-verification-report.schema.json`;
-  `runLoopVerification()` orchestration (implementer→checker→report); `oaf loop
+  `runLoopVerification()` orchestration (implementer→checker→report); `recall loop
   verify` CLI; fixtures; one focused test.
 - **Reuses:** flight recorder (record/replay-without-effects/compare/shadow),
   git worktrees, policy + approval gate, Slice-2 observation capture, the Agent
@@ -199,7 +199,7 @@ Definition of Done · Hard boundaries · Attach prompt.**
   durable workflows with aggregated token budget.
 - **Adds:** the `stop/repeat` controller; "loops that prompt you."
 - **New artifacts:** `loop-run.schema.json` + `loop-run-log` projection;
-  `runLoop()` workflow definition; `oaf loop run` + `oaf loop schedule` CLI;
+  `runLoop()` workflow definition; `recall loop run` + `recall loop schedule` CLI;
   fixtures; one focused test.
 - **Reuses:** workflow-runtime + durable-sqlite provider (durable state/recovery),
   event ledger (run log), Slice-1/2/3 primitives, `contextBudget` aggregation for

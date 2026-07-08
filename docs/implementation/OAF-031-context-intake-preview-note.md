@@ -5,13 +5,13 @@ slice.
 
 ## Behavior
 
-- `npm run oaf -- context scan --from <codex|claude|cursor|all> --root . --dry-run`
+- `npm run recall -- context scan --from <codex|claude|cursor|all> --root . --dry-run`
   scans documented project-visible harness files and returns sanitized
   `HarnessContextSource` records.
-- `npm run oaf -- context preview --from <codex|claude|cursor|all> --root . --objective "..." --step "..." --dry-run`
+- `npm run recall -- context preview --from <codex|claude|cursor|all> --root . --objective "..." --step "..." --dry-run`
   converts accepted scan records into temporary Context Compiler candidates,
   runs deterministic selection, and returns a sanitized preview report.
-- `npm run oaf -- context pack --from codex --root . --objective "..." --step "..." --target codex --include-file CONTEXT.md --changed apps/web/app.js --changed-from-git --dry-run --format markdown`
+- `npm run recall -- context pack --from codex --root . --objective "..." --step "..." --target codex --include-file CONTEXT.md --changed apps/web/app.js --changed-from-git --dry-run --format markdown`
   builds a schema-validated Markdown handoff for Codex, Claude Code, Cursor, or
   a generic agent from selected safe locators. The browser defaults to the Codex
   source family and requires explicit checkbox selection before scanning
@@ -61,7 +61,7 @@ slice.
 - The deterministic benchmark gate in `evals/harness-context/cases.json`
   measures required-locator recall, distractor exclusion, selected-token ratio,
   leakage, deterministic fingerprints, and disabled side-effect surfaces.
-- `npm run oaf -- benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json`
+- `npm run recall -- benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json`
   exposes the schema-validated gold-evidence truth floor for native exact,
   full-context, lexical, and current-harness baselines.
 - `providers/native/context-candidate-ast-code/` exposes a dependency-free
@@ -83,10 +83,10 @@ slice.
   repeated local runs. The token report separates selected-token ratio
   (selected original tokens over total candidate tokens) from assembled-token
   ratio (assembled tokens over selected original tokens).
-- `npm run oaf -- memory profile --records memory-export.json --root . --dry-run --format json`
+- `npm run recall -- memory profile --records memory-export.json --root . --dry-run --format json`
   renders a generated `memory/profile.md` report from accepted active OAF
   memory only. `--write` is explicit and writes only the generated local report.
-- `npm run oaf -- memory proposals --records memory-export.json --root . --dry-run --format json`
+- `npm run recall -- memory proposals --records memory-export.json --root . --dry-run --format json`
   renders generated `memory/proposals/*.md` reports for pending and quarantined
   memory records. `--from memoryPaths --config oaf.memory.json` reads explicit
   workspace-relative files as proposal sources only.
@@ -94,47 +94,47 @@ slice.
   failure modes: source role, source hash, line count, byte size, age, stale
   source warnings, and memory-index line/byte cliff warnings. These are review
   signals only and do not activate memory.
-- `npm run oaf -- memory sgrep "..." --records memory-export.json --workspace ws_local --dry-run --format json`
+- `npm run recall -- memory sgrep "..." --records memory-export.json --workspace ws_local --dry-run --format json`
   returns local source-grounded memory search results with lifecycle state,
   evidence IDs, and optional context-manifest reason codes.
-- `npm run oaf -- mcp resources --read-only --format json` lists sanitized
+- `npm run recall -- mcp resources --read-only --format json` lists sanitized
   OAF-owned MCP resources for local harnesses: status, latest context manifest,
   latest run, memory proposals, and handoff/artifact summary.
-- `npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context/latest --format json`
+- `npm run recall -- mcp resources --read-only --uri oaf://workspace/ws_local/context/latest --format json`
   reads one resource as a schema-validated JSON envelope. `--stdio` accepts
   local JSON-RPC messages on stdin and writes JSON-RPC responses to stdout.
   Stdio input is bounded by total bytes, line bytes, and message count; batch
   arrays are rejected, and request metadata failures are reported with redacted
   fixed messages.
-- `npm run oaf -- mcp resources --read-only --context-pack --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --uri oaf://workspace/ws_local/context-pack/current --format json`
+- `npm run recall -- mcp resources --read-only --context-pack --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --uri oaf://workspace/ws_local/context-pack/current --format json`
   exposes an opt-in current context-pack summary resource for harnesses. The
   resource carries safe locators, hashes, omission counts, source-selection
   token counts, delivery-budget metrics for the locator handoff, and changed-file
   impact; it does not include raw objective text, raw step text, markdown
   bodies, source bodies, private local paths, active memory, model calls,
   network calls, external adapters, or write tools.
-- `npm run oaf -- context pack --from codex --objective "..." --step "..." --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json`
+- `npm run recall -- context pack --from codex --objective "..." --step "..." --target codex --write --out context-packs/CONTEXT_PACK.md --use-out context-packs/CONTEXT_PACK.use.json --format json`
   exports the markdown handoff plus a sanitized `context-pack-use-plan` JSON
   file. The use plan carries the complete required-read list, content hashes,
   changed-locator coverage, source-selection metrics, handoff artifact hash,
   and pack fingerprint. It omits objective text, step text, launch prompt,
   markdown content, source content, credentials, provider URLs, absolute paths,
   model calls, network calls, external adapters, active memory, and write tools.
-- `npm run oaf -- context pack --from codex --objective "..." --step "..." --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json`
+- `npm run recall -- context pack --from codex --objective "..." --step "..." --target codex --write --pin --out context-packs/CONTEXT_PACK.md --format json`
   explicitly pins the exported local handoff by writing the markdown, the
   derived `context-packs/CONTEXT_PACK.use.json`, `context-packs/registry.json`,
   and `context-packs/current.json`. Pinning is separate from pack semantics:
   the pack object remains `dryRun: true` and `contextPackWritten: false`, while
   the registry records artifact hashes, use-plan fingerprints, required-read
   hashes, coverage, and current-pointer metadata.
-- `npm run oaf -- context registry status --read-only --format json`
+- `npm run recall -- context registry status --read-only --format json`
   verifies the pinned registry without writes. It reports verified, stale,
   tampered, review, or missing status by checking registry and current-pointer
   fingerprints, markdown/use-plan artifact hashes, and required local source
   hashes. The status report is schema-validated and omits markdown content,
   objective text, source content, credentials, provider URLs, absolute paths,
   model calls, network calls, external adapters, active memory, and write tools.
-- `npm run oaf -- context receive --read-only --root . --target codex --format json`
+- `npm run recall -- context receive --read-only --root . --target codex --format json`
   consumes the already pinned registry, current pointer, and use-plan without
   rebuilding the pack or accepting objective/step text. It returns `ready`,
   `review`, or `blocked` with pinned artifact fingerprints, required local
@@ -151,14 +151,14 @@ slice.
   activation, harness config mutation, model call, network call, raw source
   body, markdown body, provider URL, credential, absolute path, or external
   adapter is included.
-- After a pin, `oaf mcp resources --read-only --stdio` automatically
+- After a pin, `recall mcp resources --read-only --stdio` automatically
   discovers the current pinned use plan and registry status from
   `context-packs/current.json` and `context-packs/registry.json`. This is the
   standard bridge command used by local harness setup; it still exposes no tools
   and does not require a special context-pack flag to list or read
   `oaf://workspace/ws_local/context-pack/use-plan/current` or
   `oaf://workspace/ws_local/context-pack/registry/current`.
-- `npm run oaf -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json`
+- `npm run recall -- mcp resources --read-only --context-pack-use context-packs/CONTEXT_PACK.use.json --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json`
   reads that exported use plan through the read-only MCP resource catalog. The
   path is restricted to `context-packs/*.use.json`; absolute paths, traversal,
   backslashes, symlink parents, and non-file targets fail closed.
@@ -168,7 +168,7 @@ slice.
   hosted API keys, and cloud access-key sentinels. Unknown `mcp resources --uri`
   CLI errors report only a URI fingerprint rather than echoing caller-supplied
   private path or secret text.
-- `npm run oaf -- mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json`
+- `npm run recall -- mcp resources --read-only --context-pack-registry --uri oaf://workspace/ws_local/context-pack/registry/current --format json`
   exposes the same sanitized registry verification report through the read-only
   MCP resource catalog. It adds no MCP tools and keeps `tools/list` empty.
 - `GET /api/context/pack/registry/status?workspaceId=ws_local` exposes the same
@@ -176,7 +176,7 @@ slice.
   Control API. It is a read path only: no CSRF token is needed for GET, no
   canonical state is mutated, and response validation uses the same protocol
   schema as the CLI report.
-- `npm run oaf -- mcp smoke context-pack --read-only --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
+- `npm run recall -- mcp smoke context-pack --read-only --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   launches the same read-only stdio MCP resource bridge, reads
   `oaf://workspace/ws_local/context-pack/current`, asserts `tools/list` returns
   no tools, and returns an observed local measurement report with duration,
@@ -184,7 +184,7 @@ slice.
   delivered-handoff units. The child bridge is bounded by runtime and
   stdout/stderr byte caps. These measurements describe one local invocation only
   and are not production latency or external benchmark claims.
-- `npm run oaf -- measure context-pack --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/web/app.js --format json`
+- `npm run recall -- measure context-pack --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/web/app.js --format json`
   wraps the same local pack build and stdio MCP readback into a
   schema-validated current-checkout measurement report. It records commit SHA,
   objective and step fingerprints, source-selection reduction, locator-handoff
@@ -194,7 +194,7 @@ slice.
   omissions, fingerprints, and no-body safeguards without raw source, raw
   prompt text, markdown bodies, local paths, writes, network calls, model
   calls, graph databases, adapters, or production benchmark claims.
-- `oaf context handoff --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
+- `recall context handoff --read-only --root . --from codex --objective "..." --step "..." --target codex --changed apps/cli/oaf.mjs --format json`
   returns a schema-validated Codex handoff preflight report. It includes the
   launch prompt, required local reads, use-plan fingerprint, read-only MCP
   context-pack readback proof, installed `oaf` stdio bridge command, and dry-run

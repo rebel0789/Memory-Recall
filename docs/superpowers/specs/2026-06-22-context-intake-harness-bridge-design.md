@@ -53,12 +53,12 @@ Reference repositories:
 The first public-beta experience should be read-only and preview-first:
 
 ```bash
-npm run oaf -- context scan --from codex --dry-run
-npm run oaf -- context scan --from claude --dry-run
-npm run oaf -- context scan --from cursor --dry-run
-npm run oaf -- context preview --from all --root . --objective "Prepare handoff" --step "select harness context" --dry-run
-npm run oaf -- context import --from codex --proposal-only
-npm run oaf -- handoff export --for codex
+npm run recall -- context scan --from codex --dry-run
+npm run recall -- context scan --from claude --dry-run
+npm run recall -- context scan --from cursor --dry-run
+npm run recall -- context preview --from all --root . --objective "Prepare handoff" --step "select harness context" --dry-run
+npm run recall -- context import --from codex --proposal-only
+npm run recall -- handoff export --for codex
 ```
 
 The scan report shows:

@@ -22,8 +22,8 @@ OAF-031 adds a local read-only resource catalog on top of this bridge. The CLI
 composition:
 
 ```bash
-npm run oaf -- mcp resources --read-only --format json
-oaf mcp resources --read-only --stdio
+npm run recall -- mcp resources --read-only --format json
+recall mcp resources --read-only --stdio
 ```
 
 exposes sanitized resources for workspace status, the latest context manifest,
@@ -49,7 +49,7 @@ It intentionally omits raw objective text, raw step text, markdown bodies,
 source bodies, credentials, provider URLs, absolute local paths, model calls,
 network calls, memory activation, external adapters, and write tools.
 
-`npm run oaf -- mcp smoke context-pack --read-only ...` proves the same path by
+`npm run recall -- mcp smoke context-pack --read-only ...` proves the same path by
 launching the local stdio composition, sending JSON-RPC `resources/list`,
 `tools/list`, and `resources/read` messages, and returning a schema-validated
 local measurement report. The report records observed duration, byte counts,
@@ -60,7 +60,7 @@ For coding-agent clients that need parameterized local context, the CLI also
 offers a read-only stdio server:
 
 ```bash
-npm --silent run oaf -- mcp server --read-only --root . --stdio
+npm --silent run recall -- mcp server --read-only --root . --stdio
 ```
 
 It exposes `memory.recall`, `context.profile`, and `context.pack` as read-only
@@ -73,22 +73,22 @@ tools still require the existing exact server-side grant path.
 To connect a local coding-agent client, preview the exact config first:
 
 ```bash
-npm run oaf -- mcp install --client claude-code --dry-run --format json
-npm run oaf -- mcp install --client cursor --dry-run --format json
-npm run oaf -- mcp install --client codex --dry-run --format json
+npm run recall -- mcp install --client claude-code --dry-run --format json
+npm run recall -- mcp install --client cursor --dry-run --format json
+npm run recall -- mcp install --client codex --dry-run --format json
 ```
 
 Dry-run is the default and writes nothing. The preview uses the same
 harness-setup planner and prints the ready-to-paste stdio server:
 
 ```text
-npm --silent run oaf -- mcp server --read-only --root . --stdio
+npm --silent run recall -- mcp server --read-only --root . --stdio
 ```
 
 Applying the preview requires the matching plan fingerprint from that dry-run:
 
 ```bash
-npm run oaf -- mcp install --client claude-code \
+npm run recall -- mcp install --client claude-code \
   --apply --confirm sha256:<plan-fingerprint> --format json
 ```
 
@@ -108,7 +108,7 @@ the pack remains a dry-run handoff object, while the write report truthfully
 records the local files written. A harness can then launch:
 
 ```bash
-oaf mcp resources --read-only \
+recall mcp resources --read-only \
   --context-pack-use context-packs/CONTEXT_PACK.use.json --stdio
 ```
 
@@ -124,7 +124,7 @@ After a context pack is pinned, the standard installed bridge command also
 discovers the pinned use plan and registry status automatically:
 
 ```bash
-oaf mcp resources --read-only --stdio
+recall mcp resources --read-only --stdio
 ```
 
 That default catalog lists and serves
@@ -138,7 +138,7 @@ When the user wants to reuse the same exported handoff later, the CLI can pin
 the local artifacts explicitly:
 
 ```bash
-oaf context pack --from codex --root . \
+recall context pack --from codex --root . \
   --objective "Ship safely" --step "handoff" --target codex \
   --write --pin --out context-packs/CONTEXT_PACK.md --format json
 ```
@@ -151,10 +151,10 @@ required-read hashes, coverage, and current-pointer metadata. Verification is
 read-only:
 
 ```bash
-oaf context registry status --read-only --format json
-oaf mcp resources --read-only \
+recall context registry status --read-only --format json
+recall mcp resources --read-only \
   --uri oaf://workspace/ws_local/context-pack/registry/current --format json
-oaf mcp resources --read-only \
+recall mcp resources --read-only \
   --context-pack-registry \
   --uri oaf://workspace/ws_local/context-pack/registry/current --format json
 ```
@@ -168,7 +168,7 @@ For a target harness readiness check, `context receive --read-only` consumes
 only the pinned current pointer, registry, and use plan:
 
 ```bash
-oaf context receive --read-only --root . \
+recall context receive --read-only --root . \
   --target codex --format json
 ```
 

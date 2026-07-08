@@ -35,12 +35,18 @@ recall handoff
 
 No hosted account. No model API key. No silent memory capture.
 
+The npm CLI is a dependency-free Node.js bootstrap. The repository also ships a
+Rust workspace for local ingest, governed graph/search, wiki, MCP, and the
+graph-query evaluation path; the Rust source is included in the npm package,
+while build output stays out of the tarball.
+
 ## Why Try It
 
 | Need | Memory Recall gives you |
 | --- | --- |
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
+| Fast local code intelligence | Rust ingest and graph/search paths for local repo analysis, with no hosted service required. |
 | Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
 | Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
 | Codebase context | Source graph hints, locator-only context packs, and manifest-backed selection. |

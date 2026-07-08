@@ -56,7 +56,7 @@ The benchmark truth floor adds a merge-gated, schema-validated comparison across
 native exact, full-context, lexical, and current-harness baselines. It uses gold
 evidence IDs, distractor IDs, forbidden IDs, and fixed fixtures, then reports
 only metrics, IDs, safe locators, and fingerprints. The CLI entry point is
-`npm run oaf -- benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json`.
+`npm run recall -- benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json`.
 
 The native AST code candidate-source eval uses a temporary TypeScript fixture to
 compare static code chunks against the Context Compiler path. It verifies
