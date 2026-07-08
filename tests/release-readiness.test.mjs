@@ -234,7 +234,7 @@ test('release readiness quality snapshot matches current release evidence', asyn
 
   const checklist = artifacts.files['1.0-RELEASE-CHECKLIST.md'];
   assert.match(checklist, /Consumer-simple gates are runnable with `npm run consumer:smoke`: temp HOME install proof, real MCP client smoke, local web\/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene/);
-  assert.match(checklist, /Optional rendered browser proof is runnable with `npm run consumer:browser-smoke`: Playwright-driven bootstrap, Connect, Token Saver, Add Memory, Repo Map, console-error, and mobile overflow checks against a temp workspace/);
+  assert.match(checklist, /Optional rendered browser proof is runnable with `npm run consumer:browser-smoke`: Playwright-driven bootstrap, Connect, Token Saver, Add Memory, Memory Graph temporal history, Repo Map, console-error, and mobile overflow checks against a temp workspace/);
 });
 
 test('release readiness preserves package license and adapter checksum evidence', async () => {

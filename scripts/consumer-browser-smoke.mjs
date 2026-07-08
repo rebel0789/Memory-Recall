@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';
@@ -13,7 +13,7 @@ const root = process.cwd();
 const temp = await mkdtemp(path.join(os.tmpdir(), 'oaf-consumer-browser-'));
 const workspace = path.join(temp, 'workspace');
 const home = path.join(temp, 'home');
-const data = path.join(temp, 'data');
+const data = path.join(workspace, '.local');
 const password = 'correct horse battery staple';
 let server = null;
 let browser = null;
@@ -25,6 +25,10 @@ try {
   await writeFile(path.join(workspace, 'AGENTS.md'), 'Use local context handoffs and proposal-gated memory.');
   await writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchSmoke(){ return "ready"; }\n');
   await writeFile(path.join(workspace, 'src', 'huge.js'), Array.from({ length: 500 }, (_, index) => `export function helper${index}(){ return "local proof ${index}"; }`).join('\n'));
+  await mkdir(path.join(workspace, 'memory'), { recursive: true });
+  await writeFile(path.join(workspace, 'memory', 'status.md'), 'Decision: project:oaf release_status ready supersedes draft.');
+  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:oaf', '--predicate', 'release_status', '--object', 'draft', '--source', 'workspace://memory/status.md', '--format', 'json']);
+  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:oaf', '--predicate', 'release_status', '--object', 'ready', '--supersedes-subject', 'project:oaf', '--supersedes-predicate', 'release_status', '--source', 'workspace://memory/status.md', '--format', 'json']);
 
   const port = await freePort();
   server = spawn(process.execPath, ['services/control-api/src/server.mjs'], {
@@ -80,6 +84,15 @@ try {
   await waitForText(page, '1 proposal');
   await waitForText(page, '0 active memory created');
 
+  await page.locator('a[data-route="memory-graph"]').first().click();
+  await waitForText(page, 'Governed knowledge graph');
+  await waitForText(page, 'Current facts');
+  await waitForText(page, 'project:oaf release_status ready');
+  await page.locator('#memory-graph-history').check();
+  await waitForText(page, 'Superseded');
+  await waitForText(page, 'project:oaf release_status draft');
+  await waitForText(page, 'Provenance workspace://memory/status.md');
+
   await page.locator('a[data-route="source-graph"]').first().click();
   await waitForText(page, 'Repo Map');
   await page.fill('input[name="query"]', 'launchSmoke');
@@ -96,7 +109,7 @@ try {
   must(!hasHorizontalOverflow, 'mobile first-use shell has horizontal overflow');
   must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
 
-  console.log('PASS consumer browser smoke: bootstrap, Connect, Token Saver, Add Memory, Repo Map, mobile shell');
+  console.log('PASS consumer browser smoke: bootstrap, Connect, Token Saver, Add Memory, Memory Graph, Repo Map, mobile shell');
 } finally {
   if (browser) await browser.close().catch(() => {});
   if (server) {
@@ -121,6 +134,12 @@ async function launchBrowser() {
 
 function must(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function runJson(command, args) {
+  const result = spawnSync(command, args, { cwd: root, encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
+  return JSON.parse(result.stdout);
 }
 
 async function waitForText(page, text) {
