@@ -314,6 +314,7 @@ test('memory cockpit approval endpoint promotes one pending proposal', async () 
   assert.equal(queued.command, 'memory propose');
   assert.equal(queued.summary.activeMemoryCreated, 0);
   assert.equal(queued.proposalFacts[0].status, 'pending');
+  assert.equal(queued.proposalFacts[0].id, preview.proposalFacts[0].id);
 
   const response = await fetch(`${base}/api/memory/proposals/mpq_api_cockpit/approve`, {
     method: 'POST',
@@ -336,6 +337,23 @@ test('memory cockpit approval endpoint promotes one pending proposal', async () 
   const intakeBody = JSON.parse(intakeApproveText);
   assert.equal(intakeBody.fact.subject, 'memory-cockpit');
   assert.equal(intakeBody.fact.predicate, 'intake_flow');
+  const retryQueueResponse = await fetch(`${base}/api/memory/proposals`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      sourceLocator: 'memory/intake.md',
+      text: 'Fact: memory-cockpit intake_flow explicit-approval.',
+      dryRun: false,
+      confirm: true
+    })
+  });
+  const retryQueueText = await retryQueueResponse.text();
+  assert.equal(retryQueueResponse.status, 200, retryQueueText);
+  const retryQueue = JSON.parse(retryQueueText);
+  assert.equal(retryQueue.command, 'memory propose');
+  assert.equal(retryQueue.summary.proposalCount, 0);
+  assert.deepEqual(retryQueue.proposalFacts, []);
   const cockpit = await fetch(`${base}/api/memory/cockpit?workspaceId=ws_local`, { headers: { cookie: auth.cookie } });
   const after = await cockpit.json();
   assert(after.facts.some((fact) => fact.id === 'memfact_api_cockpit' && fact.status === 'active'));

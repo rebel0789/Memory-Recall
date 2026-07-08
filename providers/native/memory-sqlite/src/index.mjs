@@ -1421,6 +1421,7 @@ export class SQLiteMemoryProvider {
         workspaceId: proposal.workspaceId,
         sourceLocator: proposal.sourceLocator,
         sourceHash: proposal.sourceHash,
+        fingerprint: proposal.fingerprint,
         payload: {
           kind: 'fact',
           scope: proposal.payload.scope,

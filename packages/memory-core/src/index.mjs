@@ -217,11 +217,21 @@ export function extractTemporalFactProposalsFromEpisode(input) {
           sourceHash
         }
       };
+      const identityPayload = {
+        kind: payload.kind,
+        scope,
+        subject,
+        predicate,
+        object,
+        text: payload.text
+      };
+      const identity = { workspaceId, sourceLocator, sourceHash, payload: identityPayload };
       return {
-        id: deterministicMemoryCoreId('mpq', { workspaceId, sourceLocator, sourceHash, payload }),
+        id: deterministicMemoryCoreId('mpq', identity),
         workspaceId,
         sourceLocator,
         sourceHash,
+        fingerprint: sha256Hex(stableStringify(identity)),
         payload
       };
     } catch (error) {
