@@ -305,7 +305,7 @@ function distributionStateTable() {
   return table(['Surface', 'Status', 'Evidence'], [
     ['Source checkout', 'local-ready reference', '`npm run bootstrap`, `npm run verify:handoff`, `npm run ci`'],
     ['npm package tarball', 'publish-ready install path', '`npm pack` tarball installs the `oaf` bin; package metadata is public-publish ready'],
-    ['npm registry', 'ready; not published', 'Package name is available; `npm publish --access public` requires maintainer npm auth and explicit approval'],
+    ['npm registry', 'ready; not published', 'Package name is available; `.github/workflows/npm-publish.yml` is manual-only and still requires maintainer npm auth and explicit approval'],
     ['Marketplace / plugin registry', 'manifest prepared; not submitted', '`docs/release/1.0-MARKETPLACE-MANIFEST.json` is ready to adapt after npm URL and target registry requirements are known'],
     ['Client hooks', 'opt-in local writer with dry-run default', '`connect --dry-run` previews; `connect --yes` writes fixed Codex/Claude read-only entries with backups']
   ]);
@@ -358,6 +358,7 @@ ${markdownList(evidence.optionalCommands.map((command) => `\`${command}\``))}
 - Product 1.0 publication requires human approval.
 - Marketplace or plugin registry submission has a prepared manifest; submission still requires an npm package URL, target registry requirements, and human approval.
 - Signing requires a protected maintainer environment; no signing key is stored in this repository.
+- npm publication is manual-only through the protected \`npm-release\` environment or a local maintainer shell.
 - External adapters remain disabled by default.
 - External publishing remains disabled.
 `;
@@ -556,12 +557,14 @@ function releaseChecklist(summary) {
 - [x] Migration, backup, restore, upgrade, and rollback evidence linked.
 - [x] Consumer-simple gates are runnable with \`npm run consumer:smoke\`: temp HOME install proof, real MCP client smoke, local web/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene.
 - [x] Optional rendered browser proof is runnable with \`npm run consumer:browser-smoke\`: Playwright-driven bootstrap, Connect, Token Saver, Add Memory, Memory Graph temporal history, Repo Map, console-error, and mobile overflow checks against a temp workspace.
+- [x] Manual npm publish workflow is prepared with typed confirmation, protected environment, release gates, dry run, Trusted Publishing/OIDC preference, and explicit token fallback.
 - [x] External-write defaults remain off.
 - [x] Owner URLs and contacts use repository-specific GitHub ownership.
 
 ## Human Approval Required
 
 - [ ] Product 1.0 release tag creation.
+- [ ] npm Trusted Publisher configuration or \`NPM_TOKEN\` secret in protected maintainer environment.
 - [ ] Artifact signing in protected maintainer environment.
 - [ ] Product 1.0 release publication.
 

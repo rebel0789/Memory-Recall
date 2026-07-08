@@ -17,3 +17,23 @@ The command writes `docs/release/1.0-SBOM.json`,
 north-star gap audit, adapter certification criteria, third-party notice review,
 and release checklist. It does not tag, sign, merge, publish, upload, or enable
 external writes.
+
+## npm publication
+
+`.github/workflows/npm-publish.yml` is the maintainer publication lane for the
+public npm package. It is manual-only (`workflow_dispatch`), requires the exact
+`publish open-agent-fabric@VERSION` confirmation text, runs CI, native smoke,
+consumer smoke, release-readiness verification, and an npm publish dry run before
+the real publish step, and uses the protected `npm-release` environment.
+
+Prefer npm Trusted Publishing. Configure npm with GitHub Actions as the trusted
+publisher for repository `rebel0789/open-agent-fabric` and workflow filename
+`npm-publish.yml`, then run the workflow with `auth_mode=trusted-publishing`.
+This uses OIDC and does not require a long-lived npm token. If the maintainer
+chooses token auth for the first release, set the repository secret `NPM_TOKEN`
+and run the same workflow with `auth_mode=npm-token`.
+
+The workflow does not create tags, sign artifacts, submit marketplace manifests,
+or publish from pull requests. Marketplace or plugin-registry submission remains
+blocked until the npm package URL exists and target registry requirements are
+known.
