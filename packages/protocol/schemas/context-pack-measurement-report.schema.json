@@ -92,7 +92,7 @@
     "maybeHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
     "locator": { "type": "string", "pattern": "^(workspace|user-selected)://[^\\r\\n]{1,320}$" },
     "ratio": { "type": "number", "minimum": 0, "maximum": 1 },
-    "count": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+    "count": { "type": "integer", "minimum": 0, "maximum": 2000000 },
     "duration": { "type": "integer", "minimum": 0, "maximum": 600000 },
     "byteSize": { "type": "integer", "minimum": 0, "maximum": 2000000 },
     "warningCode": { "type": "string", "minLength": 1, "maxLength": 96, "pattern": "^[a-z][a-z0-9_:-]*$" },
@@ -175,8 +175,8 @@
       "additionalProperties": false,
       "required": ["total", "covered", "ratio", "status"],
       "properties": {
-        "total": { "type": "integer", "minimum": 0, "maximum": 100000 },
-        "covered": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "total": { "$ref": "#/$defs/count" },
+        "covered": { "$ref": "#/$defs/count" },
         "ratio": { "$ref": "#/$defs/ratio" },
         "status": { "enum": ["not_applicable", "covered", "partial"] }
       }

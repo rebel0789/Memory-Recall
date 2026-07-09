@@ -91,6 +91,7 @@ estimates and correctness checks, not provider billing claims.
 | Current fact recall with stale facts present | 100% correct, 100% clean | `recall bench temporal --read-only --root . --format json` |
 | Real repo QA after governed ingest | 12/12 answered | `recall bench realqa --read-only --root . --format json` |
 | LoCoMo retrieval coverage | 78% evidence-any recall, 84.79% fewer delivered tokens | `recall bench locomo --read-only --root . --dataset /path/to/locomo10.json --limit 48 --budget 4096 --format json` |
+| Source graph stats summary | 99.87% smaller than full graph JSON, locator-only hotspots | `recall graph stats --root . --format summary` |
 | Practical context-pack report | 84.35% smaller than practical baseline | `npm run token-saver` |
 
 Memory Recall is strongest when context changes over time, handoffs repeat, and
@@ -166,6 +167,9 @@ recall memory ingest --root . --sqlite .local/memory.sqlite --format json
 recall memory review --root . --sqlite .local/memory.sqlite --format summary
 recall memory refine --read-only --root . --sqlite .local/memory.sqlite --format json
 recall token-saver
+recall graph stats --root . --format summary
+recall graph search --root . --query "auth workflow" --format summary
+recall graph trace --root . --symbol runAuthWorkflow --format summary
 recall context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --format summary
 recall handoff
 ```
@@ -196,7 +200,7 @@ boundaries.
 
 ## Status
 
-Development kit: **1.0.3**.
+Development kit: **1.0.5**.
 
 | Surface | Status |
 | --- | --- |

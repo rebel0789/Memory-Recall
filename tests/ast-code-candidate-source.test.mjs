@@ -39,6 +39,9 @@ async function fixtureWorkspace() {
     "import { compileContext } from '../context/compiler';",
     '',
     'export class TokenResetService {',
+    '  static from(request: ResetRequest) {',
+    '    return new TokenResetService();',
+    '  }',
     '  async approveTokenReset(request: ResetRequest) {',
     '    const parsed = z.object({}).safeParse(request);',
     "    return compileContext(parsed.success ? request : request, 'private implementation body');",
@@ -47,13 +50,17 @@ async function fixtureWorkspace() {
     '',
     'export function buildAuditEvidence(manifestId: string) {',
     "  return { manifestId, kind: 'auth-incident' };",
+    '}',
+    '',
+    'export default async function defaultAuthRouteHandler(request: Request) {',
+    '  return buildAuditEvidence(request.method);',
     '}'
   ].join('\n'));
   await writeFile(path.join(root, 'src', 'workflow.ts'), [
     "import { TokenResetService } from './auth';",
     '',
     'export function runAuthWorkflow(request: ResetRequest) {',
-    '  const service = new TokenResetService();',
+    '  const service = TokenResetService.from(request);',
     '  return service.approveTokenReset(request);',
     '}'
   ].join('\n'));
@@ -89,6 +96,68 @@ async function fixtureWorkspace() {
     '',
     'export function helper() {',
     "  return 'helper';",
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'z-imported-helper.ts'), [
+    'export function helper() {',
+    "  return 'imported helper';",
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'uses-imported-helper.ts'), [
+    "import { helper } from './z-imported-helper';",
+    '',
+    'export function callImportedHelper() {',
+    '  return helper();',
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'uses-aliased-helper.ts'), [
+    "import { helper as renamedHelper } from './z-imported-helper';",
+    '',
+    'export function callAliasedHelper() {',
+    '  return renamedHelper();',
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'cjs-validation.js'), [
+    'function validate(input) {',
+    '  return Boolean(input);',
+    '}',
+    '',
+    'module.exports = {',
+    '  validate',
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'uses-cjs-alias.js'), [
+    "const { validate: validateSchema } = require('./cjs-validation')",
+    '',
+    'exports.runCjsValidation = function runCjsValidation(input) {',
+    '  return validateSchema(input);',
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'cjs-default.js'), [
+    'function defaultExportedHelper(input) {',
+    '  return input;',
+    '}',
+    '',
+    'module.exports = defaultExportedHelper'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'cjs-function-default.js'), [
+    'module.exports = function directFunctionExport(input) {',
+    '  return input;',
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'object-assignment.js'), [
+    'export function patchReply(reply) {',
+    '  reply.send = function send(payload) {',
+    '    return payload;',
+    '  };',
+    '}'
+  ].join('\n'));
+  await writeFile(path.join(root, 'src', 'reply-prototype.js'), [
+    'function Reply() {}',
+    '',
+    'Reply.prototype.code = function code(statusCode) {',
+    '  this.statusCode = statusCode;',
+    '  return this;',
     '}'
   ].join('\n'));
   await writeFile(path.join(root, 'src', 'local-path.ts'), [
@@ -306,7 +375,7 @@ test('AST scanner bounds filesystem access, parse diagnostics, exact slices, and
   const first = await scanAstCodeWorkspace({
     root,
     workspaceId: 'ws_ast',
-    maxFileBytes: 512,
+    maxFileBytes: 1024,
     clock: () => fixedNow
   });
 
@@ -318,7 +387,7 @@ test('AST scanner bounds filesystem access, parse diagnostics, exact slices, and
   assert(!JSON.stringify(first).includes(outside));
   assert(!JSON.stringify(first).includes('/Users/rebel/private/secret'));
 
-  const authChunk = first.chunks.find((chunk) => chunk.entities.some((entity) => entity.name === 'approveTokenReset') && chunk.locator.startsWith('workspace://src/auth.ts#L5'));
+  const authChunk = first.chunks.find((chunk) => chunk.entities.some((entity) => entity.name === 'approveTokenReset' && entity.kind === 'method') && chunk.locator.startsWith('workspace://src/auth.ts#L'));
   const slice = await readAstCodeSlice({ root, chunk: authChunk });
   assert(slice.includes('approveTokenReset'));
   assert(slice.includes('private implementation body'));
@@ -357,7 +426,7 @@ test('JS and TS source index exposes definitions references imports exports outl
     clock: () => fixedNow
   });
 
-  assert.equal(index.repositoryOutline.fileCount, 7);
+  assert.equal(index.repositoryOutline.fileCount, 16);
   assert(index.repositoryOutline.symbolCount >= 4);
   assert.match(index.sourceIndexFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.match(index.symbolIndex.symbolIndexFingerprint, /^sha256:[a-f0-9]{64}$/);
@@ -365,6 +434,8 @@ test('JS and TS source index exposes definitions references imports exports outl
 
   const definitions = querySourceIndex(index, { operation: 'definition', name: 'approveTokenReset' });
   assert(definitions.some((item) => item.kind === 'method' && item.locator.startsWith('workspace://src/auth.ts#L')));
+  const defaultDefinitions = querySourceIndex(index, { operation: 'definition', name: 'defaultAuthRouteHandler' });
+  assert(defaultDefinitions.some((item) => item.kind === 'function' && item.locator.startsWith('workspace://src/auth.ts#L')));
 
   const references = querySourceIndex(index, { operation: 'references', name: 'approveTokenReset' });
   assert(references.some((item) => item.sourceLocator.startsWith('workspace://src/workflow.ts#L')));
@@ -380,17 +451,40 @@ test('JS and TS source index exposes definitions references imports exports outl
 
   const exports = querySourceIndex(index, { operation: 'exports', name: 'TokenResetService' });
   assert(exports.some((item) => item.kind === 'class'));
+  const cjsExports = querySourceIndex(index, { operation: 'exports', name: 'validate' });
+  assert(cjsExports.some((item) => item.locator.startsWith('workspace://src/cjs-validation.js')));
+  const cjsDefaultExports = querySourceIndex(index, { operation: 'exports', name: 'defaultExportedHelper' });
+  assert(cjsDefaultExports.some((item) => item.locator.startsWith('workspace://src/cjs-default.js')));
+  const cjsFunctionDefaultExports = querySourceIndex(index, { operation: 'exports', name: 'directFunctionExport' });
+  assert(cjsFunctionDefaultExports.some((item) => item.locator.startsWith('workspace://src/cjs-function-default.js')));
+  const sendExports = querySourceIndex(index, { operation: 'exports', name: 'send' });
+  assert(!sendExports.some((item) => item.locator.startsWith('workspace://src/object-assignment.js')));
 
   const callers = querySourceIndex(index, { operation: 'callers', name: 'approveTokenReset' });
   assert(callers.some((item) => item.callerName === 'runAuthWorkflow'));
 
   const callees = querySourceIndex(index, { operation: 'callees', name: 'runAuthWorkflow' });
   assert(callees.some((item) => item.calleeName === 'approveTokenReset'));
+  assert(callees.some((item) => item.calleeName === 'from'));
   const helperCallers = querySourceIndex(index, { operation: 'callers', name: 'helper' });
   assert(helperCallers.some((item) => item.callerName === 'second'));
   assert(!helperCallers.some((item) => item.callerName === 'first'));
   const firstCallees = querySourceIndex(index, { operation: 'callees', name: 'first' });
   assert(!firstCallees.some((item) => ['second', 'helper'].includes(item.calleeName)));
+  const importedHelperCallees = querySourceIndex(index, { operation: 'callees', name: 'callImportedHelper' });
+  const importedHelperTargetIds = new Set(importedHelperCallees.filter((item) => item.calleeName === 'helper').map((item) => item.calleeSymbolId));
+  const importedHelperTargets = index.symbolIndex.symbols.filter((symbol) => importedHelperTargetIds.has(symbol.id));
+  assert(importedHelperTargets.some((item) => item.locator.startsWith('workspace://src/z-imported-helper.ts#L')));
+  assert(!importedHelperTargets.some((item) => item.locator.startsWith('workspace://src/multi.ts#L')));
+  const aliasedHelperCallees = querySourceIndex(index, { operation: 'callees', name: 'callAliasedHelper' });
+  const aliasedHelperTargetIds = new Set(aliasedHelperCallees.filter((item) => item.calleeName === 'helper').map((item) => item.calleeSymbolId));
+  const aliasedHelperTargets = index.symbolIndex.symbols.filter((symbol) => aliasedHelperTargetIds.has(symbol.id));
+  assert(aliasedHelperTargets.some((item) => item.locator.startsWith('workspace://src/z-imported-helper.ts#L')));
+  assert(!aliasedHelperTargets.some((item) => item.locator.startsWith('workspace://src/multi.ts#L')));
+  const cjsAliasCallees = querySourceIndex(index, { operation: 'callees', name: 'runCjsValidation' });
+  const cjsAliasTargetIds = new Set(cjsAliasCallees.filter((item) => item.calleeName === 'validate').map((item) => item.calleeSymbolId));
+  const cjsAliasTargets = index.symbolIndex.symbols.filter((symbol) => cjsAliasTargetIds.has(symbol.id));
+  assert(cjsAliasTargets.some((item) => item.locator.startsWith('workspace://src/cjs-validation.js#L')));
 
   const fileOutline = querySourceIndex(index, { operation: 'file-outline', locator: 'workspace://src/auth.ts' });
   assert.equal(fileOutline.length, 1);
@@ -423,7 +517,7 @@ test('native source graph exposes sanitized graph search trace and diff impact o
   assert.equal(validateJsonSchema(graphSchema, graphFromScanner).valid, true);
   assert.match(graph.graphFingerprint, /^sha256:[a-f0-9]{64}$/);
   assert.equal(graph.workspaceId, 'ws_ast');
-  assert.equal(graph.summary.fileCount, 7);
+  assert.equal(graph.summary.fileCount, 16);
   assert(graph.summary.symbolCount >= 7);
   assert(graph.summary.edgeKindCounts.calls >= 2);
   assert(graph.nodes.some((node) => node.kind === 'module' && node.label === 'zod'));
@@ -437,6 +531,14 @@ test('native source graph exposes sanitized graph search trace and diff impact o
   assert(search.results.some((item) => item.resultType === 'node' && item.label === 'approveTokenReset'));
   assert(search.results.some((item) => item.resultType === 'edge' && item.kind === 'calls'));
   assert(search.results.every((item) => item.reasonCodes.includes('lexical_match')));
+
+  const prototypeSymbol = index.symbolIndex.symbols.find((item) => item.locator.startsWith('workspace://src/reply-prototype.js') && item.name === 'code');
+  assert.deepEqual(prototypeSymbol?.scopeChain, ['Reply.prototype']);
+  const prototypeNode = graph.nodes.find((item) => item.kind === 'symbol' && item.label === 'code' && item.locator.startsWith('workspace://src/reply-prototype.js'));
+  assert.deepEqual(prototypeNode?.scopeChain, ['Reply.prototype']);
+  const prototypeSearch = searchSourceGraph(graph, { query: 'reply prototype code', nodeKinds: ['symbol'], limit: 5 });
+  assert(prototypeSearch.results.some((item) => item.label === 'code' && item.locator.startsWith('workspace://src/reply-prototype.js')));
+  assert.deepEqual(prototypeSearch.results.find((item) => item.label === 'code' && item.locator.startsWith('workspace://src/reply-prototype.js'))?.scopeChain, ['Reply.prototype']);
 
   const filtered = searchSourceGraph(graph, {
     query: 'service',
@@ -457,6 +559,7 @@ test('native source graph exposes sanitized graph search trace and diff impact o
   });
   assert(trace.startNodeIds.length >= 1);
   assert(trace.paths.some((item) => item.terminalLabel === 'approveTokenReset'));
+  assert(trace.paths.some((item) => item.terminalLabel === 'approveTokenReset' && item.terminalLocator?.startsWith('workspace://src/auth.ts#L')));
   assert(trace.paths.every((item) => item.depth <= 2));
 
   const impact = mapSourceGraphDiffImpact(graph, {
@@ -499,6 +602,31 @@ test('source graph diff impact preserves CommonJS changed-file symbols under tig
 
   assert.deepEqual(impact.representedChangedLocators, ['workspace://lib/index.js']);
   assert(impact.affectedSymbols.some((item) => item.name === 'alpha'));
+});
+
+test('source graph diff impact traverses calls between internal changed-file symbols', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'oaf-internal-impact-'));
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  await writeFile(path.join(root, 'src', 'internal.js'), [
+    "function normalizeUser(input) { return String(input).trim(); }",
+    'function buildUser(input) { return normalizeUser(input); }'
+  ].join('\n'));
+  const index = await buildJsTsSourceIndex({
+    root,
+    workspaceId: 'ws_internal',
+    clock: () => fixedNow
+  });
+  const graph = buildSourceGraphFromIndex(index, { builtAt: fixedNow });
+  const impact = mapSourceGraphDiffImpact(graph, {
+    changedLocators: ['workspace://src/internal.js'],
+    depth: 1,
+    limit: 10
+  });
+
+  assert.deepEqual(impact.representedChangedLocators, ['workspace://src/internal.js']);
+  assert(impact.affectedSymbols.some((item) => item.name === 'normalizeUser'));
+  assert(impact.affectedSymbols.some((item) => item.name === 'buildUser'));
+  assert(impact.impactedEdgeIds.length >= 1);
 });
 
 test('source index fingerprints are stable across collection timestamps', async () => {

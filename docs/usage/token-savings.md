@@ -20,6 +20,9 @@ recall bench temporal --read-only --root . --format json
 recall bench realqa --read-only --root . --format json
 recall bench locomo --read-only --root . --dataset /path/to/locomo10.json --format json
 recall bench locomo --read-only --root . --dataset /path/to/locomo10.json --limit 48 --budget 4096 --format summary
+recall graph stats --root . --format summary
+recall graph search --root . --query "auth workflow" --format summary
+recall graph trace --root . --symbol runAuthWorkflow --format summary
 node scripts/rust-eval.mjs
 ```
 
@@ -36,6 +39,12 @@ measured 78% evidence-any recall, 67% evidence-all recall, 58% answer-string
 coverage on non-adversarial questions, and 84.79% fewer delivered tokens than
 full-conversation context. The report fingerprint from that run was
 `sha256:cf75a6ee5bc3c34917800d8034f106fc03a01bf2bc03dd8c600d11ce279e0b28`.
+
+`graph stats` is the fastest way to inspect source-graph compression without
+raw source bodies. On this repository it delivered 4,136 graph-summary tokens,
+avoided 3,135,082 full-graph JSON tokens, and reported a 99.87% local delivery
+reduction while showing actionable hotspot and entry-point locators. Use the
+number as source-graph transport evidence, not as a provider billing claim.
 
 ## What Counts
 

@@ -23,6 +23,7 @@
         {
           "nodeId": "sgnode_22222222222222222222222222222222",
           "label": "approveTokenReset",
+          "locator": "workspace://src/auth.ts#L2-L4",
           "inbound": 1,
           "outbound": 0,
           "total": 1
@@ -101,6 +102,16 @@
   },
   "trace": null,
   "impact": null,
+  "measurements": {
+    "schemaVersion": "1.0.0",
+    "measurementScope": "full graph nodes/edges/diagnostics versus delivered preview payload",
+    "fullGraphTokenEstimate": 120,
+    "deliveredTokenEstimate": 90,
+    "omittedTokenEstimate": 30,
+    "reductionPercent": 25,
+    "sourceContentIncluded": false,
+    "providerBillingClaimed": false
+  },
   "safeguards": {
     "dryRun": true,
     "persisted": false,

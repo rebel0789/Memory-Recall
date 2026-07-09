@@ -35,10 +35,24 @@
         "moduleCount": { "type": "integer", "minimum": 0 },
         "nodeCount": { "type": "integer", "minimum": 0 },
         "edgeCount": { "type": "integer", "minimum": 0 },
+        "qualifiedSymbolCount": { "type": "integer", "minimum": 0 },
+        "ambiguousSymbolLabelCount": { "type": "integer", "minimum": 0 },
+        "ambiguousLabels": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/ambiguousLabel" } },
         "nodeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
         "edgeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
         "hotspots": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/hotspot" } },
         "entryPoints": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/nodeReference" } }
+      }
+    },
+    "ambiguousLabel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "count", "locators"],
+      "properties": {
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "count": { "type": "integer", "minimum": 2 },
+        "qualifiedLabels": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/safeLabel" } },
+        "locators": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/locator" } }
       }
     },
     "node": {
@@ -50,9 +64,11 @@
         "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*$" },
         "kind": { "enum": ["file", "chunk", "symbol", "module"] },
         "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/safeLabel" },
         "locator": { "$ref": "#/$defs/locator" },
         "sourceRef": { "$ref": "#/$defs/sourceRef" },
         "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] },
+        "scopeChain": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/safeLabel" } },
         "moduleHash": { "$ref": "#/$defs/fingerprint" },
         "contentHash": { "$ref": "#/$defs/fingerprint" },
         "sourceSnapshotId": { "type": "string", "pattern": "^srcsnap_[a-f0-9]{16}$" }
@@ -70,6 +86,7 @@
         "toNodeId": { "$ref": "#/$defs/nodeId" },
         "locator": { "$ref": "#/$defs/locator" },
         "sourceRef": { "$ref": "#/$defs/sourceRef" },
+        "exportName": { "$ref": "#/$defs/safeLabel" },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },
@@ -80,6 +97,8 @@
       "properties": {
         "nodeId": { "$ref": "#/$defs/nodeId" },
         "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/locator" },
         "inbound": { "type": "integer", "minimum": 0 },
         "outbound": { "type": "integer", "minimum": 0 },
         "total": { "type": "integer", "minimum": 0 }
@@ -92,6 +111,7 @@
       "properties": {
         "nodeId": { "$ref": "#/$defs/nodeId" },
         "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/safeLabel" },
         "locator": { "$ref": "#/$defs/locator" },
         "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] }
       }

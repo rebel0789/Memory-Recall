@@ -55,7 +55,14 @@
       "required": ["module", "importHash"],
       "properties": {
         "module": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|[\\\\/])Users[\\\\/])(?!.*(?:^|[\\\\/])private[\\\\/])(?!.*(?:^|[\\\\/])var[\\\\/]folders[\\\\/]).+$" },
-        "importHash": { "$ref": "#/$defs/fingerprint" }
+        "importHash": { "$ref": "#/$defs/fingerprint" },
+        "names": { "type": "array", "maxItems": 64, "items": { "type": "string", "minLength": 1, "maxLength": 128 } },
+        "namespace": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "aliases": {
+          "type": "object",
+          "maxProperties": 64,
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
       }
     },
     "export": {
@@ -74,6 +81,7 @@
       "required": ["name", "callHash"],
       "properties": {
         "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "receiver": { "type": "string", "minLength": 1, "maxLength": 128 },
         "callHash": { "$ref": "#/$defs/fingerprint" }
       }
     },

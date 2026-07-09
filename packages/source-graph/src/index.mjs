@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { hashRef, stableStringify } from '../../context-compiler/src/index.mjs';
+import { estimateTokens, hashRef, stableStringify } from '../../context-compiler/src/index.mjs';
 import {
   buildJsTsSourceGraph,
   mapSourceGraphDiffImpact,
@@ -8,7 +8,8 @@ import {
 } from '../../../providers/native/context-candidate-ast-code/src/index.mjs';
 
 const PREVIEW_VERSION = 'oaf-source-graph-preview-1.0.0';
-export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 256 * 1024;
+export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 512 * 1024;
+export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES = 1000;
 const MAX_CHANGED_LOCATORS = 16;
 const WORKSPACE_ID = /^[a-z][a-z0-9_-]{0,127}$/u;
 const NODE_KINDS = new Set(['file', 'chunk', 'symbol', 'module']);
@@ -32,7 +33,7 @@ export async function buildSourceGraphPreview({
   offset = 0,
   depth = 2,
   sampleLimit = 12,
-  maxFiles = 200,
+  maxFiles = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   maxFileBytes = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   clock = () => new Date().toISOString()
 } = {}) {
@@ -91,6 +92,7 @@ export async function buildSourceGraphPreview({
       startName,
       startNodeId,
       edgeKinds: normalizedEdgeKinds?.length ? normalizedEdgeKinds : ['calls'],
+      locatorPrefix: normalizedLocatorPrefix,
       direction,
       depth: boundedDepth,
       limit: boundedLimit
@@ -103,16 +105,18 @@ export async function buildSourceGraphPreview({
       limit: boundedLimit
     })
     : null;
+  const compact = compactGraph(graph, boundedSampleLimit);
 
   return Object.freeze({
     schemaVersion: '1.0.0',
     previewVersion: PREVIEW_VERSION,
     workspaceId: safeWorkspaceId,
     generatedAt,
-    graph: compactGraph(graph, boundedSampleLimit),
+    graph: compact,
     search,
     trace,
     impact,
+    measurements: sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact }),
     safeguards: {
       dryRun: true,
       persisted: false,
@@ -199,44 +203,67 @@ function unavailableSourceGraphPreview({
       depth,
       impactedNodeIds: [],
       impactedEdgeIds: [],
+      impactedEdgeKindCounts: {},
       affectedSymbols: []
     })
     : null;
+  const compact = Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId,
+    graphVersion: 'oaf-native-source-graph-unavailable-1.0.0',
+    parserVersion: 'oaf-js-ts-static-unavailable',
+    builtAt: generatedAt,
+    sourceIndexFingerprint,
+    graphFingerprint,
+    summary: Object.freeze({
+      fileCount: 0,
+      symbolCount: 0,
+      moduleCount: 0,
+      nodeCount: 0,
+      edgeCount: 0,
+      nodeKindCounts: Object.freeze({}),
+      edgeKindCounts: Object.freeze({}),
+      hotspots: [],
+      entryPoints: []
+    }),
+    diagnostics: [diagnostic],
+    sampleLimit,
+    sampleNodes: [],
+    sampleEdges: [],
+    omittedNodes: 0,
+    omittedEdges: 0
+  });
   return Object.freeze({
     schemaVersion: '1.0.0',
     previewVersion: PREVIEW_VERSION,
     workspaceId,
     generatedAt,
-    graph: Object.freeze({
-      schemaVersion: '1.0.0',
-      workspaceId,
-      graphVersion: 'oaf-native-source-graph-unavailable-1.0.0',
-      parserVersion: 'oaf-js-ts-static-unavailable',
-      builtAt: generatedAt,
-      sourceIndexFingerprint,
-      graphFingerprint,
-      summary: Object.freeze({
-        fileCount: 0,
-        symbolCount: 0,
-        moduleCount: 0,
-        nodeCount: 0,
-        edgeCount: 0,
-        nodeKindCounts: Object.freeze({}),
-        edgeKindCounts: Object.freeze({}),
-        hotspots: [],
-        entryPoints: []
-      }),
-      diagnostics: [diagnostic],
-      sampleLimit,
-      sampleNodes: [],
-      sampleEdges: [],
-      omittedNodes: 0,
-      omittedEdges: 0
-    }),
+    graph: compact,
     search,
     trace: null,
     impact,
+    measurements: sourceGraphPreviewMeasurements({ graph: null, compact, search, trace: null, impact }),
     safeguards: sourceGraphPreviewSafeguards()
+  });
+}
+
+function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact }) {
+  const fullGraphTokenEstimate = graph ? estimateTokens(JSON.stringify({
+    nodes: graph.nodes,
+    edges: graph.edges,
+    diagnostics: graph.diagnostics
+  })) : 0;
+  const deliveredTokenEstimate = estimateTokens(JSON.stringify({ graph: compact, search, trace, impact }));
+  const omittedTokenEstimate = Math.max(0, fullGraphTokenEstimate - deliveredTokenEstimate);
+  return Object.freeze({
+    schemaVersion: '1.0.0',
+    measurementScope: 'full graph nodes/edges/diagnostics versus delivered preview payload',
+    fullGraphTokenEstimate,
+    deliveredTokenEstimate,
+    omittedTokenEstimate,
+    reductionPercent: fullGraphTokenEstimate ? Number(((omittedTokenEstimate / fullGraphTokenEstimate) * 100).toFixed(2)) : 0,
+    sourceContentIncluded: false,
+    providerBillingClaimed: false
   });
 }
 

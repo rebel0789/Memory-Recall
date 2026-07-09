@@ -10,8 +10,8 @@ const SOURCE_ID = 'provider:native:context-candidate:ast-code';
 const GRAPH_SOURCE_ID = 'provider:native:context-candidate:graph';
 const EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx']);
 const SKIP_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'build', '.next', 'coverage', 'out', 'vendor']);
-const DEFAULT_MAX_FILE_BYTES = 256 * 1024;
-const DEFAULT_MAX_FILES = 200;
+const DEFAULT_MAX_FILE_BYTES = 512 * 1024;
+const DEFAULT_MAX_FILES = 1000;
 const MAX_REFERENCES_PER_CHUNK = 80;
 const MAX_CALLS_PER_CHUNK = 40;
 const MAX_TARGETS_PER_SYMBOL_NAME = 8;
@@ -19,6 +19,106 @@ const MAX_REFERENCE_EDGES_PER_CHUNK = 200;
 const MAX_CALL_EDGES_PER_CHUNK = 80;
 const MAX_DIRECT_GRAPH_RESULTS_PER_FILE = 2;
 const MAX_NEIGHBOR_GRAPH_RESULTS_PER_FILE = 1;
+const MAX_REFERENCE_TARGETS_FOR_COMMON_NAME = 8;
+const FIRST_ARGUMENT_CALLBACK_NAMES = new Set(['catch', 'every', 'filter', 'finally', 'find', 'findIndex', 'flatMap', 'forEach', 'map', 'reduce', 'reduceRight', 'some', 'sort', 'then']);
+const CALLABLE_DECLARATION_KINDS = new Set(['function', 'method']);
+const LOW_SIGNAL_REFERENCE_NAMES = new Set([
+  'clock',
+  'config',
+  'content',
+  'contentHash',
+  'createdAt',
+  'ctx',
+  'data',
+  'description',
+  'edge',
+  'edges',
+  'error',
+  'file',
+  'files',
+  'id',
+  'index',
+  'input',
+  'item',
+  'key',
+  'name',
+  'node',
+  'nodes',
+  'message',
+  'options',
+  'output',
+  'path',
+  'query',
+  'record',
+  'request',
+  'response',
+  'arg',
+  'args',
+  'argv',
+  'body',
+  'fixedNow',
+  'now',
+  'option',
+  'payload',
+  'reasonCodes',
+  'resolve',
+  'result',
+  'results',
+  'root',
+  'runId',
+  'split',
+  'state',
+  'status',
+  'summary',
+  'text',
+  'type',
+  'value',
+  'values',
+  'workspaceId'
+]);
+const WEAK_MEMBER_CALL_NAMES = new Set([
+  'add',
+  'catch',
+  'clear',
+  'delete',
+  'entries',
+  'every',
+  'filter',
+  'finally',
+  'find',
+  'findIndex',
+  'forEach',
+  'debug',
+  'error',
+  'get',
+  'has',
+  'includes',
+  'info',
+  'join',
+  'keys',
+  'log',
+  'map',
+  'match',
+  'pop',
+  'push',
+  'reduce',
+  'replace',
+  'reverse',
+  'set',
+  'slice',
+  'some',
+  'sort',
+  'splice',
+  'split',
+  'startsWith',
+  'stringify',
+  'test',
+  'then',
+  'toString',
+  'trim',
+  'values',
+  'warn'
+]);
 const CONTROL_FLOW_NAMES = new Set(['if', 'for', 'while', 'switch', 'catch', 'function']);
 const JS_KEYWORDS = new Set([
   'as', 'async', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
@@ -520,9 +620,11 @@ export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOStr
       workspaceId,
       kind: 'symbol',
       label: symbol.name,
+      qualifiedLabel: qualifiedSymbolLabel(symbol.name, symbol.scopeChain),
       locator: symbol.locator,
       sourceRef: symbol.id,
       symbolKind: symbol.kind,
+      scopeChain: symbol.scopeChain?.length ? symbol.scopeChain : undefined,
       contentHash: symbol.contentHash,
       sourceSnapshotId: symbol.sourceSnapshotId
     }));
@@ -581,7 +683,8 @@ export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOStr
 
   for (const item of index.symbolIndex.exports ?? []) {
     const fileNode = ensureFileNode(item.locator);
-    const targetSymbol = (index.symbolIndex.symbols ?? []).find((symbol) => symbol.chunkId === item.chunkId && symbol.name === item.name);
+    const chunkSymbols = (index.symbolIndex.symbols ?? []).filter((symbol) => symbol.chunkId === item.chunkId);
+    const targetSymbol = chunkSymbols.find((symbol) => symbol.name === item.name) ?? chunkSymbols[0];
     const targetNode = targetSymbol ? symbolNodeBySymbolId.get(targetSymbol.id) : ensureChunkNode({ chunkId: item.chunkId, locator: item.locator });
     if (targetNode) {
       addEdge(withDefined({
@@ -592,6 +695,7 @@ export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOStr
         toNodeId: targetNode.id,
         locator: item.locator,
         sourceRef: item.id,
+        exportName: item.name,
         confidence: 1
       }));
     }
@@ -662,50 +766,75 @@ export function searchSourceGraph(graph, {
   const boundedOffset = boundedInteger(offset, 'source_graph_search_offset', 0, 10_000);
   const nodeKindSet = nodeKinds ? new Set(nodeKinds) : null;
   const edgeKindSet = edgeKinds ? new Set(edgeKinds) : null;
+  const includeNodes = !edgeKindSet || Boolean(nodeKindSet);
+  const includeEdges = !nodeKindSet || Boolean(edgeKindSet);
   const pattern = labelPattern ? safeRegex(labelPattern, 'source_graph_label_pattern_invalid') : null;
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const queryText = String(query ?? '');
   const queryTerms = terms(queryText);
   const results = [];
 
-  for (const node of graph.nodes) {
+  for (const node of includeNodes ? graph.nodes : []) {
     if (nodeKindSet && !nodeKindSet.has(node.kind)) continue;
     if (locatorPrefix && !(node.locator ?? '').startsWith(locatorPrefix)) continue;
-    if (pattern && !pattern.test(node.label)) continue;
-    const score = graphSearchScore(queryTerms, sourceGraphNodeSearchText(node));
+    if (pattern && !pattern.test(node.label) && !pattern.test(node.qualifiedLabel ?? '')) continue;
+    const score = graphSearchScore(queryTerms, sourceGraphNodeSearchText(node)) * graphSearchPathWeight(node.locator, queryTerms, locatorPrefix) * graphSearchSymbolKindWeight(node.symbolKind);
     if (queryTerms.size && score <= 0) continue;
     results.push({
       resultType: 'node',
       id: node.id,
       kind: node.kind,
       label: node.label,
+      qualifiedLabel: node.qualifiedLabel,
       locator: node.locator,
+      symbolKind: node.symbolKind,
+      scopeChain: node.scopeChain,
       score,
       reasonCodes: sourceGraphSearchReasons({ score, pattern, locatorPrefix })
     });
   }
 
-  for (const edge of graph.edges) {
+  for (const edge of includeEdges ? graph.edges : []) {
     if (edgeKindSet && !edgeKindSet.has(edge.kind)) continue;
     if (locatorPrefix && !(edge.locator ?? '').startsWith(locatorPrefix)) continue;
     const from = nodeById.get(edge.fromNodeId);
     const to = nodeById.get(edge.toNodeId);
-    const score = graphSearchScore(queryTerms, sourceGraphEdgeSearchText(edge, from, to));
+    const fromPathWeight = from?.locator ? graphSearchPathWeight(from.locator, queryTerms, locatorPrefix) : 1;
+    const score = graphSearchScore(queryTerms, sourceGraphEdgeSearchText(edge, from, to)) * graphSearchPathWeight(edge.locator, queryTerms, locatorPrefix) * fromPathWeight * graphSearchEdgeKindWeight(edge.kind);
     if (queryTerms.size && score <= 0) continue;
+    const fromLabel = from?.qualifiedLabel ?? from?.label ?? edge.fromNodeId;
+    const toLabel = to?.qualifiedLabel ?? to?.label ?? edge.toNodeId;
+    const exportLabel = edge.exportName && edge.exportName !== to?.label ? ` ${edge.exportName}` : '';
     results.push({
       resultType: 'edge',
       id: edge.id,
       kind: edge.kind,
-      label: `${from?.label ?? edge.fromNodeId} ${edge.kind} ${to?.label ?? edge.toNodeId}`,
+      label: `${fromLabel} ${edge.kind}${exportLabel} ${toLabel}`,
       locator: edge.locator,
+      exportName: edge.exportName,
       fromNodeId: edge.fromNodeId,
+      fromLabel: from?.label,
+      fromQualifiedLabel: from?.qualifiedLabel,
+      fromLocator: from?.locator,
+      fromKind: from?.kind,
+      fromSymbolKind: from?.symbolKind,
       toNodeId: edge.toNodeId,
+      toLabel: to?.label,
+      toQualifiedLabel: to?.qualifiedLabel,
+      toLocator: to?.locator,
+      toKind: to?.kind,
+      toSymbolKind: to?.symbolKind,
       score,
       reasonCodes: sourceGraphSearchReasons({ score, pattern: null, locatorPrefix })
     });
   }
 
-  const sorted = results.sort((a, b) => b.score - a.score || a.resultType.localeCompare(b.resultType) || a.id.localeCompare(b.id));
+  const sorted = sourceGraphSearchDeduplicateResults(results.sort((a, b) => (
+    b.score - a.score ||
+    graphSearchPathPriority(a.locator) - graphSearchPathPriority(b.locator) ||
+    a.resultType.localeCompare(b.resultType) ||
+    a.id.localeCompare(b.id)
+  )));
   const page = sorted.slice(boundedOffset, boundedOffset + boundedLimit);
   return Object.freeze({
     schemaVersion: '1.0.0',
@@ -722,10 +851,47 @@ export function searchSourceGraph(graph, {
   });
 }
 
+function sourceGraphSearchDeduplicateResults(results) {
+  const byKey = new Map();
+  const order = [];
+  for (const item of results) {
+    const key = sourceGraphSearchResultDedupeKey(item);
+    if (!key) {
+      order.push(item);
+      continue;
+    }
+    const current = byKey.get(key);
+    if (!current) {
+      byKey.set(key, item);
+      order.push(key);
+      continue;
+    }
+    if (sourceGraphSearchResultSpecificity(item) > sourceGraphSearchResultSpecificity(current)) byKey.set(key, item);
+  }
+  return order.map((item) => typeof item === 'string' ? byKey.get(item) : item);
+}
+
+function sourceGraphSearchResultDedupeKey(item) {
+  if (item?.resultType === 'node' && item.kind === 'symbol' && item.id) return `symbol:${item.id}`;
+  if (item?.resultType !== 'edge' || item.kind !== 'exports' || !item.fromNodeId || !item.toNodeId) return null;
+  if ((!item.exportName || item.exportName === item.toLabel) && sourceGraphSameLocatorFile(item.locator, item.toLocator)) return `symbol:${item.toNodeId}`;
+  return `exports:${item.fromNodeId}:${item.toNodeId}:${item.exportName ?? ''}`;
+}
+
+function sourceGraphSameLocatorFile(left, right) {
+  return Boolean(left && right && String(left).split('#')[0] === String(right).split('#')[0]);
+}
+
+function sourceGraphSearchResultSpecificity(item) {
+  if (item?.resultType === 'node') return 2;
+  return String(item?.locator ?? '').includes('#L') ? 1 : 0;
+}
+
 export function traceSourceGraph(graph, {
   startName = null,
   startNodeId = null,
   edgeKinds = ['calls'],
+  locatorPrefix = null,
   direction = 'outbound',
   depth = 2,
   limit = 20
@@ -734,11 +900,10 @@ export function traceSourceGraph(graph, {
   const boundedDepth = boundedInteger(depth, 'source_graph_trace_depth', 1, 5);
   const boundedLimit = boundedInteger(limit, 'source_graph_trace_limit', 1, 100);
   if (!['outbound', 'inbound', 'both'].includes(direction)) throw new Error(`source_graph_trace_direction_invalid:${direction}`);
+  const safeLocatorPrefix = locatorPrefix ? String(locatorPrefix) : null;
   const edgeKindSet = new Set(edgeKinds ?? ['calls']);
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const starts = startNodeId
-    ? graph.nodes.filter((node) => node.id === startNodeId)
-    : graph.nodes.filter((node) => node.kind === 'symbol' && safeTag(node.label) === safeTag(startName));
+  const starts = sourceGraphTraceStartNodes(graph, nodeById, { startName, startNodeId, locatorPrefix: safeLocatorPrefix });
   const outgoing = new Map();
   const incoming = new Map();
   for (const edge of graph.edges.filter((item) => edgeKindSet.has(item.kind)).sort((a, b) => a.id.localeCompare(b.id))) {
@@ -749,30 +914,56 @@ export function traceSourceGraph(graph, {
     inValues.push(edge);
     incoming.set(edge.toNodeId, inValues);
   }
-  const queue = starts.map((node) => ({ nodeIds: [node.id], edgeIds: [], currentNodeId: node.id }));
-  const paths = [];
+  const queue = starts.map((node) => ({ nodeIds: [node.id], edgeIds: [], edgeKinds: [], edgeLocators: [], currentNodeId: node.id }));
+  const paths = starts
+    .filter((node) => !safeLocatorPrefix || (node.locator ?? '').startsWith(safeLocatorPrefix))
+    .slice(0, boundedLimit)
+    .map((node) => Object.freeze(withDefined({
+      depth: 0,
+      nodeIds: [node.id],
+      edgeIds: [],
+      edgeKinds: [],
+      edgeLocators: [],
+      terminalNodeId: node.id,
+      terminalLabel: node.label,
+      terminalQualifiedLabel: node.qualifiedLabel,
+      terminalLocator: node.locator,
+      terminalKind: node.kind,
+      terminalSymbolKind: node.symbolKind,
+      terminalScopeChain: node.scopeChain
+    })));
   while (queue.length && paths.length < boundedLimit) {
     const item = queue.shift();
     if (item.edgeIds.length >= boundedDepth) continue;
     const nextEdges = [
       ...(['outbound', 'both'].includes(direction) ? (outgoing.get(item.currentNodeId) ?? []).map((edge) => ({ edge, nextNodeId: edge.toNodeId })) : []),
       ...(['inbound', 'both'].includes(direction) ? (incoming.get(item.currentNodeId) ?? []).map((edge) => ({ edge, nextNodeId: edge.fromNodeId })) : [])
-    ].sort((a, b) => a.edge.id.localeCompare(b.edge.id));
+    ].sort((a, b) => sourceGraphTraceNextPriority(a, nodeById) - sourceGraphTraceNextPriority(b, nodeById) || a.edge.id.localeCompare(b.edge.id));
     for (const { edge, nextNodeId } of nextEdges) {
       if (item.nodeIds.includes(nextNodeId)) continue;
       const nextPath = {
         nodeIds: [...item.nodeIds, nextNodeId],
         edgeIds: [...item.edgeIds, edge.id],
+        edgeKinds: [...item.edgeKinds, edge.kind],
+        edgeLocators: [...item.edgeLocators, edge.locator],
         currentNodeId: nextNodeId
       };
       const terminal = nodeById.get(nextNodeId);
-      paths.push(Object.freeze({
+      if (safeLocatorPrefix && !(terminal?.locator ?? '').startsWith(safeLocatorPrefix)) continue;
+      paths.push(Object.freeze(withDefined({
         depth: nextPath.edgeIds.length,
         nodeIds: nextPath.nodeIds,
         edgeIds: nextPath.edgeIds,
+        edgeKinds: nextPath.edgeKinds,
+        edgeLocators: nextPath.edgeLocators,
         terminalNodeId: nextNodeId,
-        terminalLabel: terminal?.label ?? nextNodeId
-      }));
+        terminalLabel: terminal?.label ?? nextNodeId,
+        terminalQualifiedLabel: terminal?.qualifiedLabel,
+        terminalLocator: terminal?.locator,
+        terminalKind: terminal?.kind,
+        terminalSymbolKind: terminal?.symbolKind,
+        terminalScopeChain: terminal?.scopeChain
+      })));
       if (paths.length >= boundedLimit) break;
       queue.push(nextPath);
     }
@@ -791,19 +982,51 @@ export function traceSourceGraph(graph, {
   });
 }
 
+function sourceGraphTraceNextPriority(item, nodeById) {
+  const node = nodeById.get(item.nextNodeId);
+  return graphSearchPathPriority(node?.locator ?? item.edge.locator);
+}
+
+function sourceGraphTraceStartNodes(graph, nodeById, { startName = null, startNodeId = null, locatorPrefix = null } = {}) {
+  if (startNodeId) return graph.nodes.filter((node) => node.id === startNodeId);
+  const startTag = safeTag(startName);
+  if (!startTag) return [];
+  const startsById = new Map();
+  for (const node of graph.nodes) {
+    if (node.kind === 'symbol' && (safeTag(node.label) === startTag || safeTag(node.qualifiedLabel) === startTag)) {
+      startsById.set(node.id, node);
+    }
+  }
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'exports' || safeTag(edge.exportName) !== startTag) continue;
+    const target = nodeById.get(edge.toNodeId);
+    if (target?.kind === 'symbol') startsById.set(target.id, target);
+  }
+  const ranked = [...startsById.values()]
+    .filter((node) => !locatorPrefix || (node.locator ?? '').startsWith(locatorPrefix))
+    .sort((a, b) => graphSearchPathPriority(a.locator) - graphSearchPathPriority(b.locator) || a.locator.localeCompare(b.locator) || a.id.localeCompare(b.id));
+  const sourceRanked = locatorPrefix ? [] : ranked.filter((node) => graphSearchPathPriority(node.locator) <= 1);
+  return sourceRanked.length ? sourceRanked : ranked;
+}
+
 export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 2, limit = 100 } = {}) {
   assertSourceGraph(graph);
   const boundedDepth = boundedInteger(depth, 'source_graph_diff_depth', 1, 5);
   const boundedLimit = boundedInteger(limit, 'source_graph_diff_limit', 1, 500);
   const changed = new Set(changedLocators.map(fileLocatorFor));
   const startNodes = graph.nodes.filter((node) => node.kind === 'file' && changed.has(node.locator));
-  const sameFileSymbolNodes = graph.nodes
-    .filter((node) => node.kind === 'symbol' && changed.has(fileLocatorFor(node.locator)))
-    .sort((a, b) => a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
-  const seedNodes = [...startNodes, ...sameFileSymbolNodes].slice(0, boundedLimit);
   const representedChangedLocators = startNodes.map((node) => node.locator).sort();
   const adjacency = new Map();
+  const behaviorDegree = new Map(graph.nodes.map((node) => [node.id, { inbound: 0, outbound: 0 }]));
+  const exportedSymbolIds = new Set();
   for (const edge of graph.edges) {
+    if (edge.kind === 'exports') exportedSymbolIds.add(edge.toNodeId);
+    if (edge.kind === 'calls' || edge.kind === 'references') {
+      const from = behaviorDegree.get(edge.fromNodeId);
+      const to = behaviorDegree.get(edge.toNodeId);
+      if (from) from.outbound += 1;
+      if (to) to.inbound += 1;
+    }
     const fromValues = adjacency.get(edge.fromNodeId) ?? [];
     fromValues.push({ edge, nextNodeId: edge.toNodeId });
     adjacency.set(edge.fromNodeId, fromValues);
@@ -811,27 +1034,32 @@ export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 
     toValues.push({ edge, nextNodeId: edge.fromNodeId });
     adjacency.set(edge.toNodeId, toValues);
   }
+  const sameFileSymbolNodes = graph.nodes
+    .filter((node) => node.kind === 'symbol' && changed.has(fileLocatorFor(node.locator)))
+    .sort((a, b) => sourceGraphImpactSymbolRank(b, behaviorDegree, exportedSymbolIds) - sourceGraphImpactSymbolRank(a, behaviorDegree, exportedSymbolIds) || a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
+  const seedNodes = (sameFileSymbolNodes.length ? sameFileSymbolNodes : startNodes).slice(0, boundedLimit);
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const edgeById = new Map(graph.edges.map((edge) => [edge.id, edge]));
   const impactedNodes = new Set(seedNodes.map((node) => node.id));
   const impactedEdges = new Set();
-  const queue = startNodes.filter((node) => impactedNodes.has(node.id)).map((node) => ({ nodeId: node.id, depth: 0 }));
-  while (queue.length && impactedNodes.size < boundedLimit) {
+  const queue = seedNodes.filter((node) => impactedNodes.has(node.id)).map((node) => ({ nodeId: node.id, depth: 0 }));
+  while (queue.length) {
     const item = queue.shift();
     if (item.depth >= boundedDepth) continue;
     for (const { edge, nextNodeId } of (adjacency.get(item.nodeId) ?? []).sort((a, b) => a.edge.id.localeCompare(b.edge.id))) {
       impactedEdges.add(edge.id);
-      if (!impactedNodes.has(nextNodeId)) {
+      if (!impactedNodes.has(nextNodeId) && impactedNodes.size < boundedLimit) {
         impactedNodes.add(nextNodeId);
         queue.push({ nodeId: nextNodeId, depth: item.depth + 1 });
       }
-      if (impactedNodes.size >= boundedLimit) break;
     }
   }
   const affectedSymbols = [...impactedNodes]
     .map((id) => nodeById.get(id))
     .filter((node) => node?.kind === 'symbol')
-    .map((node) => ({ nodeId: node.id, name: node.label, locator: node.locator, symbolKind: node.symbolKind }))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.nodeId.localeCompare(b.nodeId));
+    .sort((a, b) => sourceGraphImpactSymbolRank(b, behaviorDegree, exportedSymbolIds) - sourceGraphImpactSymbolRank(a, behaviorDegree, exportedSymbolIds) || a.label.localeCompare(b.label) || a.id.localeCompare(b.id))
+    .map((node) => withDefined({ nodeId: node.id, name: node.label, qualifiedName: node.qualifiedLabel, locator: node.locator, symbolKind: node.symbolKind }));
+  const impactedEdgeKindCounts = countBy([...impactedEdges].map((id) => edgeById.get(id)).filter(Boolean), (edge) => edge.kind);
   return Object.freeze({
     schemaVersion: '1.0.0',
     workspaceId: graph.workspaceId,
@@ -841,8 +1069,28 @@ export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 
     depth: boundedDepth,
     impactedNodeIds: [...impactedNodes].sort(),
     impactedEdgeIds: [...impactedEdges].sort(),
+    impactedEdgeKindCounts,
     affectedSymbols
   });
+}
+
+function sourceGraphImpactSymbolRank(node, behaviorDegree, exportedSymbolIds) {
+  const pathPriority = graphSearchPathPriority(node.locator);
+  const counts = behaviorDegree.get(node.id) ?? { inbound: 0, outbound: 0 };
+  const behaviorTotal = counts.inbound + counts.outbound;
+  const scopeChain = Array.isArray(node.scopeChain) ? node.scopeChain.filter(Boolean) : [];
+  let score = pathPriority === 1 ? 4 : pathPriority === 2 ? 2 : pathPriority === 3 ? -24 : -30;
+  if (exportedSymbolIds.has(node.id)) score += ['type', 'interface'].includes(node.symbolKind) ? 16 : 40;
+  if (!scopeChain.length) score += 18;
+  else if (/^[A-Z]/u.test(scopeChain[0] ?? '')) score += 12;
+  else score -= 8;
+  if (node.qualifiedLabel) score += 6;
+  if (node.symbolKind === 'class') score += 22;
+  else if (['function', 'method'].includes(node.symbolKind)) score += 10;
+  else if (['interface', 'type'].includes(node.symbolKind)) score += 2;
+  if (highSignalReferenceName(node.label, [])) score += 4;
+  else score -= 12;
+  return score + (node.symbolKind === 'class' ? Math.min(40, counts.inbound) : Math.min(8, behaviorTotal));
 }
 
 export async function readAstCodeSlice({ root, chunk } = {}) {
@@ -863,10 +1111,10 @@ function chunksForFile({ relativePath, body, workspaceId, collectedAt }) {
   const fileImports = importsFor(body).sort((a, b) => a.module.localeCompare(b.module));
   const lines = body.split('\n');
   const lineStartBytes = lineByteStarts(lines);
-  const declarations = declarationsFor(lines);
+  const declarations = declarationsFor(lines, relativePath);
   const chunks = [];
   for (const declaration of declarations) {
-    const endLine = declarationEndLine(lines, declaration.startLine);
+    const endLine = declaration.endLine ?? declarationEndLineForDeclaration(lines, declaration);
     const sourceSlice = lines.slice(declaration.startLine, endLine + 1).join('\n');
     const parseErrorState = bracesBalanced(sourceSlice) ? 'none' : 'unbalanced_braces';
     const lineRange = { start: declaration.startLine + 1, end: endLine + 1 };
@@ -876,9 +1124,10 @@ function chunksForFile({ relativePath, body, workspaceId, collectedAt }) {
     };
     const entities = entitiesForDeclaration(declaration, sourceSlice);
     const signature = signatureFor(declaration, sourceSlice);
-    const calls = declaration.kind === 'class' ? [] : callsForDeclaration(declaration, sourceSlice).map((name) => ({ name, callHash: hashRef(`${relativePath}:${lineRange.start}:${name}`) }));
+    const declarationCalls = declaration.kind === 'class' ? inheritanceCallsForDeclaration(declaration, sourceSlice, fileImports) : CALLABLE_DECLARATION_KINDS.has(declaration.kind) ? callsForDeclaration(declaration, sourceSlice, fileImports) : [];
+    const calls = declarationCalls.map((call) => withDefined({ ...call, callHash: hashRef(`${relativePath}:${lineRange.start}:${call.receiver ? `${call.receiver}.` : ''}${call.name}`) }));
     const references = referencesForSource(sourceSlice).map((name) => ({ name, referenceHash: hashRef(`${relativePath}:${lineRange.start}:${name}`) }));
-    const imports = declaration.kind === 'class' ? [] : importsForSlice(fileImports, sourceSlice).map(publicImport);
+    const imports = declaration.kind === 'class' && !declarationCalls.length ? [] : importsForSlice(fileImports, sourceSlice).map(publicImport);
     const exports = declaration.exported ? [{ name: declaration.name, kind: declaration.kind, exportHash: hashRef(`${relativePath}:${declaration.name}:export`) }] : [];
     const chunk = {
       schemaVersion: '1.0.0',
@@ -912,33 +1161,92 @@ function chunksForFile({ relativePath, body, workspaceId, collectedAt }) {
   });
 }
 
-function declarationsFor(lines) {
+function declarationsFor(lines, relativePath = '') {
   const declarations = [];
   const scopeStack = [];
   let braceDepth = 0;
+  const defaultName = defaultExportName(relativePath);
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index];
     const trimmed = raw.trim();
-    while (scopeStack.length && braceDepth < scopeStack[scopeStack.length - 1].depth) scopeStack.pop();
+    while (scopeStack.length && scopeEnded(scopeStack[scopeStack.length - 1], { index, braceDepth, raw, trimmed })) scopeStack.pop();
     const classMatch = trimmed.match(/^(?:export\s+)?(?:default\s+)?class\s+([A-Za-z_$][\w$]*)/u);
-    const functionMatch = trimmed.match(/^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/u);
-    const arrowMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)(?:\s*:\s*[^=]+)?\s*=>/u);
-    const arrowStartMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/u);
+    const functionMatch = trimmed.match(/^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/u);
+    const anonymousDefaultClassMatch = trimmed.match(/^export\s+default\s+class(?:\s+extends\b|\s*\{)/u);
+    const anonymousDefaultFunctionMatch = trimmed.match(/^export\s+default\s+(?:async\s+)?function\s*\(/u);
+    const defaultWrapperFunctionMatch = trimmed.match(/^export\s+default\s+(?:React\.)?(?:memo|forwardRef)\s*\(\s*(?:async\s+)?function(?:\s+([A-Za-z_$][\w$]*))?\s*\(/u);
+    const defaultWrapperArrowMatch = trimmed.match(/^export\s+default\s+(?:React\.)?(?:memo|forwardRef)\s*\(\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)(?:\s*:\s*[^=]+)?\s*=>/u);
+    const anonymousDefaultArrowMatch = trimmed.match(/^export\s+default\s+(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)(?:\s*:\s*[^=]+)?\s*=>/u);
+    const variableFunctionMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]*)?\s*\(/u);
+    const arrowMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)(?:\s*:\s*[^=]+)?\s*=>/u);
+    const wrapperFunctionMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:React\.)?(?:memo|forwardRef)\s*\(\s*(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]*)?\s*\(/u);
+    const arrowStartMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s*)?(?:\(\s*$|[A-Za-z_$][\w$]*(?:\s*:\s*[^=]+)?\s*$|$)/u);
+    const objectScopeMatch = trimmed.match(/^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*\{\s*$/u);
+    const defaultObjectScopeMatch = trimmed.match(/^export\s+default\s+\{\s*$/u);
+    const commonJsObjectScopeMatch = trimmed.match(/^((?:module\.)?exports(?:\.[A-Za-z_$][\w$]*)?)\s*=\s*\{\s*$/u);
+    const propertyObjectScopeMatch = scopeStack.length ? trimmed.match(/^([A-Za-z_$][\w$]*)\s*:\s*\{\s*$/u) : null;
     const interfaceMatch = trimmed.match(/^(?:export\s+)?interface\s+([A-Za-z_$][\w$]*)/u);
     const typeMatch = trimmed.match(/^(?:export\s+)?type\s+([A-Za-z_$][\w$]*)/u);
-    const methodMatch = scopeStack.length ? trimmed.match(/^(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^{]+)?\{/u) : null;
+    const assignmentFunctionMatch = trimmed.match(/^(?:(?:module\.)?exports|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function(?:\s+([A-Za-z_$][\w$]*))?\s*\(/u);
+    const assignmentArrowMatch = trimmed.match(/^(?:(?:module\.)?exports|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)(?:\s*:\s*[^=]+)?\s*=>/u);
+    const objectFunctionMatch = trimmed.match(/^([A-Za-z_$][\w$]*)\s*:\s*(?:async\s*)?function(?:\s+([A-Za-z_$][\w$]*))?\s*\(/u);
+    const objectArrowMatch = trimmed.match(/^([A-Za-z_$][\w$]*)\s*:\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)(?:\s*:\s*[^=]+)?\s*=>/u);
+    const classFieldFunctionMatch = scopeStack.length ? trimmed.match(/^(?:(?:public|private|protected|readonly|override|static)\s+)*(#?[A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function(?:\s+[A-Za-z_$][\w$]*)?\s*\(/u) : null;
+    const classFieldArrowMatch = scopeStack.length ? trimmed.match(/^(?:(?:public|private|protected|readonly|override|static)\s+)*(#?[A-Za-z_$][\w$]*)\s*(?::[^=]+)?=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)(?:\s*:\s*[^=]+)?\s*=>/u) : null;
+    const callableClassPropertyMatch = scopeStack.length ? trimmed.match(/^(?:(?:public|private|protected|readonly|override|static)\s+)*(#?[A-Za-z_$][\w$]*)!?\s*:\s*([^=;]+);?$/u) : null;
+    const methodMatch = trimmed.match(/^(?:static\s+)?(?:(?:get|set)\s+)?(?:async\s+)?(#?[A-Za-z_$][\w$]*)\s*\([^)]*\)\s*(?::[^{]+)?\{/u);
     const exported = /^export\s+/u.test(trimmed);
     if (classMatch) {
       declarations.push({ kind: 'class', name: classMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported });
-      scopeStack.push({ name: classMatch[1], depth: braceDepth + Math.max(1, braceDelta(raw)) });
+      scopeStack.push(classScope(classMatch[1], lines, index, braceDepth));
     } else if (functionMatch) {
       declarations.push({ kind: 'function', name: functionMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported });
+      pushFunctionScope(scopeStack, functionMatch[1], lines, index);
+    } else if (anonymousDefaultClassMatch) {
+      declarations.push({ kind: 'class', name: defaultName, startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: true });
+      scopeStack.push(classScope(defaultName, lines, index, braceDepth));
+    } else if (anonymousDefaultFunctionMatch) {
+      declarations.push({ kind: 'function', name: defaultName, startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: true });
+    } else if (defaultWrapperFunctionMatch) {
+      declarations.push({ kind: 'function', name: defaultWrapperFunctionMatch[1] ?? defaultName, startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: true });
+    } else if (defaultWrapperArrowMatch) {
+      declarations.push({ kind: 'function', name: defaultName, startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: true });
+    } else if (anonymousDefaultArrowMatch) {
+      declarations.push({ kind: 'function', name: defaultName, startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: true });
+    } else if (variableFunctionMatch) {
+      declarations.push({ kind: 'function', name: variableFunctionMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported });
+      pushFunctionScope(scopeStack, variableFunctionMatch[1], lines, index);
+    } else if (wrapperFunctionMatch) {
+      declarations.push({ kind: 'function', name: wrapperFunctionMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported });
+    } else if (defaultObjectScopeMatch) {
+      scopeStack.push({ name: defaultName, depth: braceDepth + Math.max(1, braceDelta(raw)) });
+    } else if (commonJsObjectScopeMatch) {
+      scopeStack.push({ name: commonJsObjectScopeMatch[1], depth: braceDepth + Math.max(1, braceDelta(raw)) });
+    } else if (objectScopeMatch) {
+      scopeStack.push({ name: objectScopeMatch[1], depth: braceDepth + Math.max(1, braceDelta(raw)) });
+    } else if (propertyObjectScopeMatch) {
+      scopeStack.push({ name: propertyObjectScopeMatch[1], depth: braceDepth + Math.max(1, braceDelta(raw)) });
     } else if (arrowMatch || (arrowStartMatch && arrowDeclarationHasArrow(lines, index))) {
       declarations.push({ kind: 'function', name: (arrowMatch ?? arrowStartMatch)[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported });
+      pushFunctionScope(scopeStack, (arrowMatch ?? arrowStartMatch)[1], lines, index);
     } else if (interfaceMatch) {
       declarations.push({ kind: 'interface', name: interfaceMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported });
     } else if (typeMatch) {
       declarations.push({ kind: 'type', name: typeMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported });
+    } else if (assignmentFunctionMatch) {
+      declarations.push({ kind: 'function', name: assignmentFunctionMatch[1] || assignmentFunctionMatch[2], startLine: index, scopeChain: assignmentScopeChain(trimmed) ?? scopeStack.map((item) => item.name), exported: assignmentExports(trimmed) });
+    } else if (assignmentArrowMatch) {
+      declarations.push({ kind: 'function', name: assignmentArrowMatch[1], startLine: index, scopeChain: assignmentScopeChain(trimmed) ?? scopeStack.map((item) => item.name), exported: assignmentExports(trimmed) });
+    } else if (objectFunctionMatch) {
+      declarations.push({ kind: 'method', name: objectFunctionMatch[1] || objectFunctionMatch[2], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: false });
+    } else if (objectArrowMatch) {
+      declarations.push({ kind: 'method', name: objectArrowMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: false });
+    } else if (classFieldFunctionMatch) {
+      declarations.push({ kind: 'method', name: classFieldFunctionMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: false });
+    } else if (classFieldArrowMatch) {
+      declarations.push({ kind: 'method', name: classFieldArrowMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: false });
+    } else if (callableClassPropertyMatch && callableClassPropertyType(callableClassPropertyMatch[2])) {
+      declarations.push({ kind: 'method', name: callableClassPropertyMatch[1], startLine: index, endLine: index, scopeChain: scopeStack.map((item) => item.name), exported: false });
     } else if (methodMatch && !CONTROL_FLOW_NAMES.has(methodMatch[1])) {
       declarations.push({ kind: 'method', name: methodMatch[1], startLine: index, scopeChain: scopeStack.map((item) => item.name), exported: false });
     }
@@ -947,25 +1255,152 @@ function declarationsFor(lines) {
   return declarations;
 }
 
+function scopeEnded(scope, { index, braceDepth, raw, trimmed }) {
+  if (Number.isInteger(scope.pendingUntil) && index <= scope.pendingUntil) return false;
+  if (Number.isInteger(scope.indent)) return index > scope.startLine && trimmed && leadingWhitespace(raw) <= scope.indent;
+  return braceDepth < scope.depth;
+}
+
+function classScope(name, lines, index, braceDepth) {
+  const openLine = openingBraceLine(lines, index);
+  return { name, depth: braceDepth + Math.max(1, braceDelta(lines[openLine] ?? lines[index] ?? '')), pendingUntil: openLine };
+}
+
+function openingBraceLine(lines, startLine) {
+  const limit = Math.min(lines.length, startLine + 30);
+  for (let index = startLine; index < limit; index += 1) {
+    const line = String(lines[index] ?? '');
+    if (braceDelta(line) > 0 || (index === startLine && line.includes('{'))) return index;
+  }
+  return startLine;
+}
+
+function pushFunctionScope(scopeStack, name, lines, index) {
+  if (declarationEndLine(lines, index) > index) scopeStack.push({ name, startLine: index, indent: leadingWhitespace(lines[index] ?? '') });
+}
+
+function leadingWhitespace(value) {
+  return String(value ?? '').match(/^\s*/u)?.[0]?.length ?? 0;
+}
+
+function callableClassPropertyType(typeText) {
+  return /\b(?:HandlerInterface|MiddlewareHandlerInterface|OnHandlerInterface|GetPath|ErrorHandler|NotFoundHandler)\b/u.test(String(typeText ?? ''));
+}
+
+function defaultExportName(relativePath) {
+  const withoutExtension = String(relativePath ?? '').replace(/\.[^.]+$/u, '');
+  const parts = withoutExtension.split('/').filter(Boolean);
+  const base = parts.at(-1) === 'index' ? parts.at(-2) : parts.at(-1);
+  return `default:${safeTag(base ?? 'export')}`;
+}
+
 function arrowDeclarationHasArrow(lines, startLine) {
   const limit = Math.min(lines.length, startLine + 30);
   for (let index = startLine; index < limit; index += 1) {
     const line = stripStringsAndComments(lines[index]);
     if (line.includes('=>')) return true;
-    if (index > startLine && /;\s*$/u.test(line.trim())) return false;
+    if (/;\s*$/u.test(line.trim())) return false;
   }
   return false;
 }
 
+function assignmentExports(trimmed) {
+  return /^(?:(?:module\.)?exports)\./u.test(String(trimmed ?? ''));
+}
+
+function assignmentScopeChain(trimmed) {
+  const lhs = String(trimmed ?? '').split('=')[0]?.trim() ?? '';
+  const parts = lhs.split('.').filter(Boolean);
+  if (parts.length < 3 || parts[1] !== 'prototype') return null;
+  return [`${parts[0]}.prototype`];
+}
+
 function entitiesForDeclaration(declaration, sourceSlice) {
   const entities = [{ kind: declaration.kind, name: declaration.name }];
-  if (declaration.kind === 'class') {
-    const methodMatches = sourceSlice.matchAll(/^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/gmu);
-    for (const match of methodMatches) {
-      if (!CONTROL_FLOW_NAMES.has(match[1])) entities.push({ kind: 'method', name: match[1] });
-    }
-  }
   return Object.freeze(entities.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)));
+}
+
+function declarationEndLineForDeclaration(lines, declaration) {
+  if (['type', 'interface'].includes(declaration?.kind)) return typeLikeDeclarationEndLine(lines, declaration.startLine);
+  return declarationEndLine(lines, declaration.startLine);
+}
+
+function typeLikeDeclarationEndLine(lines, startLine) {
+  let depth = 0;
+  let sawBrace = false;
+  let lastContentLine = startLine;
+  const state = { inBlockComment: false };
+  for (let index = startLine; index < lines.length; index += 1) {
+    const cleaned = stripDeclarationBoundaryCommentsAndStrings(lines[index], state);
+    const trimmed = cleaned.trim();
+    const delta = braceDeltaFromCleaned(cleaned);
+    if (trimmed) lastContentLine = index;
+    if (delta > 0 || (index === startLine && cleaned.includes('{'))) sawBrace = true;
+    depth += delta;
+    if (sawBrace && depth <= 0) return index;
+    if (!sawBrace && /;\s*$/u.test(trimmed)) return index;
+    if (!sawBrace && index === startLine && typeAliasLooksComplete(trimmed)) return index;
+    if (!sawBrace && index > startLine && trimmed && !typeAliasContinuationLine(trimmed)) return Math.max(startLine, index - 1);
+    if (!sawBrace && index > startLine && !trimmed && lastContentLine > startLine) return lastContentLine;
+  }
+  return lines.length - 1;
+}
+
+function typeAliasLooksComplete(trimmed) {
+  return /^export\s+interface\b/u.test(trimmed)
+    || (/^(?:export\s+)?type\b/u.test(trimmed) && /=/u.test(trimmed) && !/[=|&({,]\s*$/u.test(trimmed));
+}
+
+function typeAliasContinuationLine(trimmed) {
+  return /^[|&})\],]/u.test(trimmed)
+    || /^[A-Za-z_$][\w$]*\??\s*:/u.test(trimmed)
+    || /^(?:readonly\s+)?[A-Za-z_$][\w$]*\s*\(/u.test(trimmed);
+}
+
+function stripDeclarationBoundaryCommentsAndStrings(text, state = { inBlockComment: false }) {
+  const input = String(text ?? '');
+  let output = '';
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    const next = input[index + 1];
+    if (state.inBlockComment) {
+      if (char === '*' && next === '/') {
+        state.inBlockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      state.inBlockComment = true;
+      index += 1;
+      continue;
+    }
+    if (char === '/' && next === '/') break;
+    if (char === '\'' || char === '"' || char === '`') {
+      const quote = char;
+      index += 1;
+      while (index < input.length) {
+        if (input[index] === '\\') {
+          index += 2;
+          continue;
+        }
+        if (input[index] === quote) break;
+        index += 1;
+      }
+      continue;
+    }
+    output += char;
+  }
+  return output;
+}
+
+function braceDeltaFromCleaned(text) {
+  let delta = 0;
+  for (const char of String(text ?? '')) {
+    if (char === '{') delta += 1;
+    else if (char === '}') delta -= 1;
+  }
+  return delta;
 }
 
 function declarationEndLine(lines, startLine) {
@@ -973,7 +1408,7 @@ function declarationEndLine(lines, startLine) {
   let sawBrace = false;
   for (let index = startLine; index < lines.length; index += 1) {
     const delta = braceDelta(lines[index]);
-    if (lines[index].includes('{')) sawBrace = true;
+    if (delta > 0 || (index === startLine && lines[index].includes('{'))) sawBrace = true;
     depth += delta;
     if (sawBrace && depth <= 0) return index;
     if (!sawBrace && /;\s*$/u.test(lines[index].trim())) return index;
@@ -988,25 +1423,50 @@ function importsFor(body) {
     const module = sanitizeModuleSpecifier(rawModule);
     imports.push({
       module,
+      rawModule,
+      syntax: 'static',
       importHash: hashRef(rawModule),
-      names: importedNames(match[1])
+      names: importedNames(match[1]),
+      namespace: namespaceImportedName(match[1]),
+      aliases: { ...importedAliases(match[1]), ...defaultImportedAliases(match[1], rawModule) }
     });
   }
   for (const line of body.split('\n')) {
+    const trimmedLine = line.trim();
     const bareMatch = line.match(/^\s*import\s+['"]([^'"]+)['"]/u);
+    const dynamicImportMatch = /^(?:\/[/*]|\*)/u.test(trimmedLine) ? null : line.match(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/u);
     const requireMatch = line.match(/require\(\s*['"]([^'"]+)['"]\s*\)/u);
-    const requireName = line.match(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/u)?.[1] ?? null;
-    const rawModule = bareMatch?.[1] ?? requireMatch?.[1] ?? null;
+    const requireBinding = line.match(/\b(?:const|let|var)\s+(.+?)\s*=\s*require\(/u)?.[1]?.trim() ?? null;
+    const requireName = requireBinding?.match(/^[A-Za-z_$][\w$]*$/u)?.[0] ?? null;
+    const rawModule = bareMatch?.[1] ?? dynamicImportMatch?.[1] ?? requireMatch?.[1] ?? null;
     if (rawModule) {
       const module = sanitizeModuleSpecifier(rawModule);
       imports.push({
         module,
+        rawModule,
+        syntax: dynamicImportMatch ? 'dynamic' : requireMatch ? 'require' : 'static',
         importHash: hashRef(rawModule),
-        names: requireName ? [requireName] : []
+        names: requireName ? [requireName] : importedRequireNames(requireBinding),
+        aliases: importedRequireAliases(requireBinding)
       });
     }
   }
-  return uniqueBy(imports, (item) => item.module);
+  return mergeImports(imports);
+}
+
+function mergeImports(imports) {
+  const byKey = new Map();
+  for (const item of imports) {
+    const key = `${item.syntax}:${item.module}`;
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? {
+      ...existing,
+      names: [...new Set([...(existing.names ?? []), ...(item.names ?? [])])].sort(),
+      namespace: existing.namespace ?? item.namespace,
+      aliases: { ...(existing.aliases ?? {}), ...(item.aliases ?? {}) }
+    } : item);
+  }
+  return [...byKey.values()];
 }
 
 function fileOutlineFor({ relativePath, body, workspaceId, collectedAt, chunks }) {
@@ -1057,6 +1517,8 @@ function buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt }) {
   const references = [];
   const callEdges = [];
   const symbolsByName = new Map();
+  const symbolsByChunkId = new Map();
+  const knownFileLocators = new Set(fileOutlines.map((file) => file.locator));
   for (const chunk of chunks) {
     for (const entity of chunk.entities) {
       const symbol = {
@@ -1075,6 +1537,9 @@ function buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt }) {
       const values = symbolsByName.get(entity.name) ?? [];
       values.push(symbol);
       symbolsByName.set(entity.name, values);
+      const chunkValues = symbolsByChunkId.get(chunk.id) ?? [];
+      chunkValues.push(symbol);
+      symbolsByChunkId.set(chunk.id, chunkValues);
     }
     for (const item of chunk.imports) imports.push({
       id: `import_${sha256(`${chunk.locator}:${item.module}`).slice(0, 32)}`,
@@ -1096,14 +1561,67 @@ function buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt }) {
       });
     }
   }
+  const defaultExportTargetByFileLocator = defaultExportTargetsForFiles(fileOutlines, symbols);
+  const fileOutlineByLocator = new Map(fileOutlines.map((file) => [file.locator, file]));
+  for (const file of fileOutlines) {
+    for (const item of file.exports ?? []) {
+      const reExportFileLocator = item.module ? resolveImportFileLocator(file.locator, item.module, knownFileLocators) : null;
+      if (item.namespace && reExportFileLocator) {
+        const target = symbols.find((symbol) => fileLocatorFor(symbol.locator) === reExportFileLocator);
+        const chunkId = target?.chunkId ?? file.chunkIds?.[0];
+        if (!chunkId) continue;
+        exports.push({
+          id: `export_${sha256(`${file.locator}:namespace:${item.name}:${target?.id ?? chunkId}`).slice(0, 32)}`,
+          workspaceId,
+          name: item.name,
+          kind: item.kind,
+          locator: file.locator,
+          chunkId,
+          exportHash: item.exportHash
+        });
+        continue;
+      }
+      if (item.star && reExportFileLocator) {
+        for (const target of symbols.filter((symbol) => fileLocatorFor(symbol.locator) === reExportFileLocator)) {
+          exports.push({
+            id: `export_${sha256(`${file.locator}:star:${target.id}`).slice(0, 32)}`,
+            workspaceId,
+            name: target.name,
+            kind: target.kind,
+            locator: file.locator,
+            chunkId: target.chunkId,
+            exportHash: item.exportHash
+          });
+        }
+        continue;
+      }
+      const targetName = reExportFileLocator && item.targetName === 'default'
+        ? defaultExportTargetByFileLocator.get(reExportFileLocator) ?? defaultExportName(relativeFromLocator(reExportFileLocator))
+        : item.targetName ?? item.name;
+      const target = symbols.find((symbol) => symbol.name === targetName && fileLocatorFor(symbol.locator) === (reExportFileLocator ?? file.locator));
+      const chunkId = target?.chunkId ?? file.chunkIds?.[0];
+      if (!chunkId) continue;
+      exports.push({
+        id: `export_${sha256(`${file.locator}:${item.name}:${targetName}:${target?.id ?? chunkId}`).slice(0, 32)}`,
+        workspaceId,
+        name: item.name,
+        kind: target?.kind ?? item.kind,
+        locator: file.locator,
+        chunkId,
+        exportHash: item.exportHash
+      });
+    }
+  }
+  const exportsByFileAndName = exportsByFileName(exports);
 
   for (const chunk of chunks) {
-    const caller = chunk.entities.find((entity) => ['function', 'method'].includes(entity.kind)) ?? chunk.entities[0];
+    const caller = chunk.entities.find((entity) => entity.kind === 'class') ?? chunk.entities.find((entity) => ['function', 'method'].includes(entity.kind)) ?? chunk.entities[0];
     let referenceEdgesForChunk = 0;
     for (const reference of (chunk.references ?? []).slice(0, MAX_REFERENCES_PER_CHUNK)) {
       if (referenceEdgesForChunk >= MAX_REFERENCE_EDGES_PER_CHUNK) break;
-      if (!symbolsByName.has(reference.name)) continue;
-      for (const target of symbolsByName.get(reference.name).slice(0, MAX_TARGETS_PER_SYMBOL_NAME)) {
+      const targets = symbolsByName.get(reference.name) ?? [];
+      if (!targets.length || !highSignalReferenceName(reference.name, targets)) continue;
+      for (const target of targets.slice(0, MAX_TARGETS_PER_SYMBOL_NAME)) {
         if (referenceEdgesForChunk >= MAX_REFERENCE_EDGES_PER_CHUNK) break;
         if (target.chunkId === chunk.id && target.name === caller?.name) continue;
         references.push({
@@ -1121,11 +1639,30 @@ function buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt }) {
     if (!caller) continue;
     const callerSymbol = symbols.find((symbol) => symbol.chunkId === chunk.id && symbol.name === caller.name);
     if (!callerSymbol) continue;
+    const importedFileLocators = new Set((chunk.imports ?? [])
+      .map((item) => resolveImportFileLocator(chunk.locator, item.module, knownFileLocators))
+      .filter(Boolean));
+    for (const item of chunk.imports ?? []) {
+      const fileLocator = resolveImportFileLocator(chunk.locator, item.module, knownFileLocators);
+      if (!fileLocator) continue;
+      for (const exported of exports.filter((candidate) => fileLocatorFor(candidate.locator) === fileLocator)) {
+        const targetSymbol = symbolsByChunkId.get(exported.chunkId)?.[0];
+        if (targetSymbol) importedFileLocators.add(fileLocatorFor(targetSymbol.locator));
+      }
+    }
     let callEdgesForChunk = 0;
     for (const call of (chunk.calls ?? []).slice(0, MAX_CALLS_PER_CHUNK)) {
       if (callEdgesForChunk >= MAX_CALL_EDGES_PER_CHUNK) break;
-      if (!symbolsByName.has(call.name)) continue;
-      for (const callee of symbolsByName.get(call.name).slice(0, MAX_TARGETS_PER_SYMBOL_NAME)) {
+      const namedImportTargets = importedNamedCallTargets(call, { chunk, knownFileLocators, exportsByFileAndName, symbolsByChunkId, fileOutlineByLocator }) ?? [];
+      const defaultImportTargets = namedImportTargets.length ? [] : importedDefaultCallTargets(call.name, { importedFileLocators, defaultExportTargetByFileLocator, symbolsByName });
+      const importedTargets = namedImportTargets.length ? namedImportTargets : defaultImportTargets;
+      const fallbackTargets = symbolsByName.get(call.name) ?? [];
+      const matchingSymbols = importedTargets?.length
+        ? importedTargets
+        : LOW_SIGNAL_REFERENCE_NAMES.has(call.name) ? [] : fallbackTargets;
+      if (!matchingSymbols.length) continue;
+      const targets = prioritizeCallTargets(matchingSymbols, { sourceLocator: chunk.locator, importedFileLocators });
+      for (const callee of targets.slice(0, MAX_TARGETS_PER_SYMBOL_NAME)) {
         if (callEdgesForChunk >= MAX_CALL_EDGES_PER_CHUNK) break;
         if (callee.id === callerSymbol.id) continue;
         callEdges.push({
@@ -1158,16 +1695,166 @@ function buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt }) {
   return Object.freeze({ ...index, symbolIndexFingerprint: contentFingerprint(index) });
 }
 
+function prioritizeCallTargets(targets = [], { sourceLocator, importedFileLocators }) {
+  const sourceFile = fileLocatorFor(sourceLocator);
+  const sourcePathPriority = graphSearchPathPriority(sourceLocator);
+  const sorted = [...targets].sort((left, right) => (
+    callTargetRank(left, sourceFile, importedFileLocators) - callTargetRank(right, sourceFile, importedFileLocators) ||
+    left.locator.localeCompare(right.locator) ||
+    left.id.localeCompare(right.id)
+  ));
+  const bestRank = sorted.length ? callTargetRank(sorted[0], sourceFile, importedFileLocators) : 0;
+  const bestPriority = sorted.length ? callTargetPriority(sorted[0], sourceFile, importedFileLocators) : 0;
+  const bestPathPriority = sorted.length ? graphSearchPathPriority(sorted[0].locator) : 0;
+  if (sourcePathPriority === 1 && bestPriority === 2 && bestPathPriority >= 3) return [];
+  return sorted.filter((target) => callTargetRank(target, sourceFile, importedFileLocators) === bestRank);
+}
+
+function callTargetRank(symbol, sourceFile, importedFileLocators) {
+  return (callTargetPriority(symbol, sourceFile, importedFileLocators) * 10) + graphSearchPathPriority(symbol.locator);
+}
+
+function callTargetPriority(symbol, sourceFile, importedFileLocators) {
+  const targetFile = fileLocatorFor(symbol.locator);
+  if (targetFile === sourceFile) return 0;
+  if (importedFileLocators?.has(targetFile)) return 1;
+  return 2;
+}
+
+function qualifiedSymbolLabel(name, scopeChain = []) {
+  const scope = Array.isArray(scopeChain) ? scopeChain.filter(Boolean).join('.') : '';
+  return scope ? `${scope}.${name}` : undefined;
+}
+
+function highSignalReferenceName(name, targets = []) {
+  const normalized = String(name ?? '');
+  if (!normalized || JS_KEYWORDS.has(normalized) || LOW_SIGNAL_REFERENCE_NAMES.has(normalized)) return false;
+  if (/^[a-z_$]{1,3}$/u.test(normalized)) return false;
+  if (targets.length > MAX_REFERENCE_TARGETS_FOR_COMMON_NAME && !/[A-Z]/u.test(normalized) && normalized.length < 12) return false;
+  return true;
+}
+
+function defaultExportTargetsForFiles(fileOutlines, symbols) {
+  const symbolsByFileAndName = new Set(symbols.map((symbol) => `${fileLocatorFor(symbol.locator)}:${symbol.name}`));
+  return new Map(fileOutlines.map((file) => {
+    const explicit = file.exports?.find((item) => item.name === 'default' && item.targetName)?.targetName;
+    const fallback = defaultExportName(relativeFromLocator(file.locator));
+    const targetName = explicit ?? (symbolsByFileAndName.has(`${file.locator}:${fallback}`) ? fallback : null);
+    return targetName ? [file.locator, targetName] : null;
+  }).filter(Boolean));
+}
+
+function importedDefaultCallTargets(callName, { importedFileLocators, defaultExportTargetByFileLocator, symbolsByName }) {
+  if (!String(callName ?? '').startsWith('default:')) return [];
+  const targets = [];
+  for (const fileLocator of importedFileLocators ?? []) {
+    if (defaultExportName(relativeFromLocator(fileLocator)) !== callName) continue;
+    const targetName = defaultExportTargetByFileLocator.get(fileLocator);
+    targets.push(...(symbolsByName.get(targetName) ?? []).filter((symbol) => fileLocatorFor(symbol.locator) === fileLocator));
+  }
+  return targets;
+}
+
+function importedNamedCallTargets(call, { chunk, knownFileLocators, exportsByFileAndName, symbolsByChunkId, fileOutlineByLocator }) {
+  const targets = [];
+  for (const item of chunk.imports ?? []) {
+    const fileLocator = resolveImportFileLocator(chunk.locator, item.module, knownFileLocators);
+    if (!fileLocator) continue;
+    if (call.receiver && call.receiver !== item.namespace) {
+      const importedReceiver = item.aliases?.[call.receiver] ?? call.receiver;
+      if (!item.names?.includes(call.receiver) && !Object.values(item.aliases ?? {}).includes(call.receiver)) continue;
+      const namespaceExport = fileOutlineByLocator.get(fileLocator)?.exports?.find((candidate) => candidate.namespace && candidate.name === importedReceiver);
+      const namespaceFileLocator = namespaceExport?.module ? resolveImportFileLocator(fileLocator, namespaceExport.module, knownFileLocators) : null;
+      const exported = namespaceFileLocator ? exportsByFileAndName.get(`${namespaceFileLocator}:${call.name}`) : null;
+      if (exported?.chunkId) targets.push(...(symbolsByChunkId.get(exported.chunkId) ?? []));
+      continue;
+    }
+    const importedName = call.receiver === item.namespace ? call.name : item.aliases?.[call.name] ?? call.name;
+    if (!call.receiver && !item.names?.includes(call.name) && !Object.values(item.aliases ?? {}).includes(call.name) && importedName === call.name && !item.names?.includes(importedName)) continue;
+    const exported = fileLocator ? exportsByFileAndName.get(`${fileLocator}:${importedName}`) : null;
+    if (exported?.chunkId) targets.push(...(symbolsByChunkId.get(exported.chunkId) ?? []));
+  }
+  return targets.length ? targets : null;
+}
+
+function exportsByFileName(exports) {
+  const output = new Map();
+  for (const item of exports) output.set(`${fileLocatorFor(item.locator)}:${item.name}`, item);
+  return output;
+}
+
 function exportsFor({ body, chunks }) {
   const output = [];
   for (const chunk of chunks) output.push(...(chunk.exports ?? []));
-  for (const match of body.matchAll(/^\s*export\s+\{([^}]+)\}/gmu)) {
-    for (const value of match[1].split(',')) {
-      const name = value.trim().split(/\s+as\s+/u).pop()?.trim();
-      if (name) output.push({ name, kind: 'export', exportHash: hashRef(`export:${name}`) });
+  for (const match of body.matchAll(/^\s*export\s+\{([^}]+)\}(?:\s+from\s+['"]([^'"]+)['"])?/gmu)) {
+    const module = match[2] ? sanitizeModuleSpecifier(match[2]) : null;
+    for (const item of namedExportItems(match[1])) {
+      output.push({
+        name: item.name,
+        kind: 'export',
+        exportHash: hashRef(`${module ? 're-export' : 'export'}:${item.targetName}:${item.name}:${module ?? ''}`),
+        targetName: item.targetName,
+        ...(module ? { module } : {})
+      });
+    }
+  }
+  for (const match of body.matchAll(/^\s*export\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+['"]([^'"]+)['"]/gmu)) {
+    const module = sanitizeModuleSpecifier(match[2]);
+    output.push({ name: match[1], kind: 'export', module, namespace: true, exportHash: hashRef(`re-export-namespace:${match[1]}:${module}`) });
+  }
+  for (const match of body.matchAll(/^\s*export\s+default\s+([A-Za-z_$][\w$]*)\s*;?\s*$/gmu)) {
+    output.push({ name: 'default', kind: 'export', targetName: match[1], exportHash: hashRef(`default-export:${match[1]}`) });
+  }
+  for (const match of body.matchAll(/^\s*export\s+default\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gmu)) {
+    output.push({ name: 'default', kind: 'export', targetName: match[1], exportHash: hashRef(`default-export:${match[1]}`) });
+  }
+  for (const match of body.matchAll(/^\s*export\s+default\s+class\s+([A-Za-z_$][\w$]*)/gmu)) {
+    output.push({ name: 'default', kind: 'export', targetName: match[1], exportHash: hashRef(`default-export:${match[1]}`) });
+  }
+  for (const match of body.matchAll(/^\s*export\s+\*\s+from\s+['"]([^'"]+)['"]/gmu)) {
+    const module = sanitizeModuleSpecifier(match[1]);
+    output.push({ name: '*', kind: 'export', module, star: true, exportHash: hashRef(`re-export-star:${module}`) });
+  }
+  for (const match of body.matchAll(/^\s*module\.exports\.([A-Za-z_$][\w$]*)\s*=/gmu)) {
+    output.push({ name: match[1], kind: 'export', exportHash: hashRef(`commonjs:${match[1]}`) });
+  }
+  for (const match of body.matchAll(/^\s*module\.exports\s*=\s*(?:async\s*)?function\s+([A-Za-z_$][\w$]*)\s*\(/gmu)) {
+    output.push({ name: match[1], kind: 'export', exportHash: hashRef(`commonjs:${match[1]}`) });
+  }
+  for (const match of body.matchAll(/^\s*module\.exports\s*=\s*([A-Za-z_$][\w$]*)\s*;?\s*$/gmu)) {
+    output.push({ name: match[1], kind: 'export', exportHash: hashRef(`commonjs:${match[1]}`) });
+  }
+  for (const match of body.matchAll(/^\s*module\.exports\s*=\s*\{([\s\S]*?)^\s*\}/gmu)) {
+    for (const value of commonJsObjectExportNames(match[1])) {
+      output.push({ name: value, kind: 'export', exportHash: hashRef(`commonjs:${value}`) });
     }
   }
   return uniqueBy(output, (item) => `${item.kind}:${item.name}`);
+}
+
+function namedExportItems(body) {
+  return String(body ?? '').split(',').map((value) => {
+    const [targetName, exportedName] = value.trim().split(/\s+as\s+/u).map((item) => item?.trim()).filter(Boolean);
+    if (!targetName || !/^[A-Za-z_$][\w$]*$/u.test(targetName)) return null;
+    const name = exportedName && /^[A-Za-z_$][\w$]*$/u.test(exportedName) ? exportedName : targetName;
+    return { name, targetName };
+  }).filter(Boolean);
+}
+
+function commonJsObjectExportNames(body) {
+  const names = [];
+  for (const line of String(body ?? '').split('\n')) {
+    const cleaned = stripStringsAndComments(line).trim().replace(/,$/u, '');
+    if (!cleaned || cleaned.includes('{') || cleaned.includes('}')) continue;
+    const name = (
+      cleaned.match(/^([A-Za-z_$][\w$]*)$/u) ??
+      cleaned.match(/^([A-Za-z_$][\w$]*)\s*\(/u) ??
+      cleaned.match(/^([A-Za-z_$][\w$]*)\s*:\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/u) ??
+      cleaned.match(/^[A-Za-z_$][\w$]*\s*:\s*([A-Za-z_$][\w$]*)$/u)
+    )?.[1];
+    if (name) names.push(name);
+  }
+  return [...new Set(names)].sort();
 }
 
 function signatureFor(declaration, sourceSlice) {
@@ -1183,22 +1870,114 @@ function referencesForSource(sourceSlice) {
   return [...new Set(names)].sort();
 }
 
-function callsForDeclaration(declaration, sourceSlice) {
-  return callsForSource(sourceSlice).filter((name) => name !== declaration.name);
+function callsForDeclaration(declaration, sourceSlice, imports = []) {
+  const calls = callsForSource(sourceSlice).filter((call) => call.name !== declaration.name);
+  return expandCallAliases(calls, imports);
+}
+
+function inheritanceCallsForDeclaration(declaration, sourceSlice, imports = []) {
+  const calls = [];
+  const stripped = stripStringsAndComments(sourceSlice);
+  const match = stripped.match(/\bclass\s+[A-Za-z_$][\w$]*\s+extends\s+([A-Za-z_$][\w$]*)(?:\s*\.\s*([A-Za-z_$][\w$]*))?/u);
+  if (match) calls.push(match[2] ? { receiver: match[1], name: match[2] } : { name: match[1] });
+  const implementsMatch = stripped.match(/\bimplements\s+([^{]+)/u);
+  for (const item of implementsMatch?.[1]?.split(',') ?? []) {
+    const value = item.trim().match(/^([A-Za-z_$][\w$]*)(?:\s*\.\s*([A-Za-z_$][\w$]*))?/u);
+    if (value) calls.push(value[2] ? { receiver: value[1], name: value[2] } : { name: value[1] });
+  }
+  return expandCallAliases(calls.filter((call) => call.name !== declaration.name), imports);
+}
+
+function expandCallAliases(calls, imports = []) {
+  const aliases = new Map(imports.flatMap((item) => Object.entries(item.aliases ?? {})));
+  return uniqueBy(calls.flatMap((call) => {
+    const original = call.receiver ? null : aliases.get(call.name);
+    return original && original !== call.name ? [call, { name: original }] : [call];
+  }), (call) => `${call.receiver ?? ''}:${call.name}`).sort((a, b) => a.name.localeCompare(b.name) || String(a.receiver ?? '').localeCompare(String(b.receiver ?? '')));
 }
 
 function callsForSource(sourceSlice) {
-  const names = [];
-  for (const match of stripStringsAndComments(sourceSlice).matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/gu)) {
-    if (!JS_KEYWORDS.has(match[1])) names.push(match[1]);
+  const calls = [];
+  const stripped = stripStringsAndComments(sourceSlice);
+  for (const match of stripped.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/gu)) {
+    if (previousNonWhitespace(stripped, match.index) === '.') continue;
+    if (!JS_KEYWORDS.has(match[1])) calls.push({ name: match[1] });
   }
-  return [...new Set(names)].sort();
+  for (const match of stripped.matchAll(/\b([A-Za-z_$][\w$]*)\s*\.\s*(#?[A-Za-z_$][\w$]*)\s*\(/gu)) {
+    if (!WEAK_MEMBER_CALL_NAMES.has(match[2])) calls.push({ receiver: match[1], name: match[2] });
+  }
+  for (const call of callbackReferencesForSource(stripped)) {
+    calls.push(call);
+  }
+  for (const match of stripped.matchAll(/\b(?:[A-Za-z_$][\w$]*\s*\.\s*)?createElement\s*\(\s*([A-Z][\w$]*)(?:\s*\.\s*([A-Z][\w$]*))?/gu)) {
+    calls.push(match[2] ? { receiver: match[1], name: match[2] } : { name: match[1] });
+  }
+  for (const match of stripped.matchAll(/<\s*([A-Z][\w$]*)\.([A-Z][\w$]*)(?=[\s/>])/gu)) {
+    calls.push({ receiver: match[1], name: match[2] });
+  }
+  for (const match of stripped.matchAll(/<\s*([A-Z][\w$]*)(?=[\s/>])/gu)) {
+    calls.push({ name: match[1] });
+  }
+  return uniqueBy(calls, (call) => `${call.receiver ?? ''}:${call.name}`).sort((a, b) => a.name.localeCompare(b.name) || String(a.receiver ?? '').localeCompare(String(b.receiver ?? '')));
+}
+
+function callbackReferencesForSource(stripped) {
+  const calls = [];
+  for (const match of stripped.matchAll(/\b(?:[A-Za-z_$][\w$]*\s*\.\s*)?([A-Za-z_$][\w$]*)\s*\(([^()]*)\)/gu)) {
+    if (/\bfunction\s*$/u.test(stripped.slice(0, match.index))) continue;
+    if (nextNonWhitespace(stripped, match.index + match[0].length) === '{') continue;
+    const args = match[2].split(',');
+    const callbackArgs = FIRST_ARGUMENT_CALLBACK_NAMES.has(match[1]) ? args : args.slice(1);
+    for (const value of callbackArgs) {
+      pushCallbackReference(calls, value.trim());
+    }
+  }
+  return calls;
+}
+
+function pushCallbackReference(calls, item) {
+  const member = item.match(/^([A-Za-z_$][\w$]*)\s*\.\s*([A-Za-z_$][\w$]*)$/u);
+  if (member && !JS_KEYWORDS.has(member[1]) && !JS_KEYWORDS.has(member[2]) && !WEAK_MEMBER_CALL_NAMES.has(member[2])) {
+    calls.push({ receiver: member[1], name: member[2] });
+    return;
+  }
+  if (/^[A-Za-z_$][\w$]*$/u.test(item) && !JS_KEYWORDS.has(item)) {
+    calls.push({ name: item });
+  }
+}
+
+function previousNonWhitespace(value, index) {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (!/\s/u.test(value[cursor])) return value[cursor];
+  }
+  return '';
+}
+
+function nextNonWhitespace(value, index) {
+  for (let cursor = index; cursor < value.length; cursor += 1) {
+    if (!/\s/u.test(value[cursor])) return value[cursor];
+  }
+  return '';
 }
 
 function importsForSlice(imports, sourceSlice) {
   const referenceTerms = referencesForSource(sourceSlice);
   const referenced = new Set(referenceTerms);
-  return imports.filter((item) => !item.names.length || item.names.some((name) => referenced.has(name)));
+  return imports.filter((item) => {
+    if (item.syntax === 'dynamic') return dynamicImportPattern(item.rawModule).test(sourceSlice);
+    return !item.names.length || item.names.some((name) => referenced.has(name));
+  }).map((item) => withDefined({
+    ...item,
+    aliases: item.namespace ? { ...(item.aliases ?? {}), ...destructuredNamespaceAliases(sourceSlice, item.namespace) } : item.aliases
+  }));
+}
+
+function dynamicImportPattern(rawModule) {
+  return new RegExp(`\\bimport\\(\\s*['"]${escapeRegExp(rawModule)}['"]\\s*\\)`, 'u');
+}
+
+function escapeRegExp(value) {
+  return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }
 
 function importedNames(specifier) {
@@ -1219,8 +1998,73 @@ function importedNames(specifier) {
   return [...new Set(names)].sort();
 }
 
+function namespaceImportedName(specifier) {
+  return String(specifier ?? '').match(/\*\s+as\s+([A-Za-z_$][\w$]*)/u)?.[1] ?? null;
+}
+
+function importedAliases(specifier) {
+  const aliases = {};
+  const named = String(specifier ?? '').match(/\{([^}]+)\}/u)?.[1] ?? '';
+  for (const part of named.split(',')) {
+    const [imported, local] = part.trim().replace(/^type\s+/u, '').split(/\s+as\s+/u).map((item) => item?.trim()).filter(Boolean);
+    if (imported && local && /^[A-Za-z_$][\w$]*$/u.test(imported) && /^[A-Za-z_$][\w$]*$/u.test(local)) aliases[local] = imported;
+  }
+  return aliases;
+}
+
+function destructuredNamespaceAliases(sourceSlice, namespace) {
+  const aliases = {};
+  const pattern = new RegExp(`\\b(?:const|let|var)\\s*\\{([^}]+)\\}\\s*=\\s*${escapeRegExp(namespace)}\\b`, 'gu');
+  for (const match of stripStringsAndComments(sourceSlice).matchAll(pattern)) {
+    for (const part of match[1].split(',')) {
+      const [imported, local] = part.trim().split(/\s*:\s*/u).map((item) => item?.trim()).filter(Boolean);
+      if (imported && local && /^[A-Za-z_$][\w$]*$/u.test(imported) && /^[A-Za-z_$][\w$]*$/u.test(local)) aliases[local] = imported;
+    }
+  }
+  return aliases;
+}
+
+function defaultImportedAliases(specifier, rawModule) {
+  const leading = String(specifier ?? '').split('{')[0].trim().replace(/^type\s+/u, '').split(',')[0].trim();
+  if (!leading || !/^[A-Za-z_$][\w$]*$/u.test(leading)) return {};
+  return { [leading]: defaultExportNameFromModule(rawModule) };
+}
+
+function defaultExportNameFromModule(rawModule) {
+  const parts = String(rawModule ?? '').split('/').filter((part) => part && part !== '.');
+  const last = parts.at(-1)?.replace(/\.[^.]+$/u, '');
+  const base = last === 'index' ? parts.at(-2)?.replace(/\.[^.]+$/u, '') : last;
+  return `default:${safeTag(base ?? 'export')}`;
+}
+
+function importedRequireNames(binding) {
+  const value = String(binding ?? '').trim();
+  const named = value.match(/^\{([^}]+)\}$/u)?.[1] ?? '';
+  if (!named) return [];
+  return [...new Set(named.split(',').map((part) => {
+    const pieces = part.trim().split(/\s*:\s*/u).map((item) => item.trim()).filter(Boolean);
+    return pieces.at(-1);
+  }).filter((name) => /^[A-Za-z_$][\w$]*$/u.test(name)))].sort();
+}
+
+function importedRequireAliases(binding) {
+  const aliases = {};
+  const named = String(binding ?? '').trim().match(/^\{([^}]+)\}$/u)?.[1] ?? '';
+  for (const part of named.split(',')) {
+    const [imported, local] = part.trim().split(/\s*:\s*/u).map((item) => item?.trim()).filter(Boolean);
+    if (imported && local && /^[A-Za-z_$][\w$]*$/u.test(imported) && /^[A-Za-z_$][\w$]*$/u.test(local)) aliases[local] = imported;
+  }
+  return aliases;
+}
+
 function publicImport(item) {
-  return { module: item.module, importHash: item.importHash };
+  return withDefined({
+    module: item.module,
+    importHash: item.importHash,
+    names: item.names?.length ? [...item.names].sort() : undefined,
+    namespace: item.namespace ?? undefined,
+    aliases: Object.keys(item.aliases ?? {}).length ? Object.fromEntries(Object.entries(item.aliases).sort(([left], [right]) => left.localeCompare(right))) : undefined
+  });
 }
 
 function sanitizeModuleSpecifier(rawModule) {
@@ -1387,9 +2231,11 @@ function fileLocatorFor(locator) {
 
 function resolveImportFileLocator(sourceLocator, moduleSpecifier, knownFileLocators) {
   const moduleValue = String(moduleSpecifier ?? '');
-  if (!moduleValue.startsWith('.')) return null;
+  if (!moduleValue.startsWith('.') && !moduleValue.startsWith('@/')) return null;
   const sourcePath = relativeFromLocator(fileLocatorFor(sourceLocator));
-  const basePath = path.posix.normalize(path.posix.join(path.posix.dirname(sourcePath), moduleValue));
+  const basePath = moduleValue.startsWith('@/')
+    ? path.posix.normalize(moduleValue.slice(2))
+    : path.posix.normalize(path.posix.join(path.posix.dirname(sourcePath), moduleValue));
   if (!basePath || basePath.startsWith('../') || path.posix.isAbsolute(basePath)) return null;
   const withoutExtension = basePath.replace(/\.(?:[cm]?js|jsx|tsx?)$/u, '');
   const candidates = [
@@ -1532,31 +2378,55 @@ function withDefined(value) {
 function sourceGraphSummary({ nodes, edges }) {
   const nodeKindCounts = countBy(nodes, (node) => node.kind);
   const edgeKindCounts = countBy(edges, (edge) => edge.kind);
+  const symbolNodes = nodes.filter((node) => node.kind === 'symbol');
+  const symbolLabelCounts = countBy(symbolNodes, (node) => node.label);
+  const symbolsByLabel = new Map();
+  for (const node of symbolNodes) {
+    const values = symbolsByLabel.get(node.label) ?? [];
+    values.push(node);
+    symbolsByLabel.set(node.label, values);
+  }
+  const ambiguousSymbolLabelCount = Object.values(symbolLabelCounts).filter((count) => count > 1).length;
+  const qualifiedSymbolCount = symbolNodes.filter((node) => node.qualifiedLabel).length;
   const degree = new Map(nodes.map((node) => [node.id, { inbound: 0, outbound: 0 }]));
+  const hotspotDegree = new Map(nodes.map((node) => [node.id, { inbound: 0, outbound: 0 }]));
+  const callDegree = new Map(nodes.map((node) => [node.id, { inbound: 0, outbound: 0 }]));
   for (const edge of edges) {
     const from = degree.get(edge.fromNodeId);
     const to = degree.get(edge.toNodeId);
     if (from) from.outbound += 1;
     if (to) to.inbound += 1;
+    if (edge.kind === 'calls' || edge.kind === 'references') {
+      const hotspotFrom = hotspotDegree.get(edge.fromNodeId);
+      const hotspotTo = hotspotDegree.get(edge.toNodeId);
+      if (hotspotFrom) hotspotFrom.outbound += 1;
+      if (hotspotTo) hotspotTo.inbound += 1;
+    }
+    if (edge.kind === 'calls') {
+      const callFrom = callDegree.get(edge.fromNodeId);
+      const callTo = callDegree.get(edge.toNodeId);
+      if (callFrom) callFrom.outbound += 1;
+      if (callTo) callTo.inbound += 1;
+    }
   }
-  const hotspots = nodes
-    .filter((node) => node.kind === 'symbol')
-    .map((node) => {
-      const counts = degree.get(node.id) ?? { inbound: 0, outbound: 0 };
-      return { nodeId: node.id, label: node.label, inbound: counts.inbound, outbound: counts.outbound, total: counts.inbound + counts.outbound };
-    })
-    .filter((item) => item.total > 0)
-    .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label) || a.nodeId.localeCompare(b.nodeId))
-    .slice(0, 10);
+  const behaviorHotspots = sourceGraphHotspots(nodes, hotspotDegree);
+  const structuralHotspots = behaviorHotspots.length ? [] : sourceGraphHotspots(nodes, degree);
+  const hotspots = (behaviorHotspots.length ? behaviorHotspots : structuralHotspots).slice(0, 10);
   const entryPoints = nodes
     .filter((node) => node.kind === 'symbol')
     .map((node) => {
-      const counts = degree.get(node.id) ?? { inbound: 0, outbound: 0 };
+      const counts = callDegree.get(node.id) ?? { inbound: 0, outbound: 0 };
       return { node, counts };
     })
     .filter(({ counts }) => counts.inbound === 0 && counts.outbound > 0)
-    .map(({ node }) => ({ nodeId: node.id, label: node.label, locator: node.locator, symbolKind: node.symbolKind }))
-    .sort((a, b) => a.label.localeCompare(b.label) || a.nodeId.localeCompare(b.nodeId))
+    .map(({ node, counts }) => withDefined({ nodeId: node.id, label: node.label, qualifiedLabel: node.qualifiedLabel, locator: node.locator, symbolKind: node.symbolKind, outbound: counts.outbound }))
+    .sort((a, b) => graphSearchPathPriority(a.locator) - graphSearchPathPriority(b.locator) || b.outbound - a.outbound || a.label.localeCompare(b.label) || a.nodeId.localeCompare(b.nodeId))
+    .map(({ outbound: _outbound, ...item }) => item)
+    .slice(0, 10);
+  const ambiguousLabels = [...symbolsByLabel.entries()]
+    .map(([label, values]) => sourceGraphAmbiguousLabelSample(label, values, hotspotDegree))
+    .filter(Boolean)
+    .sort((a, b) => b.signalScore - a.signalScore || b.count - a.count || a.label.localeCompare(b.label))
     .slice(0, 10);
   return Object.freeze({
     fileCount: nodeKindCounts.file ?? 0,
@@ -1564,11 +2434,57 @@ function sourceGraphSummary({ nodes, edges }) {
     moduleCount: nodeKindCounts.module ?? 0,
     nodeCount: nodes.length,
     edgeCount: edges.length,
+    qualifiedSymbolCount,
+    ambiguousSymbolLabelCount,
+    ambiguousLabels: ambiguousLabels.map(({ signalScore: _signalScore, ...item }) => item),
     nodeKindCounts,
     edgeKindCounts,
     hotspots,
     entryPoints
   });
+}
+
+function sourceGraphAmbiguousLabelSample(label, values, behaviorDegree) {
+  if (values.length < 2 || !highSignalReferenceName(label, values)) return null;
+  const candidates = values
+    .map((node) => ({ node, signalScore: sourceGraphAmbiguousSymbolSignal(node, behaviorDegree) }))
+    .filter((item) => item.signalScore > 0)
+    .sort((a, b) => b.signalScore - a.signalScore || graphSearchPathPriority(a.node.locator) - graphSearchPathPriority(b.node.locator) || a.node.locator.localeCompare(b.node.locator));
+  if (candidates.length < 2) return null;
+  return {
+    label,
+    count: values.length,
+    qualifiedLabels: [...new Set(candidates.map(({ node }) => node.qualifiedLabel).filter(Boolean))].slice(0, 5),
+    locators: candidates.map(({ node }) => node.locator).filter(Boolean).slice(0, 3),
+    signalScore: candidates[0].signalScore
+  };
+}
+
+function sourceGraphAmbiguousSymbolSignal(node, behaviorDegree) {
+  const pathPriority = graphSearchPathPriority(node.locator);
+  if (pathPriority > 2) return 0;
+  const counts = behaviorDegree.get(node.id) ?? { inbound: 0, outbound: 0 };
+  const behaviorTotal = counts.inbound + counts.outbound;
+  let score = pathPriority === 1 ? 2 : 1;
+  if (node.qualifiedLabel) score += 8;
+  if (['class', 'interface', 'type'].includes(node.symbolKind)) score += 4;
+  if (['method', 'function'].includes(node.symbolKind)) score += 2;
+  if (behaviorTotal > 0) score += 2;
+  if (!node.qualifiedLabel && !behaviorTotal && !/[A-Z]/u.test(node.label ?? '')) return 0;
+  return score;
+}
+
+function sourceGraphHotspots(nodes, degree) {
+  const ranked = nodes
+    .filter((node) => node.kind === 'symbol' && highSignalReferenceName(node.label, []))
+    .map((node) => {
+      const counts = degree.get(node.id) ?? { inbound: 0, outbound: 0 };
+      return withDefined({ nodeId: node.id, label: node.label, qualifiedLabel: node.qualifiedLabel, locator: node.locator, inbound: counts.inbound, outbound: counts.outbound, total: counts.inbound + counts.outbound });
+    })
+    .filter((item) => item.total > 0)
+    .sort((a, b) => graphSearchPathPriority(a.locator) - graphSearchPathPriority(b.locator) || b.total - a.total || a.label.localeCompare(b.label) || a.nodeId.localeCompare(b.nodeId));
+  const sourceRanked = ranked.filter((item) => graphSearchPathPriority(item.locator) <= 1);
+  return sourceRanked.length ? sourceRanked : ranked;
 }
 
 function countBy(items, keyFn) {
@@ -1623,11 +2539,24 @@ function graphSearchScore(queryTerms, text) {
   return matches / Math.sqrt(queryTerms.size * graphTerms.size);
 }
 
+function graphSearchSymbolKindWeight(symbolKind) {
+  if (['class', 'function', 'method'].includes(symbolKind)) return 1.18;
+  if (['type', 'interface'].includes(symbolKind)) return 0.82;
+  return 1;
+}
+
+function graphSearchEdgeKindWeight(kind) {
+  if (['defined_in', 'contains'].includes(kind)) return 0.35;
+  return 1;
+}
+
 function sourceGraphNodeSearchText(node) {
   return expandSearchText([
     node.kind,
     node.label,
+    node.qualifiedLabel,
     node.symbolKind,
+    ...(node.scopeChain ?? []),
     node.locator,
     node.sourceRef,
     node.moduleHash
@@ -1637,13 +2566,16 @@ function sourceGraphNodeSearchText(node) {
 function sourceGraphEdgeSearchText(edge, from, to) {
   return expandSearchText([
     edge.kind,
+    edge.exportName,
     edge.locator,
     edge.sourceRef,
     from?.kind,
     from?.label,
+    from?.qualifiedLabel,
     from?.locator,
     to?.kind,
     to?.label,
+    to?.qualifiedLabel,
     to?.locator
   ].filter(Boolean).join(' '));
 }
@@ -1662,6 +2594,34 @@ function sourceGraphSearchReasons({ score, pattern, locatorPrefix }) {
     pattern ? 'label_pattern_match' : null,
     locatorPrefix ? 'locator_prefix_match' : null
   ].filter(Boolean);
+}
+
+function graphSearchPathPriority(locator = '') {
+  const relative = String(locator ?? '').replace(/^workspace:\/\//u, '').split('#')[0];
+  if (!relative) return 2;
+  if (/(^|\/)(?:test|tests|__tests__|spec|fixtures|mocks?)(?:\/|$)/u.test(relative) || /\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(relative)) return 3;
+  if (/(^|\/)scripts\//u.test(relative)) return 2;
+  if (isTypeDeclarationPath(relative)) return 2;
+  if (/(^|\/)(?:node_modules|vendor|dist|build|coverage|generated)(?:\/|$)/u.test(relative)) return 4;
+  return 1;
+}
+
+function graphSearchPathWeight(locator = '', queryTerms = new Set(), locatorPrefix = null) {
+  const relative = String(locator ?? '').replace(/^workspace:\/\//u, '').split('#')[0];
+  if (!relative) return 0.45;
+  if (locatorPrefix) return 1;
+  if ([...queryTerms].some((term) => ['type', 'types', 'interface', 'interfaces', 'declaration', 'declarations'].includes(term))) return 1;
+  if (isTypeDeclarationPath(relative)) return 0.8;
+  if ([...queryTerms].some((term) => ['script', 'scripts', 'eval', 'evals', 'benchmark', 'benchmarks', 'bench'].includes(term))) return 1;
+  if (/(^|\/)scripts\//u.test(relative)) return 0.7;
+  if ([...queryTerms].some((term) => ['test', 'tests', 'spec', 'fixture', 'fixtures', 'mock', 'mocks'].includes(term))) return 1;
+  if (/(^|\/)(?:test|tests|__tests__|spec|fixtures|mocks?)(?:\/|$)/u.test(relative) || /\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(relative)) return 0.55;
+  if (/(^|\/)(?:node_modules|vendor|dist|build|coverage|generated)(?:\/|$)/u.test(relative)) return 0.35;
+  return 1;
+}
+
+function isTypeDeclarationPath(relative = '') {
+  return /\.d\.[cm]?ts$/u.test(relative) || /(^|\/)types\//u.test(relative);
 }
 
 function uniqueBy(items, keyFn) {

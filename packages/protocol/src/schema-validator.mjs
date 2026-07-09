@@ -87,16 +87,28 @@ function validateNode(schema, value, path, rootSchema, errors) {
     return;
   }
   if (schema.oneOf) {
-    const matches = schema.oneOf.filter((item) => {
+    const branchErrorsByIndex = [];
+    const matches = schema.oneOf.filter((item, index) => {
       const branchErrors = [];
       validateNode(item, value, path, rootSchema, branchErrors);
+      if (branchErrors.length > 0) branchErrorsByIndex.push({ index, errors: branchErrors });
       return branchErrors.length === 0;
     }).length;
     if (matches !== 1) {
+      const detail = branchErrorsByIndex
+        .slice(0, 2)
+        .map(({ index, errors: branchErrors }) => {
+          const sample = branchErrors
+            .slice(0, 3)
+            .map((item) => `${item.path} ${item.message}`)
+            .join('; ');
+          return `branch ${index}: ${sample}`;
+        })
+        .join(' | ');
       errors.push({
         path,
         keyword: 'oneOf',
-        message: matches === 0 ? 'must match exactly one schema' : 'must match only one schema'
+        message: `${matches === 0 ? 'must match exactly one schema' : 'must match only one schema'}${detail ? ` (${detail})` : ''}`
       });
       return;
     }

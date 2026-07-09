@@ -4,7 +4,7 @@
   "title": "Native Source Graph Preview",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "previewVersion", "workspaceId", "generatedAt", "graph", "search", "trace", "impact", "safeguards"],
+  "required": ["schemaVersion", "previewVersion", "workspaceId", "generatedAt", "graph", "search", "trace", "impact", "measurements", "safeguards"],
   "properties": {
     "schemaVersion": { "const": "1.0.0" },
     "previewVersion": { "const": "oaf-source-graph-preview-1.0.0" },
@@ -14,6 +14,7 @@
     "search": { "$ref": "#/$defs/searchResult" },
     "trace": { "$ref": "#/$defs/traceResult" },
     "impact": { "$ref": "#/$defs/impactResult" },
+    "measurements": { "$ref": "#/$defs/measurements" },
     "safeguards": { "$ref": "#/$defs/safeguards" }
   },
   "$defs": {
@@ -36,10 +37,24 @@
         "moduleCount": { "type": "integer", "minimum": 0 },
         "nodeCount": { "type": "integer", "minimum": 0 },
         "edgeCount": { "type": "integer", "minimum": 0 },
+        "qualifiedSymbolCount": { "type": "integer", "minimum": 0 },
+        "ambiguousSymbolLabelCount": { "type": "integer", "minimum": 0 },
+        "ambiguousLabels": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/ambiguousLabel" } },
         "nodeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
         "edgeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
         "hotspots": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/hotspot" } },
         "entryPoints": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/nodeReference" } }
+      }
+    },
+    "ambiguousLabel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "count", "locators"],
+      "properties": {
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "count": { "type": "integer", "minimum": 2 },
+        "qualifiedLabels": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/safeLabel" } },
+        "locators": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/locator" } }
       }
     },
     "compactGraph": {
@@ -72,9 +87,11 @@
         "workspaceId": { "$ref": "#/$defs/workspaceId" },
         "kind": { "$ref": "#/$defs/nodeKind" },
         "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/safeLabel" },
         "locator": { "$ref": "#/$defs/locator" },
         "sourceRef": { "$ref": "#/$defs/sourceRef" },
         "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] },
+        "scopeChain": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/safeLabel" } },
         "moduleHash": { "$ref": "#/$defs/fingerprint" },
         "contentHash": { "$ref": "#/$defs/fingerprint" },
         "sourceSnapshotId": { "type": "string", "pattern": "^srcsnap_[a-f0-9]{16}$" }
@@ -92,6 +109,7 @@
         "toNodeId": { "$ref": "#/$defs/nodeId" },
         "locator": { "$ref": "#/$defs/locator" },
         "sourceRef": { "$ref": "#/$defs/sourceRef" },
+        "exportName": { "$ref": "#/$defs/safeLabel" },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },
@@ -102,6 +120,8 @@
       "properties": {
         "nodeId": { "$ref": "#/$defs/nodeId" },
         "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/locator" },
         "inbound": { "type": "integer", "minimum": 0 },
         "outbound": { "type": "integer", "minimum": 0 },
         "total": { "type": "integer", "minimum": 0 }
@@ -114,6 +134,7 @@
       "properties": {
         "nodeId": { "$ref": "#/$defs/nodeId" },
         "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/safeLabel" },
         "locator": { "$ref": "#/$defs/locator" },
         "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] }
       }
@@ -154,9 +175,23 @@
         "id": { "type": "string", "pattern": "^(sgnode|sgedge)_[a-f0-9]{32}$" },
         "kind": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" },
         "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/safeLabel" },
         "locator": { "$ref": "#/$defs/locator" },
+        "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] },
+        "scopeChain": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/safeLabel" } },
+        "exportName": { "$ref": "#/$defs/safeLabel" },
         "fromNodeId": { "$ref": "#/$defs/nodeId" },
+        "fromLabel": { "$ref": "#/$defs/safeLabel" },
+        "fromQualifiedLabel": { "$ref": "#/$defs/safeLabel" },
+        "fromLocator": { "$ref": "#/$defs/locator" },
+        "fromKind": { "$ref": "#/$defs/nodeKind" },
+        "fromSymbolKind": { "enum": ["class", "function", "method", "interface", "type"] },
         "toNodeId": { "$ref": "#/$defs/nodeId" },
+        "toLabel": { "$ref": "#/$defs/safeLabel" },
+        "toQualifiedLabel": { "$ref": "#/$defs/safeLabel" },
+        "toLocator": { "$ref": "#/$defs/locator" },
+        "toKind": { "$ref": "#/$defs/nodeKind" },
+        "toSymbolKind": { "enum": ["class", "function", "method", "interface", "type"] },
         "score": { "type": "number", "minimum": 0 },
         "reasonCodes": { "type": "array", "maxItems": 16, "items": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_]*$" } }
       }
@@ -183,17 +218,24 @@
       "additionalProperties": false,
       "required": ["depth", "nodeIds", "edgeIds", "terminalNodeId", "terminalLabel"],
       "properties": {
-        "depth": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "depth": { "type": "integer", "minimum": 0, "maximum": 5 },
         "nodeIds": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/nodeId" } },
         "edgeIds": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/edgeId" } },
+        "edgeKinds": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/edgeKind" } },
+        "edgeLocators": { "type": "array", "maxItems": 5, "items": { "$ref": "#/$defs/locator" } },
         "terminalNodeId": { "$ref": "#/$defs/nodeId" },
-        "terminalLabel": { "$ref": "#/$defs/safeLabel" }
+        "terminalLabel": { "$ref": "#/$defs/safeLabel" },
+        "terminalQualifiedLabel": { "$ref": "#/$defs/safeLabel" },
+        "terminalLocator": { "$ref": "#/$defs/locator" },
+        "terminalKind": { "$ref": "#/$defs/nodeKind" },
+        "terminalSymbolKind": { "enum": ["class", "function", "method", "interface", "type"] },
+        "terminalScopeChain": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/safeLabel" } }
       }
     },
     "impactResult": {
       "type": ["object", "null"],
       "additionalProperties": false,
-      "required": ["schemaVersion", "workspaceId", "graphFingerprint", "changedLocators", "representedChangedLocators", "depth", "impactedNodeIds", "impactedEdgeIds", "affectedSymbols"],
+      "required": ["schemaVersion", "workspaceId", "graphFingerprint", "changedLocators", "representedChangedLocators", "depth", "impactedNodeIds", "impactedEdgeIds", "impactedEdgeKindCounts", "affectedSymbols"],
       "properties": {
         "schemaVersion": { "const": "1.0.0" },
         "workspaceId": { "$ref": "#/$defs/workspaceId" },
@@ -203,6 +245,7 @@
         "depth": { "type": "integer", "minimum": 1, "maximum": 5 },
         "impactedNodeIds": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/nodeId" } },
         "impactedEdgeIds": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/edgeId" } },
+        "impactedEdgeKindCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
         "affectedSymbols": { "type": "array", "maxItems": 500, "items": { "$ref": "#/$defs/affectedSymbol" } }
       }
     },
@@ -213,8 +256,24 @@
       "properties": {
         "nodeId": { "$ref": "#/$defs/nodeId" },
         "name": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedName": { "$ref": "#/$defs/safeLabel" },
         "locator": { "$ref": "#/$defs/locator" },
         "symbolKind": { "enum": ["class", "function", "method", "interface", "type"] }
+      }
+    },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "measurementScope", "fullGraphTokenEstimate", "deliveredTokenEstimate", "omittedTokenEstimate", "reductionPercent", "sourceContentIncluded", "providerBillingClaimed"],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "measurementScope": { "const": "full graph nodes/edges/diagnostics versus delivered preview payload" },
+        "fullGraphTokenEstimate": { "type": "integer", "minimum": 0 },
+        "deliveredTokenEstimate": { "type": "integer", "minimum": 0 },
+        "omittedTokenEstimate": { "type": "integer", "minimum": 0 },
+        "reductionPercent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "sourceContentIncluded": { "const": false },
+        "providerBillingClaimed": { "const": false }
       }
     },
     "safeguards": {

@@ -114,6 +114,10 @@ test('measure context-pack summary renders operator proof without raw bodies or 
   assert.match(result.stdout, /Observed delivery reduction:/);
   assert.match(result.stdout, /Delivery budget status:/);
   assert.match(result.stdout, /Changed source tokens included: 0/);
+  assert.match(result.stdout, /## Source Graph/);
+  assert.match(result.stdout, /Files indexed:/);
+  assert.match(result.stdout, /Symbols indexed:/);
+  assert.match(result.stdout, /Affected symbols:/);
   assert.match(result.stdout, /MCP Readback/);
   assert.match(result.stdout, /Fingerprint match: pass/);
   assert.match(result.stdout, /Network calls: 0/);

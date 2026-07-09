@@ -29,6 +29,7 @@ import {
   normalizeMemoryPathsConfig
 } from '../../memory-core/src/index.mjs';
 import {
+  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
 } from '../../source-graph/src/index.mjs';
@@ -2213,7 +2214,7 @@ async function buildContextPackSourceGraph({
       changedLocators: normalizedChangedLocators,
       limit: 12,
       sampleLimit: 1,
-      maxFiles: 200,
+      maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
       maxFileBytes: graphMaxFileBytes,
       clock: () => createdAt
     });

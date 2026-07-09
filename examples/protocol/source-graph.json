@@ -27,6 +27,7 @@
       {
         "nodeId": "sgnode_11111111111111111111111111111111",
         "label": "approveTokenReset",
+        "locator": "workspace://src/auth.ts#L2-L4",
         "inbound": 1,
         "outbound": 1,
         "total": 2

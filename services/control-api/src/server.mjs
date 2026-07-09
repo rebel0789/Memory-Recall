@@ -11,6 +11,7 @@ import { runContentIntelligence } from '../../../workflows/content-intelligence/
 import { buildCompressedProfileContextReport, compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
 import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildContextProfileDeliveryPayloadFromReport, buildHarnessContextPreview, buildHarnessSetupReport, buildLoopPlan, buildMemoryProposalPreflightFromConfig, buildRealisticContextProfileSavingsReport, detectGitChangedLocators, pinContextPackArtifacts, REALISTIC_SAVINGS_OBJECTIVE, REALISTIC_SAVINGS_STEP, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
+  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
 } from '../../../packages/source-graph/src/index.mjs';
@@ -1003,7 +1004,7 @@ export function createControlApiServer({
           offset: context.body.offset ?? 0,
           depth: context.body.depth ?? 2,
           sampleLimit: context.body.sampleLimit ?? 12,
-          maxFiles: context.body.maxFiles ?? 200,
+          maxFiles: context.body.maxFiles ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
           maxFileBytes: context.body.maxFileBytes ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
           clock
         });

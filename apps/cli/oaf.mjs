@@ -54,6 +54,7 @@ import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.m
 import { sha256Hex, stableStringify } from '../../packages/protocol/src/fingerprint.mjs';
 import { loadReviewedToolCatalog } from '../../packages/tool-registry/src/index.mjs';
 import {
+  DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
 } from '../../packages/source-graph/src/index.mjs';
@@ -180,6 +181,8 @@ if (!isHelpCommand(command) && args.some(isHelpCommand)) {
   process.exitCode = await runNode(commands.get(command));
 } else if (command === 'context') {
   await contextCommand(args);
+} else if (command === 'graph') {
+  await graphCommand(args);
 } else if (command === 'handoff') {
   await contextCommand(['handoff', ...mergeDefaultArgs(defaultHandoffArgs(), args, contextPackValueOptions(), contextPackOptionAliases())]);
 } else if (command === 'token-saver') {
@@ -2519,6 +2522,293 @@ async function contextCommand(values) {
   console.log(JSON.stringify(compileContext(request, records), null, 2));
 }
 
+async function graphCommand(values) {
+  const subcommand = values[0];
+  const rest = values.slice(1);
+  if (subcommand === 'stats') return graphStatsCommand(rest);
+  if (subcommand === 'search') return graphSearchCommand(rest);
+  if (subcommand === 'trace') return graphTraceCommand(rest);
+  if (subcommand === 'impact') return graphImpactCommand(rest);
+  console.error('graph requires stats, search, trace, or impact');
+  process.exitCode = 2;
+}
+
+async function graphStatsCommand(values) {
+  await graphPreviewBackedCommand(values, {
+    commandName: 'graph stats',
+    query: option(values, '--query') ?? 'source graph stats',
+    pick: (preview) => ({ stats: preview.graph.summary }),
+    renderSummary: renderGraphStatsSummary
+  });
+}
+
+async function graphSearchCommand(values) {
+  const query = option(values, '--query') ?? firstPositional(values, new Set(['--format', '--root', '--workspace', '--query', '--node-kinds', '--edge-kinds', '--label-pattern', '--locator-prefix', '--limit', '--offset', '--sample-limit', '--max-files', '--max-file-bytes']));
+  if (!query) {
+    console.error('graph search requires --query <text>');
+    process.exitCode = 2;
+    return;
+  }
+  await graphPreviewBackedCommand(values, {
+    commandName: 'graph search',
+    query,
+    pick: (preview) => ({ search: preview.search }),
+    renderSummary: renderGraphSearchSummary
+  });
+}
+
+async function graphTraceCommand(values) {
+  const symbol = option(values, '--symbol') ?? option(values, '--trace') ?? firstPositional(values, new Set(['--format', '--root', '--workspace', '--symbol', '--trace', '--query', '--node-kinds', '--edge-kinds', '--label-pattern', '--locator-prefix', '--direction', '--depth', '--limit', '--sample-limit', '--max-files', '--max-file-bytes']));
+  if (!symbol) {
+    console.error('graph trace requires --symbol <name>');
+    process.exitCode = 2;
+    return;
+  }
+  await graphPreviewBackedCommand(values, {
+    commandName: 'graph trace',
+    query: option(values, '--query') ?? symbol,
+    startName: symbol,
+    direction: option(values, '--direction') ?? 'outbound',
+    pick: (preview) => ({ trace: preview.trace }),
+    renderSummary: renderGraphTraceSummary
+  });
+}
+
+async function graphImpactCommand(values) {
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const { changedLocators } = await resolveChangedLocators(values, { root, workspaceId });
+  const explicitChanged = [...changedLocators, ...(option(values, '--changed-locators') ? [option(values, '--changed-locators')] : [])];
+  if (!explicitChanged.length) {
+    console.error('graph impact requires --changed <path> or --changed-from-git');
+    process.exitCode = 2;
+    return;
+  }
+  await graphPreviewBackedCommand(values, {
+    commandName: 'graph impact',
+    query: option(values, '--query') ?? 'changed file impact',
+    changedLocators: explicitChanged,
+    pick: (preview) => ({ impact: preview.impact }),
+    renderSummary: renderGraphImpactSummary
+  });
+}
+
+async function graphPreviewBackedCommand(values, {
+  commandName,
+  query,
+  startName = null,
+  changedLocators = [],
+  direction = 'outbound',
+  pick,
+  renderSummary
+}) {
+  const format = option(values, '--format') ?? 'summary';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('graph commands only support --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  try {
+    const preview = await buildSourceGraphPreview({
+      root,
+      workspaceId,
+      query,
+      startName,
+      changedLocators,
+      nodeKinds: option(values, '--node-kinds'),
+      edgeKinds: option(values, '--edge-kinds'),
+      labelPattern: option(values, '--label-pattern'),
+      locatorPrefix: option(values, '--locator-prefix'),
+      direction,
+      limit: strictIntegerOption(values, '--limit', 20),
+      offset: strictIntegerOption(values, '--offset', 0),
+      depth: strictIntegerOption(values, '--depth', 2),
+      sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
+      maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
+      maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
+      clock: fixedNow
+    });
+    const baseReport = {
+      schemaVersion: '1.0.0',
+      command: commandName,
+      generatedAt: preview.generatedAt,
+      workspaceId: preview.workspaceId,
+      graph: compactGraphCommandGraph(preview.graph),
+      ...pick(preview),
+      safeguards: preview.safeguards
+    };
+    const report = { ...baseReport, measurements: graphCommandMeasurements(preview.measurements, baseReport) };
+    console.log(format === 'summary' ? renderSummary(report) : JSON.stringify(report, null, 2));
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+function graphCommandMeasurements(previewMeasurements = {}, report = {}) {
+  const fullGraphTokenEstimate = Number(previewMeasurements.fullGraphTokenEstimate ?? 0);
+  const deliveredTokenEstimate = estimateTokens(JSON.stringify(report));
+  const omittedTokenEstimate = Math.max(0, fullGraphTokenEstimate - deliveredTokenEstimate);
+  return {
+    schemaVersion: '1.0.0',
+    measurementScope: 'full graph nodes/edges/diagnostics versus graph command report',
+    fullGraphTokenEstimate,
+    deliveredTokenEstimate,
+    omittedTokenEstimate,
+    reductionPercent: fullGraphTokenEstimate ? Number(((omittedTokenEstimate / fullGraphTokenEstimate) * 100).toFixed(2)) : 0,
+    sourceContentIncluded: false,
+    providerBillingClaimed: false
+  };
+}
+
+function compactGraphCommandGraph(graph = {}) {
+  return {
+    schemaVersion: graph.schemaVersion,
+    graphVersion: graph.graphVersion,
+    parserVersion: graph.parserVersion,
+    sourceIndexFingerprint: graph.sourceIndexFingerprint,
+    graphFingerprint: graph.graphFingerprint,
+    summary: graph.summary,
+    diagnosticCount: graph.diagnostics?.length ?? 0,
+    omittedNodes: graph.omittedNodes,
+    omittedEdges: graph.omittedEdges
+  };
+}
+
+function renderGraphStatsSummary(report) {
+  const summary = report.stats ?? report.graph?.summary ?? {};
+  const edgeKinds = summary.edgeKindCounts ?? {};
+  const ambiguousLabels = summary.ambiguousLabels ?? [];
+  const hotspots = summary.hotspots ?? [];
+  const entryPoints = summary.entryPoints ?? [];
+  return [
+    '# Graph Stats',
+    `Files: ${summary.fileCount ?? 0}`,
+    `Symbols: ${summary.symbolCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Nodes: ${summary.nodeCount ?? 0}`,
+    `Edges: ${summary.edgeCount ?? 0}`,
+    `Call edges: ${edgeKinds.calls ?? 0}`,
+    `Reference edges: ${edgeKinds.references ?? 0}`,
+    `Import edges: ${edgeKinds.imports ?? 0}`,
+    ...(ambiguousLabels.length ? ['', 'Ambiguous label samples', ...ambiguousLabels.slice(0, 5).map((item) => `- ${item.label}: ${item.count} definitions${item.qualifiedLabels?.length ? ` (${item.qualifiedLabels.slice(0, 2).join(', ')})` : ''}`) ] : []),
+    ...(hotspots.length ? ['', 'Hotspots', ...hotspots.slice(0, 5).map((item) => `- ${graphDisplayLabel(item)} (${item.total ?? 0} edges)${graphDisplayLocator(item) ? ` ${graphDisplayLocator(item)}` : ''}`)] : []),
+    ...(entryPoints.length ? ['', 'Entry points', ...entryPoints.slice(0, 5).map((item) => `- ${graphDisplayLabel(item)}${graphDisplayLocator(item) ? ` ${graphDisplayLocator(item)}` : ''}`)] : []),
+    `Delivered graph tokens: ${report.measurements?.deliveredTokenEstimate ?? 0}`,
+    `Full graph JSON tokens avoided: ${report.measurements?.omittedTokenEstimate ?? 0}`,
+    '',
+    'Safeguards',
+    `Read-only: ${report.safeguards?.dryRun === true ? 'pass' : 'unknown'}`,
+    `Raw source bodies included: ${report.safeguards?.rawBodyIncluded ? 'yes' : 'no'}`,
+    `Model calls: ${report.safeguards?.modelCalls ?? 0}`,
+    `Network calls: ${report.safeguards?.networkCalls ?? 0}`,
+    `Provider billing claimed: ${report.measurements?.providerBillingClaimed ? 'yes' : 'no'}`
+  ].join('\n');
+}
+
+function renderGraphSearchSummary(report) {
+  const summary = report.graph?.summary ?? {};
+  const results = report.search?.results ?? [];
+  return [
+    '# Graph Search',
+    `Files: ${summary.fileCount ?? 0}`,
+    `Symbols: ${summary.symbolCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Results: ${results.length}/${report.search?.total ?? 0}`,
+    `Fingerprint: ${report.graph?.graphFingerprint ?? 'unavailable'}`,
+    `Delivered graph tokens: ${report.measurements?.deliveredTokenEstimate ?? 0}`,
+    `Full graph JSON tokens avoided: ${report.measurements?.omittedTokenEstimate ?? 0}`,
+    '',
+    ...results.slice(0, 10).map((item, index) => `${index + 1}. ${graphDisplayLabel(item)} (${graphDisplayKind(item)})${graphDisplayLocator(item) ? ` ${graphDisplayLocator(item)}` : ''}`),
+    '',
+    'Safeguards',
+    `Read-only: ${report.safeguards?.dryRun === true ? 'pass' : 'unknown'}`,
+    `Raw source bodies included: ${report.safeguards?.rawBodyIncluded ? 'yes' : 'no'}`,
+    `Model calls: ${report.safeguards?.modelCalls ?? 0}`,
+    `Network calls: ${report.safeguards?.networkCalls ?? 0}`
+  ].join('\n');
+}
+
+function graphScopeSuffix(item) {
+  return item.scopeChain?.length ? ` [${item.scopeChain.join(' > ')}]` : '';
+}
+
+function graphDisplayLabel(item) {
+  if (item?.resultType === 'edge' && item.kind === 'exports' && item.toLabel) {
+    const alias = item.exportName && item.exportName !== item.toLabel ? `${item.exportName} -> ` : '';
+    if (!alias && item.fromLabel) return `${item.fromLabel} exports ${item.toQualifiedLabel ?? item.toLabel}`;
+    return `${alias}${item.toQualifiedLabel ?? item.toLabel}`;
+  }
+  return item?.qualifiedLabel ?? item?.terminalQualifiedLabel ?? item?.qualifiedName ?? `${item?.label ?? item?.terminalLabel ?? item?.name ?? 'unknown'}${graphScopeSuffix(item ?? {})}`;
+}
+
+function graphDisplayKind(item) {
+  if (item?.resultType === 'edge' && item.kind === 'exports' && item.toSymbolKind) return item.toSymbolKind;
+  return item?.symbolKind ?? item?.terminalSymbolKind ?? item?.kind ?? 'unknown';
+}
+
+function graphDisplayLocator(item) {
+  if (item?.resultType === 'edge' && item.kind === 'exports' && item.toLocator) return item.toLocator;
+  return item?.locator ?? item?.terminalLocator;
+}
+
+function renderGraphTraceSummary(report) {
+  const summary = report.graph?.summary ?? {};
+  const paths = report.trace?.paths ?? [];
+  return [
+    '# Graph Trace',
+    `Files: ${summary.fileCount ?? 0}`,
+    `Symbols: ${summary.symbolCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Start nodes: ${report.trace?.startNodeIds?.length ?? 0}`,
+    `Paths: ${paths.length}`,
+    `Direction: ${report.trace?.direction ?? 'unknown'}`,
+    `Delivered graph tokens: ${report.measurements?.deliveredTokenEstimate ?? 0}`,
+    `Full graph JSON tokens avoided: ${report.measurements?.omittedTokenEstimate ?? 0}`,
+    '',
+    ...paths.slice(0, 10).map((item, index) => `${index + 1}. depth ${item.depth}${item.edgeKinds?.length ? ` via ${item.edgeKinds.join('>')}` : ''}: ${graphDisplayLabel(item)}${item.terminalLocator ? ` ${item.terminalLocator}` : ''}`),
+    '',
+    'Safeguards',
+    `Read-only: ${report.safeguards?.dryRun === true ? 'pass' : 'unknown'}`,
+    `Raw source bodies included: ${report.safeguards?.rawBodyIncluded ? 'yes' : 'no'}`,
+    `Model calls: ${report.safeguards?.modelCalls ?? 0}`,
+    `Network calls: ${report.safeguards?.networkCalls ?? 0}`
+  ].join('\n');
+}
+
+function renderGraphImpactSummary(report) {
+  const summary = report.graph?.summary ?? {};
+  const impact = report.impact ?? {};
+  const symbols = impact.affectedSymbols ?? [];
+  const edgeKindSummary = Object.entries(impact.impactedEdgeKindCounts ?? {}).sort((a, b) => a[0].localeCompare(b[0])).map(([kind, count]) => `${kind} ${count}`).join(', ') || 'none';
+  return [
+    '# Graph Impact',
+    `Files: ${summary.fileCount ?? 0}`,
+    `Symbols: ${summary.symbolCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
+    `Changed coverage: ${impact.representedChangedLocators?.length ?? 0}/${impact.changedLocators?.length ?? 0}`,
+    `Affected symbols: ${symbols.length}`,
+    `Impacted edges: ${impact.impactedEdgeIds?.length ?? 0}`,
+    `Impact edge kinds: ${edgeKindSummary}`,
+    `Delivered graph tokens: ${report.measurements?.deliveredTokenEstimate ?? 0}`,
+    `Full graph JSON tokens avoided: ${report.measurements?.omittedTokenEstimate ?? 0}`,
+    '',
+    ...symbols.slice(0, 20).map((item, index) => `${index + 1}. ${graphDisplayLabel(item)} (${item.symbolKind}) ${item.locator}`),
+    '',
+    'Safeguards',
+    `Read-only: ${report.safeguards?.dryRun === true ? 'pass' : 'unknown'}`,
+    `Raw source bodies included: ${report.safeguards?.rawBodyIncluded ? 'yes' : 'no'}`,
+    `Model calls: ${report.safeguards?.modelCalls ?? 0}`,
+    `Network calls: ${report.safeguards?.networkCalls ?? 0}`
+  ].join('\n');
+}
+
 async function contextProfileCommand(values) {
   if (!validateJsonFormat(values)) return;
   const records = await loadMemoryRecords(values);
@@ -4666,7 +4956,7 @@ async function contextGraphPreviewCommand(values) {
       offset: strictIntegerOption(values, '--offset', 0),
       depth: strictIntegerOption(values, '--depth', 2),
       sampleLimit: strictIntegerOption(values, '--sample-limit', 12),
-      maxFiles: strictIntegerOption(values, '--max-files', 200),
+      maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
       maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
       clock: fixedNow
     });
@@ -4680,8 +4970,8 @@ async function contextGraphPreviewCommand(values) {
 function renderSourceGraphPreviewSummary(preview) {
   const summary = preview.graph?.summary ?? {};
   const impact = preview.impact ?? {};
-  const hotspots = (summary.hotspots ?? []).slice(0, 5).map((item) => item.label).join(', ') || 'none';
-  const entryPoints = (summary.entryPoints ?? []).slice(0, 5).map((item) => item.label).join(', ') || 'none';
+  const hotspots = (summary.hotspots ?? []).slice(0, 5).map(graphDisplayLabel).join(', ') || 'none';
+  const entryPoints = (summary.entryPoints ?? []).slice(0, 5).map(graphDisplayLabel).join(', ') || 'none';
   const changedTotal = impact.changedLocators?.length ?? 0;
   const representedTotal = impact.representedChangedLocators?.length ?? 0;
   const warnings = [...(preview.warningCodes ?? []), ...(impact.warningCodes ?? [])].filter(Boolean).join(', ') || 'none';
@@ -4690,6 +4980,8 @@ function renderSourceGraphPreviewSummary(preview) {
     `Status: ${preview.status ?? 'ready'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
+    `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
+    `Ambiguous labels: ${summary.ambiguousSymbolLabelCount ?? 0}`,
     `Nodes: ${summary.nodeCount ?? 0}`,
     `Edges: ${summary.edgeCount ?? 0}`,
     `Hotspots: ${hotspots}`,
@@ -8315,6 +8607,16 @@ function renderContextPackMeasurementSummary(report) {
     `Changed source body avoidance: ${ratioPercent(changed.observedAvoidanceRatio)}`,
     `Changed locator coverage: ${report.contextPack.changedLocatorCoverage.status}`,
     '',
+    '## Source Graph',
+    `Status: ${report.sourceGraph.status}`,
+    `Files indexed: ${Number(report.sourceGraph.fileCount)}`,
+    `Symbols indexed: ${Number(report.sourceGraph.symbolCount)}`,
+    `Nodes: ${Number(report.sourceGraph.nodeCount)}`,
+    `Edges: ${Number(report.sourceGraph.edgeCount)}`,
+    `Search results: ${Number(report.sourceGraph.resultCount)}`,
+    `Affected symbols: ${Number(report.sourceGraph.affectedSymbolCount)}`,
+    `Warnings: ${report.sourceGraph.warningCodes.length ? report.sourceGraph.warningCodes.join(', ') : 'none'}`,
+    '',
     '## MCP Readback',
     `Transport: ${report.mcpReadback.transport}`,
     `Resource URI: ${report.mcpReadback.resourceUri}`,
@@ -9101,7 +9403,7 @@ async function collectSourceGraphMemoryFacts(root, workspaceId, generatedAt, pro
     workspaceId,
     query: 'memory context mcp',
     sampleLimit: 12,
-    maxFiles: 200,
+    maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
     clock: () => generatedAt
   });
   const summary = preview.graph?.summary ?? {};
@@ -9757,6 +10059,10 @@ Usage:
   oaf context retrieve workspace://AGENTS.md --read-only --root . --format summary
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format summary
+  oaf graph stats --root . --format summary
+  oaf graph search --root . --query "route registration hooks" --format summary
+  oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
+  oaf graph impact --root . --changed src/auth.ts --format summary
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --root . --plan loop-plan.json --execute-commands --format json
   oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
@@ -9888,6 +10194,19 @@ Context commands select local handoff context, preview harness inputs, and read
 pinned context-pack state. Graph preview is dry-run only. Read-only commands do
 not write files, call models, use network access, or expose raw source bodies.
 Retrieve summary verifies locator/hash metadata without printing file content.`],
+    ['graph', `Open Agent Fabric CLI: graph
+
+Usage:
+  oaf graph stats --root . --format summary
+  oaf graph search --root . --query "route registration hooks" --format summary
+  oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
+  oaf graph impact --root . --changed src/auth.ts --format summary
+  oaf graph impact --root . --changed-from-git --format json
+
+Graph commands build a bounded local JS/TS source graph and return locator-only
+stats, search, trace, or changed-file impact reports. They are read-only by default:
+no files are written, no model calls are made, no network calls are made, and
+raw source bodies are not included.`],
     ['context handoff', `Open Agent Fabric CLI: context handoff
 
 Usage:
