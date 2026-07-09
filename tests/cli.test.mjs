@@ -1407,9 +1407,9 @@ test('bench locomo scores model-free retrieval coverage without transcript dumps
   assert.equal(report.dataset.id,'locomo-smoke-v1');
   assert.equal(report.dataset.evaluatedQaCount,3);
   assert.equal(report.benchmarkType.officialGenerativeQaF1,false);
-  assert(report.totals.evidenceAnyRecallPercent>=67);
+  assert.equal(report.totals.evidenceAnyRecallPercent,100);
   assert(report.totals.answerCoveragePercent>=67);
-  assert(Number.isFinite(report.tokenDelivery.reductionPercent));
+  assert(report.tokenDelivery.reductionPercent>0);
   assert.equal(report.source.memorySource,'turns+observations');
   assert.equal(report.safeguards.readOnly,true);
   assert.equal(report.safeguards.workspaceFilesWritten,0);
@@ -1439,7 +1439,10 @@ test('memory refine reports low-confidence candidates and renders summaries with
   await provider.claimProposal({workspaceId:'ws_local',workerId:'memory-refine-low-confidence-test',leaseUntil:'2026-06-22T00:05:00.000Z'});
   await provider.recordProposalResult({workspaceId:'ws_local',id:'mpq_refine_low_confidence',workerId:'memory-refine-low-confidence-test',status:'applied',result:{accepted:true}});
   await provider.addTemporalFact({id:'memfact_refine_low_confidence',workspaceId:'ws_local',scope:'workspace',subject:'docs',predicate:'source_quality',object:'ambiguous',text:'docs source_quality ambiguous',source:'workspace://DECISIONS.md',proposalQueueId:'mpq_refine_low_confidence',confidence:0.3,validFrom:'2026-06-21T00:00:00.000Z',episode:{id:'mep_refine_low_confidence',sourceLocator:'workspace://DECISIONS.md',summary:'Low confidence source quality.',observedAt:'2026-06-21T00:00:00.000Z'}});
-  await provider.addTemporalFact({id:'memfact_refine_high_confidence',workspaceId:'ws_local',scope:'workspace',subject:'docs',predicate:'owner',object:'local',text:'docs owner local',source:'workspace://DECISIONS.md',proposalQueueId:'mpq_refine_low_confidence',confidence:0.9,validFrom:'2026-06-21T00:00:00.000Z'});
+  await provider.enqueueProposal({id:'mpq_refine_high_confidence',workspaceId:'ws_local',sourceLocator:'workspace://DECISIONS.md',sourceHash:`sha256:${'d'.repeat(64)}`,payload:{kind:'fact',scope:'workspace',subject:'docs',predicate:'owner',object:'local'}});
+  await provider.claimProposal({workspaceId:'ws_local',workerId:'memory-refine-low-confidence-test',leaseUntil:'2026-06-22T00:05:00.000Z'});
+  await provider.recordProposalResult({workspaceId:'ws_local',id:'mpq_refine_high_confidence',workerId:'memory-refine-low-confidence-test',status:'applied',result:{accepted:true}});
+  await provider.addTemporalFact({id:'memfact_refine_high_confidence',workspaceId:'ws_local',scope:'workspace',subject:'docs',predicate:'owner',object:'local',text:'docs owner local',source:'workspace://DECISIONS.md',proposalQueueId:'mpq_refine_high_confidence',confidence:0.9,validFrom:'2026-06-21T00:00:00.000Z'});
   provider.close();
   const before=statSync(sqlitePath).mtimeMs;
   const env={...process.env,OAF_FIXED_NOW:'2026-06-23T00:00:00.000Z'};
@@ -1630,18 +1633,18 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
   const provider = new SQLiteMemoryProvider({ filename: sqlite, clock: () => '2026-06-26T11:00:00.000Z' });
   let providerClosed = false;
   t.after(() => { if (!providerClosed) provider.close(); });
-  async function approve(id, payload) {
+  async function approve(id, payload, sourceLocator) {
     await provider.enqueueProposal({
       id,
       workspaceId: 'ws_local',
-      sourceLocator: 'workspace://memory/mcp.md',
+      sourceLocator,
       sourceHash: 'sha256:' + id.replace(/[^a-f0-9]/g, 'a').padEnd(64, 'a').slice(0, 64),
       payload
     });
     await provider.claimProposal({ workspaceId: 'ws_local', workerId: 'mcp-test', leaseUntil: '2026-06-26T11:05:00.000Z' });
     await provider.recordProposalResult({ workspaceId: 'ws_local', id, workerId: 'mcp-test', status: 'applied', result: { accepted: true } });
   }
-  await approve('mpq_mcp_old', { kind: 'fact', subject: 'project:oaf', predicate: 'mcp_token_saver_status', object: 'inactive' });
+  await approve('mpq_mcp_old', { kind: 'fact', subject: 'project:oaf', predicate: 'mcp_token_saver_status', object: 'inactive' }, 'workspace://memory/old-private.md');
   await provider.addTemporalFact({
     id: 'memfact_mcp_old',
     workspaceId: 'ws_local',
@@ -1660,7 +1663,7 @@ test('mcp server exposes governed memory recall and compressed profile over stdi
       observedAt: '2026-06-26T09:00:00.000Z'
     }
   });
-  await approve('mpq_mcp_ready', { kind: 'fact', subject: 'project:oaf', predicate: 'mcp_token_saver_status', object: 'ready' });
+  await approve('mpq_mcp_ready', { kind: 'fact', subject: 'project:oaf', predicate: 'mcp_token_saver_status', object: 'ready' }, 'workspace://docs/superpowers/plans/2026-06-26-mcp-token-saver.md');
   await provider.addTemporalFact({
     id: 'memfact_mcp_ready',
     workspaceId: 'ws_local',
@@ -1897,7 +1900,7 @@ test('mcp install emits portable server config that works from another cwd', () 
   const input = [
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize' }),
     JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
-    JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'portable MCP memory proposal gated', limit: 5 } } })
+    JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'memory.recall', arguments: { query: 'portable MCP memory proposal gated', limit: 5, includeProposals: true } } })
   ].join('\n');
   const served = spawnSync(report.desiredServer.command, report.desiredServer.args, { cwd: otherCwd, encoding: 'utf8', input });
   assert.equal(served.status, 0, served.stderr);
@@ -2597,8 +2600,8 @@ test('memory ingest queues real workspace proposals and MCP serves them without 
   assert.equal(existsSync(path.join(root,'.local','memory.sqlite')),true);
   const stdioInput=[
     JSON.stringify({jsonrpc:'2.0',id:1,method:'initialize',params:{}}),
-    JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'memory.recall',arguments:{query:'proposal gated memory',scope:'workspace',limit:5}}}),
-    JSON.stringify({jsonrpc:'2.0',id:3,method:'tools/call',params:{name:'context.profile',arguments:{objective:'Use proposal gated memory',scope:'workspace',limit:5,budget:512}}})
+    JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'memory.recall',arguments:{query:'proposal gated memory',scope:'workspace',limit:5,includeProposals:true}}}),
+    JSON.stringify({jsonrpc:'2.0',id:3,method:'tools/call',params:{name:'context.profile',arguments:{objective:'Use proposal gated memory',scope:'workspace',limit:5,budget:512,includeProposals:true}}})
   ].join('\n');
   const mcp=spawnSync(process.execPath,['apps/cli/oaf.mjs','mcp','server','--read-only','--root',root,'--sqlite','.local/memory.sqlite','--stdio'],{encoding:'utf8',env,input:stdioInput});
   assert.equal(mcp.status,0,mcp.stderr);

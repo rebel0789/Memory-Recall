@@ -137,7 +137,9 @@ test('installed npm package setup does not re-pack generated local state', () =>
   assert.equal(existsSync(oaf), true);
   const setup = spawnSync(recall, ['setup'], { cwd: work, encoding: 'utf8', env: { ...process.env, HOME: home } });
   assert.equal(setup.status, 0, setup.stderr);
-  assert.equal(existsSync(path.join(packageRoot, '.local', 'state.json')), true);
+  assert.equal(existsSync(path.join(packageRoot, '.local', 'state.json')), false);
+  assert.equal(existsSync(path.join(work, '.local', 'state.json')), true);
+  assert.equal(existsSync(path.join(work, '.local', 'artifacts')), true);
   const env = { ...process.env, HOME: home, PATH: `${path.join(prefix, 'bin')}${path.delimiter}${process.env.PATH}` };
   const hookPlan = spawnSync(oaf, ['hook', 'install', '--agent', 'codex', '--dry-run', '--format', 'json'], { cwd: work, encoding: 'utf8', env });
   assert.equal(hookPlan.status, 0, hookPlan.stderr);

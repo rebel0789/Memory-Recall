@@ -76,6 +76,16 @@ function queueFingerprint({ workspaceId, sourceLocator, sourceHash, payload }) {
   return stableHash({ workspaceId, sourceLocator, sourceHash, payload });
 }
 
+function factProposalFingerprint({ scope = 'workspace', subject, predicate, object, source }) {
+  return stableHash({
+    scope: normalizeTemporalScope(scope),
+    subject: normalizeTemporalText(subject, 'subject', 512),
+    predicate: normalizeTemporalText(predicate, 'predicate', 256),
+    object: normalizeTemporalText(object, 'object'),
+    source: assertWorkspaceLocator(source, 'source')
+  });
+}
+
 function redactQueueString(value, maximum = 512) {
   let text = String(value ?? '');
   for (const pattern of SECRET_PATTERNS) text = text.replace(pattern, '[redacted-secret]');
@@ -132,7 +142,7 @@ function temporalFactLexicalScore(fact, query) {
   const haystack = temporalFactFtsText(fact).toLocaleLowerCase();
   const matched = tokens.filter((token) => haystack.includes(token)).length;
   if (matched === tokens.length) return 0.9;
-  return matched ? 0.25 * (matched / tokens.length) : 0;
+  return matched ? 0.9 * (matched / tokens.length) : 0;
 }
 
 function normalizeRecord(input, clock) {
@@ -813,10 +823,30 @@ export class SQLiteMemoryProvider {
     return { schemaVersion: '1.0.0', provider: PROVIDER_ID, workspaceId, exportedAt: this.clock(), records };
   }
 
-  #assertAppliedProposal({ workspaceId, proposalQueueId }) {
+  #assertProposalPayloadMatches({ proposal, fact }) {
+    const payload = proposal.payload ?? {};
+    if (payload.factFingerprint) {
+      if (payload.factFingerprint !== factProposalFingerprint(fact)) throw new Error('temporal fact does not match its approved proposal');
+      return;
+    }
+    const expectedScope = payload.scope ?? 'workspace';
+    if (
+      payload.kind !== 'fact'
+      || payload.subject !== fact.subject
+      || payload.predicate !== fact.predicate
+      || payload.object !== fact.object
+      || expectedScope !== fact.scope
+      || proposal.sourceLocator !== fact.source
+    ) {
+      throw new Error('temporal fact does not match its approved proposal');
+    }
+  }
+
+  #assertAppliedProposal({ workspaceId, proposalQueueId, fact }) {
     if (!proposalQueueId) throw new Error('proposal gate requires an applied memory proposal');
-    const row = this.database.prepare('SELECT status FROM memory_proposal_queue WHERE workspace_id = ? AND id = ?').get(workspaceId, proposalQueueId);
+    const row = rowToQueueRecord(this.database.prepare('SELECT * FROM memory_proposal_queue WHERE workspace_id = ? AND id = ?').get(workspaceId, proposalQueueId));
     if (!row || row.status !== 'applied') throw new Error('proposal gate requires an applied memory proposal');
+    this.#assertProposalPayloadMatches({ proposal: row, fact });
   }
 
   #upsertTemporalEpisode(episode) {
@@ -918,55 +948,60 @@ export class SQLiteMemoryProvider {
     return rowToTemporalFact(row, episode);
   }
 
-  async addTemporalFact(input) {
-    const normalized = normalizeTemporalFactInput(input, this.clock);
-    if (normalized.status !== 'active') throw new Error('temporal facts can only be added as active facts');
-    this.#assertAppliedProposal({ workspaceId: normalized.workspaceId, proposalQueueId: normalized.proposalQueueId });
+  #materializeTemporalFact(normalized) {
     const episode = normalizeTemporalEpisodeInput(normalized.episode, normalized, this.clock);
     normalized.episodeId = episode.id;
     const now = this.clock();
+    this.#upsertTemporalEpisode(episode);
+    const subjectEntityId = this.#upsertTemporalEntity({ workspaceId: normalized.workspaceId, scope: normalized.scope, kind: 'subject', name: normalized.subject, now });
+    const objectEntityId = this.#upsertTemporalEntity({ workspaceId: normalized.workspaceId, scope: normalized.scope, kind: 'object', name: normalized.object, now });
+    if (normalized.supersedeSubjectPredicate) {
+      this.database.prepare(`
+        UPDATE memory_facts
+        SET status = 'superseded',
+            valid_until = ?,
+            superseded_by = ?,
+            updated_at = ?
+        WHERE workspace_id = ?
+          AND scope = ?
+          AND subject = ?
+          AND predicate = ?
+          AND id <> ?
+          AND object <> ?
+          AND superseded_by IS NULL
+          AND (valid_until IS NULL OR valid_until > ?)
+      `).run(normalized.validFrom, normalized.id, now, normalized.workspaceId, normalized.scope, normalized.subject, normalized.predicate, normalized.id, normalized.object, normalized.validFrom);
+    }
+    this.#writeTemporalFact(normalized);
+    this.database.prepare(`
+      INSERT INTO memory_edges (id, workspace_id, scope, source_entity_id, target_entity_id, predicate, fact_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(workspace_id, scope, fact_id) DO UPDATE SET
+        source_entity_id=excluded.source_entity_id,
+        target_entity_id=excluded.target_entity_id,
+        predicate=excluded.predicate
+    `).run(
+      deterministicId('medge', { workspaceId: normalized.workspaceId, scope: normalized.scope, factId: normalized.id }),
+      normalized.workspaceId,
+      normalized.scope,
+      subjectEntityId,
+      objectEntityId,
+      normalized.predicate,
+      normalized.id,
+      now
+    );
+    return this.#temporalFactFromRow(this.database.prepare('SELECT * FROM memory_facts WHERE workspace_id = ? AND id = ?').get(normalized.workspaceId, normalized.id));
+  }
+
+  async addTemporalFact(input) {
+    const normalized = normalizeTemporalFactInput(input, this.clock);
+    if (normalized.status !== 'active') throw new Error('temporal facts can only be added as active facts');
+    this.#assertAppliedProposal({ workspaceId: normalized.workspaceId, proposalQueueId: normalized.proposalQueueId, fact: normalized });
     this.database.exec('BEGIN IMMEDIATE');
     try {
-      this.#upsertTemporalEpisode(episode);
-      const subjectEntityId = this.#upsertTemporalEntity({ workspaceId: normalized.workspaceId, scope: normalized.scope, kind: 'subject', name: normalized.subject, now });
-      const objectEntityId = this.#upsertTemporalEntity({ workspaceId: normalized.workspaceId, scope: normalized.scope, kind: 'object', name: normalized.object, now });
-      if (normalized.supersedeSubjectPredicate) {
-        this.database.prepare(`
-          UPDATE memory_facts
-          SET status = 'superseded',
-              valid_until = ?,
-              superseded_by = ?,
-              updated_at = ?
-          WHERE workspace_id = ?
-            AND scope = ?
-            AND subject = ?
-            AND predicate = ?
-            AND id <> ?
-            AND object <> ?
-            AND superseded_by IS NULL
-            AND (valid_until IS NULL OR valid_until > ?)
-        `).run(normalized.validFrom, normalized.id, now, normalized.workspaceId, normalized.scope, normalized.subject, normalized.predicate, normalized.id, normalized.object, normalized.validFrom);
-      }
-      this.#writeTemporalFact(normalized);
-      this.database.prepare(`
-        INSERT INTO memory_edges (id, workspace_id, scope, source_entity_id, target_entity_id, predicate, fact_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(workspace_id, scope, fact_id) DO UPDATE SET
-          source_entity_id=excluded.source_entity_id,
-          target_entity_id=excluded.target_entity_id,
-          predicate=excluded.predicate
-      `).run(
-        deterministicId('medge', { workspaceId: normalized.workspaceId, scope: normalized.scope, factId: normalized.id }),
-        normalized.workspaceId,
-        normalized.scope,
-        subjectEntityId,
-        objectEntityId,
-        normalized.predicate,
-        normalized.id,
-        now
-      );
+      const fact = this.#materializeTemporalFact(normalized);
       this.database.exec('COMMIT');
-      return this.#temporalFactFromRow(this.database.prepare('SELECT * FROM memory_facts WHERE workspace_id = ? AND id = ?').get(normalized.workspaceId, normalized.id));
+      return fact;
     } catch (error) {
       this.database.exec('ROLLBACK');
       throw error;
@@ -1091,7 +1126,8 @@ export class SQLiteMemoryProvider {
     const relatedIds = this.#relatedTemporalFactIds(rows, seedRows);
     const scored = rows
       .map((row) => {
-        const fts5 = Math.max(ftsScores.get(row.id) ?? 0, temporalFactLexicalScore(row, query));
+        const lexical = temporalFactLexicalScore(row, query);
+        const fts5 = Math.max(lexical, (ftsScores.get(row.id) ?? 0) * 0.4);
         const graph = fts5 > 0 ? 0.2 : (relatedIds.has(row.id) ? 0.4 : 0);
         const temporal = temporalRank(row.valid_from, at);
         const score = fts5 * 0.7 + graph * 0.2 + temporal * 0.1;
@@ -1461,14 +1497,7 @@ export class SQLiteMemoryProvider {
     const extractionConfidence = ['extracted', 'inferred', 'ambiguous'].includes(payload.extractionConfidence) ? payload.extractionConfidence : 'extracted';
     const supersedeSubjectPredicate = payload.supersedesSubjectPredicate === true;
     const text = payload.text || `${payload.subject} ${payload.predicate} ${payload.object}`;
-    const proposal = await this.recordProposalResult({
-      workspaceId,
-      id,
-      workerId,
-      status: 'applied',
-      result: { accepted: true, command: 'memory approve', approvedAt: now }
-    });
-    const fact = await this.addTemporalFact({
+    const normalized = normalizeTemporalFactInput({
       id: factIdFromProposalId(id),
       workspaceId,
       scope: payload.scope ?? 'workspace',
@@ -1494,8 +1523,29 @@ export class SQLiteMemoryProvider {
         extractionConfidence,
         notes: payload.notes ?? null
       }
-    });
-    return { proposal, fact };
+    }, this.clock);
+    this.database.exec('BEGIN IMMEDIATE');
+    try {
+      const current = rowToQueueRecord(this.database.prepare('SELECT * FROM memory_proposal_queue WHERE workspace_id = ? AND id = ?').get(workspaceId, id));
+      if (!current || current.status !== 'claimed' || current.leaseOwner !== workerId) throw new Error('proposal approval requires an active claim owned by the reviewer');
+      const fact = this.#materializeTemporalFact(normalized);
+      this.database.prepare(`
+        UPDATE memory_proposal_queue
+        SET status = 'applied',
+            lease_owner = NULL,
+            lease_until = NULL,
+            result_json = ?,
+            error_json = NULL,
+            updated_at = ?
+        WHERE workspace_id = ? AND id = ?
+      `).run(boundedJson({ accepted: true, command: 'memory approve', approvedAt: now }), now, workspaceId, id);
+      const proposal = rowToQueueRecord(this.database.prepare('SELECT * FROM memory_proposal_queue WHERE workspace_id = ? AND id = ?').get(workspaceId, id));
+      this.database.exec('COMMIT');
+      return { proposal, fact };
+    } catch (error) {
+      this.database.exec('ROLLBACK');
+      throw error;
+    }
   }
 
   async rejectProposal({ workspaceId, id, workerId = 'memory-review', rejectedAt, reason = 'rejected_by_user' } = {}) {
@@ -1545,7 +1595,9 @@ export class SQLiteMemoryProvider {
       max_attempts: Math.max(1, Math.min(10, Number(input.maxAttempts) || 3)),
       lease_owner: null,
       lease_until: null,
-      payload_json: JSON.stringify(safeQueueObject(payload)),
+      payload_json: JSON.stringify(safeQueueObject(payload.kind === 'fact'
+        ? { factFingerprint: factProposalFingerprint({ ...payload, source: sourceLocator }), ...payload }
+        : payload)),
       result_json: null,
       error_json: null,
       enqueued_at: input.enqueuedAt ?? now,

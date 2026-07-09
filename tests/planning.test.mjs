@@ -85,8 +85,8 @@ test('first safe handoff has a package script', () => {
 test('bootstrap output only points to task command conditionally', () => {
   const result = spawnSync(process.execPath, ['scripts/bootstrap.mjs'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /npm run task -- <OAF-ID> \(only when status names a next task\)/);
+  assert.match(result.stdout, /Memory Recall 1\.0\.5 source bootstrap is ready\./);
   assert.doesNotMatch(result.stdout, /^  npm run task -- <OAF-ID>$/m);
-  assert.match(result.stdout, /npm run oaf -- skill catalog --read-only --root \. --format summary/);
+  assert.match(result.stdout, /npm run recall -- skill catalog --read-only --root \. --format summary/);
   assert.match(result.stdout, /docs\/usage\/local-agent-handoff\.md/);
 });

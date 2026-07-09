@@ -5,6 +5,7 @@ import path from 'node:path';
 const packageRoot = process.env.OAF_PACKAGE_ROOT ?? process.cwd();
 const invokedCwd = process.env.OAF_INVOKED_CWD ?? process.cwd();
 const status = JSON.parse(await readFile(path.join(packageRoot, 'PROJECT_STATUS.json'), 'utf8'));
+const pkg = JSON.parse(await readFile(path.join(packageRoot, 'package.json'), 'utf8'));
 const backlog = JSON.parse(await readFile(path.join(packageRoot, 'planning/backlog.json'), 'utf8'));
 
 function readyTasks(tasks) {
@@ -23,7 +24,7 @@ const nextTask = nextTaskLabel(status.nextTask, backlog.tasks ?? []);
 const sourceCheckout = existsSync(path.join(invokedCwd, 'package.json')) && existsSync(path.join(invokedCwd, 'apps/cli/oaf.mjs'));
 const recall = (args) => sourceCheckout ? `npm run recall -- ${args}` : `recall ${args}`;
 
-console.log(`${status.project} ${status.release} — ${status.phase}`);
+console.log(`Memory Recall ${pkg.version} — ${status.phase}`);
 console.log(`Next task: ${nextTask}`);
 console.log(`Defaults: network=${status.defaults.network}, externalWrites=${status.defaults.externalWrites}, model=${status.defaults.modelMode}, residency=${status.defaults.dataResidency}`);
 if (nextTask.startsWith('none ')) {

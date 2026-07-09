@@ -61,6 +61,7 @@ import {
 
 const CLI_PATH = fileURLToPath(import.meta.url);
 const PACKAGE_ROOT = path.resolve(path.dirname(CLI_PATH), '../..');
+const PACKAGE_METADATA = JSON.parse(await readFile(path.join(PACKAGE_ROOT, 'package.json'), 'utf8'));
 const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
 const OAF_CHECKOUT_ARG_PREFIX = Object.freeze(['--silent', 'run', 'oaf', '--']);
 const MCP_STDIO_MAX_STDIN_BYTES = boundedEnvInteger('OAF_MCP_STDIO_MAX_STDIN_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
@@ -119,6 +120,20 @@ function defaultHandoffArgs() {
   ];
 }
 
+async function setupConsumerWorkspace() {
+  const root = process.cwd();
+  const local = path.join(root, '.local');
+  await mkdir(path.join(local, 'artifacts'), { recursive: true, mode: 0o700 });
+  const statePath = path.join(local, 'state.json');
+  if (!existsSync(statePath)) {
+    await writeFile(statePath, `${JSON.stringify({ schemaVersion: '1.0.0', runs: [], events: [], memories: [], approvals: [], artifacts: [] }, null, 2)}\n`, { mode: 0o600 });
+  }
+  console.log(`Memory Recall ${PACKAGE_METADATA.version} is ready for this repository.`);
+  console.log('Next: recall memory ingest --root . --sqlite .local/memory.sqlite --format json');
+  console.log('Then: recall memory review --root . --sqlite .local/memory.sqlite --format summary');
+  console.log('Handoff: recall handoff');
+}
+
 function defaultTokenSaverArgs() {
   return [
     '--read-only',
@@ -168,6 +183,10 @@ if (!isHelpCommand(command) && args.some(isHelpCommand)) {
   help(command, args.find((value) => !isHelpCommand(value)));
 } else if (command === 'demo' && args[0] === 'memory-loop') {
   await demoMemoryLoopCommand(args.slice(1));
+} else if (command === 'setup') {
+  await setupConsumerWorkspace();
+} else if (command === 'verify') {
+  await contextCommand(['handoff', ...defaultHandoffArgs()]);
 } else if (command === 'serve') {
   process.exitCode = await runNode(commands.get(command), {
     cwd: process.cwd(),
@@ -670,7 +689,7 @@ async function memoryReviewListCommand(values) {
 }
 
 function renderMemoryReviewSummary(report) {
-  const first = report.proposalFacts.slice(0, 5).map((item) => `- ${item.id}: ${item.subject} ${item.predicate}`).join('\n') || '- none';
+  const first = report.proposalFacts.slice(0, 5).map((item) => `- ${item.id}: ${item.subject} ${item.predicate} = ${item.object} (${item.provenance.sourceLocator})`).join('\n') || '- none';
   return [
     '# Memory Review',
     `Workspace: ${report.workspaceId}`,
@@ -2959,7 +2978,10 @@ async function buildLocomoBenchmarkReport(values) {
             at: generatedAt,
             limit: recallLimit
           });
-          const retrieved = recall.results.map((item) => item.fact);
+          const retrieved = selectLocomoDeliveryFacts(
+            recall.results.map((item) => item.fact),
+            Math.min(tokenBudget, locomoSample.fullConversationTokens)
+          );
           const deliveredText = locomoRetrievedText(retrieved);
           const evidenceHits = locomoEvidenceHits(retrieved, qa.evidence);
           const answerScored = qa.category !== 5 && Boolean(qa.answer);
@@ -3239,7 +3261,7 @@ async function addLocomoBenchmarkFacts(provider, { sample, workspaceId, memorySo
       count += await addLocomoFact(provider, {
         workspaceId,
         sampleId: sample.sampleId,
-        factKey: `observation:${observation.sessionIndex}:${observation.index}`,
+        factKey: `observation:${observation.sessionIndex}:${observation.speaker}:${observation.index}`,
         sourceLocator: `workspace://evals/locomo/${sample.sampleId}/observation-${observation.sessionIndex}-${observation.index + 1}.md`,
         subject: `locomo:${sample.sampleId}:${observation.speaker}`,
         predicate: 'observation',
@@ -3305,6 +3327,16 @@ function locomoRetrievedText(facts) {
     fact.predicate,
     fact.text
   ].filter(Boolean).join('\n')).join('\n\n');
+}
+
+function selectLocomoDeliveryFacts(facts, maximumTokens) {
+  const selected = [];
+  for (const fact of facts) {
+    const next = [...selected, fact];
+    if (estimateTokens(locomoRetrievedText(next)) > maximumTokens) continue;
+    selected.push(fact);
+  }
+  return selected;
 }
 
 function locomoEvidenceHits(facts, evidence) {
@@ -3959,14 +3991,14 @@ async function scoreRealQaArm({ name, root, workspaceId, generatedAt, tokenBudge
         root: scratchRoot,
         workspaceId,
         generatedAt,
-        args: { query: item.question, scope: 'workspace', limit: recallLimit }
+        args: { query: item.question, scope: 'workspace', limit: recallLimit, includeProposals: true }
       });
       const profilePayload = await buildMcpContextProfilePayload({
         values: sqliteValues,
         root: scratchRoot,
         workspaceId,
         generatedAt,
-        args: { objective: item.question, step: 'Answer real repo question from governed memory', scope: 'workspace', budget: tokenBudget, limit: recallLimit }
+        args: { objective: item.question, step: 'Answer real repo question from governed memory', scope: 'workspace', budget: tokenBudget, limit: recallLimit, includeProposals: true }
       });
       const recallText = JSON.stringify(recallPayload);
       const profileText = JSON.stringify(profilePayload);
@@ -4270,7 +4302,8 @@ async function buildSufficiencyBenchmarkReport(values) {
           step: 'Measure whether governed memory contains the gold repo fact',
           scope: 'workspace',
           budget: tokenBudget,
-          limit: recallLimit
+          limit: recallLimit,
+          includeProposals: true
         }
       });
       const recallPayload = await buildMcpMemoryRecallPayload({
@@ -4281,7 +4314,8 @@ async function buildSufficiencyBenchmarkReport(values) {
         args: {
           query: item.question,
           scope: 'workspace',
-          limit: recallLimit
+          limit: recallLimit,
+          includeProposals: true
         }
       });
       const oafPayloadText = JSON.stringify({ contextProfile: profilePayload, memoryRecall: recallPayload });
@@ -5721,7 +5755,9 @@ async function mcpServerCommand(values) {
     tools,
     allowReadOnlyToolsWithoutGrant: true,
     commandLabel: 'mcp server',
-    streaming: true
+    streaming: true,
+    bridgeName: PACKAGE_METADATA.name,
+    bridgeVersion: PACKAGE_METADATA.version
   });
 }
 
@@ -5822,16 +5858,21 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           client: { type: 'string', maxLength: 80, default: 'default' },
           limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 },
           since: { type: 'string', maxLength: 80 },
-          verbose: { type: 'boolean', default: false }
+          verbose: { type: 'boolean', default: false },
+          includeProposals: { type: 'boolean', default: false },
+          subject: { type: 'string', maxLength: 128 },
+          predicate: { type: 'string', maxLength: 128 },
+          currentTruthOnly: { type: 'boolean', default: false }
         }
       },
       handler: async ({ arguments: args }) => {
         const argsWithCursor = await mcpArgsWithPersistedCursor({ cursorStore, toolName: 'memory.recall', args });
+        const requestGeneratedAt = fixedNow();
         const payload = await buildMcpMemoryRecallPayload({
           values,
           root,
           workspaceId,
-          generatedAt,
+          generatedAt: requestGeneratedAt,
           args: argsWithCursor
         });
         await cursorStore?.set({ toolName: 'memory.recall', args: argsWithCursor, cursor: mcpPayloadNextCursor(payload) });
@@ -5854,16 +5895,21 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           client: { type: 'string', maxLength: 80, default: 'default' },
           budget: { type: 'integer', minimum: 1, maximum: 100000, default: 4096 },
           limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
-          since: { type: 'string', maxLength: 80 }
+          since: { type: 'string', maxLength: 80 },
+          includeProposals: { type: 'boolean', default: false },
+          subject: { type: 'string', maxLength: 128 },
+          predicate: { type: 'string', maxLength: 128 },
+          currentTruthOnly: { type: 'boolean', default: false }
         }
       },
       handler: async ({ arguments: args }) => {
         const argsWithCursor = await mcpArgsWithPersistedCursor({ cursorStore, toolName: 'context.profile', args });
+        const requestGeneratedAt = fixedNow();
         const payload = await buildMcpContextProfilePayload({
           values,
           root,
           workspaceId,
-          generatedAt,
+          generatedAt: requestGeneratedAt,
           args: argsWithCursor
         });
         await cursorStore?.set({ toolName: 'context.profile', args: argsWithCursor, cursor: mcpPayloadNextCursor(payload) });
@@ -5902,6 +5948,7 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
   const scope = mcpSafeScope(args.scope ?? 'workspace');
   const limit = mcpBoundedInteger(args.limit, 8, { min: 1, max: 20 });
   const verbose = args.verbose === true;
+  const includeProposals = args.includeProposals === true;
   const currentTruthOnly = args.currentTruthOnly === true && !verbose;
   const since = mcpParseSinceCursor(args.since);
   const subject = typeof args.subject === 'string' && args.subject.trim() ? mcpSanitizeString(args.subject, 128) : null;
@@ -5944,7 +5991,7 @@ async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generate
         }
       });
     }
-    const proposalLimit = Math.max(0, limit - changedActiveFacts.length);
+    const proposalLimit = includeProposals ? Math.max(0, limit - changedActiveFacts.length) : 0;
     const proposalFacts = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
       .map(summarizeProposalQueueFact)
       .filter((item) => item && item.scope === scope && proposalFactMatchesTemporalFilter(item, { subject, predicate }) && proposalFactMatchesQuery(item, query))
@@ -6007,6 +6054,7 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
   const budget = mcpBoundedInteger(args.budget, 4096, { min: 1, max: 100000 });
   const limit = mcpBoundedInteger(args.limit, 50, { min: 1, max: 100 });
   const currentTruthOnly = args.currentTruthOnly === true;
+  const includeProposals = args.includeProposals === true;
   const since = mcpParseSinceCursor(args.since);
   const subject = typeof args.subject === 'string' && args.subject.trim() ? mcpSanitizeString(args.subject, 128) : null;
   const predicate = typeof args.predicate === 'string' && args.predicate.trim() ? mcpSanitizeString(args.predicate, 128) : null;
@@ -6059,12 +6107,12 @@ async function buildMcpContextProfilePayload({ values, root, workspaceId, genera
       }
       const exported = await provider.export({ workspaceId });
       const activeRecords = facts.filter((fact) => (!since || mcpFactChangedSince(fact, since))).map(mcpProfileRecordFromFact);
-      const proposalRecords = (await provider.listProposalQueue({ workspaceId, limit: 100 }))
+      const proposalRecords = includeProposals ? (await provider.listProposalQueue({ workspaceId, limit: 100 }))
         .map(summarizeProposalQueueFact)
         .filter((item) => item && item.scope === scope && proposalFactMatchesTemporalFilter(item, { subject, predicate }) && proposalFactMatchesQuery(item, objective))
         .filter((item) => !proposalFactShadowedByActiveFacts(item, facts.filter((fact) => fact.status === 'active' && !fact.supersededBy)))
         .slice(0, limit)
-        .map(mcpProfileRecordFromProposal);
+        .map(mcpProfileRecordFromProposal) : [];
       records.push(...(since ? [] : exported.records), ...activeRecords, ...proposalRecords);
     } finally {
       provider.close();
@@ -6374,6 +6422,7 @@ async function createMcpCursorStore({ values, root, workspaceId }) {
         toolName,
         client: mcpCursorStoreClient(args),
         scope: mcpSafeScope(args?.scope ?? 'workspace'),
+        requestFingerprint: mcpCursorRequestFingerprint(args),
         cursor: next,
         updatedAt: next
       };
@@ -6396,7 +6445,12 @@ async function readMcpCursorFile(cursorPath) {
 }
 
 function mcpCursorStoreKey({ workspaceId, toolName, args }) {
-  return [workspaceId, toolName, mcpCursorStoreClient(args), mcpSafeScope(args?.scope ?? 'workspace')].map((part) => mcpSanitizeString(part, 120)).join('|');
+  return [workspaceId, toolName, mcpCursorStoreClient(args), mcpSafeScope(args?.scope ?? 'workspace'), mcpCursorRequestFingerprint(args)].map((part) => mcpSanitizeString(part, 120)).join('|');
+}
+
+function mcpCursorRequestFingerprint(args) {
+  const request = Object.fromEntries(Object.entries(args ?? {}).filter(([key]) => key !== 'client' && key !== 'since'));
+  return `sha256:${sha256Hex(stableStringify(request))}`;
 }
 
 function mcpCursorStoreClient(args) {
@@ -8758,9 +8812,11 @@ async function mcpResourcesStdio({
   tools = [],
   allowReadOnlyToolsWithoutGrant = false,
   commandLabel = 'mcp resources',
-  streaming = false
+  streaming = false,
+  bridgeName = undefined,
+  bridgeVersion = undefined
 }) {
-  const bridge = createMcpBridge({ trustedContext, resources, tools, allowReadOnlyToolsWithoutGrant });
+  const bridge = createMcpBridge({ name: bridgeName, version: bridgeVersion, trustedContext, resources, tools, allowReadOnlyToolsWithoutGrant });
   if (!streaming) {
     const batchInput = await readStdinText(commandLabel);
     if (!batchInput.trim()) {

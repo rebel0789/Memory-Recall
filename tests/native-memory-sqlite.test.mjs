@@ -339,6 +339,65 @@ test('native SQLite temporal facts are proposal-gated, superseded, time-travel q
   assert.equal(second.proposalQueueId, 'mpq_second');
 });
 
+test('native SQLite approval materializes only the claimed proposal and commits the fact with its approval', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-memory-approval-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const provider = new SQLiteMemoryProvider({ filename: path.join(directory, 'memory.sqlite'), clock: () => '2026-07-09T10:00:00.000Z' });
+  t.after(() => provider.close());
+
+  const proposal = await provider.enqueueProposal({
+    id: 'mpq_bound_fact',
+    workspaceId: 'ws_local',
+    sourceLocator: 'workspace://DECISIONS.md',
+    sourceHash: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    payload: {
+      kind: 'fact',
+      scope: 'workspace',
+      subject: 'auth',
+      predicate: 'token_expiry',
+      object: '15 minutes',
+      observedAt: '2026-07-09T09:00:00.000Z'
+    }
+  });
+
+  await assert.rejects(
+    () => provider.addTemporalFact({
+      id: 'memfact_unrelated',
+      workspaceId: 'ws_local',
+      scope: 'workspace',
+      subject: 'billing',
+      predicate: 'plan',
+      object: 'enterprise',
+      text: 'Billing plan is enterprise.',
+      source: 'workspace://DECISIONS.md',
+      proposalQueueId: proposal.id
+    }),
+    /proposal gate requires an applied memory proposal/
+  );
+
+  const approved = await provider.approveProposalFact({ workspaceId: 'ws_local', id: proposal.id, approvedAt: '2026-07-09T10:00:00.000Z' });
+  assert.equal(approved.proposal.status, 'applied');
+  assert.equal(approved.fact.subject, 'auth');
+  assert.equal(approved.fact.predicate, 'token_expiry');
+  assert.equal(approved.fact.object, '15 minutes');
+  assert.equal(approved.fact.proposalQueueId, proposal.id);
+
+  await assert.rejects(
+    () => provider.addTemporalFact({
+      id: 'memfact_unrelated_after_approval',
+      workspaceId: 'ws_local',
+      scope: 'workspace',
+      subject: 'billing',
+      predicate: 'plan',
+      object: 'enterprise',
+      text: 'Billing plan is enterprise.',
+      source: 'workspace://DECISIONS.md',
+      proposalQueueId: proposal.id
+    }),
+    /does not match its approved proposal/
+  );
+});
+
 test('native SQLite memory exposes read-only temporal cockpit lists', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'oaf-memory-cockpit-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
