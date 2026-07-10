@@ -3,6 +3,7 @@ node_modules/
 .local/
 coverage/
 .playwright-cli/
+.worktrees/
 output/playwright/
 context-packs/
 graphify-out/
