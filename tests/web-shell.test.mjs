@@ -52,6 +52,7 @@ import {
   renderSetupScreen,
   renderContextPackTokenSaverSummary,
   renderMemoryIntakePanel,
+  renderOverview,
   renderRecallMapHome,
   shouldLoadProtectedShellData,
   shellStatusLabel,
@@ -104,6 +105,11 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.doesNotMatch(shellCss, /\.app-shell\{grid-template-columns:76px/);
   assert.doesNotMatch(shellCss, /#primary-nav a>span:last-child\{[^}]*position:absolute/);
   assert.match(shellCss, /\.button:focus-visible,a:focus-visible,main:focus-visible,input:focus-visible/);
+  assert.match(shellCss, /\.overview\{[^}]*max-width:1280px[^}]*margin:0 auto/);
+  assert.match(shellCss, /\.overview-grid\{[^}]*grid-template-columns:minmax\(0,1\.2fr\) minmax\(320px,\.8fr\)/);
+  assert.match(shellCss, /\.overview-section\{[^}]*border-bottom:1px solid var\(--color-rule\)/);
+  assert.match(shellCss, /@media\(max-width:900px\)\{\s*\.overview-grid\{grid-template-columns:1fr\}/s);
+  assert.doesNotMatch(shellCss, /\.recall-map-signals/);
 });
 
 test('mobile shell exposes four fixed destinations without horizontal scrolling', async () => {
@@ -167,12 +173,20 @@ test('first-use home exposes developer-first Recall Map actions',()=>{
   assert.match(html,/aria-label="First actions"/);
 });
 
-test('Recall Map home makes index, coverage, impact, memory, and handoff states inspectable',()=>{
+test('Recall Map home presents a repository-first daily Overview',()=>{
   const report={
     schemaVersion:'1.0.0',
     reportVersion:'memory-recall-map-1.0.0',
     workspaceId:'ws_local',
     generatedAt:'2026-07-11T10:00:00.000Z',
+    repository:{
+      name:'memory-recall-map-home',
+      branch:'main',
+      commitSha:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      dirtyCount:1,
+      gitStatusAvailable:true,
+      reason:null
+    },
     support:{
       sourceGraph:{status:'implemented',languages:['javascript','typescript'],coverage:{status:'partial',analyzedFileCount:42,maxFiles:1000,maxFileBytes:262144,diagnosticCount:1,reasonCodes:['static_js_ts_only','bounded_file_scan']}},
       memory:{status:'available'}
@@ -191,22 +205,46 @@ test('Recall Map home makes index, coverage, impact, memory, and handoff states 
   };
   const model=buildRecallMapHomeModel({report,pinnedHandoffStatus:{current:{status:'verified'}}});
   assert.equal(model.state,'partial');
+  assert.deepEqual(selectOverviewPrimaryAction(model),{label:'Review 1 proposal',route:'/memory',routeId:'memory'});
   assert.equal(model.index.status,'implemented');
   assert.equal(model.coverage.label,'42 / 1000 files');
   assert.equal(model.impact.changedCount,1);
   assert.equal(model.memory.activeCount,1);
   assert.equal(model.memory.pendingCount,1);
   assert.equal(model.handoff.state,'ready');
-  const html=renderRecallMapHome(model);
-  for (const label of ['Index health','Supported coverage','Changed impact','Memory state','Handoff readiness','Copy terminal command']) assert.match(html,new RegExp(label));
-  assert.match(html,/data-action="refresh-recall-map"/);
-  assert.match(html,/data-action="copy-command"/);
+  const html=renderOverview(model);
+  for (const label of ['Changes','Needs attention','Impact','Current handoff','Recent activity']) assert.match(html,new RegExp(label));
+  assert.match(html,/Review 1 proposal/);
+  assert.match(html,/memory-recall-map-home/);
+  assert.match(html,/workspace:\/\/apps\/web\/app\.js/);
+  assert.match(html,/data-route="source-graph"/);
+  assert.match(html,/data-route="memory"/);
+  assert.doesNotMatch(html,/Developer-first/i);
+  assert.doesNotMatch(html,/Read the local picture/i);
+  assert.doesNotMatch(html,/recall-map-signals/);
   assert.doesNotMatch(html,/<canvas\b/i);
+  assert.equal(renderRecallMapHome,renderOverview);
+
+  const staleMemoryOnlyModel=buildRecallMapHomeModel({
+    report:{...report,memory:{...report.memory,pendingProposals:[]}}
+  });
+  assert.equal(staleMemoryOnlyModel.state,'partial');
+  assert.equal(selectOverviewPrimaryAction(staleMemoryOnlyModel),null);
+  assert.match(renderOverview(staleMemoryOnlyModel),/<strong>1 stale<\/strong>/);
+  assert.doesNotMatch(renderOverview(staleMemoryOnlyModel),/Source changes need review/);
+
+  const staleHandoffModel=buildRecallMapHomeModel({
+    report:{...report,memory:{...report.memory,pendingProposals:[],staleFactCount:0}},
+    pinnedHandoffStatus:{current:{status:'stale'}}
+  });
+  assert.equal(staleHandoffModel.state,'stale');
+  assert.deepEqual(selectOverviewPrimaryAction(staleHandoffModel),{label:'Update handoff',route:'/handoffs',routeId:'context-pack'});
+  assert.match(renderOverview(staleHandoffModel),/Source changes need review/);
 
   assert.equal(buildRecallMapHomeModel({report:null,error:null}).state,'loading');
   assert.equal(buildRecallMapHomeModel({report:null,error:'loopback unavailable'}).state,'error');
-  assert.equal(buildRecallMapHomeModel({report:{...report,architecture:{...report.architecture,entryPoints:[],hotspots:[],impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}}}).state,'empty');
-  assert.equal(buildRecallMapHomeModel({report:{...report,support:{...report.support,sourceGraph:{...report.support.sourceGraph,status:'unavailable',coverage:{...report.support.sourceGraph.coverage,status:'unavailable'}}}}}).state,'partial');
+  assert.equal(buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},architecture:{...report.architecture,entryPoints:[],hotspots:[],impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}}}).state,'empty');
+  assert.equal(buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},support:{...report.support,sourceGraph:{...report.support.sourceGraph,status:'unavailable',coverage:{...report.support.sourceGraph.coverage,status:'unavailable'}}}}}).state,'partial');
 });
 
 test('shell defers protected workspace loads until local session evidence exists',()=>{

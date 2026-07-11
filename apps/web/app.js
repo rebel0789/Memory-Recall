@@ -1,4 +1,4 @@
-import { navigationItemsFor, navigationOwner } from './shell-model.js';
+import { navigationItemsFor, navigationOwner, selectOverviewPrimaryAction } from './shell-model.js';
 
 export const SHELL_STATES = new Set(['loading','setup','empty','error','denied','stale','partial','success']);
 
@@ -1186,7 +1186,7 @@ function renderRoute(route) {
 }
 
 function renderHome() {
-  return renderRecallMapHome(buildRecallMapHomeModel({
+  return renderOverview(buildRecallMapHomeModel({
     report: recallMap,
     error: recallMapError,
     pinnedHandoffStatus,
@@ -1224,9 +1224,6 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
   const affectedSymbols=Array.isArray(impact.affectedSymbols)?impact.affectedSymbols:[];
   const activeFacts=Array.isArray(memory.activeFacts)?memory.activeFacts:[];
   const pendingProposals=Array.isArray(memory.pendingProposals)?memory.pendingProposals:[];
-  const sourceUnavailable=sourceGraph.status==='unavailable'||coverage.status==='unavailable';
-  const noArchitecture=entryPoints.length===0&&hotspots.length===0&&changedLocators.length===0&&affectedSymbols.length===0;
-  const state=sourceUnavailable?'partial':noArchitecture?'empty':coverage.status==='partial'?'partial':'success';
   const handoffStatus=String(pinnedHandoffStatus?.current?.status ?? '');
   const handoffState=pinnedHandoffError
     ? 'blocked'
@@ -1239,6 +1236,10 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
           : report.readiness?.handoff?.status==='available'
             ? 'pending'
             : 'blocked';
+  const sourceUnavailable=sourceGraph.status==='unavailable'||coverage.status==='unavailable';
+  const noArchitecture=entryPoints.length===0&&hotspots.length===0&&changedLocators.length===0&&affectedSymbols.length===0;
+  const baseState=sourceUnavailable?'partial':noArchitecture?'empty':coverage.status==='partial'?'partial':'success';
+  const state=handoffState==='review'?'stale':baseState;
   const nextCommands=[
     'recall map --root . --sqlite .local/memory.sqlite --format summary',
     ...(Array.isArray(report.readiness?.nextCommands)?report.readiness.nextCommands:[]),
@@ -1247,6 +1248,14 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
   return {
     state,
     generatedAt:report.generatedAt ?? null,
+    repository:report.repository ?? {
+      name:'Local workspace',
+      branch:null,
+      commitSha:null,
+      dirtyCount:0,
+      gitStatusAvailable:false,
+      reason:'repository_identity_unavailable'
+    },
     index:{
       status:sourceGraph.status ?? 'unavailable',
       kind:sourceGraph.status==='implemented'?'success':'error',
@@ -1292,37 +1301,71 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
             : 'Handoff verification is unavailable. Review the local registry before sharing context.'
     },
     safeguards:report.safeguards ?? {},
-    commands:nextCommands.map((command)=>({ label:recallMapCommandLabel(command), command }))
+    commands:nextCommands.map((command)=>({ label:recallMapCommandLabel(command), command })),
+    recentActivity:[
+      ...pendingProposals.slice(0,3).map((proposal)=>({
+        kind:'proposal',
+        label:'Memory proposed',
+        detail:proposal.sourceLocator,
+        at:proposal.enqueuedAt
+      })),
+      ...activeFacts.slice(0,3).map((fact)=>({
+        kind:'memory',
+        label:'Memory current',
+        detail:fact.sourceLocator,
+        at:fact.validFrom
+      }))
+    ].sort((left,right)=>String(right.at).localeCompare(String(left.at))).slice(0,5)
   };
 }
 
-export function renderRecallMapHome(model) {
-  if (model.state==='loading') {
-    return `<section class="recall-map-stage" aria-label="Recall Map"><div class="recall-map-hero"><div><p class="eyebrow">Developer-first local overview</p><h2>Recall Map</h2><p>${esc(model.copy)}</p></div><button class="button secondary" data-action="refresh-recall-map" type="button">Refresh Recall Map</button></div>${statePanel('loading',model.title,model.copy)}</section>`;
-  }
-  if (model.state==='error') {
-    return `<section class="recall-map-stage" aria-label="Recall Map"><div class="recall-map-hero"><div><p class="eyebrow">Developer-first local overview</p><h2>Recall Map</h2><p>${esc(model.copy)}</p></div><button class="button secondary" data-action="refresh-recall-map" type="button">Refresh Recall Map</button></div>${renderApiErrorPanel(model.title,model.error)}</section>`;
-  }
+export function renderOverview(model) {
+  if (model.state==='loading') return `<section class="overview"><header class="page-heading"><h1>Overview</h1><button class="button" data-action="refresh-recall-map" type="button">Scan repository</button></header>${statePanel('loading',model.title,model.copy)}</section>`;
+  if (model.state==='error') return `<section class="overview"><header class="page-heading"><h1>Overview</h1><button class="button" data-action="refresh-recall-map" type="button">Retry scan</button></header>${renderApiErrorPanel(model.title,model.error)}</section>`;
+  const action=selectOverviewPrimaryAction(model);
+  const actionHtml=action?.action
+    ? `<button class="button primary" data-action="${esc(action.action)}" type="button">${esc(action.label)}</button>`
+    : action
+      ? `<a class="button primary" href="${esc(action.route)}" data-route="${esc(action.routeId)}">${esc(action.label)}</a>`
+      : '<span class="overview-current">No review required</span>';
   const stateCopy=model.state==='empty'
-    ? statePanel('empty','No JS/TS entry points yet','The map is live, but this workspace did not yield a bounded JS/TS entry point. Inspect the supported coverage before broadening the workspace.')
+    ? statePanel('empty','No JS/TS entry points yet','The map is live, but this workspace did not yield a bounded JS/TS entry point. Inspect supported coverage in Map before broadening the workspace.')
     : model.state==='partial'
-      ? statePanel('partial','Bounded coverage','Recall Map only indexes supported JS/TS metadata within its scan limits. Use the coverage reasons below before treating it as complete.')
-      : '';
-  const visibleEntryPoints=model.entryPoints.slice(0,8);
-  const entryPoints=visibleEntryPoints.length
-    ? `<ol class="recall-map-list">${visibleEntryPoints.map((entry)=>`<li><strong>${esc(entry.label)}</strong><span>${esc(entry.symbolKind)}</span><code>${esc(entry.locator ?? 'locator unavailable')}</code></li>`).join('')}</ol>${model.entryPoints.length>visibleEntryPoints.length?`<p class="recall-map-more"><a href="/source-graph" data-route="source-graph">Inspect ${model.entryPoints.length-visibleEntryPoints.length} more entry points in Source Graph</a></p>`:''}`
-    : '<p class="muted">No bounded entry points were reported.</p>';
-  const affected=model.impact.affectedSymbols.length
-    ? `<ol class="recall-map-list">${model.impact.affectedSymbols.map((entry)=>`<li><strong>${esc(entry.label)}</strong><span>${esc(entry.symbolKind)}</span><code>${esc(entry.locator ?? 'locator unavailable')}</code></li>`).join('')}</ol>`
-    : '<p class="muted">No changed files were supplied, so no focused impact set is active.</p>';
+      ? statePanel('partial','Bounded coverage','The Map only indexes supported JS/TS metadata within its scan limits. Review its coverage notes before treating the repository picture as complete.')
+      : model.state==='stale'
+        ? statePanel('stale','Source changes need review','Repository evidence changed after the current handoff was pinned. Review the affected sources before sharing context.')
+        : '';
   const changed=model.impact.changedLocators.length
-    ? `<ul class="recall-map-locators">${model.impact.changedLocators.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ul>`
-    : '<p class="muted">No changed locator is selected. Use the CLI map command with a reviewed change when you need focused impact.</p>';
-  const coverageReasons=model.coverage.reasonCodes.length
-    ? `<div class="reason-list">${model.coverage.reasonCodes.map((reason)=>`<span class="reason">${esc(reason)}</span>`).join('')}</div>`
-    : '<p class="muted">No coverage reasons were returned.</p>';
-  return `<section class="recall-map-stage" aria-label="Recall Map"><div class="recall-map-hero"><div><p class="eyebrow">Developer-first local overview</p><h2>Read the local picture before the next change.</h2><p>Start with the bounded map, then create a verified handoff for the next coding agent. This screen reads local summaries only.</p></div><div class="recall-map-hero-actions">${statusChip(model.state,model.state,'Map state')}<button class="button secondary" data-action="refresh-recall-map" type="button">Refresh Recall Map</button></div></div>${stateCopy}<section class="recall-map-signals" aria-label="Recall Map signals"><article><span>Index health</span><strong>${esc(model.index.label)}</strong>${statusChip(model.index.kind,model.index.status,'Source graph')}</article><article><span>Supported coverage</span><strong>${esc(model.coverage.label)}</strong>${statusChip(model.coverage.kind,model.coverage.status,`${model.coverage.diagnosticCount} diagnostics`)}</article><article><span>Changed impact</span><strong>${model.impact.changedCount} changed · ${model.impact.affectedCount} affected</strong>${statusChip(model.impact.changedCount?'selected':'empty',model.impact.changedCount?'focused':'none',`depth ${model.impact.depth}`)}</article><article><span>Memory state</span><strong>${model.memory.activeCount} active · ${model.memory.pendingCount} pending</strong>${statusChip(model.memory.kind,model.memory.status,`${model.memory.staleCount} stale`)}</article><article><span>Handoff readiness</span><strong>${esc(model.handoff.state)}</strong>${statusChip(model.handoff.kind,model.handoff.state,'Next-Agent Handoff')}</article></section><section class="recall-map-layout"><div class="surface recall-map-primary"><div class="section-heading"><h2>Entry points</h2><span>${visibleEntryPoints.length} of ${model.entryPoints.length} indexed</span></div>${entryPoints}<div class="section-heading recall-map-section"><h2>Changed impact</h2><span>${model.impact.representedCount} represented</span></div>${changed}${affected}</div><aside class="inspector recall-map-inspector"><div class="section-heading"><h2>Supported coverage</h2><span>${esc(model.coverage.label)}</span></div>${coverageReasons}<dl class="facts compact-facts"><div><dt>Index</dt><dd>${esc(model.index.copy)}</dd></div><div><dt>Memory</dt><dd>${esc(model.memory.status)}${model.memory.unavailableReason?` · ${esc(model.memory.unavailableReason)}`:''}</dd></div><div><dt>Stale facts</dt><dd>${model.memory.staleCount}</dd></div><div><dt>Handoff</dt><dd>${esc(model.handoff.copy)}</dd></div><div><dt>Generated</dt><dd>${esc(model.generatedAt?date(model.generatedAt):'not reported')}</dd></div></dl></aside></section><section class="surface recall-map-commands"><div class="section-heading"><h2>Copyable next commands</h2><span>Read-only by default</span></div>${contextPackCommandList(model.commands)}</section><section class="surface recall-map-handoff"><div><p class="eyebrow">Next-Agent Handoff</p><h2>Keep the next step inspectable.</h2><p>Use the map to orient, then create or verify the smallest context packet that lets another developer continue safely.</p></div>${renderConsumerStartActions()}</section></section>`;
+    ? `<ul class="plain-list overview-changes">${model.impact.changedLocators.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ul>`
+    : '<p class="muted">No changed files are selected.</p>';
+  const attention=[
+    model.memory.pendingCount?`<a href="/memory" data-route="memory"><strong>${model.memory.pendingCount} pending</strong><span>Review proposed memory</span></a>`:'',
+    model.memory.staleCount?`<a href="/memory" data-route="memory"><strong>${model.memory.staleCount} stale</strong><span>Check source changes</span></a>`:'',
+    model.coverage.diagnosticCount?`<a href="/map" data-route="source-graph"><strong>${model.coverage.diagnosticCount} coverage note${model.coverage.diagnosticCount===1?'':'s'}</strong><span>Inspect supported files</span></a>`:''
+  ].filter(Boolean).join('')||'<p class="muted">Nothing needs review.</p>';
+  const affected=model.impact.affectedSymbols.length
+    ? `<ol class="plain-list">${model.impact.affectedSymbols.slice(0,6).map((entry)=>`<li><strong>${esc(entry.label)}</strong><code>${esc(entry.locator ?? 'locator unavailable')}</code></li>`).join('')}</ol>`
+    : '<p class="muted">No focused impact set.</p>';
+  const activity=model.recentActivity.length
+    ? `<ol class="activity-list">${model.recentActivity.map((item)=>`<li><span>${esc(item.label)}</span><code>${esc(item.detail ?? 'source unavailable')}</code><time>${esc(item.at?date(item.at):'time unavailable')}</time></li>`).join('')}</ol>`
+    : '<p class="muted">No memory activity recorded.</p>';
+  return `<section class="overview" aria-label="Repository overview">
+    <header class="page-heading">
+      <div><h1>${esc(model.repository.name)}</h1><p>${esc(model.repository.branch ?? 'Branch unavailable')} · ${model.repository.dirtyCount} changed · scanned ${esc(model.generatedAt?date(model.generatedAt):'not yet')}</p></div>
+      ${actionHtml}
+    </header>
+    ${stateCopy}
+    <div class="overview-grid">
+      <section class="overview-section"><header><h2>Changes</h2><a href="/map" data-route="source-graph">Open Map</a></header>${changed}</section>
+      <section class="overview-section"><header><h2>Needs attention</h2><a href="/memory" data-route="memory">Open Memory</a></header><div class="attention-list">${attention}</div></section>
+      <section class="overview-section overview-impact"><header><h2>Impact</h2><span>${model.impact.affectedCount} affected</span></header>${affected}</section>
+      <section class="overview-section"><header><h2>Current handoff</h2><a href="/handoffs" data-route="context-pack">Open Handoffs</a></header><dl class="summary-list"><div><dt>State</dt><dd>${esc(model.handoff.state)}</dd></div><div><dt>Source check</dt><dd>${esc(model.handoff.copy)}</dd></div></dl></section>
+      <section class="overview-section overview-activity"><header><h2>Recent activity</h2><span>${model.recentActivity.length}</span></header>${activity}</section>
+    </div>
+  </section>`;
 }
+
+export const renderRecallMapHome=renderOverview;
 
 function recallMapCommandLabel(command) {
   if (command.startsWith('recall map')) return 'Refresh map locally';

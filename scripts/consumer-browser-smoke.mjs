@@ -57,22 +57,19 @@ try {
   await page.fill('input[name="displayName"]', 'Owner');
   await page.fill('input[name="password"]', password);
   await page.getByRole('button', { name: 'Create local owner' }).click();
-  await waitForText(page, 'Index health');
-  await waitForText(page, 'Supported coverage');
-  await waitForText(page, 'Changed impact');
-  await waitForText(page, 'Memory state');
-  await waitForText(page, 'Next-Agent Handoff');
-  await assertNoElementHorizontalOverflow(page, '.recall-map-signals article', 'desktop Recall Map signal card');
-  await page.getByRole('button', { name: 'Refresh Recall Map' }).first().click();
-  await waitForText(page, 'Copyable next commands');
+  for (const label of ['Changes', 'Needs attention', 'Impact', 'Current handoff', 'Recent activity']) await waitForText(page, label);
+  await mustNotContain(page, 'Developer-first');
+  await mustNotContain(page, 'Read the local picture before the next change');
+  await mustNotContain(page, 'Index health');
+  await assertNoElementHorizontalOverflow(page, '.overview-section', 'desktop Overview section');
 
-  await page.locator('a[data-route="agents"]').first().click();
+  await page.goto(`${base}/agents-tools`, { waitUntil: 'domcontentloaded' });
   await waitForText(page, 'Harness setup preview');
   await page.locator('#harness-setup-form button[type="submit"]').click();
   await waitForText(page, 'Harness setup preview ready.');
   await waitForText(page, 'Home writes');
 
-  await page.locator('a[data-route="context-pack"]').first().click();
+  await page.locator('a[href="/handoffs"][data-route="context-pack"]').first().click();
   await waitForText(page, 'Inputs to review');
   await page.fill('textarea[name="objective"]', 'Consumer browser smoke');
   await page.fill('input[name="step"]', 'verify rendered first-run flow');
@@ -94,7 +91,7 @@ try {
   await waitForText(page, '1 proposal');
   await waitForText(page, '0 active memory created');
 
-  await page.locator('a[data-route="memory-graph"]').first().click();
+  await page.goto(`${base}/memory-graph`, { waitUntil: 'domcontentloaded' });
   await waitForText(page, 'Governed knowledge graph');
   await waitForText(page, 'Current facts');
   await waitForText(page, 'project:oaf release_status ready');
@@ -103,7 +100,7 @@ try {
   await waitForText(page, 'project:oaf release_status draft');
   await waitForText(page, 'Provenance workspace://memory/status.md');
 
-  await page.locator('a[data-route="source-graph"]').first().click();
+  await page.locator('a[href="/map"][data-route="source-graph"]').first().click();
   await waitForText(page, 'Repo Map');
   await page.fill('input[name="query"]', 'launchSmoke');
   await page.fill('input[name="changedLocator"]', 'src/app.js');
@@ -114,11 +111,10 @@ try {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(base, { waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'Index health');
-  await waitForText(page, 'Next-Agent Handoff');
+  for (const label of ['Changes', 'Needs attention', 'Impact', 'Current handoff', 'Recent activity']) await waitForText(page, label);
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
   must(!hasHorizontalOverflow, 'mobile first-use shell has horizontal overflow');
-  await assertNoElementHorizontalOverflow(page, '.recall-map-signals article', 'mobile Recall Map signal card');
+  await assertNoElementHorizontalOverflow(page, '.overview-section', 'mobile Overview section');
   must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
 
   console.log('PASS consumer browser smoke: Recall Map, handoff, harness, Token Saver, memory, graph, mobile shell');
