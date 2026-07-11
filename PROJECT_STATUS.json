@@ -64,7 +64,7 @@
     },
     {
       "id": "bootstrap.web",
-      "name": "Responsive evidence-first dashboard",
+      "name": "Responsive local developer workbench",
       "status": "reference",
       "evidence": [
         "apps/web/index.html",
@@ -78,6 +78,9 @@
         "docs/implementation/OAF-031-context-intake-preview-note.md"
       ],
       "limitations": [
+        "Five-destination desktop workbench and four-destination mobile navigation with preserved operational deep links",
+        "Focused workspace-security setup is separate from the authenticated Overview",
+        "Overview selects one deterministic next action from bounded Recall Map, memory, and pinned-handoff state",
         "Dependency-free routed shell; no production frontend framework",
         "Uses the loopback Control API only and does not read storage directly",
         "OAF-024 views are read-only and do not add approval mutation endpoints",
@@ -1042,7 +1045,7 @@
       "npm run consumer:smoke",
       "npm run consumer:browser-smoke"
     ],
-    "testsExpected": 651,
+    "testsExpected": 650,
     "protocolFixturesExpected": 182,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

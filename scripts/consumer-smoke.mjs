@@ -60,10 +60,12 @@ try {
   const authHeaders = { 'content-type': 'application/json', origin: base, cookie, 'x-csrf-token': csrf };
 
   const homePage = await text(base, '/');
-  must(homePage.includes('Recall Map') && homePage.includes('Next-Agent Handoff'), 'consumer home prioritizes Recall Map and Next-Agent Handoff');
+  must(homePage.includes('Memory Recall') && homePage.includes('repository-name') && homePage.includes('mobile-nav'), 'consumer home serves the local workbench shell');
   must(!homePage.includes('Open Agent Fabric'), 'consumer home omits stale OAF branding');
   const appJs = await text(base, '/app.js');
-  for (const label of ['Create handoff', 'Review memory', 'Inspect source graph']) must(appJs.includes(label), `web shell exposes ${label}`);
+  for (const phrase of ['Developer-first', 'nervous system', 'supercharge', 'AI-powered', 'next-generation']) must(!appJs.toLocaleLowerCase().includes(phrase.toLocaleLowerCase()), `web shell omits ${phrase}`);
+  const shellModel = await text(base, '/shell-model.js');
+  for (const label of ['Overview', 'Map', 'Memory', 'Handoffs', 'Settings']) must(shellModel.includes(`label: '${label}'`), `workbench shell exposes ${label}`);
 
   const setup = await json(base, '/api/harness/setup/plan', {
     method: 'POST',
@@ -98,7 +100,7 @@ try {
   console.log('PASS consumer Recall Map first-run report');
   console.log('PASS consumer temp HOME mcp install');
   console.log('PASS consumer real MCP client smoke');
-  console.log('PASS consumer control-api smoke: Recall Map, Next-Agent Handoff, Review memory, Inspect source graph');
+  console.log('PASS consumer control-api smoke: workbench, Recall Map, handoff, memory review, source graph');
 } finally {
   if (server) {
     server.kill('SIGTERM');

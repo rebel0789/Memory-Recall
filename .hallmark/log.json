@@ -1,7 +1,7 @@
 [
   {
     "date": "2026-07-11",
-    "scope": "app",
+    "scope": "shell-and-overview",
     "macrostructure": "Workbench",
     "theme": "Cobalt",
     "enrichment": "none",

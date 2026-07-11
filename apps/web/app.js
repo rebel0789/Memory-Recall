@@ -7,21 +7,21 @@ const OAF_COMPATIBILITY_URL = 'https://github.com/rebel0789/Memory-Recall/blob/m
 const OAF_URI_COMPATIBILITY_NOTE = 'Legacy oaf:// URIs remain supported compatibility identifiers; normal commands use recall.';
 
 export const ROUTES = [
-  { id:'home', path:'/', label:'Recall Map', title:'Recall Map', eyebrow:'Developer-first / local', description:'A bounded local overview of code, governed memory, and the next-agent handoff.' },
-  { id:'runs', path:'/runs', label:'Runs', title:'Runs', eyebrow:'Execution', description:'Run history, status, current step, artifacts, and sanitized timelines.' },
-  { id:'workflows', path:'/workflows', label:'Workflows', title:'Workflows', eyebrow:'Definitions', description:'Workflow versions, graph outline, risk, retries, approvals, and tests.' },
-  { id:'loop-workbench', path:'/loop-workbench', label:'Loop Workbench', title:'Loop Workbench', eyebrow:'Loop engineering', description:'Plan, run, observe, verify, budget, and stop loops with local proof.' },
-  { id:'fabric-map', path:'/fabric-map', label:'Fabric Map', title:'Fabric Map', eyebrow:'System graph', description:'Visualize local process flow, context assembly, node handoffs, and disabled external boundaries.' },
-  { id:'context', path:'/context', label:'Context', title:'Context', eyebrow:'Manifest inspector', description:'Selected and excluded records, budgets, conflicts, assembly, and compiler versions.' },
-  { id:'context-pack', path:'/context-pack', label:'Context Pack', title:'Context Pack', eyebrow:'Agent handoff', description:'Build a safe, token-aware handoff for Codex, Claude Code, Cursor, or a generic agent.' },
-  { id:'source-graph', path:'/source-graph', label:'Source Graph', title:'Source Graph', eyebrow:'Code map', description:'Search symbols, trace calls, and inspect likely diff impact from local JS/TS metadata.' },
-  { id:'memory', path:'/memory', label:'Memory', title:'Memory', eyebrow:'Lifecycle', description:'Proposals, active records, supersession, retraction, expiry, and provenance.' },
-  { id:'memory-graph', path:'/memory-graph', label:'Graph', title:'Memory Graph', eyebrow:'Governed knowledge', description:'Explore current and historical governed memory relationships from the local SQLite store.' },
-  { id:'evidence', path:'/evidence', label:'Evidence', title:'Evidence', eyebrow:'Observed facts', description:'Snapshots, observations, citations, staleness, and inferred pattern boundaries.' },
-  { id:'approvals', path:'/approvals', label:'Approvals', title:'Approvals', eyebrow:'Consequences', description:'Exact actions, risk, policy reasons, idempotency, expiry, and disabled publisher state.' },
-  { id:'content', path:'/content', label:'Content Lab', title:'Content Lab', eyebrow:'Creator workflow', description:'Candidates, evidence, differentiation, proof needed, local drafts, and outcomes.' },
-  { id:'agents', path:'/agents-tools', label:'Agents & Tools', title:'Agents & Tools', eyebrow:'Capabilities', description:'Manifests, permissions, compatibility, health, and bounded local execution.' },
-  { id:'settings', path:'/settings', label:'Settings', title:'Settings', eyebrow:'Local system', description:'Models, storage, policy, privacy, infrastructure, and design token contract.' }
+  { id:'home', path:'/', label:'Overview', title:'Overview', description:'Current repository, memory, impact, and handoff state.' },
+  { id:'runs', path:'/runs', label:'Runs', title:'Runs', description:'Run history, status, current step, artifacts, and sanitized timelines.' },
+  { id:'workflows', path:'/workflows', label:'Workflows', title:'Workflows', description:'Workflow versions, graph outline, risk, retries, approvals, and tests.' },
+  { id:'loop-workbench', path:'/loop-workbench', label:'Loop Workbench', title:'Loop Workbench', description:'Plan, run, observe, verify, budget, and stop loops with local proof.' },
+  { id:'fabric-map', path:'/fabric-map', label:'Fabric Map', title:'Fabric Map', description:'Visualize local process flow, context assembly, node handoffs, and disabled external boundaries.' },
+  { id:'context', path:'/context', label:'Context', title:'Context', description:'Selected and excluded records, budgets, conflicts, assembly, and compiler versions.' },
+  { id:'context-pack', path:'/context-pack', label:'Context Pack', title:'Context Pack', description:'Build a safe, token-aware handoff for Codex, Claude Code, Cursor, or a generic agent.' },
+  { id:'source-graph', path:'/source-graph', label:'Source Graph', title:'Source Graph', description:'Search symbols, trace calls, and inspect likely diff impact from local JS/TS metadata.' },
+  { id:'memory', path:'/memory', label:'Memory', title:'Memory', description:'Proposals, active records, supersession, retraction, expiry, and provenance.' },
+  { id:'memory-graph', path:'/memory-graph', label:'Graph', title:'Memory Graph', description:'Explore current and historical governed memory relationships from the local SQLite store.' },
+  { id:'evidence', path:'/evidence', label:'Evidence', title:'Evidence', description:'Snapshots, observations, citations, staleness, and inferred pattern boundaries.' },
+  { id:'approvals', path:'/approvals', label:'Approvals', title:'Approvals', description:'Exact actions, risk, policy reasons, idempotency, expiry, and disabled publisher state.' },
+  { id:'content', path:'/content', label:'Content Lab', title:'Content Lab', description:'Candidates, evidence, differentiation, proof needed, local drafts, and outcomes.' },
+  { id:'agents', path:'/agents-tools', label:'Agents & Tools', title:'Agents & Tools', description:'Manifests, permissions, compatibility, health, and bounded local execution.' },
+  { id:'settings', path:'/settings', label:'Settings', title:'Settings', description:'Models, storage, policy, privacy, infrastructure, and design token contract.' }
 ];
 
 const routeById = new Map(ROUTES.map(route=>[route.id,route]));
@@ -31,11 +31,6 @@ const routeAliases = new Map([
   ['/handoffs', 'context-pack']
 ]);
 const legacyViews = new Map([['home','/'],['runs','/runs'],['context','/context'],['evidence','/evidence'],['memory','/memory'],['design','/settings']]);
-export const CONSUMER_START_ACTIONS = [
-  { label:'Create handoff', detail:'Prepare a bounded packet for the next coding agent.', route:'/context-pack', routeId:'context-pack' },
-  { label:'Review memory', detail:'Inspect active and pending governed facts.', route:'/memory', routeId:'memory' },
-  { label:'Inspect source graph', detail:'Trace symbols and focused change impact.', route:'/source-graph', routeId:'source-graph' }
-];
 
 let dashboard=null;
 let shellState={kind:'loading',message:'Loading local workspace state.'};
@@ -94,15 +89,6 @@ export function classifyDashboardState(value) {
   if (value.stale) return { kind:'stale', message:'Showing cached local data. Retry when the loopback API is available.' };
   if (!value.latestManifest) return { kind:'partial', message:'Runs exist, but no context manifest has been compiled yet.' };
   return { kind:'success', message:'Local workspace state loaded.' };
-}
-
-export function shellStatusLabel({ network='deny', externalWrites=false, modelMode='deterministic' } = {}) {
-  const parts = [];
-  if (network === 'deny') parts.push('Local-only','Network denied');
-  else parts.push('Network allowed');
-  parts.push(externalWrites ? 'External writes enabled' : 'External writes disabled');
-  parts.push(`${modelMode === 'deterministic' ? 'Deterministic' : modelMode} model`);
-  return parts.join(' · ');
 }
 
 const API_ISSUE_HINTS = new Map([
@@ -868,7 +854,7 @@ async function loadRecallMap() {
 }
 
 async function refreshRecallMap(event) {
-  const button = event?.currentTarget ?? document.querySelector('#refresh-map-button');
+  const button = event?.currentTarget ?? null;
   const previous = button?.textContent ?? 'Refresh Recall Map';
   if (button) {
     button.disabled = true;
@@ -1327,7 +1313,7 @@ export function renderOverview(model) {
     ? `<button class="button primary" data-action="${esc(action.action)}" type="button">${esc(action.label)}</button>`
     : action
       ? `<a class="button primary" href="${esc(action.route)}" data-route="${esc(action.routeId)}">${esc(action.label)}</a>`
-      : '<span class="overview-current">No review required</span>';
+      : '<span class="overview-current">No action queued</span>';
   const stateCopy=model.state==='empty'
     ? statePanel('empty','No JS/TS entry points yet','The map is live, but this workspace did not yield a bounded JS/TS entry point. Inspect supported coverage in Map before broadening the workspace.')
     : model.state==='partial'
@@ -1373,10 +1359,6 @@ function recallMapCommandLabel(command) {
   if (command.includes('mcp inspect')) return 'Inspect read-only MCP';
   if (command.includes('graph stats')) return 'Check source graph';
   return 'Copy command';
-}
-
-export function renderConsumerStartActions(actions=CONSUMER_START_ACTIONS) {
-  return `<nav class="consumer-actions" aria-label="First actions">${actions.map((action)=>`<a href="${esc(action.route)}" data-route="${esc(action.routeId)}"><strong>${esc(action.label)}</strong><span>${esc(action.detail)}</span></a>`).join('')}</nav>`;
 }
 
 function renderRuns() {
@@ -3535,7 +3517,6 @@ function drawMemoryGraphCanvas(canvas,report,options={}){
 }
 
 function boot(){
-  document.querySelector('#refresh-map-button')?.addEventListener('click',refreshRecallMap);
   document.querySelector('#reset-button')?.addEventListener('click',resetDemo);
   window.addEventListener('popstate',()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else render()});
   const runId=new URL(location.href).searchParams.get('run');

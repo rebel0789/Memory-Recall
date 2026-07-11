@@ -25,15 +25,13 @@ This is the canonical UI contract. Code, prototypes, screenshots, and design-age
 
 ## Information architecture
 
-- **Home:** health, active runs, approvals, local services.
-- **Runs:** timeline, steps, artifacts, costs, failures, replay.
-- **Workflows:** graph, versions, schedules, tests.
-- **Context:** manifests, selected/excluded records, conflicts, budgets.
-- **Memory:** facts, episodes, preferences, versions, provenance.
-- **Evidence:** snapshots, observations, and citation graph.
-- **Content Lab:** angles, drafts, experiments, outcomes.
-- **Agents & Tools:** manifests, permissions, compatibility, health.
-- **Settings:** models, storage, policy, privacy, infrastructure.
+- **Overview:** owns home, Runs, Workflows, Loop Workbench, Fabric Map, and Content Lab.
+- **Map:** owns Source Graph.
+- **Memory:** owns the primary Memory workspace plus Memory Graph, Evidence, and Approvals.
+- **Handoffs:** owns Context Pack and Context.
+- **Settings:** owns Settings plus Agents & Tools.
+
+Operational routes remain stable deep links. The primary navigation selects their owning destination, while compatibility styling for those routes remains in place until the later ordered Map, Memory, and Handoffs route redesigns.
 
 ## Layout
 

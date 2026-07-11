@@ -13,6 +13,7 @@ No breaking CLI migration is required. Local-only defaults, proposal-gated memor
 
 ### Changed
 
+- Replaced the fifteen-item dashboard navigation with a five-destination workbench, separated local workspace setup from Overview, and made Overview choose one deterministic scan, review, or handoff action from current local state.
 - The preserved `skill:oaf-memory` compatibility package now documents current Memory Recall commands and removes unavailable legacy workflow guidance.
 - Public product copy now separates implemented semantic proposal generation from experimental direct API execution and from unsupported semantic retrieval.
 
@@ -24,7 +25,7 @@ No breaking CLI migration is required. Local-only defaults, proposal-gated memor
 
 ### Internal
 
-- Release gates cover 644 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
+- Release gates cover 650 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
 
 ## [1.0.0] — 2026-07-08
 

@@ -14,7 +14,6 @@ import {
   ROUTES,
   SHELL_STATES,
   buildApiErrorUiModel,
-  CONSUMER_START_ACTIONS,
   buildMemoryWorkspaceConfig,
   buildContextSourcePreviewUiModel,
   buildContextPackUiModel,
@@ -48,14 +47,12 @@ import {
   renderMemoryGraph,
   renderSourceGraphResult,
   renderLoopWorkbenchMemoryFlow,
-  renderConsumerStartActions,
   renderSetupScreen,
   renderContextPackTokenSaverSummary,
   renderMemoryIntakePanel,
   renderOverview,
   renderRecallMapHome,
   shouldLoadProtectedShellData,
-  shellStatusLabel,
   summarizeRunSteps,
   writeClipboardText
 } from '../apps/web/app.js';
@@ -105,9 +102,22 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.doesNotMatch(shellCss, /\.app-shell\{grid-template-columns:76px/);
   assert.doesNotMatch(shellCss, /#primary-nav a>span:last-child\{[^}]*position:absolute/);
   assert.match(shellCss, /\.button:focus-visible,a:focus-visible,main:focus-visible,input:focus-visible/);
+  assert.match(shellCss, /\.button:hover:not\(:disabled\)/);
+  assert.match(shellCss, /\.button:active:not\(:disabled\)/);
+  assert.match(shellCss, /\.field input,.field select,.field textarea\{[^}]*outline:2px solid transparent[^}]*outline-offset:1px/);
+  assert.match(shellCss, /\.field input:disabled,.field select:disabled,.field textarea:disabled\{[^}]*opacity:\.55[^}]*cursor:not-allowed/);
+  assert.match(shellCss, /h1\{[^}]*overflow-wrap:anywhere[^}]*min-width:0/);
+  assert.match(shellCss, /code,pre\{font-family:var\(--font-mono\)\}/);
+  assert.doesNotMatch(shellCss, /\.state-panel\{[^}]*border-left:[2-9]px/);
+  assert.match(shellCss, /\.state-stale,\.state-partial\{border-color:var\(--caution\)\}/);
   assert.match(shellCss, /\.overview\{[^}]*max-width:1280px[^}]*margin:0 auto/);
   assert.match(shellCss, /\.overview-grid\{[^}]*grid-template-columns:minmax\(0,1\.2fr\) minmax\(320px,\.8fr\)/);
   assert.match(shellCss, /\.overview-section\{[^}]*border-bottom:1px solid var\(--color-rule\)/);
+  assert.match(shellCss, /\.attention-list a\{[^}]*grid-template-columns:max-content minmax\(0,1fr\)[^}]*gap:var\(--space-xs\)/);
+  assert.match(shellCss, /\.attention-list a strong,\.attention-list a span\{white-space:nowrap/);
+  assert.match(shellCss, /\.attention-list a:hover\{background:var\(--color-panel-muted\)\}/);
+  assert.match(shellCss, /\.attention-list a:active\{color:var\(--color-accent\)\}/);
+  assert.doesNotMatch(shellCss, /\.bottom-nav a\{[^}]*gap:4px/);
   assert.match(shellCss, /@media\(max-width:900px\)\{\s*\.overview-grid\{grid-template-columns:1fr\}/s);
   assert.doesNotMatch(shellCss, /\.recall-map-signals/);
 });
@@ -163,14 +173,18 @@ test('web shell markup uses a repository bar and no duplicated hero header', asy
   assert.doesNotMatch(html, /Next-Agent Handoff/);
 });
 
-test('first-use home exposes developer-first Recall Map actions',()=>{
-  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.label),['Create handoff','Review memory','Inspect source graph']);
-  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.route),['/context-pack','/memory','/source-graph']);
-  const html=renderConsumerStartActions();
-  for (const label of ['Create handoff','Review memory','Inspect source graph']) {
-    assert.match(html,new RegExp(`>${label}<`));
+test('product shell omits prohibited marketing and removed dashboard patterns', async () => {
+  const sources = await Promise.all([
+    readFile(new URL('../apps/web/index.html', import.meta.url), 'utf8'),
+    readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8')
+  ]);
+  const shell = sources.join('\n');
+  for (const phrase of ['developer-first', 'nervous system', 'unlock this workspace', 'supercharge', 'AI-powered', 'next-generation']) {
+    assert.doesNotMatch(shell, new RegExp(phrase, 'i'));
   }
-  assert.match(html,/aria-label="First actions"/);
+  for (const selector of ['page-eyebrow', 'recall-map-signals', 'nav-code']) {
+    assert.doesNotMatch(shell, new RegExp(selector));
+  }
 });
 
 test('Recall Map home presents a repository-first daily Overview',()=>{
@@ -231,6 +245,8 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(staleMemoryOnlyModel.state,'partial');
   assert.equal(selectOverviewPrimaryAction(staleMemoryOnlyModel),null);
   assert.match(renderOverview(staleMemoryOnlyModel),/<strong>1 stale<\/strong>/);
+  assert.match(renderOverview(staleMemoryOnlyModel),/No action queued/);
+  assert.doesNotMatch(renderOverview(staleMemoryOnlyModel),/No review required/);
   assert.doesNotMatch(renderOverview(staleMemoryOnlyModel),/Source changes need review/);
 
   const staleHandoffModel=buildRecallMapHomeModel({
@@ -1313,11 +1329,6 @@ test('web shell redacts unsafe issue tokens before rendering recovery copy',()=>
   assert.equal(model.issues[0].code,'validation_failed');
   assert.equal(JSON.stringify(model).includes('/Users/rebel'),false);
   assert.equal(JSON.stringify(model).includes('secret=value'),false);
-});
-
-test('status labels include text and do not rely on color alone',()=>{
-  assert.equal(shellStatusLabel({network:'deny',externalWrites:false,modelMode:'deterministic'}),'Local-only · Network denied · External writes disabled · Deterministic model');
-  assert.equal(shellStatusLabel({network:'allow',externalWrites:true,modelMode:'ollama'}),'Network allowed · External writes enabled · ollama model');
 });
 
 test('fabric map model visualizes current local state without enabling external surfaces',()=>{
