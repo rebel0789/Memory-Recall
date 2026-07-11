@@ -36,6 +36,10 @@ let dashboard=null;
 let shellState={kind:'loading',message:'Loading local workspace state.'};
 let recallMap=null;
 let recallMapError=null;
+let recallMapGitChanges=null;
+let recallMapLoadSequence=0;
+let authDraft={username:'',displayName:''};
+let authError=null;
 let activeRunDetail=null;
 let contextPackResult=null;
 let contextPackError=null;
@@ -89,6 +93,71 @@ export function classifyDashboardState(value) {
   if (value.stale) return { kind:'stale', message:'Showing cached local data. Retry when the loopback API is available.' };
   if (!value.latestManifest) return { kind:'partial', message:'Runs exist, but no context manifest has been compiled yet.' };
   return { kind:'success', message:'Local workspace state loaded.' };
+}
+
+export function buildAuthViewModel({mode='login',copy='',draft={},error=null}={}) {
+  const limit=(value,max)=>String(value??'').slice(0,max);
+  return {
+    mode:mode==='bootstrap'?'bootstrap':'login',
+    copy:limit(copy,240),
+    draft:{username:limit(draft.username,80),displayName:limit(draft.displayName,120)},
+    error:error ? buildApiErrorUiModel(error) : null
+  };
+}
+
+export function authFailureTransition({mode='login',draft={},error={}}={}) {
+  const alreadyBootstrapped=error?.code==='already_bootstrapped';
+  const safeDraft=buildAuthViewModel({mode,draft}).draft;
+  return {
+    mode:alreadyBootstrapped?'login':mode==='bootstrap'?'bootstrap':'login',
+    shellKind:alreadyBootstrapped||mode!=='bootstrap'?'denied':'setup',
+    draft:{username:safeDraft.username,displayName:alreadyBootstrapped?'':safeDraft.displayName},
+    clearPassword:alreadyBootstrapped,
+    message:alreadyBootstrapped?'This workspace already has an owner. Sign in instead.':String(error?.message??'Authentication failed.').slice(0,240)
+  };
+}
+
+export function normalizeRecallMapGitChanges(report=null,error=null) {
+  const empty={changedLocators:[],totalCount:0,omittedCount:0,truncated:false};
+  if(error){
+    const reason=safeErrorToken(error?.code,'git_detection_failed',64);
+    return {status:'error',...empty,reason,message:safeGitDetectionMessage(error?.message,'Git change detection failed. Retry the local scan.')};
+  }
+  if(report?.status==='error'){
+    const reason=safeErrorToken(report.reason,'git_detection_failed',64);
+    return {status:'error',...empty,reason,message:safeGitDetectionMessage(report.message,'Git change detection failed. Retry the local scan.')};
+  }
+  if(report?.status==='unavailable'){
+    const reason=safeErrorToken(report.reason,'git_unavailable',64);
+    return {status:'unavailable',...empty,reason,message:gitDetectionUnavailableMessage(reason)};
+  }
+  if(report?.status!=='available')return {status:'unknown',...empty,reason:'not_run',message:'Git change detection has not run.'};
+  const changedLocators=(Array.isArray(report.changedLocators)?report.changedLocators:[])
+    .map((value)=>String(value).replace(/^workspace:\/\//u,''))
+    .filter(Boolean)
+    .slice(0,16);
+  return {
+    status:'available',
+    changedLocators,
+    totalCount:Math.max(changedLocators.length,Number(report.totalCount??report.totalChangedLocatorCount??changedLocators.length)+Math.max(0,Number(report.totalCount==null?report.skippedCount??0:0))),
+    omittedCount:Math.max(0,Number(report.omittedCount??report.omittedChangedLocatorCount??0))+Math.max(0,Number(report.omittedCount==null?report.skippedCount??0:0)),
+    truncated:report.truncated===true
+  };
+}
+
+function safeGitDetectionMessage(value,fallback) {
+  const message=String(value??'').trim();
+  if(!message||/(?:\/Users|\/private|\/var\/folders|https?:|file:|token|secret|api[_-]?key|authorization|cookie)/iu.test(message))return fallback;
+  return message.slice(0,180);
+}
+
+function gitDetectionUnavailableMessage(reason) {
+  return ({
+    not_git_repository:'Git change detection is unavailable because this workspace is not a Git repository.',
+    git_unavailable:'Git change detection is unavailable because the local Git executable could not be used.',
+    git_status_failed:'Git change detection is unavailable because local status could not be read.',
+    git_status_timeout:'Git change detection is unavailable because local status timed out.'
+  })[reason] ?? 'Git change detection is unavailable. Retry the local scan.';
 }
 
 const API_ISSUE_HINTS = new Map([
@@ -844,14 +913,31 @@ async function load() {
 }
 
 async function loadRecallMap() {
+  const sequence=++recallMapLoadSequence;
+  const query=recallMapSearchQuery();
+  let gitChanges=normalizeRecallMapGitChanges();
   try {
-    recallMap = await api(`/api/recall/map?workspaceId=${encodeURIComponent(workspaceId())}`);
+    try{
+      gitChanges=normalizeRecallMapGitChanges(await api('/api/context/git-changes',{method:'POST',body:JSON.stringify({workspaceId:workspaceId()})}));
+    }catch(error){
+      gitChanges=normalizeRecallMapGitChanges(null,error);
+    }
+    const report=gitChanges.status==='available'
+      ? await api('/api/recall/map',{method:'POST',body:JSON.stringify({workspaceId:workspaceId(),changedLocators:gitChanges.changedLocators,...(query?{query}:{})})})
+      : await api(`/api/recall/map?workspaceId=${encodeURIComponent(workspaceId())}${query?`&query=${encodeURIComponent(query)}`:''}`);
+    if(sequence!==recallMapLoadSequence)return;
+    recallMap = report;
+    recallMapGitChanges = gitChanges;
     recallMapError = null;
   } catch (error) {
+    if(sequence!==recallMapLoadSequence)return;
     recallMap = null;
+    recallMapGitChanges = gitChanges;
     recallMapError = error;
   }
 }
+
+function recallMapSearchQuery(){return String(new URL(globalThis.location?.href??'http://127.0.0.1/').searchParams.get('query')??'').trim().slice(0,256)}
 
 async function refreshRecallMap(event) {
   const button = event?.currentTarget ?? null;
@@ -1026,9 +1112,9 @@ function render() {
 function renderNav(container, mode) {
   const currentOwner = navigationOwner(currentRoute().id);
   container.innerHTML = navigationItemsFor(mode).map((item) => `
-    <a href="${item.path}" data-route="${item.routeId}"${currentOwner === item.id ? ' aria-current="page"' : ''}>
-      <span class="nav-mark" aria-hidden="true"></span>
-      <span>${item.label}</span>
+    <a href="${item.path}" data-route="${item.routeId}" aria-label="${item.label}" title="${item.label}"${currentOwner === item.id ? ' aria-current="page"' : ''}>
+      ${navIcon(item.id)}
+      <span class="nav-label">${item.label}</span>
     </a>`).join('');
   container.dataset.mode = mode;
 }
@@ -1042,20 +1128,28 @@ function renderRepositoryBar(route) {
   const conditionNode = document.querySelector('#repository-condition');
   conditionNode.textContent = condition.kind;
   conditionNode.dataset.state = condition.kind;
+  const search=document.querySelector('#global-search-input');
+  if(search&&document.activeElement!==search)search.value=recallMapSearchQuery();
 }
+
+function navIcon(id){const paths={overview:'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',map:'M5 4l5 2 4-2 5 2v14l-5-2-4 2-5-2zM10 6v14M14 4v14',memory:'M7 5h10a3 3 0 013 3v8a3 3 0 01-3 3H7a3 3 0 01-3-3V8a3 3 0 013-3zM8 9h8M8 13h6',handoffs:'M5 7h11M13 4l3 3-3 3M19 17H8M11 14l-3 3 3 3',settings:'M12 8a4 4 0 100 8 4 4 0 000-8zM12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4'};return `<svg class="nav-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${paths[id]??paths.overview}"/></svg>`}
 
 function visibleShellState(route=currentRoute()) {
   if (route.id!=='home'||(!recallMap&&!recallMapError)) return shellState;
-  const model=buildRecallMapHomeModel({ report:recallMap, error:recallMapError, pinnedHandoffStatus, pinnedHandoffError });
-  const message={
+  const model=buildRecallMapHomeModel({ report:recallMap, error:recallMapError, gitChanges:recallMapGitChanges, pinnedHandoffStatus, pinnedHandoffError });
+  const message=shellStateMessageForOverview(model.state);
+  return { kind:model.state, message };
+}
+
+export function shellStateMessageForOverview(state) {
+  return ({
     loading:'Loading the local Recall Map.',
     error:'Recall Map could not be loaded from the local API.',
     empty:'Recall Map loaded without bounded entry points.',
     partial:'Bounded Recall Map loaded; inspect supported coverage.',
-    stale:'Recall Map includes stale governed-memory facts.',
+    stale:'Pinned handoff source evidence changed and needs review.',
     success:'Recall Map loaded from local source and memory summaries.'
-  }[model.state] ?? 'Recall Map loaded.';
-  return { kind:model.state, message };
+  })[state] ?? 'Recall Map loaded.';
 }
 
 function currentHandoffStatus() {
@@ -1175,12 +1269,13 @@ function renderHome() {
   return renderOverview(buildRecallMapHomeModel({
     report: recallMap,
     error: recallMapError,
+    gitChanges: recallMapGitChanges,
     pinnedHandoffStatus,
     pinnedHandoffError
   }));
 }
 
-export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoffStatus=null, pinnedHandoffError=null }={}) {
+export function buildRecallMapHomeModel({ report=null, error=null, gitChanges=null, pinnedHandoffStatus=null, pinnedHandoffError=null }={}) {
   if (error) {
     return {
       state:'error',
@@ -1203,14 +1298,25 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
   const architecture=report.architecture ?? {};
   const impact=architecture.impact ?? {};
   const memory=report.memory ?? {};
+  const repository=report.repository ?? {
+    name:'Local workspace',
+    branch:null,
+    commitSha:null,
+    dirtyCount:0,
+    gitStatusAvailable:false,
+    reason:'repository_identity_unavailable'
+  };
   const entryPoints=Array.isArray(architecture.entryPoints)?architecture.entryPoints:[];
   const hotspots=Array.isArray(architecture.hotspots)?architecture.hotspots:[];
   const changedLocators=Array.isArray(impact.changedLocators)?impact.changedLocators:[];
   const representedChangedLocators=Array.isArray(impact.representedChangedLocators)?impact.representedChangedLocators:[];
   const affectedSymbols=Array.isArray(impact.affectedSymbols)?impact.affectedSymbols:[];
+  const detectedChanges=normalizeRecallMapGitChanges(gitChanges);
   const activeFacts=Array.isArray(memory.activeFacts)?memory.activeFacts:[];
   const pendingProposals=Array.isArray(memory.pendingProposals)?memory.pendingProposals:[];
   const handoffStatus=String(pinnedHandoffStatus?.current?.status ?? '');
+  const handoffEntryId=pinnedHandoffStatus?.current?.entryId ?? null;
+  const handoffEntry=(pinnedHandoffStatus?.entries ?? []).find((entry)=>entry.id===handoffEntryId) ?? null;
   const handoffState=pinnedHandoffError
     ? 'blocked'
     : handoffStatus==='verified'
@@ -1224,7 +1330,7 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
             : 'blocked';
   const sourceUnavailable=sourceGraph.status==='unavailable'||coverage.status==='unavailable';
   const noArchitecture=entryPoints.length===0&&hotspots.length===0&&changedLocators.length===0&&affectedSymbols.length===0;
-  const baseState=sourceUnavailable?'partial':noArchitecture?'empty':coverage.status==='partial'?'partial':'success';
+  const baseState=sourceUnavailable?'partial':noArchitecture?'empty':'success';
   const state=handoffState==='review'?'stale':baseState;
   const nextCommands=[
     'recall map --root . --sqlite .local/memory.sqlite --format summary',
@@ -1234,14 +1340,7 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
   return {
     state,
     generatedAt:report.generatedAt ?? null,
-    repository:report.repository ?? {
-      name:'Local workspace',
-      branch:null,
-      commitSha:null,
-      dirtyCount:0,
-      gitStatusAvailable:false,
-      reason:'repository_identity_unavailable'
-    },
+    repository,
     index:{
       status:sourceGraph.status ?? 'unavailable',
       kind:sourceGraph.status==='implemented'?'success':'error',
@@ -1264,6 +1363,13 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
       changedCount:changedLocators.length,
       representedCount:representedChangedLocators.length,
       affectedCount:affectedSymbols.length,
+      totalChangedCount:detectedChanges.status==='available'?detectedChanges.totalCount:changedLocators.length,
+      omittedChangedCount:detectedChanges.status==='available'?detectedChanges.omittedCount:0,
+      truncated:detectedChanges.truncated,
+      detectionStatus:detectedChanges.status,
+      detectionReason:detectedChanges.reason,
+      detectionMessage:detectedChanges.message,
+      repositoryDirtyCount:Number(repository.dirtyCount??0),
       depth:Number(impact.depth??0)
     },
     memory:{
@@ -1278,6 +1384,8 @@ export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoff
       state:handoffState,
       kind:handoffState==='ready'?'success':handoffState==='review'||handoffState==='pending'?'partial':'error',
       command:report.readiness?.handoff?.command ?? 'recall handoff',
+      createdAt:handoffEntry?.createdAt ?? null,
+      ageLabel:relativeAge(handoffEntry?.createdAt,pinnedHandoffStatus?.generatedAt??report.generatedAt),
       copy:handoffState==='ready'
         ? 'Pinned handoff is verified for the next coding agent.'
         : handoffState==='review'
@@ -1314,20 +1422,32 @@ export function renderOverview(model) {
     : action
       ? `<a class="button primary" href="${esc(action.route)}" data-route="${esc(action.routeId)}">${esc(action.label)}</a>`
       : '<span class="overview-current">No action queued</span>';
-  const stateCopy=model.state==='empty'
-    ? statePanel('empty','No JS/TS entry points yet','The map is live, but this workspace did not yield a bounded JS/TS entry point. Inspect supported coverage in Map before broadening the workspace.')
-    : model.state==='partial'
-      ? statePanel('partial','Bounded coverage','The Map only indexes supported JS/TS metadata within its scan limits. Review its coverage notes before treating the repository picture as complete.')
-      : model.state==='stale'
-        ? statePanel('stale','Source changes need review','Repository evidence changed after the current handoff was pinned. Review the affected sources before sharing context.')
+  const stateCopy=model.state==='stale'
+    ? statePanel('stale','Source changes need review','Repository evidence changed after the current handoff was pinned. Review the affected sources before sharing context.')
+    : model.state==='empty'
+      ? statePanel('empty','No JS/TS entry points yet','The map is live, but this workspace did not yield a bounded JS/TS entry point. Inspect supported coverage in Map before broadening the workspace.')
+      : model.state==='partial'||model.coverage.status==='partial'
+        ? statePanel('partial','Bounded coverage','The bounded scan completed, but the Map only indexes supported JS/TS metadata within its scan limits. Review its coverage notes before treating the repository picture as complete.')
         : '';
+  const detectionFailed=model.impact.detectionStatus==='unavailable'||model.impact.detectionStatus==='error';
+  const omittedChangeEvidence=model.impact.detectionStatus==='available'&&model.impact.omittedChangedCount>0;
   const changed=model.impact.changedLocators.length
-    ? `<ul class="plain-list overview-changes">${model.impact.changedLocators.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ul>`
-    : '<p class="muted">No changed files are selected.</p>';
+    ? `<ul class="plain-list overview-changes">${model.impact.changedLocators.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ul>${model.impact.omittedChangedCount?`<p class="muted">${model.impact.changedCount} shown · ${model.impact.omittedChangedCount} omitted by safety or scan bounds.</p>`:''}`
+    : detectionFailed
+      ? `<div class="change-detection-warning"><strong>${model.impact.repositoryDirtyCount>0?`${model.impact.repositoryDirtyCount} changed entr${model.impact.repositoryDirtyCount===1?'y':'ies'}; `:''}file detection unavailable.</strong><p>${esc(model.impact.detectionMessage)}</p><button class="button secondary" data-action="refresh-recall-map" type="button">Retry scan</button></div>`
+      : omittedChangeEvidence
+        ? `<p class="muted">0 shown · ${model.impact.omittedChangedCount} omitted by safety or scan bounds.</p>`
+      : model.impact.detectionStatus==='available'
+        ? '<p class="muted">No changed files detected.</p>'
+        : '<p class="muted">Changed-file detection has not run.</p>';
   const attention=[
     model.memory.pendingCount?`<a href="/memory" data-route="memory"><strong>${model.memory.pendingCount} pending</strong><span>Review proposed memory</span></a>`:'',
     model.memory.staleCount?`<a href="/memory" data-route="memory"><strong>${model.memory.staleCount} stale</strong><span>Check source changes</span></a>`:'',
-    model.coverage.diagnosticCount?`<a href="/map" data-route="source-graph"><strong>${model.coverage.diagnosticCount} coverage note${model.coverage.diagnosticCount===1?'':'s'}</strong><span>Inspect supported files</span></a>`:''
+    model.handoff.state==='blocked'?`<a href="/handoffs" data-route="context-pack"><strong>Handoff blocked</strong><span>Repair registry or pinned artifacts</span></a>`:'',
+    model.handoff.state==='review'?`<a href="/handoffs" data-route="context-pack"><strong>Handoff needs review</strong><span>Update changed sources</span></a>`:'',
+    detectionFailed?`<button type="button" data-action="refresh-recall-map"><strong>Change detection unavailable</strong><span>${esc(model.impact.detectionReason)}</span></button>`:'',
+    omittedChangeEvidence?`<a href="/map" data-route="source-graph"><strong>${model.impact.omittedChangedCount} change${model.impact.omittedChangedCount===1?'':'s'} omitted</strong><span>Inspect safety and scan bounds</span></a>`:'',
+    model.coverage.status==='partial'||model.coverage.diagnosticCount?`<a href="/map" data-route="source-graph"><strong>${model.coverage.diagnosticCount?`${model.coverage.diagnosticCount} coverage note${model.coverage.diagnosticCount===1?'':'s'}`:'Bounded coverage'}</strong><span>Inspect supported files and scan scope</span></a>`:''
   ].filter(Boolean).join('')||'<p class="muted">Nothing needs review.</p>';
   const affected=model.impact.affectedSymbols.length
     ? `<ol class="plain-list">${model.impact.affectedSymbols.slice(0,6).map((entry)=>`<li><strong>${esc(entry.label)}</strong><code>${esc(entry.locator ?? 'locator unavailable')}</code></li>`).join('')}</ol>`
@@ -1345,7 +1465,7 @@ export function renderOverview(model) {
       <section class="overview-section"><header><h2>Changes</h2><a href="/map" data-route="source-graph">Open Map</a></header>${changed}</section>
       <section class="overview-section"><header><h2>Needs attention</h2><a href="/memory" data-route="memory">Open Memory</a></header><div class="attention-list">${attention}</div></section>
       <section class="overview-section overview-impact"><header><h2>Impact</h2><span>${model.impact.affectedCount} affected</span></header>${affected}</section>
-      <section class="overview-section"><header><h2>Current handoff</h2><a href="/handoffs" data-route="context-pack">Open Handoffs</a></header><dl class="summary-list"><div><dt>State</dt><dd>${esc(model.handoff.state)}</dd></div><div><dt>Source check</dt><dd>${esc(model.handoff.copy)}</dd></div></dl></section>
+      <section class="overview-section"><header><h2>Current handoff</h2><a href="/handoffs" data-route="context-pack">Open Handoffs</a></header><dl class="summary-list"><div><dt>State</dt><dd>${esc(model.handoff.state)}</dd></div><div><dt>Age</dt><dd>${esc(model.handoff.ageLabel)}</dd></div><div><dt>Source check</dt><dd>${esc(model.handoff.copy)}</dd></div></dl></section>
       <section class="overview-section overview-activity"><header><h2>Recent activity</h2><span>${model.recentActivity.length}</span></header>${activity}</section>
     </div>
   </section>`;
@@ -2408,7 +2528,17 @@ function memoryConfigDownloadName() {
 
 function renderSourceGraph() {
   const errorPanel=sourceGraphError?renderApiErrorPanel('Source graph preview failed',sourceGraphError):'';
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="where should I start" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="" placeholder="optional function or class name" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="" placeholder="src/index.js" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview repo map</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No repo map yet','Preview the repo map to inspect files, symbols, import neighbors, and likely starting points.')}`;
+  const query=recallMapSearchQuery();
+  const globalResults=renderRepositorySearchState({query,report:recallMap,error:recallMapError});
+  return `${globalResults}<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>Current local repository</span></div><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="${esc(query||'where should I start')}" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="" placeholder="optional function or class name" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="" placeholder="src/index.js" maxlength="512"></label></div><div class="field-grid"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label></div><div class="action-row"><button class="button primary" type="submit">Preview repo map</button><span class="muted">Dry-run metadata only</span></div></form></div><aside class="inspector"><h2>Graph boundary</h2><dl class="facts"><div><dt>State</dt><dd>not persisted</dd></div><div><dt>Model calls</dt><dd>0</dd></div><div><dt>External writes</dt><dd>disabled</dd></div></dl>${localBoundary()}</aside></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No repo map yet','Preview the repo map to inspect files, symbols, import neighbors, and likely starting points.')}`;
+}
+
+function renderRecallMapSearchResults(report,query){const search=report?.architecture?.search;const results=Array.isArray(search?.results)?search.results:[];return `<section class="surface repository-search-results" aria-label="Repository search results"><div class="section-heading"><h2>Search results</h2><span>${Number(search?.total??0)} matches for ${esc(query)}</span></div>${results.length?`<ol class="plain-list">${results.map((item)=>`<li><strong>${esc(item.label)}</strong><code>${esc(item.locator)}</code></li>`).join('')}</ol>`:'<p class="muted">No bounded source-graph matches.</p>'}</section>`}
+
+export function renderRepositorySearchState({query='',report=null,error=null}={}) {
+  if(!query)return '';
+  if(error)return renderApiErrorPanel('Repository search failed',error);
+  return renderRecallMapSearchResults(report,query);
 }
 
 export function renderSourceGraphResult(report) {
@@ -2616,13 +2746,15 @@ function renderApiErrorRecovery(model) {
   return `${issues}${correlation}`;
 }
 function statePanel(kind,heading,copy,button=false,extra=''){return `<section class="state-panel state-${esc(kind)}" aria-live="${kind==='loading'?'polite':'off'}"><h2>${esc(heading)}</h2><p>${esc(copy)}</p>${extra}${button?'<div class="action-row"><button class="button primary" data-action="run" type="button">Run local demo</button><button class="button secondary" data-action="reset" type="button">Reset demo</button></div>':''}</section>`}
-export function renderSetupScreen(mode, copy) {
+export function renderSetupScreen(mode, copy, inputModel=null) {
+  const model=inputModel ?? buildAuthViewModel({mode,copy,draft:authDraft,error:authError});
   const isBootstrap = mode === 'bootstrap';
   const title = isBootstrap ? 'Set up this workspace' : 'Sign in';
   const submitLabel = isBootstrap ? 'Create local owner' : 'Sign in';
   const displayName = isBootstrap
-    ? '<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>'
+    ? `<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="${esc(model.draft.displayName)}" required maxlength="120"></label>`
     : '';
+  const errorPanel=model.error?`<div class="auth-error" role="alert"><strong>${esc(model.error.message)}</strong>${renderApiErrorRecovery(model.error)}</div>`:'';
   return `<section class="setup-screen">
     <div class="setup-intro">
       <span class="setup-step">Workspace security</span>
@@ -2636,9 +2768,10 @@ export function renderSetupScreen(mode, copy) {
       </ol>
     </div>
     <form id="auth-form" class="setup-form" data-mode="${mode}" autocomplete="on">
-      <label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap ? 'rebel' : ''}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>
+      <label class="field"><span>Username</span><input name="username" autocomplete="username" value="${esc(model.draft.username)}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>
       ${displayName}
       <label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap ? 'new-password' : 'current-password'}" required minlength="12" maxlength="256"></label>
+      ${errorPanel}
       <button class="button primary" type="submit">${submitLabel}</button>
       <p class="setup-note">Credentials stay in this workspace and are stored as a password hash.</p>
     </form>
@@ -2740,6 +2873,8 @@ function navigateLocal(event) {
   document.querySelector('#main').focus({preventScroll:true});
 }
 
+async function submitGlobalSearch(event){event.preventDefault();const input=event.currentTarget.elements.query;const query=String(input?.value??'').trim().slice(0,256);if(!query){input?.focus();return}const params=new URLSearchParams({query});const currentWorkspace=workspaceId();if(currentWorkspace!=='ws_local')params.set('workspaceId',currentWorkspace);history.pushState({},'',`/map?${params.toString()}`);document.querySelector('#live-status').textContent='Searching bounded repository metadata.';await loadRecallMap();render();document.querySelector('#main').focus({preventScroll:true});document.querySelector('#live-status').textContent=recallMapError?`Repository search failed. ${buildApiErrorUiModel(recallMapError).message}`:'Repository search loaded.'}
+
 function selectFabricNode(event) {
   activeFabricNode=event.currentTarget.dataset.fabricNode ?? 'context';
   render();
@@ -2778,6 +2913,8 @@ async function submitAuthForm(event){
   const username=String(data.get('username') ?? '').trim();
   const password=String(data.get('password') ?? '');
   const displayName=String(data.get('displayName') ?? '').trim();
+  authDraft={username,displayName};
+  authError=null;
   button.disabled=true;
   button.textContent=mode==='bootstrap'?'Creating...':'Signing in...';
   document.querySelector('#live-status').textContent=mode==='bootstrap'?'Creating local owner.':'Signing in locally.';
@@ -2788,13 +2925,30 @@ async function submitAuthForm(event){
       await api('/api/auth/login',{method:'POST',body:JSON.stringify({username,password})});
     }
     form.reset();
+    authDraft={username:'',displayName:''};
+    authError=null;
     document.querySelector('#live-status').textContent=mode==='bootstrap'?'Local owner created.':'Signed in locally.';
     await load();
   }catch(error){
     document.querySelector('#live-status').textContent=error.message;
-    const message=error.code==='already_bootstrapped'?'This workspace already has an owner. Sign in instead.':error.message;
-    shellState={kind:mode==='bootstrap'&&error.code!=='already_bootstrapped'?'setup':'denied',message};
-    render();
+    const transition=authFailureTransition({mode,draft:{username,displayName},error});
+    const message=transition.message;
+    authError={...buildApiErrorUiModel(error),message};
+    authDraft=transition.draft;
+    if(transition.clearPassword){
+      form.querySelector('input[name="password"]').value='';
+      shellState={kind:transition.shellKind,message};
+      render();
+    }else{
+      const existing=form.querySelector('.auth-error');
+      const panel=existing??document.createElement('div');
+      panel.className='auth-error';
+      panel.setAttribute('role','alert');
+      panel.textContent=message;
+      if(authError.correlationId){const correlation=document.createElement('code');correlation.textContent=`Correlation ${authError.correlationId}`;panel.append(correlation)}
+      if(!existing)button.before(panel);
+      shellState={kind:transition.shellKind,message};
+    }
   }finally{
     button.disabled=false;
     button.textContent=mode==='bootstrap'?'Create owner':'Sign in';
@@ -3346,6 +3500,7 @@ async function loadRunById(id,{push=true}={}){
 }
 
 function esc(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
+function relativeAge(from,to){const start=Date.parse(String(from??''));const end=Date.parse(String(to??''));if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return 'Not pinned';const minutes=Math.floor((end-start)/60000);if(minutes<60)return `${Math.max(0,minutes)} minute${minutes===1?'':'s'} old`;const hours=Math.floor(minutes/60);if(hours<24)return `${hours} hour${hours===1?'':'s'} old`;const days=Math.floor(hours/24);return `${days} day${days===1?'':'s'} old`}
 function shortFingerprint(value){return `${String(value??'').slice(0,19)}...`}
 function date(value){return value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'-'}
 function duration(start,end){if(!start)return '-';const from=Date.parse(start),to=end?Date.parse(end):Date.now();if(!Number.isFinite(from)||!Number.isFinite(to))return '-';const ms=Math.max(0,to-from);if(ms<1000)return `${ms} ms`;if(ms<60000)return `${Math.round(ms/1000)} s`;return `${Math.round(ms/60000)} min`}
@@ -3518,7 +3673,9 @@ function drawMemoryGraphCanvas(canvas,report,options={}){
 
 function boot(){
   document.querySelector('#reset-button')?.addEventListener('click',resetDemo);
-  window.addEventListener('popstate',()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else render()});
+  document.querySelector('#global-search-form')?.addEventListener('submit',submitGlobalSearch);
+  document.addEventListener('keydown',(event)=>{if(event.key==='Escape'){const menu=document.querySelector('#repository-menu[open]');if(menu){menu.open=false;menu.querySelector('summary')?.focus()}}});
+  window.addEventListener('popstate',async()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else if(currentRoute().id==='source-graph'){await loadRecallMap();render()}else render()});
   const runId=new URL(location.href).searchParams.get('run');
   load().then(()=>{if(runId)loadRunById(runId,{push:false})});
 }

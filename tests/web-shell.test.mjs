@@ -26,6 +26,9 @@ import {
   buildHarnessSetupUiModel,
   buildLoopWorkbenchModel,
   buildRecallMapHomeModel,
+  buildAuthViewModel,
+  authFailureTransition,
+  normalizeRecallMapGitChanges,
   buildMemoryCockpitModel,
   buildMemoryGraphModel,
   buildMemoryReviewModel,
@@ -51,7 +54,9 @@ import {
   renderContextPackTokenSaverSummary,
   renderMemoryIntakePanel,
   renderOverview,
+  renderRepositorySearchState,
   renderRecallMapHome,
+  shellStateMessageForOverview,
   shouldLoadProtectedShellData,
   summarizeRunSteps,
   writeClipboardText
@@ -66,6 +71,72 @@ test('setup is a focused workspace-security screen', () => {
   assert.doesNotMatch(html, /Choose what you need first/);
   assert.doesNotMatch(html, /Create handoff/);
   assert.doesNotMatch(html, /Developer-first/i);
+});
+
+test('auth view preserves only bounded non-secret draft fields and renders the real error', () => {
+  const model = buildAuthViewModel({
+    mode: 'bootstrap',
+    copy: 'Create the first local owner.',
+    draft: { username: 'owner', displayName: 'Local Owner', password: 'must-not-serialize', extra: 'ignored' },
+    error: { message: 'Username is already in use.', correlationId: 'req_12345678' }
+  });
+  assert.deepEqual(model.draft, { username: 'owner', displayName: 'Local Owner' });
+  const html = renderSetupScreen('bootstrap', model.copy, model);
+  assert.match(html, /value="owner"/);
+  assert.match(html, /value="Local Owner"/);
+  assert.match(html, /Username is already in use/);
+  assert.match(html, /role="alert"/);
+  assert.doesNotMatch(JSON.stringify(model), /must-not-serialize/);
+  assert.doesNotMatch(html, /value="rebel"|value="Rebel"/);
+  assert.doesNotMatch(html, /must-not-serialize/);
+  const transition=authFailureTransition({mode:'bootstrap',draft:{username:'owner',displayName:'Owner',password:'must-not-serialize'},error:{code:'already_bootstrapped',message:'Already set up'}});
+  assert.deepEqual(transition,{mode:'login',shellKind:'denied',draft:{username:'owner',displayName:''},clearPassword:true,message:'This workspace already has an owner. Sign in instead.'});
+  assert.doesNotMatch(JSON.stringify(transition),/must-not-serialize/);
+});
+
+test('git change hydration keeps safe bounded locators and reports omitted evidence', () => {
+  const normalized = normalizeRecallMapGitChanges({
+    status: 'available',
+    changedLocators: ['workspace://src/a.js', 'workspace://src/b.js'],
+    totalChangedLocatorCount: 5,
+    omittedChangedLocatorCount: 2,
+    skippedCount: 1,
+    truncated: true
+  });
+  assert.deepEqual(normalized.changedLocators, ['src/a.js', 'src/b.js']);
+  assert.equal(normalized.totalCount, 6);
+  assert.equal(normalized.omittedCount, 3);
+  assert.equal(normalized.truncated, true);
+  assert.deepEqual(normalizeRecallMapGitChanges(normalized), normalized);
+  assert.deepEqual(normalizeRecallMapGitChanges({ status: 'unavailable' }).changedLocators, []);
+  const unavailable=normalizeRecallMapGitChanges({status:'unavailable',reason:'git_status_failed'});
+  assert.equal(unavailable.status,'unavailable');
+  assert.equal(unavailable.reason,'git_status_failed');
+  assert.match(unavailable.message,/Git change detection is unavailable/);
+  const failed=normalizeRecallMapGitChanges(null,{code:'forbidden',message:'CSRF validation failed.'});
+  assert.deepEqual(failed,{status:'error',changedLocators:[],totalCount:0,omittedCount:0,truncated:false,reason:'forbidden',message:'CSRF validation failed.'});
+  const redacted=normalizeRecallMapGitChanges(null,{code:'internal_error',message:'failed at /Users/rebel/private token=secret'});
+  assert.equal(redacted.message,'Git change detection failed. Retry the local scan.');
+});
+
+test('repository search distinguishes a bounded failure from valid zero results',()=>{
+  const error=Object.assign(new Error('The request did not match the API contract.'),{status:400,code:'request_validation_failed',correlationId:'req_12345678'});
+  const failed=renderRepositorySearchState({query:'/private/secret',error});
+  assert.match(failed,/Repository search failed/);
+  assert.match(failed,/request did not match/);
+  assert.doesNotMatch(failed,/No bounded source-graph matches/);
+  for(const errorCase of [
+    {status:429,code:'rate_limited',message:'Too many requests. Retry later.'},
+    {status:401,code:'authentication_required',message:'Authentication is required.'},
+    {status:500,code:'internal_error',message:'Repository search could not be completed.'}
+  ]){
+    const rendered=renderRepositorySearchState({query:'launchSmoke',error:errorCase});
+    assert.match(rendered,/Repository search failed/);
+    assert.match(rendered,new RegExp(errorCase.message.replace(/[.*+?^${}()|[\]\\]/gu,'\\$&')));
+    assert.doesNotMatch(rendered,/No bounded source-graph matches/);
+  }
+  const empty=renderRepositorySearchState({query:'noSuchSymbol',report:{architecture:{search:{total:0,results:[]}}}});
+  assert.match(empty,/No bounded source-graph matches/);
 });
 
 test('workbench navigation has five desktop and four mobile destinations', () => {
@@ -99,8 +170,10 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.equal(shared.motion.durationFast, 120);
   assert.match(shared.motion.easeOut, /^cubic-bezier\(/);
   assert.doesNotMatch(JSON.stringify(shared), /#56e0c4/i);
-  assert.doesNotMatch(shellCss, /\.app-shell\{grid-template-columns:76px/);
-  assert.doesNotMatch(shellCss, /#primary-nav a>span:last-child\{[^}]*position:absolute/);
+  assert.match(shellCss, /@media\(min-width:701px\) and \(max-width:1080px\)\{[\s\S]*\.app-shell\{grid-template-columns:72px minmax\(0,1fr\)\}/);
+  assert.match(shellCss, /@media\(min-width:701px\) and \(max-width:1080px\)\{[\s\S]*\.nav-label[^{]*\{[^}]*position:absolute/);
+  assert.match(shellCss, /#primary-nav a\{[^}]*min-height:44px/);
+  assert.match(shellCss, /\.global-search input\{[^}]*min-height:44px/);
   assert.match(shellCss, /\.button:focus-visible,a:focus-visible,main:focus-visible,input:focus-visible/);
   assert.match(shellCss, /\.button:hover:not\(:disabled\)/);
   assert.match(shellCss, /\.button:active:not\(:disabled\)/);
@@ -114,7 +187,8 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.match(shellCss, /\.overview-grid\{[^}]*grid-template-columns:minmax\(0,1\.2fr\) minmax\(320px,\.8fr\)/);
   assert.match(shellCss, /\.overview-section\{[^}]*border-bottom:1px solid var\(--color-rule\)/);
   assert.match(shellCss, /\.attention-list a\{[^}]*grid-template-columns:max-content minmax\(0,1fr\)[^}]*gap:var\(--space-xs\)/);
-  assert.match(shellCss, /\.attention-list a strong,\.attention-list a span\{white-space:nowrap/);
+  assert.match(shellCss, /\.attention-list a strong,\.attention-list button strong\{white-space:nowrap/);
+  assert.match(shellCss, /\.attention-list a span,\.attention-list button span\{white-space:normal;overflow-wrap:anywhere/);
   assert.match(shellCss, /\.attention-list a:hover\{background:var\(--color-panel-muted\)\}/);
   assert.match(shellCss, /\.attention-list a:active\{color:var\(--color-accent\)\}/);
   assert.doesNotMatch(shellCss, /\.bottom-nav a\{[^}]*gap:4px/);
@@ -142,6 +216,7 @@ test('Overview primary action is deterministic and state ordered', () => {
   assert.deepEqual(selectOverviewPrimaryAction({ state: 'success', memory: { pendingCount: 3 }, handoff: { state: 'ready' } }), { label: 'Review 3 proposals', route: '/memory', routeId: 'memory' });
   assert.deepEqual(selectOverviewPrimaryAction({ state: 'stale', memory: { pendingCount: 0 }, handoff: { state: 'review' } }), { label: 'Update handoff', route: '/handoffs', routeId: 'context-pack' });
   assert.deepEqual(selectOverviewPrimaryAction({ state: 'success', memory: { pendingCount: 0 }, handoff: { state: 'ready' } }), { label: 'View current handoff', route: '/handoffs', routeId: 'context-pack' });
+  assert.deepEqual(selectOverviewPrimaryAction({ state: 'partial', memory: { pendingCount: 0 }, handoff: { state: 'blocked' } }), { label: 'Repair handoff', route: '/handoffs', routeId: 'context-pack' });
   assert.equal(selectOverviewPrimaryAction({ state: 'success', memory: { pendingCount: 0 }, handoff: { state: 'pending' } }), null);
 });
 
@@ -168,6 +243,9 @@ test('web shell exposes primary aliases and preserves deep links', () => {
 test('web shell markup uses a repository bar and no duplicated hero header', async () => {
   const html = await readFile(new URL('../apps/web/index.html', import.meta.url), 'utf8');
   for (const id of ['repository-name', 'repository-branch', 'repository-scan', 'repository-condition']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['repository-menu', 'global-search-form', 'global-search-input']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(html, /Open another repository/);
+  assert.match(html, /one local repository per running server/i);
   assert.doesNotMatch(html, /id="page-eyebrow"/);
   assert.doesNotMatch(html, /Developer-first local recall/i);
   assert.doesNotMatch(html, /Next-Agent Handoff/);
@@ -218,7 +296,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
     fingerprint:'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
   };
   const model=buildRecallMapHomeModel({report,pinnedHandoffStatus:{current:{status:'verified'}}});
-  assert.equal(model.state,'partial');
+  assert.equal(model.state,'success');
   assert.deepEqual(selectOverviewPrimaryAction(model),{label:'Review 1 proposal',route:'/memory',routeId:'memory'});
   assert.equal(model.index.status,'implemented');
   assert.equal(model.coverage.label,'42 / 1000 files');
@@ -227,6 +305,8 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(model.memory.pendingCount,1);
   assert.equal(model.handoff.state,'ready');
   const html=renderOverview(model);
+  assert.match(html,/Bounded coverage/);
+  assert.match(html,/1 coverage note/);
   for (const label of ['Changes','Needs attention','Impact','Current handoff','Recent activity']) assert.match(html,new RegExp(label));
   assert.match(html,/Review 1 proposal/);
   assert.match(html,/memory-recall-map-home/);
@@ -242,7 +322,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   const staleMemoryOnlyModel=buildRecallMapHomeModel({
     report:{...report,memory:{...report.memory,pendingProposals:[]}}
   });
-  assert.equal(staleMemoryOnlyModel.state,'partial');
+  assert.equal(staleMemoryOnlyModel.state,'success');
   assert.equal(selectOverviewPrimaryAction(staleMemoryOnlyModel),null);
   assert.match(renderOverview(staleMemoryOnlyModel),/<strong>1 stale<\/strong>/);
   assert.match(renderOverview(staleMemoryOnlyModel),/No action queued/);
@@ -257,10 +337,64 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.deepEqual(selectOverviewPrimaryAction(staleHandoffModel),{label:'Update handoff',route:'/handoffs',routeId:'context-pack'});
   assert.match(renderOverview(staleHandoffModel),/Source changes need review/);
 
+  const blockedHandoffModel=buildRecallMapHomeModel({
+    report:{...report,memory:{...report.memory,pendingProposals:[],staleFactCount:0}},
+    pinnedHandoffStatus:{
+      generatedAt:'2026-07-11T10:00:00.000Z',
+      current:{status:'tampered',entryId:'pack_1'},
+      entries:[{id:'pack_1',createdAt:'2026-07-11T08:00:00.000Z'}]
+    }
+  });
+  assert.equal(blockedHandoffModel.handoff.state,'blocked');
+  assert.deepEqual(selectOverviewPrimaryAction(blockedHandoffModel),{label:'Repair handoff',route:'/handoffs',routeId:'context-pack'});
+  assert.match(renderOverview(blockedHandoffModel),/Handoff blocked/);
+  assert.doesNotMatch(renderOverview(blockedHandoffModel),/Nothing needs review/);
+  assert.match(renderOverview(blockedHandoffModel),/2 hours old/);
+
+  const detectedModel=buildRecallMapHomeModel({
+    report:{...report,repository:{...report.repository,dirtyCount:6}},
+    gitChanges:{status:'available',changedLocators:['workspace://apps/web/app.js'],totalChangedLocatorCount:5,omittedChangedLocatorCount:3,skippedCount:1,truncated:true},
+    pinnedHandoffStatus:{current:{status:'verified'}}
+  });
+  assert.equal(detectedModel.impact.totalChangedCount,6);
+  assert.equal(detectedModel.impact.omittedChangedCount,4);
+  assert.match(renderOverview(detectedModel),/1 shown · 4 omitted/);
+
+  const allOmittedModel=buildRecallMapHomeModel({
+    report:{...report,repository:{...report.repository,dirtyCount:2},architecture:{...report.architecture,impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}},
+    gitChanges:{status:'available',changedLocators:[],skippedCount:2,truncated:true},
+    pinnedHandoffStatus:{current:{status:'verified'}}
+  });
+  assert.equal(allOmittedModel.impact.detectionStatus,'available');
+  assert.equal(allOmittedModel.impact.omittedChangedCount,2);
+  assert.deepEqual(allOmittedModel.impact.changedLocators,[]);
+  const allOmittedHtml=renderOverview(allOmittedModel);
+  assert.match(allOmittedHtml,/0 shown · 2 omitted by safety or scan bounds/);
+  assert.match(allOmittedHtml,/2 changes omitted/);
+  assert.doesNotMatch(allOmittedHtml,/No changed files detected/);
+
+  const degradedModel=buildRecallMapHomeModel({
+    report:{...report,repository:{...report.repository,dirtyCount:3},architecture:{...report.architecture,impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}},
+    gitChanges:{status:'unavailable',reason:'git_status_failed'},
+    pinnedHandoffStatus:{current:{status:'verified'}}
+  });
+  assert.equal(degradedModel.impact.detectionStatus,'unavailable');
+  assert.equal(degradedModel.impact.repositoryDirtyCount,3);
+  const degradedHtml=renderOverview(degradedModel);
+  assert.match(degradedHtml,/3 changed entries; file detection unavailable/);
+  assert.match(degradedHtml,/Git change detection is unavailable/);
+  assert.match(degradedHtml,/Retry scan/);
+  assert.match(degradedHtml,/Change detection unavailable/);
+  assert.doesNotMatch(degradedHtml,/No changed files are selected|Nothing needs review/);
+
+  assert.equal(shellStateMessageForOverview('stale'),'Pinned handoff source evidence changed and needs review.');
+
   assert.equal(buildRecallMapHomeModel({report:null,error:null}).state,'loading');
   assert.equal(buildRecallMapHomeModel({report:null,error:'loopback unavailable'}).state,'error');
   assert.equal(buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},architecture:{...report.architecture,entryPoints:[],hotspots:[],impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}}}).state,'empty');
-  assert.equal(buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},support:{...report.support,sourceGraph:{...report.support.sourceGraph,status:'unavailable',coverage:{...report.support.sourceGraph.coverage,status:'unavailable'}}}}}).state,'partial');
+  const unavailableSourceModel=buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},support:{...report.support,sourceGraph:{...report.support.sourceGraph,status:'unavailable',coverage:{...report.support.sourceGraph.coverage,status:'unavailable'}}}}});
+  assert.equal(unavailableSourceModel.state,'partial');
+  assert.match(renderOverview(unavailableSourceModel),/Bounded coverage/);
 });
 
 test('shell defers protected workspace loads until local session evidence exists',()=>{
@@ -597,7 +731,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/measure context-pack --read-only/);
   assert.match(app,/Read-only impact brief/);
   assert.match(app,/Change Impact/);
-  assert.match(app,/value="where should I start"/);
+  assert.match(app,/value="\$\{esc\(query\|\|'where should I start'\)\}"/);
   assert.match(app,/name="startName" value="" placeholder="optional function or class name"/);
   assert.match(app,/name="changedLocator" value="" placeholder="src\/index\.js"/);
   assert.doesNotMatch(app,/name="changedLocator" value="apps\/web\/app\.js"/);

@@ -347,6 +347,64 @@ test('recall map API returns only the strict read-only report and rejects unsafe
   assert.equal(bodyRejected.body.error.code, 'request_validation_failed');
 });
 
+test('recall map POST accepts one bounded multi-locator read with session CSRF', async () => {
+  const auth = latestAuth ?? await login();
+  const payload = {
+    workspaceId: 'ws_local',
+    changedLocators: ['apps/web/app.js', 'services/control-api/src/server.mjs'],
+    query: 'services/control-api/src/server.mjs'
+  };
+  const response = await fetch(`${base}/api/recall/map`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
+    body: JSON.stringify(payload)
+  });
+  const text = await response.text();
+  assert.equal(response.status, 200, text);
+  const report = JSON.parse(text);
+  assert.equal(validateJsonSchema(recallMapSchema, report).valid, true);
+  assert.deepEqual(report.architecture.impact.changedLocators, [
+    'workspace://apps/web/app.js',
+    'workspace://services/control-api/src/server.mjs'
+  ]);
+  assert(report.architecture.impact.affectedSymbols.length > 0);
+  assert.equal(report.safeguards.readOnly, true);
+  assert.equal(report.safeguards.localFilesWritten, 0);
+  assert.equal(report.safeguards.canonicalStateMutated, false);
+  assert.equal(report.safeguards.networkCalls, 0);
+  assert.equal(report.safeguards.modelCalls, 0);
+  assert.equal(text.includes(process.cwd()), false);
+
+  const noAuth = await fetch(`${base}/api/recall/map`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base },
+    body: JSON.stringify(payload)
+  });
+  assert.equal(noAuth.status, 401);
+
+  const noCsrf = await fetch(`${base}/api/recall/map`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie },
+    body: JSON.stringify(payload)
+  });
+  assert.equal(noCsrf.status, 403);
+  assert.equal((await noCsrf.json()).error.code, 'csrf_failed');
+
+  for (const body of [
+    { ...payload, changedLocators: Array.from({ length: 17 }, (_, index) => `src/file-${index}.js`) },
+    { ...payload, changedLocators: ['../private/secret.js'] },
+    { ...payload, extra: true }
+  ]) {
+    const rejected = await fetch(`${base}/api/recall/map`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base, cookie: auth.cookie, 'x-csrf-token': auth.csrf },
+      body: JSON.stringify(body)
+    });
+    assert.equal(rejected.status, 400, JSON.stringify(body));
+    assert.equal((await rejected.json()).error.code, 'request_validation_failed');
+  }
+});
+
 test('memory cockpit approval endpoint promotes one pending proposal', async () => {
   const auth = await login();
   const previewResponse = await fetch(`${base}/api/memory/proposals`, {

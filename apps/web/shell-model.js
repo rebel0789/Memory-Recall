@@ -39,6 +39,7 @@ export function selectOverviewPrimaryAction(model = {}) {
   if (model.state === 'empty') return { label: 'Scan repository', route: '/', action: 'refresh-recall-map' };
   const pendingCount = Number(model.memory?.pendingCount ?? 0);
   if (pendingCount > 0) return { label: `Review ${pendingCount} proposal${pendingCount === 1 ? '' : 's'}`, route: '/memory', routeId: 'memory' };
+  if (model.handoff?.state === 'blocked') return { label: 'Repair handoff', route: '/handoffs', routeId: 'context-pack' };
   if (model.state === 'stale' || model.handoff?.state === 'review') return { label: 'Update handoff', route: '/handoffs', routeId: 'context-pack' };
   if (model.handoff?.state === 'ready') return { label: 'View current handoff', route: '/handoffs', routeId: 'context-pack' };
   return null;

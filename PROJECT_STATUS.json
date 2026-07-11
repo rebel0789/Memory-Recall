@@ -81,6 +81,9 @@
         "Five-destination desktop workbench and four-destination mobile navigation with preserved operational deep links",
         "Focused workspace-security setup is separate from the authenticated Overview",
         "Overview selects one deterministic next action from bounded Recall Map, memory, and pinned-handoff state",
+        "Overview detects current git changes read-only, hydrates bounded multi-file Recall Map impact, and reports locators omitted by safety or scan bounds",
+        "Repository search preserves bounded Map queries through deep-link, reload, back, and forward navigation",
+        "One running local server remains bound to one repository; the repository control documents how to start recall serve elsewhere rather than claiming hot switching",
         "Dependency-free routed shell; no production frontend framework",
         "Uses the loopback Control API only and does not read storage directly",
         "OAF-024 views are read-only and do not add approval mutation endpoints",
@@ -1045,7 +1048,7 @@
       "npm run consumer:smoke",
       "npm run consumer:browser-smoke"
     ],
-    "testsExpected": 650,
+    "testsExpected": 655,
     "protocolFixturesExpected": 182,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

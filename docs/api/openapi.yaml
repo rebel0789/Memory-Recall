@@ -229,7 +229,7 @@ paths:
           name: query
           in: query
           required: false
-          description: A bounded plain-text symbol search term. Raw bodies and locator-like values are rejected.
+          description: A bounded file, symbol, concept, or safe relative-path search term. URLs, traversal, absolute paths, and raw bodies are rejected.
           schema: { $ref: '#/components/schemas/RecallMapQuery' }
       responses:
         '200':
@@ -242,6 +242,26 @@ paths:
         '400': { $ref: '#/components/responses/BoundaryError' }
         '401': { $ref: '#/components/responses/AuthError' }
         '403': { $ref: '#/components/responses/BoundaryError' }
+    post:
+      operationId: postRecallMap
+      description: Authenticated, CSRF-protected expensive read for one bounded set of changed workspace-relative locators.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecallMapRequest' }
+      responses:
+        '200':
+          description: Strict read-only Recall Map report with multi-locator impact and bounded search summaries.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: 'https://memory-recall.dev/schemas/recall-map-1.0.json' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
+        '429': { $ref: '#/components/responses/BoundaryError' }
   /api/memory/proposals/{proposalId}/approve:
     post:
       operationId: approveMemoryProposal
@@ -585,7 +605,20 @@ components:
       type: string
       minLength: 1
       maxLength: 256
-      pattern: '^[A-Za-z0-9][A-Za-z0-9 .,:_@+*#-]{0,255}$'
+      pattern: '^(?!/)(?!.*://)(?!.*\\)(?!.*(?:^|/)\.\.?(?:/|$))[A-Za-z0-9_$@~.,:/#*+ -]{1,256}$'
+    RecallMapRequest:
+      type: object
+      additionalProperties: false
+      required: [workspaceId, changedLocators]
+      maxProperties: 3
+      properties:
+        workspaceId: { $ref: '#/components/schemas/RecallMapWorkspaceId' }
+        changedLocators:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/RecallMapChangedLocator' }
+        query: { $ref: '#/components/schemas/RecallMapQuery' }
     RecallMapWorkspaceId:
       type: string
       maxLength: 128

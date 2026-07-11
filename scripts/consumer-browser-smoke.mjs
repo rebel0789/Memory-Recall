@@ -15,20 +15,30 @@ const workspace = path.join(temp, 'workspace');
 const home = path.join(temp, 'home');
 const data = path.join(workspace, '.local');
 const password = 'correct horse battery staple';
+const screenshots = path.join(root, '.scratch', 'ui-redesign');
 let server = null;
 let browser = null;
 
 try {
   await mkdir(path.join(workspace, 'src'), { recursive: true });
   await mkdir(home, { recursive: true });
+  await mkdir(screenshots, { recursive: true });
   await writeFile(path.join(workspace, 'package.json'), JSON.stringify({ name: 'consumer-browser-target' }, null, 2));
   await writeFile(path.join(workspace, 'AGENTS.md'), 'Use local context handoffs and proposal-gated memory.');
   await writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchSmoke(){ return "ready"; }\n');
   await writeFile(path.join(workspace, 'src', 'huge.js'), Array.from({ length: 500 }, (_, index) => `export function helper${index}(){ return "local proof ${index}"; }`).join('\n'));
   await mkdir(path.join(workspace, 'memory'), { recursive: true });
   await writeFile(path.join(workspace, 'memory', 'status.md'), 'Decision: project:oaf release_status ready supersedes draft.');
+  await writeFile(path.join(workspace, '.gitignore'), '.local/\n');
   runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:oaf', '--predicate', 'release_status', '--object', 'draft', '--source', 'workspace://memory/status.md', '--format', 'json']);
   runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:oaf', '--predicate', 'release_status', '--object', 'ready', '--supersedes-subject', 'project:oaf', '--supersedes-predicate', 'release_status', '--source', 'workspace://memory/status.md', '--format', 'json']);
+  run('git', ['init'], workspace);
+  run('git', ['config', 'user.email', 'browser-smoke@example.invalid'], workspace);
+  run('git', ['config', 'user.name', 'Browser Smoke'], workspace);
+  run('git', ['add', '.'], workspace);
+  run('git', ['commit', '-m', 'fixture baseline'], workspace);
+  await writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchSmoke(){ return changedHelper(); }\nexport function changedHelper(){ return "ready"; }\n');
+  await writeFile(path.join(workspace, 'src', 'changed.js'), 'import { launchSmoke } from "./app.js";\nexport const changedResult = launchSmoke();\n');
 
   const port = await freePort();
   server = spawn(process.execPath, ['services/control-api/src/server.mjs'], {
@@ -39,7 +49,7 @@ try {
   await waitForHealth(port);
 
   browser = await launchBrowser();
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const browserErrors = [];
   page.on('console', (message) => {
     if (message.type() === 'error') browserErrors.push(message.text());
@@ -51,6 +61,10 @@ try {
   await waitForText(page, 'Set up this workspace');
   await waitForText(page, 'Workspace security');
   await waitForText(page, 'Run the first scan after sign-in');
+  await page.screenshot({ path: path.join(screenshots, 'setup-desktop-1440.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: path.join(screenshots, 'setup-mobile-390.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await mustNotContain(page, 'Choose what you need first');
   await mustNotContain(page, 'Developer-first');
   await page.fill('input[name="username"]', 'owner');
@@ -58,10 +72,172 @@ try {
   await page.fill('input[name="password"]', password);
   await page.getByRole('button', { name: 'Create local owner' }).click();
   for (const label of ['Changes', 'Needs attention', 'Impact', 'Current handoff', 'Recent activity']) await waitForText(page, label);
+  await waitForText(page, 'workspace://src/app.js');
+  await waitForText(page, 'workspace://src/changed.js');
+  const affectedCount = await page.locator('.overview-impact header span').textContent();
+  must(Number.parseInt(affectedCount, 10) > 0, `ordinary Overview did not hydrate meaningful impact: ${affectedCount}`);
+  await page.screenshot({ path: path.join(screenshots, 'overview-desktop-light-1440.png'), fullPage: true });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.screenshot({ path: path.join(screenshots, 'overview-desktop-dark-1440.png'), fullPage: true });
+  await page.emulateMedia({ colorScheme: 'light' });
   await mustNotContain(page, 'Developer-first');
   await mustNotContain(page, 'Read the local picture before the next change');
   await mustNotContain(page, 'Index health');
   await assertNoElementHorizontalOverflow(page, '.overview-section', 'desktop Overview section');
+
+  const unavailableGitChanges = (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ status: 'unavailable', reason: 'git_status_failed' })
+  });
+  await page.route('**/api/context/git-changes', unavailableGitChanges);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForText(page, 'file detection unavailable');
+  await waitForText(page, 'Change detection unavailable');
+  await mustNotContain(page, 'No changed files detected.');
+  await page.unroute('**/api/context/git-changes', unavailableGitChanges);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForText(page, 'workspace://src/app.js');
+
+  await page.fill('#global-search-input', '/private/secret');
+  await page.press('#global-search-input', 'Enter');
+  await page.waitForURL(/\/map\?query=%2Fprivate%2Fsecret$/u);
+  await waitForText(page, 'Repository search failed');
+  must(await page.inputValue('#global-search-input') === '/private/secret', 'failed repository query was not preserved');
+  await mustNotContain(page, 'No bounded source-graph matches');
+  must((await page.locator('#live-status').textContent()).includes('Repository search failed'), 'failed repository query was announced as loaded');
+
+  await page.fill('#global-search-input', 'launchSmoke');
+  await page.press('#global-search-input', 'Enter');
+  await page.waitForURL(/\/map\?query=launchSmoke$/u);
+  await waitForText(page, 'Search results');
+  await waitForText(page, 'launchSmoke');
+  await page.goBack();
+  await page.waitForURL(/\/map\?query=%2Fprivate%2Fsecret$/u);
+  await waitForText(page, 'Repository search failed');
+  await page.goBack();
+  await page.waitForURL(base + '/');
+  await page.goForward();
+  await page.waitForURL(/\/map\?query=%2Fprivate%2Fsecret$/u);
+  await waitForText(page, 'Repository search failed');
+  await page.goForward();
+  await page.waitForURL(/\/map\?query=launchSmoke$/u);
+  await waitForText(page, 'launchSmoke');
+  await page.goto(base, { waitUntil: 'domcontentloaded' });
+
+  const stateMatrix = await page.evaluate(async () => {
+    const { buildRecallMapHomeModel, renderOverview } = await import('/app.js');
+    const response = await fetch('/api/recall/map?workspaceId=ws_local');
+    const report = await response.json();
+    const cleanReport = structuredClone(report);
+    cleanReport.memory = { ...cleanReport.memory, pendingProposals: [], staleFactCount: 0 };
+    const gitChanges = { status: 'available', changedLocators: [], totalCount: 0, omittedCount: 0, truncated: false };
+    const pinned = (status) => ({
+      generatedAt: cleanReport.generatedAt,
+      current: { status, entryId: 'handoff-browser-matrix' },
+      entries: [{ id: 'handoff-browser-matrix', createdAt: cleanReport.generatedAt }]
+    });
+    const empty = structuredClone(cleanReport);
+    empty.architecture = { ...empty.architecture, entryPoints: [], hotspots: [], impact: { changedLocators: [], representedChangedLocators: [], affectedSymbols: [], depth: 0 } };
+    const omitted = structuredClone(cleanReport);
+    omitted.architecture = { ...omitted.architecture, impact: { changedLocators: [], representedChangedLocators: [], affectedSymbols: [], depth: 0 } };
+    omitted.repository = { ...omitted.repository, dirtyCount: 2 };
+    const partial = structuredClone(cleanReport);
+    partial.support.sourceGraph.status = 'unavailable';
+    partial.support.sourceGraph.coverage.status = 'unavailable';
+    const cases = [
+      ['loading', { report: null }, 'loading', 'Loading Recall Map', 'Scan repository'],
+      ['empty', { report: empty, gitChanges }, 'empty', 'No JS/TS entry points yet', 'Scan repository'],
+      ['all-omitted', { report: omitted, gitChanges: { status: 'available', changedLocators: [], totalCount: 2, omittedCount: 2, truncated: true } }, 'success', '0 shown · 2 omitted by safety or scan bounds', ''],
+      ['partial', { report: partial, gitChanges }, 'partial', 'Bounded coverage', ''],
+      ['stale', { report: cleanReport, gitChanges, pinnedHandoffStatus: pinned('stale') }, 'stale', 'Source changes need review', 'Update handoff'],
+      ['blocked', { report: cleanReport, gitChanges, pinnedHandoffStatus: pinned('tampered') }, 'success', 'Handoff blocked', 'Repair handoff'],
+      ['success', { report: cleanReport, gitChanges, pinnedHandoffStatus: pinned('verified') }, 'success', 'Current handoff', 'View current handoff'],
+      ['auth-error', { error: { status: 401, code: 'authentication_required', message: 'Authentication is required.' } }, 'error', 'Recall Map unavailable', 'Retry scan']
+    ];
+    const host = document.createElement('div');
+    document.querySelector('#view-root').append(host);
+    const results = cases.map(([name, args, expectedState, expectedText, expectedAction]) => {
+      const model = buildRecallMapHomeModel(args);
+      host.innerHTML = renderOverview(model);
+      const action = host.querySelector('.page-heading .button, .page-heading a.button')?.textContent?.trim() ?? '';
+      return {
+        name,
+        modelState: model.state,
+        expectedState,
+        expectedText,
+        expectedAction,
+        text: host.innerText,
+        action,
+        overflow: host.scrollWidth > host.clientWidth + 1
+      };
+    });
+    host.remove();
+    return results;
+  });
+  for (const state of stateMatrix) {
+    must(state.modelState === state.expectedState, `${state.name} Overview model state mismatch: ${state.modelState}`);
+    must(state.text.includes(state.expectedText), `${state.name} Overview state missing ${state.expectedText}`);
+    must(!state.expectedAction || state.action === state.expectedAction, `${state.name} Overview action mismatch: ${state.action}`);
+    must(!state.overflow, `${state.name} Overview state has horizontal overflow`);
+  }
+
+  await page.context().clearCookies();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForText(page, 'Sign in');
+  await page.fill('input[name="username"]', 'owner');
+  await page.fill('input[name="password"]', 'incorrect password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await waitForText(page, 'Username or password is incorrect.');
+  must(await page.inputValue('input[name="username"]') === 'owner', 'login username was not preserved after recoverable failure');
+  must(await page.inputValue('input[name="password"]') === 'incorrect password', 'live password input was reconstructed after recoverable failure');
+  await page.fill('input[name="password"]', password);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await waitForText(page, 'Changes');
+  browserErrors.length = 0;
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  for (const width of [701, 768, 900, 1080]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    const responsiveTablet = await page.evaluate(() => ({
+      rail: document.querySelector('.sidebar')?.getBoundingClientRect().width,
+      navHeights: [...document.querySelectorAll('#primary-nav a')].map((item) => item.getBoundingClientRect().height),
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+    }));
+    must(responsiveTablet.rail === 72, `tablet ${width}px rail is not compact: ${JSON.stringify(responsiveTablet)}`);
+    must(responsiveTablet.navHeights.every((height) => height >= 44), `tablet ${width}px nav touch target below 44px: ${JSON.stringify(responsiveTablet.navHeights)}`);
+    must(!responsiveTablet.overflow, `tablet ${width}px shell has horizontal overflow`);
+  }
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await waitForText(page, 'Changes');
+  const tablet = await page.evaluate(() => ({
+    rail: document.querySelector('.sidebar')?.getBoundingClientRect().width,
+    navHeights: [...document.querySelectorAll('#primary-nav a')].map((item) => item.getBoundingClientRect().height),
+    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    reducedMotionTransition: getComputedStyle(document.querySelector('#primary-nav a')).transitionDuration,
+    reducedMotionAnimation: getComputedStyle(document.querySelector('#primary-nav a')).animationDuration
+  }));
+  must(tablet.rail === 72, `tablet rail is not compact: ${JSON.stringify(tablet)}`);
+  must(tablet.navHeights.every((height) => height >= 44), `tablet nav touch target below 44px: ${JSON.stringify(tablet.navHeights)}`);
+  must(!tablet.overflow, 'tablet shell has horizontal overflow');
+  must(parseCssSeconds(tablet.reducedMotionTransition) <= 0.001, `reduced motion transition remains active: ${tablet.reducedMotionTransition}`);
+  must(parseCssSeconds(tablet.reducedMotionAnimation) <= 0.001, `reduced motion animation remains active: ${tablet.reducedMotionAnimation}`);
+  const focusedControls = [];
+  for (let index = 0; index < 12; index += 1) {
+    await page.keyboard.press('Tab');
+    focusedControls.push(await page.evaluate(() => ({
+      id: document.activeElement?.id ?? '',
+      tag: document.activeElement?.tagName ?? '',
+      href: document.activeElement?.getAttribute?.('href') ?? '',
+      outline: getComputedStyle(document.activeElement).outlineWidth
+    })));
+  }
+  must(focusedControls.some((item) => item.id === 'global-search-input'), `keyboard traversal did not reach global search: ${JSON.stringify(focusedControls)}`);
+  must(focusedControls.some((item) => item.href === '/map'), `keyboard traversal did not reach primary navigation: ${JSON.stringify(focusedControls)}`);
+  must(focusedControls.filter((item) => item.id === 'global-search-input' || item.href === '/map').every((item) => item.outline !== '0px'), `keyboard focus is not visible: ${JSON.stringify(focusedControls)}`);
+  await page.screenshot({ path: path.join(screenshots, 'overview-tablet-900.png'), fullPage: true });
 
   await page.goto(`${base}/agents-tools`, { waitUntil: 'domcontentloaded' });
   await waitForText(page, 'Harness setup preview');
@@ -109,12 +285,20 @@ try {
   await waitForText(page, 'Diff impact');
   await waitForText(page, 'Preview repo map');
 
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(base, { waitUntil: 'domcontentloaded' });
+    for (const label of ['Changes', 'Needs attention', 'Impact', 'Current handoff', 'Recent activity']) await waitForText(page, label);
+    const mobile = await page.evaluate(() => ({
+      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      navHeights: [...document.querySelectorAll('#mobile-nav a')].map((item) => item.getBoundingClientRect().height)
+    }));
+    must(!mobile.overflow, `mobile ${width}px first-use shell has horizontal overflow`);
+    must(mobile.navHeights.every((height) => height >= 44), `mobile ${width}px nav touch target below 44px: ${JSON.stringify(mobile.navHeights)}`);
+    await assertNoElementHorizontalOverflow(page, '.overview-section', `mobile ${width}px Overview section`);
+  }
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
-  for (const label of ['Changes', 'Needs attention', 'Impact', 'Current handoff', 'Recent activity']) await waitForText(page, label);
-  const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-  must(!hasHorizontalOverflow, 'mobile first-use shell has horizontal overflow');
-  await assertNoElementHorizontalOverflow(page, '.overview-section', 'mobile Overview section');
+  await page.screenshot({ path: path.join(screenshots, 'overview-mobile-390.png'), fullPage: true });
   must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
 
   console.log('PASS consumer browser smoke: Recall Map, handoff, harness, Token Saver, memory, graph, mobile shell');
@@ -144,10 +328,19 @@ function must(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function parseCssSeconds(value) {
+  return Math.max(...String(value ?? '0s').split(',').map((part) => Number.parseFloat(part) || 0));
+}
+
 function runJson(command, args) {
   const result = spawnSync(command, args, { cwd: root, encoding: 'utf8' });
   if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
   return JSON.parse(result.stdout);
+}
+
+function run(command, args, cwd = root) {
+  const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
 }
 
 async function waitForText(page, text) {

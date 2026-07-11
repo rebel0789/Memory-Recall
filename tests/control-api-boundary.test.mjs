@@ -6,7 +6,7 @@ import { once } from 'node:events';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createControlApiServer, resolveServeSourceGraphRoot } from '../services/control-api/src/server.mjs';
+import { createControlApiServer, createLoginRateLimiter, resolveServeSourceGraphRoot } from '../services/control-api/src/server.mjs';
 import { API_ROUTE_CONTRACTS } from '../services/control-api/src/route-contracts.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
 
@@ -391,6 +391,28 @@ test('Recall Map rejects workspace IDs outside its strict report contract before
   assert.equal(api.calls.compile, 0);
 });
 
+test('Recall Map POST rate limit is route-local and returns Retry-After', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-recall-map-rate-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(path.join(sourceGraphRoot, 'src', 'app.js'), 'export const rateLimitFixture = true;\n');
+  const api = await startServer(t, {
+    sourceGraphRoot,
+    recallMapRateLimiter: createLoginRateLimiter({ limit: 1, windowMs: 60_000, clock: () => 0 })
+  });
+  const options = {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', changedLocators: ['src/app.js'] })
+  };
+  const first = await request(api.base, '/api/recall/map', options);
+  assert.equal(first.status, 200, first.text);
+  const limited = await request(api.base, '/api/recall/map', options);
+  assert.equal(limited.status, 429, limited.text);
+  assert.equal(limited.body.error.code, 'rate_limited');
+  assert.equal(limited.headers.get('retry-after'), '60');
+});
+
 test('context pack route is protected and does not mutate run state', async (t) => {
   const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-context-pack-'));
   t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
@@ -406,6 +428,16 @@ test('context pack route is protected and does not mutate run state', async (t) 
   await writeFile(path.join(sourceGraphRoot, 'notes', 'large-memory.md'), `project:oaf large_context browser_preflight\n${'ctx '.repeat(2_400_000)}${largeMemoryTail}`);
   await writeFile(path.join(sourceGraphRoot, 'src', 'web.ts'), 'export const webBoundary = true;\n');
   const api = await startServer(t, { sourceGraphRoot });
+  const recallMap = await request(api.base, '/api/recall/map', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', changedLocators: ['src/web.ts', 'notes/memory.md'], query: 'webBoundary' })
+  });
+  assert.equal(recallMap.status, 200, recallMap.text);
+  assert.deepEqual(recallMap.body.architecture.impact.changedLocators, ['workspace://notes/memory.md', 'workspace://src/web.ts']);
+  assert.equal(recallMap.body.safeguards.localFilesWritten, 0);
+  assert.equal(api.store.reads, 0);
+  assert.equal(api.store.updates, 0);
   const denied = await request(api.base, '/api/context/pack', {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base },

@@ -60,7 +60,7 @@ const PUBLIC_MESSAGES = Object.freeze({
   resource_not_found: 'Resource not found.',
   already_bootstrapped: 'Identity bootstrap has already completed.',
   workspace_context_conflict: 'Workspace context is ambiguous or conflicting.',
-  rate_limited: 'Too many authentication attempts.',
+  rate_limited: 'Too many requests.',
   bootstrap_required: 'Identity bootstrap is required before this operation.',
   internal_error: 'The local control API could not complete the request.'
 });
@@ -676,6 +676,7 @@ export function createControlApiServer({
   mcpStatsPath = path.resolve(sourceGraphRoot, '.local/mcp-stats.jsonl'),
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
+  recallMapRateLimiter = createLoginRateLimiter({ clock: () => Date.now(), limit: 60 }),
   policyService = null,
   clock = () => new Date().toISOString(),
   correlationIdFactory = () => `req_${randomUUID()}`,
@@ -814,6 +815,25 @@ export function createControlApiServer({
           query: context.query.query ?? '',
           clock
         });
+      case 'postRecallMap': {
+        const limit = recallMapRateLimiter.check({
+          remoteAddress: context.request.socket?.remoteAddress ?? 'unknown',
+          username: context.principal.user.id,
+          now: Date.now()
+        });
+        if (!limit.allowed) {
+          throw new ApiError(429, 'rate_limited', PUBLIC_MESSAGES.rate_limited, {
+            headers: { 'retry-after': String(limit.retryAfterSeconds) }
+          });
+        }
+        return buildRecallMap({
+          root: sourceGraphRoot,
+          workspaceId: context.workspaceId,
+          changedLocators: context.body.changedLocators,
+          query: context.body.query ?? '',
+          clock
+        });
+      }
       case 'getLoopWorkbench': {
         const state = await store.read();
         return withMemoryProvider(async (provider) => buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock(), memoryProvider: provider }));

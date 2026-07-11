@@ -35,7 +35,7 @@ const recallMapQuery = {
   type: 'string',
   minLength: 1,
   maxLength: 256,
-  pattern: '^[A-Za-z0-9][A-Za-z0-9 .,:_@+*#-]{0,255}$'
+  pattern: '^(?!/)(?!.*://)(?!.*\\\\)(?!.*(?:^|/)\\.\\.?(?:/|$))[A-Za-z0-9_$@~.,:/#*+ -]{1,256}$'
 };
 const event = {
   type: 'object',
@@ -187,6 +187,7 @@ export function createApiRouteContracts(limits = {}) {
     preflightContextPackMemory: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     intakeMemoryProposal: Math.min(limits.bodyBytes ?? 1_000_000, 12 * 1024),
     approveMemoryProposal: Math.min(limits.bodyBytes ?? 1_000_000, 2 * 1024),
+    recallMap: Math.min(limits.bodyBytes ?? 1_000_000, 12 * 1024),
     previewContextSources: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
     detectGitChanges: Math.min(limits.bodyBytes ?? 1_000_000, 1024),
     previewContextGraph: Math.min(limits.bodyBytes ?? 1_000_000, 16 * 1024),
@@ -505,6 +506,22 @@ export function createApiRouteContracts(limits = {}) {
     required: ['workspaceId'],
     maxProperties: 1,
     properties: { workspaceId }
+  };
+  const recallMapRequest = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['workspaceId', 'changedLocators'],
+    maxProperties: 3,
+    properties: {
+      workspaceId: recallMapWorkspaceId,
+      changedLocators: {
+        type: 'array',
+        maxItems: 16,
+        uniqueItems: true,
+        items: recallMapChangedLocator
+      },
+      query: recallMapQuery
+    }
   };
   const gitChangeDetectionSafeguards = {
     type: 'object',
@@ -1579,6 +1596,22 @@ export function createApiRouteContracts(limits = {}) {
       requestBodySchema: null,
       maxBodyBytes: 0,
       allowsBody: false,
+      streams: false,
+      responses: { 200: recallMapSchema }
+    },
+    {
+      method: 'POST',
+      path: '/api/recall/map',
+      operationId: 'postRecallMap',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'body', csrf: true },
+      pathParameters: {},
+      query: { additionalProperties: false, properties: {} },
+      headers: { contentType: 'application/json' },
+      requestMediaType: 'application/json',
+      requestBodySchema: recallMapRequest,
+      maxBodyBytes: routeBodyBytes.recallMap,
+      allowsBody: true,
+      bodyRequired: true,
       streams: false,
       responses: { 200: recallMapSchema }
     },

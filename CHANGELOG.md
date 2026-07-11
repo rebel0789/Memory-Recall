@@ -14,6 +14,8 @@ No breaking CLI migration is required. Local-only defaults, proposal-gated memor
 ### Changed
 
 - Replaced the fifteen-item dashboard navigation with a five-destination workbench, separated local workspace setup from Overview, and made Overview choose one deterministic scan, review, or handoff action from current local state.
+- Overview now hydrates bounded multi-file impact from current read-only git detection, preserves omitted-change evidence, reports degraded detection without claiming a clean tree, surfaces blocked handoffs, and exposes repository search with stable Map history and explicit failure states.
+- The repository bar now documents the one-repository-per-server boundary, and tablet navigation collapses to a semantic 72 px icon rail with accessible labels.
 - The preserved `skill:oaf-memory` compatibility package now documents current Memory Recall commands and removes unavailable legacy workflow guidance.
 - Public product copy now separates implemented semantic proposal generation from experimental direct API execution and from unsupported semantic retrieval.
 
@@ -22,10 +24,12 @@ No breaking CLI migration is required. Local-only defaults, proposal-gated memor
 - Semantic source reads use bounded descriptors, no-follow and containment checks, file-identity verification, mutation detection, secret filtering, and raw-byte hashes.
 - Direct API execution requires explicit network consent before environment credential access, permits HTTPS or literal-loopback HTTP endpoints only, makes one bounded request without retry or fallback, and validates untrusted output against a strict schema.
 - Bulk approval skips semantic proposals. Named CLI and authenticated Control API approval paths rehash all cited sources before any proposal claim or active-memory mutation.
+- Multi-locator Recall Map reads use strict request validation, a 16-locator cap, authenticated workspace authorization, same-origin and session CSRF checks, request throttling, and the existing no-write Recall Map response.
+- Recoverable local-auth failures keep passwords only in the live form control; bounded non-secret draft fields and the real API error remain visible without credential serialization.
 
 ### Internal
 
-- Release gates cover 650 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
+- Release gates cover 655 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
 
 ## [1.0.0] — 2026-07-08
 

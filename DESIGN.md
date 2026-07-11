@@ -37,7 +37,7 @@ Operational routes remain stable deep links. The primary navigation selects thei
 
 - Desktop: 216 px navigation rail, flexible content, optional 360 px inspector.
 - Desktop primary destinations: Overview, Map, Memory, Handoffs, Settings.
-- Tablet: retain the full 216 px labeled rail while inspectors collapse into the content flow.
+- Tablet: collapse the rail to 72 px semantic icons with accessible names while inspectors collapse into the content flow.
 - Mobile primary destinations: Overview, Map, Memory, Handoffs.
 - Prose max width: 76 characters.
 - Wide tables require visible overflow cues.
@@ -75,6 +75,8 @@ Do not label tool execution as “Thinking.”
 - External writes update after server confirmation.
 - Visible keyboard focus is mandatory.
 - Escape closes the topmost dismissible layer.
+- Global repository search keeps its bounded query in the `/map` URL so reload, back, and forward preserve the result.
+- One running local server is bound to one repository. The repository control explains how to start Memory Recall from another repository; it does not imply an in-process hot switch.
 
 ## Accessibility
 

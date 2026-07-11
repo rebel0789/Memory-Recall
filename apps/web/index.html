@@ -25,11 +25,23 @@
     </aside>
     <main id="main" tabindex="-1">
       <header class="repository-bar">
+        <details id="repository-menu" class="repository-menu">
+          <summary><span class="sr-only">Repository: </span><strong id="repository-name">Local workspace</strong></summary>
+          <div class="repository-popover">
+            <strong>Open another repository</strong>
+            <p>Memory Recall serves one local repository per running server.</p>
+            <code>cd /path/to/repository &amp;&amp; recall serve</code>
+          </div>
+        </details>
         <div class="repository-identity">
-          <strong id="repository-name">Local workspace</strong>
           <span id="repository-branch">Branch unavailable</span>
           <span id="repository-scan">Not scanned</span>
         </div>
+        <form id="global-search-form" class="global-search" role="search" action="/map">
+          <label class="sr-only" for="global-search-input">Search files, symbols, concepts, or paths</label>
+          <input id="global-search-input" name="query" type="search" maxlength="256" placeholder="Search repository" autocomplete="off">
+          <button type="submit">Search</button>
+        </form>
         <div class="repository-actions">
           <span id="repository-condition" class="condition" role="status">Loading</span>
           <a class="icon-link" href="/settings" data-route="settings">Settings</a>
