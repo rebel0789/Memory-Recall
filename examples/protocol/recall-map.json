@@ -1,8 +1,16 @@
 {
   "schemaVersion": "1.0.0",
-  "reportVersion": "memory-recall-map-1.0.0",
+  "reportVersion": "memory-recall-map-1.1.0",
   "workspaceId": "ws_local",
   "generatedAt": "2026-07-10T00:00:00.000Z",
+  "repository": {
+    "name": "memory-recall",
+    "branch": "main",
+    "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "dirtyCount": 0,
+    "gitStatusAvailable": true,
+    "reason": null
+  },
   "support": {
     "sourceGraph": {
       "status": "implemented",

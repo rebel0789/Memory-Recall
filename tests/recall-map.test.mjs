@@ -102,6 +102,13 @@ test('Recall Map composes bounded architecture and governed-memory truth without
   });
 
   assert.equal(assertJsonSchema(recallMapSchema, report, 'Recall Map'), report);
+  assert.equal(report.reportVersion, 'memory-recall-map-1.1.0');
+  assert.equal(report.repository.name, path.basename(root));
+  assert.equal(typeof report.repository.gitStatusAvailable, 'boolean');
+  assert.equal(Number.isInteger(report.repository.dirtyCount), true);
+  assert.equal(Object.hasOwn(report.repository, 'root'), false);
+  assert.equal(Object.hasOwn(report.repository, 'remoteUrl'), false);
+  assert.equal(JSON.stringify(report.repository).includes(root), false);
   assert.equal(report.safeguards.readOnly, true);
   assert.equal(report.safeguards.canonicalStateMutated, false);
   assert.equal(report.safeguards.rawSourceBodiesIncluded, false);

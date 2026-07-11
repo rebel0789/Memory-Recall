@@ -2,14 +2,16 @@ import { createHash } from 'node:crypto';
 import { lstat, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { stableStringify } from '../../protocol/src/index.mjs';
+import { inspectRepositoryIdentity } from '../../harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   buildSourceGraphPreview
 } from '../../source-graph/src/index.mjs';
 
-const REPORT_VERSION = 'memory-recall-map-1.0.0';
+const REPORT_VERSION = 'memory-recall-map-1.1.0';
 const WORKSPACE_ID = /^[a-z][a-z0-9_-]{0,127}$/u;
+const SAFE_REPOSITORY_NAME = /^[A-Za-z0-9._@+~(), -]{1,120}$/u;
 const SQLITE_LOCATOR = '.local/memory.sqlite';
 const MAX_FACTS = 20;
 const MAX_PROPOSALS = 20;
@@ -27,6 +29,22 @@ const SAFE_LOCATOR = new RegExp(`^workspace://${LOCATOR_SEGMENT}(?:/${LOCATOR_SE
 const LABEL_TOKEN = '[A-Za-z0-9_$@~./:#*+,-]+';
 const SAFE_LABEL = new RegExp(`^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)${LABEL_TOKEN}(?: (?:contains|defined_in|imports|exports|references|calls) ${LABEL_TOKEN})?$`, 'u');
 
+function safeRepositoryName(root) {
+  const candidate = path.basename(root).slice(0, 120);
+  return SAFE_REPOSITORY_NAME.test(candidate) ? candidate : 'Local workspace';
+}
+
+function summarizeRepository(workspace, identity) {
+  return {
+    name: safeRepositoryName(workspace.root),
+    branch: identity.branch,
+    commitSha: identity.commitSha,
+    dirtyCount: identity.dirtyCount,
+    gitStatusAvailable: identity.gitStatusAvailable,
+    reason: identity.reason
+  };
+}
+
 export async function buildRecallMap({
   root,
   workspaceId = 'ws_local',
@@ -41,6 +59,15 @@ export async function buildRecallMap({
   const workspace = await canonicalizeWorkspaceRoot(requestedRoot);
   const safeWorkspaceId = normalizeWorkspaceId(workspaceId);
   const generatedAt = normalizeTimestamp(clock());
+  const repositoryIdentity = workspace.status === 'available'
+    ? await inspectRepositoryIdentity({ root: workspace.root, clock: () => generatedAt })
+    : {
+        branch: null,
+        commitSha: null,
+        dirtyCount: 0,
+        gitStatusAvailable: false,
+        reason: 'workspace_unavailable'
+      };
   const safeQuery = normalizeQuery(query);
   const safeDepth = normalizeMapBoundedInteger(depth, DEFAULT_MAP_DEPTH, 1, 5, 'recall_map_depth_invalid');
   const requestedLimit = normalizeMapBoundedInteger(limit, DEFAULT_MAP_LIMIT, 1, MAX_MAP_REQUEST_LIMIT, 'recall_map_limit_invalid');
@@ -67,6 +94,7 @@ export async function buildRecallMap({
     reportVersion: REPORT_VERSION,
     workspaceId: safeWorkspaceId,
     generatedAt,
+    repository: summarizeRepository(workspace, repositoryIdentity),
     support: summarizeSupport(preview, memory),
     architecture,
     memory,

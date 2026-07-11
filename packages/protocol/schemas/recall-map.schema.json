@@ -5,12 +5,13 @@
   "description": "Read-only bounded developer-map report composed from the local static source graph and governed SQLite memory. It carries locator-safe summaries only and is not canonical memory authority.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "reportVersion", "workspaceId", "generatedAt", "support", "architecture", "memory", "readiness", "safeguards", "fingerprint"],
+  "required": ["schemaVersion", "reportVersion", "workspaceId", "generatedAt", "repository", "support", "architecture", "memory", "readiness", "safeguards", "fingerprint"],
   "properties": {
     "schemaVersion": { "const": "1.0.0" },
-    "reportVersion": { "const": "memory-recall-map-1.0.0" },
+    "reportVersion": { "const": "memory-recall-map-1.1.0" },
     "workspaceId": { "$ref": "#/$defs/workspaceId" },
     "generatedAt": { "type": "string", "format": "date-time" },
+    "repository": { "$ref": "#/$defs/repository" },
     "support": { "$ref": "#/$defs/support" },
     "architecture": { "$ref": "#/$defs/architecture" },
     "memory": { "$ref": "#/$defs/memory" },
@@ -22,6 +23,34 @@
     "workspaceId": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "branch", "commitSha", "dirtyCount", "gitStatusAvailable", "reason"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[A-Za-z0-9._@+~(), -]+$"
+        },
+        "branch": {
+          "type": ["string", "null"],
+          "maxLength": 160,
+          "pattern": "^[A-Za-z0-9._/@-]+$"
+        },
+        "commitSha": {
+          "type": ["string", "null"],
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "dirtyCount": { "type": "integer", "minimum": 0, "maximum": 200000 },
+        "gitStatusAvailable": { "type": "boolean" },
+        "reason": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        }
+      }
     },
     "fingerprint": {
       "type": "string",

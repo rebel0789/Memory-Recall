@@ -319,6 +319,12 @@ test('recall map API returns only the strict read-only report and rejects unsafe
   assert.equal(report.safeguards.localFilesWritten, 0);
   assert.equal(report.safeguards.canonicalStateMutated, false);
   assert.deepEqual(report.architecture.impact.changedLocators, ['workspace://apps/web/app.js']);
+  assert.equal(typeof report.repository.name, 'string');
+  assert.equal(Object.hasOwn(report.repository, 'root'), false);
+  assert.equal(Object.hasOwn(report.repository, 'changedPaths'), false);
+  assert.equal(Object.hasOwn(report.repository, 'diff'), false);
+  const sourceGraphRoot = process.cwd();
+  assert.equal(text.includes(sourceGraphRoot), false);
 
   for (const suffix of [
     'workspaceId=ws_local&changed=%2Fprivate%2Fvar%2Fdb.sqlite',
