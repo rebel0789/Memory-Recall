@@ -49,6 +49,7 @@ import {
   renderSourceGraphResult,
   renderLoopWorkbenchMemoryFlow,
   renderConsumerStartActions,
+  renderSetupScreen,
   renderContextPackTokenSaverSummary,
   renderMemoryIntakePanel,
   renderRecallMapHome,
@@ -57,6 +58,17 @@ import {
   summarizeRunSteps,
   writeClipboardText
 } from '../apps/web/app.js';
+
+test('setup is a focused workspace-security screen', () => {
+  const html = renderSetupScreen('bootstrap', 'Create the first local owner.');
+  assert.match(html, /Set up this workspace/);
+  assert.match(html, /Workspace security/);
+  assert.match(html, /Run the first scan after sign-in/);
+  assert.match(html, /id="auth-form"/);
+  assert.doesNotMatch(html, /Choose what you need first/);
+  assert.doesNotMatch(html, /Create handoff/);
+  assert.doesNotMatch(html, /Developer-first/i);
+});
 
 test('workbench navigation has five desktop and four mobile destinations', () => {
   assert.deepEqual(PRIMARY_NAV.map((item) => item.label), ['Overview', 'Map', 'Memory', 'Handoffs', 'Settings']);

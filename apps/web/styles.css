@@ -9,6 +9,19 @@ a{color:inherit}
 .skip-link{position:fixed;left:var(--space-xs);top:var(--space-xs);z-index:100;transform:translateY(-180%);min-height:44px;display:inline-flex;align-items:center;background:var(--color-ink);color:var(--color-canvas);padding:10px 14px;border-radius:var(--radius-control)}
 .skip-link:focus{transform:none}
 .app-shell{min-height:100vh;display:grid;grid-template-columns:var(--layout-rail) minmax(0,1fr)}
+.app-shell[data-setup="true"]{display:block}
+.app-shell[data-setup="true"] .sidebar,
+.app-shell[data-setup="true"] .repository-bar,
+.app-shell[data-setup="true"] .bottom-nav{display:none}
+.app-shell[data-setup="true"] #view-root{min-height:100vh;display:grid;place-items:center;padding:var(--space-md)}
+.setup-screen{width:min(880px,100%);display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,380px);gap:var(--space-xl);align-items:start}
+.setup-intro h1{margin:var(--space-2xs) 0;font-size:clamp(32px,5vw,52px);line-height:1.05;letter-spacing:-.035em}
+.setup-step{color:var(--color-muted)}
+.setup-sequence{margin:var(--space-lg) 0 0;padding:0;list-style:none;border-top:1px solid var(--color-rule)}
+.setup-sequence li{padding:var(--space-xs) 0;border-bottom:1px solid var(--color-rule);color:var(--color-muted)}
+.setup-sequence li[aria-current="step"]{color:var(--color-ink);font-weight:650}
+.setup-form{display:grid;gap:var(--space-sm);padding:var(--space-md);border:1px solid var(--color-rule);border-radius:var(--radius-panel);background:var(--color-panel)}
+.setup-note{margin:0;color:var(--color-muted);font-size:12px}
 .sidebar{position:sticky;top:0;height:100vh;display:grid;grid-template-rows:auto 1fr auto;gap:var(--space-md);padding:var(--space-md) var(--space-xs);border-right:1px solid var(--color-rule);background:var(--color-panel)}
 .brand{display:flex;align-items:center;gap:var(--space-xs);color:inherit;text-decoration:none;padding:0 var(--space-2xs);min-height:44px}
 .brand span{display:grid;line-height:1.2}
@@ -378,6 +391,7 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
 
 @media(max-width:700px){
   .app-shell{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;min-height:100dvh;height:100dvh;overflow:hidden}
+  .setup-screen{grid-template-columns:1fr;gap:var(--space-md)}
   .sidebar{display:none}
   main{min-height:0;overflow:auto}
   .repository-bar{min-height:56px;padding:var(--space-2xs) var(--space-xs)}

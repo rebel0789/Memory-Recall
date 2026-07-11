@@ -86,7 +86,7 @@ export function resolveRoute(input) {
 
 export function classifyDashboardState(value) {
   if (!value) return { kind:'loading', message:'Loading local workspace state.' };
-  if (value.error?.status === 503 && value.error?.code === 'bootstrap_required') return { kind:'setup', message:'Create the first local owner to unlock this workspace.' };
+  if (value.error?.status === 503 && value.error?.code === 'bootstrap_required') return { kind:'setup', message:'Set up local access before reading workspace state.' };
   if (value.error?.status === 401 || value.error?.status === 403) return { kind:'denied', message:'Sign in locally to view this workspace.' };
   if (value.error) return { kind:'error', message:value.error.message ?? 'Could not load local state.' };
   const runs = Array.isArray(value.runs) ? value.runs : [];
@@ -991,6 +991,10 @@ async function submitMemoryIntake(event) {
 
 function render() {
   const route=currentRoute();
+  const setupScreen = shellState.kind === 'setup' || shellState.kind === 'denied';
+  const appShell = document.querySelector('.app-shell');
+  if (setupScreen) appShell.dataset.setup='true';
+  else delete appShell.dataset.setup;
   renderNav(document.querySelector('#primary-nav'), 'rail');
   renderNav(document.querySelector('#mobile-nav'), 'bottom');
   renderRepositoryBar(route);
@@ -1160,8 +1164,8 @@ function pinnedHandoffCommands(targetHarness='codex',includeUsePlan=false) {
 }
 
 function renderRoute(route) {
-  if (shellState.kind === 'setup') return authPanel('bootstrap', shellState.message);
-  if (shellState.kind === 'denied') return deniedState();
+  if (shellState.kind === 'setup') return renderSetupScreen('bootstrap', 'Create a local owner before this browser can read workspace state.');
+  if (shellState.kind === 'denied') return renderSetupScreen('login', 'Use the local owner account for this workspace.');
   if (shellState.kind === 'error') return statePanel('error','Could not load local state', shellState.message, true);
   if (route.id === 'home') return renderHome();
   if (route.id === 'runs') return activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns();
@@ -2587,11 +2591,33 @@ function renderApiErrorRecovery(model) {
   return `${issues}${correlation}`;
 }
 function statePanel(kind,heading,copy,button=false,extra=''){return `<section class="state-panel state-${esc(kind)}" aria-live="${kind==='loading'?'polite':'off'}"><h2>${esc(heading)}</h2><p>${esc(copy)}</p>${extra}${button?'<div class="action-row"><button class="button primary" data-action="run" type="button">Run local demo</button><button class="button secondary" data-action="reset" type="button">Reset demo</button></div>':''}</section>`}
-function deniedState(){return authPanel('login','Sign in with the local owner account for this workspace.')}
-function authPanel(mode,copy){
-  const isBootstrap=mode==='bootstrap';
-  const title=isBootstrap?'Set up local owner':'Sign in locally';
-  return `<section class="surface consumer-start auth-start" aria-label="First-use actions"><div><p class="eyebrow">After sign-in</p><h2>Choose what you need first.</h2></div>${renderConsumerStartActions()}</section><section class="state-panel state-${isBootstrap?'setup':'denied'} auth-panel"><h2>${title}</h2><p>${esc(copy)}</p><form id="auth-form" data-mode="${mode}" autocomplete="on"><div class="field-grid"><label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap?'rebel':''}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>${isBootstrap?'<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>':''}<label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap?'new-password':'current-password'}" required minlength="12" maxlength="256"></label></div><div class="action-row"><button class="button primary" type="submit">${isBootstrap?'Create owner':'Sign in'}</button>${isBootstrap?'<span class="muted">Local-only. Stored in .local/identity with hashed credentials.</span>':'<span class="muted">No external network or fallback identity provider is used.</span>'}</div></form></section>`;
+export function renderSetupScreen(mode, copy) {
+  const isBootstrap = mode === 'bootstrap';
+  const title = isBootstrap ? 'Set up this workspace' : 'Sign in';
+  const submitLabel = isBootstrap ? 'Create local owner' : 'Sign in';
+  const displayName = isBootstrap
+    ? '<label class="field"><span>Display name</span><input name="displayName" autocomplete="name" value="Rebel" required maxlength="120"></label>'
+    : '';
+  return `<section class="setup-screen">
+    <div class="setup-intro">
+      <span class="setup-step">Workspace security</span>
+      <h1>${title}</h1>
+      <p>${esc(copy)}</p>
+      <ol class="setup-sequence">
+        <li aria-current="step">Secure local access</li>
+        <li>Run the first scan after sign-in</li>
+        <li>Connect a coding tool</li>
+        <li>Review proposed memory</li>
+      </ol>
+    </div>
+    <form id="auth-form" class="setup-form" data-mode="${mode}" autocomplete="on">
+      <label class="field"><span>Username</span><input name="username" autocomplete="username" value="${isBootstrap ? 'rebel' : ''}" required maxlength="80" pattern="[A-Za-z0-9._:\\-]{1,80}"></label>
+      ${displayName}
+      <label class="field"><span>Password</span><input name="password" type="password" autocomplete="${isBootstrap ? 'new-password' : 'current-password'}" required minlength="12" maxlength="256"></label>
+      <button class="button primary" type="submit">${submitLabel}</button>
+      <p class="setup-note">Credentials stay in this workspace and are stored as a password hash.</p>
+    </form>
+  </section>`;
 }
 function runList(items){if(!items?.length)return statePanel('empty','No runs yet','Execute the synthetic local workflow to populate the event ledger.',true);return `<div class="run-list">${items.map(run=>`<article class="run-row"><header><a href="${runDetailLink(run.id)}" data-run-id="${esc(run.id)}">${esc(run.workflowId)}</a>${statusChip(run.status,run.status,'Run status')}</header><p>${esc(run.objective??'')}</p><div class="meta-row"><span>Version: ${esc(run.workflowVersion??'unknown')}</span><span>Residency: ${esc(run.residency??'local-only')}</span><span>Current step: ${esc(currentStepLabel(run))}</span><span>Owner: local workspace</span><span>Warnings: ${Number(run.warningCount??0)}</span></div><div class="meta-row"><code>${esc(run.id)}</code><span>Started ${date(run.createdAt)}</span><span>${duration(run.createdAt,run.completedAt)}</span></div></article>`).join('')}</div>`}
 function contextSummary(manifest){if(!manifest)return '<div class="state-inline">No context has been compiled.</div>';const percent=Math.min(100,Math.round(manifest.budget.used/manifest.budget.available*100));return `<div class="section-heading"><h2>Context budget</h2><span>${percent}% used</span></div><strong>${manifest.budget.used} / ${manifest.budget.available} estimated tokens</strong><div class="progress" aria-label="${percent}% of context budget used"><span style="width:${percent}%"></span></div><p class="muted">${manifest.selected.length} selected · ${manifest.excluded.length} excluded · ${manifest.conflicts.length} conflicts</p>`}

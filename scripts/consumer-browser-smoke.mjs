@@ -48,12 +48,15 @@ try {
 
   const base = `http://127.0.0.1:${port}`;
   await page.goto(base, { waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'Create owner');
-  for (const label of ['Create handoff', 'Review memory', 'Inspect source graph']) await waitForText(page, label);
+  await waitForText(page, 'Set up this workspace');
+  await waitForText(page, 'Workspace security');
+  await waitForText(page, 'Run the first scan after sign-in');
+  await mustNotContain(page, 'Choose what you need first');
+  await mustNotContain(page, 'Developer-first');
   await page.fill('input[name="username"]', 'owner');
   await page.fill('input[name="displayName"]', 'Owner');
   await page.fill('input[name="password"]', password);
-  await page.getByRole('button', { name: 'Create owner' }).click();
+  await page.getByRole('button', { name: 'Create local owner' }).click();
   await waitForText(page, 'Index health');
   await waitForText(page, 'Supported coverage');
   await waitForText(page, 'Changed impact');
