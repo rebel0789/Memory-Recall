@@ -37,7 +37,6 @@ import {
   copyCommand,
   contextRecordLink,
   legacyViewPath,
-  navItems,
   normalizeMemorySourceFiles,
   parseSelectedFiles,
   harnessSetupClientsForUi,
@@ -92,19 +91,23 @@ function replaceGlobal(name,value) {
   };
 }
 
-test('web shell exposes stable path routes with legacy query compatibility',()=>{
-  assert.deepEqual(navItems.map(item=>item.path),['/','/runs','/workflows','/loop-workbench','/fabric-map','/context','/context-pack','/source-graph','/memory','/memory-graph','/evidence','/approvals','/content','/agents-tools','/settings']);
-  assert.equal(resolveRoute('http://127.0.0.1:4310/runs').id,'runs');
-  assert.equal(resolveRoute('http://127.0.0.1:4310/loop-workbench').id,'loop-workbench');
-  assert.equal(resolveRoute('http://127.0.0.1:4310/fabric-map').id,'fabric-map');
-  assert.equal(resolveRoute('http://127.0.0.1:4310/context?manifest=ctx_1').id,'context');
-  assert.equal(resolveRoute('http://127.0.0.1:4310/context-pack').id,'context-pack');
-  assert.equal(resolveRoute('http://127.0.0.1:4310/source-graph').id,'source-graph');
-  assert.equal(resolveRoute('http://127.0.0.1:4310/memory-graph').id,'memory-graph');
-  assert.equal(resolveRoute('http://127.0.0.1:4310/?view=evidence').id,'evidence');
-  assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id,'home');
-  assert.equal(legacyViewPath('design'),'/settings');
-  assert.equal(ROUTES.some(route=>route.id==='content'),true);
+test('web shell exposes primary aliases and preserves deep links', () => {
+  assert.equal(resolveRoute('http://127.0.0.1:4310/map').id, 'source-graph');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/handoffs').id, 'context-pack');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/source-graph').id, 'source-graph');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/context-pack').id, 'context-pack');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/runs').id, 'runs');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/?view=evidence').id, 'evidence');
+  assert.equal(resolveRoute('http://127.0.0.1:4310/not-a-route').id, 'home');
+  assert.equal(legacyViewPath('design'), '/settings');
+});
+
+test('web shell markup uses a repository bar and no duplicated hero header', async () => {
+  const html = await readFile(new URL('../apps/web/index.html', import.meta.url), 'utf8');
+  for (const id of ['repository-name', 'repository-branch', 'repository-scan', 'repository-condition']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.doesNotMatch(html, /id="page-eyebrow"/);
+  assert.doesNotMatch(html, /Developer-first local recall/i);
+  assert.doesNotMatch(html, /Next-Agent Handoff/);
 });
 
 test('first-use home exposes developer-first Recall Map actions',()=>{

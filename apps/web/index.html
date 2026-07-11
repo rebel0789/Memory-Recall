@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Developer-first local code and memory recall.">
+  <meta name="description" content="Local repository memory and context.">
   <title>Memory Recall</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/tokens.css">
@@ -13,31 +13,30 @@
   <a class="skip-link" href="#main">Skip to main content</a>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Primary navigation">
-      <a class="brand" href="/" data-route="home">
-        <img src="/favicon.svg" alt="" width="36" height="36">
-        <span><strong>Memory Recall</strong><small>Developer-first local recall</small></span>
+      <a class="brand" href="/" data-route="home" aria-label="Memory Recall overview">
+        <img src="/favicon.svg" alt="" width="28" height="28">
+        <span><strong>Memory Recall</strong><small>Local workspace</small></span>
       </a>
       <nav id="primary-nav" aria-label="Primary navigation"></nav>
-      <div class="local-card">
-        <span class="status-dot" aria-hidden="true"></span>
-        <div><strong>Local recall</strong><small>No external writes</small><small><a href="https://github.com/rebel0789/Memory-Recall/blob/main/docs/usage/oaf-compatibility.md">Legacy OAF identifiers</a></small></div>
+      <div class="local-state">
+        <span class="state-indicator" aria-hidden="true"></span>
+        <span><strong>Local</strong><small>External writes off</small></span>
       </div>
     </aside>
     <main id="main" tabindex="-1">
-      <header class="topbar">
-        <div class="title-block">
-          <p id="page-eyebrow" class="eyebrow">Developer-first / local</p>
-          <h1 id="page-title">Recall Map</h1>
-          <p id="page-description" class="page-description">A bounded local overview of code, governed memory, and the next-agent handoff.</p>
+      <header class="repository-bar">
+        <div class="repository-identity">
+          <strong id="repository-name">Local workspace</strong>
+          <span id="repository-branch">Branch unavailable</span>
+          <span id="repository-scan">Not scanned</span>
         </div>
-        <div class="top-actions">
-          <a id="context-pack-button" class="button primary" href="/context-pack" data-route="context-pack">Next-Agent Handoff</a>
-          <button id="refresh-map-button" class="button secondary" type="button">Refresh Recall Map</button>
+        <div class="repository-actions">
+          <span id="repository-condition" class="condition" role="status">Loading</span>
+          <a class="icon-link" href="/settings" data-route="settings">Settings</a>
         </div>
       </header>
-      <div id="shell-status" class="shell-status" aria-label="Local shell status"></div>
       <div id="live-status" class="sr-only" aria-live="polite"></div>
-      <div id="view-root"><section class="state-panel state-loading"><h2>Loading local state</h2><p>Checking the loopback control API for workspace data.</p></section></div>
+      <div id="view-root"><section class="state-panel state-loading"><h1>Loading workspace</h1><p>Reading local state.</p></section></div>
     </main>
     <nav id="mobile-nav" class="bottom-nav" aria-label="Mobile navigation"></nav>
   </div>

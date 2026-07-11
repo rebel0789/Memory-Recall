@@ -1,3 +1,5 @@
+import { navigationItemsFor, navigationOwner } from './shell-model.js';
+
 export const SHELL_STATES = new Set(['loading','setup','empty','error','denied','stale','partial','success']);
 
 const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
@@ -24,8 +26,11 @@ export const ROUTES = [
 
 const routeById = new Map(ROUTES.map(route=>[route.id,route]));
 const routeByPath = new Map(ROUTES.map(route=>[route.path,route]));
+const routeAliases = new Map([
+  ['/map', 'source-graph'],
+  ['/handoffs', 'context-pack']
+]);
 const legacyViews = new Map([['home','/'],['runs','/runs'],['context','/context'],['evidence','/evidence'],['memory','/memory'],['design','/settings']]);
-export const navItems = ROUTES;
 export const CONSUMER_START_ACTIONS = [
   { label:'Create handoff', detail:'Prepare a bounded packet for the next coding agent.', route:'/context-pack', routeId:'context-pack' },
   { label:'Review memory', detail:'Inspect active and pending governed facts.', route:'/memory', routeId:'memory' },
@@ -74,6 +79,8 @@ export function resolveRoute(input) {
   const legacy = url.searchParams.get('view');
   if (legacy) return routeByPath.get(legacyViewPath(legacy)) ?? routeById.get('home');
   const normalized = url.pathname !== '/' && url.pathname.endsWith('/') ? url.pathname.slice(0,-1) : url.pathname;
+  const aliasRouteId = routeAliases.get(normalized);
+  if (aliasRouteId) return routeById.get(aliasRouteId);
   return routeByPath.get(normalized) ?? routeById.get('home');
 }
 
@@ -984,12 +991,9 @@ async function submitMemoryIntake(event) {
 
 function render() {
   const route=currentRoute();
-  document.querySelector('#page-title').textContent=route.title;
-  document.querySelector('#page-eyebrow').textContent=route.eyebrow;
-  document.querySelector('#page-description').textContent=route.description;
   renderNav(document.querySelector('#primary-nav'), 'rail');
   renderNav(document.querySelector('#mobile-nav'), 'bottom');
-  renderStatusBar();
+  renderRepositoryBar(route);
   const root=document.querySelector('#view-root');
   root.dataset.state=visibleShellState(route).kind;
   root.innerHTML = shellState.kind === 'loading'
@@ -1030,23 +1034,24 @@ function render() {
 }
 
 function renderNav(container, mode) {
-  container.innerHTML = navItems.map(item=>`<a href="${item.path}" data-route="${item.id}"${currentRoute().id===item.id?' aria-current="page"':''}><span class="nav-code" aria-hidden="true">${item.label.slice(0,2)}</span><span>${item.label}</span></a>`).join('');
-  container.dataset.mode=mode;
+  const currentOwner = navigationOwner(currentRoute().id);
+  container.innerHTML = navigationItemsFor(mode).map((item) => `
+    <a href="${item.path}" data-route="${item.routeId}"${currentOwner === item.id ? ' aria-current="page"' : ''}>
+      <span class="nav-mark" aria-hidden="true"></span>
+      <span>${item.label}</span>
+    </a>`).join('');
+  container.dataset.mode = mode;
 }
 
-function renderStatusBar() {
-  const metrics=dashboard?.metrics ?? {};
-  const status=visibleShellState();
-  const label=shellStatusLabel({ network:'deny', externalWrites:false, modelMode:'deterministic' });
-  document.querySelector('#shell-status').innerHTML=[
-    statusChip(status.kind, status.kind, status.message),
-    statusChip('local','Local-only','Data residency'),
-    statusChip('network','Network denied','Default posture'),
-    statusChip('writes','External writes disabled','Policy gate'),
-    statusChip('model','Deterministic model','Offline default'),
-    statusChip('approvals',`${Number(metrics.pendingApprovals??0)} pending approvals`,'Approval inbox')
-  ].join('');
-  document.querySelector('#shell-status').setAttribute('aria-label', label);
+function renderRepositoryBar(route) {
+  const repository = recallMap?.repository ?? null;
+  const condition = visibleShellState(route);
+  document.querySelector('#repository-name').textContent = repository?.name ?? 'Local workspace';
+  document.querySelector('#repository-branch').textContent = repository?.branch ?? 'Branch unavailable';
+  document.querySelector('#repository-scan').textContent = recallMap?.generatedAt ? `Scanned ${date(recallMap.generatedAt)}` : 'Not scanned';
+  const conditionNode = document.querySelector('#repository-condition');
+  conditionNode.textContent = condition.kind;
+  conditionNode.dataset.state = condition.kind;
 }
 
 function visibleShellState(route=currentRoute()) {
