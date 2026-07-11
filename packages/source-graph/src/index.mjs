@@ -1,9 +1,16 @@
-import path from 'node:path';
 import { estimateTokens, hashRef, stableStringify } from '../../context-compiler/src/index.mjs';
+import { validateJsonSchema } from '../../protocol/src/schema-validator.mjs';
+import {
+  normalizeSourceGraphWorkspaceLocator,
+  SOURCE_GRAPH_WORKSPACE_ID_RE
+} from '../../protocol/src/source-graph-locator.mjs';
+import sourceGraphSchema from '../../protocol/schemas/source-graph.schema.json' with { type: 'json' };
 import {
   buildJsTsSourceGraph,
   mapSourceGraphDiffImpact,
+  rankArchitectureNodes,
   searchSourceGraph,
+  sanitizeSourceGraphPublicOutput,
   traceSourceGraph
 } from '../../../providers/native/context-candidate-ast-code/src/index.mjs';
 
@@ -11,11 +18,9 @@ const PREVIEW_VERSION = 'oaf-source-graph-preview-1.0.0';
 export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 512 * 1024;
 export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES = 1000;
 const MAX_CHANGED_LOCATORS = 16;
-const WORKSPACE_ID = /^[a-z][a-z0-9_-]{0,127}$/u;
 const NODE_KINDS = new Set(['file', 'chunk', 'symbol', 'module']);
 const EDGE_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
 const TRACE_DIRECTIONS = new Set(['outbound', 'inbound', 'both']);
-const FORBIDDEN_LOCATOR_PARTS = new Set(['Users', 'private']);
 
 export async function buildSourceGraphPreview({
   root,
@@ -61,6 +66,7 @@ export async function buildSourceGraphPreview({
       maxFileBytes: boundedMaxFileBytes,
       clock: () => generatedAt
     });
+    assertFacadeSafeSourceGraph(graph);
   } catch (error) {
     return unavailableSourceGraphPreview({
       workspaceId: safeWorkspaceId,
@@ -78,6 +84,11 @@ export async function buildSourceGraphPreview({
       errorCode: safeSourceGraphErrorCode(error)
     });
   }
+  const ranking = rankArchitectureNodes(graph, {
+    changedLocators: normalizedChangedLocators,
+    query,
+    limit: 25
+  });
   const search = searchSourceGraph(graph, {
     query,
     nodeKinds: normalizedNodeKinds,
@@ -105,7 +116,7 @@ export async function buildSourceGraphPreview({
       limit: boundedLimit
     })
     : null;
-  const compact = compactGraph(graph, boundedSampleLimit);
+  const compact = compactGraph(graph, boundedSampleLimit, ranking);
 
   return Object.freeze({
     schemaVersion: '1.0.0',
@@ -133,23 +144,44 @@ export async function buildSourceGraphPreview({
   });
 }
 
-function compactGraph(graph, sampleLimit) {
+function compactGraph(graph, sampleLimit, ranking = null) {
+  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
+  const summary = ranking
+    ? Object.freeze({
+      ...graph.summary,
+      entryPoints: ranking.entryPoints,
+      hotspots: ranking.hotspots,
+      deprioritized: ranking.deprioritized
+    })
+    : graph.summary;
   return Object.freeze({
-    schemaVersion: graph.schemaVersion,
-    workspaceId: graph.workspaceId,
-    graphVersion: graph.graphVersion,
-    parserVersion: graph.parserVersion,
-    builtAt: graph.builtAt,
-    sourceIndexFingerprint: graph.sourceIndexFingerprint,
-    graphFingerprint: graph.graphFingerprint,
-    summary: graph.summary,
-    diagnostics: graph.diagnostics,
+    schemaVersion: publicGraph.schemaVersion,
+    workspaceId: publicGraph.workspaceId,
+    graphVersion: publicGraph.graphVersion,
+    parserVersion: publicGraph.parserVersion,
+    builtAt: publicGraph.builtAt,
+    sourceIndexFingerprint: publicGraph.sourceIndexFingerprint,
+    graphFingerprint: publicGraph.graphFingerprint,
+    summary,
+    diagnostics: publicGraph.diagnostics,
     sampleLimit,
-    sampleNodes: graph.nodes.slice(0, sampleLimit),
-    sampleEdges: graph.edges.slice(0, sampleLimit),
-    omittedNodes: Math.max(0, graph.nodes.length - sampleLimit),
-    omittedEdges: Math.max(0, graph.edges.length - sampleLimit)
+    sampleNodes: publicGraph.nodes.slice(0, sampleLimit),
+    sampleEdges: publicGraph.edges.slice(0, sampleLimit),
+    omittedNodes: Math.max(0, publicGraph.nodes.length - sampleLimit),
+    omittedEdges: Math.max(0, publicGraph.edges.length - sampleLimit)
   });
+}
+
+function assertFacadeSafeSourceGraph(graph) {
+  if (!validateJsonSchema(sourceGraphSchema, graph).valid) throw new Error('source_graph_preview_graph_invalid');
+  const publicOutput = sanitizeSourceGraphPublicOutput(graph);
+  if (!publicOutput.completeEnvelope || !publicOutput.diagnosticsComplete) throw new Error('source_graph_preview_graph_invalid');
+  if (publicOutput.workspaceId !== graph.workspaceId
+    || publicOutput.graphFingerprint !== graph.graphFingerprint
+    || publicOutput.sourceIndexFingerprint !== graph.sourceIndexFingerprint
+    || publicOutput.nodes.length !== graph.nodes.length
+    || publicOutput.edges.length !== graph.edges.length
+    || publicOutput.diagnostics.length !== graph.diagnostics.length) throw new Error('source_graph_preview_graph_invalid');
 }
 
 function unavailableSourceGraphPreview({
@@ -305,7 +337,7 @@ function safeDiagnosticCode(value) {
 
 function normalizeWorkspaceId(value) {
   const normalized = String(value ?? '').trim();
-  if (!WORKSPACE_ID.test(normalized)) throw new Error('source_graph_preview_workspace_invalid');
+  if (!SOURCE_GRAPH_WORKSPACE_ID_RE.test(normalized)) throw new Error('source_graph_preview_workspace_invalid');
   return normalized;
 }
 
@@ -320,7 +352,7 @@ function normalizeKinds(values, allowed, code) {
 function normalizeChangedLocators(values) {
   if (values === null || values === undefined || values === '') return [];
   const list = Array.isArray(values) ? values : String(values).split(',');
-  const locators = [...new Set(list.map((item) => normalizeWorkspaceLocator(item)).filter(Boolean))].sort();
+  const locators = [...new Set(list.map((item) => normalizeWorkspaceLocator(item, { stripFragment: true })).filter(Boolean))].sort();
   if (locators.length > MAX_CHANGED_LOCATORS) throw new Error('changed_context_too_many_locators');
   return locators;
 }
@@ -329,18 +361,12 @@ function normalizeLocatorPrefix(value) {
   return normalizeWorkspaceLocator(value);
 }
 
-function normalizeWorkspaceLocator(value) {
-  const raw = String(value ?? '').trim();
-  if (!raw) return '';
-  if (raw.length > 512 || /\s/u.test(raw) || raw.includes('\\')) throw new Error('source_graph_preview_locator_invalid');
-  const withoutHash = raw.split('#')[0];
-  const relative = withoutHash.startsWith('workspace://')
-    ? withoutHash.slice('workspace://'.length)
-    : withoutHash.replace(/^\.\//u, '');
-  const parts = relative.split('/').filter(Boolean);
-  if (!relative || path.posix.isAbsolute(relative) || relative.startsWith('/') || parts.includes('..')) throw new Error('source_graph_preview_locator_invalid');
-  if (parts.some((part) => FORBIDDEN_LOCATOR_PARTS.has(part)) || relative.startsWith('var/folders/')) throw new Error('source_graph_preview_locator_invalid');
-  return `workspace://${parts.join('/')}`;
+function normalizeWorkspaceLocator(value, options = undefined) {
+  try {
+    return normalizeSourceGraphWorkspaceLocator(value, options);
+  } catch {
+    throw new Error('source_graph_preview_locator_invalid');
+  }
 }
 
 function boundedInteger(value, code, min, max) {

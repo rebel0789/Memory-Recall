@@ -1764,6 +1764,16 @@ export class SQLiteMemoryProvider {
     `).all(workspaceId, boundedLimit).map(rowToQueueRecord);
   }
 
+  async getProposalQueueRecord({ workspaceId, id } = {}) {
+    if (!workspaceId) throw new Error('workspaceId is required');
+    if (!QUEUE_ID_PATTERN.test(id ?? '')) throw new Error('queue id must be a safe mpq_ identifier');
+    return rowToQueueRecord(this.database.prepare(`
+      SELECT *
+      FROM memory_proposal_queue
+      WHERE workspace_id = ? AND id = ?
+    `).get(workspaceId, id));
+  }
+
   close() { this.database.close(); }
 }
 

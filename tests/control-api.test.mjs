@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { Readable, Writable } from 'node:stream';
@@ -7,10 +8,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { runAuthBootstrapCli } from '../scripts/auth-bootstrap.mjs';
 import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
+import recallMapSchema from '../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };
+import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 
 let child;
 let base;
 let temp;
+let latestAuth = null;
 
 async function bootstrapIdentity(dataDir) {
   let stderr = '';
@@ -167,7 +171,29 @@ async function login() {
   });
   assert.equal(response.status, 200, await response.text());
   const cookie = cookieHeader(response.headers);
-  return { cookie, csrf: csrfFromCookie(cookie) };
+  latestAuth = { cookie, csrf: csrfFromCookie(cookie) };
+  return latestAuth;
+}
+
+async function getWithRawBody(pathname, { cookie, body }) {
+  const payload = String(body ?? '');
+  return new Promise((resolve, reject) => {
+    const request = http.request(`${base}${pathname}`, {
+      method: 'GET',
+      headers: {
+        cookie,
+        'content-type': 'application/json',
+        'content-length': Buffer.byteLength(payload)
+      }
+    }, (response) => {
+      let text = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { text += chunk; });
+      response.on('end', () => resolve({ status: response.statusCode, body: JSON.parse(text) }));
+    });
+    request.on('error', reject);
+    request.end(payload);
+  });
 }
 
 test.before(async () => {
@@ -275,6 +301,44 @@ test('memory graph route serves governed current and temporal history graph', as
   assert(focused.focus.nodes.some((node) => node.name === 'MemoryBackendPort'));
   assert(focused.focus.edges.some((edge) => edge.predicate === 'implements_port'));
   assert.equal(focused.safeguards.readOnly, true);
+});
+
+test('recall map API returns only the strict read-only report and rejects unsafe input', async () => {
+  const unauthenticated = await fetch(`${base}/api/recall/map?workspaceId=ws_local`);
+  assert.equal(unauthenticated.status, 401);
+  const auth = latestAuth ?? await login();
+  const response = await fetch(`${base}/api/recall/map?workspaceId=ws_local&changed=apps%2Fweb%2Fapp.js&query=auth`, {
+    headers: { cookie: auth.cookie }
+  });
+  const text = await response.text();
+  assert.equal(response.status, 200, text);
+  const report = JSON.parse(text);
+  assert.equal(validateJsonSchema(recallMapSchema, report).valid, true);
+  assert.equal(Object.hasOwn(report, 'command'), false);
+  assert.equal(report.safeguards.readOnly, true);
+  assert.equal(report.safeguards.localFilesWritten, 0);
+  assert.equal(report.safeguards.canonicalStateMutated, false);
+  assert.deepEqual(report.architecture.impact.changedLocators, ['workspace://apps/web/app.js']);
+
+  for (const suffix of [
+    'workspaceId=ws_local&changed=%2Fprivate%2Fvar%2Fdb.sqlite',
+    'workspaceId=ws_local&changed=..%2Fmemory.sqlite',
+    'workspaceId=ws_local&changed=apps%2Fweb%2Fapp.js&query=file%3A%2F%2F%2Fprivate%2Fvar%2Fdb.sqlite',
+    'workspaceId=ws_local&write=true',
+    'workspaceId=ws_local&sqlite=.local%2Fother.sqlite'
+  ]) {
+    const rejected = await fetch(`${base}/api/recall/map?${suffix}`, { headers: { cookie: auth.cookie } });
+    const rejectedBody = await rejected.json();
+    assert.equal(rejected.status, 400, suffix);
+    assert.equal(rejectedBody.error.code, 'request_validation_failed', suffix);
+  }
+
+  const bodyRejected = await getWithRawBody('/api/recall/map?workspaceId=ws_local', {
+    cookie: auth.cookie,
+    body: JSON.stringify({ changedLocators: ['apps/web/app.js'] })
+  });
+  assert.equal(bodyRejected.status, 400);
+  assert.equal(bodyRejected.body.error.code, 'request_validation_failed');
 });
 
 test('memory cockpit approval endpoint promotes one pending proposal', async () => {

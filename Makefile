@@ -28,4 +28,4 @@ manifest:
 verify:
 	npm run verify:handoff
 clean:
-	rm -rf .local .env node_modules coverage HANDOFF_VERIFICATION.json REPOSITORY_MANIFEST.json
+	rm -rf node_modules coverage

@@ -20,6 +20,20 @@ const releaseFiles = [
 
 const excludedDirs = new Set(['.git', '.local', '.scratch', 'node_modules', 'coverage', 'graphify-out', 'target']);
 const binaryExtensions = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.zip']);
+const publicEvidencePages = [
+  {
+    title: 'Support matrix',
+    path: 'docs/usage/support-matrix.md',
+    link: '../usage/support-matrix.md',
+    scope: 'Implemented, experimental, and unsupported client paths with reversal boundaries.'
+  },
+  {
+    title: 'Benchmark proof',
+    path: 'docs/benchmarks.md',
+    link: '../benchmarks.md',
+    scope: 'Public local claims, datasets, baselines, commands, artifacts, and limitations.'
+  }
+];
 
 async function readJson(root, relative) {
   return JSON.parse(await readFile(path.join(root, relative), 'utf8'));
@@ -47,6 +61,17 @@ async function walk(root, directory = root) {
 async function sha256File(root, relative) {
   const body = await readFile(path.join(root, relative));
   return createHash('sha256').update(body).digest('hex');
+}
+
+async function collectPublicEvidence(root, files) {
+  const pages = [];
+  for (const page of publicEvidencePages) {
+    if (!files.includes(page.path)) throw new Error(`Missing required public evidence page: ${page.path}`);
+    const body = await readFile(path.join(root, page.path), 'utf8');
+    if (!body.includes('Memory Recall')) throw new Error(`Public evidence page must identify Memory Recall: ${page.path}`);
+    pages.push({ ...page, sha256: `sha256:${createHash('sha256').update(body).digest('hex')}` });
+  }
+  return pages;
 }
 
 function markdownList(items) {
@@ -121,6 +146,7 @@ async function collectWorkflowEvidence(root, files) {
   const backlog = await readJson(root, 'planning/backlog.json');
   const capabilities = new Map(projectStatus.capabilities.map((capability) => [capability.id, capability]));
   const commands = new Set(projectStatus.qualitySnapshot?.commands ?? []);
+  const publicEvidence = await collectPublicEvidence(root, files);
   return {
     project: packageJson.name,
     version: packageJson.version,
@@ -162,6 +188,7 @@ async function collectWorkflowEvidence(root, files) {
     publishing: capabilities.get('publishing.external'),
     operations: capabilities.get('operations.recovery'),
     protocolBridge: capabilities.get('protocol.mcp-bridge'),
+    publicEvidence,
     filesInspectedForRelease: files.length
   };
 }
@@ -200,9 +227,9 @@ async function placeholderAudit(root, files) {
 function releaseReadinessSummary(evidence, adapters, placeholderResult) {
   const enabledAdapters = adapters.filter((adapter) => adapter.enabledByDefault);
   return {
-    status: 'release-candidate-ready-for-human-approval',
+    status: 'release-evidence-ready-for-maintainer-merge',
     publicationStatus: 'npm-published',
-    finalMergeStatus: 'merged-to-main',
+    finalMergeStatus: 'maintainer-merge-required',
     humanApprovalRequired: true,
     signing: {
       status: 'not-configured-in-repository',
@@ -222,7 +249,7 @@ function releaseReadinessSummary(evidence, adapters, placeholderResult) {
 function buildSbom(evidence, packages, providers, adapters) {
   return {
     schemaVersion: '1.0.0',
-    format: 'oaf-release-readiness-sbom',
+    format: 'memory-recall-release-readiness-sbom',
     releaseCandidate: '1.0-readiness',
     project: evidence.project,
     packageVersion: evidence.version,
@@ -230,14 +257,14 @@ function buildSbom(evidence, packages, providers, adapters) {
     packages,
     nativeProviders: providers,
     externalAdapters: adapters,
-    generatedBy: `@open-agent-fabric/release-readiness ${RELEASE_READINESS_VERSION}`
+    generatedBy: `memory-recall/release-readiness ${RELEASE_READINESS_VERSION}`
   };
 }
 
 function buildMarketplaceManifest(evidence) {
   return {
     schemaVersion: '1.0.0',
-    manifestKind: 'oaf-marketplace-submission',
+    manifestKind: 'memory-recall-marketplace-submission',
     status: 'prepared-not-submitted',
     name: 'Memory Recall',
     package: {
@@ -271,12 +298,12 @@ function buildMarketplaceManifest(evidence) {
 
 async function buildProvenance(root, evidence, files, outputs) {
   const sourceHashes = {};
-  for (const relative of ['package.json', 'package-lock.json', 'PROJECT_STATUS.json', 'planning/backlog.json', 'adapters/catalog.json', 'THIRD_PARTY.md', 'SECURITY.md', 'GOVERNANCE.md']) {
+  for (const relative of ['package.json', 'package-lock.json', 'PROJECT_STATUS.json', 'planning/backlog.json', 'adapters/catalog.json', 'docs/usage/support-matrix.md', 'docs/benchmarks.md', 'THIRD_PARTY.md', 'SECURITY.md', 'GOVERNANCE.md']) {
     if (files.includes(relative)) sourceHashes[relative] = `sha256:${await sha256File(root, relative)}`;
   }
   return {
     schemaVersion: '1.0.0',
-    predicateType: 'https://openagentfabric.dev/provenance/release-readiness/v1',
+    predicateType: 'https://github.com/rebel0789/Memory-Recall/provenance/release-readiness/v1',
     subject: {
       name: evidence.project,
       version: evidence.version,
@@ -284,7 +311,7 @@ async function buildProvenance(root, evidence, files, outputs) {
     },
     buildType: 'local-deterministic-source-readiness',
     builder: {
-      id: '@open-agent-fabric/release-readiness',
+      id: 'memory-recall/release-readiness',
       version: RELEASE_READINESS_VERSION,
       node: '>=22',
       platform: 'current-runner',
@@ -297,6 +324,7 @@ async function buildProvenance(root, evidence, files, outputs) {
       mergePerformedByThisTask: false
     },
     sourceHashes,
+    publicEvidence: evidence.publicEvidence.map(({ path: relative, sha256 }) => ({ path: relative, sha256 })),
     generatedFiles: outputs
   };
 }
@@ -317,12 +345,11 @@ function publicAdapterName(adapter, index) {
 }
 
 function readinessReport(evidence, summary) {
-  const nextTask = evidence.nextTask ?? 'none; checked-in backlog complete';
   return `# 1.0 Readiness Report
 
 Status: ${summary.status}
 
-Publication state: ${summary.publicationStatus}. The release-candidate branch is merged to main, npm metadata is publish-ready, and each new npm version still requires explicit maintainer approval.
+Publication state: ${summary.publicationStatus}. This evidence is prepared for a maintainer merge; this task performs neither a branch merge nor a package publish. Each new npm version still requires explicit maintainer approval.
 
 ## Distribution State
 
@@ -333,8 +360,6 @@ ${distributionStateTable()}
 ${table(['Area', 'Evidence'], [
   ['Release', evidence.release],
   ['Phase', evidence.phase],
-  ['Completed backlog tasks', `${evidence.completedTasks}/${evidence.taskCount}`],
-  ['Backlog status task', `${nextTask} (canonical 30-task release backlog; OAF-031 preview work is branch-local)`],
   ['Network default', evidence.defaults.network],
   ['External writes', String(evidence.defaults.externalWrites)],
   ['Model mode', evidence.defaults.modelMode],
@@ -344,6 +369,18 @@ ${table(['Area', 'Evidence'], [
   ['Recorded evaluation assertions', String(evidence.expectedCounts.evaluations)],
   ['Quality snapshot note', evidence.expectedCounts.note]
 ])}
+
+## Public Product Evidence
+
+${table(['Page', 'Scope', 'Revision fingerprint'], evidence.publicEvidence.map((page) => [
+  `[${page.title}](${page.link})`,
+  `\`${page.path}\`: ${page.scope}`,
+  `\`${page.sha256}\``
+]))}
+
+The support matrix is the public contract for install and reversal paths. The
+benchmark page is the public source of truth for local measurement claims and
+their limitations. Regenerate this evidence whenever either page changes.
 
 ## Required Final Gates
 
@@ -502,6 +539,17 @@ ${table(['Gate', 'Expected Count'], [
   ['Protocol fixtures', String(evidence.expectedCounts.protocol)],
   ['Evaluation assertions', String(evidence.expectedCounts.evaluations)]
 ])}
+
+## Public Claim Evidence
+
+${table(['Page', 'Scope', 'SHA-256'], evidence.publicEvidence.map((page) => [
+  `\`${page.path}\``,
+  page.scope,
+  `\`${page.sha256}\``
+]))}
+
+Regenerate these release artifacts after changing either public page so support
+boundaries and benchmark limitations remain tied to the same reviewed source.
 `;
 }
 
@@ -548,7 +596,7 @@ function releaseChecklist(summary) {
 
 ## Completed For Release Candidate
 
-- [x] Version, changelog, status, roadmap, and docs reviewed for OAF-030.
+- [x] Version, changelog, status, public support, benchmark proof, and docs reviewed for the Memory Recall release foundation.
 - [x] CI, protocol, tests, evaluations, demo, native smoke, operations smoke, bounded tool smoke, durable workflow smoke, and handoff verification are required final gates.
 - [x] Repository manifest and source archive checksum procedure documented.
 - [x] SBOM and provenance evidence generated.
@@ -557,6 +605,8 @@ function releaseChecklist(summary) {
 - [x] Migration, backup, restore, upgrade, and rollback evidence linked.
 - [x] Consumer-simple gates are runnable with \`npm run consumer:smoke\`: temp HOME install proof, real MCP client smoke, local web/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene.
 - [x] Optional rendered browser proof is runnable with \`npm run consumer:browser-smoke\`: Playwright-driven bootstrap, Connect, Token Saver, Add Memory, Memory Graph temporal history, Repo Map, console-error, and mobile overflow checks against a temp workspace.
+- [x] \`make clean\` removes only rebuildable dependencies and coverage; it preserves \`.local\`, \`.env\`, and checked-in release evidence.
+- [x] No Memory Recall command deletes \`.local\`; any future deletion flow must first provide \`recall uninstall --dry-run\`, which is not available today.
 - [x] Manual npm publish workflow is prepared with typed confirmation, protected environment, release gates, dry run, Trusted Publishing/OIDC preference, and explicit token fallback.
 - [x] External-write defaults remain off.
 - [x] Owner URLs and contacts use repository-specific GitHub ownership.
@@ -589,6 +639,7 @@ export async function buildReleaseReadinessArtifacts(root = process.cwd()) {
   return {
     summary,
     placeholderResult,
+    publicEvidence: evidence.publicEvidence,
     files: {
       '1.0-READINESS-REPORT.md': readinessReport(evidence, summary),
       '1.0-NORTH-STAR-GAP-AUDIT.md': northStarAudit(),
@@ -623,5 +674,11 @@ export async function verifyReleaseReadinessArtifacts(root = process.cwd()) {
     const actual = await readFile(path.join(root, relative), 'utf8').catch(() => null);
     if (actual !== expected) drift.push(relative);
   }
-  return { ok: drift.length === 0 && artifacts.placeholderResult.passed, drift, placeholderResult: artifacts.placeholderResult, summary: artifacts.summary };
+  return {
+    ok: drift.length === 0 && artifacts.placeholderResult.passed,
+    drift,
+    placeholderResult: artifacts.placeholderResult,
+    publicEvidence: artifacts.publicEvidence,
+    summary: artifacts.summary
+  };
 }

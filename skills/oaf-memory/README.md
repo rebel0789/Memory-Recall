@@ -1,32 +1,22 @@
-# OAF Memory Mapper
+# Memory Recall Semantic Setup
 
-Use this skill in Claude Code, Cursor, or Codex by copying `skills/oaf-memory/SKILL.md` into that client’s skill/rules folder, then invoke `/oaf-memory` in the target repo.
+`skill:oaf-memory` is the preserved compatibility ID for the governed semantic
+setup procedure. Existing `/oaf-memory` and OAF-named triggers still select it.
 
-The host agent reads the repo, shows a dry-run review, and writes `facts.json`. OAF records the reviewed map locally, behind the proposal gate:
+The default harness flow is:
 
 ```bash
-oaf memory remember --batch facts.json --root . --sqlite .local/memory.sqlite --format json
-oaf memory review --root . --sqlite .local/memory.sqlite --format json
-oaf memory approve --all-from workspace://DECISIONS.md --root . --sqlite .local/memory.sqlite --format json
-oaf memory search "token expiry" --root . --sqlite .local/memory.sqlite --format json
+recall semantic plan --harness codex --root . --dry-run
+recall semantic task --harness codex --root .
+recall semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite
+recall memory review --root . --sqlite .local/memory.sqlite --format summary
+recall memory approve <mpq_id> --root . --sqlite .local/memory.sqlite --format json
 ```
 
-Schema:
+The plan is local and body-free. The task prints the bounded source packet; the
+currently active agent executes it and saves strict result JSON. The CLI does
+not invoke a harness. Import creates pending proposals only, bulk approval skips
+them, and named approval rehashes every cited source.
 
-```json
-{
-  "facts": [
-    {
-      "subject": "auth",
-      "predicate": "decision",
-      "object": "token_expiry = 15 minutes",
-      "confidence": "extracted",
-      "source": "workspace://DECISIONS.md",
-      "supersedes": { "subject": "auth", "predicate": "decision" },
-      "notes": "replaces 60 minutes"
-    }
-  ]
-}
-```
-
-`confidence` is `extracted`, `inferred`, or `ambiguous` and defaults to `extracted`. `source` must be a `workspace://` path inside `--root`. Unsafe facts are skipped; OAF makes no model calls.
+See [Semantic setup](../../docs/usage/semantic-setup.md) for the direct API path,
+packet limits, result schema, review flow, and failure handling.

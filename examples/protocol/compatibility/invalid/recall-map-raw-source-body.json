@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-map-1.0.0",
+  "workspaceId": "ws_local",
+  "generatedAt": "2026-07-10T00:00:00.000Z",
+  "support": {
+    "sourceGraph": {
+      "status": "implemented",
+      "languages": ["javascript", "typescript"],
+      "coverage": { "status": "partial", "analyzedFileCount": 1, "maxFiles": 1000, "maxFileBytes": 524288, "diagnosticCount": 0, "reasonCodes": ["static_js_ts_only"] }
+    },
+    "memory": { "status": "missing" }
+  },
+  "architecture": {
+    "entryPoints": [],
+    "hotspots": [],
+    "search": {
+      "status": "available",
+      "queryFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "total": 1,
+      "hasMore": false,
+      "omittedCount": 0,
+      "rawSourceBody": "export const secret = 'must not be a report field';",
+      "results": []
+    },
+    "impact": { "changedLocators": [], "representedChangedLocators": [], "affectedSymbols": [], "affectedEdgeKindCounts": {}, "depth": 0 },
+    "diagnostics": []
+  },
+  "memory": { "status": "missing", "activeFacts": [], "pendingProposals": [], "staleFactCount": 0, "unavailableReason": "memory_store_missing" },
+  "readiness": {
+    "handoff": { "status": "available", "command": "recall handoff" },
+    "mcp": { "status": "available", "command": "recall mcp inspect --read-only --root ." },
+    "nextCommands": ["recall handoff"]
+  },
+  "safeguards": { "readOnly": true, "localFilesWritten": 0, "canonicalStateMutated": false, "networkCalls": 0, "modelCalls": 0, "rawSourceBodiesIncluded": false, "graphDatabaseUsed": false, "externalAdaptersEnabled": 0 },
+  "fingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

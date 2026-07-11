@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0.0",
   "project": "open-agent-fabric",
-  "release": "1.0.0",
-  "phase": "1.0-release-candidate-readiness",
+  "release": "1.1.0",
+  "phase": "1.1-release-candidate-readiness",
   "nextTask": null,
   "defaults": {
     "network": "deny",
@@ -44,7 +44,7 @@
         "Team/cloud production remains out of scope: no production SSO, MFA, hosted secret manager, reverse proxy/TLS deployment, managed database, external connectors, publishing, signed distribution, or sandbox worker fleet is claimed.",
         "The one-command local path is `npm run local:run` after dependencies are installed; it bootstraps local files and runs native smoke checks without enabling network, cloud fallback, or external writes.",
         "The governed memory path is reference-complete for local coding-agent use: ingest creates proposals, approve/reject is explicit, MCP recall/profile prefer ACTIVE facts, and persisted cursors support same-session-plus-restart deltas.",
-        "Verified local benches: temporal correctness/cleanliness 100%, session delta correctness 100% with 76% delivered-token reduction versus full resend, and real repo question sufficiency 100% after structured governed ingest.",
+        "Verified local benches: temporal correctness/cleanliness 100%, session delta correctness 100% with 72% lower estimated delivery versus full resend, and checkout-derived structured-ingest sufficiency 100% after governed ingest.",
         "`npm run demo:memory-loop` is an in-repository local proof over native SQLite memory, compressed profile contextBudget, bounded loop observation, and temporal supersession; it does not imply team/cloud memory, hosted retrieval, semantic retrieval, model API calls, or external services."
       ]
     },
@@ -110,6 +110,8 @@
         "tests/native-memory-profile-context.test.mjs",
         "tests/ast-code-candidate-source.test.mjs",
         "tests/source-graph-preview.test.mjs",
+        "tests/recall-map-ranking.test.mjs",
+        "evals/recall-map/architecture-ranking.v1.json",
         "tests/cli.test.mjs",
         "tests/control-api-boundary.test.mjs",
         "packages/protocol/schemas/candidate-source-request.schema.json",
@@ -117,6 +119,7 @@
         "packages/protocol/schemas/source-symbol-index.schema.json",
         "packages/protocol/schemas/source-graph.schema.json",
         "packages/protocol/schemas/source-graph-preview.schema.json",
+        "packages/protocol/src/source-graph-locator.mjs",
         "packages/source-graph/src/index.mjs",
         "packages/protocol/schemas/context-candidate.schema.json",
         "packages/protocol/schemas/context-selection-policy.schema.json",
@@ -128,7 +131,7 @@
         "docs/implementation/OAF-012-context-manifests-note.md"
       ],
       "limitations": [
-        "Native exact, lexical, AST-code, and graph locator candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 256 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
+        "Native exact, lexical, AST-code, and graph locator candidate sources only; AST-code also exposes dependency-free JS/TS symbol-index and source-graph queries plus a bounded read-only CLI/API source-graph preview with 512 KiB default static JS/TS file coverage and a 1 MiB hard ceiling",
         "Context views are opt-in deterministic local representations for noisy selected records and tool output; they preserve original/view hashes and token accounting but do not replace canonical source or memory state",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Compressed memory profile context and oaf measure savings use bounded local before/after delivery-token estimates over a realistic workspace candidate-file and git-history baseline, surfaced in the memory cockpit and MCP stats; MCP stats separates context.profile compression-path savings from memory.recall compaction savings and does not claim provider billing-token savings",
@@ -151,6 +154,7 @@
         "tests/context-candidate-sources.test.mjs",
         "tests/ast-code-candidate-source.test.mjs",
         "tests/source-graph-preview.test.mjs",
+        "tests/recall-map-ranking.test.mjs",
         "packages/adapter-contracts/src/index.mjs",
         "packages/protocol/schemas/candidate-source-descriptor.schema.json",
         "packages/protocol/schemas/candidate-source-hit.schema.json",
@@ -158,15 +162,79 @@
         "packages/protocol/schemas/source-symbol-index.schema.json",
         "packages/protocol/schemas/source-graph.schema.json",
         "packages/protocol/schemas/source-graph-preview.schema.json",
+        "packages/protocol/src/source-graph-locator.mjs",
         "packages/source-graph/src/index.mjs",
         "docs/architecture/context-compiler.md"
       ],
       "limitations": [
         "Only native exact, lexical, AST-code, and graph locator sources are implemented and enabled",
-        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; graph source emits locator-only derived JS/TS graph hits; over-limit files remain hash/read-plan-only and are not treated as symbol-impact coverage; it is not a full semantic parser, language server, graph database, or executor",
+        "AST-code source is a dependency-free static JS/TS chunker with symbol index and read-only source graph preview helpers; graph source emits locator-only derived JS/TS graph hits; preview facade input and ranking output share the strict source-graph locator and label grammars; over-limit files remain hash/read-plan-only and are not treated as symbol-impact coverage; coverage distinguishes declared out-of-scope directories from source-relevant excluded trees and records unreadable source directories as partial static scope without hiding readable siblings; it is not a full semantic parser, language server, graph database, or executor",
         "Vector, temporal, preference, and episode sources are declared but unavailable",
         "Sources generate candidates only; final selection remains in the Context Compiler selector",
         "No external adapters, outbound network, embeddings, vector database, graph database, browser automation, or public search endpoint"
+      ]
+    },
+    {
+      "id": "recall.map",
+      "name": "Read-only Recall Map CLI",
+      "status": "implemented",
+      "evidence": [
+        "apps/cli/oaf.mjs",
+        "apps/cli/AGENTS.md",
+        "packages/recall-map/src/index.mjs",
+        "packages/protocol/schemas/recall-map.schema.json",
+        "tests/recall-map.test.mjs",
+        "tests/cli.test.mjs",
+        "tests/release-readiness.test.mjs",
+        "scripts/consumer-smoke.mjs",
+        "docs/usage/recall-map.md"
+      ],
+      "limitations": [
+        "CLI only: Recall Map composes the existing bounded JS/TS static source graph and governed local SQLite memory status; it does not create a missing SQLite store or persist a graph.",
+        "The command is read-only and local-only: no workspace writes, canonical-memory mutation, model or network calls, external adapters, raw source bodies, or absolute workspace paths are emitted.",
+        "Recall Map API, browser, and MCP map surfaces are not implied by this CLI capability."
+      ]
+    },
+    {
+      "id": "recall.semantic-setup",
+      "name": "Governed semantic setup proposal generation",
+      "status": "implemented",
+      "evidence": [
+        "apps/cli/oaf.mjs",
+        "packages/semantic-setup/src/index.mjs",
+        "packages/semantic-setup/schemas/semantic-result.schema.json",
+        "packages/protocol/schemas/semantic-setup-report.schema.json",
+        "providers/native/memory-sqlite/src/index.mjs",
+        "skills/oaf-memory/SKILL.md",
+        "tests/semantic-setup.test.mjs",
+        "tests/cli.test.mjs",
+        "tests/memory-recall-integrity.test.mjs",
+        "docs/usage/semantic-setup.md"
+      ],
+      "limitations": [
+        "This is bounded proposal generation, not semantic retrieval: plan and task select at most 8 documentation/configuration sources, 16 KiB each and 64 KiB total; semantic setup v1 does not scan or upload raw source-code files.",
+        "The task command emits a bounded prompt but does not invoke Codex, Claude Code, Cursor, or another harness; the active agent must return strict packet-bound JSON.",
+        "Import accepts one workspace-relative regular non-symlink JSON file up to 256 KiB and creates pending SQLite proposals only; bulk approval skips semantic proposals and named approval rechecks every cited source.",
+        "No automatic harness invocation, background sync, transcript capture, automatic ACTIVE memory, write-capable MCP, embeddings, vector search, or benchmark-quality claim is implied."
+      ]
+    },
+    {
+      "id": "recall.semantic-api-run",
+      "name": "Explicit one-shot semantic API proposal generation",
+      "status": "experimental",
+      "evidence": [
+        "packages/semantic-setup/src/index.mjs",
+        "apps/cli/oaf.mjs",
+        "tests/semantic-setup.test.mjs",
+        "tests/cli.test.mjs",
+        "docs/adr/0022-explicit-semantic-network-executor.md",
+        "docs/usage/semantic-setup.md"
+      ],
+      "limitations": [
+        "Direct semantic execution is outside the model gateway and requires explicit --allow-network consent before an environment credential is read.",
+        "Gemini uses pinned configuration; the only other mode is an explicit HTTPS or literal-loopback OpenAI-compatible endpoint, model, and API-key environment variable. Arbitrary provider discovery is not supported.",
+        "The executor makes one bounded non-streaming request with no retry, provider fallback, background operation, key persistence, or cost enforcement; usage counts are not billing guarantees.",
+        "Only the same selected documentation and configuration bodies leave the machine, and normalized output still creates pending proposals rather than ACTIVE memory."
       ]
     },
     {
@@ -253,7 +321,7 @@
         "Context-pack Markdown intentionally caps bulky locator, omission, source-graph, affected-symbol, and verification-command rows while complete structured pack, use-plan, registry, and read-only MCP resources retain full required-read, omission-ref, requested-input, and command lists",
         "Opt-in read-only MCP context-pack summary resource exposes source-family selection, locators, fingerprints, omission counts, source-selection token counts, delivery-budget metrics, changed-file impact, and utility coverage counts without raw objective text, raw step text, markdown bodies, or source bodies",
         "Read-only context handoff preflight reports combine launch prompt, required local reads, schema-validated use plan, MCP context-pack readback proof, silent npm stdio bridge command, and dry-run setup preview without writing context-pack artifacts or mutating harness config",
-        "Read-only context-pack measurement reports include a schema-backed impact brief with changed-file coverage, affected symbols, required local reads, hash proof, graph hints, source-selection reduction, aggregate changed-source body tokens kept out of the handoff, MCP readback proof, and strict no-body/no-write/no-network/no-model/no-graph-database safeguards; large static JS/TS changed files within the 256 KiB preview ceiling are represented in the source graph while over-limit files stay in review",
+        "Read-only context-pack measurement reports include a schema-backed impact brief with changed-file coverage, affected symbols, required local reads, hash proof, graph hints, source-selection reduction, aggregate changed-source body tokens kept out of the handoff, MCP readback proof, and strict no-body/no-write/no-network/no-model/no-graph-database safeguards; large static JS/TS changed files within the 512 KiB preview ceiling are represented in the source graph while over-limit files stay in review",
         "The browser Context Pack page starts with a first local handoff flow, reviewed input fields, a practical handoff checklist, session-local current-handoff status across Context Pack, Fabric Map, and Agents & Tools, a copyable read-only preflight command, and no harness install affordance",
         "Explicit CLI export can write both context-packs/*.md markdown and context-packs/*.use.json sanitized use plans; the use plan carries complete required local reads, content hashes, coverage, delivery metrics, artifact hashes, and pack fingerprints without changing the pack object's dry-run semantics",
         "Explicit CLI pinning writes context-packs/*.md, context-packs/*.use.json, context-packs/registry.json, and context-packs/current.json, then read-only registry status verifies artifact hashes, required source hashes, registry fingerprints, current-pointer fingerprints, stale source changes, unsafe persisted source locators, and tampered exports without exposing markdown or source content",
@@ -952,7 +1020,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-07-09",
+    "asOf": "2026-07-11",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run local:run",
@@ -970,10 +1038,12 @@
       "npm run release:readiness:check",
       "npm run demo",
       "npm run native:smoke",
-      "npm run verify:handoff"
+      "npm run verify:handoff",
+      "npm run consumer:smoke",
+      "npm run consumer:browser-smoke"
     ],
-    "testsExpected": 575,
-    "protocolFixturesExpected": 167,
+    "testsExpected": 644,
+    "protocolFixturesExpected": 182,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

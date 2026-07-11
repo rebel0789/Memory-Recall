@@ -207,6 +207,7 @@ test('memory intake duplicate after approval stays proposal gated', async (t) =>
 
 async function startServer(t, overrides = {}) {
   const store = overrides.store ?? new SpyStore();
+  const workspaceId = overrides.workspaceId ?? 'ws_local';
   const identityRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-boundary-identity-'));
   t.after(async () => rm(identityRoot, { recursive: true, force: true }));
   const identityStore = overrides.identityStore ?? await new LocalIdentityStore({
@@ -218,7 +219,7 @@ async function startServer(t, overrides = {}) {
     username: 'owner',
     displayName: 'Local Owner',
     password: 'correct horse battery staple',
-    workspaceId: 'ws_local',
+    workspaceId,
     workspaceName: 'Local Workspace'
   }).catch((error) => {
     if (error.code === 'already_bootstrapped') return null;
@@ -371,6 +372,23 @@ test('valid requests receive correlation IDs and preserve local-only behavior', 
   assert.equal(supplied.status, 200);
   assert.equal(supplied.headers.get('x-correlation-id'), 'req_client-00000000-0000-4000-8000-000000000001');
   assert.equal(api.calls.compile, 1);
+});
+
+test('Recall Map rejects workspace IDs outside its strict report contract before map execution', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-recall-map-workspace-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  const api = await startServer(t, { sourceGraphRoot, workspaceId: 'ws_Mixed' });
+
+  const response = await request(api.base, '/api/recall/map?workspaceId=ws_Mixed', {
+    headers: { cookie: api.auth.cookie }
+  });
+
+  assert.equal(response.status, 400, response.text);
+  assert.equal(response.body.error.code, 'request_validation_failed');
+  assert.equal(api.store.reads, 0);
+  assert.equal(api.store.updates, 0);
+  assert.equal(api.calls.workflow, 0);
+  assert.equal(api.calls.compile, 0);
 });
 
 test('context pack route is protected and does not mutate run state', async (t) => {

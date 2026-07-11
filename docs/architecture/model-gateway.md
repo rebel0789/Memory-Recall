@@ -46,3 +46,10 @@ outputs, credentials, provider URLs, local paths, or hidden reasoning.
 Hosted providers, cloud API keys, LiteLLM deployment, silent fallback, model
 downloads, embeddings, vector databases, graph databases, browser automation,
 tool calling, external connectors, and publishing remain unsupported.
+
+Optional semantic setup API calls are a separate, explicit user-owned network
+executor in `packages/semantic-setup`; they are not `OAF_MODEL_MODE`, do not
+extend this local gateway, and never act as a silent fallback. That executor
+requires per-run network consent, reads credentials only through its dedicated
+environment-reference helper, bounds the request/response, and normalizes
+untrusted output into source-bound pending candidates.

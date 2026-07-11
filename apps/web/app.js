@@ -1,9 +1,11 @@
 export const SHELL_STATES = new Set(['loading','setup','empty','error','denied','stale','partial','success']);
 
 const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
+const OAF_COMPATIBILITY_URL = 'https://github.com/rebel0789/Memory-Recall/blob/main/docs/usage/oaf-compatibility.md';
+const OAF_URI_COMPATIBILITY_NOTE = 'Legacy oaf:// URIs remain supported compatibility identifiers; normal commands use recall.';
 
 export const ROUTES = [
-  { id:'home', path:'/', label:'Home', title:'Home', eyebrow:'Workspace / local', description:'Health, active work, approvals, residency, and the next local action.' },
+  { id:'home', path:'/', label:'Recall Map', title:'Recall Map', eyebrow:'Developer-first / local', description:'A bounded local overview of code, governed memory, and the next-agent handoff.' },
   { id:'runs', path:'/runs', label:'Runs', title:'Runs', eyebrow:'Execution', description:'Run history, status, current step, artifacts, and sanitized timelines.' },
   { id:'workflows', path:'/workflows', label:'Workflows', title:'Workflows', eyebrow:'Definitions', description:'Workflow versions, graph outline, risk, retries, approvals, and tests.' },
   { id:'loop-workbench', path:'/loop-workbench', label:'Loop Workbench', title:'Loop Workbench', eyebrow:'Loop engineering', description:'Plan, run, observe, verify, budget, and stop loops with local proof.' },
@@ -25,14 +27,15 @@ const routeByPath = new Map(ROUTES.map(route=>[route.path,route]));
 const legacyViews = new Map([['home','/'],['runs','/runs'],['context','/context'],['evidence','/evidence'],['memory','/memory'],['design','/settings']]);
 export const navItems = ROUTES;
 export const CONSUMER_START_ACTIONS = [
-  { label:'Connect', detail:'Preview local harness setup.', route:'/agents-tools', routeId:'agents' },
-  { label:'Save Tokens', detail:'Build a measured context pack.', route:'/context-pack', routeId:'context-pack' },
-  { label:'Add Memory', detail:'Review and approve local memory.', route:'/memory', routeId:'memory' },
-  { label:'View Repo Map', detail:'Inspect files, symbols, and neighbors.', route:'/source-graph', routeId:'source-graph' }
+  { label:'Create handoff', detail:'Prepare a bounded packet for the next coding agent.', route:'/context-pack', routeId:'context-pack' },
+  { label:'Review memory', detail:'Inspect active and pending governed facts.', route:'/memory', routeId:'memory' },
+  { label:'Inspect source graph', detail:'Trace symbols and focused change impact.', route:'/source-graph', routeId:'source-graph' }
 ];
 
 let dashboard=null;
 let shellState={kind:'loading',message:'Loading local workspace state.'};
+let recallMap=null;
+let recallMapError=null;
 let activeRunDetail=null;
 let contextPackResult=null;
 let contextPackError=null;
@@ -836,7 +839,7 @@ async function load() {
       return;
     }
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
-    await Promise.all([loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit(), loadMemoryGraph()]);
+    await Promise.all([loadRecallMap(), loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit(), loadMemoryGraph()]);
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
     dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
@@ -844,6 +847,36 @@ async function load() {
   } finally {
     render();
     root.setAttribute('aria-busy','false');
+  }
+}
+
+async function loadRecallMap() {
+  try {
+    recallMap = await api(`/api/recall/map?workspaceId=${encodeURIComponent(workspaceId())}`);
+    recallMapError = null;
+  } catch (error) {
+    recallMap = null;
+    recallMapError = error;
+  }
+}
+
+async function refreshRecallMap(event) {
+  const button = event?.currentTarget ?? document.querySelector('#refresh-map-button');
+  const previous = button?.textContent ?? 'Refresh Recall Map';
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Refreshing…';
+  }
+  document.querySelector('#live-status').textContent = 'Refreshing the local Recall Map.';
+  try {
+    await Promise.all([loadRecallMap(), loadPinnedHandoffStatus()]);
+    render();
+    document.querySelector('#live-status').textContent = recallMapError ? 'Recall Map could not be refreshed.' : 'Recall Map refreshed.';
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = previous;
+    }
   }
 }
 
@@ -958,12 +991,13 @@ function render() {
   renderNav(document.querySelector('#mobile-nav'), 'bottom');
   renderStatusBar();
   const root=document.querySelector('#view-root');
-  root.dataset.state=shellState.kind;
+  root.dataset.state=visibleShellState(route).kind;
   root.innerHTML = shellState.kind === 'loading'
     ? statePanel('loading','Loading local state','Checking the loopback control API for workspace data.')
     : renderRoute(route);
   root.querySelectorAll('[data-action=run]').forEach(button=>button.addEventListener('click',runDemo));
   root.querySelectorAll('[data-action=reset]').forEach(button=>button.addEventListener('click',resetDemo));
+  root.querySelectorAll('[data-action=refresh-recall-map]').forEach(button=>button.addEventListener('click',refreshRecallMap));
   root.querySelectorAll('[data-run-id]').forEach(link=>link.addEventListener('click',showRun));
   root.querySelectorAll('[data-step-id],[data-record-id]').forEach(link=>link.addEventListener('click',navigateLocal));
   root.querySelector('#auth-form')?.addEventListener('submit',submitAuthForm);
@@ -1002,9 +1036,10 @@ function renderNav(container, mode) {
 
 function renderStatusBar() {
   const metrics=dashboard?.metrics ?? {};
+  const status=visibleShellState();
   const label=shellStatusLabel({ network:'deny', externalWrites:false, modelMode:'deterministic' });
   document.querySelector('#shell-status').innerHTML=[
-    statusChip(shellState.kind, shellState.kind, shellState.message),
+    statusChip(status.kind, status.kind, status.message),
     statusChip('local','Local-only','Data residency'),
     statusChip('network','Network denied','Default posture'),
     statusChip('writes','External writes disabled','Policy gate'),
@@ -1012,6 +1047,20 @@ function renderStatusBar() {
     statusChip('approvals',`${Number(metrics.pendingApprovals??0)} pending approvals`,'Approval inbox')
   ].join('');
   document.querySelector('#shell-status').setAttribute('aria-label', label);
+}
+
+function visibleShellState(route=currentRoute()) {
+  if (route.id!=='home'||(!recallMap&&!recallMapError)) return shellState;
+  const model=buildRecallMapHomeModel({ report:recallMap, error:recallMapError, pinnedHandoffStatus, pinnedHandoffError });
+  const message={
+    loading:'Loading the local Recall Map.',
+    error:'Recall Map could not be loaded from the local API.',
+    empty:'Recall Map loaded without bounded entry points.',
+    partial:'Bounded Recall Map loaded; inspect supported coverage.',
+    stale:'Recall Map includes stale governed-memory facts.',
+    success:'Recall Map loaded from local source and memory summaries.'
+  }[model.state] ?? 'Recall Map loaded.';
+  return { kind:model.state, message };
 }
 
 function currentHandoffStatus() {
@@ -1128,23 +1177,150 @@ function renderRoute(route) {
 }
 
 function renderHome() {
-  const metrics=dashboard?.metrics ?? {runs:0,completed:0,events:0,pendingApprovals:0};
-  const stateMarkup = shellState.kind === 'empty'
-    ? contextPackEmptyState()
-    : shellState.kind === 'partial'
-      ? statePanel('partial','Context manifest pending','A run exists, but no persisted context manifest is available yet.')
-      : shellState.kind === 'stale'
-        ? statePanel('stale','Cached local state',shellState.message,true)
-        : '';
-  return `${stateMarkup}${renderPrimaryFlow()}<section class="metric-strip" aria-label="Workspace metrics">${metric(metrics.runs,'Runs','Recorded locally')}${metric(metrics.completed,'Completed','Verified outcomes')}${metric(metrics.events,'Events','Append-only ledger')}${metric(metrics.pendingApprovals,'Approvals','Need review')}</section><section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Recent runs</h2><span>Local event ledger</span></div>${runList(dashboard?.runs)}</div><aside class="inspector" aria-label="Workspace inspector">${contextSummary(dashboard?.latestManifest)}${localBoundary()}</aside></section><section class="surface"><div class="section-heading"><h2>Latest recommendations</h2><span>Evidence-backed candidates</span></div>${angles(dashboard?.latestRun?.output?.output)}</section>`;
+  return renderRecallMapHome(buildRecallMapHomeModel({
+    report: recallMap,
+    error: recallMapError,
+    pinnedHandoffStatus,
+    pinnedHandoffError
+  }));
 }
 
-function contextPackEmptyState(){
-  return `<section class="state-panel state-empty"><h2>No local handoff yet</h2><p>Build a context pack first. The demo workflow is optional evidence data, not the main product path.</p><div class="action-row"><a class="button primary" href="/context-pack" data-route="context-pack">Build context pack</a><button class="button secondary" data-action="run" type="button">Run demo</button></div></section>`;
+export function buildRecallMapHomeModel({ report=null, error=null, pinnedHandoffStatus=null, pinnedHandoffError=null }={}) {
+  if (error) {
+    return {
+      state:'error',
+      error:buildApiErrorUiModel(error),
+      title:'Recall Map unavailable',
+      copy:'The local API did not return a map. Retry the read-only request or inspect the correlation details below.',
+      commands:[]
+    };
+  }
+  if (!report) {
+    return {
+      state:'loading',
+      title:'Loading Recall Map',
+      copy:'Reading bounded local source metadata and governed memory summaries.',
+      commands:[]
+    };
+  }
+  const sourceGraph=report.support?.sourceGraph ?? {};
+  const coverage=sourceGraph.coverage ?? {};
+  const architecture=report.architecture ?? {};
+  const impact=architecture.impact ?? {};
+  const memory=report.memory ?? {};
+  const entryPoints=Array.isArray(architecture.entryPoints)?architecture.entryPoints:[];
+  const hotspots=Array.isArray(architecture.hotspots)?architecture.hotspots:[];
+  const changedLocators=Array.isArray(impact.changedLocators)?impact.changedLocators:[];
+  const representedChangedLocators=Array.isArray(impact.representedChangedLocators)?impact.representedChangedLocators:[];
+  const affectedSymbols=Array.isArray(impact.affectedSymbols)?impact.affectedSymbols:[];
+  const activeFacts=Array.isArray(memory.activeFacts)?memory.activeFacts:[];
+  const pendingProposals=Array.isArray(memory.pendingProposals)?memory.pendingProposals:[];
+  const sourceUnavailable=sourceGraph.status==='unavailable'||coverage.status==='unavailable';
+  const noArchitecture=entryPoints.length===0&&hotspots.length===0&&changedLocators.length===0&&affectedSymbols.length===0;
+  const state=sourceUnavailable?'partial':noArchitecture?'empty':coverage.status==='partial'?'partial':'success';
+  const handoffStatus=String(pinnedHandoffStatus?.current?.status ?? '');
+  const handoffState=pinnedHandoffError
+    ? 'blocked'
+    : handoffStatus==='verified'
+      ? 'ready'
+      : handoffStatus==='stale'||handoffStatus==='review'
+        ? 'review'
+        : handoffStatus==='tampered'
+          ? 'blocked'
+          : report.readiness?.handoff?.status==='available'
+            ? 'pending'
+            : 'blocked';
+  const nextCommands=[
+    'recall map --root . --sqlite .local/memory.sqlite --format summary',
+    ...(Array.isArray(report.readiness?.nextCommands)?report.readiness.nextCommands:[]),
+    report.readiness?.mcp?.command
+  ].filter((command,index,all)=>typeof command==='string'&&command.length>0&&all.indexOf(command)===index).slice(0,5);
+  return {
+    state,
+    generatedAt:report.generatedAt ?? null,
+    index:{
+      status:sourceGraph.status ?? 'unavailable',
+      kind:sourceGraph.status==='implemented'?'success':'error',
+      label:sourceGraph.status==='implemented'?'JS/TS map indexed':'Source graph unavailable',
+      copy:sourceGraph.status==='implemented'?'Bounded static metadata only; raw source bodies stay local.':'The local source graph could not be read.'
+    },
+    coverage:{
+      status:coverage.status ?? 'unavailable',
+      kind:coverage.status==='unavailable'?'error':'partial',
+      label:`${Number(coverage.analyzedFileCount??0)} / ${Number(coverage.maxFiles??0)} files`,
+      diagnosticCount:Number(coverage.diagnosticCount??0),
+      reasonCodes:Array.isArray(coverage.reasonCodes)?coverage.reasonCodes:[]
+    },
+    entryPoints,
+    hotspots,
+    impact:{
+      changedLocators,
+      representedChangedLocators,
+      affectedSymbols,
+      changedCount:changedLocators.length,
+      representedCount:representedChangedLocators.length,
+      affectedCount:affectedSymbols.length,
+      depth:Number(impact.depth??0)
+    },
+    memory:{
+      status:memory.status ?? 'unavailable',
+      kind:memory.status==='available'?(Number(memory.staleFactCount??0)>0?'stale':'success'):'error',
+      activeCount:activeFacts.length,
+      pendingCount:pendingProposals.length,
+      staleCount:Number(memory.staleFactCount??0),
+      unavailableReason:memory.unavailableReason ?? null
+    },
+    handoff:{
+      state:handoffState,
+      kind:handoffState==='ready'?'success':handoffState==='review'||handoffState==='pending'?'partial':'error',
+      command:report.readiness?.handoff?.command ?? 'recall handoff',
+      copy:handoffState==='ready'
+        ? 'Pinned handoff is verified for the next coding agent.'
+        : handoffState==='review'
+          ? 'Pinned sources changed and need review before handoff.'
+          : handoffState==='pending'
+            ? 'The handoff command is available; no verified pinned packet is active.'
+            : 'Handoff verification is unavailable. Review the local registry before sharing context.'
+    },
+    safeguards:report.safeguards ?? {},
+    commands:nextCommands.map((command)=>({ label:recallMapCommandLabel(command), command }))
+  };
 }
 
-function renderPrimaryFlow() {
-  return `<section class="surface primary-flow consumer-start" aria-label="First-use actions"><div><p class="eyebrow">Start here</p><h2>Choose what you need first.</h2><p>Connect a local agent, save tokens with a context pack, approve memory, or inspect the repository map without enabling external writes.</p></div>${renderConsumerStartActions()}</section>`;
+export function renderRecallMapHome(model) {
+  if (model.state==='loading') {
+    return `<section class="recall-map-stage" aria-label="Recall Map"><div class="recall-map-hero"><div><p class="eyebrow">Developer-first local overview</p><h2>Recall Map</h2><p>${esc(model.copy)}</p></div><button class="button secondary" data-action="refresh-recall-map" type="button">Refresh Recall Map</button></div>${statePanel('loading',model.title,model.copy)}</section>`;
+  }
+  if (model.state==='error') {
+    return `<section class="recall-map-stage" aria-label="Recall Map"><div class="recall-map-hero"><div><p class="eyebrow">Developer-first local overview</p><h2>Recall Map</h2><p>${esc(model.copy)}</p></div><button class="button secondary" data-action="refresh-recall-map" type="button">Refresh Recall Map</button></div>${renderApiErrorPanel(model.title,model.error)}</section>`;
+  }
+  const stateCopy=model.state==='empty'
+    ? statePanel('empty','No JS/TS entry points yet','The map is live, but this workspace did not yield a bounded JS/TS entry point. Inspect the supported coverage before broadening the workspace.')
+    : model.state==='partial'
+      ? statePanel('partial','Bounded coverage','Recall Map only indexes supported JS/TS metadata within its scan limits. Use the coverage reasons below before treating it as complete.')
+      : '';
+  const visibleEntryPoints=model.entryPoints.slice(0,8);
+  const entryPoints=visibleEntryPoints.length
+    ? `<ol class="recall-map-list">${visibleEntryPoints.map((entry)=>`<li><strong>${esc(entry.label)}</strong><span>${esc(entry.symbolKind)}</span><code>${esc(entry.locator ?? 'locator unavailable')}</code></li>`).join('')}</ol>${model.entryPoints.length>visibleEntryPoints.length?`<p class="recall-map-more"><a href="/source-graph" data-route="source-graph">Inspect ${model.entryPoints.length-visibleEntryPoints.length} more entry points in Source Graph</a></p>`:''}`
+    : '<p class="muted">No bounded entry points were reported.</p>';
+  const affected=model.impact.affectedSymbols.length
+    ? `<ol class="recall-map-list">${model.impact.affectedSymbols.map((entry)=>`<li><strong>${esc(entry.label)}</strong><span>${esc(entry.symbolKind)}</span><code>${esc(entry.locator ?? 'locator unavailable')}</code></li>`).join('')}</ol>`
+    : '<p class="muted">No changed files were supplied, so no focused impact set is active.</p>';
+  const changed=model.impact.changedLocators.length
+    ? `<ul class="recall-map-locators">${model.impact.changedLocators.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ul>`
+    : '<p class="muted">No changed locator is selected. Use the CLI map command with a reviewed change when you need focused impact.</p>';
+  const coverageReasons=model.coverage.reasonCodes.length
+    ? `<div class="reason-list">${model.coverage.reasonCodes.map((reason)=>`<span class="reason">${esc(reason)}</span>`).join('')}</div>`
+    : '<p class="muted">No coverage reasons were returned.</p>';
+  return `<section class="recall-map-stage" aria-label="Recall Map"><div class="recall-map-hero"><div><p class="eyebrow">Developer-first local overview</p><h2>Read the local picture before the next change.</h2><p>Start with the bounded map, then create a verified handoff for the next coding agent. This screen reads local summaries only.</p></div><div class="recall-map-hero-actions">${statusChip(model.state,model.state,'Map state')}<button class="button secondary" data-action="refresh-recall-map" type="button">Refresh Recall Map</button></div></div>${stateCopy}<section class="recall-map-signals" aria-label="Recall Map signals"><article><span>Index health</span><strong>${esc(model.index.label)}</strong>${statusChip(model.index.kind,model.index.status,'Source graph')}</article><article><span>Supported coverage</span><strong>${esc(model.coverage.label)}</strong>${statusChip(model.coverage.kind,model.coverage.status,`${model.coverage.diagnosticCount} diagnostics`)}</article><article><span>Changed impact</span><strong>${model.impact.changedCount} changed · ${model.impact.affectedCount} affected</strong>${statusChip(model.impact.changedCount?'selected':'empty',model.impact.changedCount?'focused':'none',`depth ${model.impact.depth}`)}</article><article><span>Memory state</span><strong>${model.memory.activeCount} active · ${model.memory.pendingCount} pending</strong>${statusChip(model.memory.kind,model.memory.status,`${model.memory.staleCount} stale`)}</article><article><span>Handoff readiness</span><strong>${esc(model.handoff.state)}</strong>${statusChip(model.handoff.kind,model.handoff.state,'Next-Agent Handoff')}</article></section><section class="recall-map-layout"><div class="surface recall-map-primary"><div class="section-heading"><h2>Entry points</h2><span>${visibleEntryPoints.length} of ${model.entryPoints.length} indexed</span></div>${entryPoints}<div class="section-heading recall-map-section"><h2>Changed impact</h2><span>${model.impact.representedCount} represented</span></div>${changed}${affected}</div><aside class="inspector recall-map-inspector"><div class="section-heading"><h2>Supported coverage</h2><span>${esc(model.coverage.label)}</span></div>${coverageReasons}<dl class="facts compact-facts"><div><dt>Index</dt><dd>${esc(model.index.copy)}</dd></div><div><dt>Memory</dt><dd>${esc(model.memory.status)}${model.memory.unavailableReason?` · ${esc(model.memory.unavailableReason)}`:''}</dd></div><div><dt>Stale facts</dt><dd>${model.memory.staleCount}</dd></div><div><dt>Handoff</dt><dd>${esc(model.handoff.copy)}</dd></div><div><dt>Generated</dt><dd>${esc(model.generatedAt?date(model.generatedAt):'not reported')}</dd></div></dl></aside></section><section class="surface recall-map-commands"><div class="section-heading"><h2>Copyable next commands</h2><span>Read-only by default</span></div>${contextPackCommandList(model.commands)}</section><section class="surface recall-map-handoff"><div><p class="eyebrow">Next-Agent Handoff</p><h2>Keep the next step inspectable.</h2><p>Use the map to orient, then create or verify the smallest context packet that lets another developer continue safely.</p></div>${renderConsumerStartActions()}</section></section>`;
+}
+
+function recallMapCommandLabel(command) {
+  if (command.startsWith('recall map')) return 'Refresh map locally';
+  if (command.startsWith('recall handoff')) return 'Create Next-Agent Handoff';
+  if (command.includes('mcp inspect')) return 'Inspect read-only MCP';
+  if (command.includes('graph stats')) return 'Check source graph';
+  return 'Copy command';
 }
 
 export function renderConsumerStartActions(actions=CONSUMER_START_ACTIONS) {
@@ -1921,7 +2097,10 @@ function contextPackSetupClient(pack) {
 }
 
 function contextPackCommandList(commands) {
-  return `<ol class="command-list">${commands.map((item)=>`<li><div class="command-heading"><strong>${esc(item.label)}</strong><button class="button secondary command-copy" data-action="copy-command" type="button" aria-label="Copy ${esc(item.label)} terminal command">Copy terminal command</button></div><code>${esc(item.command)}</code></li>`).join('')}</ol>`;
+  const legacyUriNote=commands.some((item)=>String(item?.command??'').includes('oaf://'))
+    ? `<p class="muted">${esc(OAF_URI_COMPATIBILITY_NOTE)} <a href="${esc(OAF_COMPATIBILITY_URL)}">Compatibility identifiers</a>.</p>`
+    : '';
+  return `<ol class="command-list">${commands.map((item)=>`<li><div class="command-heading"><strong>${esc(item.label)}</strong><button class="button secondary command-copy" data-action="copy-command" type="button" aria-label="Copy ${esc(item.label)} terminal command">Copy terminal command</button></div><code>${esc(item.command)}</code></li>`).join('')}</ol>${legacyUriNote}`;
 }
 
 const CONTEXT_PACK_SOURCE_FAMILIES=[
@@ -3282,7 +3461,7 @@ function drawMemoryGraphCanvas(canvas,report,options={}){
 }
 
 function boot(){
-  document.querySelector('#run-button')?.addEventListener('click',runDemo);
+  document.querySelector('#refresh-map-button')?.addEventListener('click',refreshRecallMap);
   document.querySelector('#reset-button')?.addEventListener('click',resetDemo);
   window.addEventListener('popstate',()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else render()});
   const runId=new URL(location.href).searchParams.get('run');

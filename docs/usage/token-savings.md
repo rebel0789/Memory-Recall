@@ -1,65 +1,79 @@
 # Token Savings Measurement
 
-Memory Recall measures delivered context reduction. It does not claim provider
-billing savings unless a provider bill is measured separately.
+Memory Recall measures local delivered context. It does not claim provider
+billing savings unless you measure a provider bill separately. Every public
+number, dataset, baseline, command, artifact, pass condition, and limitation is
+listed in [Benchmark proof](../benchmarks.md).
 
-## Fast Report
+## Fast report
 
 ```bash
 recall token-saver
+# Use this form when you need a JSON artifact and report fingerprint.
+recall token-saver --format json
 ```
 
-This runs the practical context-pack path and reports how much smaller the
-delivered handoff is than the local baseline.
+This is a live local context-pack measurement. The default output is a summary;
+`--format json` produces the generated report and fingerprint. Neither form is
+a fixed product-wide percentage or provider-billing statement.
 
-## Reproducible Bench Commands
+## Reproduce the bounded claims
 
 ```bash
 recall bench session --read-only --root . --format json
 recall bench temporal --read-only --root . --format json
 recall bench realqa --read-only --root . --format json
-recall bench locomo --read-only --root . --dataset /path/to/locomo10.json --format json
-recall bench locomo --read-only --root . --dataset /path/to/locomo10.json --limit 48 --budget 4096 --format summary
+recall benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
 recall graph stats --root . --format summary
 recall graph search --root . --query "auth workflow" --format summary
 recall graph trace --root . --symbol runAuthWorkflow --format summary
+```
+
+The session fixture measures cursor deltas against full resend. The temporal
+fixture measures current, clean truth against a keyword timeline baseline; it
+is not a savings claim. The `realqa` command is an in-repo structured-ingest
+sufficiency check, not real-world question answering.
+
+## LoCoMo method, not a headline
+
+```bash
+recall bench locomo --read-only --root . --dataset evals/locomo/smoke.v1.json --budget 512 --limit 4 --format json
+```
+
+This is a model-free retrieval-coverage method. The committed smoke fixture has
+one conversation and three questions. It reports evidence coverage and local
+delivery estimates, explicitly does not score official generative QA F1, and
+does not call a model API. Memory Recall does not publish a LoCoMo performance
+headline until a pinned public dataset, license, checksum, and sanitized result
+artifact are available.
+
+## Experimental Rust evaluation
+
+`node scripts/rust-eval.mjs` is a source-checkout-only experiment after a local
+Rust build:
+
+```bash
+cargo build --release --manifest-path rust/Cargo.toml
 node scripts/rust-eval.mjs
 ```
 
-`bench locomo` is a model-free retrieval benchmark for the public LoCoMo JSON
-shape. It ingests dialogue turns and generated observations into a temporary
-proposal-gated SQLite memory store, retrieves context with question-only
-queries, and reports evidence recall, non-adversarial answer-string coverage,
-delivered tokens, token reduction versus full-conversation context, and local
-latency. It does not claim official generative QA F1 because no model API is
-called.
+It reads `rust/target/release/oaf` and fetches an external public repository.
+That moving input makes it unsuitable as a packaged-product benchmark or a
+stable headline. It does not run during `npm install`, `recall setup`, `recall
+handoff`, or `recall token-saver`.
 
-On the public `locomo10.json` file, the `--limit 48 --budget 4096` setting
-measured 78% evidence-any recall, 67% evidence-all recall, 58% answer-string
-coverage on non-adversarial questions, and 84.79% fewer delivered tokens than
-full-conversation context. The report fingerprint from that run was
-`sha256:cf75a6ee5bc3c34917800d8034f106fc03a01bf2bc03dd8c600d11ce279e0b28`.
+## What counts
 
-`graph stats` is the fastest way to inspect source-graph compression without
-raw source bodies. On this repository it delivered 4,136 graph-summary tokens,
-avoided 3,135,082 full-graph JSON tokens, and reported a 99.87% local delivery
-reduction while showing actionable hotspot and entry-point locators. Use the
-number as source-graph transport evidence, not as a provider billing claim.
+- Selected local context locators and required-read lists.
+- Handoff and MCP payload delivery estimates.
+- Cursor and delta behavior for repeated MCP reads.
+- Fixture correctness and stale-value cleanliness checks.
 
-## What Counts
+## What does not count
 
-- Selected local context locators.
-- Required-read lists.
-- Handoff and MCP resource payload size.
-- Cursor and delta behavior for repeated MCP calls.
-- Correctness checks for stale or conflicting facts.
+- Provider billing tokens or hidden prompts inside another product.
+- Hosted-memory storage or retrieval costs.
+- Production latency or a cross-product benchmark result.
 
-## What Does Not Count
-
-- Provider billing tokens.
-- Hidden model prompts inside another product.
-- Hosted memory API storage or retrieval cost.
-- Production latency.
-
-Use the numbers as local evidence that Memory Recall sends less repeated repo
-context while preserving enough proof for a coding agent to continue safely.
+Use these reports to inspect whether a specific local workflow sends less
+repeated context while retaining enough evidence for the next coding agent.

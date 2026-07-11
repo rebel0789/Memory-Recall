@@ -17,6 +17,44 @@ for initialization, tool/resource discovery, tool invocation, and resource
 reads, but OAF trusted context and server-side exact grants remain outside
 caller-supplied protocol payloads.
 
+The Recall Map report schema adds an internal, versioned read-only composition
+contract for locator-safe static-source-graph and governed-memory summaries.
+It keeps active facts distinct from pending proposals and fingerprints the
+stable report payload without treating a provider identity, graph index, or
+memory store as canonical protocol identity.
+
+The source-graph and source-graph-preview summaries add optional, additive v1
+coverage and architecture-ranking fields. Coverage records only safe workspace
+locators, bounded skipped/oversized and excluded-directory samples, unsupported
+extension summaries, and an explicit complete/partial state. Unreadable source
+files are kept as bounded skipped evidence and force `partial` while readable
+files remain available. An unreadable source directory emits a safe
+`directory_unreadable` diagnostic and forces `partial` without being relabeled
+as a configured directory exclusion. Excluded directories are separate from
+skipped files:
+declared metadata/dependency/output directories remain visible without alone
+changing coverage to partial, while source-relevant exclusions force `partial`;
+after a file cap, bounded directory discovery preserves that exclusion truth or
+records that discovery itself was capped. Preview rankings carry explicit
+static reason codes and bounded deprioritized diagnostics; they do not imply
+language-server, semantic, model, graph-database, or source-body access.
+The preview facade and ranking share the schemas' strict workspace-relative
+locator and source-graph label grammars: valid changed-file line spans may be
+stripped for impact, while query strings, malformed fragments, private or
+absolute paths, raw-source-like text, URI-scheme/path-like values in any fully
+decoded workspace-relative segment (for example `workspace://src/file:/...` or
+`workspace://src/%66ile%3A/...`), recursively encoded path traversal or
+separator values, and sentinel labels are rejected before they can enter a
+report. A colon is reserved for the explicit `#Lx-Ly` suffix, not a path token.
+Public graph reads project a strict metadata envelope: bounded workspace IDs,
+SHA-256 graph and source-index fingerprints, projected diagnostics, and
+field-whitelisted nodes and edges. Unsafe supplied graph metadata fails closed
+to empty reader results with safe fallback metadata; graph candidate requests
+fall back to their configured safe workspace ID. The preview accepts only a
+schema-valid complete envelope and otherwise returns its unavailable report.
+Colon-bearing source-graph labels are limited to safe `node:` built-in module
+names and the fixed `local:absolute-import` placeholder.
+
 ## Requirements
 
 - canonical IDs are independent of providers;
@@ -31,6 +69,10 @@ caller-supplied protocol payloads.
   local paths, and caller-supplied authority fields are not protocol payloads.
 - MCP bridge callers cannot supply OAF principal, membership, role, approval,
   grant token, filesystem, network, or external-write authority.
+- Recall Map reports carry no source bodies, fact text, proposal payloads,
+  absolute paths, provider IDs, model/network calls, graph-database records,
+  or mutation authority; their read-only safeguards are strict compatibility
+  requirements.
 
 ## Open questions for OAF-002
 

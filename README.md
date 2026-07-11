@@ -15,7 +15,7 @@
 
 <p align="center">
   <strong>Local repo memory and context for Codex, Claude Code, Cursor, and other coding agents.</strong><br>
-  Governed SQLite memory. Read-only MCP. Rust code intelligence. No hosted account. No model API key.
+  Governed SQLite memory. Read-only MCP. Experimental Rust acceleration requires a local build. The default local path needs no hosted account or model API key.
 </p>
 
 Memory Recall turns a repository into a governed context source. New agent
@@ -25,8 +25,17 @@ and proof of what was sent instead of a giant pasted transcript.
 ```bash
 npm install -g memory-recall
 recall setup
+recall map --root . --sqlite .local/memory.sqlite --format summary
 recall handoff
 ```
+
+`recall setup` creates only local state. `recall map` is the explicit first
+read-only repository scan; it does not run silently during setup.
+
+Normal quickstarts use `recall`. The [developer-first product contract](docs/product/memory-recall-developer-first.md)
+defines the `implemented`, `experimental`, and `unsupported` capability
+vocabulary. See [Compatibility identifiers](docs/usage/oaf-compatibility.md)
+for preserved legacy names and URIs.
 
 ## Why Developers Use It
 
@@ -34,7 +43,8 @@ recall handoff
 | --- | --- |
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
-| Fast local code intelligence | Rust ingest and graph/search paths for local repo analysis, with no hosted service required. |
+| Fast local code intelligence | Implemented JS/TS static graph; experimental Rust ingest and graph/search require a local build. |
+| First look at a repository | Recall Map shows bounded source coverage, entry points, changed impact, and separate memory status without writing. |
 | Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
 | Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
 | Codebase context | Source graph hints, locator-only context packs, and manifest-backed selection. |
@@ -45,8 +55,13 @@ recall handoff
 # Install the CLI.
 npm install -g memory-recall
 
-# Bootstrap local files and run the handoff verification gate.
+# Create local state only. This does not scan the repository.
 recall setup
+
+# Run the first explicit read-only repository map.
+recall map --root . --sqlite .local/memory.sqlite --format summary
+
+# Run the handoff verification gate.
 recall verify
 
 # Preview local agent setup. This writes nothing.
@@ -64,71 +79,98 @@ recall handoff
 The default path is local and explicit: no hosted account, no model API key, no
 silent memory capture, and no automatic permanent memory.
 
+Optional semantic setup uses the active coding agent or one explicitly
+consented provider request to create pending proposals from selected
+documentation. Start with the body-free plan:
+
+```bash
+recall semantic plan --harness codex --root . --dry-run
+recall semantic task --harness codex --root .
+recall semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite
+```
+
+The CLI does not invoke the harness. Direct API execution requires a user-owned
+environment credential and `--allow-network`. See
+[Semantic setup](docs/usage/semantic-setup.md) for data limits and explicit-ID
+approval.
+
 Manual MCP install flow: run the `mcp install --client claude-code --dry-run --format json`
 preview, review it, then run the printed `--apply --confirm <fingerprint>`
-command only when the fingerprint matches. The installed server does not import harness history, enable write tools, call cloud/model APIs, or claim provider billing-token savings.
+command only when the fingerprint matches. That path installs the five-tool
+read-only MCP server. `recall connect` is separate: it installs a resource
+bridge plus hooks for Codex or Claude Code, and its MCP `tools/list` is empty.
+The support matrix names the difference and reversal path.
 
 ## Documentation
 
 | Start | Reference |
 | --- | --- |
 | [Quickstart](docs/usage/local-agent-handoff.md) | [MCP server reference](docs/usage/mcp-server-reference.md) |
+| [Recall Map](docs/usage/recall-map.md) | [Security model](docs/usage/security-model.md) |
+| [Semantic setup](docs/usage/semantic-setup.md) | [Memory lifecycle](docs/usage/memory-lifecycle.md) |
 | [Codex setup](docs/usage/codex-setup.md) | [Memory lifecycle](docs/usage/memory-lifecycle.md) |
 | [Claude Code setup](docs/usage/claude-code-setup.md) | [Token savings measurement](docs/usage/token-savings.md) |
 | [Cursor setup](docs/usage/cursor-setup.md) | [Rust acceleration](docs/usage/rust-acceleration.md) |
 | [Docs hub](docs/usage/README.md) | [Security model](docs/usage/security-model.md) |
 | [Troubleshooting](docs/usage/troubleshooting.md) | [Launch plan](docs/open-source/launch-plan.md) |
+| [Support matrix](docs/usage/support-matrix.md) | [Benchmark proof](docs/benchmarks.md) |
+| [Uninstall and data preservation](docs/usage/uninstall.md) | [Token savings measurement](docs/usage/token-savings.md) |
+| [Developer-first contract](docs/product/memory-recall-developer-first.md) | [Compatibility identifiers](docs/usage/oaf-compatibility.md) |
 
-## Verified Numbers
+## Reproducible Proof
 
-These are local measurements from this repository. They are delivery-token
-estimates and correctness checks, not provider billing claims.
+Every public measurement names its dataset, baseline, command, generated JSON
+artifact, pass condition, and limitation in [Benchmark proof](docs/benchmarks.md).
+They are local delivery-token estimates and correctness checks, not provider
+billing claims.
 
-| Test | Result | Command |
+| Fixture or gate | Current claim | Command |
 | --- | ---: | --- |
-| Session delta delivery | 72% fewer delivered tokens, 100% correct | `recall bench session --read-only --root . --format json` |
-| Rust graph-query evaluation | 84.6% fewer delivered tokens, 62.5% fewer tool calls | `node scripts/rust-eval.mjs` |
-| Current fact recall with stale facts present | 100% correct, 100% clean | `recall bench temporal --read-only --root . --format json` |
-| Real repo QA after governed ingest | 12/12 answered | `recall bench realqa --read-only --root . --format json` |
-| LoCoMo retrieval coverage | 78% evidence-any recall, 84.79% fewer delivered tokens | `recall bench locomo --read-only --root . --dataset /path/to/locomo10.json --limit 48 --budget 4096 --format json` |
-| Source graph stats summary | 99.87% smaller than full graph JSON, locator-only hotspots | `recall graph stats --root . --format summary` |
-| Practical context-pack report | 84.35% smaller than practical baseline | `npm run token-saver` |
+| Session cursor-delta fixture | 6/6 current answers and 72% lower estimated delivery than full resend | `recall bench session --read-only --root . --format json` |
+| Temporal current-truth fixture | 10/10 correct and clean; not a token-saving claim | `recall bench temporal --read-only --root . --format json` |
+| In-repo structured-ingest sufficiency | 12/12 checkout-derived answers present after structured ingest | `recall bench realqa --read-only --root . --format json` |
+| Truth-floor regression gate | Fixture-backed merge gate, not a user-task benchmark | `recall benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json` |
 
-Memory Recall is strongest when context changes over time, handoffs repeat, and
-the next agent needs reviewed local truth. It is not a hosted memory API,
-semantic embedding service, graph database, or billing-meter replacement.
-The LoCoMo number is model-free retrieval coverage, not official generative QA
-F1; the command does not call a model API.
+Memory Recall is designed for changing repository context, repeated handoffs,
+and reviewed local truth. It is not a hosted memory API,
+semantic embedding service, graph database, billing-meter replacement, or
+cross-product benchmark leaderboard.
 
 ## How It Compares
 
 | Category | Usually strong at | Memory Recall position |
 | --- | --- | --- |
-| Hosted memory APIs | Cross-app memory, cloud connectors, managed retrieval | Better when a hosted memory backend is desired. Memory Recall is better for local-first repo handoff with no API key. |
-| Persistent agent memory frameworks | Long-term personalization and retrieval across products | Stronger as general memory layers. Memory Recall is narrower: repo-scoped, proposal-gated, and inspectable. |
+| Hosted memory APIs | Cross-app memory, cloud connectors, managed retrieval | Use a hosted service when managed cross-app memory is required. Memory Recall focuses on local repository handoff. |
+| Persistent agent memory frameworks | Long-term personalization and retrieval across products | Choose these for cross-product personalization. Memory Recall stores repo-scoped proposals and exposes their sources and approval state. |
 | Temporal graph memory | Changing facts, provenance, entity relationships | Memory Recall has local temporal facts and supersession, but does not claim a full temporal graph database. |
 | Code graph MCP tools | Static code graph search and token-heavy repo compression | Memory Recall combines code locators with governed memory, handoff manifests, MCP proof, and local UX. |
-| IDE indexing | Smooth editor-native search | Memory Recall is more explicit: it shows what was selected, excluded, pinned, and delivered. |
+| IDE indexing | Smooth editor-native search | Memory Recall reports which context units were selected, excluded, pinned, and delivered; it does not replace editor-native search. |
 
-## What Works Now
+## Current Capabilities
 
 - Dependency-free Node.js 22 bootstrap with no paid service, database server, or
   model API required.
 - Native SQLite/FTS5 governed memory with temporal facts, supersession, entity
   edges, proposal queue, explicit approve/reject, and no hard delete.
-- Read-only `recall mcp server` exposing `memory.recall`, `context.profile`, and
-  `context.pack` over local stdio with active facts separated from proposals.
+- Bounded semantic setup packets for Codex, Claude Code, Cursor, or a generic
+  harness; strict result import; pending-only proposals; and source-rechecked
+  named approval. Optional direct API execution is experimental and explicitly
+  consented.
+- Read-only `recall mcp server` exposing `memory.recall`, `context.profile`,
+  `context.pack`, `repo.map`, and `code.impact` over local stdio with active
+  facts separated from proposals.
 - Persisted MCP cursors and `since` deltas so repeated reads send only changed
   current truth, including after restart.
 - Preview-then-confirm install paths for Claude Code, Cursor, and Codex with
   explicit project root and project SQLite memory path.
 - Local `/memory` cockpit over the loopback Control API with temporal facts,
   proposal counts, MCP delivery stats, and confirm-gated approvals.
-- Rust workspace for local ingest, governed graph/search, wiki, MCP, and the
-  graph-query evaluation path. Rust source ships in the npm package; build
-  output stays out of the tarball.
+- Experimental Rust acceleration paths for local ingest, governed graph/search,
+  wiki, MCP, and static analysis when explicitly invoked. They require a local
+  `cargo build --release` before use; Rust source ships in the npm package, but
+  build output stays out of the tarball.
 - Deterministic local benches for temporal correctness, session delta delivery,
-  and real repo question answering.
+  and checkout-derived structured-ingest sufficiency.
 
 ## Safety Model
 
@@ -160,6 +202,7 @@ status and limitations.
 
 ```bash
 recall setup
+recall map --root . --sqlite .local/memory.sqlite --format summary
 recall verify
 recall connect codex --dry-run --format json
 recall mcp install --client claude-code --dry-run --format json
@@ -206,7 +249,7 @@ Development kit: **1.0.5**.
 | --- | --- |
 | Source checkout | Local-ready reference path |
 | npm package | Published as `memory-recall` |
-| CLI | `recall` primary, `oaf` compatibility alias |
+| CLI | `recall` |
 | Marketplace / plugin registry | Manifest prepared; not submitted |
 | Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |
 

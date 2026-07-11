@@ -23,6 +23,28 @@
       "defined_in": 2,
       "imports": 1
     },
+    "coverage": {
+      "status": "complete",
+      "representedFileCount": 2,
+      "representedJsTsLocators": [
+        "workspace://src/auth.ts",
+        "workspace://src/workflow.ts"
+      ],
+      "skippedFileCount": 0,
+      "skippedLocators": [],
+      "oversizedFileCount": 0,
+      "oversizedLocators": [],
+      "excludedDirectoryCount": 0,
+      "excludedDirectoryLocators": [],
+      "declaredOutOfScopeDirectoryCount": 0,
+      "declaredOutOfScopeDirectoryLocators": [],
+      "sourceRelevantExcludedDirectoryCount": 0,
+      "sourceRelevantExcludedDirectoryLocators": [],
+      "unsupportedFileCount": 0,
+      "unsupportedExtensions": [],
+      "maxFilesReached": false,
+      "reasonCodes": []
+    },
     "hotspots": [
       {
         "nodeId": "sgnode_11111111111111111111111111111111",

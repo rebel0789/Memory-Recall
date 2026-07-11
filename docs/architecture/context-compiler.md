@@ -38,9 +38,50 @@ with conflicting version/hash fails closed as `candidate_identity_conflict`.
 The native JS/TS source graph is a read-only derived index over the native
 AST-code source index. It exposes files, chunks, symbols, modules, structural
 edges, lexical graph search, call traces, diff-impact reports, and locator-only
-`graph` candidate-source records for local context selection. It is not
-canonical source or memory state, and is not backed by a graph database or
-external adapter.
+`graph` candidate-source records for local context selection. Its preview
+facade validates changed locators and filters with the protocol's shared
+workspace-relative grammar before building a report; valid line spans are
+stripped only for changed-file impact. URI-shaped tokens are rejected in every
+fully decoded workspace-relative path segment, and a colon is allowed only in
+the explicit line-span suffix. Every public graph read projects a validated
+metadata envelope, diagnostics, nodes, and edges rather than returning raw
+graph objects. Unsafe supplied graph metadata fails closed to empty results
+with safe fallback metadata; graph candidate requests use the configured safe
+workspace ID when their request ID is invalid. Ranking emits only labels
+accepted by the shared strict source-graph label grammar, excluding
+raw-source-like, URL-like, query-like, absolute-path, and sentinel values. It
+is not canonical source or memory state, and is not backed by a graph database
+or external adapter.
+
+Its read-only preview ranks architecture summaries with explicit static signal
+codes only: exported graph edges, route/bin/package-source locators, changed
+file membership, and observed call/reference degree. Test-only, private, and
+generic utility symbols are surfaced as bounded deprioritized diagnostics
+instead of being allowed to dominate entry points or hotspots. The preview also
+reports represented JS/TS locators, skipped and oversized files, unsupported
+extensions, and a `partial` coverage state whenever the static scope is capped
+or incomplete. An unreadable source directory contributes a safe
+`directory_unreadable` diagnostic and partial coverage while readable sibling
+files remain available; it is not mislabeled as a configured exclusion. It
+makes no language-server or semantic-analysis claim.
+
+Configured directory exclusions are never represented as skipped files.
+Coverage reports complete counts and bounded safe locator samples for all
+excluded directories, with separate declared-out-of-scope and source-relevant
+categories. `.git`, `node_modules`, `.next`, and `coverage` are declared
+metadata, dependency, or generated-output exclusions: they remain visible but
+do not by themselves make static coverage partial. `vendor`, `dist`, `build`,
+and `out` can contain source-bearing code, so excluding any of them adds
+`source_relevant_directory_excluded` and makes coverage `partial`. Directory
+locator samples and per-directory diagnostics are capped at 100 while their
+counts remain complete. Architecture ranking and the preview facade accept
+only the same workspace-relative locator grammar as both source-graph schemas;
+valid line spans may be stripped only for changed-file impact. They fail closed
+on query strings, malformed fragments, and private or absolute-path prefixes.
+Both schemas also share the strict source-graph label grammar used by ranking:
+static symbol/module/file labels and bounded edge labels are allowed, while
+raw-source-like text, URL-like values, query-like syntax, absolute paths, and
+sentinel labels are excluded before a report is emitted.
 
 ## Selection policy
 

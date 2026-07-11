@@ -35,6 +35,22 @@ recall mcp inspect --read-only --root . --format summary
 Then run the printed server command directly. Most failures are path, Node
 version, or missing global install issues.
 
+## MCP Tools Are Missing
+
+`recall mcp install` and `recall connect` install different MCP paths. The
+confirmed `mcp install` path exposes five read-only tools, including `repo.map`
+and `code.impact`. The Codex/Claude Code `connect` path installs a resource
+bridge and hooks; its MCP `tools/list` is intentionally empty.
+
+```bash
+recall mcp inspect --read-only --root . --format summary
+recall mcp install --client codex --dry-run --format json
+recall connect codex --dry-run --format json
+```
+
+Choose the path you need instead of applying both by assumption. See the
+[support matrix](support-matrix.md) for configuration and hook boundaries.
+
 ## Memory Recall Returns No Facts
 
 Ingest creates proposals, not active facts.
@@ -60,5 +76,6 @@ npm install -g memory-recall@latest
 ## More
 
 See the repository-level [Troubleshooting](../../TROUBLESHOOTING.md) guide for
-local development, bootstrap, and CI issues.
-
+local development, bootstrap, and CI issues. For measurement wording and
+reproduction, see [Benchmark proof](../benchmarks.md). For removal without data
+loss, see [Uninstall and data preservation](uninstall.md).

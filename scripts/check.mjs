@@ -1,6 +1,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { auditPublicCopyEntries } from './public-copy-audit.mjs';
 
 const root = process.cwd();
 const errors = [];
@@ -65,6 +66,19 @@ async function emptyDirectories(directory) {
 
 const files = await walk(root);
 for (const directory of await emptyDirectories(root)) errors.push(`${path.relative(root, directory)}: empty directory`);
+
+const publicCopyScopes = [
+  { label: 'README.md', candidates: [path.join(root, 'README.md')] },
+  { label: 'docs/usage/', candidates: files.filter((file) => file.startsWith(`${path.join(root, 'docs', 'usage')}${path.sep}`)) },
+  { label: 'apps/web/', candidates: files.filter((file) => file.startsWith(`${path.join(root, 'apps', 'web')}${path.sep}`)) }
+];
+for (const scope of publicCopyScopes) {
+  scope.entries = await Promise.all(scope.candidates.map(async (file) => ({
+    relative: path.relative(root, file).split(path.sep).join('/'),
+    text: await readFile(file, 'utf8').catch(() => '')
+  })));
+}
+errors.push(...auditPublicCopyEntries(publicCopyScopes));
 
 const jsonValues = new Map();
 for (const file of files.filter((candidate) => candidate.endsWith('.json'))) {

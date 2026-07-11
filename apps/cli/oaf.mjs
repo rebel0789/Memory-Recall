@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { createReadStream, existsSync, realpathSync } from 'node:fs';
+import { constants as fsConstants, createReadStream, existsSync, realpathSync } from 'node:fs';
 import { appendFile, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename as renameFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -41,17 +41,32 @@ import {
   evaluateMemoryWrite,
   normalizeMemoryPathsConfig
 } from '../../packages/memory-core/src/index.mjs';
+import { buildRecallMap } from '../../packages/recall-map/src/index.mjs';
+import {
+  assertSemanticProposalSourcesCurrent,
+  assertSemanticSourceBindingsCurrent,
+  buildSemanticSetupPacket,
+  buildSemanticSetupReport,
+  evaluateSemanticNetworkConsent,
+  executeSemanticApi,
+  normalizeSemanticSetupResult,
+  readSemanticApiCredential,
+  renderSemanticSetupTask,
+  resolveSemanticApiConfig
+} from '../../packages/semantic-setup/src/index.mjs';
 import { assertSafeContextPackUsePlanForResource, buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages/protocol-bridges/src/index.mjs';
 import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
 import contextPackHandoffReportSchema from '../../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import memoryRefineReportSchema from '../../packages/protocol/schemas/memory-refine-report.schema.json' with { type: 'json' };
+import semanticSetupReportSchema from '../../packages/protocol/schemas/semantic-setup-report.schema.json' with { type: 'json' };
 import skillManifestSchema from '../../packages/protocol/schemas/skill-manifest.schema.json' with { type: 'json' };
 import skillCatalogReportSchema from '../../packages/protocol/schemas/skill-catalog-report.schema.json' with { type: 'json' };
 import skillLoadPlanSchema from '../../packages/protocol/schemas/skill-load-plan.schema.json' with { type: 'json' };
 import { assertJsonSchema } from '../../packages/protocol/src/schema-validator.mjs';
 import { sha256Hex, stableStringify } from '../../packages/protocol/src/fingerprint.mjs';
+import { normalizeSourceGraphWorkspaceLocator } from '../../packages/protocol/src/source-graph-locator.mjs';
 import { loadReviewedToolCatalog } from '../../packages/tool-registry/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
@@ -71,6 +86,9 @@ const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOU
 const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 const MEMORY_PATH_MAX_BYTES = 8 * 1024 * 1024;
+const SEMANTIC_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
+const SEMANTIC_PROVIDERS = new Set(['gemini', 'openai-compatible']);
+const SEMANTIC_RESULT_MAX_BYTES = 256 * 1024;
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/iu;
 const PRIVATE_LOCAL_PATH = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)|\/home\/[A-Za-z0-9._-]+(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|[A-Za-z]:\\)/u;
 const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
@@ -129,8 +147,8 @@ async function setupConsumerWorkspace() {
     await writeFile(statePath, `${JSON.stringify({ schemaVersion: '1.0.0', runs: [], events: [], memories: [], approvals: [], artifacts: [] }, null, 2)}\n`, { mode: 0o600 });
   }
   console.log(`Memory Recall ${PACKAGE_METADATA.version} is ready for this repository.`);
-  console.log('Next: recall memory ingest --root . --sqlite .local/memory.sqlite --format json');
-  console.log('Then: recall memory review --root . --sqlite .local/memory.sqlite --format summary');
+  console.log('Setup created only local state; it did not scan this repository.');
+  console.log('Next: recall map --root . --sqlite .local/memory.sqlite --format summary');
   console.log('Handoff: recall handoff');
 }
 
@@ -202,6 +220,10 @@ if (!isHelpCommand(command) && args.some(isHelpCommand)) {
   await contextCommand(args);
 } else if (command === 'graph') {
   await graphCommand(args);
+} else if (command === 'map') {
+  await recallMapCommand(args);
+} else if (command === 'semantic') {
+  await semanticCommand(args);
 } else if (command === 'handoff') {
   await contextCommand(['handoff', ...mergeDefaultArgs(defaultHandoffArgs(), args, contextPackValueOptions(), contextPackOptionAliases())]);
 } else if (command === 'token-saver') {
@@ -600,6 +622,293 @@ async function memoryCommand(values) {
     console.error(error.message);
     process.exitCode = 2;
   }
+}
+
+async function semanticCommand(values) {
+  const [subcommand, ...rest] = values;
+  try {
+    if (subcommand === 'plan') return await semanticPlanCommand(rest);
+    if (subcommand === 'task') return await semanticTaskCommand(rest);
+    if (subcommand === 'run') return await semanticRunCommand(rest);
+    if (subcommand === 'import') return await semanticImportCommand(rest);
+    throw new Error('semantic requires plan, task, run, or import');
+  } catch (error) {
+    console.error(safeSemanticCliError(error));
+    process.exitCode = 2;
+  }
+}
+
+function parseSemanticOptions(values, { commandName, valueOptions, booleanOptions = new Set(), requiredValues = [] }) {
+  const allowed = new Set([...valueOptions, ...booleanOptions]);
+  const parsed = new Map();
+  for (let index = 0; index < values.length; index += 1) {
+    const flag = values[index];
+    if (!flag.startsWith('--') || !allowed.has(flag)) throw new Error(`${commandName} unsupported option`);
+    if (parsed.has(flag)) throw new Error(`${commandName} duplicate option`);
+    if (booleanOptions.has(flag)) {
+      parsed.set(flag, true);
+      continue;
+    }
+    const value = values[index + 1];
+    if (!value || value.startsWith('--')) throw new Error(`${commandName} option requires a value`);
+    parsed.set(flag, value);
+    index += 1;
+  }
+  for (const flag of requiredValues) if (!parsed.has(flag)) throw new Error(`${commandName} requires ${flag}`);
+  return parsed;
+}
+
+async function semanticWorkspace(options, commandName) {
+  const requestedRoot = options.get('--root') ?? process.cwd();
+  const rootInfo = await stat(requestedRoot).catch(() => null);
+  if (!rootInfo?.isDirectory()) throw new Error(`${commandName} --root must point at a local workspace directory`);
+  const root = await realpath(requestedRoot);
+  const workspaceId = options.get('--workspace-id') ?? options.get('--workspace') ?? 'ws_local';
+  return {
+    root,
+    workspaceId,
+    generatedAt: fixedNow(),
+    packet: await buildSemanticSetupPacket({ root, workspaceId, generatedAt: fixedNow() })
+  };
+}
+
+function printSemanticReport(report) {
+  assertJsonSchema(semanticSetupReportSchema, report, 'semantic setup report');
+  console.log(JSON.stringify(report, null, 2));
+}
+
+async function semanticPlanCommand(values) {
+  const options = parseSemanticOptions(values, {
+    commandName: 'semantic plan',
+    valueOptions: new Set(['--harness', '--root', '--workspace', '--workspace-id']),
+    booleanOptions: new Set(['--dry-run']),
+    requiredValues: ['--harness']
+  });
+  if (!options.has('--dry-run')) throw new Error('semantic plan requires --dry-run');
+  const harness = options.get('--harness');
+  if (!SEMANTIC_HARNESSES.has(harness)) throw new Error('semantic plan --harness must be codex, claude-code, cursor, or generic');
+  const { packet, generatedAt } = await semanticWorkspace(options, 'semantic plan');
+  printSemanticReport(buildSemanticSetupReport({
+    command: 'semantic plan', packet, generatedAt,
+    executor: { kind: 'harness', harness },
+    proposalIds: [], sourceBytesSent: 0, networkCalls: 0, modelCalls: 0
+  }));
+}
+
+async function semanticTaskCommand(values) {
+  const options = parseSemanticOptions(values, {
+    commandName: 'semantic task',
+    valueOptions: new Set(['--harness', '--root', '--workspace', '--workspace-id']),
+    requiredValues: ['--harness']
+  });
+  const harness = options.get('--harness');
+  if (!SEMANTIC_HARNESSES.has(harness)) throw new Error('semantic task --harness must be codex, claude-code, cursor, or generic');
+  const { packet } = await semanticWorkspace(options, 'semantic task');
+  process.stdout.write(`${renderSemanticSetupTask(packet, { harness })}\n`);
+}
+
+async function semanticRunCommand(values) {
+  const options = parseSemanticOptions(values, {
+    commandName: 'semantic run',
+    valueOptions: new Set(['--provider', '--endpoint', '--model', '--api-key-env', '--root', '--workspace', '--workspace-id', '--sqlite']),
+    booleanOptions: new Set(['--allow-network']),
+    requiredValues: ['--provider']
+  });
+  const providerName = options.get('--provider');
+  if (!SEMANTIC_PROVIDERS.has(providerName)) throw new Error('semantic run --provider must be gemini or openai-compatible');
+  if (!options.has('--allow-network')) throw new Error('semantic run requires --allow-network');
+  const { root, workspaceId, packet, generatedAt } = await semanticWorkspace(options, 'semantic run');
+  const configInput = { provider: providerName, allowNetwork: true };
+  if (providerName === 'openai-compatible') {
+    configInput.endpoint = options.get('--endpoint');
+    configInput.model = options.get('--model');
+    configInput.apiKeyEnv = options.get('--api-key-env');
+  } else if (options.has('--endpoint') || options.has('--model') || options.has('--api-key-env')) {
+    throw new Error('semantic run gemini configuration is pinned');
+  }
+  const config = resolveSemanticApiConfig(configInput);
+  evaluateSemanticNetworkConsent({ allowNetwork: true, endpoint: config.endpoint, packet });
+  const credential = readSemanticApiCredential(config, process.env);
+  const normalized = await executeSemanticApi({ packet, config, credential });
+  const proposalIds = await enqueueSemanticCandidates({ normalized, packet, root, workspaceId, generatedAt, sqlite: options.get('--sqlite') });
+  printSemanticReport(buildSemanticSetupReport({
+    command: 'semantic run', packet, generatedAt, executor: normalized.executor,
+    proposalIds, sourceBytesSent: packet.totalSourceBytes, networkCalls: 1, modelCalls: 1, usage: normalized.usage
+  }));
+}
+
+async function semanticImportCommand(values) {
+  const options = parseSemanticOptions(values, {
+    commandName: 'semantic import',
+    valueOptions: new Set(['--input', '--root', '--workspace', '--workspace-id', '--sqlite']),
+    requiredValues: ['--input']
+  });
+  const { root, workspaceId, packet, generatedAt } = await semanticWorkspace(options, 'semantic import');
+  const result = await readSemanticImportResult(root, options.get('--input'));
+  const normalized = normalizeSemanticSetupResult({ packet, result, executor: { kind: 'import' } });
+  const proposalIds = await enqueueSemanticCandidates({ normalized, packet, root, workspaceId, generatedAt, sqlite: options.get('--sqlite') });
+  printSemanticReport(buildSemanticSetupReport({
+    command: 'semantic import', packet, generatedAt, executor: normalized.executor,
+    proposalIds, sourceBytesSent: 0, networkCalls: 0, modelCalls: 0
+  }));
+}
+
+async function enqueueSemanticCandidates({ normalized, packet, root, workspaceId, generatedAt, sqlite }) {
+  for (const fact of normalized.facts) {
+    await assertSemanticSourceBindingsCurrent({ root, sources: canonicalSemanticSources(fact.sources) });
+  }
+  const sqlitePath = await resolveWorkspaceSqlitePath(root, sqlite ?? '.local/memory.sqlite', 'semantic setup', { mustExist: false });
+  await mkdir(path.dirname(sqlitePath.absolute), { recursive: true });
+  const { SQLiteMemoryProvider } = await import('../../providers/native/memory-sqlite/src/index.mjs');
+  const provider = new SQLiteMemoryProvider({ filename: sqlitePath.absolute, clock: () => generatedAt });
+  const proposalIds = [];
+  try {
+    for (const [index, fact] of normalized.facts.entries()) {
+      const sources = canonicalSemanticSources(fact.sources);
+      const primary = sources[0];
+      const identity = {
+        workspaceId,
+        packetFingerprint: packet.packetFingerprint,
+        subject: fact.subject,
+        predicate: fact.predicate,
+        object: fact.object,
+        text: fact.text,
+        sources,
+        proposalOrigin: fact.proposalOrigin,
+        approvalMode: fact.approvalMode,
+        extractionConfidence: fact.extractionConfidence,
+        executor: normalized.executor
+      };
+      const fingerprint = sha256Hex(stableStringify(identity));
+      const semanticSourceFields = {};
+      for (const [sourceIndex, source] of sources.entries()) {
+        semanticSourceFields[`semanticSource${sourceIndex}Id`] = source.sourceId;
+        semanticSourceFields[`semanticSource${sourceIndex}Locator`] = source.locator;
+        semanticSourceFields[`semanticSource${sourceIndex}Hash`] = source.sourceHash;
+      }
+      const semanticUsageFields = normalized.usage
+        && Number.isInteger(normalized.usage.inputTokens) && normalized.usage.inputTokens >= 0 && normalized.usage.inputTokens <= 1_024_000
+        && Number.isInteger(normalized.usage.outputTokens) && normalized.usage.outputTokens >= 0 && normalized.usage.outputTokens <= 1_024_000
+        ? { semanticUsageInputTokens: normalized.usage.inputTokens, semanticUsageOutputTokens: normalized.usage.outputTokens }
+        : {};
+      const queued = await provider.enqueueProposal({
+        id: `mpq_semantic_${fingerprint.slice(0, 32)}`,
+        workspaceId,
+        fingerprint,
+        sourceLocator: primary.locator,
+        sourceHash: primary.sourceHash,
+        enqueuedAt: addMilliseconds(generatedAt, index),
+        payload: {
+          kind: 'fact',
+          scope: 'workspace',
+          subject: fact.subject,
+          predicate: fact.predicate,
+          object: fact.object,
+          text: fact.text,
+          observedAt: generatedAt,
+          subjectEntity: fact.subject,
+          objectEntity: fact.object,
+          provenanceEpisodeId: `mep_semantic_${fingerprint.slice(0, 32)}`,
+          provenanceSourceLocator: primary.locator,
+          provenanceSourceHash: primary.sourceHash,
+          extractionConfidence: fact.extractionConfidence,
+          supersedesSubjectPredicate: false,
+          proposalOrigin: fact.proposalOrigin,
+          approvalMode: fact.approvalMode,
+          semanticPacketFingerprint: packet.packetFingerprint,
+          semanticResultSchemaVersion: normalized.schemaVersion,
+          semanticSourceId: primary.sourceId,
+          semanticSourceLocator: primary.locator,
+          semanticSourceHash: primary.sourceHash,
+          semanticSourceCount: sources.length,
+          ...semanticSourceFields,
+          ...semanticUsageFields,
+          executorKind: normalized.executor.kind,
+          executorHarness: normalized.executor.harness,
+          executorModel: normalized.executor.model
+        }
+      });
+      proposalIds.push(queued.id);
+    }
+  } finally {
+    provider.close();
+  }
+  return [...new Set(proposalIds)];
+}
+
+function canonicalSemanticSources(sources) {
+  return [...sources].sort((left, right) => {
+    for (const key of ['sourceId', 'locator', 'sourceHash']) {
+      const leftValue = String(left[key]);
+      const rightValue = String(right[key]);
+      const compared = leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
+      if (compared !== 0) return compared;
+    }
+    return 0;
+  });
+}
+
+async function readSemanticImportResult(root, requestedPath) {
+  const bytes = await readSecureWorkspaceFile(root, requestedPath, { maxBytes: SEMANTIC_RESULT_MAX_BYTES, label: 'semantic import --input' });
+  let text;
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { throw new Error('semantic import result must be UTF-8 JSON'); }
+  try { return JSON.parse(text); } catch { throw new Error('semantic import result must be valid JSON'); }
+}
+
+async function readSecureWorkspaceFile(root, requestedPath, { maxBytes, label }) {
+  if (!requestedPath || path.isAbsolute(requestedPath) || requestedPath.includes('..')) {
+    throw new Error(`${label} requires a safe workspace-relative path`);
+  }
+  const realRoot = await realpath(root);
+  const lexicalPath = path.resolve(realRoot, requestedPath);
+  if (!isInside(realRoot, lexicalPath)) throw new Error(`${label} must stay inside --root`);
+  const lexicalInfo = await lstat(lexicalPath).catch(() => null);
+  if (!lexicalInfo?.isFile() || lexicalInfo.isSymbolicLink()) throw new Error(`${label} must be a regular non-symlink file`);
+  const actualPath = await realpath(lexicalPath);
+  if (!isInside(realRoot, actualPath)) throw new Error(`${label} must stay inside --root`);
+  const expected = await stat(actualPath, { bigint: true });
+  if (!expected.isFile() || expected.size > BigInt(maxBytes)) throw new Error(`${label} is too large or not a regular file`);
+
+  let handle;
+  try {
+    handle = await open(actualPath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW ?? 0));
+    const before = await handle.stat({ bigint: true });
+    const reopenedRealPath = await realpath(lexicalPath);
+    const reopenedLexicalInfo = await lstat(lexicalPath);
+    const reopened = await stat(reopenedRealPath, { bigint: true });
+    if (reopenedLexicalInfo.isSymbolicLink() || reopenedRealPath !== actualPath
+      || !before.isFile() || before.dev !== expected.dev || before.ino !== expected.ino
+      || reopened.dev !== before.dev || reopened.ino !== before.ino
+      || before.size > BigInt(maxBytes)) {
+      throw new Error(`${label} changed while opening`);
+    }
+    const bytes = Buffer.alloc(maxBytes + 1);
+    let offset = 0;
+    while (offset < bytes.length) {
+      const { bytesRead } = await handle.read(bytes, offset, bytes.length - offset, null);
+      if (bytesRead === 0) break;
+      offset += bytesRead;
+    }
+    const after = await handle.stat({ bigint: true });
+    if (offset > maxBytes || after.size > BigInt(maxBytes)
+      || after.dev !== before.dev || after.ino !== before.ino || after.size !== before.size
+      || after.mtimeNs !== before.mtimeNs || after.ctimeNs !== before.ctimeNs
+      || BigInt(offset) !== after.size) {
+      throw new Error(`${label} changed or exceeded the size limit`);
+    }
+    return bytes.subarray(0, offset);
+  } catch (error) {
+    if (String(error?.message ?? '').startsWith(label)) throw error;
+    throw new Error(`${label} could not be opened safely`);
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+}
+
+function safeSemanticCliError(error) {
+  const message = typeof error?.message === 'string' ? error.message : '';
+  if (/^(?:semantic[ _-]|failed schema validation)/u.test(message) && !PRIVATE_LOCAL_PATH.test(message) && !SECRET_LIKE.test(message)) return message;
+  return 'semantic_command_failed';
 }
 
 async function memoryReviewCommand(values) {
@@ -1214,16 +1523,23 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
   const generatedAt = fixedNow();
   const workerId = 'memory-review';
   const command = legacyReview ? 'memory review approve' : 'memory approve';
-  const { sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: false, commandName: command });
+  const { root, sqlitePath, workspaceId, provider } = await openMemoryReviewProvider(values, { readOnly: false, commandName: command });
   try {
     const pending = (await provider.listProposalQueue({ workspaceId, limit: 500 })).filter((item) => item.status === 'pending');
-    const targets = (allFrom || approveAll ? pending
-      .filter((item) => approveAll || memoryProposalSourceMatches(item, allFrom))
+    const bulkMatches = (allFrom || approveAll) ? pending
+      .filter((item) => approveAll || memoryProposalSourceMatches(item, allFrom)) : [];
+    const skippedExplicitIdOnly = bulkMatches.filter(requiresExplicitProposalApproval);
+    const targets = (allFrom || approveAll ? bulkMatches
+      .filter((item) => !requiresExplicitProposalApproval(item))
       .sort((left, right) => String(left.enqueuedAt).localeCompare(String(right.enqueuedAt)) || String(left.id).localeCompare(String(right.id)))
       .map((item) => item.id) : [proposalId]);
-    if (!targets.length) throw new Error(approveAll ? 'memory approve found no pending proposals' : `memory approve found no pending proposals for ${allFrom}`);
+    if (!targets.length && bulkMatches.length === 0) throw new Error(approveAll ? 'memory approve found no pending proposals' : `memory approve found no pending proposals for ${allFrom}`);
     const approved = [];
-    for (const id of targets) approved.push(await provider.approveProposalFact({ workspaceId, id, workerId, approvedAt: generatedAt }));
+    for (const id of targets) {
+      const proposal = await provider.getProposalQueueRecord({ workspaceId, id });
+      if (proposal && requiresSemanticSourceRecheck(proposal)) await assertSemanticProposalSourcesCurrent({ root, proposal });
+      approved.push(await provider.approveProposalFact({ workspaceId, id, workerId, approvedAt: generatedAt }));
+    }
     const facts = approved.map((item) => item.fact);
     const supersededFacts = [];
     for (const item of facts) {
@@ -1244,7 +1560,8 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
         pendingProposalCount: pendingAfter,
         activeMemoryCreated: facts.length,
         rejectedProposalCount: 0,
-        supersededFactCount: supersededFacts.length
+        supersededFactCount: supersededFacts.length,
+        skippedExplicitIdOnlyCount: skippedExplicitIdOnly.length
       },
       proposal: approved.length === 1 ? approved[0].proposal : null,
       fact: facts[0] ?? null,
@@ -1253,7 +1570,7 @@ async function memoryApproveCommand(values, { legacyReview = false } = {}) {
       safeguards: {
         readOnly: false,
         proposalGated: true,
-        canonicalStateMutated: true,
+        canonicalStateMutated: facts.length > 0,
         activeMemoryCreated: facts.length,
         hardDeleted: false,
         networkCalls: 0,
@@ -1282,6 +1599,14 @@ function memoryProposalSourceMatches(item, sourceLocator) {
   const target = normalizeWorkspaceLocator(sourceLocator);
   return [item.sourceLocator, item.payload?.provenance?.sourceLocator]
     .some((candidate) => normalizeWorkspaceLocator(candidate) === target);
+}
+
+function requiresExplicitProposalApproval(proposal) {
+  return proposal?.payload?.approvalMode === 'explicit-id-only' || proposal?.payload?.proposalOrigin === 'semantic-setup';
+}
+
+function requiresSemanticSourceRecheck(proposal) {
+  return proposal?.payload?.proposalOrigin === 'semantic-setup';
 }
 
 async function memoryRememberCommand(values) {
@@ -2550,6 +2875,163 @@ async function graphCommand(values) {
   if (subcommand === 'impact') return graphImpactCommand(rest);
   console.error('graph requires stats, search, trace, or impact');
   process.exitCode = 2;
+}
+
+async function recallMapCommand(values) {
+  const options = parseRecallMapOptions(values);
+  if (!options) return;
+  try {
+    const { changedLocators } = await resolveChangedLocators(values, {
+      root: options.root,
+      workspaceId: 'ws_local'
+    });
+    const { buildRecallMap } = await import('../../packages/recall-map/src/index.mjs');
+    const map = await buildRecallMap({
+      root: options.root,
+      changedLocators,
+      query: options.query,
+      sqliteLocator: options.sqliteLocator,
+      clock: fixedNow
+    });
+    if (options.format === 'json') {
+      console.log(JSON.stringify(map, null, 2));
+    } else if (options.format === 'markdown') {
+      console.log(renderRecallMapMarkdown({ command: 'recall map', ...map }));
+    } else {
+      console.log(renderRecallMapSummary({ command: 'recall map', ...map }));
+    }
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 2;
+  }
+}
+
+function parseRecallMapOptions(values) {
+  const valueOptions = new Set(['--root', '--sqlite', '--changed', '--query', '--format']);
+  const supported = new Set(['--changed-from-git', ...valueOptions]);
+  const seen = new Set();
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === '--changed-from-git') continue;
+    if (!supported.has(value)) {
+      console.error(value.startsWith('--') ? `recall map unsupported option: ${value}` : `recall map does not accept positional arguments: ${value}`);
+      process.exitCode = 2;
+      return null;
+    }
+    const input = values[index + 1];
+    if (!input || input.startsWith('--')) {
+      console.error(`recall map ${value} requires a value`);
+      process.exitCode = 2;
+      return null;
+    }
+    if (value !== '--changed' && seen.has(value)) {
+      console.error(`recall map ${value} may be specified once`);
+      process.exitCode = 2;
+      return null;
+    }
+    seen.add(value);
+    index += 1;
+  }
+  const format = option(values, '--format') ?? 'summary';
+  if (!['json', 'summary', 'markdown'].includes(format)) {
+    console.error('recall map supports --format json, summary, or markdown');
+    process.exitCode = 2;
+    return null;
+  }
+  return {
+    root: option(values, '--root') ?? process.cwd(),
+    sqliteLocator: option(values, '--sqlite') ?? '.local/memory.sqlite',
+    query: option(values, '--query') ?? '',
+    format
+  };
+}
+
+function renderRecallMapSummary(report) {
+  const support = report.support ?? {};
+  const coverage = support.sourceGraph?.coverage ?? {};
+  const architecture = report.architecture ?? {};
+  const impact = architecture.impact ?? {};
+  const memory = report.memory ?? {};
+  const entryPoints = architecture.entryPoints ?? [];
+  const changedLocators = impact.changedLocators ?? [];
+  return [
+    '# Recall Map',
+    `Source graph: ${support.sourceGraph?.status ?? 'unavailable'}`,
+    `Coverage: ${coverage.status ?? 'unavailable'} (${coverage.analyzedFileCount ?? 0}/${coverage.maxFiles ?? 0} JS/TS files)`,
+    '',
+    'Top entry points:',
+    ...(entryPoints.length ? entryPoints.slice(0, 10).map(recallMapSymbolLine) : ['- none discovered']),
+    '',
+    'Changed impact:',
+    ...(changedLocators.length ? changedLocators.map((locator) => `- ${locator}`) : ['- no changed locators requested']),
+    `Represented changed locators: ${impact.representedChangedLocators?.length ?? 0}/${changedLocators.length}`,
+    `Affected symbols: ${impact.affectedSymbols?.length ?? 0}`,
+    '',
+    'Memory:',
+    `Status: ${memory.status ?? 'unavailable'}`,
+    `Active facts: ${memory.activeFacts?.length ?? 0}`,
+    `Pending proposals: ${memory.pendingProposals?.length ?? 0}`,
+    `Stale facts: ${memory.staleFactCount ?? 0}`,
+    '',
+    'Next commands:',
+    ...((report.readiness?.nextCommands?.length ?? 0) ? report.readiness.nextCommands.map((command) => `- ${command}`) : ['- recall handoff']),
+    '',
+    'Safeguards:',
+    `Read-only: ${report.safeguards?.readOnly === true ? 'yes' : 'no'}`,
+    `Local files written: ${report.safeguards?.localFilesWritten ?? 0}`,
+    `Network calls: ${report.safeguards?.networkCalls ?? 0}`,
+    `Model calls: ${report.safeguards?.modelCalls ?? 0}`,
+    `Raw source bodies included: ${report.safeguards?.rawSourceBodiesIncluded === true ? 'yes' : 'no'}`
+  ].join('\n');
+}
+
+function renderRecallMapMarkdown(report) {
+  const support = report.support ?? {};
+  const coverage = support.sourceGraph?.coverage ?? {};
+  const architecture = report.architecture ?? {};
+  const impact = architecture.impact ?? {};
+  const memory = report.memory ?? {};
+  const entryPoints = architecture.entryPoints ?? [];
+  const changedLocators = impact.changedLocators ?? [];
+  return [
+    '# Recall Map',
+    '',
+    '## Support',
+    `- Source graph: ${support.sourceGraph?.status ?? 'unavailable'}`,
+    `- Coverage: ${coverage.status ?? 'unavailable'} (${coverage.analyzedFileCount ?? 0}/${coverage.maxFiles ?? 0} JS/TS files)`,
+    `- Memory: ${support.memory?.status ?? 'unavailable'}`,
+    '',
+    '## Architecture',
+    '',
+    '### Top entry points',
+    ...(entryPoints.length ? entryPoints.slice(0, 10).map(recallMapSymbolLine) : ['- none discovered']),
+    '',
+    '### Changed impact',
+    ...(changedLocators.length ? changedLocators.map((locator) => `- ${locator}`) : ['- no changed locators requested']),
+    `- Represented changed locators: ${impact.representedChangedLocators?.length ?? 0}/${changedLocators.length}`,
+    `- Affected symbols: ${impact.affectedSymbols?.length ?? 0}`,
+    '',
+    '## Memory',
+    `- Status: ${memory.status ?? 'unavailable'}`,
+    `- Active facts: ${memory.activeFacts?.length ?? 0}`,
+    `- Pending proposals: ${memory.pendingProposals?.length ?? 0}`,
+    `- Stale facts: ${memory.staleFactCount ?? 0}`,
+    '',
+    '## Next commands',
+    ...((report.readiness?.nextCommands?.length ?? 0) ? report.readiness.nextCommands.map((command) => `- ${command}`) : ['- recall handoff']),
+    '',
+    '## Safeguards',
+    `- Read-only: ${report.safeguards?.readOnly === true ? 'yes' : 'no'}`,
+    `- Local files written: ${report.safeguards?.localFilesWritten ?? 0}`,
+    `- Network calls: ${report.safeguards?.networkCalls ?? 0}`,
+    `- Model calls: ${report.safeguards?.modelCalls ?? 0}`,
+    `- Raw source bodies included: ${report.safeguards?.rawSourceBodiesIncluded === true ? 'yes' : 'no'}`
+  ].join('\n');
+}
+
+function recallMapSymbolLine(item) {
+  const label = item?.qualifiedLabel ?? item?.label ?? 'unavailable';
+  return `- ${label}${item?.locator ? ` (${item.locator})` : ''}`;
 }
 
 async function graphStatsCommand(values) {
@@ -5844,6 +6326,58 @@ async function buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, ge
 function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null, cursorStore = null }) {
   return [
     {
+      name: 'repo.map',
+      description: 'Return a bounded Recall Map of local source coverage, governed memory, and handoff readiness.',
+      operation: 'repo.map',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          client: { type: 'string', minLength: 1, maxLength: 80, pattern: '^[A-Za-z0-9._:-]+$' },
+          changed: { type: 'array', maxItems: 16, items: { type: 'string', minLength: 1, maxLength: 512 } },
+          query: { type: 'string', maxLength: 512 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const payload = await buildMcpRepoMapPayload({
+          values,
+          root,
+          workspaceId,
+          generatedAt: fixedNow(),
+          args
+        });
+        return mcpToolJsonResult(payload);
+      }
+    },
+    {
+      name: 'code.impact',
+      description: 'Return bounded locator-safe impact for changed local source files.',
+      operation: 'code.impact',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['changed'],
+        properties: {
+          changed: { type: 'array', minItems: 1, maxItems: 16, items: { type: 'string', minLength: 1, maxLength: 512 } },
+          depth: { type: 'integer', enum: [1, 2, 3], default: 2 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const payload = await buildMcpCodeImpactPayload({
+          values,
+          root,
+          workspaceId,
+          generatedAt: fixedNow(),
+          args
+        });
+        return mcpToolJsonResult(payload);
+      }
+    },
+    {
       name: 'memory.recall',
       description: 'Recall governed active bi-temporal memory facts for a query and scope.',
       operation: 'memory.recall',
@@ -5941,6 +6475,126 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       }))
     }
   ];
+}
+
+async function buildMcpRepoMapPayload({ values, root, workspaceId, generatedAt, args }) {
+  const input = mcpMapArguments(args, ['client', 'changed', 'query', 'limit'], 'repo.map');
+  mcpMapClient(input.client);
+  const changedLocators = mcpMapChangedLocators(input.changed, { required: false });
+  const query = mcpMapQuery(input.query);
+  const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+  const report = await buildMcpRecallMapReport({
+    values,
+    root,
+    workspaceId,
+    generatedAt,
+    changedLocators,
+    query,
+    depth: 2,
+    limit
+  });
+  return mcpNoWritePayload({
+    command: 'repo.map',
+    workspaceId,
+    generatedAt,
+    data: report
+  });
+}
+
+async function buildMcpCodeImpactPayload({ values, root, workspaceId, generatedAt, args }) {
+  const input = mcpMapArguments(args, ['changed', 'depth', 'limit'], 'code.impact');
+  const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
+  const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
+  const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+  const report = await buildMcpRecallMapReport({
+    values,
+    root,
+    workspaceId,
+    generatedAt,
+    changedLocators,
+    query: '',
+    depth,
+    limit
+  });
+  return mcpNoWritePayload({
+    command: 'code.impact',
+    workspaceId,
+    generatedAt,
+    data: {
+      schemaVersion: report.schemaVersion,
+      reportVersion: report.reportVersion,
+      ...report.architecture.impact,
+      safeguards: report.safeguards
+    }
+  });
+}
+
+async function buildMcpRecallMapReport({ values, root, workspaceId, generatedAt, changedLocators, query, depth, limit }) {
+  const sqlitePath = await resolveWorkspaceSqlitePath(
+    root,
+    option(values, '--sqlite') ?? '.local/memory.sqlite',
+    'mcp server',
+    { mustExist: false }
+  );
+  return buildRecallMap({
+    root,
+    workspaceId,
+    changedLocators,
+    query,
+    depth,
+    limit,
+    clock: () => generatedAt,
+    sqliteLocator: sqlitePath.relative
+  });
+}
+
+function mcpMapArguments(args, allowedKeys, toolName) {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error(`${toolName} arguments are invalid`);
+  if (Object.keys(args).some((key) => !allowedKeys.includes(key))) throw new Error(`${toolName} arguments are invalid`);
+  return args;
+}
+
+function mcpMapClient(value) {
+  if (value === undefined || value === null) return;
+  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,80}$/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+    throw new Error('repo.map client is invalid');
+  }
+}
+
+function mcpMapChangedLocators(value, { required }) {
+  if (value === undefined || value === null) {
+    if (required) throw new Error('code.impact requires changed');
+    return [];
+  }
+  if (!Array.isArray(value) || value.length > 16 || (required && !value.length)) throw new Error('mcp map changed locators are invalid');
+  if (!value.length) return [];
+  const locators = value.map((item) => {
+    if (typeof item !== 'string' || item.length > 512 || MCP_PRIVATE_MATERIAL.test(item)) {
+      throw new Error('mcp map changed locators are invalid');
+    }
+    try {
+      return normalizeSourceGraphWorkspaceLocator(item, { stripFragment: true });
+    } catch {
+      throw new Error('mcp map changed locators are invalid');
+    }
+  });
+  return [...new Set(locators)];
+}
+
+function mcpMapQuery(value) {
+  if (value === undefined || value === null) return '';
+  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+    throw new Error('repo.map query is invalid');
+  }
+  return value.trim();
+}
+
+function mcpStrictBoundedInteger(value, fallback, { min, max, name }) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`mcp ${name} is invalid`);
+  }
+  return value;
 }
 
 async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generatedAt, args }) {
@@ -6510,6 +7164,17 @@ function mcpBasePayload({ command, workspaceId, generatedAt, data }) {
       deliveryStatsRecorded: false,
       privateContentIncluded: false,
       absoluteFilesystemLocationsIncluded: false
+    }
+  };
+}
+
+function mcpNoWritePayload({ command, workspaceId, generatedAt, data }) {
+  const payload = mcpBasePayload({ command, workspaceId, generatedAt, data });
+  return {
+    ...payload,
+    safeguards: {
+      ...payload.safeguards,
+      localFilesWritten: 0
     }
   };
 }
@@ -7573,6 +8238,7 @@ function inferMcpToolContextTier(operation) {
   if (operation === 'memory.recall') return 'governed-memory';
   if (operation === 'context.profile') return 'selected-context';
   if (operation === 'context.pack') return 'handoff-context';
+  if (operation === 'repo.map' || operation === 'code.impact') return 'tool-capability';
   return 'tool-capability';
 }
 
@@ -10067,7 +10733,7 @@ function renderHelpText(text) {
   return text
     .replaceAll('Open Agent Fabric CLI', 'Memory Recall CLI')
     .replace(
-      /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|handoff|token-saver|context|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
+      /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|map|semantic|handoff|token-saver|context|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
       `${command} `
     );
 }
@@ -10095,6 +10761,11 @@ Usage:
   oaf check
   oaf eval
   oaf manifest
+  oaf map --root . --sqlite .local/memory.sqlite --format summary
+  oaf semantic plan --harness codex --root . --dry-run
+  oaf semantic task --harness codex --root .
+  oaf semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite
+  oaf semantic run --provider gemini --allow-network --root . --sqlite .local/memory.sqlite
   oaf handoff
   oaf handoff --read-only --from codex --root . --objective "Ship safely" --step "handoff" --target codex --changed-from-git --format summary
   oaf token-saver
@@ -10181,7 +10852,7 @@ Usage:
 
 Start with oaf status; if it says Next task: none, run the First safe handoff command it prints.
 Run oaf task only when npm run status names a next task.
-oaf setup bootstraps the local checkout; use oaf harness setup plan/status for dry-run harness wiring previews.
+oaf setup creates only local state in the current repository; it does not scan source files. Use oaf map for the first explicit read-only scan and oaf harness setup plan/status for dry-run wiring previews.
 The default bootstrap is local-only and enables no external writes.`));
 }
 
@@ -10193,13 +10864,48 @@ function helpTopic(topic, subtopic) {
 Usage:
   oaf setup
 
-Runs the repository bootstrap script for this local checkout. It does not
-configure MCP clients, install harness servers, activate memory, or enable
-external writes.
+Creates only local Recall state in the current repository. It does not scan
+source files, run Recall Map, configure MCP clients, install harness servers,
+activate memory, or enable external writes.
+
+Run the explicit first read-only map next:
+  oaf map --root . --sqlite .local/memory.sqlite --format summary
 
 Use harness setup for client wiring previews:
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client codex --server oaf --dry-run --format json`],
+    ['map', `Open Agent Fabric CLI: map
+
+Usage:
+  oaf map --root . --sqlite .local/memory.sqlite --format summary
+  oaf map --root . --changed src/auth.ts --query "token reset" --format json
+  oaf map --root . --changed-from-git --format markdown
+
+Options:
+  --root <path>                       Target repository; defaults to the current directory.
+  --sqlite <workspace-relative path>  Local SQLite memory store; defaults to .local/memory.sqlite.
+  --changed <path>                    Add a reviewed changed workspace path; repeatable.
+  --changed-from-git                  Detect changed paths with local git only.
+  --query <text>                      Search the bounded JS/TS source graph.
+  --format <json|summary|markdown>    Emit the full safe report or a compact rendering.
+
+Builds a bounded local repository map from the implemented JS/TS static graph
+and the governed local SQLite memory store. It does not write files, call
+models, use network access, enable external adapters, or expose raw source
+bodies.`],
+    ['semantic', `Open Agent Fabric CLI: semantic
+
+Usage:
+  oaf semantic plan --harness codex --root . --dry-run
+  oaf semantic task --harness codex --root .
+  oaf semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite
+  oaf semantic run --provider gemini --allow-network --root . --sqlite .local/memory.sqlite
+  oaf semantic run --provider openai-compatible --endpoint https://api.example.test/v1/chat/completions --model model-id --api-key-env MODEL_API_KEY --allow-network --root .
+
+Plan emits a body-free JSON report and task emits only the bounded raw harness
+task. Import reads one workspace-relative JSON result. Run performs exactly one
+explicitly consented model request. Import and run normalize untrusted results
+into pending SQLite proposals only; neither command creates active memory.`],
     ['connect', `Open Agent Fabric CLI: connect
 
 Usage:

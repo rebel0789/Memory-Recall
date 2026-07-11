@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memory-recall.dev/schemas/recall-map-1.0.json",
+  "title": "Recall Map Report",
+  "description": "Read-only bounded developer-map report composed from the local static source graph and governed SQLite memory. It carries locator-safe summaries only and is not canonical memory authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reportVersion", "workspaceId", "generatedAt", "support", "architecture", "memory", "readiness", "safeguards", "fingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "reportVersion": { "const": "memory-recall-map-1.0.0" },
+    "workspaceId": { "$ref": "#/$defs/workspaceId" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "support": { "$ref": "#/$defs/support" },
+    "architecture": { "$ref": "#/$defs/architecture" },
+    "memory": { "$ref": "#/$defs/memory" },
+    "readiness": { "$ref": "#/$defs/readiness" },
+    "safeguards": { "$ref": "#/$defs/safeguards" },
+    "fingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "safeLocator": {
+      "type": "string",
+      "maxLength": 512,
+      "pattern": "^workspace://(?!(?:\\.{1,2})(?:/|#|$))[A-Za-z0-9._@+~,-]+(?:/(?!(?:\\.{1,2})(?:/|#|$))[A-Za-z0-9._@+~,-]+)*(?:#L[0-9]+-L[0-9]+)?$"
+    },
+    "nullableLocator": {
+      "type": ["string", "null"],
+      "maxLength": 512,
+      "pattern": "^workspace://(?!(?:\\.{1,2})(?:/|#|$))[A-Za-z0-9._@+~,-]+(?:/(?!(?:\\.{1,2})(?:/|#|$))[A-Za-z0-9._@+~,-]+)*(?:#L[0-9]+-L[0-9]+)?$"
+    },
+    "safeLabel": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)[A-Za-z0-9_$@~./:#*+,-]+(?: (?:contains|defined_in|imports|exports|references|calls) [A-Za-z0-9_$@~./:#*+,-]+)?$"
+    },
+    "nullableSafeLabel": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)[A-Za-z0-9_$@~./:#*+,-]+(?: (?:contains|defined_in|imports|exports|references|calls) [A-Za-z0-9_$@~./:#*+,-]+)?$"
+    },
+    "symbolKind": {
+      "enum": ["class", "function", "method", "interface", "type"]
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "support": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceGraph", "memory"],
+      "properties": {
+        "sourceGraph": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "languages", "coverage"],
+          "properties": {
+            "status": { "enum": ["implemented", "unavailable"] },
+            "languages": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": { "enum": ["javascript", "typescript"] }
+            },
+            "coverage": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["status", "analyzedFileCount", "maxFiles", "maxFileBytes", "diagnosticCount", "reasonCodes"],
+              "properties": {
+                "status": { "enum": ["partial", "unavailable"] },
+                "analyzedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000 },
+                "maxFiles": { "type": "integer", "minimum": 1, "maximum": 1000 },
+                "maxFileBytes": { "type": "integer", "minimum": 1024, "maximum": 1048576 },
+                "diagnosticCount": { "type": "integer", "minimum": 0, "maximum": 5000 },
+                "reasonCodes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": { "$ref": "#/$defs/code" }
+                }
+              }
+            }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "enum": ["available", "missing", "unavailable"] }
+          }
+        }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entryPoints", "hotspots", "search", "impact", "diagnostics"],
+      "properties": {
+        "entryPoints": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/symbol" } },
+        "hotspots": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/hotspot" } },
+        "search": { "$ref": "#/$defs/search" },
+        "impact": { "$ref": "#/$defs/impact" },
+        "diagnostics": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/diagnostic" } }
+      }
+    },
+    "symbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "qualifiedLabel", "locator", "symbolKind"],
+      "properties": {
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/nullableSafeLabel" },
+        "locator": { "$ref": "#/$defs/nullableLocator" },
+        "symbolKind": { "$ref": "#/$defs/symbolKind" }
+      }
+    },
+    "hotspot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "qualifiedLabel", "locator", "symbolKind", "inbound", "outbound", "total"],
+      "properties": {
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/nullableSafeLabel" },
+        "locator": { "$ref": "#/$defs/nullableLocator" },
+        "symbolKind": { "$ref": "#/$defs/symbolKind" },
+        "inbound": { "type": "integer", "minimum": 0 },
+        "outbound": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "search": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "queryFingerprint", "total", "hasMore", "omittedCount", "results"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "queryFingerprint": { "$ref": "#/$defs/fingerprint" },
+        "total": { "type": "integer", "minimum": 0 },
+        "hasMore": { "type": "boolean" },
+        "omittedCount": { "type": "integer", "minimum": 0 },
+        "results": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/searchResult" } }
+      }
+    },
+    "searchResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resultType", "kind", "label", "locator", "score", "reasonCodes"],
+      "properties": {
+        "resultType": { "enum": ["node", "edge"] },
+        "kind": { "$ref": "#/$defs/code" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "locator": { "$ref": "#/$defs/nullableLocator" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reasonCodes": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/code" } }
+      }
+    },
+    "impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changedLocators", "representedChangedLocators", "affectedSymbols", "affectedEdgeKindCounts", "depth"],
+      "properties": {
+        "changedLocators": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/safeLocator" } },
+        "representedChangedLocators": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/safeLocator" } },
+        "affectedSymbols": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/symbol" } },
+        "affectedEdgeKindCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "contains": { "type": "integer", "minimum": 0 },
+            "defined_in": { "type": "integer", "minimum": 0 },
+            "imports": { "type": "integer", "minimum": 0 },
+            "exports": { "type": "integer", "minimum": 0 },
+            "references": { "type": "integer", "minimum": 0 },
+            "calls": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "depth": { "type": "integer", "minimum": 0, "maximum": 5 }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locator", "code"],
+      "properties": {
+        "locator": { "$ref": "#/$defs/nullableLocator" },
+        "code": { "$ref": "#/$defs/code" }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "activeFacts", "pendingProposals", "staleFactCount", "unavailableReason"],
+      "properties": {
+        "status": { "enum": ["available", "missing", "unavailable"] },
+        "activeFacts": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/activeFact" } },
+        "pendingProposals": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/pendingProposal" } },
+        "staleFactCount": { "type": "integer", "minimum": 0, "maximum": 500 },
+        "unavailableReason": { "enum": [null, "memory_store_missing", "memory_store_unavailable"] }
+      }
+    },
+    "activeFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scope", "status", "sourceLocator", "validFrom", "validUntil", "confidence"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^memfact_[A-Za-z0-9._-]{1,128}$" },
+        "scope": { "enum": ["workspace", "session", "agent", "user"] },
+        "status": { "const": "active" },
+        "sourceLocator": { "$ref": "#/$defs/nullableLocator" },
+        "validFrom": { "type": "string", "format": "date-time" },
+        "validUntil": { "type": ["string", "null"], "format": "date-time" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "pendingProposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "sourceLocator", "attempts", "maxAttempts", "enqueuedAt"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mpq_[A-Za-z0-9._-]{1,128}$" },
+        "status": { "enum": ["pending", "claimed"] },
+        "sourceLocator": { "$ref": "#/$defs/nullableLocator" },
+        "attempts": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "maxAttempts": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "enqueuedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff", "mcp", "nextCommands"],
+      "properties": {
+        "handoff": { "$ref": "#/$defs/readinessItem" },
+        "mcp": { "$ref": "#/$defs/readinessItem" },
+        "nextCommands": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[A-Za-z]:\\\\)).+$" }
+        }
+      }
+    },
+    "readinessItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "command"],
+      "properties": {
+        "status": { "enum": ["available", "unavailable"] },
+        "command": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?!.*(?:/Users/|file:///|workspace:///|[A-Za-z]:\\\\)).+$" }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readOnly", "localFilesWritten", "canonicalStateMutated", "networkCalls", "modelCalls", "rawSourceBodiesIncluded", "graphDatabaseUsed", "externalAdaptersEnabled"],
+      "properties": {
+        "readOnly": { "const": true },
+        "localFilesWritten": { "const": 0 },
+        "canonicalStateMutated": { "const": false },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "rawSourceBodiesIncluded": { "const": false },
+        "graphDatabaseUsed": { "const": false },
+        "externalAdaptersEnabled": { "const": 0 }
+      }
+    }
+  }
+}

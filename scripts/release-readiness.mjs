@@ -11,3 +11,4 @@ if (!artifacts.placeholderResult.passed) {
 
 console.log('PASS release readiness SBOM and provenance generated');
 console.log('PASS release readiness reports generated');
+console.log(`PASS release readiness public evidence bound: ${artifacts.publicEvidence.map((page) => page.path).join(', ')}`);

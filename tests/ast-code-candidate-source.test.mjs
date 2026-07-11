@@ -305,6 +305,27 @@ test('native source graph candidate source returns locator-only graph hits witho
   assert(!serialized.includes('/Users/rebel/private/secret'));
 });
 
+test('native source graph candidate source falls back from an unsafe requested workspace identifier', async () => {
+  const root = await fixtureWorkspace();
+  const source = createNativeSourceGraphCandidateSource({ root, workspaceId: 'ws_ast', clock: () => fixedNow });
+  const rawWorkspaceId = 'file:///tmp/CANDIDATE_WORKSPACE_SECRET';
+  const output = await source.query({
+    workspaceId: rawWorkspaceId,
+    objective: 'approve token reset',
+    step: 'find the safe source graph result',
+    requiredEntities: [],
+    perSourceLimit: 8
+  });
+  const serialized = JSON.stringify(output);
+
+  assert(output.candidates.length > 0);
+  assert(output.candidates.every((item) => item.record.workspaceId === 'ws_ast'));
+  assert(output.candidates.every((item) => /^sha256:[a-f0-9]{64}$/.test(item.record.version)));
+  assert(output.candidates.every((item) => /^sha256:[a-f0-9]{64}$/.test(item.record.metadata.sourceGraph.graphFingerprint)));
+  assert(output.candidates.every((item) => /^sha256:[a-f0-9]{64}$/.test(item.record.metadata.sourceGraph.sourceIndexFingerprint)));
+  assert.equal(serialized.includes(rawWorkspaceId), false);
+});
+
 test('native source graph candidate source carries resolved relative import neighbors', async () => {
   const root = await fixtureWorkspace();
   const source = createNativeSourceGraphCandidateSource({ root, workspaceId: 'ws_ast', clock: () => fixedNow });

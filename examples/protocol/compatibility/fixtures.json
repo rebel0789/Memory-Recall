@@ -872,6 +872,30 @@
       "expectedValid": false
     },
     {
+      "id": "source-graph-double-encoded-locator-invalid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-double-encoded-locator.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-uri-locator-invalid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-uri-locator.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-unsafe-metadata-invalid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-unsafe-metadata.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-raw-label-invalid",
+      "schema": "packages/protocol/schemas/source-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-raw-label.json",
+      "expectedValid": false
+    },
+    {
       "id": "source-graph-preview-raw-body-invalid",
       "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
       "instance": "examples/protocol/compatibility/invalid/source-graph-preview-raw-body.json",
@@ -881,6 +905,72 @@
       "id": "source-graph-preview-local-path-invalid",
       "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
       "instance": "examples/protocol/compatibility/invalid/source-graph-preview-local-path.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-preview-double-encoded-locator-invalid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-preview-double-encoded-locator.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-preview-uri-locator-invalid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-preview-uri-locator.json",
+      "expectedValid": false
+    },
+    {
+      "id": "source-graph-preview-raw-label-invalid",
+      "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/source-graph-preview-raw-label.json",
+      "expectedValid": false
+    },
+    {
+      "id": "semantic-setup-report-valid",
+      "schema": "packages/protocol/schemas/semantic-setup-report.schema.json",
+      "instance": "examples/protocol/semantic-setup-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "recall-map-valid",
+      "schema": "packages/protocol/schemas/recall-map.schema.json",
+      "instance": "examples/protocol/recall-map.json",
+      "expectedValid": true
+    },
+    {
+      "id": "recall-map-raw-source-body-invalid",
+      "schema": "packages/protocol/schemas/recall-map.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/recall-map-raw-source-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "recall-map-raw-label-invalid",
+      "schema": "packages/protocol/schemas/recall-map.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/recall-map-raw-label.json",
+      "expectedValid": false
+    },
+    {
+      "id": "recall-map-canonical-state-mutation-invalid",
+      "schema": "packages/protocol/schemas/recall-map.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/recall-map-canonical-state-mutation.json",
+      "expectedValid": false
+    },
+    {
+      "id": "recall-map-network-call-invalid",
+      "schema": "packages/protocol/schemas/recall-map.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/recall-map-network-call.json",
+      "expectedValid": false
+    },
+    {
+      "id": "recall-map-model-call-invalid",
+      "schema": "packages/protocol/schemas/recall-map.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/recall-map-model-call.json",
+      "expectedValid": false
+    },
+    {
+      "id": "recall-map-active-fact-proposal-invalid",
+      "schema": "packages/protocol/schemas/recall-map.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/recall-map-active-fact-proposal.json",
       "expectedValid": false
     },
     {

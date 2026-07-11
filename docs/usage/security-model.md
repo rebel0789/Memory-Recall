@@ -2,6 +2,11 @@
 
 Memory Recall is local-first and review-first.
 
+The [developer-first product contract](../product/memory-recall-developer-first.md)
+defines the `implemented`, `experimental`, and `unsupported` capability
+boundaries. Normal commands use `recall`; [OAF compatibility](oaf-compatibility.md)
+records preserved legacy identifiers and URIs.
+
 ## Defaults
 
 | Boundary | Default |
@@ -43,4 +48,3 @@ Normal handoffs do not include raw source bodies.
 - [Secrets](../security/secrets.md)
 - [Tool permissions](../security/tool-permissions.md)
 - [Supply chain](../security/supply-chain.md)
-

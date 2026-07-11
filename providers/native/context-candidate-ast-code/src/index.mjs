@@ -2,6 +2,13 @@ import { createHash } from 'node:crypto';
 import { lstat, readdir, readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { estimateTokens, hashRef, stableStringify, terms } from '../../../../packages/context-compiler/src/index.mjs';
+import {
+  normalizeSourceGraphWorkspaceLocator,
+  SOURCE_GRAPH_FINGERPRINT_RE,
+  SOURCE_GRAPH_SAFE_LABEL_RE,
+  SOURCE_GRAPH_WORKSPACE_ID_RE,
+  SOURCE_GRAPH_WORKSPACE_LOCATOR_RE
+} from '../../../../packages/protocol/src/source-graph-locator.mjs';
 
 export const AST_CODE_PROVIDER_VERSION = '1.0.0';
 export const AST_CODE_PARSER_VERSION = 'oaf-js-ts-static-1.0.0';
@@ -9,9 +16,26 @@ export const AST_CODE_PARSER_VERSION = 'oaf-js-ts-static-1.0.0';
 const SOURCE_ID = 'provider:native:context-candidate:ast-code';
 const GRAPH_SOURCE_ID = 'provider:native:context-candidate:graph';
 const EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx']);
-const SKIP_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', 'build', '.next', 'coverage', 'out', 'vendor']);
+const EXCLUDED_DIRECTORY_POLICIES = new Map([
+  ['.git', 'declared_out_of_scope_directory_excluded'],
+  ['node_modules', 'declared_out_of_scope_directory_excluded'],
+  ['.next', 'declared_out_of_scope_directory_excluded'],
+  ['coverage', 'declared_out_of_scope_directory_excluded'],
+  ['dist', 'source_relevant_directory_excluded'],
+  ['build', 'source_relevant_directory_excluded'],
+  ['out', 'source_relevant_directory_excluded'],
+  ['vendor', 'source_relevant_directory_excluded']
+]);
 const DEFAULT_MAX_FILE_BYTES = 512 * 1024;
 const DEFAULT_MAX_FILES = 1000;
+const MAX_COVERAGE_REPRESENTED_LOCATORS = 1000;
+const MAX_COVERAGE_SKIPPED_LOCATORS = 100;
+const MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS = 100;
+const MAX_EXCLUDED_DIRECTORY_DIAGNOSTICS = 100;
+const MAX_COVERAGE_UNSUPPORTED_EXTENSIONS = 32;
+const MAX_POST_CAP_DIRECTORY_DISCOVERY = 10_000;
+const MAX_ARCHITECTURE_RANKING_RESULTS = 25;
+const MAX_ARCHITECTURE_DEPRIORITIZED = 25;
 const MAX_REFERENCES_PER_CHUNK = 80;
 const MAX_CALLS_PER_CHUNK = 40;
 const MAX_TARGETS_PER_SYMBOL_NAME = 8;
@@ -20,6 +44,21 @@ const MAX_CALL_EDGES_PER_CHUNK = 80;
 const MAX_DIRECT_GRAPH_RESULTS_PER_FILE = 2;
 const MAX_NEIGHBOR_GRAPH_RESULTS_PER_FILE = 1;
 const MAX_REFERENCE_TARGETS_FOR_COMMON_NAME = 8;
+const SOURCE_GRAPH_NODE_KINDS = new Set(['file', 'chunk', 'symbol', 'module']);
+const SOURCE_GRAPH_EDGE_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
+const SOURCE_GRAPH_SYMBOL_KINDS = new Set(['class', 'function', 'method', 'interface', 'type']);
+const SOURCE_GRAPH_NODE_ID_RE = /^sgnode_[a-f0-9]{32}$/u;
+const SOURCE_GRAPH_EDGE_ID_RE = /^sgedge_[a-f0-9]{32}$/u;
+const SOURCE_GRAPH_SOURCE_REF_RE = /^(?:(?:symbol|astchunk|import|export|call|ref|srcsnap)_[a-f0-9]{16,32}|sha256:[a-f0-9]{64})$/u;
+const SOURCE_GRAPH_SNAPSHOT_ID_RE = /^srcsnap_[a-f0-9]{16}$/u;
+const SOURCE_GRAPH_VERSION_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u;
+const SOURCE_GRAPH_DIAGNOSTIC_CODE_RE = /^[a-z][a-z0-9_:-]{0,63}$/u;
+const SOURCE_GRAPH_PUBLIC_FALLBACK_WORKSPACE_ID = 'ws_source_graph';
+const SOURCE_GRAPH_PUBLIC_FALLBACK_GRAPH_FINGERPRINT = hashRef('source-graph-public-fallback-graph');
+const SOURCE_GRAPH_PUBLIC_FALLBACK_SOURCE_INDEX_FINGERPRINT = hashRef('source-graph-public-fallback-source-index');
+const SOURCE_GRAPH_PUBLIC_FALLBACK_GRAPH_VERSION = 'oaf-source-graph-unavailable-1.0.0';
+const SOURCE_GRAPH_PUBLIC_FALLBACK_PARSER_VERSION = 'oaf-source-graph-unavailable';
+const SOURCE_GRAPH_PUBLIC_FALLBACK_BUILT_AT = '1970-01-01T00:00:00.000Z';
 const FIRST_ARGUMENT_CALLBACK_NAMES = new Set(['catch', 'every', 'filter', 'finally', 'find', 'findIndex', 'flatMap', 'forEach', 'map', 'reduce', 'reduceRight', 'some', 'sort', 'then']);
 const CALLABLE_DECLARATION_KINDS = new Set(['function', 'method']);
 const LOW_SIGNAL_REFERENCE_NAMES = new Set([
@@ -120,6 +159,29 @@ const WEAK_MEMBER_CALL_NAMES = new Set([
   'warn'
 ]);
 const CONTROL_FLOW_NAMES = new Set(['if', 'for', 'while', 'switch', 'catch', 'function']);
+const GENERIC_ARCHITECTURE_UTILITY_NAMES = new Set([
+  'bytecount',
+  'bytelength',
+  'bytes',
+  'count',
+  'length',
+  'noop',
+  'size'
+]);
+const ARCHITECTURE_SIGNAL_TABLE = Object.freeze({
+  route_locator: Object.freeze({ weight: 90, direction: 'promote' }),
+  bin_locator: Object.freeze({ weight: 76, direction: 'promote' }),
+  executable_script_locator: Object.freeze({ weight: 56, direction: 'promote' }),
+  package_source_entry_locator: Object.freeze({ weight: 48, direction: 'promote' }),
+  exported_symbol: Object.freeze({ weight: 44, direction: 'promote' }),
+  changed_locator: Object.freeze({ weight: 28, direction: 'promote' }),
+  query_match: Object.freeze({ weight: 12, direction: 'promote' }),
+  inbound_behavior: Object.freeze({ perDegree: 3, maximum: 18, direction: 'promote' }),
+  outbound_behavior: Object.freeze({ perDegree: 2, maximum: 12, direction: 'promote' }),
+  test_locator_penalty: Object.freeze({ weight: -180, direction: 'deprioritize' }),
+  private_symbol_penalty: Object.freeze({ weight: -160, direction: 'deprioritize' }),
+  generic_utility_penalty: Object.freeze({ weight: -140, direction: 'deprioritize' })
+});
 const JS_KEYWORDS = new Set([
   'as', 'async', 'await', 'break', 'case', 'catch', 'class', 'const', 'continue',
   'default', 'delete', 'do', 'else', 'export', 'extends', 'false', 'finally',
@@ -151,9 +213,10 @@ export function createNativeAstCodeCandidateSource({
     async query(request, trustedContext = {}) {
       const workspaceRoot = root ?? trustedContext.workspaceRoot;
       if (!workspaceRoot) return { candidates: [] };
+      const resolvedWorkspaceId = sourceGraphCandidateWorkspaceId(request?.workspaceId, workspaceId);
       const scan = await scanAstCodeWorkspace({
         root: workspaceRoot,
-        workspaceId: request.workspaceId ?? workspaceId,
+        workspaceId: resolvedWorkspaceId,
         maxFileBytes,
         maxFiles,
         clock
@@ -170,7 +233,7 @@ export function createNativeAstCodeCandidateSource({
         .slice(0, trustedContext.sourceLimit ?? request.perSourceLimit ?? 10);
       return {
         candidates: scored.map(({ chunk, score }, index) => ({
-          record: recordFromChunk(chunk, request.workspaceId ?? workspaceId),
+          record: recordFromChunk(chunk, resolvedWorkspaceId),
           sourceHit: {
             sourceId: SOURCE_ID,
             sourceKind: 'ast-code',
@@ -213,16 +276,17 @@ export function createNativeSourceGraphCandidateSource({
     async query(request, trustedContext = {}) {
       const workspaceRoot = root ?? trustedContext.workspaceRoot;
       if (!workspaceRoot) return { candidates: [] };
+      const resolvedWorkspaceId = sourceGraphCandidateWorkspaceId(request?.workspaceId, workspaceId);
       const queryText = [
         request.objective,
         request.step,
         ...(request.requiredEntities ?? [])
       ].filter(Boolean).join(' ');
-      const graphKey = stableStringify({ workspaceRoot, workspaceId: request.workspaceId ?? workspaceId, maxFileBytes, maxFiles });
+      const graphKey = stableStringify({ workspaceRoot, workspaceId: resolvedWorkspaceId, maxFileBytes, maxFiles });
       if (!cachedGraph || cachedGraphKey !== graphKey) {
         cachedGraph = await buildJsTsSourceGraph({
           root: workspaceRoot,
-          workspaceId: request.workspaceId ?? workspaceId,
+          workspaceId: resolvedWorkspaceId,
           maxFileBytes,
           maxFiles,
           clock
@@ -230,17 +294,18 @@ export function createNativeSourceGraphCandidateSource({
         cachedGraphKey = graphKey;
       }
       const graph = cachedGraph;
+      const publicGraph = sanitizeSourceGraphPublicOutput(graph);
       const resultLimit = trustedContext.sourceLimit ?? request.perSourceLimit ?? 10;
       const search = searchSourceGraph(graph, {
         query: queryText,
         limit: sourceGraphSearchLimit(resultLimit)
       });
-      const results = sourceGraphCandidateResults(graph, search.results, {
+      const results = publicGraph.envelopeValid ? sourceGraphCandidateResults(publicGraph, search.results, {
         limit: resultLimit
-      });
+      }) : [];
       return {
         candidates: results.map((result, index) => ({
-          record: recordFromGraphResult({ result, graph, workspaceId: request.workspaceId ?? workspaceId, collectedAt: clock() }),
+          record: recordFromGraphResult({ result, graph: publicGraph, workspaceId: publicGraph.workspaceId, collectedAt: clock() }),
           sourceHit: {
             sourceId: GRAPH_SOURCE_ID,
             sourceKind: 'graph',
@@ -259,11 +324,11 @@ export function createNativeSourceGraphCandidateSource({
   });
 }
 
-function sourceGraphCandidateResults(graph, searchResults, { limit }) {
+function sourceGraphCandidateResults(publicGraph, searchResults, { limit }) {
   const boundedLimit = boundedInteger(limit, 'source_graph_candidate_limit', 1, 100);
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const nodeById = new Map(publicGraph.nodes.map((node) => [node.id, node]));
   const edgesByNodeId = new Map();
-  for (const edge of graph.edges) {
+  for (const edge of publicGraph.edges) {
     for (const nodeId of [edge.fromNodeId, edge.toNodeId]) {
       const edges = edgesByNodeId.get(nodeId) ?? [];
       edges.push(edge);
@@ -400,13 +465,63 @@ export async function scanAstCodeWorkspace({
   const diagnostics = [];
   const chunks = [];
   const fileOutlines = [];
+  const skippedLocators = new Set();
+  const oversizedLocators = new Set();
+  const excludedDirectoryLocators = new Set();
+  const declaredOutOfScopeDirectoryLocators = new Set();
+  const sourceRelevantExcludedDirectoryLocators = new Set();
+  const excludedDirectoryCodes = new Map();
+  const unsupportedExtensionCounts = new Map();
+  let unsupportedFileCount = 0;
+  let excludedDirectoryCount = 0;
+  let declaredOutOfScopeDirectoryCount = 0;
+  let sourceRelevantExcludedDirectoryCount = 0;
+  let excludedDirectoryDiagnosticCount = 0;
+  let excludedDirectoryDiagnosticsTruncated = false;
   let visitedFiles = 0;
   let maxFilesReached = false;
+  let postCapDirectoryDiscoveryCapped = false;
 
   function markMaxFilesReached() {
     if (maxFilesReached) return;
     maxFilesReached = true;
     diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'max_files_reached'));
+  }
+
+  function recordExcludedDirectory(locator, code) {
+    if (excludedDirectoryCodes.has(locator)) return;
+    excludedDirectoryCodes.set(locator, code);
+    excludedDirectoryCount += 1;
+    addBoundedLocator(excludedDirectoryLocators, locator, MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS);
+    if (code === 'declared_out_of_scope_directory_excluded') {
+      declaredOutOfScopeDirectoryCount += 1;
+      addBoundedLocator(declaredOutOfScopeDirectoryLocators, locator, MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS);
+    } else {
+      sourceRelevantExcludedDirectoryCount += 1;
+      addBoundedLocator(sourceRelevantExcludedDirectoryLocators, locator, MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS);
+    }
+    if (excludedDirectoryDiagnosticCount < MAX_EXCLUDED_DIRECTORY_DIAGNOSTICS) {
+      diagnostics.push(diagnostic(locator, code));
+      excludedDirectoryDiagnosticCount += 1;
+    } else if (!excludedDirectoryDiagnosticsTruncated) {
+      diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'excluded_directory_diagnostics_truncated'));
+      excludedDirectoryDiagnosticsTruncated = true;
+    }
+  }
+
+  function recordUnreadableFile(locator) {
+    skippedLocators.add(locator);
+    diagnostics.push(diagnostic(locator, 'file_unreadable'));
+  }
+
+  function recordUnreadableDirectory(locator) {
+    diagnostics.push(diagnostic(locator, 'directory_unreadable'));
+  }
+
+  function markPostCapDirectoryDiscoveryCapped() {
+    if (postCapDirectoryDiscoveryCapped) return;
+    postCapDirectoryDiscoveryCapped = true;
+    diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'directory_discovery_capped'));
   }
 
   async function walk(relativeDirectory = '') {
@@ -415,7 +530,15 @@ export async function scanAstCodeWorkspace({
       return;
     }
     const absoluteDirectory = path.join(rootReal, relativeDirectory);
-    const entries = (await readdir(absoluteDirectory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+    let entries;
+    try {
+      entries = (await readdir(absoluteDirectory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      if (relativeDirectory === '' && error?.code === 'ENOTDIR') throw error;
+      const locator = safeWorkspaceLocatorFor(relativeDirectory) ?? 'workspace://__source_graph_scan__';
+      recordUnreadableDirectory(locator);
+      return;
+    }
     for (const entry of entries) {
       if (visitedFiles >= maxFiles) {
         markMaxFilesReached();
@@ -423,29 +546,66 @@ export async function scanAstCodeWorkspace({
       }
       const relativePath = normalizeRelative(path.join(relativeDirectory, entry.name));
       const absolutePath = path.join(rootReal, relativePath);
-      const locator = locatorFor(relativePath);
       const info = await lstat(absolutePath);
+      const locator = safeWorkspaceLocatorFor(relativePath);
+      if (!locator) {
+        diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'path_escape_skipped'));
+        continue;
+      }
       if (info.isSymbolicLink()) {
+        skippedLocators.add(locator);
         diagnostics.push(diagnostic(locator, 'symlink_skipped'));
         continue;
       }
       if (info.isDirectory()) {
-        if (!SKIP_DIRECTORIES.has(entry.name)) await walk(relativePath);
+        const exclusionCode = EXCLUDED_DIRECTORY_POLICIES.get(entry.name);
+        if (exclusionCode) {
+          recordExcludedDirectory(locator, exclusionCode);
+          continue;
+        }
+        await walk(relativePath);
         continue;
       }
-      if (!info.isFile() || !EXTENSIONS.has(path.extname(entry.name))) continue;
-      const fileReal = await realpath(absolutePath);
+      if (!info.isFile()) continue;
+      const extension = path.extname(entry.name).toLowerCase();
+      if (!EXTENSIONS.has(extension)) {
+        unsupportedFileCount += 1;
+        if (extension) unsupportedExtensionCounts.set(extension, (unsupportedExtensionCounts.get(extension) ?? 0) + 1);
+        continue;
+      }
+      let fileReal;
+      try {
+        fileReal = await realpath(absolutePath);
+      } catch {
+        recordUnreadableFile(locator);
+        continue;
+      }
       if (!insideRoot(rootReal, fileReal)) {
+        skippedLocators.add(locator);
         diagnostics.push(diagnostic(locator, 'path_escape_skipped'));
         continue;
       }
-      const size = info.size ?? (await stat(fileReal)).size;
+      let size;
+      try {
+        size = info.size ?? (await stat(fileReal)).size;
+      } catch {
+        recordUnreadableFile(locator);
+        continue;
+      }
       if (size > maxFileBytes) {
+        skippedLocators.add(locator);
+        oversizedLocators.add(locator);
         diagnostics.push(diagnostic(locator, 'file_too_large'));
         continue;
       }
+      let body;
+      try {
+        body = await readFile(fileReal, 'utf8');
+      } catch {
+        recordUnreadableFile(locator);
+        continue;
+      }
       visitedFiles += 1;
-      const body = await readFile(fileReal, 'utf8');
       const collectedAt = clock();
       const fileChunks = chunksForFile({ relativePath, body, workspaceId, collectedAt });
       chunks.push(...fileChunks);
@@ -453,10 +613,73 @@ export async function scanAstCodeWorkspace({
     }
   }
 
+  async function discoverExcludedDirectoriesAfterCap() {
+    let visitedDirectories = 0;
+    async function walkDirectories(relativeDirectory = '') {
+      if (postCapDirectoryDiscoveryCapped) return;
+      const absoluteDirectory = path.join(rootReal, relativeDirectory);
+      let entries;
+      try {
+        entries = (await readdir(absoluteDirectory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+      } catch {
+        const locator = safeWorkspaceLocatorFor(relativeDirectory) ?? 'workspace://__source_graph_scan__';
+        diagnostics.push(diagnostic(locator, 'directory_discovery_unavailable'));
+        return;
+      }
+      for (const entry of entries) {
+        if (postCapDirectoryDiscoveryCapped) return;
+        if (!entry.isDirectory()) continue;
+        if (visitedDirectories >= MAX_POST_CAP_DIRECTORY_DISCOVERY) {
+          markPostCapDirectoryDiscoveryCapped();
+          return;
+        }
+        const relativePath = normalizeRelative(path.join(relativeDirectory, entry.name));
+        const absolutePath = path.join(rootReal, relativePath);
+        const locator = safeWorkspaceLocatorFor(relativePath);
+        if (!locator) {
+          diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'path_escape_skipped'));
+          continue;
+        }
+        let info;
+        try {
+          info = await lstat(absolutePath);
+        } catch {
+          diagnostics.push(diagnostic(locator, 'directory_discovery_unavailable'));
+          continue;
+        }
+        if (info.isSymbolicLink() || !info.isDirectory()) continue;
+        visitedDirectories += 1;
+        const exclusionCode = EXCLUDED_DIRECTORY_POLICIES.get(entry.name);
+        if (exclusionCode) {
+          recordExcludedDirectory(locator, exclusionCode);
+          continue;
+        }
+        await walkDirectories(relativePath);
+      }
+    }
+    await walkDirectories();
+  }
+
   await walk();
+  if (maxFilesReached) await discoverExcludedDirectoriesAfterCap();
   const sortedChunks = chunks.sort((a, b) => a.locator.localeCompare(b.locator));
   const sortedFileOutlines = fileOutlines.sort((a, b) => a.locator.localeCompare(b.locator));
   const symbolIndex = buildSymbolIndex({ workspaceId, chunks: sortedChunks, fileOutlines: sortedFileOutlines, indexedAt: clock() });
+  const coverage = sourceGraphCoverage({
+    representedJsTsLocators: sortedFileOutlines.map((file) => file.locator),
+    skippedLocators: [...skippedLocators],
+    oversizedLocators: [...oversizedLocators],
+    excludedDirectoryCount,
+    excludedDirectoryLocators: [...excludedDirectoryLocators],
+    declaredOutOfScopeDirectoryCount,
+    declaredOutOfScopeDirectoryLocators: [...declaredOutOfScopeDirectoryLocators],
+    sourceRelevantExcludedDirectoryCount,
+    sourceRelevantExcludedDirectoryLocators: [...sourceRelevantExcludedDirectoryLocators],
+    unsupportedFileCount,
+    unsupportedExtensions: [...unsupportedExtensionCounts.keys()],
+    maxFilesReached,
+    diagnosticCodes: diagnostics.map((item) => item.code)
+  });
   const result = {
     schemaVersion: '1.0.0',
     workspaceId,
@@ -473,9 +696,76 @@ export async function scanAstCodeWorkspace({
       collectedAt: file.collectedAt
     })),
     symbolIndex,
+    coverage,
     diagnostics: diagnostics.sort((a, b) => a.locator.localeCompare(b.locator) || a.code.localeCompare(b.code))
   };
   return Object.freeze({ ...result, scanFingerprint: contentFingerprint(result) });
+}
+
+function sourceGraphCoverage({
+  representedJsTsLocators = [],
+  skippedLocators = [],
+  oversizedLocators = [],
+  excludedDirectoryCount = 0,
+  excludedDirectoryLocators = [],
+  declaredOutOfScopeDirectoryCount = 0,
+  declaredOutOfScopeDirectoryLocators = [],
+  sourceRelevantExcludedDirectoryCount = 0,
+  sourceRelevantExcludedDirectoryLocators = [],
+  unsupportedFileCount = 0,
+  unsupportedExtensions = [],
+  maxFilesReached = false,
+  diagnosticCodes = []
+} = {}) {
+  const represented = uniqueSortedStrings(representedJsTsLocators).slice(0, MAX_COVERAGE_REPRESENTED_LOCATORS);
+  const skipped = uniqueSortedStrings(skippedLocators).slice(0, MAX_COVERAGE_SKIPPED_LOCATORS);
+  const oversized = uniqueSortedStrings(oversizedLocators).slice(0, MAX_COVERAGE_SKIPPED_LOCATORS);
+  const excludedDirectories = uniqueSortedStrings(excludedDirectoryLocators).slice(0, MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS);
+  const declaredOutOfScopeDirectories = uniqueSortedStrings(declaredOutOfScopeDirectoryLocators).slice(0, MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS);
+  const sourceRelevantExcludedDirectories = uniqueSortedStrings(sourceRelevantExcludedDirectoryLocators).slice(0, MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS);
+  const extensions = uniqueSortedStrings(unsupportedExtensions)
+    .filter((extension) => /^\.[a-z0-9]{1,16}$/u.test(extension))
+    .slice(0, MAX_COVERAGE_UNSUPPORTED_EXTENSIONS);
+  const reasons = new Set();
+  const partialReasons = new Set();
+  if (oversizedLocators.length) partialReasons.add('file_too_large');
+  if (unsupportedFileCount > 0) partialReasons.add('unsupported_extensions_skipped');
+  if (maxFilesReached) partialReasons.add('max_files_reached');
+  if (declaredOutOfScopeDirectoryCount > 0) reasons.add('declared_out_of_scope_directory_excluded');
+  if (sourceRelevantExcludedDirectoryCount > 0) partialReasons.add('source_relevant_directory_excluded');
+  for (const code of diagnosticCodes) {
+    if (code === 'symlink_skipped' || code === 'path_escape_skipped' || code === 'file_unreadable' || code === 'directory_unreadable' || code === 'directory_discovery_unavailable' || code === 'directory_discovery_capped') partialReasons.add(code);
+    if (code === 'excluded_directory_diagnostics_truncated') reasons.add(code);
+  }
+  for (const code of partialReasons) reasons.add(code);
+  const reasonCodes = [...reasons].sort();
+  return Object.freeze({
+    status: partialReasons.size ? 'partial' : 'complete',
+    representedFileCount: representedJsTsLocators.length,
+    representedJsTsLocators: represented,
+    skippedFileCount: skippedLocators.length,
+    skippedLocators: skipped,
+    oversizedFileCount: oversizedLocators.length,
+    oversizedLocators: oversized,
+    excludedDirectoryCount: Math.max(0, excludedDirectoryCount),
+    excludedDirectoryLocators: excludedDirectories,
+    declaredOutOfScopeDirectoryCount: Math.max(0, declaredOutOfScopeDirectoryCount),
+    declaredOutOfScopeDirectoryLocators: declaredOutOfScopeDirectories,
+    sourceRelevantExcludedDirectoryCount: Math.max(0, sourceRelevantExcludedDirectoryCount),
+    sourceRelevantExcludedDirectoryLocators: sourceRelevantExcludedDirectories,
+    unsupportedFileCount: Math.max(0, unsupportedFileCount),
+    unsupportedExtensions: extensions,
+    maxFilesReached: Boolean(maxFilesReached),
+    reasonCodes
+  });
+}
+
+function addBoundedLocator(locators, locator, maximum) {
+  if (locators.size < maximum) locators.add(locator);
+}
+
+function uniqueSortedStrings(values) {
+  return [...new Set((values ?? []).map((value) => String(value)).filter(Boolean))].sort();
 }
 
 export async function buildJsTsSourceIndex(options = {}) {
@@ -489,12 +779,14 @@ export async function buildJsTsSourceIndex(options = {}) {
     fileOutlines: scan.fileOutlines,
     contentJournal: scan.contentJournal,
     symbolIndex: scan.symbolIndex,
+    coverage: scan.coverage,
     diagnostics: scan.diagnostics,
     sourceIndexFingerprint: contentFingerprint({
       repositoryOutline: scan.repositoryOutline,
       fileOutlines: scan.fileOutlines,
       contentJournal: scan.contentJournal,
       symbolIndex: scan.symbolIndex,
+      coverage: scan.coverage,
       diagnostics: scan.diagnostics
     })
   });
@@ -744,7 +1036,7 @@ export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOStr
     parserVersion: index.parserVersion ?? index.symbolIndex.parserVersion ?? AST_CODE_PARSER_VERSION,
     builtAt,
     sourceIndexFingerprint: index.sourceIndexFingerprint ?? index.symbolIndex.symbolIndexFingerprint,
-    summary: sourceGraphSummary({ nodes, edges }),
+    summary: sourceGraphSummary({ nodes, edges, coverage: index.coverage }),
     nodes,
     edges,
     diagnostics: [...(index.diagnostics ?? [])].sort((a, b) => a.locator.localeCompare(b.locator) || a.code.localeCompare(b.code))
@@ -762,6 +1054,7 @@ export function searchSourceGraph(graph, {
   offset = 0
 } = {}) {
   assertSourceGraph(graph);
+  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
   const boundedLimit = boundedInteger(limit, 'source_graph_search_limit', 1, 100);
   const boundedOffset = boundedInteger(offset, 'source_graph_search_offset', 0, 10_000);
   const nodeKindSet = nodeKinds ? new Set(nodeKinds) : null;
@@ -769,12 +1062,13 @@ export function searchSourceGraph(graph, {
   const includeNodes = !edgeKindSet || Boolean(nodeKindSet);
   const includeEdges = !nodeKindSet || Boolean(edgeKindSet);
   const pattern = labelPattern ? safeRegex(labelPattern, 'source_graph_label_pattern_invalid') : null;
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const nodeById = new Map(publicGraph.nodes.map((node) => [node.id, node]));
   const queryText = String(query ?? '');
   const queryTerms = terms(queryText);
   const results = [];
 
-  for (const node of includeNodes ? graph.nodes : []) {
+  for (const node of includeNodes ? publicGraph.nodes : []) {
+    if (!safeSourceGraphSearchNode(node)) continue;
     if (nodeKindSet && !nodeKindSet.has(node.kind)) continue;
     if (locatorPrefix && !(node.locator ?? '').startsWith(locatorPrefix)) continue;
     if (pattern && !pattern.test(node.label) && !pattern.test(node.qualifiedLabel ?? '')) continue;
@@ -794,11 +1088,12 @@ export function searchSourceGraph(graph, {
     });
   }
 
-  for (const edge of includeEdges ? graph.edges : []) {
-    if (edgeKindSet && !edgeKindSet.has(edge.kind)) continue;
-    if (locatorPrefix && !(edge.locator ?? '').startsWith(locatorPrefix)) continue;
+  for (const edge of includeEdges ? publicGraph.edges : []) {
     const from = nodeById.get(edge.fromNodeId);
     const to = nodeById.get(edge.toNodeId);
+    if (!safeSourceGraphSearchEdge(edge, { from, to })) continue;
+    if (edgeKindSet && !edgeKindSet.has(edge.kind)) continue;
+    if (locatorPrefix && !(edge.locator ?? '').startsWith(locatorPrefix)) continue;
     const fromPathWeight = from?.locator ? graphSearchPathWeight(from.locator, queryTerms, locatorPrefix) : 1;
     const score = graphSearchScore(queryTerms, sourceGraphEdgeSearchText(edge, from, to)) * graphSearchPathWeight(edge.locator, queryTerms, locatorPrefix) * fromPathWeight * graphSearchEdgeKindWeight(edge.kind);
     if (queryTerms.size && score <= 0) continue;
@@ -838,8 +1133,8 @@ export function searchSourceGraph(graph, {
   const page = sorted.slice(boundedOffset, boundedOffset + boundedLimit);
   return Object.freeze({
     schemaVersion: '1.0.0',
-    workspaceId: graph.workspaceId,
-    graphFingerprint: graph.graphFingerprint,
+    workspaceId: publicGraph.workspaceId,
+    graphFingerprint: publicGraph.graphFingerprint,
     retrievalMethod: 'source_graph_lexical',
     queryFingerprint: hashRef(stableStringify({ query: queryText, nodeKinds: nodeKinds ?? [], edgeKinds: edgeKinds ?? [], labelPattern, locatorPrefix, limit: boundedLimit, offset: boundedOffset })),
     total: sorted.length,
@@ -849,6 +1144,207 @@ export function searchSourceGraph(graph, {
     omittedCount: Math.max(0, sorted.length - boundedOffset - page.length),
     results: page.map((item) => Object.freeze(withDefined({ ...item, score: Number(item.score.toFixed(6)) })))
   });
+}
+
+// Direct graph inputs remain available for local inspection, but each public
+// read surface consumes this projected envelope so unsafe metadata, labels, and
+// locators never leave a result array.
+export function sanitizeSourceGraphPublicOutput(graph) {
+  assertSourceGraph(graph);
+  const metadata = sourceGraphPublicMetadata(graph);
+  if (!metadata.envelopeValid) {
+    return Object.freeze({
+      ...metadata,
+      diagnosticsComplete: false,
+      nodes: Object.freeze([]),
+      edges: Object.freeze([]),
+      diagnostics: Object.freeze([])
+    });
+  }
+  const nodes = graph.nodes
+    .map((node) => publicSourceGraphNode(node, { workspaceId: metadata.workspaceId }))
+    .filter(Boolean);
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const edges = graph.edges
+    .map((edge) => publicSourceGraphEdge(edge, {
+      workspaceId: metadata.workspaceId,
+      from: nodeById.get(edge?.fromNodeId),
+      to: nodeById.get(edge?.toNodeId)
+    }))
+    .filter(Boolean);
+  const rawDiagnostics = Array.isArray(graph.diagnostics) ? graph.diagnostics : [];
+  const diagnostics = rawDiagnostics.map(publicSourceGraphDiagnostic).filter(Boolean);
+  return Object.freeze({
+    ...metadata,
+    diagnosticsComplete: Array.isArray(graph.diagnostics) && diagnostics.length === graph.diagnostics.length,
+    nodes: Object.freeze(nodes),
+    edges: Object.freeze(edges),
+    diagnostics: Object.freeze(diagnostics)
+  });
+}
+
+function sourceGraphPublicMetadata(graph) {
+  const workspaceId = safeSourceGraphWorkspaceId(graph.workspaceId)
+    ? graph.workspaceId
+    : SOURCE_GRAPH_PUBLIC_FALLBACK_WORKSPACE_ID;
+  const graphFingerprint = safeSourceGraphFingerprint(graph.graphFingerprint)
+    ? graph.graphFingerprint
+    : SOURCE_GRAPH_PUBLIC_FALLBACK_GRAPH_FINGERPRINT;
+  const sourceIndexFingerprint = safeSourceGraphFingerprint(graph.sourceIndexFingerprint)
+    ? graph.sourceIndexFingerprint
+    : SOURCE_GRAPH_PUBLIC_FALLBACK_SOURCE_INDEX_FINGERPRINT;
+  const graphVersion = safeSourceGraphVersion(graph.graphVersion)
+    ? graph.graphVersion
+    : SOURCE_GRAPH_PUBLIC_FALLBACK_GRAPH_VERSION;
+  const parserVersion = safeSourceGraphVersion(graph.parserVersion)
+    ? graph.parserVersion
+    : SOURCE_GRAPH_PUBLIC_FALLBACK_PARSER_VERSION;
+  const builtAt = safeSourceGraphTimestamp(graph.builtAt)
+    ? graph.builtAt
+    : SOURCE_GRAPH_PUBLIC_FALLBACK_BUILT_AT;
+  const providedMetadataIsSafe = [
+    [graph.workspaceId, safeSourceGraphWorkspaceId],
+    [graph.graphFingerprint, safeSourceGraphFingerprint],
+    [graph.sourceIndexFingerprint, safeSourceGraphFingerprint],
+    [graph.graphVersion, safeSourceGraphVersion],
+    [graph.parserVersion, safeSourceGraphVersion],
+    [graph.builtAt, safeSourceGraphTimestamp]
+  ].every(([value, validator]) => value === undefined || value === null || validator(value));
+  const completeEnvelope = providedMetadataIsSafe
+    && safeSourceGraphWorkspaceId(graph.workspaceId)
+    && safeSourceGraphFingerprint(graph.graphFingerprint)
+    && safeSourceGraphFingerprint(graph.sourceIndexFingerprint)
+    && safeSourceGraphVersion(graph.graphVersion)
+    && safeSourceGraphVersion(graph.parserVersion)
+    && safeSourceGraphTimestamp(graph.builtAt);
+  return Object.freeze({
+    schemaVersion: '1.0.0',
+    workspaceId,
+    graphFingerprint,
+    sourceIndexFingerprint,
+    graphVersion,
+    parserVersion,
+    builtAt,
+    envelopeValid: providedMetadataIsSafe,
+    completeEnvelope
+  });
+}
+
+function publicSourceGraphNode(node, { workspaceId }) {
+  if (node?.workspaceId !== undefined && node?.workspaceId !== null && node.workspaceId !== workspaceId) return null;
+  const projected = withDefined({
+    id: node?.id,
+    workspaceId: node?.workspaceId ?? workspaceId,
+    kind: node?.kind,
+    label: node?.label,
+    qualifiedLabel: node?.qualifiedLabel,
+    locator: node?.locator,
+    sourceRef: node?.sourceRef,
+    symbolKind: node?.symbolKind,
+    scopeChain: Array.isArray(node?.scopeChain) ? Object.freeze([...node.scopeChain]) : node?.scopeChain,
+    moduleHash: node?.moduleHash,
+    contentHash: node?.contentHash,
+    sourceSnapshotId: node?.sourceSnapshotId
+  });
+  return safeSourceGraphPublicNode(projected) ? Object.freeze(projected) : null;
+}
+
+function publicSourceGraphEdge(edge, { workspaceId, from, to }) {
+  if (edge?.workspaceId !== undefined && edge?.workspaceId !== null && edge.workspaceId !== workspaceId) return null;
+  const projected = withDefined({
+    id: edge?.id,
+    workspaceId: edge?.workspaceId ?? workspaceId,
+    kind: edge?.kind,
+    fromNodeId: edge?.fromNodeId,
+    toNodeId: edge?.toNodeId,
+    locator: edge?.locator,
+    sourceRef: edge?.sourceRef,
+    exportName: edge?.exportName,
+    confidence: edge?.confidence
+  });
+  return safeSourceGraphPublicEdge(projected, { from, to }) ? Object.freeze(projected) : null;
+}
+
+function publicSourceGraphDiagnostic(diagnostic) {
+  const projected = withDefined({
+    locator: diagnostic?.locator,
+    code: diagnostic?.code
+  });
+  return safeSourceGraphPublicDiagnostic(projected) ? Object.freeze(projected) : null;
+}
+
+function safeSourceGraphPublicNode(node) {
+  return Boolean(node)
+    && SOURCE_GRAPH_NODE_ID_RE.test(String(node.id ?? ''))
+    && safeSourceGraphWorkspaceId(node.workspaceId)
+    && SOURCE_GRAPH_NODE_KINDS.has(node.kind)
+    && safeArchitectureLabel(node.label)
+    && (node.qualifiedLabel === undefined || safeArchitectureLabel(node.qualifiedLabel))
+    && (node.locator === undefined || safeArchitectureLocator(node.locator))
+    && (node.sourceRef === undefined || safeSourceGraphSourceRef(node.sourceRef))
+    && (node.symbolKind === undefined || SOURCE_GRAPH_SYMBOL_KINDS.has(node.symbolKind))
+    && (node.scopeChain === undefined || (Array.isArray(node.scopeChain) && node.scopeChain.length <= 16 && node.scopeChain.every(safeArchitectureLabel)))
+    && (node.moduleHash === undefined || safeSourceGraphFingerprint(node.moduleHash))
+    && (node.contentHash === undefined || safeSourceGraphFingerprint(node.contentHash))
+    && (node.sourceSnapshotId === undefined || SOURCE_GRAPH_SNAPSHOT_ID_RE.test(String(node.sourceSnapshotId)));
+}
+
+function safeSourceGraphPublicEdge(edge, { from, to }) {
+  return Boolean(edge)
+    && SOURCE_GRAPH_EDGE_ID_RE.test(String(edge.id ?? ''))
+    && safeSourceGraphWorkspaceId(edge.workspaceId)
+    && SOURCE_GRAPH_EDGE_KINDS.has(edge.kind)
+    && SOURCE_GRAPH_NODE_ID_RE.test(String(edge.fromNodeId ?? ''))
+    && SOURCE_GRAPH_NODE_ID_RE.test(String(edge.toNodeId ?? ''))
+    && safeSourceGraphPublicNode(from)
+    && safeSourceGraphPublicNode(to)
+    && (edge.locator === undefined || safeArchitectureLocator(edge.locator))
+    && (edge.sourceRef === undefined || safeSourceGraphSourceRef(edge.sourceRef))
+    && (edge.exportName === undefined || safeArchitectureLabel(edge.exportName))
+    && (edge.confidence === undefined || (Number.isFinite(edge.confidence) && edge.confidence >= 0 && edge.confidence <= 1));
+}
+
+function safeSourceGraphPublicDiagnostic(diagnostic) {
+  return Boolean(diagnostic)
+    && safeArchitectureLocator(diagnostic.locator)
+    && SOURCE_GRAPH_DIAGNOSTIC_CODE_RE.test(String(diagnostic.code ?? ''));
+}
+
+function safeSourceGraphWorkspaceId(value) {
+  return typeof value === 'string' && SOURCE_GRAPH_WORKSPACE_ID_RE.test(value);
+}
+
+function sourceGraphCandidateWorkspaceId(requestedWorkspaceId, configuredWorkspaceId) {
+  const configured = safeSourceGraphWorkspaceId(configuredWorkspaceId)
+    ? configuredWorkspaceId
+    : SOURCE_GRAPH_PUBLIC_FALLBACK_WORKSPACE_ID;
+  return safeSourceGraphWorkspaceId(requestedWorkspaceId) ? requestedWorkspaceId : configured;
+}
+
+function safeSourceGraphFingerprint(value) {
+  return typeof value === 'string' && SOURCE_GRAPH_FINGERPRINT_RE.test(value);
+}
+
+function safeSourceGraphSourceRef(value) {
+  return typeof value === 'string' && SOURCE_GRAPH_SOURCE_REF_RE.test(value);
+}
+
+function safeSourceGraphVersion(value) {
+  return typeof value === 'string' && SOURCE_GRAPH_VERSION_RE.test(value);
+}
+
+function safeSourceGraphTimestamp(value) {
+  return typeof value === 'string'
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(value)
+    && !Number.isNaN(Date.parse(value));
+}
+
+function safeSourceGraphSearchNode(node) {
+  return safeSourceGraphPublicNode(node);
+}
+
+function safeSourceGraphSearchEdge(edge, { from, to }) {
+  return safeSourceGraphPublicEdge(edge, { from, to });
 }
 
 function sourceGraphSearchDeduplicateResults(results) {
@@ -897,16 +1393,21 @@ export function traceSourceGraph(graph, {
   limit = 20
 } = {}) {
   assertSourceGraph(graph);
+  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
   const boundedDepth = boundedInteger(depth, 'source_graph_trace_depth', 1, 5);
   const boundedLimit = boundedInteger(limit, 'source_graph_trace_limit', 1, 100);
   if (!['outbound', 'inbound', 'both'].includes(direction)) throw new Error(`source_graph_trace_direction_invalid:${direction}`);
-  const safeLocatorPrefix = locatorPrefix ? String(locatorPrefix) : null;
-  const edgeKindSet = new Set(edgeKinds ?? ['calls']);
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const starts = sourceGraphTraceStartNodes(graph, nodeById, { startName, startNodeId, locatorPrefix: safeLocatorPrefix });
+  const requestedLocatorPrefix = locatorPrefix ? String(locatorPrefix) : null;
+  const safeLocatorPrefix = requestedLocatorPrefix && safeArchitectureLocator(requestedLocatorPrefix) ? requestedLocatorPrefix : null;
+  const invalidLocatorPrefix = Boolean(requestedLocatorPrefix && !safeLocatorPrefix);
+  const edgeKindSet = new Set((edgeKinds ?? ['calls']).filter((kind) => SOURCE_GRAPH_EDGE_KINDS.has(kind)));
+  const nodeById = new Map(publicGraph.nodes.map((node) => [node.id, node]));
+  const starts = invalidLocatorPrefix
+    ? []
+    : sourceGraphTraceStartNodes(publicGraph, nodeById, { startName, startNodeId, locatorPrefix: safeLocatorPrefix });
   const outgoing = new Map();
   const incoming = new Map();
-  for (const edge of graph.edges.filter((item) => edgeKindSet.has(item.kind)).sort((a, b) => a.id.localeCompare(b.id))) {
+  for (const edge of publicGraph.edges.filter((item) => edgeKindSet.has(item.kind)).sort((a, b) => a.id.localeCompare(b.id))) {
     const outValues = outgoing.get(edge.fromNodeId) ?? [];
     outValues.push(edge);
     outgoing.set(edge.fromNodeId, outValues);
@@ -970,8 +1471,8 @@ export function traceSourceGraph(graph, {
   }
   return Object.freeze({
     schemaVersion: '1.0.0',
-    workspaceId: graph.workspaceId,
-    graphFingerprint: graph.graphFingerprint,
+    workspaceId: publicGraph.workspaceId,
+    graphFingerprint: publicGraph.graphFingerprint,
     retrievalMethod: 'source_graph_trace',
     startNodeIds: starts.map((node) => node.id).sort(),
     direction,
@@ -1011,15 +1512,16 @@ function sourceGraphTraceStartNodes(graph, nodeById, { startName = null, startNo
 
 export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 2, limit = 100 } = {}) {
   assertSourceGraph(graph);
+  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
   const boundedDepth = boundedInteger(depth, 'source_graph_diff_depth', 1, 5);
   const boundedLimit = boundedInteger(limit, 'source_graph_diff_limit', 1, 500);
-  const changed = new Set(changedLocators.map(fileLocatorFor));
-  const startNodes = graph.nodes.filter((node) => node.kind === 'file' && changed.has(node.locator));
+  const changed = publicGraph.envelopeValid ? sourceGraphChangedLocatorSet(changedLocators) : new Set();
+  const startNodes = publicGraph.nodes.filter((node) => node.kind === 'file' && changed.has(node.locator));
   const representedChangedLocators = startNodes.map((node) => node.locator).sort();
   const adjacency = new Map();
-  const behaviorDegree = new Map(graph.nodes.map((node) => [node.id, { inbound: 0, outbound: 0 }]));
+  const behaviorDegree = new Map(publicGraph.nodes.map((node) => [node.id, { inbound: 0, outbound: 0 }]));
   const exportedSymbolIds = new Set();
-  for (const edge of graph.edges) {
+  for (const edge of publicGraph.edges) {
     if (edge.kind === 'exports') exportedSymbolIds.add(edge.toNodeId);
     if (edge.kind === 'calls' || edge.kind === 'references') {
       const from = behaviorDegree.get(edge.fromNodeId);
@@ -1034,12 +1536,12 @@ export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 
     toValues.push({ edge, nextNodeId: edge.fromNodeId });
     adjacency.set(edge.toNodeId, toValues);
   }
-  const sameFileSymbolNodes = graph.nodes
+  const sameFileSymbolNodes = publicGraph.nodes
     .filter((node) => node.kind === 'symbol' && changed.has(fileLocatorFor(node.locator)))
     .sort((a, b) => sourceGraphImpactSymbolRank(b, behaviorDegree, exportedSymbolIds) - sourceGraphImpactSymbolRank(a, behaviorDegree, exportedSymbolIds) || a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
   const seedNodes = (sameFileSymbolNodes.length ? sameFileSymbolNodes : startNodes).slice(0, boundedLimit);
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const edgeById = new Map(graph.edges.map((edge) => [edge.id, edge]));
+  const nodeById = new Map(publicGraph.nodes.map((node) => [node.id, node]));
+  const edgeById = new Map(publicGraph.edges.map((edge) => [edge.id, edge]));
   const impactedNodes = new Set(seedNodes.map((node) => node.id));
   const impactedEdges = new Set();
   const queue = seedNodes.filter((node) => impactedNodes.has(node.id)).map((node) => ({ nodeId: node.id, depth: 0 }));
@@ -1062,8 +1564,8 @@ export function mapSourceGraphDiffImpact(graph, { changedLocators = [], depth = 
   const impactedEdgeKindCounts = countBy([...impactedEdges].map((id) => edgeById.get(id)).filter(Boolean), (edge) => edge.kind);
   return Object.freeze({
     schemaVersion: '1.0.0',
-    workspaceId: graph.workspaceId,
-    graphFingerprint: graph.graphFingerprint,
+    workspaceId: publicGraph.workspaceId,
+    graphFingerprint: publicGraph.graphFingerprint,
     changedLocators: [...changed].sort(),
     representedChangedLocators,
     depth: boundedDepth,
@@ -1291,7 +1793,7 @@ function defaultExportName(relativePath) {
   const withoutExtension = String(relativePath ?? '').replace(/\.[^.]+$/u, '');
   const parts = withoutExtension.split('/').filter(Boolean);
   const base = parts.at(-1) === 'index' ? parts.at(-2) : parts.at(-1);
-  return `default:${safeTag(base ?? 'export')}`;
+  return `default-${safeTag(base ?? 'export').replace(/:/gu, '-')}`;
 }
 
 function arrowDeclarationHasArrow(lines, startLine) {
@@ -1745,7 +2247,7 @@ function defaultExportTargetsForFiles(fileOutlines, symbols) {
 }
 
 function importedDefaultCallTargets(callName, { importedFileLocators, defaultExportTargetByFileLocator, symbolsByName }) {
-  if (!String(callName ?? '').startsWith('default:')) return [];
+  if (!String(callName ?? '').startsWith('default-')) return [];
   const targets = [];
   for (const fileLocator of importedFileLocators ?? []) {
     if (defaultExportName(relativeFromLocator(fileLocator)) !== callName) continue;
@@ -2034,7 +2536,7 @@ function defaultExportNameFromModule(rawModule) {
   const parts = String(rawModule ?? '').split('/').filter((part) => part && part !== '.');
   const last = parts.at(-1)?.replace(/\.[^.]+$/u, '');
   const base = last === 'index' ? parts.at(-2)?.replace(/\.[^.]+$/u, '') : last;
-  return `default:${safeTag(base ?? 'export')}`;
+  return `default-${safeTag(base ?? 'export').replace(/:/gu, '-')}`;
 }
 
 function importedRequireNames(binding) {
@@ -2070,10 +2572,11 @@ function publicImport(item) {
 function sanitizeModuleSpecifier(rawModule) {
   const value = String(rawModule ?? '').trim();
   if (!value) return 'invalid-module';
-  if (path.isAbsolute(value) || /^[A-Za-z]:[\\/]/u.test(value) || /(^|[\\/])(?:Users|private)([\\/]|$)/u.test(value) || /(^|[\\/])var[\\/]folders([\\/]|$)/u.test(value)) {
+  const normalized = value.replace(/\s+/gu, ' ').slice(0, 240);
+  if (path.isAbsolute(value) || /^[A-Za-z]:[\\/]/u.test(value) || /^file:/iu.test(value) || /(^|[\\/])(?:Users|private)([\\/]|$)/u.test(value) || /(^|[\\/])var[\\/]folders([\\/]|$)/u.test(value)) {
     return 'local:absolute-import';
   }
-  return value.replace(/\s+/gu, ' ').slice(0, 240);
+  return SOURCE_GRAPH_SAFE_LABEL_RE.test(normalized) ? normalized : 'external-module';
 }
 
 function contentFingerprint(value) {
@@ -2142,6 +2645,10 @@ function recordFromChunk(chunk, workspaceId) {
 }
 
 function recordFromGraphResult({ result, graph, workspaceId, collectedAt }) {
+  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
+  const publicWorkspaceId = safeSourceGraphWorkspaceId(workspaceId)
+    ? workspaceId
+    : publicGraph.workspaceId;
   const filePath = result.locator ? relativeFromLocator(result.locator) : null;
   const text = [
     `Source graph ${result.resultType} ${result.kind} ${result.label}.`,
@@ -2159,10 +2666,10 @@ function recordFromGraphResult({ result, graph, workspaceId, collectedAt }) {
   ].filter(Boolean);
   const tags = [...new Set(tagValues.flatMap((value) => [...terms(value)].slice(0, 16)))].sort();
   return {
-    id: `graph_${sha256(`${result.id}:${result.locator ?? ''}:${graph.graphFingerprint}`).slice(0, 32)}`,
-    version: graph.graphFingerprint,
+    id: `graph_${sha256(`${result.id}:${result.locator ?? ''}:${publicGraph.graphFingerprint}`).slice(0, 32)}`,
+    version: publicGraph.graphFingerprint,
     kind: 'observation',
-    workspaceId,
+    workspaceId: publicWorkspaceId,
     text,
     tags,
     relations: tags,
@@ -2175,15 +2682,15 @@ function recordFromGraphResult({ result, graph, workspaceId, collectedAt }) {
     confidence: result.resultType === 'node' ? 0.8 : 0.72,
     authority: 0.6,
     updatedAt: collectedAt,
-    contentHash: hashRef(stableStringify({ graph: graph.graphFingerprint, result })),
+    contentHash: hashRef(stableStringify({ graph: publicGraph.graphFingerprint, result })),
     metadata: {
       path: filePath,
       locator: result.locator ?? null,
       representation: 'source-graph-locator',
       retrieval: { candidateEligible: Boolean(result.locator) },
       sourceGraph: {
-        graphFingerprint: graph.graphFingerprint,
-        sourceIndexFingerprint: graph.sourceIndexFingerprint,
+        graphFingerprint: publicGraph.graphFingerprint,
+        sourceIndexFingerprint: publicGraph.sourceIndexFingerprint,
         resultId: result.id,
         resultType: result.resultType,
         kind: result.kind,
@@ -2219,7 +2726,15 @@ function diagnostic(locator, code) {
 }
 
 function locatorFor(relativePath) {
-  return `workspace://${normalizeRelative(relativePath)}`;
+  return normalizeSourceGraphWorkspaceLocator(`workspace://${normalizeRelative(relativePath)}`);
+}
+
+function safeWorkspaceLocatorFor(relativePath) {
+  try {
+    return locatorFor(relativePath);
+  } catch {
+    return null;
+  }
 }
 
 function fileLocatorFor(locator) {
@@ -2375,7 +2890,194 @@ function withDefined(value) {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined && item !== null));
 }
 
-function sourceGraphSummary({ nodes, edges }) {
+export function rankArchitectureNodes(graph, {
+  changedLocators = [],
+  query = '',
+  limit = 20
+} = {}) {
+  assertSourceGraph(graph);
+  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
+  const boundedLimit = boundedInteger(limit, 'source_graph_architecture_limit', 1, MAX_ARCHITECTURE_RANKING_RESULTS);
+  const changed = sourceGraphChangedLocatorSet(changedLocators);
+  const queryTerms = terms(String(query ?? '').slice(0, 512));
+  const behaviorDegree = new Map(publicGraph.nodes.map((node) => [node.id, { inbound: 0, outbound: 0 }]));
+  const exportedSymbolIds = new Set();
+  for (const edge of publicGraph.edges) {
+    if (edge.kind === 'exports') exportedSymbolIds.add(edge.toNodeId);
+    if (!['calls', 'references'].includes(edge.kind)) continue;
+    const from = behaviorDegree.get(edge.fromNodeId);
+    const to = behaviorDegree.get(edge.toNodeId);
+    if (from) from.outbound += 1;
+    if (to) to.inbound += 1;
+  }
+
+  const candidates = publicGraph.nodes
+    .filter((node) => architectureRankableSymbol(node))
+    .map((node) => architectureCandidate({
+      node,
+      counts: behaviorDegree.get(node.id) ?? { inbound: 0, outbound: 0 },
+      exported: exportedSymbolIds.has(node.id),
+      changed: changed.has(fileLocatorFor(node.locator)),
+      queryTerms
+    }))
+    .sort(compareArchitectureCandidates);
+  const preferredCandidates = candidates.filter((candidate) => !candidate.deprioritized);
+  const entryCandidates = preferredCandidates.filter((candidate) => candidate.entryEvidence || (candidate.inbound === 0 && candidate.outbound > 0));
+  const hotspotCandidates = preferredCandidates.filter((candidate) => candidate.entryEvidence || candidate.total > 0);
+  const entryPoints = (entryCandidates.length ? entryCandidates : preferredCandidates.length ? preferredCandidates : candidates)
+    .slice(0, boundedLimit)
+    .map(architectureNodeReference);
+  const hotspots = (hotspotCandidates.length ? hotspotCandidates : preferredCandidates.length ? preferredCandidates : candidates)
+    .slice(0, boundedLimit)
+    .map(architectureHotspot);
+  const deprioritized = candidates
+    .filter((candidate) => candidate.deprioritized)
+    .slice(0, Math.min(boundedLimit, MAX_ARCHITECTURE_DEPRIORITIZED))
+    .map(architectureDeprioritizedDiagnostic);
+  return Object.freeze({
+    entryPoints: Object.freeze(entryPoints),
+    hotspots: Object.freeze(hotspots),
+    deprioritized: Object.freeze(deprioritized)
+  });
+}
+
+function sourceGraphChangedLocatorSet(values) {
+  const list = Array.isArray(values) ? values : values === null || values === undefined || values === '' ? [] : [values];
+  const output = new Set();
+  for (const value of list) {
+    try {
+      const locator = fileLocatorFor(String(value));
+      if (safeArchitectureLocator(locator)) output.add(locator);
+    } catch {
+      // Public graph reads are read-only and fail closed for untrusted locators.
+    }
+  }
+  return output;
+}
+
+function architectureRankableSymbol(node) {
+  return node?.kind === 'symbol'
+    && ['class', 'function', 'method', 'interface', 'type'].includes(node.symbolKind)
+    && safeArchitectureLabel(node.label)
+    && safeArchitectureLocator(node.locator);
+}
+
+function architectureCandidate({ node, counts, exported, changed, queryTerms }) {
+  const signalCodes = [];
+  let score = 0;
+  function signal(code, multiplier = 1) {
+    const definition = ARCHITECTURE_SIGNAL_TABLE[code];
+    if (!definition) return;
+    signalCodes.push(code);
+    if (definition.weight !== undefined) score += definition.weight * multiplier;
+    if (definition.perDegree !== undefined) score += Math.min(definition.maximum, definition.perDegree * multiplier);
+  }
+  const locatorSignals = architectureLocatorSignals(node.locator);
+  for (const code of locatorSignals) signal(code);
+  if (exported) signal('exported_symbol');
+  if (changed) signal('changed_locator');
+  if (architectureQueryMatches(node, queryTerms)) signal('query_match');
+  if (counts.inbound > 0) signal('inbound_behavior', counts.inbound);
+  if (counts.outbound > 0) signal('outbound_behavior', counts.outbound);
+  if (architectureTestLocator(node.locator)) signal('test_locator_penalty');
+  if (String(node.label).startsWith('#')) signal('private_symbol_penalty');
+  if (architectureGenericUtilityName(node.label)) signal('generic_utility_penalty');
+  const penaltyCodes = signalCodes.filter((code) => ARCHITECTURE_SIGNAL_TABLE[code]?.direction === 'deprioritize');
+  return Object.freeze({
+    node,
+    inbound: counts.inbound,
+    outbound: counts.outbound,
+    total: counts.inbound + counts.outbound,
+    score,
+    reasonCodes: Object.freeze([...new Set(signalCodes)]),
+    penaltyCodes: Object.freeze(penaltyCodes),
+    deprioritized: penaltyCodes.length > 0,
+    entryEvidence: ['class', 'function', 'method'].includes(node.symbolKind) && (locatorSignals.length > 0 || exported)
+  });
+}
+
+function architectureLocatorSignals(locator) {
+  const relative = relativeFromLocator(locator);
+  const signals = [];
+  if (/(?:^|\/)(?:route|handler|page|layout)\.[cm]?[jt]sx?$/u.test(relative) || /(?:^|\/)(?:api|routes?)(?:\/|$)/u.test(relative)) signals.push('route_locator');
+  if (/(?:^|\/)bin\//u.test(relative)) signals.push('bin_locator', 'executable_script_locator');
+  if (/^packages\/[^/]+\/(?:src\/)?(?:index|main|cli)\.[cm]?[jt]sx?$/u.test(relative)) signals.push('package_source_entry_locator');
+  return signals;
+}
+
+function architectureQueryMatches(node, queryTerms) {
+  if (!queryTerms.size) return false;
+  const nodeTerms = terms(expandSearchText([node.label, node.qualifiedLabel, node.locator].filter(Boolean).join(' ')));
+  for (const term of queryTerms) if (nodeTerms.has(term)) return true;
+  return false;
+}
+
+function architectureTestLocator(locator) {
+  const relative = relativeFromLocator(locator);
+  return /(?:^|\/)(?:test|tests|__tests__|spec|fixtures|mocks?)(?:\/|$)/u.test(relative)
+    || /\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(relative);
+}
+
+function architectureGenericUtilityName(label) {
+  const normalized = String(label ?? '').replace(/^#/u, '').toLowerCase();
+  return /^assert(?:[A-Z_$]|$)/u.test(String(label ?? ''))
+    || GENERIC_ARCHITECTURE_UTILITY_NAMES.has(normalized)
+    || LOW_SIGNAL_REFERENCE_NAMES.has(normalized);
+}
+
+function compareArchitectureCandidates(left, right) {
+  return Number(left.deprioritized) - Number(right.deprioritized)
+    || right.score - left.score
+    || graphSearchPathPriority(left.node.locator) - graphSearchPathPriority(right.node.locator)
+    || left.node.label.localeCompare(right.node.label)
+    || left.node.id.localeCompare(right.node.id);
+}
+
+function architectureNodeReference(candidate) {
+  return Object.freeze(withDefined({
+    nodeId: candidate.node.id,
+    label: candidate.node.label,
+    qualifiedLabel: safeArchitectureLabel(candidate.node.qualifiedLabel) ? candidate.node.qualifiedLabel : undefined,
+    locator: candidate.node.locator,
+    symbolKind: candidate.node.symbolKind,
+    reasonCodes: candidate.reasonCodes
+  }));
+}
+
+function architectureHotspot(candidate) {
+  return Object.freeze(withDefined({
+    nodeId: candidate.node.id,
+    label: candidate.node.label,
+    qualifiedLabel: safeArchitectureLabel(candidate.node.qualifiedLabel) ? candidate.node.qualifiedLabel : undefined,
+    locator: candidate.node.locator,
+    symbolKind: candidate.node.symbolKind,
+    inbound: candidate.inbound,
+    outbound: candidate.outbound,
+    total: candidate.total,
+    reasonCodes: candidate.reasonCodes
+  }));
+}
+
+function architectureDeprioritizedDiagnostic(candidate) {
+  return Object.freeze(withDefined({
+    nodeId: candidate.node.id,
+    label: candidate.node.label,
+    qualifiedLabel: safeArchitectureLabel(candidate.node.qualifiedLabel) ? candidate.node.qualifiedLabel : undefined,
+    locator: candidate.node.locator,
+    symbolKind: candidate.node.symbolKind,
+    reasonCodes: candidate.penaltyCodes
+  }));
+}
+
+function safeArchitectureLocator(value) {
+  return SOURCE_GRAPH_WORKSPACE_LOCATOR_RE.test(String(value ?? ''));
+}
+
+function safeArchitectureLabel(value) {
+  return SOURCE_GRAPH_SAFE_LABEL_RE.test(String(value ?? ''));
+}
+
+function sourceGraphSummary({ nodes, edges, coverage = undefined }) {
   const nodeKindCounts = countBy(nodes, (node) => node.kind);
   const edgeKindCounts = countBy(edges, (edge) => edge.kind);
   const symbolNodes = nodes.filter((node) => node.kind === 'symbol');
@@ -2428,7 +3130,7 @@ function sourceGraphSummary({ nodes, edges }) {
     .filter(Boolean)
     .sort((a, b) => b.signalScore - a.signalScore || b.count - a.count || a.label.localeCompare(b.label))
     .slice(0, 10);
-  return Object.freeze({
+  return Object.freeze(withDefined({
     fileCount: nodeKindCounts.file ?? 0,
     symbolCount: nodeKindCounts.symbol ?? 0,
     moduleCount: nodeKindCounts.module ?? 0,
@@ -2440,8 +3142,9 @@ function sourceGraphSummary({ nodes, edges }) {
     nodeKindCounts,
     edgeKindCounts,
     hotspots,
-    entryPoints
-  });
+    entryPoints,
+    coverage
+  }));
 }
 
 function sourceGraphAmbiguousLabelSample(label, values, behaviorDegree) {

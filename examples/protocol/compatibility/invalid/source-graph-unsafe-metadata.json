@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "file:///tmp/UNSAFE_GRAPH_WORKSPACE_METADATA",
+  "graphVersion": "oaf-native-source-graph-1.0.0",
+  "parserVersion": "oaf-js-ts-static-1.0.0",
+  "builtAt": "2026-07-10T00:00:00.000Z",
+  "sourceIndexFingerprint": "UNSAFE_SOURCE_INDEX_FINGERPRINT_METADATA",
+  "summary": {
+    "fileCount": 0,
+    "symbolCount": 0,
+    "moduleCount": 0,
+    "nodeCount": 0,
+    "edgeCount": 0,
+    "nodeKindCounts": {},
+    "edgeKindCounts": {},
+    "hotspots": [],
+    "entryPoints": []
+  },
+  "nodes": [],
+  "edges": [],
+  "diagnostics": [],
+  "graphFingerprint": "UNSAFE_GRAPH_FINGERPRINT_METADATA"
+}

@@ -11,4 +11,5 @@ if (result.drift.length > 0) {
 } else {
   console.log('PASS release readiness artifacts verified without drift');
   console.log('PASS release readiness placeholder audit');
+  console.log(`PASS release readiness public evidence verified: ${result.publicEvidence.map((page) => page.path).join(', ')}`);
 }

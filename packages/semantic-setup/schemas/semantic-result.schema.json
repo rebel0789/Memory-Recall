@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memory-recall.dev/schemas/semantic-result-1.0.json",
+  "title": "Semantic setup executor result",
+  "description": "Untrusted executor output for a bounded semantic setup packet. Facts can bind only to packet source IDs and cannot provide source locators, hashes, supersession, authority, or credentials.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "packetFingerprint", "facts"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "packetFingerprint": { "$ref": "#/$defs/hash" },
+    "facts": {
+      "type": "array",
+      "maxItems": 24,
+      "items": { "$ref": "#/$defs/fact" }
+    }
+  },
+  "$defs": {
+    "hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "sourceId": {
+      "type": "string",
+      "pattern": "^src_[0-9]{3}$"
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceIds", "subject", "predicate", "object", "text"],
+      "properties": {
+        "sourceIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/sourceId" }
+        },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "predicate": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "object": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1024 }
+      }
+    }
+  }
+}

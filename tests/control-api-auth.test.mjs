@@ -2,11 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { once } from 'node:events';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createControlApiServer } from '../services/control-api/src/server.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
+import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 
 const password = 'correct horse battery staple';
 
@@ -30,7 +32,7 @@ class SpyStore {
   }
 }
 
-async function startServer(t, { bootstrapped = true } = {}) {
+async function startServer(t, { bootstrapped = true, memoryProvider = null, sourceGraphRoot } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'oaf-api-auth-'));
   t.after(async () => rm(root, { recursive: true, force: true }));
   const identityStore = await new LocalIdentityStore({
@@ -107,6 +109,8 @@ async function startServer(t, { bootstrapped = true } = {}) {
     identityStore,
     runWorkflow,
     compileContext,
+    memoryProvider,
+    sourceGraphRoot,
     logger,
     clock: () => '2026-06-19T10:00:00.000Z',
     correlationIdFactory: () => 'req_generated-00000000-0000-4000-8000-000000000000'
@@ -116,6 +120,10 @@ async function startServer(t, { bootstrapped = true } = {}) {
   t.after(async () => new Promise((resolve) => api.close(resolve)));
   const { port } = api.server.address();
   return { ...api, base: `http://127.0.0.1:${port}`, identityStore, store, calls, owner };
+}
+
+function sha256(bytes) {
+  return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 }
 
 function cookieHeader(headers) {
@@ -286,6 +294,44 @@ test('csrf and role policy prevent unsafe domain execution before handlers', asy
   assert.equal(allowed.body.events[0].actorId, api.owner.user.id);
   assert.equal(api.calls.workflow, 1);
   assert.equal(api.store.updates, 1);
+});
+
+test('authenticated semantic approval rechecks every source before provider claim', async (t) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), 'recall-control-semantic-'));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  await mkdir(path.join(workspace, '.local'), { recursive: true });
+  await writeFile(path.join(workspace, 'README.md'), '# Primary source\n');
+  await writeFile(path.join(workspace, 'AGENTS.md'), '# Secondary source\n');
+  const primaryHash = sha256(await readFile(path.join(workspace, 'README.md')));
+  const secondaryHash = sha256(await readFile(path.join(workspace, 'AGENTS.md')));
+  const provider = new SQLiteMemoryProvider({ filename: path.join(workspace, '.local', 'memory.sqlite'), clock: () => '2026-07-11T12:00:00.000Z' });
+  t.after(() => provider.close());
+  await provider.enqueueProposal({
+    id: 'mpq_control_semantic_changed', workspaceId: 'ws_local', sourceLocator: 'workspace://README.md', sourceHash: primaryHash,
+    payload: {
+      kind: 'fact', scope: 'workspace', subject: 'project:control', predicate: 'semantic_status', object: 'pending',
+      text: 'The control API semantic proposal is pending.', proposalOrigin: 'semantic-setup', approvalMode: 'explicit-id-only',
+      semanticSourceCount: 2,
+      semanticSourceId: 'src_001', semanticSourceLocator: 'workspace://README.md', semanticSourceHash: primaryHash,
+      semanticSource0Id: 'src_001', semanticSource0Locator: 'workspace://README.md', semanticSource0Hash: primaryHash,
+      semanticSource1Id: 'src_002', semanticSource1Locator: 'workspace://AGENTS.md', semanticSource1Hash: secondaryHash
+    }
+  });
+  const api = await startServer(t, { memoryProvider: provider, sourceGraphRoot: workspace });
+  const owner = await login(api.base);
+  await writeFile(path.join(workspace, 'AGENTS.md'), '# Changed secondary source\n');
+  const approval = await json(api.base, '/api/memory/proposals/mpq_control_semantic_changed/approve', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: api.base, cookie: owner.cookies, 'x-csrf-token': owner.csrf },
+    body: JSON.stringify({ workspaceId: 'ws_local', confirm: true })
+  });
+  assert.equal(approval.status, 500, approval.text);
+  assert.equal(approval.body.error.code, 'internal_error');
+  const queued = await provider.getProposalQueueRecord({ workspaceId: 'ws_local', id: 'mpq_control_semantic_changed' });
+  assert.equal(queued.status, 'pending');
+  assert.equal(queued.leaseOwner, null);
+  assert.equal(queued.attempts, 0);
+  assert.equal((await provider.listTemporalFacts({ workspaceId: 'ws_local' })).length, 0);
 });
 
 test('api tokens are returned once, scoped by membership, and cannot mint tokens', async (t) => {

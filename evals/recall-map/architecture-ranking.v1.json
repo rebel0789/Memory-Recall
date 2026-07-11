@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "suite": "recall-map-architecture-ranking",
+  "version": "v1",
+  "scope": "bounded_local_static_js_ts",
+  "cases": [
+    {
+      "id": "exported-entry-points-over-generic-helpers",
+      "expectedTopEntryPoints": ["GET", "startServer"],
+      "mustDeprioritize": ["assert", "assertPlainObject", "#privateMethod", "byteLength", "testOnlyProbe"]
+    },
+    {
+      "id": "changed-source-promotes-otherwise-equal-entry",
+      "changedLocator": "workspace://src/changed.ts",
+      "expectedTopEntryPoint": "changedEntry"
+    },
+    {
+      "id": "coverage-is-partial-when-static-js-ts-scope-is-incomplete",
+      "expectedReasonCodes": ["file_too_large", "max_files_reached", "unsupported_extensions_skipped"]
+    }
+  ],
+  "limitations": [
+    "No language-server, semantic, graph-database, model, network, or source-body claim.",
+    "Ranking uses only bounded local graph nodes, edges, and safe workspace locators."
+  ]
+}

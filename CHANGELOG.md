@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.1.0] — 2026-07-11
+
+No breaking CLI migration is required. Local-only defaults, proposal-gated memory, and read-only MCP remain unchanged.
+
+### Added
+
+- Developer-first Recall Map across the CLI, loopback Control API, web home, and read-only MCP, with source-graph ranking, changed-file impact, coverage states, handoff actions, and inspectable local reports.
+- Governed semantic setup commands for bounded planning, harness task generation, result import, and optional one-shot Gemini or OpenAI-compatible execution.
+- Source-bound semantic proposals that remain pending until named approval rechecks every cited file.
+- Public semantic setup usage, architecture, support, capability, and release evidence.
+
+### Changed
+
+- The preserved `skill:oaf-memory` compatibility package now documents current Memory Recall commands and removes unavailable legacy workflow guidance.
+- Public product copy now separates implemented semantic proposal generation from experimental direct API execution and from unsupported semantic retrieval.
+
+### Security
+
+- Semantic source reads use bounded descriptors, no-follow and containment checks, file-identity verification, mutation detection, secret filtering, and raw-byte hashes.
+- Direct API execution requires explicit network consent before environment credential access, permits HTTPS or literal-loopback HTTP endpoints only, makes one bounded request without retry or fallback, and validates untrusted output against a strict schema.
+- Bulk approval skips semantic proposals. Named CLI and authenticated Control API approval paths rehash all cited sources before any proposal claim or active-memory mutation.
+
+### Internal
+
+- Release gates cover 644 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
+
 ## [1.0.0] — 2026-07-08
 
 ### Added

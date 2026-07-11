@@ -1,15 +1,16 @@
-# Rust Acceleration
+# Experimental Rust Acceleration
 
-Memory Recall is not "all Rust." The public npm install path is a zero-account
-Node.js CLI. The repository also ships a Rust workspace for fast local repo
-intelligence.
+Memory Recall's default public path is a zero-account Node.js CLI with an
+implemented JS/TS static graph. Experimental Rust acceleration is opt-in and
+requires a local build; it is not default shipping code intelligence.
 
 Use this wording publicly:
 
-> Memory Recall uses a Rust core for fast repo intelligence and graph-style code
-> queries, wrapped in a zero-account Node.js CLI for easy install.
+> Memory Recall provides an implemented JS/TS static graph. Experimental Rust
+> acceleration is opt-in and requires a local build; the npm package includes
+> Rust source, not a built binary.
 
-## What Rust Does
+## What Rust Does After A Local Build
 
 - local ingest over repository source;
 - governed File, Module, Function, Class, Method facts;
@@ -27,6 +28,9 @@ Use this wording publicly:
 
 ## Build
 
+The npm tarball includes Rust source but no built Rust binary. No Rust command
+runs as part of `npm install`, `recall setup`, or `recall handoff`.
+
 ```bash
 cargo build --release --manifest-path rust/Cargo.toml
 ```
@@ -38,7 +42,8 @@ rust/target/release/oaf
 ```
 
 Build output is intentionally excluded from the npm tarball. The Rust source is
-included so users can inspect and build it locally.
+included so users can inspect and build it locally when they choose the
+experimental acceleration path.
 
 ## Verify
 
@@ -51,4 +56,3 @@ node scripts/rust-realworld-bench.mjs
 
 Some Rust benchmark scripts clone public repositories before running local
 commands. Treat those as optional evidence gates, not install-time behavior.
-

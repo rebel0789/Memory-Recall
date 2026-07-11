@@ -15,8 +15,10 @@ import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   buildSourceGraphPreview
 } from '../../../packages/source-graph/src/index.mjs';
+import { buildRecallMap } from '../../../packages/recall-map/src/index.mjs';
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
 import { extractTemporalFactProposalsFromEpisode } from '../../../packages/memory-core/src/index.mjs';
+import { assertSemanticProposalSourcesCurrent } from '../../../packages/semantic-setup/src/index.mjs';
 import { actionsForRole, createPolicyService } from '../../../packages/policy/src/index.mjs';
 import { assertJsonSchema, validateJsonSchema } from '../../../packages/protocol/src/schema-validator.mjs';
 import { sha256Hex, stableStringify } from '../../../packages/protocol/src/fingerprint.mjs';
@@ -486,7 +488,11 @@ async function buildMemoryGraphProjection({ provider, workspaceId, generatedAt, 
   };
 }
 
-async function approveMemoryProposal({ provider, workspaceId, proposalId, generatedAt }) {
+async function approveMemoryProposal({ provider, workspaceId, proposalId, generatedAt, root }) {
+  const pending = await provider.getProposalQueueRecord({ workspaceId, id: proposalId });
+  if (pending?.payload?.proposalOrigin === 'semantic-setup') {
+    await assertSemanticProposalSourcesCurrent({ root, proposal: pending });
+  }
   const { proposal, fact } = await provider.approveProposalFact({ workspaceId, id: proposalId, workerId: 'memory-cockpit', approvedAt: generatedAt });
   const report = {
     schemaVersion: '1.0.0',
@@ -800,6 +806,14 @@ export function createControlApiServer({
           artifacts: state.artifacts.filter((artifact) => (artifact.workspaceId ?? context.workspaceId) === context.workspaceId).slice(-20).reverse()
         };
       }
+      case 'getRecallMap':
+        return buildRecallMap({
+          root: sourceGraphRoot,
+          workspaceId: context.workspaceId,
+          changedLocators: context.query.changed ? [context.query.changed] : [],
+          query: context.query.query ?? '',
+          clock
+        });
       case 'getLoopWorkbench': {
         const state = await store.read();
         return withMemoryProvider(async (provider) => buildLoopWorkbenchProjection({ state, workspaceId: context.workspaceId, generatedAt: clock(), memoryProvider: provider }));
@@ -822,7 +836,7 @@ export function createControlApiServer({
         );
       case 'approveMemoryProposal':
         return withMemoryProvider(
-          async (provider) => approveMemoryProposal({ provider, workspaceId: context.workspaceId, proposalId: context.params.proposalId, generatedAt: clock() }),
+          async (provider) => approveMemoryProposal({ provider, workspaceId: context.workspaceId, proposalId: context.params.proposalId, generatedAt: clock(), root: sourceGraphRoot }),
           { readOnly: false }
         );
       case 'listRuns': {
@@ -1628,6 +1642,7 @@ function routeResourceType(contract) {
       return 'workspace';
     case 'resetBootstrap':
     case 'getDashboard':
+    case 'getRecallMap':
     case 'getLoopWorkbench':
       return 'workspace';
     default:

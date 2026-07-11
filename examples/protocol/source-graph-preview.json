@@ -19,14 +19,35 @@
       "edgeCount": 1,
       "nodeKindCounts": { "file": 1, "symbol": 1 },
       "edgeKindCounts": { "defined_in": 1 },
+      "coverage": {
+        "status": "complete",
+        "representedFileCount": 1,
+        "representedJsTsLocators": ["workspace://src/auth.ts"],
+        "skippedFileCount": 0,
+        "skippedLocators": [],
+        "oversizedFileCount": 0,
+        "oversizedLocators": [],
+        "excludedDirectoryCount": 0,
+        "excludedDirectoryLocators": [],
+        "declaredOutOfScopeDirectoryCount": 0,
+        "declaredOutOfScopeDirectoryLocators": [],
+        "sourceRelevantExcludedDirectoryCount": 0,
+        "sourceRelevantExcludedDirectoryLocators": [],
+        "unsupportedFileCount": 0,
+        "unsupportedExtensions": [],
+        "maxFilesReached": false,
+        "reasonCodes": []
+      },
       "hotspots": [
         {
           "nodeId": "sgnode_22222222222222222222222222222222",
           "label": "approveTokenReset",
           "locator": "workspace://src/auth.ts#L2-L4",
+          "symbolKind": "method",
           "inbound": 1,
           "outbound": 0,
-          "total": 1
+          "total": 1,
+          "reasonCodes": []
         }
       ],
       "entryPoints": [
@@ -34,9 +55,11 @@
           "nodeId": "sgnode_22222222222222222222222222222222",
           "label": "approveTokenReset",
           "locator": "workspace://src/auth.ts#L2-L4",
-          "symbolKind": "method"
+          "symbolKind": "method",
+          "reasonCodes": []
         }
-      ]
+      ],
+      "deprioritized": []
     },
     "diagnostics": [],
     "sampleLimit": 2,

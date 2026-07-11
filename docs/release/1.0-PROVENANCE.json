@@ -1,14 +1,14 @@
 {
   "schemaVersion": "1.0.0",
-  "predicateType": "https://openagentfabric.dev/provenance/release-readiness/v1",
+  "predicateType": "https://github.com/rebel0789/Memory-Recall/provenance/release-readiness/v1",
   "subject": {
     "name": "memory-recall",
-    "version": "1.0.5",
+    "version": "1.1.0",
     "releaseCandidate": "1.0-readiness"
   },
   "buildType": "local-deterministic-source-readiness",
   "builder": {
-    "id": "@open-agent-fabric/release-readiness",
+    "id": "memory-recall/release-readiness",
     "version": "1.0.0-rc-readiness",
     "node": ">=22",
     "platform": "current-runner",
@@ -21,15 +21,27 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:b3453c5164aeaec1f709c0e22e07ca1c1671352f1598fdb43db3664d29a5160c",
-    "package-lock.json": "sha256:f4218a6135c0d4cab1d8de122d1ccdba2edc1597658905a294de890597b59757",
-    "PROJECT_STATUS.json": "sha256:033b2ef967998c0d941d2238bddeecb8606b99df15e4294675bc8d09e633ee56",
+    "package.json": "sha256:7571776a443d6c4e5d91a824c8056b23c20d6378b8b194a316bd206a4b208359",
+    "package-lock.json": "sha256:9a36fcf03465f2c1e862e548b3d7889ec01489db52690d50e6ee17aca0ef5672",
+    "PROJECT_STATUS.json": "sha256:21f941bf6c95bff74b0f64e4208d00daa52a89ed07764a5146c4732b7b056c32",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
+    "docs/usage/support-matrix.md": "sha256:dd4108828b742e8d06112e6abdfa4119f90a8b034b417b9e7e41f6924dcf26a6",
+    "docs/benchmarks.md": "sha256:0bbc131af4531e534aa028b0a88391af1c07f913349271885ebc3d9cbfe00e0e",
     "THIRD_PARTY.md": "sha256:adbbffba498346ac25ff8f064db76ae93543d3c1990d37f1137d9122f0742dd7",
     "SECURITY.md": "sha256:a5d5b9d1e786d26bedaca01aa84c34699a4e258f07838193a0d0e8d752b2fc12",
     "GOVERNANCE.md": "sha256:ef85f7b2d9ec6271150741d5f4c69d42e1fa4809e630314297f348b2a4fd2e3e"
   },
+  "publicEvidence": [
+    {
+      "path": "docs/usage/support-matrix.md",
+      "sha256": "sha256:dd4108828b742e8d06112e6abdfa4119f90a8b034b417b9e7e41f6924dcf26a6"
+    },
+    {
+      "path": "docs/benchmarks.md",
+      "sha256": "sha256:0bbc131af4531e534aa028b0a88391af1c07f913349271885ebc3d9cbfe00e0e"
+    }
+  ],
   "generatedFiles": [
     "1.0-ADAPTER-CERTIFICATION.md",
     "1.0-COMPATIBILITY-MATRIX.md",

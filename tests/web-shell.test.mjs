@@ -19,6 +19,7 @@ import {
   buildFirstUseReadinessModel,
   buildHarnessSetupUiModel,
   buildLoopWorkbenchModel,
+  buildRecallMapHomeModel,
   buildMemoryCockpitModel,
   buildMemoryGraphModel,
   buildMemoryReviewModel,
@@ -44,6 +45,7 @@ import {
   renderConsumerStartActions,
   renderContextPackTokenSaverSummary,
   renderMemoryIntakePanel,
+  renderRecallMapHome,
   shouldLoadProtectedShellData,
   shellStatusLabel,
   summarizeRunSteps,
@@ -74,14 +76,56 @@ test('web shell exposes stable path routes with legacy query compatibility',()=>
   assert.equal(ROUTES.some(route=>route.id==='content'),true);
 });
 
-test('first-use home exposes consumer start actions',()=>{
-  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.label),['Connect','Save Tokens','Add Memory','View Repo Map']);
-  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.route),['/agents-tools','/context-pack','/memory','/source-graph']);
+test('first-use home exposes developer-first Recall Map actions',()=>{
+  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.label),['Create handoff','Review memory','Inspect source graph']);
+  assert.deepEqual(CONSUMER_START_ACTIONS.map((action)=>action.route),['/context-pack','/memory','/source-graph']);
   const html=renderConsumerStartActions();
-  for (const label of ['Connect','Save Tokens','Add Memory','View Repo Map']) {
+  for (const label of ['Create handoff','Review memory','Inspect source graph']) {
     assert.match(html,new RegExp(`>${label}<`));
   }
   assert.match(html,/aria-label="First actions"/);
+});
+
+test('Recall Map home makes index, coverage, impact, memory, and handoff states inspectable',()=>{
+  const report={
+    schemaVersion:'1.0.0',
+    reportVersion:'memory-recall-map-1.0.0',
+    workspaceId:'ws_local',
+    generatedAt:'2026-07-11T10:00:00.000Z',
+    support:{
+      sourceGraph:{status:'implemented',languages:['javascript','typescript'],coverage:{status:'partial',analyzedFileCount:42,maxFiles:1000,maxFileBytes:262144,diagnosticCount:1,reasonCodes:['static_js_ts_only','bounded_file_scan']}},
+      memory:{status:'available'}
+    },
+    architecture:{
+      entryPoints:[{label:'createControlApiServer',qualifiedLabel:'createControlApiServer',locator:'workspace://services/control-api/src/server.mjs#L600-L610',symbolKind:'function'}],
+      hotspots:[],
+      search:{status:'available',queryFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',total:1,hasMore:false,omittedCount:0,results:[]},
+      impact:{changedLocators:['workspace://apps/web/app.js'],representedChangedLocators:['workspace://apps/web/app.js'],affectedSymbols:[{label:'renderHome',qualifiedLabel:'renderHome',locator:'workspace://apps/web/app.js#L1100-L1110',symbolKind:'function'}],affectedEdgeKindCounts:{calls:1},depth:2},
+      diagnostics:[{locator:'workspace://apps/web/app.js',code:'static_js_ts_only'}]
+    },
+    memory:{status:'available',activeFacts:[{id:'memfact_map_home',scope:'workspace',status:'active',sourceLocator:'workspace://docs/overview.md',validFrom:'2026-07-11T09:00:00.000Z',validUntil:null,confidence:0.9}],pendingProposals:[{id:'mpq_map_home',status:'pending',sourceLocator:'workspace://docs/overview.md',attempts:0,maxAttempts:3,enqueuedAt:'2026-07-11T09:10:00.000Z'}],staleFactCount:1,unavailableReason:null},
+    readiness:{handoff:{status:'available',command:'recall handoff'},mcp:{status:'available',command:'recall mcp inspect --read-only --root .'},nextCommands:['recall handoff','recall graph stats --root . --format summary']},
+    safeguards:{readOnly:true,localFilesWritten:0,canonicalStateMutated:false,networkCalls:0,modelCalls:0,rawSourceBodiesIncluded:false,graphDatabaseUsed:false,externalAdaptersEnabled:0},
+    fingerprint:'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+  };
+  const model=buildRecallMapHomeModel({report,pinnedHandoffStatus:{current:{status:'verified'}}});
+  assert.equal(model.state,'partial');
+  assert.equal(model.index.status,'implemented');
+  assert.equal(model.coverage.label,'42 / 1000 files');
+  assert.equal(model.impact.changedCount,1);
+  assert.equal(model.memory.activeCount,1);
+  assert.equal(model.memory.pendingCount,1);
+  assert.equal(model.handoff.state,'ready');
+  const html=renderRecallMapHome(model);
+  for (const label of ['Index health','Supported coverage','Changed impact','Memory state','Handoff readiness','Copy terminal command']) assert.match(html,new RegExp(label));
+  assert.match(html,/data-action="refresh-recall-map"/);
+  assert.match(html,/data-action="copy-command"/);
+  assert.doesNotMatch(html,/<canvas\b/i);
+
+  assert.equal(buildRecallMapHomeModel({report:null,error:null}).state,'loading');
+  assert.equal(buildRecallMapHomeModel({report:null,error:'loopback unavailable'}).state,'error');
+  assert.equal(buildRecallMapHomeModel({report:{...report,architecture:{...report.architecture,entryPoints:[],hotspots:[],impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}}}).state,'empty');
+  assert.equal(buildRecallMapHomeModel({report:{...report,support:{...report.support,sourceGraph:{...report.support.sourceGraph,status:'unavailable',coverage:{...report.support.sourceGraph.coverage,status:'unavailable'}}}}}).state,'partial');
 });
 
 test('shell defers protected workspace loads until local session evidence exists',()=>{

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
@@ -109,6 +109,61 @@ test('source graph preview ranks actionable locator results before import specif
   assert.notEqual(preview.search.results[0].kind, 'module');
 });
 
+test('source graph preview sanitizes unsafe dynamic module specifiers before rendering', async () => {
+  const root = await fixtureWorkspace();
+  await writeFile(path.join(root, 'src', 'dynamic.ts'), [
+    'export async function loadDynamicModule() {',
+    '  return Promise.all([',
+    "    import('file:/tmp/REVIEW_SECRET.ts'),",
+    "    import('git:repo/REVIEW_SECRET.ts'),",
+    "    import('data:text/plain'),",
+    "    import('node:../REVIEW_SECRET.ts')",
+    '  ]);',
+    '}'
+  ].join('\n'));
+  const preview = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    query: 'load dynamic module',
+    sampleLimit: 50,
+    clock: () => fixedNow
+  });
+  const schema = JSON.parse(await readFile('packages/protocol/schemas/source-graph-preview.schema.json', 'utf8'));
+  const serialized = JSON.stringify(preview);
+
+  assert.equal(validateJsonSchema(schema, preview).valid, true);
+  assert.ok(preview.graph.sampleNodes.some((node) => node.kind === 'module' && node.label === 'local:absolute-import'));
+  assert.ok(preview.graph.sampleNodes.some((node) => node.kind === 'module' && node.label === 'external-module'));
+  assert.equal(serialized.includes('file:/tmp/REVIEW_SECRET.ts'), false);
+  assert.equal(serialized.includes('git:repo/REVIEW_SECRET.ts'), false);
+  assert.equal(serialized.includes('data:text/plain'), false);
+  assert.equal(serialized.includes('node:../REVIEW_SECRET.ts'), false);
+  assert.equal(serialized.includes('/tmp/'), false);
+  assert.equal(serialized.includes('REVIEW_SECRET'), false);
+});
+
+test('source graph preview omits recursively percent-encoded traversal filesystem segments', async () => {
+  const root = await fixtureWorkspace();
+  for (const directory of ['%2e%2e', '%252e%252e', '%25252e%25252e', '%252f', '%255c']) {
+    await mkdir(path.join(root, 'src', directory), { recursive: true });
+    await writeFile(path.join(root, 'src', directory, 'REVIEW_SECRET.ts'), 'export const secret = true;\n');
+  }
+  const preview = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    query: 'secret',
+    sampleLimit: 50,
+    clock: () => fixedNow
+  });
+  const schema = JSON.parse(await readFile('packages/protocol/schemas/source-graph-preview.schema.json', 'utf8'));
+  const serialized = JSON.stringify(preview);
+
+  assert.equal(validateJsonSchema(schema, preview).valid, true);
+  assert.equal(preview.graph.summary.fileCount, 2);
+  for (const encodedPath of ['%2e%2e', '%252e%252e', '%25252e%25252e', '%252f', '%255c']) assert.equal(serialized.includes(encodedPath), false);
+  assert.equal(serialized.includes('REVIEW_SECRET'), false);
+});
+
 test('source graph preview reports when file caps make results partial', async () => {
   const root = await fixtureWorkspace();
   const preview = await buildSourceGraphPreview({
@@ -120,8 +175,89 @@ test('source graph preview reports when file caps make results partial', async (
   });
   assert.equal(preview.graph.summary.fileCount, 1);
   assert.equal(preview.graph.diagnostics.some((item) => item.code === 'max_files_reached'), true);
+  assert.equal(preview.graph.summary.coverage.status, 'partial');
+  assert.equal(preview.graph.summary.coverage.maxFilesReached, true);
+  assert(preview.graph.summary.coverage.reasonCodes.includes('max_files_reached'));
+  assert.equal(preview.graph.summary.coverage.representedFileCount, 1);
   assert.equal(preview.search.results.some((item) => item.label.includes('runAuthWorkflow')), false);
   assert(!JSON.stringify(preview).includes(root));
+});
+
+test('source graph preview keeps readable files available when one source file is unreadable', async (t) => {
+  const root = await fixtureWorkspace();
+  const unreadable = path.join(root, 'src', 'unreadable.ts');
+  await writeFile(unreadable, 'export function unreadableSource() { return true; }\n');
+  await chmod(unreadable, 0o000);
+  try {
+    try {
+      await readFile(unreadable, 'utf8');
+      t.skip('filesystem user can read mode-000 fixture');
+      return;
+    } catch (error) {
+      assert.equal(error?.code, 'EACCES');
+    }
+    const preview = await buildSourceGraphPreview({
+      root,
+      workspaceId: 'ws_local',
+      query: 'approve token reset',
+      clock: () => fixedNow
+    });
+    const schema = JSON.parse(await readFile('packages/protocol/schemas/source-graph-preview.schema.json', 'utf8'));
+    const coverage = preview.graph.summary.coverage;
+
+    assert.equal(validateJsonSchema(schema, preview).valid, true);
+    assert.notEqual(preview.graph.parserVersion, 'oaf-js-ts-static-unavailable');
+    assert.equal(preview.graph.summary.fileCount, 2);
+    assert.equal(coverage.status, 'partial');
+    assert.equal(coverage.skippedFileCount, 1);
+    assert.deepEqual(coverage.skippedLocators, ['workspace://src/unreadable.ts']);
+    assert.ok(coverage.reasonCodes.includes('file_unreadable'));
+    assert.ok(preview.graph.diagnostics.some((item) => item.locator === 'workspace://src/unreadable.ts' && item.code === 'file_unreadable'));
+    assert.ok(preview.search.results.some((item) => item.label === 'approveTokenReset'));
+  } finally {
+    await chmod(unreadable, 0o600);
+  }
+});
+
+test('source graph preview keeps readable files available when a source directory is unreadable', async (t) => {
+  const root = await fixtureWorkspace();
+  const lockedDirectory = path.join(root, 'z-locked');
+  await writeFile(path.join(root, 'a-good.ts'), 'export function readableDirectorySibling() { return true; }\n');
+  await mkdir(lockedDirectory, { recursive: true });
+  await writeFile(path.join(lockedDirectory, 'hidden.ts'), 'export function hiddenDirectorySecret() { return true; }\n');
+  await chmod(lockedDirectory, 0o000);
+  try {
+    try {
+      await readdir(lockedDirectory);
+      t.skip('filesystem user can read mode-000 directory fixture');
+      return;
+    } catch (error) {
+      assert.equal(error?.code, 'EACCES');
+    }
+    const preview = await buildSourceGraphPreview({
+      root,
+      workspaceId: 'ws_local',
+      query: 'readable directory sibling',
+      clock: () => fixedNow
+    });
+    const schema = JSON.parse(await readFile('packages/protocol/schemas/source-graph-preview.schema.json', 'utf8'));
+    const coverage = preview.graph.summary.coverage;
+    const serialized = JSON.stringify(preview);
+
+    assert.equal(validateJsonSchema(schema, preview).valid, true);
+    assert.notEqual(preview.graph.parserVersion, 'oaf-js-ts-static-unavailable');
+    assert.equal(preview.graph.summary.fileCount, 3);
+    assert.equal(coverage.status, 'partial');
+    assert.equal(coverage.skippedFileCount, 0);
+    assert.equal(coverage.sourceRelevantExcludedDirectoryCount, 0);
+    assert.ok(coverage.reasonCodes.includes('directory_unreadable'));
+    assert.ok(preview.graph.diagnostics.some((item) => item.locator === 'workspace://z-locked' && item.code === 'directory_unreadable'));
+    assert.ok(preview.search.results.some((item) => item.label === 'readableDirectorySibling'));
+    assert.equal(serialized.includes('hiddenDirectorySecret'), false);
+    assert.equal(serialized.includes(root), false);
+  } finally {
+    await chmod(lockedDirectory, 0o700);
+  }
 });
 
 test('source graph preview default covers normal repos beyond 200 JS files', async () => {
@@ -144,6 +280,8 @@ test('source graph preview default covers normal repos beyond 200 JS files', asy
 
   assert.equal(preview.graph.summary.fileCount, 252);
   assert.equal(preview.graph.diagnostics.some((item) => item.code === 'max_files_reached'), false);
+  assert.equal(preview.graph.summary.coverage.status, 'complete');
+  assert.equal(preview.graph.summary.coverage.representedFileCount, 252);
   assert(preview.search.results.some((item) => item.label === 'generatedRoute249'));
 });
 
@@ -192,6 +330,9 @@ test('source graph preview default represents large JS files within the bounded 
     clock: () => fixedNow
   });
   assert(capped.graph.diagnostics.some((item) => item.locator === 'workspace://apps/web/app.js' && item.code === 'file_too_large'));
+  assert.equal(capped.graph.summary.coverage.status, 'partial');
+  assert(capped.graph.summary.coverage.oversizedLocators.includes('workspace://apps/web/app.js'));
+  assert(capped.graph.summary.coverage.reasonCodes.includes('file_too_large'));
   assert.deepEqual(capped.impact.representedChangedLocators, []);
 });
 
@@ -205,6 +346,65 @@ test('source graph preview rejects unsafe changed locators', async () => {
     () => buildSourceGraphPreview({ root, workspaceId: 'ws_local', query: 'token', locatorPrefix: '/Users/rebel/project', clock: () => fixedNow }),
     /source_graph_preview_locator_invalid/
   );
+});
+
+test('source graph preview rejects protocol-invalid locators before emitting a report', async () => {
+  const root = await fixtureWorkspace();
+  for (const input of [
+    { changedLocators: ['src/auth.ts?token=FACADE_LOCATOR_SECRET'] },
+    { changedLocators: ['workspace://src/auth.ts#invalid-fragment'] },
+    { changedLocators: ['workspace://Users/rebel/private.ts'] },
+    { changedLocators: ['src/%2e%2e/secret.ts'] },
+    { changedLocators: ['workspace://src/..%2fsecret.ts'] },
+    { changedLocators: ['workspace://src/%252e%252e/REVIEW_SECRET.ts'] },
+    { changedLocators: ['workspace://src/%252fREVIEW_SECRET.ts'] },
+    { changedLocators: ['workspace://src/%255cREVIEW_SECRET.ts'] },
+    { changedLocators: ['file:///tmp/REVIEW_SECRET.ts'] },
+    { changedLocators: ['file:/etc/passwd'] },
+    { changedLocators: ['data:text/plain'] },
+    { changedLocators: ['git:repo/path'] },
+    { changedLocators: ['workspace://file:/etc/passwd'] },
+    { changedLocators: ['workspace://data:text/plain'] },
+    { changedLocators: ['workspace://git:repo/path'] },
+    { changedLocators: ['workspace://src/file:/etc/passwd'] },
+    { changedLocators: ['workspace://src/%66ile%3A/etc/passwd'] },
+    { locatorPrefix: 'workspace://private/secret.ts' },
+    { locatorPrefix: 'workspace://src/auth.ts?token=FACADE_LOCATOR_SECRET' },
+    { locatorPrefix: 'workspace://src/auth.ts#invalid-fragment' },
+    { locatorPrefix: 'workspace://src/%2E%2E/secret.ts' },
+    { locatorPrefix: 'workspace://src/%252e%252e/REVIEW_SECRET.ts' },
+    { locatorPrefix: 'workspace://src/%252fREVIEW_SECRET.ts' },
+    { locatorPrefix: 'workspace://src/%255cREVIEW_SECRET.ts' },
+    { locatorPrefix: 'file:/etc/passwd' },
+    { locatorPrefix: 'workspace://file:/etc/passwd' },
+    { locatorPrefix: 'workspace://src/file:/etc/passwd' },
+    { locatorPrefix: 'workspace://src/%66ile%3A/etc/passwd' }
+  ]) {
+    await assert.rejects(
+      () => buildSourceGraphPreview({ root, workspaceId: 'ws_local', query: 'token', clock: () => fixedNow, ...input }),
+      /source_graph_preview_locator_invalid/
+    );
+  }
+
+  const preview = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    changedLocators: ['src/auth.ts#L1-L3'],
+    locatorPrefix: 'workspace://src/auth.ts#L1-L3',
+    clock: () => fixedNow
+  });
+  const schema = JSON.parse(await readFile('packages/protocol/schemas/source-graph-preview.schema.json', 'utf8'));
+  assert.equal(validateJsonSchema(schema, preview).valid, true);
+  assert.deepEqual(preview.impact.changedLocators, ['workspace://src/auth.ts']);
+
+  const dynamicRoutePreview = await buildSourceGraphPreview({
+    root,
+    workspaceId: 'ws_local',
+    changedLocators: ['app/api/items/[itemId]/route.ts#L1-L3'],
+    locatorPrefix: 'workspace://app/api/items/[itemId]/route.ts#L1-L3',
+    clock: () => fixedNow
+  });
+  assert.deepEqual(dynamicRoutePreview.impact.changedLocators, ['workspace://app/api/items/[itemId]/route.ts']);
 });
 
 test('source graph preview rejects oversized changed locator sets', async () => {
@@ -306,7 +506,7 @@ test('source graph preview names CommonJS and object-style route symbols in impa
   assert(qualifiedNames.has('groups.users.list'));
   assert(qualifiedNames.has('module.exports.configureObject'));
   assert(qualifiedNames.has('module.exports.runObject'));
-  assert(qualifiedNames.has('default:default-config.rewrites'));
+  assert(qualifiedNames.has('default-default-config.rewrites'));
   assert(!JSON.stringify(preview).includes(root));
 });
 
@@ -980,7 +1180,7 @@ test('source graph preview resolves barrel re-exports to real symbols', async ()
 
   assert(preview.search.results.some((item) => item.kind === 'exports' && item.locator === 'workspace://src/index.ts'));
   assert(preview.search.results.some((item) => item.label.includes('buildRoute')));
-  assert(preview.search.results.some((item) => item.label.includes('default:page')));
+  assert(preview.search.results.some((item) => item.label.includes('default-page')));
 
   const defaultReExportPreview = await buildSourceGraphPreview({
     root,
@@ -991,7 +1191,7 @@ test('source graph preview resolves barrel re-exports to real symbols', async ()
     clock: () => fixedNow
   });
 
-  assert(defaultReExportPreview.search.results.some((item) => item.kind === 'exports' && item.locator === 'workspace://src/index.ts' && item.label.includes('Page') && item.label.includes('default:page')));
+  assert(defaultReExportPreview.search.results.some((item) => item.kind === 'exports' && item.locator === 'workspace://src/index.ts' && item.label.includes('Page') && item.label.includes('default-page')));
   const namespaceReExportPreview = await buildSourceGraphPreview({
     root,
     workspaceId: 'ws_local',
@@ -1050,7 +1250,7 @@ test('source graph preview resolves barrel re-exports to real symbols', async ()
     clock: () => fixedNow
   });
 
-  assert(defaultImportTrace.trace.paths.some((item) => item.terminalLabel === 'default:page' && item.terminalLocator === 'workspace://src/page.tsx#L1-L3'));
+  assert(defaultImportTrace.trace.paths.some((item) => item.terminalLabel === 'default-page' && item.terminalLocator === 'workspace://src/page.tsx#L1-L3'));
   const barrelImportTrace = await buildSourceGraphPreview({
     root,
     workspaceId: 'ws_local',
@@ -1060,7 +1260,7 @@ test('source graph preview resolves barrel re-exports to real symbols', async ()
     clock: () => fixedNow
   });
 
-  assert(barrelImportTrace.trace.paths.some((item) => item.terminalLabel === 'default:page' && item.terminalLocator === 'workspace://src/page.tsx#L1-L3'));
+  assert(barrelImportTrace.trace.paths.some((item) => item.terminalLabel === 'default-page' && item.terminalLocator === 'workspace://src/page.tsx#L1-L3'));
   const namespaceImportTrace = await buildSourceGraphPreview({
     root,
     workspaceId: 'ws_local',
@@ -1070,7 +1270,7 @@ test('source graph preview resolves barrel re-exports to real symbols', async ()
     clock: () => fixedNow
   });
 
-  assert(namespaceImportTrace.trace.paths.some((item) => item.terminalLabel === 'default:page' && item.terminalLocator === 'workspace://src/page.tsx#L1-L3'));
+  assert(namespaceImportTrace.trace.paths.some((item) => item.terminalLabel === 'default-page' && item.terminalLocator === 'workspace://src/page.tsx#L1-L3'));
   const exportNamespaceTrace = await buildSourceGraphPreview({
     root,
     workspaceId: 'ws_local',
@@ -1092,14 +1292,14 @@ test('source graph preview resolves barrel re-exports to real symbols', async ()
   });
 
   assert(aliasedDefaultImportTrace.trace.paths.some((item) => item.terminalLabel === 'Page' && item.terminalLocator === 'workspace://src/named-page.tsx#L1-L3'));
-  assert(preview.search.results.some((item) => item.label.includes('default:provider')));
-  assert(preview.search.results.some((item) => item.label.includes('default:api')));
+  assert(preview.search.results.some((item) => item.label.includes('default-provider')));
+  assert(preview.search.results.some((item) => item.label.includes('default-api')));
   assert(preview.search.results.some((item) => item.label.includes('handler')));
 
   const componentPreview = await buildSourceGraphPreview({
     root,
     workspaceId: 'ws_local',
-    query: 'MemoButton InputBox DefaultWidget default:badge FunctionCard',
+    query: 'MemoButton InputBox DefaultWidget default-badge FunctionCard',
     nodeKinds: ['symbol'],
     limit: 20,
     clock: () => fixedNow
@@ -1108,7 +1308,7 @@ test('source graph preview resolves barrel re-exports to real symbols', async ()
   assert(componentPreview.search.results.some((item) => item.label === 'MemoButton'));
   assert(componentPreview.search.results.some((item) => item.label === 'InputBox'));
   assert(componentPreview.search.results.some((item) => item.label === 'DefaultWidget'));
-  assert(componentPreview.search.results.some((item) => item.label === 'default:badge'));
+  assert(componentPreview.search.results.some((item) => item.label === 'default-badge'));
   assert(componentPreview.search.results.some((item) => item.label === 'FunctionCard'));
 
   const importPreview = await buildSourceGraphPreview({

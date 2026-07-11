@@ -49,14 +49,21 @@ try {
   const base = `http://127.0.0.1:${port}`;
   await page.goto(base, { waitUntil: 'domcontentloaded' });
   await waitForText(page, 'Create owner');
-  for (const label of ['Connect', 'Save Tokens', 'Add Memory', 'View Repo Map']) await waitForText(page, label);
+  for (const label of ['Create handoff', 'Review memory', 'Inspect source graph']) await waitForText(page, label);
   await page.fill('input[name="username"]', 'owner');
   await page.fill('input[name="displayName"]', 'Owner');
   await page.fill('input[name="password"]', password);
   await page.getByRole('button', { name: 'Create owner' }).click();
-  await waitForText(page, 'Choose what you need first.');
+  await waitForText(page, 'Index health');
+  await waitForText(page, 'Supported coverage');
+  await waitForText(page, 'Changed impact');
+  await waitForText(page, 'Memory state');
+  await waitForText(page, 'Next-Agent Handoff');
+  await assertNoElementHorizontalOverflow(page, '.recall-map-signals article', 'desktop Recall Map signal card');
+  await page.getByRole('button', { name: 'Refresh Recall Map' }).first().click();
+  await waitForText(page, 'Copyable next commands');
 
-  await page.getByRole('link', { name: /Connect/ }).click();
+  await page.locator('a[data-route="agents"]').first().click();
   await waitForText(page, 'Harness setup preview');
   await page.locator('#harness-setup-form button[type="submit"]').click();
   await waitForText(page, 'Harness setup preview ready.');
@@ -104,12 +111,14 @@ try {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(base, { waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'Choose what you need first.');
+  await waitForText(page, 'Index health');
+  await waitForText(page, 'Next-Agent Handoff');
   const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
   must(!hasHorizontalOverflow, 'mobile first-use shell has horizontal overflow');
+  await assertNoElementHorizontalOverflow(page, '.recall-map-signals article', 'mobile Recall Map signal card');
   must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
 
-  console.log('PASS consumer browser smoke: bootstrap, Connect, Token Saver, Add Memory, Memory Graph, Repo Map, mobile shell');
+  console.log('PASS consumer browser smoke: Recall Map, handoff, harness, Token Saver, memory, graph, mobile shell');
 } finally {
   if (browser) await browser.close().catch(() => {});
   if (server) {
@@ -144,7 +153,7 @@ function runJson(command, args) {
 
 async function waitForText(page, text) {
   try {
-    await page.waitForFunction((value) => document.body.innerText.includes(value), text, { timeout: 15_000 });
+    await page.waitForFunction((value) => document.body.innerText.toLocaleLowerCase().includes(String(value).toLocaleLowerCase()), text, { timeout: 15_000 });
   } catch {
     const body = await page.evaluate(() => document.body.innerText.slice(0, 4000)).catch(() => '');
     throw new Error(`Missing text: ${text}\nVisible text:\n${body}`);
@@ -154,6 +163,17 @@ async function waitForText(page, text) {
 async function mustNotContain(page, text) {
   const found = await page.evaluate((value) => document.body.innerText.includes(value), text);
   must(!found, `page leaked forbidden text: ${text}`);
+}
+
+async function assertNoElementHorizontalOverflow(page, selector, label) {
+  const overflows = await page.locator(selector).evaluateAll((elements) => elements
+    .map((element) => ({
+      text: element.innerText.replace(/\s+/gu, ' ').trim().slice(0, 120),
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth
+    }))
+    .filter((item) => item.scrollWidth > item.clientWidth + 1));
+  must(overflows.length === 0, `${label} has horizontal overflow: ${JSON.stringify(overflows)}`);
 }
 
 async function freePort() {

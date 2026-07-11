@@ -177,3 +177,36 @@ bodies, absolute paths, executable parser output, embeddings, graph-database
 records, and provider configuration. The
 native provider's root-bounded exact-slice helper is for internal reconstruction
 tests only; it is not a protocol output or a candidate-source query result.
+
+## Recall Map report schema
+
+`recall-map.schema.json` is the additive internal contract for the read-only
+Recall Map report composer. It joins bounded JavaScript/TypeScript static-graph
+summaries with governed SQLite-memory summaries without making the graph or
+memory store canonical state.
+
+The report contains only safe workspace locators, labels, counts, fingerprints,
+and lifecycle status. Active temporal facts and pending proposals are separate.
+It does not include fact text, proposal payloads, source bodies, provider IDs,
+absolute paths, model or network calls, graph-database records, or mutation
+authority. Its strict safeguards require zero local writes, zero model calls,
+zero network calls, and no canonical-state mutation. Compatibility fixtures
+exercise the valid report plus rejected raw-source, state-mutation,
+network/model-call, and proposed-as-active cases.
+
+## Semantic setup report schema
+
+`semantic-setup-report.schema.json` is the additive v1 report contract for
+bounded semantic setup planning, harness-task rendering, and result import. It
+also reserves the safe `semantic run` report shape for a later explicit
+one-shot executor. It records only the packet fingerprint, safe workspace
+locators, source hashes and byte counts, executor kind, proposal IDs/counts,
+bounded usage, and model/network-call counts.
+
+The report never contains raw packet bodies, prompts, model output text,
+credentials, provider URLs, absolute filesystem paths, or hidden reasoning.
+Executor output remains untrusted and binds facts to local packet `sourceId`
+values before a later explicit-review proposal flow can use it. The
+compatibility fixture validates the safe planning report; it does not claim a
+model call, network call, automatic memory activation, or harness configuration
+write.

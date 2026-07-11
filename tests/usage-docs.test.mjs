@@ -6,8 +6,57 @@ function read(path) {
   return readFileSync(path, 'utf8');
 }
 
-test('public usage docs avoid stale task and missing context-file examples', () => {
+test('semantic setup docs and status describe only the governed implemented path', () => {
+  assert.equal(existsSync('docs/usage/semantic-setup.md'), true);
+  const semantic = read('docs/usage/semantic-setup.md');
+  const skill = `${read('skills/oaf-memory/SKILL.md')}\n${read('skills/oaf-memory/README.md')}`;
+  const readme = read('README.md');
+  const contract = read('docs/product/memory-recall-developer-first.md');
+  const usageIndex = read('docs/usage/README.md');
+  const status = JSON.parse(read('PROJECT_STATUS.json'));
+  const semanticCapability = status.capabilities.find((capability) => capability.id === 'recall.semantic-setup');
+  const directCapability = status.capabilities.find((capability) => capability.id === 'recall.semantic-api-run');
+
+  for (const command of [
+    'recall semantic plan --harness codex --root . --dry-run',
+    'recall semantic task --harness codex --root .',
+    'recall semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite',
+    'recall semantic run --provider gemini --allow-network --root . --sqlite .local/memory.sqlite',
+    'recall memory approve <mpq_id> --root . --sqlite .local/memory.sqlite --format json'
+  ]) assert.match(semantic, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')));
+  assert.match(semantic, /does not invoke the\s+selected harness/i);
+  assert.match(semantic, /at most 8 sources, 16 KiB per source, and 64 KiB total/);
+  assert.match(semantic, /regular non-symlink file no larger than 256 KiB/);
+  assert.match(semantic, /only selected documentation and configuration bodies\s+leave the machine/i);
+  assert.match(semantic, /does\s+not persist the API key/i);
+  assert.match(semantic, /outside the model gateway/i);
+  assert.match(semantic, /bulk approval skips semantic setup proposals/i);
+  assert.match(semantic, /rehashes every\s+cited source/i);
+  assert.match(semantic, /rerun the semantic task/i);
+  assert.match(semantic, /MCP remains read-only/i);
+  assert.match(semantic, /no background sync/i);
+  assert.match(semantic, /semantic setup v1 does\s+not scan or upload raw source-code files/i);
+  assert.match(semantic, /usage counts.*not a provider billing guarantee/is);
+  assert.match(semantic, /one request with no automatic retry/i);
+  assert.doesNotMatch(`${semantic}\n${skill}`, /oaf ingest-docs|memory consolidate/);
+  assert.match(usageIndex, /\[Semantic setup\]\(semantic-setup\.md\)/);
+  assert.match(readme, /docs\/usage\/semantic-setup\.md/);
+  assert.match(readme, /default local path needs no hosted account or model API key/i);
+  assert.doesNotMatch(readme, /\b(?:better|strongest|superior)\b/i);
+  assert.match(contract, /Implemented: bounded semantic plan and task packets, strict result import, pending proposals, and source-rechecked named approval\./);
+  assert.match(contract, /Experimental: explicit one-shot Gemini and OpenAI-compatible semantic API execution\./);
+  assert.equal(semanticCapability?.status, 'implemented');
+  assert.equal(directCapability?.status, 'experimental');
+  assert.equal(status.defaults.network, 'deny');
+  assert.equal(status.defaults.modelMode, 'deterministic');
+  assert.equal(status.defaults.permanentMemory, 'proposal-only');
+  assert(semanticCapability.evidence.includes('docs/usage/semantic-setup.md'));
+  assert(directCapability.limitations.some((item) => item.includes('outside the model gateway')));
+});
+
+test('public usage docs avoid stale task and missing context-file examples while preserving the explicit Recall Map contract', () => {
   assert.equal(existsSync('docs/usage/local-agent-handoff.md'), true);
+  assert.equal(existsSync('docs/usage/oaf-compatibility.md'), true);
   const docs = [
     read('ASSIGN_TO_AGENT.md'),
     read('README.md'),
@@ -16,6 +65,18 @@ test('public usage docs avoid stale task and missing context-file examples', () 
     read('docs/implementation/OAF-031-context-intake-preview-note.md'),
     read('docs/usage/local-agent-handoff.md')
   ].join('\n');
+  const readme = read('README.md');
+  const handoff = read('docs/usage/local-agent-handoff.md');
+  const contract = read('docs/product/memory-recall-developer-first.md');
+  const recallMap = read('docs/usage/recall-map.md');
+  const compatibility = read('docs/usage/oaf-compatibility.md');
+  const rustAcceleration = read('docs/usage/rust-acceleration.md');
+  const tokenSavings = read('docs/usage/token-savings.md');
+  const sourceCheckoutHeading = '## Developing Memory Recall From A Source Checkout';
+  const sourceCheckoutIndex = handoff.indexOf(sourceCheckoutHeading);
+  assert.notEqual(sourceCheckoutIndex, -1);
+  const normalHandoff = handoff.slice(0, sourceCheckoutIndex);
+  const sourceCheckout = handoff.slice(sourceCheckoutIndex);
 
   assert.equal(docs.includes('docs/context.md'), false);
   assert.equal(docs.includes('oaf task OAF-004'), false);
@@ -28,7 +89,49 @@ test('public usage docs avoid stale task and missing context-file examples', () 
   assert.match(docs, /npm run recall -- memory refine --read-only --root \. --sqlite \.local\/memory\.sqlite --target-active-facts 200 --format json/);
   assert.match(docs, /npm run recall -- context handoff --read-only --from codex --root \. --objective "Prepare handoff" --step "select next agent context" --target codex --changed apps\/web\/app\.js --format json/);
   assert.match(docs, /--apply --confirm <fingerprint>/);
-  assert.match(docs, /does\s+not import harness history, enable write tools, call cloud\/model APIs, or claim\s+provider billing-token savings/);
+  assert.match(docs, /automatic harness-history importer,\s+write-enabled MCP server/);
+  assert.match(docs, /zero model calls, network calls, external writes, adapter\s+enablement, active memory creation, or source-body inclusion/);
+  assert.match(docs, /not provider\s+billing claims/);
+  assert.match(contract, /# Memory Recall: Developer-First Product Contract/);
+  assert.match(contract, /Implemented: local JS\/TS static graph, reviewed SQLite memory, read-only MCP\./);
+  assert.match(contract, /Experimental: Rust acceleration paths require a local build before explicit invocation\./);
+  assert.match(contract, /Unsupported: automatic transcript capture, write-capable MCP, hosted sync, and non-JS\/TS source graph analysis\./);
+  assert.match(readme, /recall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
+  assert.match(readme, /`recall setup` creates only local state\. `recall map` is the explicit first\s+read-only repository scan; it does not run silently during setup\./);
+  assert.match(normalHandoff, /recall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
+  assert.match(normalHandoff, /`recall setup` creates only local Recall state in the current repository; it\s+does not scan source files\. `recall map` is the explicit first read-only scan\./);
+  assert.match(contract, /recall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
+  assert.match(contract, /`recall setup` initializes local Recall state without scanning the repository\.\s+`recall map` is the explicit read-only first scan/);
+  assert.match(read('docs/usage/README.md'), /\[Recall Map\]\(recall-map\.md\) - read-only JS\/TS repository map/);
+  assert.match(recallMap, /`recall map` is the first explicit read-only command/);
+  assert.match(recallMap, /`recall setup` creates only local state\. It does not scan the repository or run\s+Recall Map for you\./);
+  assert.match(recallMap, /Every format is local and read-only:/);
+  assert.match(recallMap, /no workspace files are written/);
+  assert.match(recallMap, /no canonical memory state changes/);
+  assert.match(recallMap, /no model or network calls/);
+  assert.match(recallMap, /no external adapters enabled/);
+  assert.match(recallMap, /no raw source or memory bodies/);
+  assert.match(recallMap, /no absolute local workspace paths in the report/);
+  assert.doesNotMatch(normalHandoff, /npm run status/);
+  assert.match(sourceCheckout, /First run `npm run status`; when it reports `Next task: none`, use the\n`First safe handoff` command it prints or continue below\./);
+  assert.doesNotMatch(readme, /Rust code intelligence/);
+  assert.match(readme, /Experimental Rust acceleration requires a local build/);
+  assert.doesNotMatch(rustAcceleration, /Memory Recall uses a Rust core/);
+  assert.match(rustAcceleration, /Experimental Rust acceleration is opt-in and\s+requires a local build/);
+  assert.match(rustAcceleration, /cargo build --release --manifest-path rust\/Cargo\.toml/);
+  assert.match(tokenSavings, /## Experimental Rust evaluation/);
+  assert.match(tokenSavings, /source-checkout-only experiment after a local\s+Rust build/i);
+  assert.match(tokenSavings, /cargo build --release --manifest-path rust\/Cargo\.toml\nnode scripts\/rust-eval\.mjs/);
+  assert.match(tokenSavings, /reads `rust\/target\/release\/oaf` and fetches an external public repository/);
+  assert.match(tokenSavings, /unsuitable as a packaged-product benchmark or a\s+stable headline/);
+  assert.match(tokenSavings, /does not run during `npm install`, `recall setup`, `recall\s+handoff`, or `recall token-saver`/);
+  assert.match(compatibility, /`oaf`/);
+  assert.match(compatibility, /oaf:\/\//);
+  for (const document of [read('README.md'), read('docs/usage/README.md'), read('docs/usage/local-agent-handoff.md'), read('docs/usage/security-model.md')]) {
+    assert.match(document, /memory-recall-developer-first\.md/);
+    assert.match(document, /oaf-compatibility\.md/);
+  }
+  assert.doesNotMatch(readme, /`oaf` compatibility alias/);
 
   const localIgnore = existsSync('.gitignore') ? read('.gitignore') : read('.npmignore');
   assert.match(localIgnore, /^context-packs\/$/m);
@@ -37,10 +140,13 @@ test('public usage docs avoid stale task and missing context-file examples', () 
 test('local handoff guide documents read-only Codex Cursor and Claude paths', () => {
   const guide = read('docs/usage/local-agent-handoff.md');
 
+  assert.match(guide, /From the target repository where you want local Recall state:/);
+  assert.match(guide, /npm install -g memory-recall\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
+  assert.match(guide, /`recall setup` creates only local Recall state in the current repository; it\s+does not scan source files\. `recall map` is the explicit first read-only scan\./);
+  assert.doesNotMatch(guide, /memory-recall-1\.0\.3\.tgz/);
+  assert.doesNotMatch(guide, /setup is checkout bootstrap/);
   assert.match(guide, /target codex --changed-from-git --format json/);
-  assert.match(guide, /After a global install, the shortest useful command is:\n\n```bash\nrecall handoff\n```/);
   assert.match(guide, /npm run handoff:safe/);
-  assert.match(guide, /First run `npm run status`; when it reports `Next task: none`, use the\n`First safe handoff` command it prints or continue below\./);
   assert.match(guide, /npm ci --ignore-scripts --no-audit --no-fund\nnpm run bootstrap\nnpm run doctor\nnpm run verify:handoff\nnpm run status\nnpm run dev/);
   assert.match(guide, /Create a first local handoff/);
   assert.match(guide, /Inputs to review/);

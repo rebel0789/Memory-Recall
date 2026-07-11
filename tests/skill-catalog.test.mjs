@@ -94,14 +94,26 @@ test('loop intent clarification skill blocks ambiguous loop starts', async () =>
   assert.equal(clarified.authorityGranted, false);
 });
 
-test('oaf memory mapper skill is registered as a governed reversible write', async () => {
+test('legacy oaf-memory skill exposes governed Memory Recall semantic setup', async () => {
   const { manifest, text } = await readSkill('oaf-memory');
+  const readme = await readFile(new URL('../skills/oaf-memory/README.md', import.meta.url), 'utf8');
   assert.equal(manifest.id, 'skill:oaf-memory');
   assert.equal(manifest.sideEffectClass, 'reversible-write');
   assert(manifest.triggers.includes('/oaf-memory'));
+  assert(manifest.triggers.includes('map this project into OAF'));
+  assert(manifest.triggers.includes('set up Memory Recall'));
+  assert(manifest.triggers.includes('semantic setup'));
   assert(manifest.tools.includes('tool:workspace-write'));
-  assert.match(text, /facts\.json schema/);
-  assert.match(text, /oaf memory remember --batch facts\.json/);
+  assert.equal(manifest.tools.some((tool) => tool.includes('network')), false);
+  assert.match(text, /recall semantic plan --harness codex --root \. --dry-run/);
+  assert.match(text, /recall semantic task --harness codex --root \./);
+  assert.match(text, /recall semantic import --input semantic-result\.json --root \. --sqlite \.local\/memory\.sqlite/);
+  assert.match(text, /recall memory approve <mpq_id>/);
+  assert.match(text, /generic CLI does not invoke Codex, Claude Code, Cursor, or another harness/i);
+  assert.match(text, /MCP remains read-only/i);
+  assert.match(text, /semantic setup v1 does not scan or upload raw source-code files/i);
+  assert.match(readme, /recall semantic task/);
+  assert.doesNotMatch(`${text}\n${readme}`, /oaf ingest-docs|memory consolidate/);
   assert.match(text, /Never auto-approve/);
 });
 
@@ -125,10 +137,10 @@ test('skill catalog CLI exposes governed manifests without raw skill bodies', ()
   const memorySkill = report.skills.find((skill) => skill.id === 'skill:oaf-memory');
   assert.equal(memorySkill.sideEffectClass, 'reversible-write');
   assert.equal(memorySkill.advertised, true);
-  assert.equal(memorySkill.description, 'Map project decisions, entities, relationships, and supersessions into proposal-gated OAF memory.');
+  assert.equal(memorySkill.description, 'Build bounded semantic setup proposals with explicit review and source rechecks.');
   assert.equal(memorySkill.readiness.state, 'blocked');
   assert.equal(memorySkill.readiness.approvalRequired, true);
-  assert(memorySkill.readiness.unreviewedToolIds.includes('tool:git-read'));
+  assert.deepEqual(memorySkill.readiness.unreviewedToolIds, ['tool:shell-sandbox']);
   assert(memorySkill.readiness.reasonCodes.includes('write_skill_requires_approval'));
   assert(memorySkill.readiness.reasonCodes.includes('skill_declares_unreviewed_tools'));
   assert.deepEqual(memorySkill.inputSchema, { type: 'object' });
@@ -156,7 +168,7 @@ test('skill catalog CLI exposes governed manifests without raw skill bodies', ()
   assert.equal(summary.status, 0, summary.stderr);
   assert.match(summary.stdout, /Skills: /);
   assert.match(summary.stdout, /Reviewed tools: 3\/3; unreviewed declared: tool:git-read, tool:local-http, tool:shell-sandbox, tool:source-read/);
-  assert.match(summary.stdout, /- skill:oaf-memory \[reversible-write\]: Map project decisions, entities, relationships, and supersessions into proposal-gated OAF memory\./);
+  assert.match(summary.stdout, /- skill:oaf-memory \[reversible-write\]: Build bounded semantic setup proposals with explicit review and source rechecks\./);
   assert.match(summary.stdout, /- skill:source-verification \[read-only\]: Verify material claims against evidence for support, weakness, conflict, and staleness\./);
   assert.match(summary.stdout, /Raw skill text included: no/);
   assert.match(summary.stdout, /Load policy: read a skillRef only after its trigger matches; catalog grants no tool authority\./);
@@ -254,9 +266,10 @@ test('skill catalog CLI exposes governed manifests without raw skill bodies', ()
   assert.equal(inspectReport.summary.toolContextTierCounts['governed-memory'], 1);
   assert.equal(inspectReport.summary.toolContextTierCounts['selected-context'], 1);
   assert.equal(inspectReport.summary.toolContextTierCounts['handoff-context'], 1);
+  assert.equal(inspectReport.summary.toolContextTierCounts['tool-capability'], 2);
   assert(inspectReport.resources.some((resource) => resource.uri === 'oaf://workspace/ws_local/skills/oaf-memory/load-plan' && resource.contextTier === 'procedural-skill'));
   assert(inspectReport.serverTools.some((tool) => tool.name === 'memory.recall' && tool.contextTier === 'governed-memory'));
-  assert.equal(inspectReport.summary.toolsExposedByServerCommand, 3);
+  assert.equal(inspectReport.summary.toolsExposedByServerCommand, 5);
   assert.equal(inspectReport.safeguards.resourceBodiesRead, 0);
   assert.equal(inspect.stdout.includes('Never auto-approve'), false);
   assert.equal(inspect.stdout.includes('/Users/rebel'), false);

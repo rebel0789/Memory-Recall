@@ -4,6 +4,8 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
+import recallMapSchema from '../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };
+import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 
 const root = process.cwd();
 const temp = await mkdtemp(path.join(os.tmpdir(), 'oaf-consumer-smoke-'));
@@ -22,6 +24,13 @@ try {
 
   const pack = runJson('npm', ['pack', '--dry-run', '--json']);
   must(pack[0]?.files?.some((file) => file.path === 'apps/cli/oaf.mjs'), 'package includes oaf bin');
+
+  const map = runJson(process.execPath, ['apps/cli/oaf.mjs', 'map', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--changed', 'src/app.js', '--query', 'launch smoke', '--format', 'json']);
+  must(validateJsonSchema(recallMapSchema, map).valid, 'Recall Map JSON is the exact strict schema object');
+  must(!Object.hasOwn(map, 'command'), 'Recall Map JSON has no transport command envelope');
+  must(map.safeguards?.readOnly === true && map.safeguards?.localFilesWritten === 0, 'Recall Map is read-only');
+  must(map.architecture?.impact?.changedLocators?.includes('workspace://src/app.js'), 'Recall Map maps the target workspace change');
+  must(!JSON.stringify(map).includes(workspace), 'Recall Map redacts local workspace paths');
 
   const preview = runJson(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'codex', '--home', home, '--root', root, '--format', 'json']);
   must(preview.safeguards?.homeConfigMutated === false, 'mcp install preview is dry-run');
@@ -50,42 +59,46 @@ try {
   const csrf = /(?:^|;\s*)oaf_csrf=([^;]+)/.exec(cookie)?.[1] ?? '';
   const authHeaders = { 'content-type': 'application/json', origin: base, cookie, 'x-csrf-token': csrf };
 
+  const homePage = await text(base, '/');
+  must(homePage.includes('Recall Map') && homePage.includes('Next-Agent Handoff'), 'consumer home prioritizes Recall Map and Next-Agent Handoff');
+  must(!homePage.includes('Open Agent Fabric'), 'consumer home omits stale OAF branding');
   const appJs = await text(base, '/app.js');
-  for (const label of ['Connect', 'Save Tokens', 'Add Memory', 'View Repo Map']) must(appJs.includes(label), `web shell exposes ${label}`);
+  for (const label of ['Create handoff', 'Review memory', 'Inspect source graph']) must(appJs.includes(label), `web shell exposes ${label}`);
 
   const setup = await json(base, '/api/harness/setup/plan', {
     method: 'POST',
     headers: authHeaders,
     body: JSON.stringify({ workspaceId: 'ws_local', client: 'codex' })
   });
-  must(setup.status === 200 && setup.body.safeguards?.homeConfigMutated === false, 'Connect setup preview is dry-run');
+  must(setup.status === 200 && setup.body.safeguards?.homeConfigMutated === false, 'Next-Agent Handoff setup preview is dry-run');
 
   const packApi = await json(base, '/api/context/pack', {
     method: 'POST',
     headers: authHeaders,
     body: JSON.stringify({ workspaceId: 'ws_local', objective: 'Consumer smoke', step: 'build token saver pack', targetHarness: 'codex', from: 'codex', userSelectedFiles: ['AGENTS.md'], changedLocators: ['src/app.js'], tokenBudget: 2048 })
   });
-  must(packApi.status === 200 && packApi.body.readback?.checks?.resourceRead === true, 'Token Saver builds readable context pack');
-  must(packApi.body.pack?.delivery?.sourceContentsIncluded === false, 'Token Saver omits raw source bodies');
+  must(packApi.status === 200 && packApi.body.readback?.checks?.resourceRead === true, 'Next-Agent Handoff builds a readable context pack');
+  must(packApi.body.pack?.delivery?.sourceContentsIncluded === false, 'Next-Agent Handoff omits raw source bodies');
 
   const memory = await json(base, '/api/memory/proposals', {
     method: 'POST',
     headers: authHeaders,
     body: JSON.stringify({ workspaceId: 'ws_local', sourceLocator: 'memory/inbox.md', text: 'consumer_smoke proposal_gate active', dryRun: true })
   });
-  must(memory.status === 200 && memory.body.summary?.proposalCount === 1 && memory.body.safeguards?.activeMemoryCreated === 0, 'Add Memory previews proposal-gated fact');
+  must(memory.status === 200 && memory.body.summary?.proposalCount === 1 && memory.body.safeguards?.activeMemoryCreated === 0, 'Review memory previews a proposal-gated fact');
 
   const graph = await json(base, '/api/context/graph/preview', {
     method: 'POST',
     headers: authHeaders,
     body: JSON.stringify({ workspaceId: 'ws_local', query: 'launchSmoke', changedLocators: ['src/app.js'], limit: 20 })
   });
-  must(graph.status === 200 && graph.body.graph?.summary?.nodeCount > 0 && graph.body.impact?.changedLocators?.includes('workspace://src/app.js'), `Repo Map previews changed source graph: ${graph.status} ${graph.text}`);
+  must(graph.status === 200 && graph.body.graph?.summary?.nodeCount > 0 && graph.body.impact?.changedLocators?.includes('workspace://src/app.js'), `Inspect source graph previews changed code: ${graph.status} ${graph.text}`);
 
   console.log('PASS consumer package dry-run');
+  console.log('PASS consumer Recall Map first-run report');
   console.log('PASS consumer temp HOME mcp install');
   console.log('PASS consumer real MCP client smoke');
-  console.log('PASS consumer control-api smoke: Connect, Token Saver, Add Memory, Repo Map');
+  console.log('PASS consumer control-api smoke: Recall Map, Next-Agent Handoff, Review memory, Inspect source graph');
 } finally {
   if (server) {
     server.kill('SIGTERM');

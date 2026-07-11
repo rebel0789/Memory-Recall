@@ -19,6 +19,19 @@ async function countDeclaredNodeTests() {
   return total;
 }
 
+test('make clean target does not remove local state or environment files', async () => {
+  const makefile = await readFile('Makefile', 'utf8');
+  const cleanTarget = makefile.match(/^clean:\n((?:\t.*\n?)*)/m)?.[1] ?? '';
+  assert.doesNotMatch(cleanTarget, /\.env/);
+  assert.doesNotMatch(cleanTarget, /\.local/);
+});
+
+test('uninstall guide reserves a dry-run boundary before any future local-state deletion', async () => {
+  const guide = await readFile('docs/usage/uninstall.md', 'utf8');
+  assert.match(guide, /recall uninstall --dry-run/);
+  assert.match(guide, /does not exist today|not available today/i);
+});
+
 test('release readiness artifacts are generated and checked in without drift', async () => {
   const result = await verifyReleaseReadinessArtifacts(process.cwd());
   const allowedPackageArchiveDrift = existsSync('.git') ? [] : ['docs/release/1.0-PROVENANCE.json'];
@@ -28,7 +41,7 @@ test('release readiness artifacts are generated and checked in without drift', a
   if (existsSync('.git')) assert.deepEqual(result.drift, []);
   assert.equal(result.placeholderResult.passed, true);
   assert.equal(result.summary.publicationStatus, 'npm-published');
-  assert.equal(result.summary.finalMergeStatus, 'merged-to-main');
+  assert.equal(result.summary.finalMergeStatus, 'maintainer-merge-required');
   assert.equal(result.summary.humanApprovalRequired, true);
 });
 
@@ -121,6 +134,9 @@ test('installed npm package setup does not re-pack generated local state', () =>
   mkdirSync(prefix, { recursive: true });
   mkdirSync(home, { recursive: true });
   mkdirSync(work, { recursive: true });
+  mkdirSync(path.join(work, 'src'), { recursive: true });
+  writeFileSync(path.join(work, 'package.json'), JSON.stringify({ name: 'installed-map-target' }, null, 2));
+  writeFileSync(path.join(work, 'src', 'index.ts'), 'export function installedMapFixture() { return "target repository only"; }\n');
 
   const packed = spawnSync('npm', ['pack', '--pack-destination', packDir, '--json'], { encoding: 'utf8' });
   assert.equal(packed.status, 0, packed.stderr);
@@ -137,10 +153,18 @@ test('installed npm package setup does not re-pack generated local state', () =>
   assert.equal(existsSync(oaf), true);
   const setup = spawnSync(recall, ['setup'], { cwd: work, encoding: 'utf8', env: { ...process.env, HOME: home } });
   assert.equal(setup.status, 0, setup.stderr);
+  assert.match(setup.stdout, /created only local state/i);
+  assert.match(setup.stdout, /recall map --root \. --sqlite \.local\/memory\.sqlite --format summary/);
   assert.equal(existsSync(path.join(packageRoot, '.local', 'state.json')), false);
   assert.equal(existsSync(path.join(work, '.local', 'state.json')), true);
   assert.equal(existsSync(path.join(work, '.local', 'artifacts')), true);
   const env = { ...process.env, HOME: home, PATH: `${path.join(prefix, 'bin')}${path.delimiter}${process.env.PATH}` };
+  const map = spawnSync(recall, ['map', '--root', '.', '--sqlite', '.local/memory.sqlite', '--changed', 'src/index.ts', '--format', 'summary'], { cwd: work, encoding: 'utf8', env });
+  assert.equal(map.status, 0, map.stderr);
+  assert.match(map.stdout, /# Recall Map/);
+  assert.match(map.stdout, /src\/index\.ts/);
+  assert.doesNotMatch(map.stdout, new RegExp(packageRoot.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')));
+  assert.equal(existsSync(path.join(packageRoot, '.local', 'state.json')), false);
   const hookPlan = spawnSync(oaf, ['hook', 'install', '--agent', 'codex', '--dry-run', '--format', 'json'], { cwd: work, encoding: 'utf8', env });
   assert.equal(hookPlan.status, 0, hookPlan.stderr);
   const hookReport = JSON.parse(hookPlan.stdout);
@@ -218,10 +242,12 @@ test('release readiness quality snapshot matches current release evidence', asyn
   const artifacts = await buildReleaseReadinessArtifacts(process.cwd());
   const report = artifacts.files['1.0-READINESS-REPORT.md'];
   const reproducibility = artifacts.files['1.0-REPRODUCIBILITY.md'];
+  const provenance = JSON.parse(artifacts.files['1.0-PROVENANCE.json']);
   const declaredTests = await countDeclaredNodeTests();
   const protocolFixtures = JSON.parse(await readFile('examples/protocol/compatibility/fixtures.json', 'utf8')).fixtures.length;
   const projectStatus = JSON.parse(await readFile('PROJECT_STATUS.json', 'utf8'));
 
+  assert.equal(projectStatus.release, packageJson.version);
   assert.match(report, new RegExp(`\\| Quality snapshot date \\| ${projectStatus.qualitySnapshot.asOf} \\|`));
   assert.match(report, new RegExp(`\\| Recorded tests \\| ${declaredTests} \\|`));
   assert.match(report, new RegExp(`\\| Recorded protocol fixtures \\| ${protocolFixtures} \\|`));
@@ -236,9 +262,20 @@ test('release readiness quality snapshot matches current release evidence', asyn
   assert.match(report, /`connect --dry-run` previews; `connect --yes` writes fixed Codex\/Claude read-only entries with backups/);
   assert.match(report, /npm run consumer:smoke/);
   assert.match(report, /npm run consumer:browser-smoke/);
+  assert.match(report, /## Public Product Evidence/);
+  assert.match(report, /\[Support matrix\]\(\.\.\/usage\/support-matrix\.md\)/);
+  assert.match(report, /\[Benchmark proof\]\(\.\.\/benchmarks\.md\)/);
+  assert.doesNotMatch(report, /canonical 30-task release backlog|OAF-031 preview work/i);
   assert.match(reproducibility, /## Recorded Quality Snapshot/);
+  assert.match(reproducibility, /## Public Claim Evidence/);
+  assert.match(reproducibility, /docs\/usage\/support-matrix\.md/);
+  assert.match(reproducibility, /docs\/benchmarks\.md/);
   assert.match(reproducibility, new RegExp(`\\| Tests \\| ${declaredTests} \\|`));
   assert.match(reproducibility, new RegExp(`\\| Protocol fixtures \\| ${protocolFixtures} \\|`));
+  assert.equal(provenance.subject.name, 'memory-recall');
+  assert.equal(provenance.builder.id, 'memory-recall/release-readiness');
+  assert.match(provenance.sourceHashes['docs/usage/support-matrix.md'], /^sha256:/);
+  assert.match(provenance.sourceHashes['docs/benchmarks.md'], /^sha256:/);
 
   const checklist = artifacts.files['1.0-RELEASE-CHECKLIST.md'];
   assert.match(checklist, /Consumer-simple gates are runnable with `npm run consumer:smoke`: temp HOME install proof, real MCP client smoke, local web\/control-API smoke for Connect, Token Saver, Add Memory, and Repo Map, and package-facing docs name hygiene/);

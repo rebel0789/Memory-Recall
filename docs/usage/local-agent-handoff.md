@@ -5,26 +5,40 @@ developer who wants to hand the current repository to another local coding
 agent with less noise, explicit changed-file context, and proof that Memory Recall did
 not leak raw source bodies or perform hidden writes.
 
-First run `npm run status`; when it reports `Next task: none`, use the
-`First safe handoff` command it prints or continue below.
+Normal quickstarts use `recall`. The [developer-first product contract](../product/memory-recall-developer-first.md)
+defines supported capability labels; [OAF compatibility](oaf-compatibility.md)
+records preserved legacy identifiers and URIs.
 
-Install globally with:
+## Quickstart
+
+From the target repository where you want local Recall state:
 
 ```bash
 npm install -g memory-recall
-```
-
-After a global install, the shortest useful command is:
-
-```bash
+recall setup
+recall map --root . --sqlite .local/memory.sqlite --format summary
 recall handoff
 ```
 
-From the source checkout, the equivalent convenience script is:
+`recall setup` creates only local Recall state in the current repository; it
+does not scan source files. `recall map` is the explicit first read-only scan.
+Use `recall handoff` after the map when you want to create the next coding-agent
+handoff.
+
+## First: Recall Map
+
+Run this in the repository you want to understand:
 
 ```bash
-npm run handoff:safe
+recall map --root . --sqlite .local/memory.sqlite --format summary
 ```
+
+It reports bounded JS/TS static coverage, top entry points, changed-file impact,
+and the separate status of ACTIVE facts and PENDING proposals. It does not write
+files, call a model, use network access, enable adapters, or print raw source or
+memory bodies. Add `--changed path/to/file.ts` repeatedly for reviewed files, or
+use `--changed-from-git` for local git detection. See the full
+[Recall Map reference](recall-map.md) for JSON and Markdown formats.
 
 To measure the same context-pack path as a token-saver report:
 
@@ -48,33 +62,26 @@ and you need a compact, reviewable handoff:
 It is not a hosted memory service, automatic harness-history importer,
 write-enabled MCP server, browser automation layer, or public publishing tool.
 
-## One-Time Local Setup
+## Developing Memory Recall From A Source Checkout
 
-From the repository root:
+Use this path only when you are developing Memory Recall itself, rather than
+setting it up in another repository. Without a global install:
 
-```bash
-npm pack
-npm install -g ./memory-recall-1.0.3.tgz
-recall setup
-recall verify
-```
-
-Without a global install:
+First run `npm run status`; when it reports `Next task: none`, use the
+`First safe handoff` command it prints or continue below.
 
 ```bash
 npm run recall -- setup
 npm run recall -- verify
 ```
 
-These are local wrappers for the existing bootstrap and handoff verification
-gates. The package is live on npm. Future patch releases still require
-maintainer npm authentication and explicit approval. The marketplace manifest is
-prepared, but submission still needs target registry requirements.
-For the fully expanded source-checkout path:
+From the source checkout, the equivalent convenience handoff script is:
 
-`recall setup` is checkout bootstrap, not harness wiring. Use browser **Preview
-setup** or `recall harness setup plan/status --dry-run` when you want a manual MCP
-config preview for Codex, Cursor, or Claude Code.
+```bash
+npm run handoff:safe
+```
+
+For the fully expanded source-checkout path:
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
@@ -84,6 +91,9 @@ npm run verify:handoff
 npm run status
 npm run dev
 ```
+
+Use browser **Preview setup** or `recall harness setup plan/status --dry-run`
+when you want a manual MCP config preview for Codex, Cursor, or Claude Code.
 
 Open <http://127.0.0.1:4310/context-pack>. If local owner setup is required,
 complete it in the browser or bootstrap from stdin:
@@ -241,7 +251,10 @@ recall skill load-plan --read-only --root . --id skill:oaf-memory --format json
 recall skill load-plan --read-only --root . --id skill:oaf-memory --format summary
 ```
 
-The same summary is also available through the read-only MCP resource catalog:
+The same summary is also available through the read-only MCP resource catalog.
+The `oaf://` URI is a retained compatibility identifier; normal commands remain
+`recall`. See [OAF compatibility](oaf-compatibility.md) for the identifier
+boundary.
 
 ```bash
 recall mcp resources --read-only \

@@ -1,18 +1,19 @@
 {
   "schemaVersion": "1.0.0",
   "id": "skill:oaf-memory",
-  "name": "OAF Memory Mapper",
-  "description": "Map project decisions, entities, relationships, and supersessions into proposal-gated OAF memory.",
-  "version": "0.1.0",
+  "name": "Memory Recall Semantic Setup",
+  "description": "Build bounded semantic setup proposals with explicit review and source rechecks.",
+  "version": "0.2.0",
   "triggers": [
     "/oaf-memory",
     "map this project into OAF",
     "remember my decisions",
-    "set up OAF memory"
+    "set up OAF memory",
+    "set up Memory Recall",
+    "semantic setup"
   ],
   "tools": [
     "tool:filesystem-read",
-    "tool:git-read",
     "tool:workspace-write",
     "tool:shell-sandbox"
   ],

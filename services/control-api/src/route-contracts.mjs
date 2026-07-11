@@ -1,6 +1,7 @@
 import harnessContextPreviewSchema from '../../../packages/protocol/schemas/harness-context-preview.schema.json' with { type: 'json' };
 import contextPackRegistryStatusSchema from '../../../packages/protocol/schemas/context-pack-registry-status.schema.json' with { type: 'json' };
 import contextPackReceiveReportSchema from '../../../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };
+import recallMapSchema from '../../../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };
 import sourceGraphPreviewSchema from '../../../packages/protocol/schemas/source-graph-preview.schema.json' with { type: 'json' };
 
 const id = (prefix) => `^${prefix}_[A-Za-z0-9._:-]{1,120}$`;
@@ -9,6 +10,7 @@ const correlationId = { type: 'string', pattern: '^req_[A-Za-z0-9._:-]{8,96}$', 
 const runId = { type: 'string', pattern: id('run'), maxLength: 128 };
 const tokenId = { type: 'string', pattern: id('tok'), maxLength: 128 };
 const workspaceId = { type: 'string', pattern: id('ws'), maxLength: 128 };
+const recallMapWorkspaceId = { type: 'string', pattern: '^[a-z][a-z0-9_-]{0,127}$', maxLength: 128 };
 const username = { type: 'string', pattern: '^[a-zA-Z0-9._:-]{1,80}$', maxLength: 80 };
 const password = { type: 'string', minLength: 1, maxLength: 256 };
 const workspaceLocatorInput = {
@@ -22,6 +24,18 @@ const contextPackLocator = {
   minLength: 1,
   maxLength: 512,
   pattern: "^(workspace|user-selected)://(?!/)(?!\\.\\.(?:/|$))(?!(?:Users|private|\\.git|\\.local|node_modules)(?:/|$))(?!var/folders(?:/|$))(?!.*(?:/\\.\\.(?:/|$)))(?!.*\\\\)(?!.*\\s)(?!.*(?:/(?:Users|private|\\.git|\\.local|node_modules)(?:/|$)))(?!.*(?:/var/folders(?:/|$)))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+};
+const recallMapChangedLocator = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 512,
+  pattern: '^(?!/)(?!.*(?:^|/)\\.\\.?($|/))(?!.*\\\\)(?!.*\\s)(?!.*://)(?!.*(?:^|/)(?:Users|private|node_modules|\\.git|\\.local)(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._@+~,-]+(?:/[A-Za-z0-9._@+~,-]+)*$'
+};
+const recallMapQuery = {
+  type: 'string',
+  minLength: 1,
+  maxLength: 256,
+  pattern: '^[A-Za-z0-9][A-Za-z0-9 .,:_@+*#-]{0,255}$'
 };
 const event = {
   type: 'object',
@@ -1548,6 +1562,25 @@ export function createApiRouteContracts(limits = {}) {
       allowsBody: false,
       streams: false,
       responses: { 200: { type: 'object', additionalProperties: true, required: ['metrics', 'latestRun', 'latestManifest', 'runs'], properties: { metrics: { type: 'object', additionalProperties: true }, latestRun: { type: ['object', 'null'], additionalProperties: true }, latestManifest: { type: ['object', 'null'], additionalProperties: true }, runs: { type: 'array', maxItems: 100, items: { type: 'object', additionalProperties: true } } } } }
+    },
+    {
+      method: 'GET',
+      path: '/api/recall/map',
+      operationId: 'getRecallMap',
+      security: { authenticated: true, action: 'dashboard.read', workspace: 'query' },
+      pathParameters: {},
+      query: {
+        additionalProperties: false,
+        properties: { workspaceId: recallMapWorkspaceId, changed: recallMapChangedLocator, query: recallMapQuery },
+        required: ['workspaceId']
+      },
+      headers: {},
+      requestMediaType: null,
+      requestBodySchema: null,
+      maxBodyBytes: 0,
+      allowsBody: false,
+      streams: false,
+      responses: { 200: recallMapSchema }
     },
     {
       method: 'GET',

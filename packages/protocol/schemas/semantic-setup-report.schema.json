@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memory-recall.dev/schemas/semantic-setup-report-1.0.json",
+  "title": "Semantic setup report",
+  "description": "Safe report for bounded semantic setup planning, task rendering, import, or one-shot execution. It carries packet provenance and counts only; raw source bodies, prompts, output text, credentials, provider URLs, and absolute filesystem paths are forbidden.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "command",
+    "generatedAt",
+    "workspaceId",
+    "packetFingerprint",
+    "sourceSummary",
+    "sources",
+    "executor",
+    "proposals",
+    "sourceBytesSent",
+    "usage",
+    "safeguards",
+    "reportFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "command": { "enum": ["semantic plan", "semantic task", "semantic import", "semantic run"] },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "workspaceId": { "$ref": "#/$defs/workspaceId" },
+    "packetFingerprint": { "$ref": "#/$defs/hash" },
+    "sourceSummary": { "$ref": "#/$defs/sourceSummary" },
+    "sources": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "executor": { "$ref": "#/$defs/executor" },
+    "proposals": { "$ref": "#/$defs/proposals" },
+    "sourceBytesSent": { "type": "integer", "minimum": 0, "maximum": 65536 },
+    "usage": { "$ref": "#/$defs/usage" },
+    "safeguards": { "$ref": "#/$defs/safeguards" },
+    "reportFingerprint": { "$ref": "#/$defs/hash" }
+  },
+  "$defs": {
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "sourceId": {
+      "type": "string",
+      "pattern": "^src_[0-9]{3}$"
+    },
+    "locator": {
+      "type": "string",
+      "maxLength": 512,
+      "pattern": "^workspace://(?!(?:\\.{1,2})(?:/|$))[A-Za-z0-9._@+~,-]+(?:/(?!(?:\\.{1,2})(?:/|$))[A-Za-z0-9._@+~,-]+)*$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "locator", "sourceHash", "byteSize"],
+      "properties": {
+        "sourceId": { "$ref": "#/$defs/sourceId" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "sourceHash": { "$ref": "#/$defs/hash" },
+        "byteSize": { "type": "integer", "minimum": 0, "maximum": 16384 }
+      }
+    },
+    "sourceSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selectedCount", "skippedCount", "totalSourceBytes"],
+      "properties": {
+        "selectedCount": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "skippedCount": { "type": "integer", "minimum": 0, "maximum": 256 },
+        "totalSourceBytes": { "type": "integer", "minimum": 0, "maximum": 65536 }
+      }
+    },
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "harness", "model"],
+      "properties": {
+        "kind": { "enum": ["harness", "api", "import"] },
+        "harness": { "enum": ["codex", "claude-code", "cursor", "generic", null] },
+        "model": { "type": ["string", "null"], "maxLength": 128, "pattern": "^[A-Za-z0-9._:-]{1,128}$" }
+      }
+    },
+    "proposals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "ids"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0, "maximum": 24 },
+        "ids": {
+          "type": "array",
+          "maxItems": 24,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^mpq_[A-Za-z0-9._-]{1,128}$" }
+        }
+      }
+    },
+    "usage": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["inputTokens", "outputTokens"],
+      "properties": {
+        "inputTokens": { "type": "integer", "minimum": 0, "maximum": 1024000 },
+        "outputTokens": { "type": "integer", "minimum": 0, "maximum": 1024000 }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rawSourceBodiesIncluded",
+        "promptsIncluded",
+        "modelOutputIncluded",
+        "credentialsIncluded",
+        "providerUrlsIncluded",
+        "absoluteFilesystemLocationsIncluded",
+        "hiddenReasoningIncluded",
+        "networkCalls",
+        "modelCalls"
+      ],
+      "properties": {
+        "rawSourceBodiesIncluded": { "const": false },
+        "promptsIncluded": { "const": false },
+        "modelOutputIncluded": { "const": false },
+        "credentialsIncluded": { "const": false },
+        "providerUrlsIncluded": { "const": false },
+        "absoluteFilesystemLocationsIncluded": { "const": false },
+        "hiddenReasoningIncluded": { "const": false },
+        "networkCalls": { "type": "integer", "minimum": 0, "maximum": 1 },
+        "modelCalls": { "type": "integer", "minimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

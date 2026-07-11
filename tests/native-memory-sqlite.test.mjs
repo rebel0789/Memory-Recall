@@ -428,8 +428,11 @@ test('native SQLite memory exposes read-only temporal cockpit lists', async (t) 
 
   const facts = await provider.listTemporalFacts({ workspaceId: 'ws_local' });
   const queue = await provider.listProposalQueue({ workspaceId: 'ws_local' });
+  const queueRecord = await provider.getProposalQueueRecord({ workspaceId: 'ws_local', id: 'mpq_cockpit' });
   assert.equal(facts[0].id, 'memfact_cockpit');
   assert.equal(facts[0].episode.sourceLocator, 'workspace://notes/cockpit.md');
   assert.equal(queue[0].id, 'mpq_cockpit');
   assert.equal(queue[0].status, 'applied');
+  assert.equal(queueRecord.id, 'mpq_cockpit');
+  assert.equal(await provider.getProposalQueueRecord({ workspaceId: 'ws_local', id: 'mpq_missing' }), null);
 });

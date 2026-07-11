@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0.0",
+  "command": "semantic plan",
+  "generatedAt": "2026-07-11T12:00:00.000Z",
+  "workspaceId": "ws_local",
+  "packetFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "sourceSummary": {
+    "selectedCount": 1,
+    "skippedCount": 0,
+    "totalSourceBytes": 52
+  },
+  "sources": [
+    {
+      "sourceId": "src_001",
+      "locator": "workspace://README.md",
+      "sourceHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "byteSize": 52
+    }
+  ],
+  "executor": {
+    "kind": "harness",
+    "harness": "codex",
+    "model": null
+  },
+  "proposals": {
+    "count": 0,
+    "ids": []
+  },
+  "sourceBytesSent": 0,
+  "usage": null,
+  "safeguards": {
+    "rawSourceBodiesIncluded": false,
+    "promptsIncluded": false,
+    "modelOutputIncluded": false,
+    "credentialsIncluded": false,
+    "providerUrlsIncluded": false,
+    "absoluteFilesystemLocationsIncluded": false,
+    "hiddenReasoningIncluded": false,
+    "networkCalls": 0,
+    "modelCalls": 0
+  },
+  "reportFingerprint": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+}

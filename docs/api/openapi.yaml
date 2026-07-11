@@ -214,6 +214,34 @@ paths:
         '400': { $ref: '#/components/responses/BoundaryError' }
         '401': { $ref: '#/components/responses/AuthError' }
         '403': { $ref: '#/components/responses/BoundaryError' }
+  /api/recall/map:
+    get:
+      operationId: getRecallMap
+      parameters:
+        - { $ref: '#/components/parameters/RecallMapWorkspaceId' }
+        -
+          name: changed
+          in: query
+          required: false
+          description: One workspace-relative JS or TS locator. Absolute paths, traversal, hidden state, and URLs are rejected.
+          schema: { $ref: '#/components/schemas/RecallMapChangedLocator' }
+        -
+          name: query
+          in: query
+          required: false
+          description: A bounded plain-text symbol search term. Raw bodies and locator-like values are rejected.
+          schema: { $ref: '#/components/schemas/RecallMapQuery' }
+      responses:
+        '200':
+          description: Strict read-only Recall Map report with source-map, governed-memory, and handoff readiness summaries.
+          headers:
+            x-correlation-id: { schema: { $ref: '#/components/schemas/CorrelationId' } }
+          content:
+            application/json:
+              schema: { $ref: 'https://memory-recall.dev/schemas/recall-map-1.0.json' }
+        '400': { $ref: '#/components/responses/BoundaryError' }
+        '401': { $ref: '#/components/responses/AuthError' }
+        '403': { $ref: '#/components/responses/BoundaryError' }
   /api/memory/proposals/{proposalId}/approve:
     post:
       operationId: approveMemoryProposal
@@ -518,6 +546,11 @@ components:
       in: query
       required: true
       schema: { $ref: '#/components/schemas/WorkspaceId' }
+    RecallMapWorkspaceId:
+      name: workspaceId
+      in: query
+      required: true
+      schema: { $ref: '#/components/schemas/RecallMapWorkspaceId' }
   responses:
     AuthError:
       description: Authentication error with WWW-Authenticate.
@@ -543,6 +576,20 @@ components:
       type: string
       pattern: '^run_[A-Za-z0-9._:-]{1,120}$'
       maxLength: 128
+    RecallMapChangedLocator:
+      type: string
+      minLength: 1
+      maxLength: 512
+      pattern: '^(?!/)(?!.*(?:^|/)\\.\\.?($|/))(?!.*\\\\)(?!.*\\s)(?!.*://)(?!.*(?:^|/)(?:Users|private|node_modules|\\.git|\\.local)(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._@+~,-]+(?:/[A-Za-z0-9._@+~,-]+)*$'
+    RecallMapQuery:
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: '^[A-Za-z0-9][A-Za-z0-9 .,:_@+*#-]{0,255}$'
+    RecallMapWorkspaceId:
+      type: string
+      maxLength: 128
+      pattern: '^[a-z][a-z0-9_-]{0,127}$'
     TokenId:
       type: string
       pattern: '^tok_[A-Za-z0-9._:-]{1,120}$'
