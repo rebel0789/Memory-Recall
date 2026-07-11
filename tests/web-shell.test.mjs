@@ -4,6 +4,13 @@ import { readFile } from 'node:fs/promises';
 import { buildCompressedProfileContextReport } from '../packages/context-compiler/src/index.mjs';
 import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 import {
+  MOBILE_NAV,
+  PRIMARY_NAV,
+  navigationItemsFor,
+  navigationOwner,
+  selectOverviewPrimaryAction
+} from '../apps/web/shell-model.js';
+import {
   ROUTES,
   SHELL_STATES,
   buildApiErrorUiModel,
@@ -51,6 +58,30 @@ import {
   summarizeRunSteps,
   writeClipboardText
 } from '../apps/web/app.js';
+
+test('workbench navigation has five desktop and four mobile destinations', () => {
+  assert.deepEqual(PRIMARY_NAV.map((item) => item.label), ['Overview', 'Map', 'Memory', 'Handoffs', 'Settings']);
+  assert.deepEqual(PRIMARY_NAV.map((item) => item.path), ['/', '/map', '/memory', '/handoffs', '/settings']);
+  assert.deepEqual(MOBILE_NAV.map((item) => item.label), ['Overview', 'Map', 'Memory', 'Handoffs']);
+  assert.equal(navigationItemsFor('rail'), PRIMARY_NAV);
+  assert.equal(navigationItemsFor('bottom'), MOBILE_NAV);
+});
+
+test('secondary routes select the destination that owns them', () => {
+  assert.equal(navigationOwner('source-graph'), 'map');
+  assert.equal(navigationOwner('memory-graph'), 'memory');
+  assert.equal(navigationOwner('context-pack'), 'handoffs');
+  assert.equal(navigationOwner('runs'), 'overview');
+  assert.equal(navigationOwner('agents'), 'settings');
+});
+
+test('Overview primary action is deterministic and state ordered', () => {
+  assert.deepEqual(selectOverviewPrimaryAction({ state: 'empty' }), { label: 'Scan repository', route: '/', action: 'refresh-recall-map' });
+  assert.deepEqual(selectOverviewPrimaryAction({ state: 'success', memory: { pendingCount: 3 }, handoff: { state: 'ready' } }), { label: 'Review 3 proposals', route: '/memory', routeId: 'memory' });
+  assert.deepEqual(selectOverviewPrimaryAction({ state: 'stale', memory: { pendingCount: 0 }, handoff: { state: 'review' } }), { label: 'Update handoff', route: '/handoffs', routeId: 'context-pack' });
+  assert.deepEqual(selectOverviewPrimaryAction({ state: 'success', memory: { pendingCount: 0 }, handoff: { state: 'ready' } }), { label: 'View current handoff', route: '/handoffs', routeId: 'context-pack' });
+  assert.equal(selectOverviewPrimaryAction({ state: 'success', memory: { pendingCount: 0 }, handoff: { state: 'pending' } }), null);
+});
 
 function replaceGlobal(name,value) {
   const previous=Object.getOwnPropertyDescriptor(globalThis,name);
