@@ -498,8 +498,11 @@ git commit -m "feat: replace dashboard navigation with workbench shell"
 ### Task 4: Install the approved token and shell visual system
 
 **Files:**
+- Create: `.hallmark/preflight.json`
+- Create: `.hallmark/log.json`
 - Modify: `apps/web/tokens.css`
 - Modify: `apps/web/styles.css:1-105,337-422`
+- Modify: `DESIGN.md`
 - Test: `tests/web-shell.test.mjs`
 
 **Interfaces:**
@@ -518,6 +521,7 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.match(css, /--radius-control:6px/);
   assert.match(css, /--radius-panel:8px/);
   assert.match(css, /--font-sans:ui-sans-serif/);
+  assert.match(css, /--space-md:24px/);
   assert.doesNotMatch(css, /#56e0c4|gradient|glow/i);
 });
 
@@ -559,14 +563,23 @@ Replace `apps/web/tokens.css` with:
   --color-danger: oklch(56% 0.18 25);
   --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
-  --space-7: 48px;
-  --space-8: 64px;
+  --space-3xs: 4px;
+  --space-2xs: 8px;
+  --space-xs: 12px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 32px;
+  --space-xl: 48px;
+  --space-2xl: 64px;
+  /* Temporary aliases for untouched legacy deep routes. Remove in Task 7 after selector migration. */
+  --space-4: var(--space-3xs);
+  --space-8: var(--space-2xs);
+  --space-12: var(--space-xs);
+  --space-16: var(--space-sm);
+  --space-24: var(--space-md);
+  --space-32: var(--space-lg);
+  --space-48: var(--space-xl);
+  --space-64: var(--space-2xl);
   --radius-control: 6px;
   --radius-panel: 8px;
   --layout-rail: 216px;
@@ -575,8 +588,8 @@ Replace `apps/web/tokens.css` with:
   --ease-out: cubic-bezier(.16, 1, .3, 1);
   --ease-in: cubic-bezier(.7, 0, .84, 0);
   --ease-in-out: cubic-bezier(.65, 0, .35, 1);
-  --duration-fast: 120ms;
-  --duration-normal: 180ms;
+  --dur-fast: 120ms;
+  --dur-normal: 180ms;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -595,36 +608,89 @@ Replace `apps/web/tokens.css` with:
 }
 ```
 
-- [ ] **Step 4: Replace shell foundations and mobile navigation**
+- [ ] **Step 4: Record the app-wide design system and Hallmark pre-flight**
+
+Update `DESIGN.md` so its executable layout and token contract matches this approved slice:
+
+```markdown
+## Locked visual system
+
+- Genre: modern-minimal, designed as an application rather than a marketing page.
+- App macrostructure: Workbench. Function and current repository state carry each screen.
+- Canvas: warm off-white in light mode and neutral graphite in dark mode.
+- Accent: restrained cobalt blue for focus, selection, links, and primary actions.
+- Typography: native system sans for interface text; native monospace only for code, paths, hashes, commands, and identifiers.
+- Shape: 6 px controls and 8 px bounded panels. Lists and dividers take priority over nested cards.
+- Motion: state transitions only. No ambient or decorative animation.
+- Copy: object, state, and action labels only. No product slogan inside the application shell.
+```
+
+Change the desktop rail width from 240 px to 216 px and name exactly five desktop and four mobile primary destinations.
+
+Create `.hallmark/preflight.json`:
+
+```json
+{
+  "date": "2026-07-11",
+  "scope": "app",
+  "designSystem": "DESIGN.md",
+  "framework": "vanilla-html-css-esm",
+  "fontStack": "native-system-sans-and-mono",
+  "paletteSource": "apps/web/tokens.css",
+  "motion": "cut",
+  "spacing": "semantic-4-point",
+  "genre": "modern-minimal",
+  "macrostructure": "Workbench"
+}
+```
+
+Create `.hallmark/log.json`:
+
+```json
+[
+  {
+    "date": "2026-07-11",
+    "scope": "app",
+    "macrostructure": "Workbench",
+    "theme": "Cobalt",
+    "enrichment": "none",
+    "brief": "Memory Recall developer workbench shell and Overview"
+  }
+]
+```
+
+- [ ] **Step 5: Replace shell foundations and mobile navigation**
 
 Refactor only the global, shell, button, state, and responsive blocks in `apps/web/styles.css`. Keep untouched route-specific selectors until Task 7. The new shell must include:
 
 ```css
+/* Hallmark · genre: modern-minimal · macrostructure: Workbench · design-system: DESIGN.md · designed-as-app */
 * { box-sizing: border-box; }
+html, body { overflow-x: clip; }
 html { background: var(--color-canvas); }
 body { margin: 0; color: var(--color-ink); background: var(--color-canvas); font: 14px/1.5 var(--font-sans); }
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--layout-rail) minmax(0, 1fr); }
-.sidebar { position: sticky; top: 0; height: 100vh; display: grid; grid-template-rows: auto 1fr auto; gap: var(--space-5); padding: var(--space-5) var(--space-3); border-right: 1px solid var(--color-rule); background: var(--color-panel); }
-.brand { display: flex; align-items: center; gap: var(--space-3); color: inherit; text-decoration: none; padding: 0 var(--space-2); }
+.sidebar { position: sticky; top: 0; height: 100vh; display: grid; grid-template-rows: auto 1fr auto; gap: var(--space-md); padding: var(--space-md) var(--space-xs); border-right: 1px solid var(--color-rule); background: var(--color-panel); }
+.brand { display: flex; align-items: center; gap: var(--space-xs); color: inherit; text-decoration: none; padding: 0 var(--space-2xs); }
 .brand span { display: grid; line-height: 1.2; }
 .brand small, .local-state small { color: var(--color-muted); }
 #primary-nav { display: grid; align-content: start; gap: 2px; }
-#primary-nav a { min-height: 40px; display: grid; grid-template-columns: 3px 1fr; align-items: center; gap: var(--space-3); padding: 0 var(--space-3); color: var(--color-muted); text-decoration: none; border-radius: var(--radius-control); }
+#primary-nav a { min-height: 40px; display: grid; grid-template-columns: 3px 1fr; align-items: center; gap: var(--space-xs); padding: 0 var(--space-xs); color: var(--color-muted); text-decoration: none; border-radius: var(--radius-control); }
 #primary-nav a:hover { color: var(--color-ink); background: var(--color-panel-muted); }
 #primary-nav a[aria-current="page"] { color: var(--color-ink); background: var(--color-panel-muted); font-weight: 650; }
 .nav-mark { width: 3px; height: 16px; background: transparent; }
 a[aria-current="page"] .nav-mark { background: var(--color-accent); }
-.local-state { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border-top: 1px solid var(--color-rule); }
+.local-state { display: flex; align-items: center; gap: var(--space-xs); padding: var(--space-xs); border-top: 1px solid var(--color-rule); }
 .state-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); }
 main { min-width: 0; }
-.repository-bar { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) clamp(18px, 4vw, 48px); border-bottom: 1px solid var(--color-rule); background: color-mix(in oklch, var(--color-canvas) 94%, transparent); }
-.repository-identity, .repository-actions { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.repository-bar { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); padding: var(--space-xs) clamp(18px, 4vw, 48px); border-bottom: 1px solid var(--color-rule); background: color-mix(in oklch, var(--color-canvas) 94%, transparent); }
+.repository-identity, .repository-actions { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; }
 .repository-identity span { color: var(--color-muted); }
 .condition { color: var(--color-muted); text-transform: capitalize; }
 .condition[data-state="error"], .condition[data-state="denied"] { color: var(--color-danger); }
 .condition[data-state="stale"], .condition[data-state="partial"] { color: var(--color-warning); }
 .icon-link { min-height: 36px; display: inline-flex; align-items: center; color: var(--color-ink); }
-#view-root { padding: var(--space-6) clamp(18px, 4vw, 48px) var(--space-8); }
+#view-root { padding: var(--space-lg) clamp(18px, 4vw, 48px) var(--space-2xl); }
 .button { min-height: 40px; border: 1px solid var(--color-rule-strong); border-radius: var(--radius-control); padding: 9px 14px; color: var(--color-ink); background: var(--color-panel); font: inherit; font-weight: 650; cursor: pointer; }
 .button.primary { color: var(--color-accent-ink); background: var(--color-accent); border-color: var(--color-accent); }
 .button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 3px; }
@@ -634,9 +700,9 @@ main { min-width: 0; }
   .app-shell { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; height: 100dvh; overflow: hidden; }
   .sidebar { display: none; }
   main { min-height: 0; overflow: auto; }
-  .repository-bar { min-height: 56px; padding: var(--space-2) var(--space-3); }
+  .repository-bar { min-height: 56px; padding: var(--space-2xs) var(--space-xs); }
   .repository-identity span:not(#repository-branch) { display: none; }
-  #view-root { padding: var(--space-5) var(--space-3) var(--space-7); }
+  #view-root { padding: var(--space-md) var(--space-xs) var(--space-xl); }
   .bottom-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--color-rule); background: var(--color-panel); }
   .bottom-nav a { min-width: 0; min-height: 60px; display: grid; justify-items: center; align-content: center; gap: 4px; color: var(--color-muted); text-decoration: none; font-size: 12px; }
   .bottom-nav a[aria-current="page"] { color: var(--color-ink); }
@@ -648,7 +714,7 @@ main { min-width: 0; }
 }
 ```
 
-- [ ] **Step 5: Run tests and inspect both color schemes**
+- [ ] **Step 6: Run tests and inspect both color schemes**
 
 Run:
 
@@ -658,10 +724,10 @@ node --test --test-name-pattern='approved restrained|four fixed destinations' te
 
 Expected: both tests pass.
 
-- [ ] **Step 6: Commit tokens and shell styles**
+- [ ] **Step 7: Commit tokens and shell styles**
 
 ```bash
-git add apps/web/tokens.css apps/web/styles.css tests/web-shell.test.mjs
+git add .hallmark/preflight.json .hallmark/log.json DESIGN.md apps/web/tokens.css apps/web/styles.css tests/web-shell.test.mjs
 git commit -m "style: install restrained workbench visual system"
 ```
 
@@ -763,16 +829,16 @@ Add:
 .app-shell[data-setup="true"] .sidebar,
 .app-shell[data-setup="true"] .repository-bar,
 .app-shell[data-setup="true"] .bottom-nav { display: none; }
-.app-shell[data-setup="true"] #view-root { min-height: 100vh; display: grid; place-items: center; padding: var(--space-5); }
-.setup-screen { width: min(880px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: var(--space-7); align-items: start; }
-.setup-intro h1 { margin: var(--space-2) 0; font-size: clamp(32px, 5vw, 52px); line-height: 1.05; letter-spacing: -.035em; }
+.app-shell[data-setup="true"] #view-root { min-height: 100vh; display: grid; place-items: center; padding: var(--space-md); }
+.setup-screen { width: min(880px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: var(--space-xl); align-items: start; }
+.setup-intro h1 { margin: var(--space-2xs) 0; font-size: clamp(32px, 5vw, 52px); line-height: 1.05; letter-spacing: -.035em; }
 .setup-step { color: var(--color-muted); }
-.setup-sequence { margin: var(--space-6) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--color-rule); }
-.setup-sequence li { padding: var(--space-3) 0; border-bottom: 1px solid var(--color-rule); color: var(--color-muted); }
+.setup-sequence { margin: var(--space-lg) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--color-rule); }
+.setup-sequence li { padding: var(--space-xs) 0; border-bottom: 1px solid var(--color-rule); color: var(--color-muted); }
 .setup-sequence li[aria-current="step"] { color: var(--color-ink); font-weight: 650; }
-.setup-form { display: grid; gap: var(--space-4); padding: var(--space-5); border: 1px solid var(--color-rule); border-radius: var(--radius-panel); background: var(--color-panel); }
+.setup-form { display: grid; gap: var(--space-sm); padding: var(--space-md); border: 1px solid var(--color-rule); border-radius: var(--radius-panel); background: var(--color-panel); }
 .setup-note { margin: 0; color: var(--color-muted); font-size: 12px; }
-@media (max-width: 700px) { .setup-screen { grid-template-columns: 1fr; gap: var(--space-5); } }
+@media (max-width: 700px) { .setup-screen { grid-template-columns: 1fr; gap: var(--space-md); } }
 ```
 
 - [ ] **Step 5: Update the browser smoke setup assertions**
@@ -943,28 +1009,28 @@ Replace the `.recall-map-*` home blocks with:
 
 ```css
 .overview { max-width: 1280px; margin: 0 auto; }
-.page-heading { display: flex; align-items: end; justify-content: space-between; gap: var(--space-5); padding-bottom: var(--space-5); border-bottom: 1px solid var(--color-rule); }
+.page-heading { display: flex; align-items: end; justify-content: space-between; gap: var(--space-md); padding-bottom: var(--space-md); border-bottom: 1px solid var(--color-rule); }
 .page-heading h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.05; letter-spacing: -.035em; }
-.page-heading p { margin: var(--space-2) 0 0; color: var(--color-muted); }
+.page-heading p { margin: var(--space-2xs) 0 0; color: var(--color-muted); }
 .overview-current { color: var(--color-muted); }
 .overview-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); }
-.overview-section { min-width: 0; padding: var(--space-5) 0; border-bottom: 1px solid var(--color-rule); }
-.overview-section:nth-child(odd) { padding-right: var(--space-6); border-right: 1px solid var(--color-rule); }
-.overview-section:nth-child(even) { padding-left: var(--space-6); }
-.overview-section > header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.overview-section { min-width: 0; padding: var(--space-md) 0; border-bottom: 1px solid var(--color-rule); }
+.overview-section:nth-child(odd) { padding-right: var(--space-lg); border-right: 1px solid var(--color-rule); }
+.overview-section:nth-child(even) { padding-left: var(--space-lg); }
+.overview-section > header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-xs); margin-bottom: var(--space-sm); }
 .overview-section h2 { margin: 0; font-size: 16px; }
 .overview-section header a, .overview-section header span { color: var(--color-muted); }
 .overview-impact, .overview-activity { grid-column: 1 / -1; padding-left: 0 !important; padding-right: 0 !important; border-right: 0 !important; }
 .plain-list, .activity-list { list-style: none; margin: 0; padding: 0; }
-.plain-list li, .activity-list li { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(0, 1.3fr) auto; gap: var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--color-rule); }
+.plain-list li, .activity-list li { display: grid; grid-template-columns: minmax(120px, .7fr) minmax(0, 1.3fr) auto; gap: var(--space-xs); padding: var(--space-xs) 0; border-top: 1px solid var(--color-rule); }
 .plain-list li:first-child, .activity-list li:first-child { border-top: 0; }
 .plain-list code, .activity-list code { color: var(--color-muted); overflow-wrap: anywhere; }
 .activity-list time { color: var(--color-muted); white-space: nowrap; }
 .attention-list { display: grid; }
-.attention-list a { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--color-rule); color: inherit; text-decoration: none; }
+.attention-list a { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-xs); padding: var(--space-xs) 0; border-top: 1px solid var(--color-rule); color: inherit; text-decoration: none; }
 .attention-list a:first-child { border-top: 0; }
 .attention-list span { color: var(--color-muted); }
-@media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } .overview-section { grid-column: 1; padding: var(--space-5) 0 !important; border-right: 0 !important; } }
+@media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } .overview-section { grid-column: 1; padding: var(--space-md) 0 !important; border-right: 0 !important; } }
 @media (max-width: 700px) { .page-heading { align-items: start; } .plain-list li, .activity-list li { grid-template-columns: 1fr; gap: 2px; } }
 ```
 
