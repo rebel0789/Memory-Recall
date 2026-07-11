@@ -2,6 +2,17 @@
 
 This is the canonical UI contract. Code, prototypes, screenshots, and design-agent outputs follow it unless an approved ADR supersedes a rule.
 
+## Locked visual system
+
+- Genre: modern-minimal, designed as an application rather than a marketing page.
+- App macrostructure: Workbench. Function and current repository state carry each screen.
+- Canvas: warm off-white in light mode and neutral graphite in dark mode.
+- Accent: restrained cobalt blue for focus, selection, links, and primary actions.
+- Typography: native system sans for interface text; native monospace only for code, paths, hashes, commands, and identifiers.
+- Shape: 6 px controls and 8 px bounded panels. Lists and dividers take priority over nested cards.
+- Motion: state transitions only. No ambient or decorative animation.
+- Copy: object, state, and action labels only. No product slogan inside the application shell.
+
 ## Principles
 
 1. **Outcome first, trace on demand.** Show status and next action before logs.
@@ -26,9 +37,10 @@ This is the canonical UI contract. Code, prototypes, screenshots, and design-age
 
 ## Layout
 
-- Desktop: 240 px navigation rail, flexible content, optional 360 px inspector.
-- Tablet: collapsible rail and inspector drawer.
-- Mobile: bottom navigation for primary destinations.
+- Desktop: 216 px navigation rail, flexible content, optional 360 px inspector.
+- Desktop primary destinations: Overview, Map, Memory, Handoffs, Settings.
+- Tablet: retain the full 216 px labeled rail while inspectors collapse into the content flow.
+- Mobile primary destinations: Overview, Map, Memory, Handoffs.
 - Prose max width: 76 characters.
 - Wide tables require visible overflow cues.
 
@@ -37,7 +49,7 @@ This is the canonical UI contract. Code, prototypes, screenshots, and design-age
 Executable tokens live in `packages/ui/tokens.json` and `apps/web/tokens.css`.
 
 - Spacing: `4, 8, 12, 16, 24, 32, 48, 64`.
-- Radius: controls 8 px, cards 12 px, panels 16 px.
+- Radius: controls 6 px and bounded panels 8 px.
 - Prefer borders and surface contrast over shadows.
 
 ## AI-native components

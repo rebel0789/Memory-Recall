@@ -66,6 +66,41 @@ test('workbench navigation has five desktop and four mobile destinations', () =>
   assert.equal(navigationItemsFor('bottom'), MOBILE_NAV);
 });
 
+test('web tokens use the approved restrained workbench system', async () => {
+  const css = await readFile(new URL('../apps/web/tokens.css', import.meta.url), 'utf8');
+  const shellCss = await readFile(new URL('../apps/web/styles.css', import.meta.url), 'utf8');
+  const shared = JSON.parse(await readFile(new URL('../packages/ui/tokens.json', import.meta.url), 'utf8'));
+  assert.match(css, /--color-canvas:oklch\(/);
+  assert.match(css, /--color-accent:oklch\(/);
+  assert.match(css, /--radius-control:6px/);
+  assert.match(css, /--radius-panel:8px/);
+  assert.match(css, /--font-sans:ui-sans-serif/);
+  assert.match(css, /--space-md:24px/);
+  assert.doesNotMatch(css, /#56e0c4|gradient|glow/i);
+  assert.equal(shared.color.canvas, 'oklch(97.8% 0.006 80)');
+  assert.equal(shared.color.accent, 'oklch(52% 0.19 258)');
+  assert.equal(shared.color.dark.canvas, 'oklch(17% 0.008 255)');
+  assert.match(shared.font.sans, /^ui-sans-serif/);
+  assert.match(shared.font.mono, /^ui-monospace/);
+  assert.equal(shared.spacing.md, 24);
+  assert.equal(shared.radius.control, 6);
+  assert.equal(shared.radius.panel, 8);
+  assert.equal(shared.layout.rail, 216);
+  assert.equal(shared.motion.durationFast, 120);
+  assert.match(shared.motion.easeOut, /^cubic-bezier\(/);
+  assert.doesNotMatch(JSON.stringify(shared), /#56e0c4/i);
+  assert.doesNotMatch(shellCss, /\.app-shell\{grid-template-columns:76px/);
+  assert.doesNotMatch(shellCss, /#primary-nav a>span:last-child\{[^}]*position:absolute/);
+  assert.match(shellCss, /\.button:focus-visible,a:focus-visible,main:focus-visible,input:focus-visible/);
+});
+
+test('mobile shell exposes four fixed destinations without horizontal scrolling', async () => {
+  const css = await readFile(new URL('../apps/web/styles.css', import.meta.url), 'utf8');
+  assert.match(css, /\.bottom-nav\{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/s);
+  assert.doesNotMatch(css, /\.bottom-nav\{[^}]*overflow-x:auto/s);
+  assert.match(css, /@media\(max-width:700px\)\{\s*\.app-shell\{[^}]*min-height:100dvh[^}]*\}/s);
+});
+
 test('secondary routes select the destination that owns them', () => {
   assert.equal(navigationOwner('source-graph'), 'map');
   assert.equal(navigationOwner('memory-graph'), 'memory');

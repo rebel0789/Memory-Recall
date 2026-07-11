@@ -1,0 +1,12 @@
+{
+  "date": "2026-07-11",
+  "scope": "app",
+  "designSystem": "DESIGN.md",
+  "framework": "vanilla-html-css-esm",
+  "fontStack": "native-system-sans-and-mono",
+  "paletteSource": "apps/web/tokens.css",
+  "motion": "cut",
+  "spacing": "semantic-4-point",
+  "genre": "modern-minimal",
+  "macrostructure": "Workbench"
+}
