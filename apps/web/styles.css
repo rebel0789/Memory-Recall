@@ -1,5 +1,5 @@
-/* Hallmark · pre-emit critique: P5 H4 E5 S5 R5 V4 */
-/* Hallmark · scope: shell-and-overview · genre: modern-minimal · theme: Cobalt · macrostructure: Workbench · nav: N2 · footer: N/A (app) · rendered shell/setup/Overview slop: pass (42; 43–45 N/A app shell) · contrast: pass (40–41) · honest: pass (46) · chrome: pass (47) · tokens: pass (48) · responsive: pass (49) · icons: pass (30) · mobile: pass (34, 49, 50–57) · deep-route audit: pending ordered redesigns · designed-as-app */
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 */
+/* Hallmark · scope: shell-overview-map-memory-handoffs · genre: modern-minimal · theme: Cobalt · macrostructure: Workbench · nav: N2 · footer: N/A (app) · app slop: pass · contrast: pass · honest: pass · chrome: pass · tokens: pass · responsive: pass · icons: pass · mobile: pass · designed-as-app */
 *{box-sizing:border-box}
 html,body{overflow-x:clip}
 html{background:var(--color-canvas);scroll-behavior:smooth}
@@ -298,6 +298,37 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
 .change-detection-warning{display:grid;gap:var(--space-2xs)}
 .change-detection-warning p{margin:0;color:var(--color-muted)}
 .change-detection-warning .button{justify-self:start}
+.tool-workspace{max-width:1280px;margin:0 auto}
+.tool-page-heading{display:flex;align-items:end;justify-content:space-between;gap:var(--space-lg);padding-bottom:var(--space-md);margin-bottom:var(--space-md);border-bottom:1px solid var(--color-rule)}
+.tool-page-heading>div{min-width:0}
+.tool-page-heading h1{margin:0;font-size:clamp(30px,4vw,46px);line-height:1.05;letter-spacing:-.035em}
+.tool-page-heading p{margin:var(--space-2xs) 0 0;color:var(--color-muted);max-width:var(--layout-prose)}
+.tool-page-heading>span{color:var(--color-muted);white-space:nowrap}
+.tool-query{padding:0 0 var(--space-md);margin-bottom:var(--space-md);border-bottom:1px solid var(--color-rule)}
+.query-options{display:grid;grid-template-columns:100px 100px max-content 1fr;gap:var(--space-xs);align-items:end}
+.query-options>.muted{align-self:center}
+.tool-result-heading{display:flex;align-items:end;justify-content:space-between;gap:var(--space-md);margin-bottom:var(--space-md)}
+.tool-result-heading h2{margin:0;font-size:24px}
+.tool-summary{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:var(--space-md);margin:0}
+.tool-summary div{display:grid;gap:2px;min-width:64px}
+.tool-summary dt{color:var(--color-muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.tool-summary dd{margin:0;font-size:16px;font-weight:700}
+.tool-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--color-rule);margin-bottom:var(--space-lg)}
+.tool-detail-grid>section,.tool-detail-grid>.tool-disclosure{min-width:0;padding:var(--space-md);border-right:1px solid var(--color-rule)}
+.tool-detail-grid>section:first-child{padding-left:0}
+.tool-detail-grid>.tool-disclosure{border-right:0;padding-right:0}
+.tool-disclosure{border-top:1px solid var(--color-rule);padding:var(--space-sm) 0;margin-bottom:var(--space-md)}
+.tool-disclosure summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-weight:650}
+.tool-disclosure[open] summary{margin-bottom:var(--space-sm)}
+.memory-review-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);border-bottom:1px solid var(--color-rule)}
+.memory-review-queue,.memory-intake-panel{min-width:0;padding:var(--space-md) 0}
+.memory-review-queue{padding-right:var(--space-lg);border-right:1px solid var(--color-rule)}
+.memory-intake-panel{padding-left:var(--space-lg)}
+.memory-intake .section-heading{margin-bottom:var(--space-sm)}
+.memory-ledger{padding:var(--space-lg) 0;border-bottom:1px solid var(--color-rule)}
+.memory-delivery{margin-top:0}
+.handoff-workspace>.pinned-handoff{margin-bottom:var(--space-lg)}
+.handoff-builder{padding-top:var(--space-md);border-top:1px solid var(--color-rule)}
 .fabric-stage{display:grid;gap:var(--space-16)}
 .fabric-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,560px);gap:var(--space-24);align-items:end}
 .fabric-hero h2{font-size:28px;line-height:1.08;margin:0}
@@ -392,6 +423,11 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .fabric-scoreboard{grid-template-columns:repeat(5,minmax(0,1fr))}
   .flow-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
   .guide-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tool-detail-grid{grid-template-columns:1fr 1fr}
+  .tool-detail-grid>section,.tool-detail-grid>.tool-disclosure{padding:var(--space-md);border-right:0;border-bottom:1px solid var(--color-rule)}
+  .tool-detail-grid>section:nth-child(odd){padding-left:0;border-right:1px solid var(--color-rule)}
+  .tool-detail-grid>section:nth-child(even){padding-right:0}
+  .tool-detail-grid>.tool-disclosure{padding-left:0;grid-column:1/-1}
   .flow-step:not(:last-child):after{display:none}
 }
 
@@ -450,6 +486,16 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .memory-graph-toolbar{grid-template-columns:1fr}
   .memory-graph-toolbar .button,.memory-graph-search{grid-column:auto}
   .memory-graph-canvas-wrap{height:460px}
+  .tool-page-heading,.tool-result-heading{display:grid;align-items:start}
+  .tool-page-heading>span{white-space:normal}
+  .tool-summary{justify-content:flex-start;gap:var(--space-sm)}
+  .query-options{grid-template-columns:1fr 1fr}
+  .query-options .button,.query-options>.muted{grid-column:1/-1}
+  .tool-detail-grid{grid-template-columns:1fr}
+  .tool-detail-grid>section,.tool-detail-grid>section:nth-child(odd),.tool-detail-grid>section:nth-child(even),.tool-detail-grid>.tool-disclosure{padding:var(--space-sm) 0;border-right:0;grid-column:1}
+  .memory-review-grid{grid-template-columns:1fr}
+  .memory-review-queue,.memory-intake-panel{padding:var(--space-md) 0;border-right:0}
+  .memory-intake-panel{border-top:1px solid var(--color-rule)}
   .fabric-links li{grid-template-columns:1fr;gap:4px}
   .fabric-links strong{text-align:left}
   .fabric-links strong:before,.fabric-links strong:after{display:none}

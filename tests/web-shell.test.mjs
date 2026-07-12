@@ -38,6 +38,7 @@ import {
   contextDecisionView,
   copyCommand,
   contextRecordLink,
+  deliveryChangeLabel,
   legacyViewPath,
   normalizeMemorySourceFiles,
   parseSelectedFiles,
@@ -436,6 +437,8 @@ test('source graph preview renders repo map start points',()=>{
     safeguards:{persisted:false,modelCalls:0,networkCalls:0,graphDatabaseUsed:false,rawBodyIncluded:false}
   };
   const html=renderSourceGraphResult(report);
+  assert.match(html,/class="tool-workspace map-workspace"/);
+  assert.match(html,/Map results/);
   assert.match(html,/Repo Map/);
   assert.match(html,/Start here/);
   assert.match(html,/runAuthWorkflow/);
@@ -448,9 +451,13 @@ test('source graph preview renders repo map start points',()=>{
   assert.match(html,/TokenResetService/);
   assert.match(html,/Import neighbors/);
   assert.match(html,/src\/workflow\.ts -&gt; src\/auth\.ts/);
+  assert.doesNotMatch(html,/class="metric-strip"/);
 });
 
 test('memory route renders real temporal fact fields and computed token number', async (t) => {
+  assert.equal(deliveryChangeLabel(42),'42% reduction');
+  assert.equal(deliveryChangeLabel(0),'No reduction');
+  assert.equal(deliveryChangeLabel(-363),'363% overhead');
   const provider = new SQLiteMemoryProvider({ filename: ':memory:', clock: () => '2026-06-26T10:00:00.000Z' });
   t.after(() => provider.close());
   await provider.put({
@@ -548,7 +555,15 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.equal(model.mcpStats.deliveredTokens, 320);
   assert.equal(model.summary.activeFactCount, 1);
   assert.equal(model.summary.pendingProposalCount, 1);
-  assert.match(html, new RegExp(`${model.tokenSavingPercent}% token saving`));
+  assert.match(html, /class="tool-workspace memory-workspace"/);
+  assert.match(html, /<h1>Memory<\/h1>/);
+  assert.match(html, /Review queue/);
+  assert.match(html, /Active memory/);
+  const reviewQueueHtml=html.match(/<section class="memory-review-queue">([\s\S]*?)<\/section><aside/)?.[1]??'';
+  assert.match(reviewQueueHtml,/mpq_web_pending/);
+  assert.doesNotMatch(reviewQueueHtml,/mpq_web_memory/);
+  assert.match(html, new RegExp(deliveryChangeLabel(model.savings.percent)));
+  assert.doesNotMatch(html, /token saving/);
   assert.match(html, /<dt>Active facts<\/dt><dd>1<\/dd>/);
   assert.match(html, /<dt>Pending proposals<\/dt><dd>1<\/dd>/);
   assert.match(html, /id="memory-intake-form"/);
@@ -693,10 +708,11 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/api\('\/api\/context\/git-changes'/);
   assert.match(app,/api\('\/api\/context\/source-preview'/);
   assert.match(app,/Preview sources/);
-  assert.match(app,/Create a first local handoff/);
-  assert.match(app,/Prepare this repository for the next coding agent/);
-  assert.match(app,/without sending source bodies, writing server state, calling models, using the network, or enabling adapters/);
-  assert.match(app,/Inputs to review/);
+  assert.match(app,/class="tool-workspace handoff-workspace"/);
+  assert.match(app,/<h1>Handoffs<\/h1>/);
+  assert.match(app,/Current handoff/);
+  assert.doesNotMatch(app,/Prepare this repository for the next coding agent/);
+  assert.match(app,/Build handoff/);
   assert.match(app,/Detect current git changes/);
   assert.match(app,/Review before building/);
   assert.match(app,/name="changedLocators"/);

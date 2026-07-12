@@ -246,7 +246,9 @@ try {
   await waitForText(page, 'Home writes');
 
   await page.locator('a[href="/handoffs"][data-route="context-pack"]').first().click();
-  await waitForText(page, 'Inputs to review');
+  await waitForText(page, 'Handoffs');
+  await waitForText(page, 'Build handoff');
+  await page.screenshot({ path: path.join(screenshots, 'handoffs-desktop-1440.png'), fullPage: true });
   await page.fill('textarea[name="objective"]', 'Consumer browser smoke');
   await page.fill('input[name="step"]', 'verify rendered first-run flow');
   await page.fill('textarea[name="userSelectedFiles"]', 'src/huge.js');
@@ -261,7 +263,9 @@ try {
   await mustNotContain(page, 'SMOKE RAW BODY');
 
   await page.locator('a[data-route="memory"]').first().click();
-  await waitForText(page, 'Preview first, approve after.');
+  await waitForText(page, 'Review queue');
+  await waitForText(page, 'Add memory');
+  await page.screenshot({ path: path.join(screenshots, 'memory-desktop-1440.png'), fullPage: true });
   await page.fill('#memory-intake-form textarea[name="text"]', 'Fact: project:oaf consumer_browser_smoke rendered.');
   await page.locator('#memory-intake-form button[value="preview"]').click();
   await waitForText(page, '1 proposal');
@@ -277,13 +281,23 @@ try {
   await waitForText(page, 'Provenance workspace://memory/status.md');
 
   await page.locator('a[href="/map"][data-route="source-graph"]').first().click();
-  await waitForText(page, 'Repo Map');
+  await waitForText(page, 'Map');
   await page.fill('input[name="query"]', 'launchSmoke');
   await page.fill('input[name="changedLocator"]', 'src/app.js');
   await page.locator('#source-graph-form button[type="submit"]').click();
   await waitForText(page, 'Search results');
-  await waitForText(page, 'Diff impact');
-  await waitForText(page, 'Preview repo map');
+  await waitForText(page, 'Changed impact');
+  await waitForText(page, 'Run map');
+  await page.screenshot({ path: path.join(screenshots, 'map-desktop-1440.png'), fullPage: true });
+
+  for (const [route, label, file] of [['/map', 'Map', 'map-mobile-390.png'], ['/memory', 'Memory', 'memory-mobile-390.png'], ['/handoffs', 'Handoffs', 'handoffs-mobile-390.png']]) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: label, exact: true }).waitFor();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    must(!overflow, `${route} has horizontal overflow at 390px`);
+    await page.screenshot({ path: path.join(screenshots, file), fullPage: true });
+  }
 
   for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
