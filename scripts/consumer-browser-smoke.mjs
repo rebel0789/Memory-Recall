@@ -290,13 +290,15 @@ try {
   await waitForText(page, 'Run map');
   await page.screenshot({ path: path.join(screenshots, 'map-desktop-1440.png'), fullPage: true });
 
-  for (const [route, label, file] of [['/map', 'Map', 'map-mobile-390.png'], ['/memory', 'Memory', 'memory-mobile-390.png'], ['/handoffs', 'Handoffs', 'handoffs-mobile-390.png']]) {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('heading', { name: label, exact: true }).waitFor();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-    must(!overflow, `${route} has horizontal overflow at 390px`);
-    await page.screenshot({ path: path.join(screenshots, file), fullPage: true });
+  for (const [width, height, size] of [[900, 900, 'tablet-900'], [390, 844, 'mobile-390']]) {
+    for (const [route, label, name] of [['/map', 'Map', 'map'], ['/memory', 'Memory', 'memory'], ['/handoffs', 'Handoffs', 'handoffs']]) {
+      await page.setViewportSize({ width, height });
+      await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' });
+      await page.getByRole('heading', { name: label, exact: true }).waitFor();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+      must(!overflow, `${route} has horizontal overflow at ${width}px`);
+      await page.screenshot({ path: path.join(screenshots, `${name}-${size}.png`), fullPage: true });
+    }
   }
 
   for (const width of [320, 390]) {
