@@ -24,7 +24,8 @@ use std::time::Instant;
 
 const PROVIDER: &str = "provider:native:memory:sqlite";
 const PROTOCOL_VERSION: &str = "2025-06-18";
-const SERVER_VERSION: &str = "0.1.0";
+const SERVER_VERSION: &str = "1.1.0";
+const SERVER_NAME: &str = "memory-recall";
 
 fn main() {
     if let Err(error) = run() {
@@ -2148,7 +2149,7 @@ impl McpSession {
                 "id": id,
                 "result": {
                     "protocolVersion": PROTOCOL_VERSION,
-                    "serverInfo": { "name": "open-agent-fabric", "version": SERVER_VERSION },
+                    "serverInfo": { "name": SERVER_NAME, "version": SERVER_VERSION },
                     "capabilities": {
                         "tools": { "listChanged": false },
                         "resources": { "subscribe": false, "listChanged": false },
@@ -3133,7 +3134,8 @@ fn approve_report(config: &CliConfig, report: ApproveReport) -> Value {
             "pendingProposalCount": report.pending_proposal_count,
             "activeMemoryCreated": report.active_memory_created,
             "rejectedProposalCount": 0,
-            "supersededFactCount": report.superseded_fact_count
+            "supersededFactCount": report.superseded_fact_count,
+            "skippedExplicitIdOnlyCount": report.skipped_explicit_id_only_count
         },
         "proposal": report.proposal,
         "fact": report.fact,
@@ -3927,7 +3929,11 @@ fn memory_recall_tool() -> Value {
                 "client": { "type": "string", "maxLength": 80, "default": "default" },
                 "limit": { "type": "integer", "minimum": 1, "maximum": 20, "default": 8 },
                 "since": { "type": "string", "maxLength": 80 },
-                "verbose": { "type": "boolean", "default": false }
+                "verbose": { "type": "boolean", "default": false },
+                "includeProposals": { "type": "boolean", "default": false },
+                "subject": { "type": "string", "maxLength": 128 },
+                "predicate": { "type": "string", "maxLength": 128 },
+                "currentTruthOnly": { "type": "boolean", "default": false }
             }
         },
         "annotations": { "sideEffectClass": "read-only", "oafOperation": "memory.recall" }
@@ -3966,7 +3972,11 @@ fn context_profile_tool() -> Value {
                 "client": { "type": "string", "maxLength": 80, "default": "default" },
                 "budget": { "type": "integer", "minimum": 1, "maximum": 100000, "default": 4096 },
                 "limit": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 },
-                "since": { "type": "string", "maxLength": 80 }
+                "since": { "type": "string", "maxLength": 80 },
+                "includeProposals": { "type": "boolean", "default": false },
+                "subject": { "type": "string", "maxLength": 128 },
+                "predicate": { "type": "string", "maxLength": 128 },
+                "currentTruthOnly": { "type": "boolean", "default": false }
             }
         },
         "annotations": { "sideEffectClass": "read-only", "oafOperation": "context.profile" }

@@ -68,6 +68,7 @@ pub struct ApproveReport {
     pub superseded_fact_count: usize,
     pub pending_proposal_count: usize,
     pub rejected_proposal_count: usize,
+    pub skipped_explicit_id_only_count: usize,
     pub proposal: Option<Value>,
     pub fact: Option<Value>,
     pub facts: Vec<Value>,
@@ -536,13 +537,11 @@ impl Store {
 
     pub fn approve_all_from(&mut self, source: &str) -> Result<ApproveReport> {
         let source = normalize_workspace_locator(source)?;
-        let ids = self.pending_ids(Some(&source))?;
-        self.approve_ids(ids)
+        self.approve_bulk(Some(&source))
     }
 
     pub fn approve_all(&mut self) -> Result<ApproveReport> {
-        let ids = self.pending_ids(None)?;
-        self.approve_ids(ids)
+        self.approve_bulk(None)
     }
 
     pub fn approve_one(&mut self, id: &str) -> Result<ApproveReport> {
@@ -1832,6 +1831,33 @@ impl Store {
             std::process::abort();
         }
         Ok(())
+    }
+
+    fn approve_bulk(&mut self, source: Option<&str>) -> Result<ApproveReport> {
+        let candidates = self.pending_ids(source)?;
+        if candidates.is_empty() {
+            bail!("memory approve found no pending proposals");
+        }
+        let mut ids = Vec::new();
+        let mut skipped_explicit_id_only_count = 0;
+        for id in candidates {
+            let proposal = self.proposal_row_value(&id)?;
+            if requires_explicit_proposal_approval(&proposal) {
+                skipped_explicit_id_only_count += 1;
+            } else {
+                ids.push(id);
+            }
+        }
+        if ids.is_empty() {
+            return Ok(ApproveReport {
+                pending_proposal_count: self.pending_ids(None)?.len(),
+                skipped_explicit_id_only_count,
+                ..ApproveReport::default()
+            });
+        }
+        let mut report = self.approve_ids(ids)?;
+        report.skipped_explicit_id_only_count = skipped_explicit_id_only_count;
+        Ok(report)
     }
 
     fn approve_ids(&mut self, ids: Vec<String>) -> Result<ApproveReport> {
@@ -3682,7 +3708,14 @@ fn build_proposal_input(
 ) -> Result<ProposalInput> {
     let text = format!("{subject} {predicate} {object}");
     let source_hash = source_hash_for_fact(subject, predicate, object, source);
-    let id = proposal_id_from_parts(workspace_id, scope, subject, predicate, object, &source_hash);
+    let id = proposal_id_from_parts(
+        workspace_id,
+        scope,
+        subject,
+        predicate,
+        object,
+        &source_hash,
+    );
     let episode_id = episode_id_from_parts(workspace_id, source, &source_hash, &text);
     let mut payload = json!({
         "kind": "fact",
@@ -3701,6 +3734,9 @@ fn build_proposal_input(
         "supersedesSubjectPredicate": supersedes,
         "notes": notes
     });
+    payload["factFingerprint"] = Value::String(fact_proposal_fingerprint(
+        scope, subject, predicate, object, source,
+    ));
     if let Some(supersedes_object) = supersedes_object {
         payload["supersedesObject"] = Value::String(supersedes_object.to_string());
     }
@@ -3793,6 +3829,22 @@ fn source_hash_for_fact(subject: &str, predicate: &str, object: &str, source: &s
             ("subject", subject),
         ]))
     )
+}
+
+fn fact_proposal_fingerprint(
+    scope: &str,
+    subject: &str,
+    predicate: &str,
+    object: &str,
+    source: &str,
+) -> String {
+    sha256_hex(&canonical_string_object(&[
+        ("scope", scope),
+        ("subject", subject),
+        ("predicate", predicate),
+        ("object", object),
+        ("source", source),
+    ]))
 }
 
 fn proposal_id_from_parts(
@@ -4334,6 +4386,18 @@ fn memory_proposal_source_matches(item: &Value, source: &str) -> bool {
         .into_iter()
         .flatten()
         .any(|candidate| normalize_workspace_locator(candidate).ok().as_deref() == Some(source))
+}
+
+fn requires_explicit_proposal_approval(item: &Value) -> bool {
+    matches!(
+        item.pointer("/payload/approvalMode")
+            .and_then(Value::as_str),
+        Some("explicit-id-only")
+    ) || matches!(
+        item.pointer("/payload/proposalOrigin")
+            .and_then(Value::as_str),
+        Some("semantic-setup")
+    )
 }
 
 fn safe_locator(value: &str) -> Value {
@@ -4921,7 +4985,17 @@ mod tests {
             }),
         );
 
-        assert_eq!(proposal.payload_json, serde_json::to_string(&proposal.payload).unwrap());
+        assert_eq!(
+            proposal.payload_json,
+            serde_json::to_string(&proposal.payload).unwrap()
+        );
+        assert_eq!(
+            proposal
+                .payload
+                .get("factFingerprint")
+                .and_then(Value::as_str),
+            Some("976ece96d4859c935e82c68b9cc170ea2cd2cb8db9cab45c7f3c964a9845d27c")
+        );
         assert_eq!(proposal.source_hash, old_source_hash);
         assert_eq!(proposal.id, old_id);
         assert_eq!(
@@ -4933,5 +5007,61 @@ mod tests {
         );
         assert_eq!(proposal.fingerprint, old_fingerprint);
         assert_eq!(proposal_fingerprint("ws_local", &proposal), old_fingerprint);
+    }
+
+    #[test]
+    fn bulk_approval_skips_explicit_id_only_proposals() {
+        let mut store = Store::open(
+            ":memory:",
+            StoreOptions {
+                workspace_id: "ws_local".to_string(),
+                now: "2026-06-29T00:00:00.000Z".to_string(),
+            },
+        )
+        .unwrap();
+        let mut proposal = build_proposal_input(
+            "ws_local",
+            "workspace",
+            "project:fixture",
+            "semantic_status",
+            "pending",
+            "workspace://README.md",
+            "2026-06-29T00:00:00.000Z",
+            "2026-06-29T00:00:00.000Z",
+            "extracted",
+            None,
+            "verified",
+            false,
+            None,
+        )
+        .unwrap();
+        proposal.payload["approvalMode"] = Value::String("explicit-id-only".to_string());
+        proposal.payload_json = serde_json::to_string(&proposal.payload).unwrap();
+        proposal.fingerprint = proposal_fingerprint_from_parts(
+            "ws_local",
+            &proposal.source_locator,
+            &proposal.source_hash,
+            &canonical_json(&proposal.payload),
+        );
+
+        store.begin().unwrap();
+        store.enqueue_proposal_uncommitted(&proposal).unwrap();
+        store.finish(Ok(())).unwrap();
+
+        let bulk = store.approve_all_from("workspace://README.md").unwrap();
+        assert_eq!(bulk.active_memory_created, 0);
+        assert_eq!(bulk.pending_proposal_count, 1);
+        assert_eq!(bulk.skipped_explicit_id_only_count, 1);
+        assert_eq!(
+            store
+                .proposal_row_value(&proposal.id)
+                .unwrap()
+                .get("status")
+                .and_then(Value::as_str),
+            Some("pending")
+        );
+
+        let named = store.approve_one(&proposal.id).unwrap();
+        assert_eq!(named.active_memory_created, 1);
     }
 }
