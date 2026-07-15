@@ -9,6 +9,12 @@ import {
   SOURCE_GRAPH_WORKSPACE_ID_RE,
   SOURCE_GRAPH_WORKSPACE_LOCATOR_RE
 } from '../../../../packages/protocol/src/source-graph-locator.mjs';
+import {
+  isIgnoredPath,
+  loadIgnoreFile,
+  loadRootRecallIgnore,
+  normalizeIgnoreRelativePath
+} from './ignore-rules.mjs';
 
 export const AST_CODE_PROVIDER_VERSION = '1.0.0';
 export const AST_CODE_PARSER_VERSION = 'oaf-js-ts-static-1.0.0';
@@ -18,14 +24,29 @@ const GRAPH_SOURCE_ID = 'provider:native:context-candidate:graph';
 const EXTENSIONS = new Set(['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx']);
 const EXCLUDED_DIRECTORY_POLICIES = new Map([
   ['.git', 'declared_out_of_scope_directory_excluded'],
+  ['.worktrees', 'declared_out_of_scope_directory_excluded'],
   ['node_modules', 'declared_out_of_scope_directory_excluded'],
+  ['.venv', 'declared_out_of_scope_directory_excluded'],
+  ['venv', 'declared_out_of_scope_directory_excluded'],
+  ['site-packages', 'declared_out_of_scope_directory_excluded'],
+  ['.agents', 'declared_out_of_scope_directory_excluded'],
+  ['.claude', 'declared_out_of_scope_directory_excluded'],
   ['.next', 'declared_out_of_scope_directory_excluded'],
   ['coverage', 'declared_out_of_scope_directory_excluded'],
+  ['test-results', 'declared_out_of_scope_directory_excluded'],
+  ['playwright-report', 'declared_out_of_scope_directory_excluded'],
+  ['.cache', 'declared_out_of_scope_directory_excluded'],
+  ['.pytest_cache', 'declared_out_of_scope_directory_excluded'],
+  ['.turbo', 'declared_out_of_scope_directory_excluded'],
+  ['.parcel-cache', 'declared_out_of_scope_directory_excluded'],
   ['dist', 'source_relevant_directory_excluded'],
   ['build', 'source_relevant_directory_excluded'],
   ['out', 'source_relevant_directory_excluded'],
+  ['.generated', 'source_relevant_directory_excluded'],
+  ['generated-output', 'source_relevant_directory_excluded'],
   ['vendor', 'source_relevant_directory_excluded']
 ]);
+const NON_OVERRIDABLE_EXCLUDED_DIRECTORIES = new Set(['.git', '.worktrees']);
 const DEFAULT_MAX_FILE_BYTES = 512 * 1024;
 const DEFAULT_MAX_FILES = 1000;
 const MAX_COVERAGE_REPRESENTED_LOCATORS = 1000;
@@ -33,7 +54,7 @@ const MAX_COVERAGE_SKIPPED_LOCATORS = 100;
 const MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS = 100;
 const MAX_EXCLUDED_DIRECTORY_DIAGNOSTICS = 100;
 const MAX_COVERAGE_UNSUPPORTED_EXTENSIONS = 32;
-const MAX_POST_CAP_DIRECTORY_DISCOVERY = 10_000;
+const MAX_COVERAGE_IGNORED_SAMPLES = 100;
 const MAX_ARCHITECTURE_RANKING_RESULTS = 25;
 const MAX_ARCHITECTURE_DEPRIORITIZED = 25;
 const MAX_REFERENCES_PER_CHUNK = 80;
@@ -458,10 +479,13 @@ export async function scanAstCodeWorkspace({
   workspaceId = 'ws_local',
   maxFileBytes = DEFAULT_MAX_FILE_BYTES,
   maxFiles = DEFAULT_MAX_FILES,
+  explicitIncludes = [],
   clock = () => new Date().toISOString()
 } = {}) {
   if (typeof root !== 'string' || !root) throw new Error('root is required');
+  const normalizedExplicitIncludes = explicitIncludes.map(normalizeIgnoreRelativePath);
   const rootReal = await realpath(root);
+  const rootRecallRules = await loadRootRecallIgnore(rootReal);
   const diagnostics = [];
   const chunks = [];
   const fileOutlines = [];
@@ -472,7 +496,12 @@ export async function scanAstCodeWorkspace({
   const sourceRelevantExcludedDirectoryLocators = new Set();
   const excludedDirectoryCodes = new Map();
   const unsupportedExtensionCounts = new Map();
+  const ignoredSamples = new Set();
+  const ignoreFileLocators = new Set(rootRecallRules.length ? ['workspace://.recallignore'] : []);
+  const normalizedIgnoreRules = [...rootRecallRules];
   let unsupportedFileCount = 0;
+  let ignoredFileCount = 0;
+  let ignoredDirectoryCount = 0;
   let excludedDirectoryCount = 0;
   let declaredOutOfScopeDirectoryCount = 0;
   let sourceRelevantExcludedDirectoryCount = 0;
@@ -480,7 +509,6 @@ export async function scanAstCodeWorkspace({
   let excludedDirectoryDiagnosticsTruncated = false;
   let visitedFiles = 0;
   let maxFilesReached = false;
-  let postCapDirectoryDiscoveryCapped = false;
 
   function markMaxFilesReached() {
     if (maxFilesReached) return;
@@ -518,18 +546,29 @@ export async function scanAstCodeWorkspace({
     diagnostics.push(diagnostic(locator, 'directory_unreadable'));
   }
 
-  function markPostCapDirectoryDiscoveryCapped() {
-    if (postCapDirectoryDiscoveryCapped) return;
-    postCapDirectoryDiscoveryCapped = true;
-    diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'directory_discovery_capped'));
+  function recordIgnored(locator, isDirectory) {
+    if (isDirectory) ignoredDirectoryCount += 1;
+    else ignoredFileCount += 1;
+    addBoundedLocator(ignoredSamples, locator, MAX_COVERAGE_IGNORED_SAMPLES);
   }
 
-  async function walk(relativeDirectory = '') {
-    if (visitedFiles >= maxFiles) {
-      markMaxFilesReached();
-      return;
-    }
+  async function walk(relativeDirectory = '', ancestorGitRules = []) {
     const absoluteDirectory = path.join(rootReal, relativeDirectory);
+    const gitIgnoreFile = path.join(absoluteDirectory, '.gitignore');
+    let localGitRules = [];
+    let gitIgnoreUnavailable = false;
+    try {
+      localGitRules = await loadIgnoreFile(gitIgnoreFile, { base: relativeDirectory });
+    } catch {
+      gitIgnoreUnavailable = true;
+    }
+    if (localGitRules.length) {
+      const locator = safeWorkspaceLocatorFor(normalizeRelative(path.join(relativeDirectory, '.gitignore')));
+      if (locator) addBoundedLocator(ignoreFileLocators, locator, MAX_COVERAGE_IGNORED_SAMPLES);
+      normalizedIgnoreRules.push(...localGitRules);
+    }
+    const gitRules = [...ancestorGitRules, ...localGitRules];
+    const activeRules = [...gitRules, ...rootRecallRules];
     let entries;
     try {
       entries = (await readdir(absoluteDirectory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
@@ -539,17 +578,36 @@ export async function scanAstCodeWorkspace({
       recordUnreadableDirectory(locator);
       return;
     }
+    if (gitIgnoreUnavailable) {
+      const locator = safeWorkspaceLocatorFor(normalizeRelative(path.join(relativeDirectory, '.gitignore')));
+      if (locator) recordUnreadableFile(locator);
+    }
     for (const entry of entries) {
-      if (visitedFiles >= maxFiles) {
-        markMaxFilesReached();
-        return;
-      }
       const relativePath = normalizeRelative(path.join(relativeDirectory, entry.name));
       const absolutePath = path.join(rootReal, relativePath);
-      const info = await lstat(absolutePath);
       const locator = safeWorkspaceLocatorFor(relativePath);
       if (!locator) {
         diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'path_escape_skipped'));
+        continue;
+      }
+      const explicitlyIncluded = normalizedExplicitIncludes.some((item) => item === relativePath || item.startsWith(`${relativePath}/`));
+      if (isIgnoredPath(relativePath, { isDirectory: entry.isDirectory(), rules: activeRules, explicitIncludes: normalizedExplicitIncludes })) {
+        recordIgnored(locator, entry.isDirectory());
+        continue;
+      }
+      if (entry.isDirectory()) {
+        const exclusionCode = EXCLUDED_DIRECTORY_POLICIES.get(entry.name);
+        if (exclusionCode && (!explicitlyIncluded || NON_OVERRIDABLE_EXCLUDED_DIRECTORIES.has(entry.name))) {
+          recordExcludedDirectory(locator, exclusionCode);
+          continue;
+        }
+      }
+      let info;
+      try {
+        info = await lstat(absolutePath);
+      } catch {
+        if (entry.isDirectory()) recordUnreadableDirectory(locator);
+        else recordUnreadableFile(locator);
         continue;
       }
       if (info.isSymbolicLink()) {
@@ -558,12 +616,7 @@ export async function scanAstCodeWorkspace({
         continue;
       }
       if (info.isDirectory()) {
-        const exclusionCode = EXCLUDED_DIRECTORY_POLICIES.get(entry.name);
-        if (exclusionCode) {
-          recordExcludedDirectory(locator, exclusionCode);
-          continue;
-        }
-        await walk(relativePath);
+        if (await walk(relativePath, gitRules)) return true;
         continue;
       }
       if (!info.isFile()) continue;
@@ -572,6 +625,10 @@ export async function scanAstCodeWorkspace({
         unsupportedFileCount += 1;
         if (extension) unsupportedExtensionCounts.set(extension, (unsupportedExtensionCounts.get(extension) ?? 0) + 1);
         continue;
+      }
+      if (visitedFiles >= maxFiles) {
+        markMaxFilesReached();
+        return true;
       }
       let fileReal;
       try {
@@ -611,61 +668,14 @@ export async function scanAstCodeWorkspace({
       chunks.push(...fileChunks);
       fileOutlines.push(fileOutlineFor({ relativePath, body, workspaceId, collectedAt, chunks: fileChunks }));
     }
-  }
-
-  async function discoverExcludedDirectoriesAfterCap() {
-    let visitedDirectories = 0;
-    async function walkDirectories(relativeDirectory = '') {
-      if (postCapDirectoryDiscoveryCapped) return;
-      const absoluteDirectory = path.join(rootReal, relativeDirectory);
-      let entries;
-      try {
-        entries = (await readdir(absoluteDirectory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
-      } catch {
-        const locator = safeWorkspaceLocatorFor(relativeDirectory) ?? 'workspace://__source_graph_scan__';
-        diagnostics.push(diagnostic(locator, 'directory_discovery_unavailable'));
-        return;
-      }
-      for (const entry of entries) {
-        if (postCapDirectoryDiscoveryCapped) return;
-        if (!entry.isDirectory()) continue;
-        if (visitedDirectories >= MAX_POST_CAP_DIRECTORY_DISCOVERY) {
-          markPostCapDirectoryDiscoveryCapped();
-          return;
-        }
-        const relativePath = normalizeRelative(path.join(relativeDirectory, entry.name));
-        const absolutePath = path.join(rootReal, relativePath);
-        const locator = safeWorkspaceLocatorFor(relativePath);
-        if (!locator) {
-          diagnostics.push(diagnostic('workspace://__source_graph_scan__', 'path_escape_skipped'));
-          continue;
-        }
-        let info;
-        try {
-          info = await lstat(absolutePath);
-        } catch {
-          diagnostics.push(diagnostic(locator, 'directory_discovery_unavailable'));
-          continue;
-        }
-        if (info.isSymbolicLink() || !info.isDirectory()) continue;
-        visitedDirectories += 1;
-        const exclusionCode = EXCLUDED_DIRECTORY_POLICIES.get(entry.name);
-        if (exclusionCode) {
-          recordExcludedDirectory(locator, exclusionCode);
-          continue;
-        }
-        await walkDirectories(relativePath);
-      }
-    }
-    await walkDirectories();
+    return false;
   }
 
   await walk();
-  if (maxFilesReached) await discoverExcludedDirectoriesAfterCap();
   const sortedChunks = chunks.sort((a, b) => a.locator.localeCompare(b.locator));
   const sortedFileOutlines = fileOutlines.sort((a, b) => a.locator.localeCompare(b.locator));
   const symbolIndex = buildSymbolIndex({ workspaceId, chunks: sortedChunks, fileOutlines: sortedFileOutlines, indexedAt: clock() });
-  const coverage = sourceGraphCoverage({
+  const publicCoverage = sourceGraphCoverage({
     representedJsTsLocators: sortedFileOutlines.map((file) => file.locator),
     skippedLocators: [...skippedLocators],
     oversizedLocators: [...oversizedLocators],
@@ -679,6 +689,25 @@ export async function scanAstCodeWorkspace({
     unsupportedExtensions: [...unsupportedExtensionCounts.keys()],
     maxFilesReached,
     diagnosticCodes: diagnostics.map((item) => item.code)
+  });
+  const boundedUnsupportedExtensionCounts = Object.fromEntries(
+    [...unsupportedExtensionCounts.entries()]
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+      .slice(0, MAX_COVERAGE_UNSUPPORTED_EXTENSIONS)
+  );
+  const coverage = Object.freeze({
+    ...publicCoverage,
+    ignoredFileCount,
+    ignoredDirectoryCount,
+    ignoredSamples: [...ignoredSamples].sort(),
+    unsupportedExtensionCounts: boundedUnsupportedExtensionCounts
+  });
+  const discoveryIdentity = Object.freeze({
+    ignoreFileLocators: [...ignoreFileLocators].sort(),
+    ignoreRuleFingerprint: contentFingerprint({
+      rules: normalizedIgnoreRules.map(({ base, pattern, negated, directoryOnly }) => ({ base, pattern, negated, directoryOnly })),
+      explicitIncludes: [...normalizedExplicitIncludes].sort()
+    })
   });
   const result = {
     schemaVersion: '1.0.0',
@@ -697,6 +726,7 @@ export async function scanAstCodeWorkspace({
     })),
     symbolIndex,
     coverage,
+    discoveryIdentity,
     diagnostics: diagnostics.sort((a, b) => a.locator.localeCompare(b.locator) || a.code.localeCompare(b.code))
   };
   return Object.freeze({ ...result, scanFingerprint: contentFingerprint(result) });
@@ -770,6 +800,10 @@ function uniqueSortedStrings(values) {
 
 export async function buildJsTsSourceIndex(options = {}) {
   const scan = await scanAstCodeWorkspace(options);
+  const coverage = sourceGraphCoverage({
+    ...scan.coverage,
+    diagnosticCodes: scan.diagnostics.map((item) => item.code)
+  });
   return Object.freeze({
     schemaVersion: '1.0.0',
     workspaceId: scan.workspaceId,
@@ -779,14 +813,16 @@ export async function buildJsTsSourceIndex(options = {}) {
     fileOutlines: scan.fileOutlines,
     contentJournal: scan.contentJournal,
     symbolIndex: scan.symbolIndex,
-    coverage: scan.coverage,
+    coverage,
+    discoveryIdentity: scan.discoveryIdentity,
     diagnostics: scan.diagnostics,
     sourceIndexFingerprint: contentFingerprint({
       repositoryOutline: scan.repositoryOutline,
       fileOutlines: scan.fileOutlines,
       contentJournal: scan.contentJournal,
       symbolIndex: scan.symbolIndex,
-      coverage: scan.coverage,
+      coverage,
+      discoveryIdentity: scan.discoveryIdentity,
       diagnostics: scan.diagnostics
     })
   });

@@ -207,8 +207,9 @@ test('discovery honors nested gitignore and recallignore before maxFiles', async
   assert.equal(scan.fileCount, 1);
   assert.deepEqual(scan.coverage.representedJsTsLocators, ['workspace://src/entry.ts']);
   assert.equal(scan.coverage.maxFilesReached, false);
-  assert(scan.coverage.ignoredFileCount >= 3);
-  assert(scan.coverage.excludedDirectoryCount >= 3);
+  assert.equal(scan.coverage.ignoredFileCount, 2);
+  assert.equal(scan.coverage.ignoredDirectoryCount, 1);
+  assert(scan.coverage.excludedDirectoryCount >= 2);
 });
 
 test('explicit include overrides non-security ignore but not root containment', async (t) => {
@@ -308,7 +309,7 @@ In `scanAstCodeWorkspace()`:
 4. Evaluate default exclusions and ignore rules before `lstat()` recursion and before unsupported-file counting.
 5. Increment `visitedFiles` only for supported files that are actually read.
 6. Delete `discoverExcludedDirectoriesAfterCap()`; the scan must not traverse excluded trees after reaching the supported-file cap.
-7. Add bounded `ignoredFileCount`, `ignoredDirectoryCount`, `ignoredSamples` (maximum 100), and `unsupportedExtensionCounts` (maximum 32 entries) to coverage.
+7. Add bounded `ignoredFileCount`, `ignoredDirectoryCount`, `ignoredSamples` (maximum 100), and `unsupportedExtensionCounts` (maximum 32 entries) to scan coverage. Keep these internal to the scan result until Task 3 extends the public graph schemas.
 8. Keep an internal `index.discoveryIdentity` with the normalized relevant ignore-file locators (maximum 100) and a SHA-256 fingerprint of their normalized rules plus explicit includes. Do not project these new fields into the public graph until Task 3 extends the schema.
 
 Keep coverage samples bounded with the existing `addBoundedLocator()` helper.

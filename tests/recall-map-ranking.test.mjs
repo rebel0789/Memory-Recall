@@ -173,7 +173,7 @@ test('source graph coverage distinguishes source-relevant exclusions from declar
   assert.equal(JSON.stringify(preview).includes(root), false);
 });
 
-test('source graph coverage discovers source-relevant exclusions after the file cap', async (t) => {
+test('source graph coverage records exclusions without inventing a file-cap overflow', async (t) => {
   const root = await fixtureWorkspace(t, {
     'src/main.ts': 'export const main = true;\n',
     'vendor/legacy.py': 'POST_CAP_VENDOR_SENTINEL\n'
@@ -183,10 +183,11 @@ test('source graph coverage discovers source-relevant exclusions after the file 
 
   assert.equal(validateJsonSchema(previewSchema, preview).valid, true);
   assert.equal(coverage.status, 'partial');
-  assert.equal(coverage.maxFilesReached, true);
+  assert.equal(coverage.maxFilesReached, false);
   assert.equal(coverage.sourceRelevantExcludedDirectoryCount, 1);
   assert.deepEqual(coverage.sourceRelevantExcludedDirectoryLocators, ['workspace://vendor']);
   assert.ok(coverage.reasonCodes.includes('source_relevant_directory_excluded'));
+  assert.equal(coverage.reasonCodes.includes('max_files_reached'), false);
   assert.ok(preview.graph.diagnostics.some((item) => item.locator === 'workspace://vendor' && item.code === 'source_relevant_directory_excluded'));
   assert.equal(JSON.stringify(preview).includes('POST_CAP_VENDOR_SENTINEL'), false);
   assert.equal(JSON.stringify(preview).includes(root), false);
