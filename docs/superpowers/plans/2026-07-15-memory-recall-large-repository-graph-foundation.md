@@ -1026,7 +1026,7 @@ git commit -m "test: prove large repository graph performance"
 **Interfaces:**
 - Produces a clean, independently testable graph foundation for the UI plan.
 
-- [ ] **Step 1: Run all source, map, protocol, and consumer checks**
+- [x] **Step 1: Run all source, map, protocol, and consumer checks**
 
 ```bash
 npm run check
@@ -1038,7 +1038,7 @@ npm run consumer:smoke
 
 Expected: every command exits 0.
 
-- [ ] **Step 2: Confirm no security or side-effect drift**
+- [x] **Step 2: Confirm no security or side-effect drift**
 
 Inspect both generated and real-repository smoke JSON. Confirm:
 
@@ -1051,7 +1051,7 @@ graphDatabaseUsed = false
 protocolValid = true
 ```
 
-- [ ] **Step 3: Record the foundation checkpoint**
+- [x] **Step 3: Record the foundation checkpoint**
 
 ```bash
 git status --short
