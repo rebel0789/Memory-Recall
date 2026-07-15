@@ -281,6 +281,20 @@ test('product shell omits prohibited marketing and removed dashboard patterns', 
   }
 });
 
+test('visible web copy is factual and contains no intelligence theater', async () => {
+  const files = [
+    'apps/web/index.html', 'apps/web/app.js', 'apps/web/orientation-view.js',
+    'apps/web/source-map-view.js', 'apps/web/memory-graph-view.js'
+  ];
+  const source = (await Promise.all(files.map((file) => readFile(file, 'utf8')))).join('\n');
+  for (const phrase of [
+    'AI-powered', 'intelligent workspace', 'smart insights', 'magical', 'seamless',
+    'unlock', 'supercharge', 'revolutionary', 'next-generation', 'nervous system',
+    'mission control', 'command center', 'content intelligence'
+  ]) assert.doesNotMatch(source, new RegExp(phrase, 'iu'));
+  assert.doesNotMatch(source, /[✨🤖🪄]/u);
+});
+
 test('Recall Map home presents a repository-first daily Overview',()=>{
   const report={
     schemaVersion:'1.0.0',

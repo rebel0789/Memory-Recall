@@ -979,7 +979,7 @@ git commit -m "feat: simplify the governed memory graph"
 **Interfaces:**
 - Produces no new runtime interface; locks the canonical copy and visual constraints in tests.
 
-- [ ] **Step 1: Expand the prohibited-copy test**
+- [x] **Step 1: Expand the prohibited-copy test**
 
 In `tests/web-shell.test.mjs`, scan all web HTML/JS view files and assert that promotional terms are absent outside a small technical allowlist:
 
@@ -999,7 +999,7 @@ test('visible web copy is factual and contains no intelligence theater', async (
 });
 ```
 
-- [ ] **Step 2: Run the copy test and inventory failures**
+- [x] **Step 2: Run the copy test and inventory failures**
 
 Run:
 
@@ -1010,7 +1010,7 @@ rg -n -i '\b(ai|intelligent|intelligence|smart|magical|seamless|unlock|superchar
 
 Expected: any current visible violations, including `Content Intelligence`, are listed. Technical workflow IDs such as `workflow:content-intelligence` may remain internal and must not be renamed in this task.
 
-- [ ] **Step 3: Replace visible hype with object, state, reason, or action labels**
+- [x] **Step 3: Replace visible hype with object, state, reason, or action labels**
 
 Examples:
 
@@ -1024,7 +1024,7 @@ Run map -> Search map
 
 Keep technical IDs, compatibility URIs, model/provider settings, and explicit boundary statements where accurate. Do not replace precise language with vague synonyms.
 
-- [ ] **Step 4: Audit touched-route CSS mechanically**
+- [x] **Step 4: Audit touched-route CSS mechanically**
 
 Run:
 
@@ -1034,7 +1034,7 @@ rg -n 'gradient|backdrop-filter|filter:blur|box-shadow|border-radius:999|metric-
 
 For Overview, Map, and memory graph selectors, remove decorative shadows, pills, fixed empty height, nested rounded panels, and metric strips. Keep small status chips on untouched routes only when they communicate state.
 
-- [ ] **Step 5: Run copy and visual-contract unit tests**
+- [x] **Step 5: Run copy and visual-contract unit tests**
 
 Run:
 
