@@ -636,7 +636,7 @@ git commit -m "feat: project bounded repository orientation data"
 - `buildSourceGraphPreview(options)` adds optional `snapshotService` and `refresh = false`.
 - Snapshot identity is SHA-256 over canonical root, graph/parser version, ignore-rule fingerprint, and source-index fingerprint.
 
-- [ ] **Step 1: Write failing cache, concurrency, invalidation, and stale tests**
+- [x] **Step 1: Write failing cache, concurrency, invalidation, and stale tests**
 
 Create `tests/source-graph-snapshot-service.test.mjs` using an injected `buildGraph` counter and injected watcher:
 
@@ -745,7 +745,7 @@ function fixtureGraph() {
 
 Import `mkdtemp` and `rm` from `node:fs/promises`, plus `os` and `path`; the request root must be canonicalized by the service.
 
-- [ ] **Step 2: Run the service test and verify the missing module**
+- [x] **Step 2: Run the service test and verify the missing module**
 
 Run:
 
@@ -755,7 +755,7 @@ node --test tests/source-graph-snapshot-service.test.mjs
 
 Expected: FAIL with module-not-found for `snapshot-service.mjs`.
 
-- [ ] **Step 3: Implement the snapshot service**
+- [x] **Step 3: Implement the snapshot service**
 
 Create `snapshot-service.mjs` with one entry per canonical root plus graph options. Use `node:fs.watch` recursively by default. Relevant supported-source, `.gitignore`, and `.recallignore` events increment `dirtyGeneration`; ignored/cache/build output events do not. The service result shape is:
 
@@ -775,7 +775,7 @@ Use a `Map` of entries with `{ graph, identity, manifest, dirty, generation, inF
 
 The default watcher uses `fs.watch(root, { recursive: true })`. If recursive watching reports `ERR_FEATURE_UNAVAILABLE` or `ERR_INVALID_ARG_VALUE`, set `validationMode` to `metadata-scan`. The default bounded freshness probe stats the canonical root, safe file-node locators, every directory prefix derived from those locators, and `ignoreFileLocators`, capped by the existing 1,000-file/100-ignore-file bounds; sort `{ locator, size, mtimeMs }` tuples and hash them. Before returning a cached result in this mode, compare the manifest and mark dirty on change. This fallback may scan metadata but must not read source bodies or walk outside the canonical root.
 
-- [ ] **Step 4: Query the snapshot from the preview facade**
+- [x] **Step 4: Query the snapshot from the preview facade**
 
 In `buildSourceGraphPreview()`:
 
@@ -788,7 +788,7 @@ graph = snapshot.graph;
 
 Add a `snapshot` object to every preview response with `status`, `reuse`, `reason`, `generation`, `validationMode`, `buildDurationMs`, and `builtAt`. Define it as an optional additive field in the v1 schema so older valid producers remain readable. The unavailable response uses `{ status: 'unavailable', reuse: 'none', reason: code, generation: 0, validationMode: 'none', buildDurationMs: null, builtAt: null }`. The UI may label `metadata-scan` as a scan; it must not describe it as watcher-backed reuse.
 
-- [ ] **Step 5: Verify snapshot and facade behavior**
+- [x] **Step 5: Verify snapshot and facade behavior**
 
 Run:
 
@@ -799,7 +799,7 @@ npm run protocol:validate
 
 Expected: service, facade, and protocol tests pass.
 
-- [ ] **Step 6: Commit snapshot service**
+- [x] **Step 6: Commit snapshot service**
 
 ```bash
 git add packages/source-graph/src/snapshot-service.mjs packages/source-graph/src/index.mjs packages/protocol/schemas/source-graph-preview.schema.json examples/protocol/source-graph-preview.json tests/source-graph-snapshot-service.test.mjs tests/source-graph-preview.test.mjs

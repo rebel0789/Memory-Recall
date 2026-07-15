@@ -203,6 +203,15 @@
     "omittedNodes": 0,
     "omittedEdges": 0
   },
+  "snapshot": {
+    "status": "fresh",
+    "reuse": "cache",
+    "reason": null,
+    "generation": 1,
+    "validationMode": "watcher",
+    "buildDurationMs": 18,
+    "builtAt": "2026-06-23T00:00:00.000Z"
+  },
   "measurements": {
     "schemaVersion": "1.0.0",
     "measurementScope": "full graph nodes/edges/diagnostics versus delivered preview payload",

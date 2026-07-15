@@ -16,6 +16,7 @@
     "impact": { "$ref": "#/$defs/impactResult" },
     "orientation": { "$ref": "#/$defs/orientation" },
     "focus": { "$ref": "#/$defs/focus" },
+    "snapshot": { "$ref": "#/$defs/snapshot" },
     "measurements": { "$ref": "#/$defs/measurements" },
     "safeguards": { "$ref": "#/$defs/safeguards" }
   },
@@ -114,6 +115,20 @@
         "edges": { "type": "array", "maxItems": 400, "items": { "$ref": "#/$defs/edge" } },
         "omittedNodes": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
         "omittedEdges": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reuse", "reason", "generation", "validationMode", "buildDurationMs", "builtAt"],
+      "properties": {
+        "status": { "enum": ["fresh", "stale", "unavailable"] },
+        "reuse": { "enum": ["cold", "cache", "inflight", "none"] },
+        "reason": { "type": ["string", "null"], "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_:-]*$" },
+        "generation": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "validationMode": { "enum": ["watcher", "metadata-scan", "none"] },
+        "buildDurationMs": { "type": ["number", "null"], "minimum": 0, "maximum": 3600000 },
+        "builtAt": { "type": ["string", "null"], "format": "date-time" }
       }
     },
     "summary": {

@@ -16,6 +16,7 @@ import {
 import { buildSourceGraphFocus, buildSourceGraphOrientation } from './orientation.mjs';
 
 export { buildSourceGraphFocus, buildSourceGraphOrientation };
+export { createSourceGraphSnapshotService } from './snapshot-service.mjs';
 
 const PREVIEW_VERSION = 'oaf-source-graph-preview-1.0.0';
 export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 512 * 1024;
@@ -43,6 +44,8 @@ export async function buildSourceGraphPreview({
   sampleLimit = 12,
   maxFiles = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   maxFileBytes = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+  snapshotService = null,
+  refresh = false,
   clock = () => new Date().toISOString()
 } = {}) {
   if (typeof root !== 'string' || !root) throw new Error('source_graph_preview_root_required');
@@ -61,14 +64,33 @@ export async function buildSourceGraphPreview({
 
   const generatedAt = clock();
   let graph;
+  let snapshot;
   try {
-    graph = await buildJsTsSourceGraph({
-      root,
-      workspaceId: safeWorkspaceId,
-      maxFiles: boundedMaxFiles,
-      maxFileBytes: boundedMaxFileBytes,
-      clock: () => generatedAt
-    });
+    snapshot = snapshotService
+      ? await snapshotService.getSnapshot({
+          root,
+          workspaceId: safeWorkspaceId,
+          maxFiles: boundedMaxFiles,
+          maxFileBytes: boundedMaxFileBytes,
+          refresh: Boolean(refresh)
+        })
+      : {
+          graph: await buildJsTsSourceGraph({
+            root,
+            workspaceId: safeWorkspaceId,
+            maxFiles: boundedMaxFiles,
+            maxFileBytes: boundedMaxFileBytes,
+            clock: () => generatedAt
+          }),
+          status: 'fresh',
+          reuse: 'cold',
+          reason: null,
+          generation: 0,
+          validationMode: 'none',
+          buildDurationMs: null,
+          builtAt: generatedAt
+        };
+    graph = snapshot.graph;
     assertFacadeSafeSourceGraph(graph);
   } catch (error) {
     return unavailableSourceGraphPreview({
@@ -148,7 +170,8 @@ export async function buildSourceGraphPreview({
     impact,
     orientation,
     focus,
-    measurements: sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact, orientation, focus }),
+    snapshot: sourceGraphPreviewSnapshot(snapshot),
+    measurements: sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact, orientation, focus, snapshot }),
     safeguards: {
       dryRun: true,
       persisted: false,
@@ -286,6 +309,15 @@ function unavailableSourceGraphPreview({
     omittedNodes: 0,
     omittedEdges: 0
   });
+  const unavailableSnapshot = Object.freeze({
+    status: 'unavailable',
+    reuse: 'none',
+    reason: code,
+    generation: 0,
+    validationMode: 'none',
+    buildDurationMs: null,
+    builtAt: null
+  });
   return Object.freeze({
     schemaVersion: '1.0.0',
     previewVersion: PREVIEW_VERSION,
@@ -297,6 +329,7 @@ function unavailableSourceGraphPreview({
     impact,
     orientation: Object.freeze({ groups: Object.freeze([]), relations: Object.freeze([]) }),
     focus: Object.freeze({ nodeLimit: 200, edgeLimit: 400, nodes: Object.freeze([]), edges: Object.freeze([]), omittedNodes: 0, omittedEdges: 0 }),
+    snapshot: unavailableSnapshot,
     measurements: sourceGraphPreviewMeasurements({
       graph: null,
       compact,
@@ -304,19 +337,20 @@ function unavailableSourceGraphPreview({
       trace: null,
       impact,
       orientation: { groups: [], relations: [] },
-      focus: { nodeLimit: 200, edgeLimit: 400, nodes: [], edges: [], omittedNodes: 0, omittedEdges: 0 }
+      focus: { nodeLimit: 200, edgeLimit: 400, nodes: [], edges: [], omittedNodes: 0, omittedEdges: 0 },
+      snapshot: unavailableSnapshot
     }),
     safeguards: sourceGraphPreviewSafeguards()
   });
 }
 
-function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact, orientation, focus }) {
+function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact, orientation, focus, snapshot }) {
   const fullGraphTokenEstimate = graph ? estimateTokens(JSON.stringify({
     nodes: graph.nodes,
     edges: graph.edges,
     diagnostics: graph.diagnostics
   })) : 0;
-  const deliveredTokenEstimate = estimateTokens(JSON.stringify({ graph: compact, search, trace, impact, orientation, focus }));
+  const deliveredTokenEstimate = estimateTokens(JSON.stringify({ graph: compact, search, trace, impact, orientation, focus, snapshot: sourceGraphPreviewSnapshot(snapshot) }));
   const omittedTokenEstimate = Math.max(0, fullGraphTokenEstimate - deliveredTokenEstimate);
   return Object.freeze({
     schemaVersion: '1.0.0',
@@ -327,6 +361,26 @@ function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact,
     reductionPercent: fullGraphTokenEstimate ? Number(((omittedTokenEstimate / fullGraphTokenEstimate) * 100).toFixed(2)) : 0,
     sourceContentIncluded: false,
     providerBillingClaimed: false
+  });
+}
+
+function sourceGraphPreviewSnapshot(snapshot) {
+  const status = ['fresh', 'stale'].includes(snapshot?.status) ? snapshot.status : 'unavailable';
+  const reuse = ['cold', 'cache', 'inflight'].includes(snapshot?.reuse) ? snapshot.reuse : 'none';
+  const validationMode = ['watcher', 'metadata-scan'].includes(snapshot?.validationMode) ? snapshot.validationMode : 'none';
+  const generation = Number.isInteger(snapshot?.generation) && snapshot.generation >= 0 ? snapshot.generation : 0;
+  const buildDurationMs = Number.isFinite(snapshot?.buildDurationMs) && snapshot.buildDurationMs >= 0
+    ? snapshot.buildDurationMs
+    : null;
+  const builtAt = snapshot?.builtAt && !Number.isNaN(Date.parse(snapshot.builtAt)) ? snapshot.builtAt : null;
+  return Object.freeze({
+    status,
+    reuse,
+    reason: snapshot?.reason ? safeDiagnosticCode(snapshot.reason) : null,
+    generation,
+    validationMode,
+    buildDurationMs,
+    builtAt
   });
 }
 
