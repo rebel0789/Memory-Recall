@@ -862,7 +862,7 @@ git commit -m "feat: add bounded interactive Map graph"
 - Produces: `bindMemoryGraph(root, handlers): () => void`.
 - Reuses `graph-viewport.js` and `graph-layout-worker.js` from Task 5.
 
-- [ ] **Step 1: Write failing empty and populated tests**
+- [x] **Step 1: Write failing empty and populated tests**
 
 Create `tests/web-memory-graph.test.mjs`:
 
@@ -926,7 +926,7 @@ function memoryGraphFixture({ nodes, edges } = {}) {
 }
 ```
 
-- [ ] **Step 2: Run tests and verify current empty-canvas behavior**
+- [x] **Step 2: Run tests and verify current empty-canvas behavior**
 
 Run:
 
@@ -936,19 +936,19 @@ node --test tests/web-memory-graph.test.mjs
 
 Expected: FAIL because the current renderer always emits metrics and a fixed canvas.
 
-- [ ] **Step 3: Implement empty, populated, and selected states**
+- [x] **Step 3: Implement empty, populated, and selected states**
 
 Empty state shows workspace/provider check, read-only state, and one factual next action. Populated state uses compact search/history controls, a real bounded canvas, an always-present outline, and one inspector. Replace `Community colors` with `Group related facts`; status labels include text such as `Current`, `Superseded`, and `Historical` so color is never the only channel.
 
-- [ ] **Step 4: Remove old memory layout and delegate from `app.js`**
+- [x] **Step 4: Remove old memory layout and delegate from `app.js`**
 
 Delete `layoutMemoryGraph()` and `drawMemoryGraphCanvas()` from `app.js`. Delegate rendering and binding to `memory-graph-view.js`. Reuse the worker; do not create a second layout implementation. Keep proposal approval exclusively on the Memory review route.
 
-- [ ] **Step 5: Remove fixed empty-canvas styling**
+- [x] **Step 5: Remove fixed empty-canvas styling**
 
 Replace `.memory-graph-canvas-wrap{height:clamp(...)}` with a populated-only aspect/viewport rule and no minimum height in the empty state. Remove the four-column metric strip and legend pills from this route. Preserve dark/light contrast with current tokens.
 
-- [ ] **Step 6: Verify memory and shell tests**
+- [x] **Step 6: Verify memory and shell tests**
 
 Run:
 

@@ -30,7 +30,6 @@ import {
   authFailureTransition,
   normalizeRecallMapGitChanges,
   buildMemoryCockpitModel,
-  buildMemoryGraphModel,
   buildMemoryReviewModel,
   buildPinnedHandoffStatusModel,
   canReceivePinnedHandoff,
@@ -48,7 +47,6 @@ import {
   safeEventSummary,
   selectContextPackPinPayload,
   renderMemoryCockpit,
-  renderMemoryGraph,
   renderLoopWorkbenchMemoryFlow,
   renderSetupScreen,
   renderContextPackTokenSaverSummary,
@@ -62,6 +60,7 @@ import {
   writeClipboardText
 } from '../apps/web/app.js';
 import { parseMapUrl, renderSourceMap } from '../apps/web/source-map-view.js';
+import { buildMemoryGraphViewModel, renderMemoryGraphView } from '../apps/web/memory-graph-view.js';
 
 test('web API and UI primitives are focused modules', async () => {
   const apiSource = await readFile(new URL('../apps/web/api.js', import.meta.url), 'utf8');
@@ -632,18 +631,18 @@ test('memory graph route renders governed graph canvas controls', async () => {
     safeguards: { readOnly: true, networkCalls: 0, modelCalls: 0, externalWritesEnabled: false },
     reportFingerprint: 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
   };
-  const model = buildMemoryGraphModel(report);
-  const html = renderMemoryGraph(report, { history: true, query: 'provider', communities: true });
+  const model = buildMemoryGraphViewModel(report, { history: true, query: '', communities: true });
+  const html = renderMemoryGraphView(model);
   const source = await readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8');
   assert.equal(model.summary.edgeCount, 2);
   assert.equal(model.nodes.some((node) => node.governedDecision), true);
   assert.match(html, /id="memory-graph-canvas"/);
   assert.match(html, /id="memory-graph-history"/);
   assert.match(html, /id="memory-graph-communities"/);
+  assert.match(html, /Group related facts/);
   assert.match(html, /provider:native:memory:sqlite/);
   assert.match(html, /legacy-view/);
-  assert.match(html, /Current facts/);
-  assert.match(html, /History facts/);
+  assert.match(html, /Fact history/);
   assert.match(html, /Superseded/);
   assert.match(html, /Provenance/);
   assert.match(html, /Valid from/);
