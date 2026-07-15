@@ -63,7 +63,7 @@ export const OAF_MCP_TOKEN_SAVER_BINARY_ARGS = Object.freeze(['mcp', 'server', '
 const OAF_HOOK_CONTEXT_COMMAND = 'oaf hook context --read-only --format text';
 const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
 const OAF_CHECKOUT_ARG_PREFIX = Object.freeze(['--silent', 'run', 'oaf', '--']);
-export const REALISTIC_SAVINGS_OBJECTIVE = 'Prove MCP memory token savings on Open Agent Fabric coding-agent work';
+export const REALISTIC_SAVINGS_OBJECTIVE = 'Prove MCP memory token savings on Memory Recall coding-agent work';
 export const REALISTIC_SAVINGS_STEP = 'Compare context.profile delivery with naive candidate file and git history body resend';
 
 const DEFAULT_MAX_BYTES = 65_536;

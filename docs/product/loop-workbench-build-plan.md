@@ -137,7 +137,7 @@ Definition of Done · Hard boundaries · Attach prompt.**
   no command outside the plan's `validationCommands`.
 - **Attach prompt:**
   ```text
-  You are working in Open Agent Fabric. Obey the Unattended Run Rules in
+  You are working in Memory Recall. Obey the Unattended Run Rules in
   docs/product/loop-workbench-build-plan.md. Base on the merged Slice-1 branch;
   create a worktree codex/loop-workbench-slice-2.
 
@@ -177,7 +177,7 @@ Definition of Done · Hard boundaries · Attach prompt.**
   the plan's `maxIterations`), no external writes, no network in replay.
 - **Attach prompt:**
   ```text
-  You are working in Open Agent Fabric. Obey the Unattended Run Rules in
+  You are working in Memory Recall. Obey the Unattended Run Rules in
   docs/product/loop-workbench-build-plan.md. Base on merged Slice-2; worktree
   codex/loop-workbench-slice-3.
 
@@ -213,7 +213,7 @@ Definition of Done · Hard boundaries · Attach prompt.**
   approval, no silent cloud fallback, scheduling is opt-in.
 - **Attach prompt:**
   ```text
-  You are working in Open Agent Fabric. Obey the Unattended Run Rules in
+  You are working in Memory Recall. Obey the Unattended Run Rules in
   docs/product/loop-workbench-build-plan.md. Base on merged Slice-3; worktree
   codex/loop-workbench-slice-4.
 
@@ -244,7 +244,7 @@ Definition of Done · Hard boundaries · Attach prompt.**
   per the bootstrap profile; no write actions beyond existing approved paths.
 - **Attach prompt:**
   ```text
-  You are working in Open Agent Fabric. Obey the Unattended Run Rules in
+  You are working in Memory Recall. Obey the Unattended Run Rules in
   docs/product/loop-workbench-build-plan.md. Base on merged Slice-4; worktree
   codex/loop-workbench-slice-5.
 

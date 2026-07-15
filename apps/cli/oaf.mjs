@@ -306,7 +306,7 @@ async function runMemoryLoopDemo({ provider, workspaceId, root, generatedAt, inc
     scope: 'workspace',
     sourceLocator: 'workspace://docs/product/loop-workbench-build-plan.md',
     observedAt: generatedAt,
-    text: 'project:oaf memory_loop connected.'
+    text: 'project:memory-recall memory_loop connected.'
   });
   const claimed = await provider.claimProposal({
     workspaceId,
@@ -452,7 +452,7 @@ async function seedContradictingMemoryLoopFact({ provider, workspaceId, generate
     workspaceId,
     sourceLocator: 'workspace://docs/product/loop-workbench-build-plan.md',
     sourceHash: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
-    payload: { kind: 'fact', scope: 'workspace', subject: 'project:oaf', predicate: 'memory_loop', object: 'disconnected', text: 'project:oaf memory_loop disconnected', observedAt: previousAt }
+    payload: { kind: 'fact', scope: 'workspace', subject: 'project:memory-recall', predicate: 'memory_loop', object: 'disconnected', text: 'project:memory-recall memory_loop disconnected', observedAt: previousAt }
   });
   await provider.claimProposal({
     workspaceId,
@@ -470,10 +470,10 @@ async function seedContradictingMemoryLoopFact({ provider, workspaceId, generate
     id: 'memfact_demo_memory_loop_previous',
     workspaceId,
     scope: 'workspace',
-    subject: 'project:oaf',
+    subject: 'project:memory-recall',
     predicate: 'memory_loop',
     object: 'disconnected',
-    text: 'project:oaf memory_loop disconnected',
+    text: 'project:memory-recall memory_loop disconnected',
     source: 'workspace://docs/product/loop-workbench-build-plan.md',
     proposalQueueId: proposal.id,
     validFrom: previousAt,
@@ -534,7 +534,7 @@ function buildProfileSavingsSummary({ profile, command, workspaceId, generatedAt
       basis: 'accepted history records before compressed profile selection'
     },
     compressed: {
-      label: 'OAF compressed profile delivery estimate',
+      label: 'Memory Recall compressed profile delivery estimate',
       deliveryTokens: afterDeliveryTokens,
       profileTokens: Math.max(0, Math.trunc(Number(profile.contextBudget.profileTokens ?? 0))),
       retrievedContextTokens: Math.max(0, Math.trunc(Number(profile.contextBudget.retrievedContextTokens ?? 0))),
@@ -4627,7 +4627,7 @@ function normalizeTemporalCase(item, index) {
   if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('bench temporal case must be an object');
   const id = String(item.id ?? `case_${index + 1}`);
   const question = String(item.question ?? '').trim();
-  const subject = String(item.subject ?? 'project:oaf').trim();
+  const subject = String(item.subject ?? 'project:memory-recall').trim();
   const predicate = String(item.predicate ?? '').trim();
   const timeline = Array.isArray(item.timeline) ? item.timeline.map((point) => ({
     at: String(point.at ?? '').trim(),
@@ -10731,7 +10731,6 @@ function renderHelpText(text) {
   const command = helpCommandName();
   if (command === 'oaf') return text;
   return text
-    .replaceAll('Open Agent Fabric CLI', 'Memory Recall CLI')
     .replace(
       /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|map|semantic|handoff|token-saver|context|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
       `${command} `
@@ -10745,7 +10744,7 @@ function help(topic, subtopic) {
     return;
   }
 
-  console.log(renderHelpText(`Open Agent Fabric CLI
+  console.log(renderHelpText(`Memory Recall CLI
 
 Usage:
   oaf status
@@ -10823,11 +10822,11 @@ Usage:
   oaf memory proposals --records memory-export.json --root . --dry-run --format json
   oaf memory proposals --from memoryPaths --config oaf.memory.json --root . --dry-run --format json
   oaf memory sgrep "context manifest" --records memory-export.json --workspace ws_local --dry-run --format json
-  oaf memory fact add --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --object release-candidate --text "OAF release status is release-candidate." --source workspace://memory/status.md --proposal mpq_status --episode-id mep_status --episode-source workspace://memory/status.md --episode-summary "Reviewed status note." --format json
-  oaf memory fact get --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --at 2026-06-26T00:00:00.000Z --format json
-  oaf memory fact history --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:oaf --predicate release_status --format json
+  oaf memory fact add --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:memory-recall --predicate release_status --object release-candidate --text "Memory Recall release status is release-candidate." --source workspace://memory/status.md --proposal mpq_status --episode-id mep_status --episode-source workspace://memory/status.md --episode-summary "Reviewed status note." --format json
+  oaf memory fact get --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:memory-recall --predicate release_status --at 2026-06-26T00:00:00.000Z --format json
+  oaf memory fact history --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --subject project:memory-recall --predicate release_status --format json
   oaf memory search "release" --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --format json
-  oaf memory path --root . --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --from project:oaf --to temporal-memory --max-hops 6 --format json
+  oaf memory path --root . --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --from project:memory-recall --to temporal-memory --max-hops 6 --format json
   oaf memory explain --root . --sqlite .local/memory.sqlite --workspace ws_local --scope workspace --entity auth --depth 1 --format json
   oaf mcp inspect --read-only --root . --format json
   oaf mcp resources --read-only --workspace ws_local --format json
@@ -10859,7 +10858,7 @@ The default bootstrap is local-only and enables no external writes.`));
 function helpTopic(topic, subtopic) {
   const key = [topic, subtopic].filter(Boolean).join(' ');
   const topics = new Map([
-    ['setup', `Open Agent Fabric CLI: setup
+    ['setup', `Memory Recall CLI: setup
 
 Usage:
   oaf setup
@@ -10874,7 +10873,7 @@ Run the explicit first read-only map next:
 Use harness setup for client wiring previews:
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client codex --server oaf --dry-run --format json`],
-    ['map', `Open Agent Fabric CLI: map
+    ['map', `Memory Recall CLI: map
 
 Usage:
   oaf map --root . --sqlite .local/memory.sqlite --format summary
@@ -10893,7 +10892,7 @@ Builds a bounded local repository map from the implemented JS/TS static graph
 and the governed local SQLite memory store. It does not write files, call
 models, use network access, enable external adapters, or expose raw source
 bodies.`],
-    ['semantic', `Open Agent Fabric CLI: semantic
+    ['semantic', `Memory Recall CLI: semantic
 
 Usage:
   oaf semantic plan --harness codex --root . --dry-run
@@ -10906,7 +10905,7 @@ Plan emits a body-free JSON report and task emits only the bounded raw harness
 task. Import reads one workspace-relative JSON result. Run performs exactly one
 explicitly consented model request. Import and run normalize untrusted results
 into pending SQLite proposals only; neither command creates active memory.`],
-    ['connect', `Open Agent Fabric CLI: connect
+    ['connect', `Memory Recall CLI: connect
 
 Usage:
   oaf connect codex --dry-run --format json
@@ -10917,7 +10916,7 @@ Previews or applies local harness client configuration through the governed
 connection wrapper. It is dry-run by default. --yes writes only the local
 harness client config for the selected agent; it does not enable external
 writes, grant authority, activate memory, or call models.`],
-    ['disconnect', `Open Agent Fabric CLI: disconnect
+    ['disconnect', `Memory Recall CLI: disconnect
 
 Usage:
   oaf disconnect codex --dry-run --format json
@@ -10927,7 +10926,7 @@ Previews or applies removal of local OAF harness client configuration through
 the governed connection wrapper. It is dry-run by default. --yes removes only
 matching local harness config entries; it does not touch project state, memory,
 models, or external services.`],
-    ['harness setup', `Open Agent Fabric CLI: harness setup
+    ['harness setup', `Memory Recall CLI: harness setup
 
 Usage:
   oaf harness setup status --client codex --dry-run --format json
@@ -10937,7 +10936,7 @@ Usage:
 Builds dry-run reports for local harness client wiring. This command is preview
 only: it requires --dry-run, does not mutate home config, does not write local
 files, does not grant authority, and does not enable external writes.`],
-    ['context', `Open Agent Fabric CLI: context
+    ['context', `Memory Recall CLI: context
 
 Usage:
   oaf handoff
@@ -10956,7 +10955,7 @@ Context commands select local handoff context, preview harness inputs, and read
 pinned context-pack state. Graph preview is dry-run only. Read-only commands do
 not write files, call models, use network access, or expose raw source bodies.
 Retrieve summary verifies locator/hash metadata without printing file content.`],
-    ['graph', `Open Agent Fabric CLI: graph
+    ['graph', `Memory Recall CLI: graph
 
 Usage:
   oaf graph stats --root . --format summary
@@ -10969,7 +10968,7 @@ Graph commands build a bounded local JS/TS source graph and return locator-only
 stats, search, trace, or changed-file impact reports. They are read-only by default:
 no files are written, no model calls are made, no network calls are made, and
 raw source bodies are not included.`],
-    ['context handoff', `Open Agent Fabric CLI: context handoff
+    ['context handoff', `Memory Recall CLI: context handoff
 
 Usage:
   oaf handoff
@@ -10989,7 +10988,7 @@ Builds a read-only local agent handoff with context-pack proof, MCP readback,
 harness setup dry-run status, and zero-tool MCP proof. It requires --read-only
 and does not write files, import harness history, call models, use network
 access, or expose raw source bodies.`],
-    ['handoff', `Open Agent Fabric CLI: handoff
+    ['handoff', `Memory Recall CLI: handoff
 
 Usage:
   oaf handoff
@@ -11000,7 +10999,7 @@ Runs the read-only context handoff flow. With no flags it defaults to a compact
 Codex summary for the current repository and local git changes. It does not
 write files, import harness history, call models, use network access, enable
 external adapters, create active memory, or expose raw source bodies.`],
-    ['token-saver', `Open Agent Fabric CLI: token-saver
+    ['token-saver', `Memory Recall CLI: token-saver
 
 Usage:
   oaf token-saver
@@ -11012,7 +11011,7 @@ Runs the read-only context-pack measurement flow. With no flags it measures the
 current repository and local git changes. It does not write files, call models,
 use network access, enable external adapters, include raw source bodies, or
 claim provider billing-token savings.`],
-    ['context receive', `Open Agent Fabric CLI: context receive
+    ['context receive', `Memory Recall CLI: context receive
 
 Usage:
   oaf context receive --read-only --root . --target codex --format json
@@ -11023,7 +11022,7 @@ without rebuilding or writing files. JSON returns the versioned receiver packet;
 summary prints state, recipient proof, packet parts, required reads, and report
 fingerprint. It rejects task text, write flags, MCP stdio mode, raw Markdown
 bodies, source bodies, credentials, provider URLs, and absolute local paths.`],
-    ['context registry', `Open Agent Fabric CLI: context registry
+    ['context registry', `Memory Recall CLI: context registry
 
 Usage:
   oaf context registry status --read-only --format json
@@ -11032,7 +11031,7 @@ Reads the pinned local context-pack registry and verifies the current pointer,
 artifact hashes, and source hashes. It requires --read-only and does not rebuild
 packs, write artifacts, call models, use network access, or expose raw source
 bodies.`],
-    ['skill', `Open Agent Fabric CLI: skill
+    ['skill', `Memory Recall CLI: skill
 
 Usage:
   oaf skill catalog --read-only --root . --format json
@@ -11042,7 +11041,7 @@ Usage:
 
 Skill commands inspect local OAF skill manifests. They do not grant tool
 authority or load raw skill text into the report.`],
-    ['skill catalog', `Open Agent Fabric CLI: skill catalog
+    ['skill catalog', `Memory Recall CLI: skill catalog
 
 Usage:
   oaf skill catalog --read-only --root . --format json
@@ -11053,7 +11052,7 @@ catalog/report fingerprints for workspace skills. It requires --read-only and
 does not include raw skill text, expose absolute filesystem paths, grant tool
 authority, start MCP stdio, call models, use network access, or write local
 files.`],
-    ['skill load-plan', `Open Agent Fabric CLI: skill load-plan
+    ['skill load-plan', `Memory Recall CLI: skill load-plan
 
 Usage:
   oaf skill load-plan --read-only --root . --id skill:oaf-memory --format json
@@ -11063,7 +11062,7 @@ Returns the ordered local reads for one skill: manifest, SKILL.md, and declared
 references. It requires --read-only and does not include raw skill text, grant
 tool authority, start MCP stdio, call models, use network access, or write local
 files.`],
-    ['measure', `Open Agent Fabric CLI: measure
+    ['measure', `Memory Recall CLI: measure
 
 Usage:
   oaf measure savings --read-only --root . --objective "Ship safely" --step "measure savings" --format json
@@ -11072,7 +11071,7 @@ Usage:
 Measure commands emit local evidence about context delivery. They do not claim
 provider billing savings, call models, use network access, or perform external
 writes.`],
-    ['measure context-pack', `Open Agent Fabric CLI: measure context-pack
+    ['measure context-pack', `Memory Recall CLI: measure context-pack
 
 Usage:
   oaf measure context-pack --read-only --root . --from codex --objective "Ship safely" --step "impact brief" --target codex --changed src/auth.ts --format json
@@ -11082,7 +11081,7 @@ Measures the same read-only context-pack path used for handoff: selected and
 delivered token estimates, changed-file coverage, MCP readback, timings, and
 safeguards. It requires --read-only and does not include raw source bodies,
 call models, use network access, or write local files.`],
-    ['mcp', `Open Agent Fabric CLI: mcp
+    ['mcp', `Memory Recall CLI: mcp
 
 Usage:
   oaf mcp inspect --read-only --root . --format json
@@ -11102,7 +11101,7 @@ preview install plans, or report delivery stats. Resource summaries require
 --uri and do not dump full resource bodies. Resource/server paths require
 --read-only; install remains dry-run unless explicitly confirmed by the install
 flow.`],
-    ['memory refine', `Open Agent Fabric CLI: memory refine
+    ['memory refine', `Memory Recall CLI: memory refine
 
 Usage:
   oaf memory refine --read-only --root . --sqlite .local/memory.sqlite --format json

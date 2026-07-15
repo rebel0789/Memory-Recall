@@ -63,7 +63,7 @@ for (const file of files) {
 
 const manifest = {
   schemaVersion: '1.0.0',
-  project: 'open-agent-fabric',
+  project: 'memory-recall',
   generatedAt: new Date().toISOString(),
   fileCount: records.length,
   totalBytes: records.reduce((sum, item) => sum + item.bytes, 0),

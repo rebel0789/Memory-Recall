@@ -1,14 +1,14 @@
 # Maintainers
 
-Open Agent Fabric is currently maintainer-led by the repository owner:
+Memory Recall is currently maintainer-led by the repository owner:
 
 - GitHub owner: `@rebel0789`
-- Repository: <https://github.com/rebel0789/open-agent-fabric>
+- Repository: <https://github.com/rebel0789/Memory-Recall>
 
 ## Security and Conduct
 
 Use private GitHub Security Advisories for suspected vulnerabilities:
-<https://github.com/rebel0789/open-agent-fabric/security/advisories/new>
+<https://github.com/rebel0789/Memory-Recall/security/advisories/new>
 
 Use GitHub Discussions and Issues for community support and conduct escalation.
 Do not publish private security or conduct reports in public issues.

@@ -5,7 +5,7 @@
 
 ## Context
 
-Open Agent Fabric needs long workflow state to survive local process death
+Memory Recall needs long workflow state to survive local process death
 without requiring a hosted service, third-party workflow server, network, or
 runtime dependency. The embedded workflow runtime is useful for fast tests and
 demo compatibility, but JavaScript closures, pending promises, and captured

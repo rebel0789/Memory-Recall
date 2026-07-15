@@ -28,10 +28,10 @@ try {
   await writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchSmoke(){ return "ready"; }\n');
   await writeFile(path.join(workspace, 'src', 'huge.js'), Array.from({ length: 500 }, (_, index) => `export function helper${index}(){ return "local proof ${index}"; }`).join('\n'));
   await mkdir(path.join(workspace, 'memory'), { recursive: true });
-  await writeFile(path.join(workspace, 'memory', 'status.md'), 'Decision: project:oaf release_status ready supersedes draft.');
+  await writeFile(path.join(workspace, 'memory', 'status.md'), 'Decision: project:memory-recall release_status ready supersedes draft.');
   await writeFile(path.join(workspace, '.gitignore'), '.local/\n');
-  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:oaf', '--predicate', 'release_status', '--object', 'draft', '--source', 'workspace://memory/status.md', '--format', 'json']);
-  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:oaf', '--predicate', 'release_status', '--object', 'ready', '--supersedes-subject', 'project:oaf', '--supersedes-predicate', 'release_status', '--source', 'workspace://memory/status.md', '--format', 'json']);
+  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:memory-recall', '--predicate', 'release_status', '--object', 'draft', '--source', 'workspace://memory/status.md', '--format', 'json']);
+  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:memory-recall', '--predicate', 'release_status', '--object', 'ready', '--supersedes-subject', 'project:memory-recall', '--supersedes-predicate', 'release_status', '--source', 'workspace://memory/status.md', '--format', 'json']);
   run('git', ['init'], workspace);
   run('git', ['config', 'user.email', 'browser-smoke@example.invalid'], workspace);
   run('git', ['config', 'user.name', 'Browser Smoke'], workspace);
@@ -266,7 +266,7 @@ try {
   await waitForText(page, 'Review queue');
   await waitForText(page, 'Add memory');
   await page.screenshot({ path: path.join(screenshots, 'memory-desktop-1440.png'), fullPage: true });
-  await page.fill('#memory-intake-form textarea[name="text"]', 'Fact: project:oaf consumer_browser_smoke rendered.');
+  await page.fill('#memory-intake-form textarea[name="text"]', 'Fact: project:memory-recall consumer_browser_smoke rendered.');
   await page.locator('#memory-intake-form button[value="preview"]').click();
   await waitForText(page, '1 proposal');
   await waitForText(page, '0 active memory created');
@@ -274,10 +274,10 @@ try {
   await page.goto(`${base}/memory-graph`, { waitUntil: 'domcontentloaded' });
   await waitForText(page, 'Governed knowledge graph');
   await waitForText(page, 'Current facts');
-  await waitForText(page, 'project:oaf release_status ready');
+  await waitForText(page, 'project:memory-recall release_status ready');
   await page.locator('#memory-graph-history').check();
   await waitForText(page, 'Superseded');
-  await waitForText(page, 'project:oaf release_status draft');
+  await waitForText(page, 'project:memory-recall release_status draft');
   await waitForText(page, 'Provenance workspace://memory/status.md');
 
   await page.locator('a[href="/map"][data-route="source-graph"]').first().click();

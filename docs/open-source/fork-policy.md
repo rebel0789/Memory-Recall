@@ -1,6 +1,6 @@
 # Fork Policy
 
-Open Agent Fabric prefers upstream contribution, then adapters, then a small reviewed patch layer. A maintained fork is the last option.
+Memory Recall prefers upstream contribution, then adapters, then a small reviewed patch layer. A maintained fork is the last option.
 
 ## Required RFC evidence
 

@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Open Agent Fabric Bootstrap API
+  title: Memory Recall Bootstrap API
   version: 0.2.0-dev
   description: >-
     Implemented dependency-free local bootstrap API. OAF-007 adds strict

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-06-19
-- Decision owners: Open Agent Fabric maintainers
+- Decision owners: Memory Recall maintainers
 
 ## Context
 

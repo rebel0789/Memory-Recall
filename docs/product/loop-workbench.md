@@ -1,6 +1,6 @@
 # Loop Workbench
 
-Loop Workbench is Open Agent Fabric's native **loop-engineering** surface. It is
+Loop Workbench is Memory Recall's native **loop-engineering** surface. It is
 how a developer designs, runs, observes, and improves the feedback loops that let
 a coding agent do real work — safely, cheaply, and with proof of what happened.
 

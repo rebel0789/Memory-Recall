@@ -1,10 +1,10 @@
 # Assignment Brief for the Development Agent
 
-You are receiving an agent-ready development kit for **Open Agent Fabric 0.2.0-dev**. Evolve it through small verified changes. Do not rebuild the architecture from scratch and never claim that specified components already exist.
+You are working on **Memory Recall 1.1.0**, currently an unreleased release candidate. Evolve it through small verified changes. Do not rebuild the architecture from scratch and never claim that specified capabilities already exist.
 
 ## Mission
 
-Build the complete local-first reliability and context tool for agents whose state, actions, evidence, memory, source understanding, workflows, permissions, and improvements are portable and inspectable.
+Build the local-first repository memory and context tool that gives coding agents reviewed facts, source-backed context, changed-file impact, and inspectable handoffs without making a hosted service the system of record.
 
 ## First session
 
@@ -40,7 +40,7 @@ or external adapters unless the active task explicitly requires it.
 
 ## Product differentiator
 
-Open Agent Fabric does not win by bundling repositories or outsourcing its core product behavior. It owns:
+Memory Recall does not win by bundling repositories or outsourcing its core product behavior. It owns:
 
 - intentional context selection and context manifests;
 - source graph, retrieval, compaction, and code intelligence for the default local experience;
@@ -83,4 +83,4 @@ Safest next task:
 
 ## Product success
 
-A contributor can run one useful local workflow, inspect exactly what context and evidence it used, replay it without side effects, replace a model or backend without losing portable state, and understand every consequential action before it occurs.
+A contributor can install Memory Recall in another repository, produce a useful read-only map and handoff, inspect exactly which context and evidence it selected, and review every memory proposal before it becomes active.

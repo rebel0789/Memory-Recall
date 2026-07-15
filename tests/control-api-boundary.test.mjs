@@ -106,7 +106,8 @@ test('cli serve inspects the repository it is launched from', async (t) => {
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  assert.match(output, /Open Agent Fabric local bootstrap/);
+  assert.match(output, /Memory Recall local workspace/);
+  assert.doesNotMatch(output, /Open Agent Fabric/);
   const bootstrap = await fetch(`${base}/api/auth/bootstrap`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: base },

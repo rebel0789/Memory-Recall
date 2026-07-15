@@ -2,7 +2,7 @@
 
 ## Mission
 
-Develop Open Agent Fabric into the complete local-first, model-neutral tool for inspectable agents. Optimize for correctness, evidence, portability, and safe evolution, not feature count or autonomous behavior.
+Develop Memory Recall into the local-first, model-neutral repository memory and context tool for coding agents. Optimize for correctness, evidence, portability, and safe evolution, not feature count or autonomous behavior.
 
 ## Read order before changing code
 
@@ -67,7 +67,7 @@ npm run ci
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues for `rebel0789/open-agent-fabric`; local markdown under `.scratch/` may be used for offline or scratch drafts. External PRs are a triage surface. See `docs/agents/issue-tracker.md`.
+Issues are tracked in GitHub Issues for `rebel0789/Memory-Recall`; local markdown under `.scratch/` may be used for offline or scratch drafts. External PRs are a triage surface. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -81,7 +81,7 @@ This repo uses a single-context layout: root `CONTEXT.md` when present, plus arc
 
 1. **Canonical events:** state-changing operations emit append-only events.
 2. **Context manifests:** every model call records selected and excluded context with reason codes.
-3. **Own the tool boundary:** OAF ships the default runtime, context, memory, source-graph, tool, hook, UI, and CLI experience. Integrations may accelerate inputs or scale a backend, but they never own canonical state or authority.
+3. **Own the tool boundary:** Memory Recall ships the default runtime, context, memory, source-graph, tool, hook, UI, and CLI experience. Integrations may accelerate inputs or scale a backend, but they never own canonical state or authority.
 4. **Deterministic authority:** permissions, budgets, approvals, retries, and transitions are code—not model decisions.
 5. **No silent memory overwrite:** use lifecycle states and `supersedes` links.
 6. **Observations are not interpretations:** keep collected data separate from model analysis.
