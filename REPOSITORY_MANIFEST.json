@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-15T10:17:11.564Z",
-  "fileCount": 922,
-  "totalBytes": 6425642,
+  "generatedAt": "2026-07-15T11:16:55.792Z",
+  "fileCount": 923,
+  "totalBytes": 6428286,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -451,9 +451,14 @@
       "sha256": "b4dd09cbbf368a7138af69fa727cff125161dede497c728783d15a3587659c17"
     },
     {
+      "path": "apps/cli/help.mjs",
+      "bytes": 25248,
+      "sha256": "0c0117d86106ec7e5f9cd65a3481ef92b06d5daf63fab94cb26517a9d7ac766d"
+    },
+    {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 484685,
-      "sha256": "8927c21f14affef6c6d12e701e234db4201b5292c00ef49632644489de02b2ad"
+      "bytes": 459579,
+      "sha256": "fa7200d942591e92ef954ac3879cf1d9556cf1aa907a52658066ad1002ea9a4b"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -1088,12 +1093,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "b784ca3507a140e11fa2d72e4b7f83ac98997ccbdfcb8c96b7888079b6645393"
+      "sha256": "fb281b9df61cd9cf0012eebec67a668dd74635666fd2ea623ff8d983359de1cc"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 3391,
-      "sha256": "e4d95f4d9edc743526107b519a63db07955dc225c8e0d3f325261bc8e3919b9c"
+      "sha256": "5ed33403f42cfc4fa86ba01c06c797ca7d641ea1db80b26e8764c9d39e023df6"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1103,7 +1108,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1723,
-      "sha256": "488b7a0c79b1554135d42f9805f58d1af8915985b88af9a28e9774e14796b758"
+      "sha256": "b099296e900294decc60d6b48c5ad0ff4b6d1f6a2b34181c50499573b2ce4f2d"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -3442,8 +3447,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 60779,
-      "sha256": "2da0461472309a658fac2798db0faba3e0895ce84e499d41022fe44b39b29318"
+      "bytes": 60855,
+      "sha256": "d69f9d5cd81b825dd4421b13a48e47090ed422a84fa10746a3f965291ba2d9f2"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3657,8 +3662,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 14006,
-      "sha256": "aea69b08f5576a4586e7dd7b3713a5744ec2b299bbda93b8928b81188cd1910b"
+      "bytes": 14677,
+      "sha256": "6290d03d15a62bd121fea8007824b5c14327a6e7ce4e20f45f0d11b6f584aa23"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3752,8 +3757,8 @@
     },
     {
       "path": "scripts/consumer-browser-smoke.mjs",
-      "bytes": 23703,
-      "sha256": "27c6584db7a5234a170387769b8aa7c6d8742e87836ba4c40c911cb9b96ff4d6"
+      "bytes": 24218,
+      "sha256": "dc17608ad6af8d0c1afd4670410b6611d68dfb2c47a85917954a23fc5955f6e9"
     },
     {
       "path": "scripts/consumer-smoke.mjs",
@@ -4522,8 +4527,8 @@
     },
     {
       "path": "tests/usage-docs.test.mjs",
-      "bytes": 16402,
-      "sha256": "ce39f08fdfeafcc92dab38e137fda17936a0fcbcaf96a179d96a4ab5f205ae07"
+      "bytes": 17642,
+      "sha256": "b48a48ba58941a19d4fcca4cc7a7a7cc2cce3ef53d743dc7d8b0cbf7e2b7ca70"
     },
     {
       "path": "tests/web-shell.test.mjs",

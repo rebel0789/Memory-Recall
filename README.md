@@ -22,15 +22,22 @@ Memory Recall turns a repository into a governed context source. New agent
 sessions get reviewed repo facts, changed-file impact, required local reads,
 and proof of what was sent instead of a giant pasted transcript.
 
+The current source checkout is the 1.1.0 release candidate. npm still serves
+1.0.5, which does not include Recall Map. Until 1.1.0 is published, run the
+current quickstart from a source checkout:
+
 ```bash
-npm install -g memory-recall
-recall setup
-recall map --root . --sqlite .local/memory.sqlite --format summary
-recall handoff
+git clone https://github.com/rebel0789/Memory-Recall.git
+cd Memory-Recall
+npm install
+npm run recall -- setup
+npm run recall -- map --root . --sqlite .local/memory.sqlite --format summary
+npm run recall -- handoff
 ```
 
 `recall setup` creates only local state. `recall map` is the explicit first
-read-only repository scan; it does not run silently during setup.
+read-only repository scan; it does not run silently during setup. After 1.1.0
+is published, the global `recall` commands are the equivalent installed path.
 
 Normal quickstarts use `recall`. The [developer-first product contract](docs/product/memory-recall-developer-first.md)
 defines the `implemented`, `experimental`, and `unsupported` capability
@@ -52,28 +59,30 @@ for preserved legacy names and URIs.
 ## Five-Minute Path
 
 ```bash
-# Install the CLI.
-npm install -g memory-recall
+# Install the current source release candidate.
+git clone https://github.com/rebel0789/Memory-Recall.git
+cd Memory-Recall
+npm install
 
 # Create local state only. This does not scan the repository.
-recall setup
+npm run recall -- setup
 
 # Run the first explicit read-only repository map.
-recall map --root . --sqlite .local/memory.sqlite --format summary
+npm run recall -- map --root . --sqlite .local/memory.sqlite --format summary
 
 # Run the handoff verification gate.
-recall verify
+npm run recall -- verify
 
 # Preview local agent setup. This writes nothing.
-recall connect codex --dry-run --format json
-recall mcp install --client claude-code --dry-run --format json
+npm run recall -- connect codex --dry-run --format json
+npm run recall -- mcp install --client claude-code --dry-run --format json
 
 # Build governed memory proposals. Facts are not trusted until reviewed.
-recall memory ingest --root . --sqlite .local/memory.sqlite --format json
-recall memory review --root . --sqlite .local/memory.sqlite --format summary
+npm run recall -- memory ingest --root . --sqlite .local/memory.sqlite --format json
+npm run recall -- memory review --root . --sqlite .local/memory.sqlite --format summary
 
 # Produce the compact handoff for the next coding agent.
-recall handoff
+npm run recall -- handoff
 ```
 
 The default path is local and explicit: no hosted account, no model API key, no
@@ -84,9 +93,9 @@ consented provider request to create pending proposals from selected
 documentation. Start with the body-free plan:
 
 ```bash
-recall semantic plan --harness codex --root . --dry-run
-recall semantic task --harness codex --root .
-recall semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite
+npm run recall -- semantic plan --harness codex --root . --dry-run
+npm run recall -- semantic task --harness codex --root .
+npm run recall -- semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite
 ```
 
 The CLI does not invoke the harness. Direct API execution requires a user-owned
@@ -243,12 +252,12 @@ boundaries.
 
 ## Status
 
-Development kit: **1.0.5**.
+Source release candidate: **1.1.0**. Published npm version: **1.0.5**.
 
 | Surface | Status |
 | --- | --- |
-| Source checkout | Local-ready reference path |
-| npm package | Published as `memory-recall` |
+| Source checkout | 1.1.0 local-ready release candidate |
+| npm package | 1.0.5 published; Recall Map quickstart awaits the 1.1.0 release |
 | CLI | `recall` |
 | Marketplace / plugin registry | Manifest prepared; not submitted |
 | Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |
