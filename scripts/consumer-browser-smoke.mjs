@@ -270,6 +270,15 @@ try {
   await page.locator('#memory-intake-form button[value="preview"]').click();
   await waitForText(page, '1 proposal');
   await waitForText(page, '0 active memory created');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('#memory-intake-form button[value="queue"]').click();
+  await waitForText(page, 'Memory proposals queued for approval.');
+  const approveProposal = page.locator('[data-action="approve-memory-proposal"]').first();
+  await approveProposal.waitFor();
+  page.once('dialog', (dialog) => dialog.accept());
+  await approveProposal.click();
+  await waitForText(page, 'Memory proposal approved.');
+  await waitForText(page, 'consumer_browser_smoke');
 
   await page.goto(`${base}/memory-graph`, { waitUntil: 'domcontentloaded' });
   await waitForText(page, 'Governed knowledge graph');

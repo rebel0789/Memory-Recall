@@ -86,7 +86,7 @@
         "One running local server remains bound to one repository; the repository control documents how to start recall serve elsewhere rather than claiming hot switching",
         "Dependency-free routed shell; no production frontend framework",
         "Uses the loopback Control API only and does not read storage directly",
-        "OAF-024 views are read-only and do not add approval mutation endpoints",
+        "Memory evidence views keep reads separate from confirm-gated proposal approval through the authenticated loopback API; they do not add write-capable MCP tools or external writes",
         "Fabric Map is a read-only visualization over existing local dashboard state; it does not add telemetry, model calls, external adapters, or external writes"
       ]
     },
@@ -785,8 +785,8 @@
         "docs/release/1.0-RELEASE-CHECKLIST.md"
       ],
       "limitations": [
-        "Release-candidate readiness evidence is merged to main; npm metadata is publish-ready, but product 1.0 is not published",
-        "Final merge, tag creation, artifact signing, and product release publication require explicit maintainer approval",
+        "memory-recall 1.0.5 is published; the 1.1.0 source release candidate on main is not yet published to npm",
+        "Publishing, tagging, or signing the 1.1.0 release candidate requires explicit maintainer approval",
         "No signing keys, release credentials, hosted publishing automation, external writes, or external adapter activation are added"
       ]
     },
@@ -1048,7 +1048,7 @@
       "npm run consumer:smoke",
       "npm run consumer:browser-smoke"
     ],
-    "testsExpected": 659,
+    "testsExpected": 660,
     "protocolFixturesExpected": 182,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
