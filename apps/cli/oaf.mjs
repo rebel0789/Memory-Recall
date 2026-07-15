@@ -57,6 +57,7 @@ import {
 } from '../../packages/semantic-setup/src/index.mjs';
 import { assertSafeContextPackUsePlanForResource, buildOafReadOnlyResourceCatalog, createMcpBridge } from '../../packages/protocol-bridges/src/index.mjs';
 import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pack-use-plan.schema.json' with { type: 'json' };
+import contextPackSchema from '../../packages/protocol/schemas/context-pack.schema.json' with { type: 'json' };
 import contextPackHandoffReportSchema from '../../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
@@ -86,6 +87,7 @@ const MCP_STDIO_MAX_MESSAGES = boundedEnvInteger('OAF_MCP_STDIO_MAX_MESSAGES', 1
 const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOUT_MS', 30_000, { min: 1, max: 60_000 });
 const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
+const MCP_CONTEXT_PACK_AUX_MAX_BYTES = 2_000_000;
 const MEMORY_PATH_MAX_BYTES = 8 * 1024 * 1024;
 const SEMANTIC_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
 const SEMANTIC_PROVIDERS = new Set(['gemini', 'openai-compatible']);
@@ -4626,7 +4628,12 @@ async function loadTemporalDataset(datasetPath) {
 }
 
 async function resolveBenchmarkDataset(requestedPath, bundledPath) {
-  const selectedPath = requestedPath ?? bundledPath;
+  if (requestedPath === null || requestedPath === undefined) {
+    const packagePath = path.join(PACKAGE_ROOT, ...bundledPath.split('/'));
+    return { path: packagePath, ref: `package://${bundledPath}` };
+  }
+
+  const selectedPath = requestedPath;
   const workspacePath = path.resolve(selectedPath);
   const workspaceFile = await stat(workspacePath).catch(() => null);
   if (workspaceFile?.isFile()) {
@@ -8414,6 +8421,21 @@ async function loadMcpContextPackRegistryStatus(values, { root, workspaceId }) {
 
 async function buildMcpContextPackResource(values, { root, workspaceId }) {
   if (!values.includes('--context-pack')) return null;
+  const contextPackFd = option(values, '--context-pack-fd');
+  if (contextPackFd !== null) {
+    if (!values.includes('--stdio') || contextPackFd !== '3') {
+      throw new Error('prebuilt context pack input is available only to internal MCP stdio verification');
+    }
+    const serialized = await readBoundedFileDescriptor(3, MCP_CONTEXT_PACK_AUX_MAX_BYTES, 'prebuilt context pack');
+    let pack;
+    try {
+      pack = JSON.parse(serialized);
+    } catch {
+      throw new Error('prebuilt context pack is not valid JSON');
+    }
+    assertJsonSchema(contextPackSchema, pack, 'prebuilt context pack');
+    return { pack, markdown: renderContextPackMarkdown(pack) };
+  }
   const objective = option(values, '--objective');
   const step = option(values, '--step');
   if (!objective || !step) {
@@ -8443,7 +8465,7 @@ async function buildMcpContextPackResource(values, { root, workspaceId }) {
   };
 }
 
-async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp = null }) {
+async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp = null, contextPack = null }) {
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
   const targetHarness = option(values, '--target') ?? option(values, '--target-harness') ?? 'generic';
@@ -8480,6 +8502,7 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   for (const value of options(values, '--changed-locator')) childArgs.push('--changed-locator', value);
   if (gitChangedLocatorsRequested(values)) childArgs.push('--changed-from-git');
   if (option(values, '--changed-shard')) childArgs.push('--changed-shard', String(changedShard(values)));
+  if (contextPack) childArgs.push('--context-pack-fd', '3');
 
   const messages = [
     { jsonrpc: '2.0', id: 1, method: 'initialize' },
@@ -8490,7 +8513,8 @@ async function buildMcpContextPackSmokeReport(values, { objective, step, fixedTi
   ];
   const started = process.hrtime.bigint();
   const child = await runCliStdio(childArgs, messages.map((message) => JSON.stringify(message)).join('\n'), {
-    env: fixedTimestamp ? { ...process.env, OAF_FIXED_NOW: fixedTimestamp } : process.env
+    env: fixedTimestamp ? { ...process.env, OAF_FIXED_NOW: fixedTimestamp } : process.env,
+    auxiliaryInput: contextPack ? JSON.stringify(contextPack) : null
   });
   const durationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
   if (child.code !== 0) {
@@ -8620,7 +8644,7 @@ async function buildContextHandoffReport(values, { objective, step }) {
   });
   const usePlan = buildContextPackUsePlan(pack);
   assertJsonSchema(contextPackUsePlanSchema, usePlan, 'context-pack handoff use plan');
-  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
+  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt, contextPack: pack });
   const memoryProposalPreflight = await buildMemoryProposalPreflight(values, { root, workspaceId, generatedAt });
   const skillCatalog = await buildSkillCatalogPreflight({ root, workspaceId, generatedAt });
   const setupClient = contextHandoffSetupClient(targetHarness);
@@ -9175,7 +9199,7 @@ async function buildContextPackMeasurementReport(values, { objective, step }) {
     clock: () => generatedAt
   });
   const buildDurationMs = Math.max(0, Math.round(Number(process.hrtime.bigint() - started) / 1_000_000));
-  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt });
+  const smoke = await buildMcpContextPackSmokeReport(values, { objective, step, fixedTimestamp: generatedAt, contextPack: pack });
   const usePlan = buildContextPackUsePlan(pack, { generatedAt });
   const impactBrief = buildContextPackImpactBrief(pack, {
     generatedAt,
@@ -9425,6 +9449,7 @@ function runCliStdio(
   input,
   {
     env = process.env,
+    auxiliaryInput = null,
     timeoutMs = MCP_STDIO_CHILD_TIMEOUT_MS,
     maxStdoutBytes = MCP_STDIO_CHILD_MAX_STDOUT_BYTES,
     maxStderrBytes = MCP_STDIO_CHILD_MAX_STDERR_BYTES
@@ -9434,11 +9459,15 @@ function runCliStdio(
   if (inputBytes > MCP_STDIO_MAX_STDIN_BYTES) {
     return Promise.reject(new Error(`mcp stdio child input exceeded ${MCP_STDIO_MAX_STDIN_BYTES} bytes`));
   }
+  const auxiliaryBytes = auxiliaryInput === null ? 0 : Buffer.byteLength(auxiliaryInput, 'utf8');
+  if (auxiliaryBytes > MCP_CONTEXT_PACK_AUX_MAX_BYTES) {
+    return Promise.reject(new Error(`mcp stdio auxiliary input exceeded ${MCP_CONTEXT_PACK_AUX_MAX_BYTES} bytes`));
+  }
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, nodeArgs, {
       cwd: process.cwd(),
       env,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: auxiliaryInput === null ? ['pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe', 'pipe']
     });
     const stdout = [];
     const stderr = [];
@@ -9482,6 +9511,12 @@ function runCliStdio(
     child.stdin.on('error', (error) => {
       if (!settled) fail(error);
     });
+    if (auxiliaryInput !== null) {
+      child.stdio[3].on('error', (error) => {
+        if (!settled) fail(error);
+      });
+      child.stdio[3].end(auxiliaryInput);
+    }
     child.on('error', fail);
     child.on('close', (code) => {
       if (settled) return;
@@ -10738,9 +10773,41 @@ function runNode(nodeArgs, { cwd = PACKAGE_ROOT, env = process.env } = {}) {
     const [script, ...rest] = nodeArgs;
     const resolvedScript = path.isAbsolute(script) ? script : path.join(PACKAGE_ROOT, script);
     const child = spawn(process.execPath, [resolvedScript, ...rest], { stdio: 'inherit', env, cwd });
-    child.on('error', reject);
-    child.on('exit', (code) => resolve(code ?? 1));
+    const forwardSignal = (signal) => {
+      if (!child.killed) child.kill(signal);
+    };
+    const onSigint = () => forwardSignal('SIGINT');
+    const onSigterm = () => forwardSignal('SIGTERM');
+    const cleanup = () => {
+      process.removeListener('SIGINT', onSigint);
+      process.removeListener('SIGTERM', onSigterm);
+    };
+    process.once('SIGINT', onSigint);
+    process.once('SIGTERM', onSigterm);
+    child.once('error', (error) => {
+      cleanup();
+      reject(error);
+    });
+    child.once('exit', (code, signal) => {
+      cleanup();
+      resolve(code ?? (signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : 1));
+    });
   });
+}
+
+async function readBoundedFileDescriptor(fd, maxBytes, label) {
+  const stream = createReadStream(null, { fd, autoClose: false });
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of stream) {
+    total += chunk.length;
+    if (total > maxBytes) {
+      stream.destroy();
+      throw new Error(`${label} exceeded ${maxBytes} bytes`);
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 function isHelpCommand(value) {

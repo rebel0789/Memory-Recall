@@ -3,13 +3,13 @@
   "format": "memory-recall-release-readiness-sbom",
   "releaseCandidate": "1.0-readiness",
   "project": "memory-recall",
-  "packageVersion": "1.1.0",
+  "packageVersion": "1.1.1",
   "dependencyPolicy": "bootstrap dependency-free; optional integrations remain disabled adapters",
   "packages": [
     {
       "path": "package.json",
       "name": "memory-recall",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "license": "Apache-2.0",
       "private": false,
       "dependencyCount": 0,

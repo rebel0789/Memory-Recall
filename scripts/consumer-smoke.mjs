@@ -35,7 +35,7 @@ try {
   const env = { ...process.env, HOME: home, PATH: `${path.join(prefix, 'bin')}${path.delimiter}${process.env.PATH}` };
 
   const version = run(recall, ['--version'], { cwd: workspace, env });
-  must(version.stdout.trim() === '1.1.0', 'installed recall reports the release version');
+  must(version.stdout.trim() === '1.1.1', 'installed recall reports the release version');
   const setupOutput = run(recall, ['setup'], { cwd: workspace, env });
   must(setupOutput.stdout.includes('Setup created only local state'), 'installed setup creates explicit local state');
 
