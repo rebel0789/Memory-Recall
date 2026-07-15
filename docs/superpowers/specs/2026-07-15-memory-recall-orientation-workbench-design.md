@@ -48,11 +48,36 @@ After a valid cached scan, a developer must be able to identify these facts with
 
 The screen may contain counts only when they support one of these decisions. It does not show vanity metrics.
 
-The copy above the work area is one sentence at most:
+The work area starts immediately beneath the repository truth bar. It has no hero, tagline, descriptive banner, or product slogan.
 
-> Repository structure, current impact, and trusted context.
+## Minimalist interface and copy contract
 
-The product shell contains no slogan.
+The implementation follows `DESIGN.md` and the existing warm off-white, graphite, and restrained cobalt tokens. It refines the current product instead of introducing a new visual identity.
+
+Minimal means fewer elements and clearer hierarchy. It does not mean large empty sections. Within the workbench, related items use 8 to 16 px gaps, primary regions use only the 24 or 32 px spacing tokens, and no section receives a minimum height only to create visual weight.
+
+The interface uses:
+
+- native system sans for interface text and native monospace only for code, paths, hashes, commands, and identifiers;
+- flat surfaces, thin rules, aligned rows, and compact disclosures;
+- 6 px controls and 8 px bounded panels;
+- restrained cobalt only for focus, selection, links, and the primary action;
+- state-only motion that honors reduced motion.
+
+The touched screens do not use:
+
+- marketing heroes, oversized promotional headings, or decorative empty space;
+- gradients, glass effects, neon, glow, ambient animation, or decorative background art;
+- heavy shadows, floating panels, or a grid of equal statistic cards;
+- rounded containers nested inside rounded containers when a divider or row is sufficient;
+- decorative badges, icons, or charts that do not change a decision;
+- fake chat, typing indicators, sparkle marks, robot imagery, or other intelligence theater.
+
+Visible copy names an object, state, reason, or action. Headings use concrete nouns such as `Architecture`, `Start here`, `Current impact`, and `Trusted context`. Buttons use direct verbs such as `Open`, `Trace`, `Inspect`, and `Prepare handoff`.
+
+The words `AI`, `intelligent`, `smart`, `magical`, `autonomous`, `seamless`, `unlock`, `supercharge`, `revolutionary`, and `next-generation` do not appear as promotional UI copy. `AI`, model, and provider terms may appear only when identifying a real configured provider, model-backed operation, setting, or technical boundary.
+
+Implementation includes a bounded copy review across `apps/web`. Obvious slogan, hype, and intelligence-theater strings are replaced with factual object, state, reason, or action labels. This copy review does not redesign unrelated routes or change their behavior.
 
 ## Information architecture
 
@@ -86,7 +111,7 @@ Desktop uses a 70/30 split beneath the truth bar.
 
 The primary region contains the architecture map. The secondary region contains three compact sections: `Start here`, `Current impact`, and `Trusted context`. These sections use dividers and aligned rows, not three equal cards.
 
-The layout uses the current graphite and cobalt token system. It reduces vertical padding, avoids unused full-width sections, and keeps all primary information within the first desktop viewport at 1440 px.
+The layout uses the current graphite and cobalt token system. It reduces vertical padding, avoids unused full-width sections and nested card grids, and keeps all primary information within the first desktop viewport at 1440 px.
 
 ### Architecture map
 
@@ -333,6 +358,9 @@ Add focused coverage for:
 - the first-ten-seconds fields appearing in the first desktop viewport;
 - every useful group for fixtures with fewer than 6 groups, and 6 to 12 groups for larger populated fixtures;
 - exactly three `Start here` items when available;
+- no hero, slogan, promotional subtitle, intelligence-theater copy, or decorative metric strip on Overview;
+- the approved AI-language allowlist: real provider, model, setting, operation, or technical-boundary labels only;
+- no content-free minimum height or nonsemantic gap larger than the 32 px spacing token in the primary workbench;
 - clean, changed, partial, stale, empty, loading, and failure states;
 - query and scope state surviving submit, failure, reload, back, and forward;
 - the memory graph omitting its canvas when empty;
@@ -364,6 +392,8 @@ The work is complete when:
 - repeated Overview and Map operations reuse the same unchanged source snapshot;
 - ordinary repository-relative directory names do not trigger absolute-path safety failures;
 - Overview presents repository truth, every useful group for small repositories or 6 to 12 groups for larger repositories, three starting points when available, current impact, and trusted context within the first desktop viewport;
+- the touched UI contains no slogan, capability hype, intelligence theater, decorative card wall, gradient, glow, or content-free oversized gap;
+- all visible copy in `apps/web` passes the factual object, state, reason, or action review, with model and provider terms retained only where technically necessary;
 - Map progressively reveals group, file, and symbol detail without rendering the full graph;
 - empty memory does not render an empty graph canvas or zero-value metric strip;
 - all visual graphs have equivalent keyboard-reachable outlines;
