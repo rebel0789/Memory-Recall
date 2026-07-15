@@ -38,6 +38,25 @@
       }
     ],
     "hotspots": [],
+    "groups": [
+      {
+        "id": "sggroup_111111111111111111111111",
+        "prefix": "src",
+        "fileCount": 1,
+        "symbolCount": 1,
+        "changedFileCount": 1,
+        "entryPoints": [
+          {
+            "nodeId": "sgnode_11111111111111111111111111111111",
+            "label": "startWorkspace",
+            "qualifiedLabel": null,
+            "locator": "workspace://src/index.ts#L1-L3",
+            "symbolKind": "function"
+          }
+        ]
+      }
+    ],
+    "groupRelations": [],
     "search": {
       "status": "available",
       "queryFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

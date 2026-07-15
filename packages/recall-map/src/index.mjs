@@ -28,6 +28,10 @@ const LOCATOR_SEGMENT = '(?!\\.{1,2}(?:/|#|$))[A-Za-z0-9._@+~,-]+';
 const SAFE_LOCATOR = new RegExp(`^workspace://${LOCATOR_SEGMENT}(?:/${LOCATOR_SEGMENT})*(?:#L[0-9]+-L[0-9]+)?$`, 'u');
 const LABEL_TOKEN = '[A-Za-z0-9_$@~./:#*+,-]+';
 const SAFE_LABEL = new RegExp(`^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)${LABEL_TOKEN}(?: (?:contains|defined_in|imports|exports|references|calls) ${LABEL_TOKEN})?$`, 'u');
+const SAFE_GROUP_PREFIX = /^[A-Za-z0-9._~!$&'()*+,;=@%\[\]-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=@%\[\]-]+){0,2}$/u;
+const GROUP_ID = /^sggroup_[a-f0-9]{24}$/u;
+const RELATION_ID = /^sgrelation_[a-f0-9]{24}$/u;
+const NODE_ID = /^sgnode_[a-f0-9]{32}$/u;
 
 function safeRepositoryName(root) {
   const candidate = path.basename(root).slice(0, 120);
@@ -294,6 +298,8 @@ function summarizeArchitecture(preview, { limit = DEFAULT_MAP_LIMIT } = {}) {
   return {
     entryPoints: (summary.entryPoints ?? []).slice(0, safeLimit).map(summarizeNodeReference),
     hotspots: (summary.hotspots ?? []).slice(0, safeLimit).map(summarizeHotspot),
+    groups: (preview.orientation?.groups ?? []).slice(0, 12).map(summarizeOrientationGroup).filter(Boolean),
+    groupRelations: (preview.orientation?.relations ?? []).slice(0, 20).map(summarizeOrientationRelation).filter(Boolean),
     search: {
       status: unavailable ? 'unavailable' : 'available',
       queryFingerprint: safeFingerprint(preview.search?.queryFingerprint),
@@ -310,6 +316,48 @@ function summarizeArchitecture(preview, { limit = DEFAULT_MAP_LIMIT } = {}) {
       depth: boundedInteger(impact?.depth, 0, 5)
     },
     diagnostics: (graph.diagnostics ?? []).slice(0, MAX_DIAGNOSTICS).map(summarizeDiagnostic)
+  };
+}
+
+function summarizeOrientationGroup(group) {
+  if (!GROUP_ID.test(String(group?.id ?? '')) || !SAFE_GROUP_PREFIX.test(String(group?.prefix ?? ''))) return null;
+  return {
+    id: group.id,
+    prefix: group.prefix,
+    fileCount: boundedInteger(group.fileCount),
+    symbolCount: boundedInteger(group.symbolCount),
+    changedFileCount: boundedInteger(group.changedFileCount),
+    entryPoints: (group.entryPoints ?? []).slice(0, 2).map((entryPoint) => {
+      if (!NODE_ID.test(String(entryPoint?.nodeId ?? ''))) return null;
+      return {
+        nodeId: entryPoint.nodeId,
+        ...summarizeNodeReference(entryPoint)
+      };
+    }).filter(Boolean)
+  };
+}
+
+function summarizeOrientationRelation(relation) {
+  if (
+    !RELATION_ID.test(String(relation?.id ?? ''))
+    || !GROUP_ID.test(String(relation?.sourceGroupId ?? ''))
+    || !GROUP_ID.test(String(relation?.targetGroupId ?? ''))
+    || !SAFE_GROUP_PREFIX.test(String(relation?.sourcePrefix ?? ''))
+    || !SAFE_GROUP_PREFIX.test(String(relation?.targetPrefix ?? ''))
+  ) return null;
+  const edgeKindCounts = Object.fromEntries(
+    Object.entries(relation.edgeKindCounts ?? {})
+      .filter(([kind]) => ['imports', 'calls'].includes(kind))
+      .map(([kind, count]) => [kind, boundedInteger(count)])
+  );
+  return {
+    id: relation.id,
+    sourceGroupId: relation.sourceGroupId,
+    targetGroupId: relation.targetGroupId,
+    sourcePrefix: relation.sourcePrefix,
+    targetPrefix: relation.targetPrefix,
+    count: boundedInteger(relation.count),
+    edgeKindCounts
   };
 }
 

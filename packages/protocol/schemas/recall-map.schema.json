@@ -78,6 +78,59 @@
       "maxLength": 240,
       "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)[A-Za-z0-9_$@~./:#*+,-]+(?: (?:contains|defined_in|imports|exports|references|calls) [A-Za-z0-9_$@~./:#*+,-]+)?$"
     },
+    "groupPrefix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9._~!$&'()*+,;=@%\\[\\]-]+(?:/[A-Za-z0-9._~!$&'()*+,;=@%\\[\\]-]+){0,2}$"
+    },
+    "orientationGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prefix", "fileCount", "symbolCount", "changedFileCount", "entryPoints"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "prefix": { "$ref": "#/$defs/groupPrefix" },
+        "fileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "symbolCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "changedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "entryPoints": { "type": "array", "maxItems": 2, "items": { "$ref": "#/$defs/orientationEntryPoint" } }
+      }
+    },
+    "orientationEntryPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "label", "qualifiedLabel", "locator", "symbolKind"],
+      "properties": {
+        "nodeId": { "type": "string", "pattern": "^sgnode_[a-f0-9]{32}$" },
+        "label": { "$ref": "#/$defs/safeLabel" },
+        "qualifiedLabel": { "$ref": "#/$defs/nullableSafeLabel" },
+        "locator": { "$ref": "#/$defs/nullableLocator" },
+        "symbolKind": { "$ref": "#/$defs/symbolKind" }
+      }
+    },
+    "orientationRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceGroupId", "targetGroupId", "sourcePrefix", "targetPrefix", "count", "edgeKindCounts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sgrelation_[a-f0-9]{24}$" },
+        "sourceGroupId": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "targetGroupId": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "sourcePrefix": { "$ref": "#/$defs/groupPrefix" },
+        "targetPrefix": { "$ref": "#/$defs/groupPrefix" },
+        "count": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+        "edgeKindCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "properties": {
+            "imports": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+            "calls": { "type": "integer", "minimum": 1, "maximum": 1000000000 }
+          }
+        }
+      }
+    },
     "symbolKind": {
       "enum": ["class", "function", "method", "interface", "type"]
     },
@@ -141,6 +194,8 @@
       "properties": {
         "entryPoints": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/symbol" } },
         "hotspots": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/hotspot" } },
+        "groups": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/orientationGroup" } },
+        "groupRelations": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/orientationRelation" } },
         "search": { "$ref": "#/$defs/search" },
         "impact": { "$ref": "#/$defs/impact" },
         "diagnostics": { "type": "array", "maxItems": 100, "items": { "$ref": "#/$defs/diagnostic" } }

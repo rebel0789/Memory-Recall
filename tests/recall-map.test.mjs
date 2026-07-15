@@ -115,6 +115,8 @@ test('Recall Map composes bounded architecture and governed-memory truth without
   assert.equal(report.safeguards.localFilesWritten, 0);
   assert.equal(report.support.sourceGraph.status, 'implemented');
   assert.equal(report.support.sourceGraph.coverage.status, 'partial');
+  assert.deepEqual(report.architecture.groups.map(({ prefix }) => prefix), ['src']);
+  assert.deepEqual(report.architecture.groupRelations, []);
   assert.deepEqual(report.architecture.impact.changedLocators, ['workspace://src/index.ts']);
   assert.deepEqual(report.memory.activeFacts, []);
   assert.deepEqual(report.memory.pendingProposals, []);

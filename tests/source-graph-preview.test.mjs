@@ -9,9 +9,15 @@ import { normalizeSourceGraphWorkspaceLocator } from '../packages/protocol/src/s
 import { buildSourceGraphPreview } from '../packages/source-graph/src/index.mjs';
 import {
   buildJsTsSourceIndex,
+  buildJsTsSourceGraph,
   buildSourceGraphFromIndex,
+  rankArchitectureNodes,
   searchSourceGraph
 } from '../providers/native/context-candidate-ast-code/src/index.mjs';
+import {
+  buildSourceGraphFocus,
+  buildSourceGraphOrientation
+} from '../packages/source-graph/src/orientation.mjs';
 
 const fixedNow = '2026-06-23T00:00:00.000Z';
 
@@ -33,6 +39,24 @@ async function fixtureWorkspace() {
     '  return service.approveTokenReset(request);',
     '}'
   ].join('\n'));
+  return root;
+}
+
+async function writeOrientationRepository(t) {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'recall-orientation-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const files = new Map([
+    ['apps/web/app.js', 'import { build } from "../../packages/source-graph/index.js";\nexport function renderOverview(){ return build(); }\n'],
+    ['packages/source-graph/index.js', 'import { serve } from "../../services/control-api/server.js";\nexport function build(){ return serve(); }\n'],
+    ['services/control-api/server.js', 'import { parse } from "../../providers/native/context-candidate-ast-code/index.js";\nexport function serve(){ return parse(); }\n'],
+    ['providers/native/context-candidate-ast-code/index.js', 'export function parse(){ return "ready"; }\n'],
+    ['scripts/smoke.js', 'import { renderOverview } from "../apps/web/app.js";\nexport const smoke = renderOverview();\n'],
+    ['tests/web.test.js', 'import { renderOverview } from "../apps/web/app.js";\nexport const expected = typeof renderOverview;\n']
+  ]);
+  for (const [relative, body] of files) {
+    await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
+    await writeFile(path.join(root, relative), body);
+  }
   return root;
 }
 
@@ -114,6 +138,52 @@ test('graph budget preserves structural and call edges before references', async
   assert.equal(validateJsonSchema(sourceGraphSchema, nodeLimitedGraph).valid, true);
 });
 
+test('source graph orientation is deterministic and bounded', async (t) => {
+  const root = await writeOrientationRepository(t);
+  const graph = await buildJsTsSourceGraph({ root, workspaceId: 'ws_local' });
+  const ranking = rankArchitectureNodes(graph, { changedLocators: ['workspace://apps/web/app.js'], limit: 12 });
+  const options = {
+    changedLocators: ['workspace://apps/web/app.js'],
+    entryPoints: ranking.entryPoints,
+    maxGroups: 12,
+    maxRelations: 20
+  };
+  const orientation = buildSourceGraphOrientation(graph, options);
+  assert.deepEqual(orientation.groups.map(({ prefix }) => prefix), [
+    'apps/web',
+    'packages/source-graph',
+    'providers/native/context-candidate-ast-code',
+    'scripts',
+    'services/control-api',
+    'tests'
+  ]);
+  assert.equal(orientation.groups.find(({ prefix }) => prefix === 'apps/web').changedFileCount, 1);
+  assert.equal(orientation.groups.every(({ entryPoints }) => entryPoints.length <= 2), true);
+  assert.equal(orientation.relations.length <= 20, true);
+  assert(orientation.relations.some(({ sourcePrefix, targetPrefix }) => (
+    sourcePrefix === 'apps/web' && targetPrefix === 'packages/source-graph'
+  )));
+  assert.deepEqual(orientation, buildSourceGraphOrientation(structuredClone(graph), options));
+});
+
+test('source graph focus returns a bounded neighborhood', async (t) => {
+  const root = await writeOrientationRepository(t);
+  const graph = await buildJsTsSourceGraph({ root, workspaceId: 'ws_local' });
+  const seed = graph.nodes.find(({ label }) => label === 'renderOverview');
+  assert(seed);
+  const focus = buildSourceGraphFocus(graph, {
+    seedNodeIds: [seed.id],
+    locatorPrefix: 'workspace://apps/web',
+    nodeLimit: 50,
+    edgeLimit: 100
+  });
+  assert(focus.nodes.some(({ id }) => id === seed.id));
+  assert(focus.nodes.every(({ locator }) => !locator || locator.startsWith('workspace://apps/web')));
+  assert(focus.nodes.length <= 50);
+  assert(focus.edges.length <= 100);
+  assert(focus.omittedNodes > 0 || focus.nodes.length < graph.nodes.length);
+});
+
 test('source graph preview builds bounded read-only report without raw source bodies', async () => {
   const root = await fixtureWorkspace();
   const preview = await buildSourceGraphPreview({
@@ -128,6 +198,10 @@ test('source graph preview builds bounded read-only report without raw source bo
   });
   const schema = JSON.parse(await readFile('packages/protocol/schemas/source-graph-preview.schema.json', 'utf8'));
   assert.equal(validateJsonSchema(schema, preview).valid, true);
+  assert(preview.orientation.groups.some(({ prefix }) => prefix === 'src'));
+  assert(preview.focus.nodes.length > 0);
+  assert(preview.focus.nodes.length <= 200);
+  assert(preview.focus.edges.length <= 400);
   assert.equal(preview.safeguards.persisted, false);
   assert.equal(preview.safeguards.modelCalls, 0);
   assert.equal(preview.safeguards.networkCalls, 0);
@@ -162,6 +236,15 @@ test('source graph preview fingerprints are deterministic for fixed input', asyn
   const second = await buildSourceGraphPreview(input);
   assert.equal(first.graph.graphFingerprint, second.graph.graphFingerprint);
   assert.equal(first.search.queryFingerprint, second.search.queryFingerprint);
+});
+
+test('source graph preview leaves focus empty until the developer asks for a scope', async (t) => {
+  const root = await fixtureWorkspace();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const preview = await buildSourceGraphPreview({ root, workspaceId: 'ws_local', clock: () => fixedNow });
+  assert(preview.orientation.groups.length > 0);
+  assert.deepEqual(preview.focus.nodes, []);
+  assert.deepEqual(preview.focus.edges, []);
 });
 
 test('source graph preview omits missing locators from module search results', async () => {

@@ -13,6 +13,9 @@ import {
   sanitizeSourceGraphPublicOutput,
   traceSourceGraph
 } from '../../../providers/native/context-candidate-ast-code/src/index.mjs';
+import { buildSourceGraphFocus, buildSourceGraphOrientation } from './orientation.mjs';
+
+export { buildSourceGraphFocus, buildSourceGraphOrientation };
 
 const PREVIEW_VERSION = 'oaf-source-graph-preview-1.0.0';
 export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 512 * 1024;
@@ -116,6 +119,22 @@ export async function buildSourceGraphPreview({
       limit: boundedLimit
     })
     : null;
+  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
+  const orientation = buildSourceGraphOrientation(publicGraph, {
+    changedLocators: normalizedChangedLocators,
+    entryPoints: ranking.entryPoints
+  });
+  const focusRequested = Boolean(
+    String(query ?? '').trim()
+    || startName
+    || startNodeId
+    || normalizedChangedLocators.length
+    || normalizedLocatorPrefix
+  );
+  const focus = buildSourceGraphFocus(publicGraph, {
+    seedNodeIds: focusRequested ? sourceGraphFocusSeedIds({ search, trace, impact }) : [],
+    locatorPrefix: focusRequested ? normalizedLocatorPrefix : null
+  });
   const compact = compactGraph(graph, boundedSampleLimit, ranking);
 
   return Object.freeze({
@@ -127,7 +146,9 @@ export async function buildSourceGraphPreview({
     search,
     trace,
     impact,
-    measurements: sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact }),
+    orientation,
+    focus,
+    measurements: sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact, orientation, focus }),
     safeguards: {
       dryRun: true,
       persisted: false,
@@ -274,18 +295,28 @@ function unavailableSourceGraphPreview({
     search,
     trace: null,
     impact,
-    measurements: sourceGraphPreviewMeasurements({ graph: null, compact, search, trace: null, impact }),
+    orientation: Object.freeze({ groups: Object.freeze([]), relations: Object.freeze([]) }),
+    focus: Object.freeze({ nodeLimit: 200, edgeLimit: 400, nodes: Object.freeze([]), edges: Object.freeze([]), omittedNodes: 0, omittedEdges: 0 }),
+    measurements: sourceGraphPreviewMeasurements({
+      graph: null,
+      compact,
+      search,
+      trace: null,
+      impact,
+      orientation: { groups: [], relations: [] },
+      focus: { nodeLimit: 200, edgeLimit: 400, nodes: [], edges: [], omittedNodes: 0, omittedEdges: 0 }
+    }),
     safeguards: sourceGraphPreviewSafeguards()
   });
 }
 
-function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact }) {
+function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact, orientation, focus }) {
   const fullGraphTokenEstimate = graph ? estimateTokens(JSON.stringify({
     nodes: graph.nodes,
     edges: graph.edges,
     diagnostics: graph.diagnostics
   })) : 0;
-  const deliveredTokenEstimate = estimateTokens(JSON.stringify({ graph: compact, search, trace, impact }));
+  const deliveredTokenEstimate = estimateTokens(JSON.stringify({ graph: compact, search, trace, impact, orientation, focus }));
   const omittedTokenEstimate = Math.max(0, fullGraphTokenEstimate - deliveredTokenEstimate);
   return Object.freeze({
     schemaVersion: '1.0.0',
@@ -297,6 +328,18 @@ function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact 
     sourceContentIncluded: false,
     providerBillingClaimed: false
   });
+}
+
+function sourceGraphFocusSeedIds({ search, trace, impact }) {
+  const ids = [];
+  for (const result of search?.results ?? []) {
+    if (result.resultType === 'node') ids.push(result.id);
+    else ids.push(result.fromNodeId, result.toNodeId);
+  }
+  ids.push(...(trace?.startNodeIds ?? []));
+  for (const path of trace?.paths ?? []) ids.push(...(path.nodeIds ?? []));
+  ids.push(...(impact?.impactedNodeIds ?? []));
+  return [...new Set(ids.filter(Boolean))].sort();
 }
 
 function sourceGraphPreviewSafeguards() {

@@ -14,6 +14,8 @@
     "search": { "$ref": "#/$defs/searchResult" },
     "trace": { "$ref": "#/$defs/traceResult" },
     "impact": { "$ref": "#/$defs/impactResult" },
+    "orientation": { "$ref": "#/$defs/orientation" },
+    "focus": { "$ref": "#/$defs/focus" },
     "measurements": { "$ref": "#/$defs/measurements" },
     "safeguards": { "$ref": "#/$defs/safeguards" }
   },
@@ -49,6 +51,69 @@
         "exports": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
         "calls": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
         "references": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "groupPrefix": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9._~!$&'()*+,;=@%\\[\\]-]+(?:/[A-Za-z0-9._~!$&'()*+,;=@%\\[\\]-]+){0,2}$"
+    },
+    "orientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groups", "relations"],
+      "properties": {
+        "groups": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/orientationGroup" } },
+        "relations": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/orientationRelation" } }
+      }
+    },
+    "orientationGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prefix", "fileCount", "symbolCount", "changedFileCount", "entryPoints"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "prefix": { "$ref": "#/$defs/groupPrefix" },
+        "fileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "symbolCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "changedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "entryPoints": { "type": "array", "maxItems": 2, "items": { "$ref": "#/$defs/nodeReference" } }
+      }
+    },
+    "orientationRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sourceGroupId", "targetGroupId", "sourcePrefix", "targetPrefix", "count", "edgeKindCounts"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sgrelation_[a-f0-9]{24}$" },
+        "sourceGroupId": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "targetGroupId": { "type": "string", "pattern": "^sggroup_[a-f0-9]{24}$" },
+        "sourcePrefix": { "$ref": "#/$defs/groupPrefix" },
+        "targetPrefix": { "$ref": "#/$defs/groupPrefix" },
+        "count": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+        "edgeKindCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "properties": {
+            "imports": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+            "calls": { "type": "integer", "minimum": 1, "maximum": 1000000000 }
+          }
+        }
+      }
+    },
+    "focus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeLimit", "edgeLimit", "nodes", "edges", "omittedNodes", "omittedEdges"],
+      "properties": {
+        "nodeLimit": { "type": "integer", "minimum": 1, "maximum": 200 },
+        "edgeLimit": { "type": "integer", "minimum": 1, "maximum": 400 },
+        "nodes": { "type": "array", "maxItems": 200, "items": { "$ref": "#/$defs/node" } },
+        "edges": { "type": "array", "maxItems": 400, "items": { "$ref": "#/$defs/edge" } },
+        "omittedNodes": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "omittedEdges": { "type": "integer", "minimum": 0, "maximum": 1000000000 }
       }
     },
     "summary": {

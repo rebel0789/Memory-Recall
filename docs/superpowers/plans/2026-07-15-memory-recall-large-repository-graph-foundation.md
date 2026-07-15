@@ -468,7 +468,7 @@ git commit -m "feat: return bounded partial source graphs"
 - `buildSourceGraphPreview()` adds top-level `orientation` and `focus` projections.
 - `buildRecallMap()` projects `orientation.groups` and `orientation.relations` under `architecture`.
 
-- [ ] **Step 1: Write failing deterministic orientation tests**
+- [x] **Step 1: Write failing deterministic orientation tests**
 
 Extend the provider import with `buildJsTsSourceGraph` and `rankArchitectureNodes`, and import both new projection functions from `orientation.mjs`. Add this test and helper:
 
@@ -502,12 +502,12 @@ async function writeOrientationRepository(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'recall-orientation-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const files = new Map([
-    ['apps/web/app.js', 'import { build } from "../../packages/source-graph/index.js"; export function renderOverview(){ return build(); }\n'],
-    ['packages/source-graph/index.js', 'import { serve } from "../../services/control-api/server.js"; export function build(){ return serve(); }\n'],
-    ['services/control-api/server.js', 'import { parse } from "../../providers/native/context-candidate-ast-code/index.js"; export function serve(){ return parse(); }\n'],
+    ['apps/web/app.js', 'import { build } from "../../packages/source-graph/index.js";\nexport function renderOverview(){ return build(); }\n'],
+    ['packages/source-graph/index.js', 'import { serve } from "../../services/control-api/server.js";\nexport function build(){ return serve(); }\n'],
+    ['services/control-api/server.js', 'import { parse } from "../../providers/native/context-candidate-ast-code/index.js";\nexport function serve(){ return parse(); }\n'],
     ['providers/native/context-candidate-ast-code/index.js', 'export function parse(){ return "ready"; }\n'],
-    ['scripts/smoke.js', 'import { renderOverview } from "../apps/web/app.js"; export const smoke = renderOverview();\n'],
-    ['tests/web.test.js', 'import { renderOverview } from "../apps/web/app.js"; export const expected = typeof renderOverview;\n']
+    ['scripts/smoke.js', 'import { renderOverview } from "../apps/web/app.js";\nexport const smoke = renderOverview();\n'],
+    ['tests/web.test.js', 'import { renderOverview } from "../apps/web/app.js";\nexport const expected = typeof renderOverview;\n']
   ]);
   for (const [relative, body] of files) {
     await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
@@ -517,7 +517,7 @@ async function writeOrientationRepository(t) {
 }
 ```
 
-- [ ] **Step 2: Write failing focused-neighborhood tests**
+- [x] **Step 2: Write failing focused-neighborhood tests**
 
 For a query result inside `apps/web`, reuse `writeOrientationRepository()` and assert the focus projection contains seed nodes and bounded adjacent edges but not the full graph:
 
@@ -541,7 +541,7 @@ test('source graph focus returns a bounded neighborhood', async (t) => {
 });
 ```
 
-- [ ] **Step 3: Run the projection tests and verify missing exports**
+- [x] **Step 3: Run the projection tests and verify missing exports**
 
 Run:
 
@@ -551,7 +551,7 @@ node --test --test-name-pattern="deterministic orientation|focused neighborhood"
 
 Expected: FAIL because `orientation.mjs`, `buildSourceGraphOrientation`, and `buildSourceGraphFocus` do not exist.
 
-- [ ] **Step 4: Implement deterministic group derivation**
+- [x] **Step 4: Implement deterministic group derivation**
 
 Create `orientation.mjs`. Convert node locators to repository-relative paths. Use two segments for known workspace roots (`apps`, `packages`, `services`, `plugins`, `examples`, `tests`, and `scripts`), three for `providers/<kind>/<name>` when available, and one segment otherwise. Never invent a group.
 
@@ -574,7 +574,7 @@ function relativeLocator(locator) {
 
 Count unique files and symbols per group. Assign up to two ranked entry points by locator prefix. Aggregate only inter-group `imports` and `calls` relations, sort by descending count then source/target prefix, and cap at 20. Create stable IDs with the existing hash helper; do not expose package-manager metadata or absolute paths.
 
-- [ ] **Step 5: Implement a bounded one-hop focus projection**
+- [x] **Step 5: Implement a bounded one-hop focus projection**
 
 Start from query/search/trace/impact seed IDs. If `locatorPrefix` is present, include matching file and symbol nodes first. Add one-hop edges in priority order `calls`, `imports`, `exports`, `defined_in`, `contains`, `references`. Add the opposite endpoint only while under the node limit. Sort returned nodes/edges by ID and report omitted counts from the eligible neighborhood.
 
@@ -589,7 +589,7 @@ return Object.freeze({
 });
 ```
 
-- [ ] **Step 6: Wire projections into preview and Recall Map**
+- [x] **Step 6: Wire projections into preview and Recall Map**
 
 Build `orientation` from the validated public graph. Build focus seeds from search result node IDs, trace path node IDs, and impact node IDs. For an unscoped empty query, return an empty focus so Overview uses groups rather than a raw file graph. Project the same group/relations objects into Recall Map:
 
@@ -603,7 +603,7 @@ architecture: {
 
 Add optional strict bounded definitions to both schemas: 12 groups, 20 relations, 200 focus nodes, and 400 focus edges. The producer always emits them, while the optional schema fields preserve additive v1 reader compatibility. Update both examples.
 
-- [ ] **Step 7: Verify projection and protocol behavior**
+- [x] **Step 7: Verify projection and protocol behavior**
 
 Run:
 
@@ -614,7 +614,7 @@ npm run protocol:validate
 
 Expected: orientation, focus, Recall Map, and protocol tests pass.
 
-- [ ] **Step 8: Commit orientation data**
+- [x] **Step 8: Commit orientation data**
 
 ```bash
 git add packages/source-graph/src/orientation.mjs packages/source-graph/src/index.mjs packages/recall-map/src/index.mjs packages/protocol/schemas/source-graph-preview.schema.json packages/protocol/schemas/recall-map.schema.json examples/protocol/source-graph-preview.json examples/protocol/recall-map.json tests/source-graph-preview.test.mjs tests/recall-map.test.mjs
