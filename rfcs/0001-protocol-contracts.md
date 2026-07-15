@@ -55,6 +55,13 @@ schema-valid complete envelope and otherwise returns its unavailable report.
 Colon-bearing source-graph labels are limited to safe `node:` built-in module
 names and the fixed `local:absolute-import` placeholder.
 
+Additive v1 coverage can also identify the active ignore policy and report
+candidate, represented, and omitted graph counts by node or edge kind. Node and
+edge budgets are enforced while the graph is built, with structural and call
+edges retained before reference edges. A partial result remains read-only: the
+omission fields describe missing representation and never grant access to
+ignored files, absolute paths, source bodies, or additional operations.
+
 ## Requirements
 
 - canonical IDs are independent of providers;

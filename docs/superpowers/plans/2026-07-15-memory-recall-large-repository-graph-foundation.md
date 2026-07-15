@@ -76,7 +76,7 @@
 - Consumes: `normalizeSourceGraphWorkspaceLocator(value, { stripFragment })`.
 - Produces: unchanged locator-normalization signature plus `isSafeSourceGraphDisplayLabel(value): boolean`.
 
-- [ ] **Step 1: Write the failing relative-directory regression tests**
+- [x] **Step 1: Write the failing relative-directory regression tests**
 
 Add these cases to `tests/source-graph-preview.test.mjs`:
 
@@ -115,7 +115,7 @@ test('source graph still rejects absolute and encoded traversal locators', () =>
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify the current false rejection**
+- [x] **Step 2: Run the focused test and verify the current false rejection**
 
 Run:
 
@@ -125,7 +125,7 @@ node --test --test-name-pattern="ordinary relative users|absolute and encoded" t
 
 Expected: the relative `users` or `private` test fails with an unavailable graph or invalid locator while absolute and traversal cases remain rejected.
 
-- [ ] **Step 3: Separate locator and label rules**
+- [x] **Step 3: Separate locator and label rules**
 
 In `packages/protocol/src/source-graph-locator.mjs`, remove the blanket `Users`, `private`, and `var/folders` segment exclusions from `SOURCE_GRAPH_WORKSPACE_LOCATOR_PATTERN`. Keep the leading slash, drive, URI-scheme, traversal, percent-encoding, length, and fragment constraints. Replace the absolute-directory exclusions in `SOURCE_GRAPH_SAFE_LABEL_PATTERN` with structural checks only, then export a named predicate:
 
@@ -143,7 +143,7 @@ String.raw`^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\.\.(?:/|$
 
 Update the identical schema patterns in both source-graph schemas. Change the two invalid compatibility examples so they use `workspace:///Users/rebel/project/src/app.js`; do not keep a repository-relative `workspace://Users/...` example marked invalid.
 
-- [ ] **Step 4: Run focused protocol and source-graph verification**
+- [x] **Step 4: Run focused protocol and source-graph verification**
 
 Run:
 
@@ -154,7 +154,7 @@ npm run protocol:validate
 
 Expected: focused tests pass and all protocol fixtures validate.
 
-- [ ] **Step 5: Commit the safety correction**
+- [x] **Step 5: Commit the safety correction**
 
 ```bash
 git add packages/protocol/src/source-graph-locator.mjs packages/protocol/src/index.mjs packages/protocol/schemas/source-graph.schema.json packages/protocol/schemas/source-graph-preview.schema.json examples/protocol/compatibility/invalid/source-graph-local-path.json examples/protocol/compatibility/invalid/source-graph-preview-local-path.json tests/source-graph-preview.test.mjs
@@ -174,7 +174,7 @@ git commit -m "fix: accept safe repository-relative graph paths"
 - Produces: `loadRootRecallIgnore(root): Promise<IgnoreRule[]>`.
 - `scanAstCodeWorkspace()` adds optional `explicitIncludes = []` and returns bounded ignore coverage.
 
-- [ ] **Step 1: Write failing ignore and accounting tests**
+- [x] **Step 1: Write failing ignore and accounting tests**
 
 Create `tests/source-graph-discovery.test.mjs` with fixtures that prove exclusions happen before `maxFiles`:
 
@@ -227,7 +227,7 @@ test('explicit include overrides non-security ignore but not root containment', 
 });
 ```
 
-- [ ] **Step 2: Run the tests and verify missing ignore behavior**
+- [x] **Step 2: Run the tests and verify missing ignore behavior**
 
 Run:
 
@@ -237,7 +237,7 @@ node --test tests/source-graph-discovery.test.mjs
 
 Expected: FAIL because `.worktrees`, `.venv`, nested `.gitignore`, `.recallignore`, and `explicitIncludes` are not implemented.
 
-- [ ] **Step 3: Implement dependency-free ignore parsing**
+- [x] **Step 3: Implement dependency-free ignore parsing**
 
 Create `ignore-rules.mjs`. Parse blank lines, comments, escaped `#`/`!`, negation, root anchoring, directory-only suffixes, `*`, `?`, and `**`. Store the ignore-file base directory so descendant `.gitignore` rules are relative to their own directory:
 
@@ -299,7 +299,7 @@ function matchesIgnoreRule(relativePath, rule) {
 
 Import `readFile` from `node:fs/promises` and `path` from `node:path`. Use `path.matchesGlob()` only after normalization. Validate every explicit include with `normalizeRelativePath()` before scanning; security exclusions and root containment checks still run after a non-security ignore override.
 
-- [ ] **Step 4: Integrate discovery policy into the scanner**
+- [x] **Step 4: Integrate discovery policy into the scanner**
 
 In `scanAstCodeWorkspace()`:
 
@@ -314,7 +314,7 @@ In `scanAstCodeWorkspace()`:
 
 Keep coverage samples bounded with the existing `addBoundedLocator()` helper.
 
-- [ ] **Step 5: Verify discovery and existing AST behavior**
+- [x] **Step 5: Verify discovery and existing AST behavior**
 
 Run:
 
@@ -324,7 +324,7 @@ node --test tests/source-graph-discovery.test.mjs tests/ast-code-candidate-sourc
 
 Expected: all focused tests pass and supported AST/source-graph behavior remains unchanged.
 
-- [ ] **Step 6: Commit discovery policy**
+- [x] **Step 6: Commit discovery policy**
 
 ```bash
 git add providers/native/context-candidate-ast-code/src/ignore-rules.mjs providers/native/context-candidate-ast-code/src/index.mjs tests/source-graph-discovery.test.mjs
@@ -347,7 +347,7 @@ git commit -m "feat: bound source discovery before file accounting"
 - `buildSourceGraphFromIndex(index, options)` adds `maxNodes = 20_000` and `maxEdges = 50_000`.
 - `graph.summary.coverage` adds represented, candidate, and omitted node/edge counts by kind.
 
-- [ ] **Step 1: Write a graph-budget regression test**
+- [x] **Step 1: Write a graph-budget regression test**
 
 Add this generated dense-source test to `tests/source-graph-preview.test.mjs`. Extend the existing provider import with `buildJsTsSourceIndex` and `buildSourceGraphFromIndex`:
 
@@ -381,7 +381,7 @@ test('graph budget preserves structural and call edges before references', async
 });
 ```
 
-- [ ] **Step 2: Run the budget test and verify schema overflow**
+- [x] **Step 2: Run the budget test and verify schema overflow**
 
 Run:
 
@@ -391,7 +391,7 @@ node --test --test-name-pattern="graph budget" tests/source-graph-preview.test.m
 
 Expected: FAIL because `buildSourceGraphFromIndex` has no budgets and the schema has no omission fields.
 
-- [ ] **Step 3: Implement deterministic node and edge budgets**
+- [x] **Step 3: Implement deterministic node and edge budgets**
 
 Add constants and normalize options:
 
@@ -427,11 +427,11 @@ coverage: {
 
 Do not truncate after graph construction. The returned graph itself must satisfy the public schema.
 
-- [ ] **Step 4: Extend additive schemas, examples, OpenAPI, and RFC**
+- [x] **Step 4: Extend additive schemas, examples, OpenAPI, and RFC**
 
 Add optional bounded integer/count-map properties to the shared coverage definitions in both graph schemas. Also allow `ignoreRuleFingerprint` as a `sha256:` string and up to 100 safe workspace-relative `ignoreFileLocators`; these fields let the later snapshot service identify the discovery policy without exposing file bodies or absolute roots. Keep existing required fields and schema versions unchanged. Update `examples/protocol/source-graph.json` and `source-graph-preview.json` with a partial example. Add one paragraph to RFC 0001 explaining that additive v1 coverage fields report omitted candidates and never expand authority. Mirror the fields in `docs/api/openapi.yaml`.
 
-- [ ] **Step 5: Run graph and protocol verification**
+- [x] **Step 5: Run graph and protocol verification**
 
 Run:
 
@@ -442,7 +442,7 @@ npm run protocol:validate
 
 Expected: graph-budget tests, existing graph tests, and compatibility fixtures pass.
 
-- [ ] **Step 6: Commit bounded construction**
+- [x] **Step 6: Commit bounded construction**
 
 ```bash
 git add providers/native/context-candidate-ast-code/src/index.mjs packages/protocol/schemas/source-graph.schema.json packages/protocol/schemas/source-graph-preview.schema.json examples/protocol/source-graph.json examples/protocol/source-graph-preview.json docs/api/openapi.yaml rfcs/0001-protocol-contracts.md tests/source-graph-preview.test.mjs

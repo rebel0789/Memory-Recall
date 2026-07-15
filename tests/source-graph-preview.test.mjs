@@ -3,10 +3,15 @@ import assert from 'node:assert/strict';
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import sourceGraphSchema from '../packages/protocol/schemas/source-graph.schema.json' with { type: 'json' };
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import { normalizeSourceGraphWorkspaceLocator } from '../packages/protocol/src/source-graph-locator.mjs';
 import { buildSourceGraphPreview } from '../packages/source-graph/src/index.mjs';
-import { searchSourceGraph } from '../providers/native/context-candidate-ast-code/src/index.mjs';
+import {
+  buildJsTsSourceIndex,
+  buildSourceGraphFromIndex,
+  searchSourceGraph
+} from '../providers/native/context-candidate-ast-code/src/index.mjs';
 
 const fixedNow = '2026-06-23T00:00:00.000Z';
 
@@ -60,6 +65,53 @@ test('source graph still rejects absolute and encoded traversal locators', () =>
       /source_graph_workspace_locator_invalid/
     );
   }
+});
+
+test('graph budget preserves structural and call edges before references', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'recall-dense-graph-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, 'src'), { recursive: true });
+  const targets = Array.from({ length: 30 }, (_, index) => `export function target${index}(){ return ${index}; }`);
+  const calls = Array.from({ length: 30 }, (_, caller) => (
+    `export function caller${caller}(){ return ${Array.from({ length: 30 }, (_, target) => `target${target}()`).join(' + ')}; }`
+  ));
+  await writeFile(path.join(root, 'src', 'dense.js'), `${targets.join('\n')}\n${calls.join('\n')}\n`);
+
+  const index = await buildJsTsSourceIndex({ root, workspaceId: 'ws_local' });
+  const graph = buildSourceGraphFromIndex(index, {
+    builtAt: '2026-07-15T10:00:00.000Z',
+    maxNodes: 200,
+    maxEdges: 300
+  });
+
+  assert(graph.nodes.length <= 200);
+  assert(graph.edges.length <= 300);
+  assert.equal(graph.summary.coverage.status, 'partial');
+  assert(graph.summary.coverage.omittedEdgeCount > 0);
+  assert(graph.summary.coverage.omittedEdgeKindCounts.references > 0);
+  assert(graph.summary.edgeKindCounts.contains > 0);
+  assert(graph.summary.edgeKindCounts.defined_in > 0);
+  assert(graph.summary.edgeKindCounts.calls > 0);
+  assert.equal(
+    graph.summary.coverage.candidateNodeCount,
+    graph.summary.coverage.representedNodeCount + graph.summary.coverage.omittedNodeCount
+  );
+  assert.equal(
+    graph.summary.coverage.candidateEdgeCount,
+    graph.summary.coverage.representedEdgeCount + graph.summary.coverage.omittedEdgeCount
+  );
+  assert.match(graph.summary.coverage.ignoreRuleFingerprint, /^sha256:[a-f0-9]{64}$/u);
+  assert.equal(validateJsonSchema(sourceGraphSchema, graph).valid, true);
+
+  const nodeLimitedGraph = buildSourceGraphFromIndex(index, {
+    builtAt: '2026-07-15T10:00:00.000Z',
+    maxNodes: 50,
+    maxEdges: 300
+  });
+  assert.equal(nodeLimitedGraph.nodes.length, 50);
+  assert(nodeLimitedGraph.summary.coverage.omittedNodeCount > 0);
+  assert(nodeLimitedGraph.summary.coverage.reasonCodes.includes('node_budget_reached'));
+  assert.equal(validateJsonSchema(sourceGraphSchema, nodeLimitedGraph).valid, true);
 });
 
 test('source graph preview builds bounded read-only report without raw source bodies', async () => {

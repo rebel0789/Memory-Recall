@@ -20,7 +20,7 @@
       "nodeKindCounts": { "file": 1, "symbol": 1 },
       "edgeKindCounts": { "defined_in": 1 },
       "coverage": {
-        "status": "complete",
+        "status": "partial",
         "representedFileCount": 1,
         "representedJsTsLocators": ["workspace://src/auth.ts"],
         "skippedFileCount": 0,
@@ -35,8 +35,26 @@
         "sourceRelevantExcludedDirectoryLocators": [],
         "unsupportedFileCount": 0,
         "unsupportedExtensions": [],
+        "unsupportedExtensionCounts": {},
+        "ignoredFileCount": 1,
+        "ignoredDirectoryCount": 0,
+        "ignoredSamples": ["workspace://src/legacy.test.ts"],
+        "ignoreRuleFingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "ignoreFileLocators": ["workspace://.recallignore"],
+        "candidateNodeCount": 2,
+        "representedNodeCount": 2,
+        "omittedNodeCount": 0,
+        "candidateNodeKindCounts": { "file": 1, "symbol": 1 },
+        "representedNodeKindCounts": { "file": 1, "symbol": 1 },
+        "omittedNodeKindCounts": {},
+        "candidateEdgeCount": 2,
+        "representedEdgeCount": 1,
+        "omittedEdgeCount": 1,
+        "candidateEdgeKindCounts": { "defined_in": 1, "references": 1 },
+        "representedEdgeKindCounts": { "defined_in": 1 },
+        "omittedEdgeKindCounts": { "references": 1 },
         "maxFilesReached": false,
-        "reasonCodes": []
+        "reasonCodes": ["edge_budget_reached"]
       },
       "hotspots": [
         {

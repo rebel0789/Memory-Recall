@@ -870,7 +870,7 @@ components:
             type: string
             minLength: 1
             maxLength: 512
-            pattern: "^(workspace://)?(?!/)(?!.*\\.\\.)(?!.*\\\\)(?!.*\\s)(?!.*(?:^|/)Users(?:/|$))(?!.*(?:^|/)private(?:/|$))(?!.*(?:^|/)var/folders(?:/|$))[A-Za-z0-9._~!$&'()*+,;=:@%/-]{1,512}$"
+            pattern: "^(?:workspace://)?(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
         tokenBudget: { type: integer, minimum: 1, maximum: 100000 }
     ContextPackResponse:
       type: object
@@ -1245,7 +1245,13 @@ components:
         previewVersion: { const: oaf-source-graph-preview-1.0.0 }
         workspaceId: { $ref: '#/components/schemas/WorkspaceId' }
         generatedAt: { type: string, format: date-time }
-        graph: { type: object }
+        graph:
+          type: object
+          properties:
+            summary:
+              type: object
+              properties:
+                coverage: { $ref: '#/components/schemas/SourceGraphCoverage' }
         search: { type: object }
         trace: { type: [object, 'null'] }
         impact: { type: [object, 'null'] }
@@ -1265,6 +1271,62 @@ components:
             graphDatabaseUsed: { const: false }
             rawBodyIncluded: { const: false }
             sourceSlicesRead: { const: false }
+    SourceGraphCoverage:
+      type: object
+      properties:
+        status: { enum: [complete, partial] }
+        ignoredFileCount: { type: integer, minimum: 0, maximum: 1000000000 }
+        ignoredDirectoryCount: { type: integer, minimum: 0, maximum: 1000000000 }
+        ignoredSamples:
+          type: array
+          maxItems: 100
+          items: { type: string, minLength: 1, maxLength: 512 }
+        ignoreRuleFingerprint: { type: string, pattern: '^sha256:[a-f0-9]{64}$' }
+        ignoreFileLocators:
+          type: array
+          maxItems: 100
+          items: { type: string, minLength: 1, maxLength: 512 }
+        unsupportedExtensionCounts:
+          type: object
+          maxProperties: 32
+          additionalProperties: { type: integer, minimum: 0, maximum: 1000000000 }
+        candidateNodeCount: { type: integer, minimum: 0, maximum: 1000000000 }
+        representedNodeCount: { type: integer, minimum: 0, maximum: 20000 }
+        omittedNodeCount: { type: integer, minimum: 0, maximum: 1000000000 }
+        candidateNodeKindCounts: { $ref: '#/components/schemas/SourceGraphNodeCountMap' }
+        representedNodeKindCounts: { $ref: '#/components/schemas/SourceGraphNodeCountMap' }
+        omittedNodeKindCounts: { $ref: '#/components/schemas/SourceGraphNodeCountMap' }
+        candidateEdgeCount: { type: integer, minimum: 0, maximum: 1000000000 }
+        representedEdgeCount: { type: integer, minimum: 0, maximum: 50000 }
+        omittedEdgeCount: { type: integer, minimum: 0, maximum: 1000000000 }
+        candidateEdgeKindCounts: { $ref: '#/components/schemas/SourceGraphEdgeCountMap' }
+        representedEdgeKindCounts: { $ref: '#/components/schemas/SourceGraphEdgeCountMap' }
+        omittedEdgeKindCounts: { $ref: '#/components/schemas/SourceGraphEdgeCountMap' }
+        reasonCodes:
+          type: array
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 64 }
+    SourceGraphNodeCountMap:
+      type: object
+      maxProperties: 4
+      additionalProperties: false
+      properties:
+        file: { type: integer, minimum: 0, maximum: 1000000000 }
+        chunk: { type: integer, minimum: 0, maximum: 1000000000 }
+        symbol: { type: integer, minimum: 0, maximum: 1000000000 }
+        module: { type: integer, minimum: 0, maximum: 1000000000 }
+    SourceGraphEdgeCountMap:
+      type: object
+      maxProperties: 6
+      additionalProperties: false
+      properties:
+        contains: { type: integer, minimum: 0, maximum: 1000000000 }
+        defined_in: { type: integer, minimum: 0, maximum: 1000000000 }
+        imports: { type: integer, minimum: 0, maximum: 1000000000 }
+        exports: { type: integer, minimum: 0, maximum: 1000000000 }
+        calls: { type: integer, minimum: 0, maximum: 1000000000 }
+        references: { type: integer, minimum: 0, maximum: 1000000000 }
     HarnessSetupPlanRequest:
       type: object
       additionalProperties: false

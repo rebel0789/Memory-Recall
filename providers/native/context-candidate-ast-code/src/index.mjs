@@ -49,6 +49,9 @@ const EXCLUDED_DIRECTORY_POLICIES = new Map([
 const NON_OVERRIDABLE_EXCLUDED_DIRECTORIES = new Set(['.git', '.worktrees']);
 const DEFAULT_MAX_FILE_BYTES = 512 * 1024;
 const DEFAULT_MAX_FILES = 1000;
+export const DEFAULT_SOURCE_GRAPH_MAX_NODES = 20_000;
+export const DEFAULT_SOURCE_GRAPH_MAX_EDGES = 50_000;
+const EDGE_BUDGET_ORDER = Object.freeze(['contains', 'defined_in', 'imports', 'exports', 'calls', 'references']);
 const MAX_COVERAGE_REPRESENTED_LOCATORS = 1000;
 const MAX_COVERAGE_SKIPPED_LOCATORS = 100;
 const MAX_COVERAGE_EXCLUDED_DIRECTORY_LOCATORS = 100;
@@ -744,6 +747,10 @@ function sourceGraphCoverage({
   sourceRelevantExcludedDirectoryLocators = [],
   unsupportedFileCount = 0,
   unsupportedExtensions = [],
+  unsupportedExtensionCounts = {},
+  ignoredFileCount = 0,
+  ignoredDirectoryCount = 0,
+  ignoredSamples = [],
   maxFilesReached = false,
   diagnosticCodes = []
 } = {}) {
@@ -756,6 +763,15 @@ function sourceGraphCoverage({
   const extensions = uniqueSortedStrings(unsupportedExtensions)
     .filter((extension) => /^\.[a-z0-9]{1,16}$/u.test(extension))
     .slice(0, MAX_COVERAGE_UNSUPPORTED_EXTENSIONS);
+  const boundedUnsupportedExtensionCounts = Object.fromEntries(
+    Object.entries(unsupportedExtensionCounts ?? {})
+      .filter(([extension, count]) => /^\.[a-z0-9]{1,16}$/u.test(extension) && Number.isInteger(count) && count >= 0)
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+      .slice(0, MAX_COVERAGE_UNSUPPORTED_EXTENSIONS)
+  );
+  const ignored = uniqueSortedStrings(ignoredSamples)
+    .filter((locator) => SOURCE_GRAPH_WORKSPACE_LOCATOR_RE.test(locator))
+    .slice(0, MAX_COVERAGE_IGNORED_SAMPLES);
   const reasons = new Set();
   const partialReasons = new Set();
   if (oversizedLocators.length) partialReasons.add('file_too_large');
@@ -785,6 +801,10 @@ function sourceGraphCoverage({
     sourceRelevantExcludedDirectoryLocators: sourceRelevantExcludedDirectories,
     unsupportedFileCount: Math.max(0, unsupportedFileCount),
     unsupportedExtensions: extensions,
+    unsupportedExtensionCounts: boundedUnsupportedExtensionCounts,
+    ignoredFileCount: Math.max(0, ignoredFileCount),
+    ignoredDirectoryCount: Math.max(0, ignoredDirectoryCount),
+    ignoredSamples: ignored,
     maxFilesReached: Boolean(maxFilesReached),
     reasonCodes
   });
@@ -863,37 +883,64 @@ export function querySourceIndex(index, { operation, name = null, module = null,
 
 export async function buildJsTsSourceGraph(options = {}) {
   const index = await buildJsTsSourceIndex(options);
-  return buildSourceGraphFromIndex(index, { builtAt: safeTimestamp(options.clock) });
+  return buildSourceGraphFromIndex(index, {
+    builtAt: safeTimestamp(options.clock),
+    maxNodes: options.maxNodes,
+    maxEdges: options.maxEdges
+  });
 }
 
-export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOString() } = {}) {
+export function buildSourceGraphFromIndex(index, {
+  builtAt = new Date().toISOString(),
+  maxNodes = DEFAULT_SOURCE_GRAPH_MAX_NODES,
+  maxEdges = DEFAULT_SOURCE_GRAPH_MAX_EDGES
+} = {}) {
   if (!index?.symbolIndex) throw new Error('source index is required');
   const workspaceId = index.workspaceId ?? index.symbolIndex.workspaceId;
   if (!workspaceId) throw new Error('source graph workspaceId is required');
+  const nodeLimit = boundedInteger(maxNodes, 'source_graph_max_nodes', 1, DEFAULT_SOURCE_GRAPH_MAX_NODES);
+  const edgeLimit = boundedInteger(maxEdges, 'source_graph_max_edges', 1, DEFAULT_SOURCE_GRAPH_MAX_EDGES);
   const nodesById = new Map();
-  const edgesById = new Map();
+  const seenNodeIds = new Set();
+  const seenEdgeIds = new Set();
+  const candidateNodeKindCounts = {};
+  const candidateEdgeKindCounts = {};
+  const edgeCandidatesByKind = new Map(EDGE_BUDGET_ORDER.map((kind) => [kind, []]));
   const fileOutlinesByLocator = new Map((index.fileOutlines ?? []).map((file) => [file.locator, file]));
   const knownFileLocators = new Set(fileOutlinesByLocator.keys());
-  const symbolNodeBySymbolId = new Map();
+  const symbols = [...(index.symbolIndex.symbols ?? [])].sort((left, right) => left.id.localeCompare(right.id));
+  const imports = [...(index.symbolIndex.imports ?? [])].sort((left, right) => left.id.localeCompare(right.id));
+  const exports = [...(index.symbolIndex.exports ?? [])].sort((left, right) => left.id.localeCompare(right.id));
+  const callEdges = [...(index.symbolIndex.callEdges ?? [])].sort((left, right) => left.id.localeCompare(right.id));
+  const references = [...(index.symbolIndex.references ?? [])].sort((left, right) => left.id.localeCompare(right.id));
+
+  function increment(counts, kind) {
+    counts[kind] = (counts[kind] ?? 0) + 1;
+  }
 
   function addNode(node) {
+    if (seenNodeIds.has(node.id)) return nodesById.get(node.id) ?? null;
+    seenNodeIds.add(node.id);
+    increment(candidateNodeKindCounts, node.kind);
+    if (nodesById.size >= nodeLimit) return null;
     const frozen = Object.freeze(node);
     nodesById.set(frozen.id, frozen);
     return frozen;
   }
 
-  function addEdge(edge) {
-    if (!nodesById.has(edge.fromNodeId) || !nodesById.has(edge.toNodeId)) return null;
+  function stageEdge(edge) {
+    if (seenEdgeIds.has(edge.id)) return;
+    seenEdgeIds.add(edge.id);
+    increment(candidateEdgeKindCounts, edge.kind);
+    if (!nodesById.has(edge.fromNodeId) || !nodesById.has(edge.toNodeId)) return;
     const frozen = Object.freeze(edge);
-    edgesById.set(frozen.id, frozen);
-    return frozen;
+    offerBoundedEdgeCandidate(edgeCandidatesByKind.get(frozen.kind), frozen, edgeLimit);
   }
 
-  function ensureFileNode(locator) {
+  function addFileNode(locator) {
     const fileLocator = fileLocatorFor(locator);
     const outline = fileOutlinesByLocator.get(fileLocator);
     const id = sourceGraphNodeId('file', fileLocator);
-    if (nodesById.has(id)) return nodesById.get(id);
     return addNode(withDefined({
       id,
       workspaceId,
@@ -905,46 +952,102 @@ export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOStr
     }));
   }
 
-  function ensureChunkNode({ chunkId, locator, contentHash = null, sourceSnapshotId = null }) {
-    if (!chunkId || !locator) return null;
-    const id = sourceGraphNodeId('chunk', chunkId);
-    if (nodesById.has(id)) return nodesById.get(id);
-    const fileNode = ensureFileNode(locator);
-    const chunkNode = addNode(withDefined({
-      id,
-      workspaceId,
-      kind: 'chunk',
-      label: locatorLabel(locator),
-      locator,
-      sourceRef: chunkId,
-      contentHash,
-      sourceSnapshotId
-    }));
-    addEdge(withDefined({
-      id: sourceGraphEdgeId('contains', fileNode.id, chunkNode.id, chunkId),
-      workspaceId,
-      kind: 'contains',
-      fromNodeId: fileNode.id,
-      toNodeId: chunkNode.id,
-      locator,
-      sourceRef: chunkId,
-      confidence: 1
-    }));
-    return chunkNode;
+  function rememberChunk(chunksById, { chunkId, locator, contentHash = null, sourceSnapshotId = null }) {
+    if (!chunkId || !locator) return;
+    const current = chunksById.get(chunkId);
+    chunksById.set(chunkId, {
+      chunkId,
+      locator: current?.locator ?? locator,
+      contentHash: current?.contentHash ?? contentHash,
+      sourceSnapshotId: current?.sourceSnapshotId ?? sourceSnapshotId
+    });
   }
 
-  for (const locator of index.symbolIndex.fileLocators ?? index.repositoryOutline?.locators ?? []) ensureFileNode(locator);
-  for (const file of index.fileOutlines ?? []) ensureFileNode(file.locator);
+  function offerBoundedEdgeCandidate(heap, edge, limit) {
+    if (!heap) return;
+    if (heap.length < limit) {
+      heap.push(edge);
+      let child = heap.length - 1;
+      while (child > 0) {
+        const parent = Math.floor((child - 1) / 2);
+        if (heap[parent].id.localeCompare(heap[child].id) >= 0) break;
+        [heap[parent], heap[child]] = [heap[child], heap[parent]];
+        child = parent;
+      }
+      return;
+    }
+    if (edge.id.localeCompare(heap[0].id) >= 0) return;
+    heap[0] = edge;
+    let parent = 0;
+    while (true) {
+      const left = parent * 2 + 1;
+      const right = left + 1;
+      let largest = parent;
+      if (left < heap.length && heap[left].id.localeCompare(heap[largest].id) > 0) largest = left;
+      if (right < heap.length && heap[right].id.localeCompare(heap[largest].id) > 0) largest = right;
+      if (largest === parent) break;
+      [heap[parent], heap[largest]] = [heap[largest], heap[parent]];
+      parent = largest;
+    }
+  }
 
-  for (const symbol of index.symbolIndex.symbols ?? []) {
-    const chunkNode = ensureChunkNode({
-      chunkId: symbol.chunkId,
-      locator: symbol.locator,
-      contentHash: symbol.contentHash,
-      sourceSnapshotId: symbol.sourceSnapshotId
-    });
-    const node = addNode(withDefined({
-      id: sourceGraphNodeId('symbol', symbol.id),
+  const fileLocators = new Set([
+    ...(index.symbolIndex.fileLocators ?? []),
+    ...(index.repositoryOutline?.locators ?? []),
+    ...(index.fileOutlines ?? []).map((file) => file.locator),
+    ...symbols.map((symbol) => symbol.locator),
+    ...imports.map((item) => item.locator),
+    ...exports.map((item) => item.locator),
+    ...references.map((item) => item.sourceLocator),
+    ...callEdges.map((item) => item.sourceLocator)
+  ].filter(Boolean).map(fileLocatorFor));
+  for (const locator of [...fileLocators].sort()) addFileNode(locator);
+
+  const chunksById = new Map();
+  for (const symbol of symbols) rememberChunk(chunksById, {
+    chunkId: symbol.chunkId,
+    locator: symbol.locator,
+    contentHash: symbol.contentHash,
+    sourceSnapshotId: symbol.sourceSnapshotId
+  });
+  for (const item of imports) rememberChunk(chunksById, { chunkId: item.chunkId, locator: item.locator });
+  for (const item of references) rememberChunk(chunksById, { chunkId: item.sourceChunkId, locator: item.sourceLocator });
+  for (const item of exports) rememberChunk(chunksById, { chunkId: item.chunkId, locator: item.locator });
+
+  for (const chunk of [...chunksById.values()].sort((left, right) => left.chunkId.localeCompare(right.chunkId))) {
+    const chunkNodeId = sourceGraphNodeId('chunk', chunk.chunkId);
+    const fileNodeId = sourceGraphNodeId('file', fileLocatorFor(chunk.locator));
+    addNode(withDefined({
+      id: chunkNodeId,
+      workspaceId,
+      kind: 'chunk',
+      label: locatorLabel(chunk.locator),
+      locator: chunk.locator,
+      sourceRef: chunk.chunkId,
+      contentHash: chunk.contentHash,
+      sourceSnapshotId: chunk.sourceSnapshotId
+    }));
+    stageEdge(withDefined({
+      id: sourceGraphEdgeId('contains', fileNodeId, chunkNodeId, chunk.chunkId),
+      workspaceId,
+      kind: 'contains',
+      fromNodeId: fileNodeId,
+      toNodeId: chunkNodeId,
+      locator: chunk.locator,
+      sourceRef: chunk.chunkId,
+      confidence: 1
+    }));
+  }
+
+  const symbolsByChunkId = new Map();
+  for (const symbol of symbols) {
+    const chunkSymbols = symbolsByChunkId.get(symbol.chunkId) ?? [];
+    chunkSymbols.push(symbol);
+    symbolsByChunkId.set(symbol.chunkId, chunkSymbols);
+    const symbolNodeId = sourceGraphNodeId('symbol', symbol.id);
+    const chunkNodeId = sourceGraphNodeId('chunk', symbol.chunkId);
+    addNode(withDefined({
+      id: symbolNodeId,
       workspaceId,
       kind: 'symbol',
       label: symbol.name,
@@ -956,115 +1059,154 @@ export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOStr
       contentHash: symbol.contentHash,
       sourceSnapshotId: symbol.sourceSnapshotId
     }));
-    symbolNodeBySymbolId.set(symbol.id, node);
-    if (chunkNode) {
-      addEdge(withDefined({
-        id: sourceGraphEdgeId('defined_in', node.id, chunkNode.id, symbol.id),
-        workspaceId,
-        kind: 'defined_in',
-        fromNodeId: node.id,
-        toNodeId: chunkNode.id,
-        locator: symbol.locator,
-        sourceRef: symbol.id,
-        confidence: 1
-      }));
-    }
+    stageEdge(withDefined({
+      id: sourceGraphEdgeId('defined_in', symbolNodeId, chunkNodeId, symbol.id),
+      workspaceId,
+      kind: 'defined_in',
+      fromNodeId: symbolNodeId,
+      toNodeId: chunkNodeId,
+      locator: symbol.locator,
+      sourceRef: symbol.id,
+      confidence: 1
+    }));
   }
 
-  for (const item of index.symbolIndex.imports ?? []) {
-    const chunkNode = ensureChunkNode({ chunkId: item.chunkId, locator: item.locator });
-    const moduleNode = addNode(withDefined({
+  const firstImportByModule = new Map();
+  for (const item of imports) if (!firstImportByModule.has(item.module)) firstImportByModule.set(item.module, item);
+  for (const [moduleName, item] of [...firstImportByModule.entries()].sort((left, right) => left[0].localeCompare(right[0]))) {
+    addNode(withDefined({
       id: sourceGraphNodeId('module', item.module),
       workspaceId,
       kind: 'module',
-      label: item.module,
+      label: moduleName,
       sourceRef: item.moduleHash,
       moduleHash: item.moduleHash
     }));
-    if (chunkNode) {
-      addEdge(withDefined({
-        id: sourceGraphEdgeId('imports', chunkNode.id, moduleNode.id, item.id),
+  }
+
+  for (const item of imports) {
+    const chunkNodeId = sourceGraphNodeId('chunk', item.chunkId);
+    const moduleNodeId = sourceGraphNodeId('module', item.module);
+    stageEdge(withDefined({
+      id: sourceGraphEdgeId('imports', chunkNodeId, moduleNodeId, item.id),
+      workspaceId,
+      kind: 'imports',
+      fromNodeId: chunkNodeId,
+      toNodeId: moduleNodeId,
+      locator: item.locator,
+      sourceRef: item.id,
+      confidence: 0.9
+    }));
+    const importedFileLocator = resolveImportFileLocator(item.locator, item.module, knownFileLocators);
+    if (importedFileLocator) {
+      const importedFileNodeId = sourceGraphNodeId('file', importedFileLocator);
+      stageEdge(withDefined({
+        id: sourceGraphEdgeId('imports', chunkNodeId, importedFileNodeId, `${item.id}:file`),
         workspaceId,
         kind: 'imports',
-        fromNodeId: chunkNode.id,
-        toNodeId: moduleNode.id,
-        locator: item.locator,
+        fromNodeId: chunkNodeId,
+        toNodeId: importedFileNodeId,
+        locator: importedFileLocator,
         sourceRef: item.id,
-        confidence: 0.9
+        confidence: 0.85
       }));
-      const importedFileLocator = resolveImportFileLocator(item.locator, item.module, knownFileLocators);
-      const importedFileNode = importedFileLocator ? ensureFileNode(importedFileLocator) : null;
-      if (importedFileNode) {
-        addEdge(withDefined({
-          id: sourceGraphEdgeId('imports', chunkNode.id, importedFileNode.id, `${item.id}:file`),
-          workspaceId,
-          kind: 'imports',
-          fromNodeId: chunkNode.id,
-          toNodeId: importedFileNode.id,
-          locator: importedFileLocator,
-          sourceRef: item.id,
-          confidence: 0.85
-        }));
-      }
     }
   }
 
-  for (const item of index.symbolIndex.exports ?? []) {
-    const fileNode = ensureFileNode(item.locator);
-    const chunkSymbols = (index.symbolIndex.symbols ?? []).filter((symbol) => symbol.chunkId === item.chunkId);
+  for (const item of exports) {
+    const fileNodeId = sourceGraphNodeId('file', fileLocatorFor(item.locator));
+    const chunkSymbols = symbolsByChunkId.get(item.chunkId) ?? [];
     const targetSymbol = chunkSymbols.find((symbol) => symbol.name === item.name) ?? chunkSymbols[0];
-    const targetNode = targetSymbol ? symbolNodeBySymbolId.get(targetSymbol.id) : ensureChunkNode({ chunkId: item.chunkId, locator: item.locator });
-    if (targetNode) {
-      addEdge(withDefined({
-        id: sourceGraphEdgeId('exports', fileNode.id, targetNode.id, item.id),
-        workspaceId,
-        kind: 'exports',
-        fromNodeId: fileNode.id,
-        toNodeId: targetNode.id,
-        locator: item.locator,
-        sourceRef: item.id,
-        exportName: item.name,
-        confidence: 1
-      }));
-    }
+    const targetNodeId = targetSymbol
+      ? sourceGraphNodeId('symbol', targetSymbol.id)
+      : sourceGraphNodeId('chunk', item.chunkId);
+    stageEdge(withDefined({
+      id: sourceGraphEdgeId('exports', fileNodeId, targetNodeId, item.id),
+      workspaceId,
+      kind: 'exports',
+      fromNodeId: fileNodeId,
+      toNodeId: targetNodeId,
+      locator: item.locator,
+      sourceRef: item.id,
+      exportName: item.name,
+      confidence: 1
+    }));
   }
 
-  for (const item of index.symbolIndex.references ?? []) {
-    const sourceChunk = ensureChunkNode({ chunkId: item.sourceChunkId, locator: item.sourceLocator });
-    const targetNode = symbolNodeBySymbolId.get(item.targetSymbolId);
-    if (sourceChunk && targetNode) {
-      addEdge(withDefined({
-        id: sourceGraphEdgeId('references', sourceChunk.id, targetNode.id, item.id),
-        workspaceId,
-        kind: 'references',
-        fromNodeId: sourceChunk.id,
-        toNodeId: targetNode.id,
-        locator: item.sourceLocator,
-        sourceRef: item.id,
-        confidence: 0.75
-      }));
-    }
+  for (const item of callEdges) {
+    const callerNodeId = sourceGraphNodeId('symbol', item.callerSymbolId);
+    const calleeNodeId = sourceGraphNodeId('symbol', item.calleeSymbolId);
+    stageEdge(withDefined({
+      id: sourceGraphEdgeId('calls', callerNodeId, calleeNodeId, item.id),
+      workspaceId,
+      kind: 'calls',
+      fromNodeId: callerNodeId,
+      toNodeId: calleeNodeId,
+      locator: item.sourceLocator,
+      sourceRef: item.id,
+      confidence: 0.7
+    }));
   }
 
-  for (const item of index.symbolIndex.callEdges ?? []) {
-    const callerNode = symbolNodeBySymbolId.get(item.callerSymbolId);
-    const calleeNode = symbolNodeBySymbolId.get(item.calleeSymbolId);
-    if (callerNode && calleeNode) {
-      addEdge(withDefined({
-        id: sourceGraphEdgeId('calls', callerNode.id, calleeNode.id, item.id),
-        workspaceId,
-        kind: 'calls',
-        fromNodeId: callerNode.id,
-        toNodeId: calleeNode.id,
-        locator: item.sourceLocator,
-        sourceRef: item.id,
-        confidence: 0.7
-      }));
-    }
+  for (const item of references) {
+    const sourceChunkNodeId = sourceGraphNodeId('chunk', item.sourceChunkId);
+    const targetNodeId = sourceGraphNodeId('symbol', item.targetSymbolId);
+    stageEdge(withDefined({
+      id: sourceGraphEdgeId('references', sourceChunkNodeId, targetNodeId, item.id),
+      workspaceId,
+      kind: 'references',
+      fromNodeId: sourceChunkNodeId,
+      toNodeId: targetNodeId,
+      locator: item.sourceLocator,
+      sourceRef: item.id,
+      confidence: 0.75
+    }));
   }
 
+  const edgesById = new Map();
+  for (const kind of EDGE_BUDGET_ORDER) {
+    const candidates = edgeCandidatesByKind.get(kind).sort((left, right) => left.id.localeCompare(right.id));
+    for (const edge of candidates) {
+      if (edgesById.size >= edgeLimit) break;
+      edgesById.set(edge.id, edge);
+    }
+  }
   const nodes = [...nodesById.values()].sort((a, b) => a.id.localeCompare(b.id));
   const edges = [...edgesById.values()].sort((a, b) => a.id.localeCompare(b.id));
+  const representedNodeKindCounts = countBy(nodes, (node) => node.kind);
+  const representedEdgeKindCounts = countBy(edges, (edge) => edge.kind);
+  const omittedNodeKindCounts = countDifference(candidateNodeKindCounts, representedNodeKindCounts);
+  const omittedEdgeKindCounts = countDifference(candidateEdgeKindCounts, representedEdgeKindCounts);
+  const candidateNodeCount = countTotal(candidateNodeKindCounts);
+  const candidateEdgeCount = countTotal(candidateEdgeKindCounts);
+  const omittedNodeCount = countTotal(omittedNodeKindCounts);
+  const omittedEdgeCount = countTotal(omittedEdgeKindCounts);
+  const budgetReasonCodes = [
+    ...(omittedNodeCount ? ['node_budget_reached'] : []),
+    ...(omittedEdgeCount ? ['edge_budget_reached'] : [])
+  ];
+  const reasonCodes = [...new Set([...budgetReasonCodes, ...(index.coverage?.reasonCodes ?? [])])]
+    .slice(0, 16)
+    .sort();
+  const coverage = Object.freeze(withDefined({
+    ...(index.coverage ?? {}),
+    ignoreRuleFingerprint: index.discoveryIdentity?.ignoreRuleFingerprint,
+    ignoreFileLocators: index.discoveryIdentity?.ignoreFileLocators,
+    status: omittedNodeCount || omittedEdgeCount || index.coverage?.status === 'partial' ? 'partial' : 'complete',
+    candidateNodeCount,
+    representedNodeCount: nodes.length,
+    omittedNodeCount,
+    candidateNodeKindCounts: freezeCountMap(candidateNodeKindCounts),
+    representedNodeKindCounts,
+    omittedNodeKindCounts,
+    candidateEdgeCount,
+    representedEdgeCount: edges.length,
+    omittedEdgeCount,
+    candidateEdgeKindCounts: freezeCountMap(candidateEdgeKindCounts),
+    representedEdgeKindCounts,
+    omittedEdgeKindCounts,
+    reasonCodes
+  }));
   const graph = {
     schemaVersion: '1.0.0',
     workspaceId,
@@ -1072,12 +1214,30 @@ export function buildSourceGraphFromIndex(index, { builtAt = new Date().toISOStr
     parserVersion: index.parserVersion ?? index.symbolIndex.parserVersion ?? AST_CODE_PARSER_VERSION,
     builtAt,
     sourceIndexFingerprint: index.sourceIndexFingerprint ?? index.symbolIndex.symbolIndexFingerprint,
-    summary: sourceGraphSummary({ nodes, edges, coverage: index.coverage }),
+    summary: sourceGraphSummary({ nodes, edges, coverage }),
     nodes,
     edges,
     diagnostics: [...(index.diagnostics ?? [])].sort((a, b) => a.locator.localeCompare(b.locator) || a.code.localeCompare(b.code))
   };
   return Object.freeze({ ...graph, graphFingerprint: graphContentFingerprint(graph) });
+}
+
+function freezeCountMap(counts) {
+  return Object.freeze(Object.fromEntries(
+    Object.entries(counts ?? {})
+      .filter(([, count]) => Number.isInteger(count) && count > 0)
+      .sort((left, right) => left[0].localeCompare(right[0]))
+  ));
+}
+
+function countDifference(candidateCounts, representedCounts) {
+  return freezeCountMap(Object.fromEntries(
+    Object.entries(candidateCounts ?? {}).map(([kind, count]) => [kind, Math.max(0, count - (representedCounts?.[kind] ?? 0))])
+  ));
+}
+
+function countTotal(counts) {
+  return Object.values(counts ?? {}).reduce((total, count) => total + count, 0);
 }
 
 export function searchSourceGraph(graph, {
