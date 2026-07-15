@@ -227,7 +227,7 @@ git commit -m "refactor: extract web API and UI primitives"
 - Consumes graph-foundation fields `architecture.groups` and `architecture.groupRelations`.
 - Input accepts `loading = false`, `error = null`, `gitChanges = null`, `handoff = null`, and an injected `now` timestamp for deterministic age labels.
 
-- [ ] **Step 1: Write failing first-ten-seconds model tests**
+- [x] **Step 1: Write failing first-ten-seconds model tests**
 
 Create `tests/web-orientation.test.mjs`:
 
@@ -351,7 +351,7 @@ function handoffFixture() {
 
 Define fixture helpers in the same test file with complete repository, support, architecture, memory, safeguards, and readiness fields.
 
-- [ ] **Step 2: Run the model test and verify the missing module**
+- [x] **Step 2: Run the model test and verify the missing module**
 
 Run:
 
@@ -361,7 +361,7 @@ node --test tests/web-orientation.test.mjs
 
 Expected: FAIL with module-not-found for `orientation-model.js`.
 
-- [ ] **Step 3: Implement bounded group and start-point selection**
+- [x] **Step 3: Implement bounded group and start-point selection**
 
 In `orientation-model.js`, normalize every external string and array. Cap groups at 12 and relations at 20. Rank start points with explicit reason priority:
 
@@ -396,7 +396,7 @@ function rankStartHere(items) {
 
 Collapse strongly connected group components before assigning left-to-right topological layers. Sort groups inside a layer by repository-relative prefix. Do not use randomness, measured DOM size, or force layout.
 
-- [ ] **Step 4: Build truthful impact and trust models**
+- [x] **Step 4: Build truthful impact and trust models**
 
 Expose represented and unrepresented changed counts separately. Map graph snapshot states to `complete`, `partial`, `stale`, `failed`, or `not scanned`. Keep memory counts as active, pending, stale, and conflicting. Include token reduction only when the report contains a measured baseline and `providerBillingClaimed === false`; otherwise set it to `null`.
 
@@ -417,11 +417,11 @@ Return a frozen model with:
 }
 ```
 
-- [ ] **Step 5: Delegate Overview modeling from `app.js`**
+- [x] **Step 5: Delegate Overview modeling from `app.js`**
 
 Replace `buildRecallMapHomeModel()` internals with an import/delegation to `buildOrientationModel()`. Keep a named re-export from `app.js` for compatibility until `tests/web-shell.test.mjs` imports the new module directly. Update `selectOverviewPrimaryAction()` only to consume the new model fields; keep its current route IDs and actions.
 
-- [ ] **Step 6: Verify model and shell behavior**
+- [x] **Step 6: Verify model and shell behavior**
 
 Run:
 
@@ -431,7 +431,7 @@ node --test tests/web-orientation.test.mjs tests/web-shell.test.mjs
 
 Expected: deterministic orientation tests and existing shell state tests pass.
 
-- [ ] **Step 7: Commit orientation modeling**
+- [x] **Step 7: Commit orientation modeling**
 
 ```bash
 git add apps/web/orientation-model.js apps/web/app.js apps/web/shell-model.js tests/web-orientation.test.mjs tests/web-shell.test.mjs

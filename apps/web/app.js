@@ -1,5 +1,6 @@
 import { navigationItemsFor, navigationOwner, selectOverviewPrimaryAction } from './shell-model.js';
 import { csrfToken, requestJson as api } from './api.js';
+import { buildOrientationModel } from './orientation-model.js';
 import {
   buildApiErrorUiModel,
   escapeHtml as esc,
@@ -1218,141 +1219,15 @@ function renderHome() {
 }
 
 export function buildRecallMapHomeModel({ report=null, error=null, gitChanges=null, pinnedHandoffStatus=null, pinnedHandoffError=null }={}) {
-  if (error) {
-    return {
-      state:'error',
-      error:buildApiErrorUiModel(error),
-      title:'Recall Map unavailable',
-      copy:'The local API did not return a map. Retry the read-only request or inspect the correlation details below.',
-      commands:[]
-    };
-  }
-  if (!report) {
-    return {
-      state:'loading',
-      title:'Loading Recall Map',
-      copy:'Reading bounded local source metadata and governed memory summaries.',
-      commands:[]
-    };
-  }
-  const sourceGraph=report.support?.sourceGraph ?? {};
-  const coverage=sourceGraph.coverage ?? {};
-  const architecture=report.architecture ?? {};
-  const impact=architecture.impact ?? {};
-  const memory=report.memory ?? {};
-  const repository=report.repository ?? {
-    name:'Local workspace',
-    branch:null,
-    commitSha:null,
-    dirtyCount:0,
-    gitStatusAvailable:false,
-    reason:'repository_identity_unavailable'
-  };
-  const entryPoints=Array.isArray(architecture.entryPoints)?architecture.entryPoints:[];
-  const hotspots=Array.isArray(architecture.hotspots)?architecture.hotspots:[];
-  const changedLocators=Array.isArray(impact.changedLocators)?impact.changedLocators:[];
-  const representedChangedLocators=Array.isArray(impact.representedChangedLocators)?impact.representedChangedLocators:[];
-  const affectedSymbols=Array.isArray(impact.affectedSymbols)?impact.affectedSymbols:[];
-  const detectedChanges=normalizeRecallMapGitChanges(gitChanges);
-  const activeFacts=Array.isArray(memory.activeFacts)?memory.activeFacts:[];
-  const pendingProposals=Array.isArray(memory.pendingProposals)?memory.pendingProposals:[];
-  const handoffStatus=String(pinnedHandoffStatus?.current?.status ?? '');
-  const handoffEntryId=pinnedHandoffStatus?.current?.entryId ?? null;
-  const handoffEntry=(pinnedHandoffStatus?.entries ?? []).find((entry)=>entry.id===handoffEntryId) ?? null;
-  const handoffState=pinnedHandoffError
-    ? 'blocked'
-    : handoffStatus==='verified'
-      ? 'ready'
-      : handoffStatus==='stale'||handoffStatus==='review'
-        ? 'review'
-        : handoffStatus==='tampered'
-          ? 'blocked'
-          : report.readiness?.handoff?.status==='available'
-            ? 'pending'
-            : 'blocked';
-  const sourceUnavailable=sourceGraph.status==='unavailable'||coverage.status==='unavailable';
-  const noArchitecture=entryPoints.length===0&&hotspots.length===0&&changedLocators.length===0&&affectedSymbols.length===0;
-  const baseState=sourceUnavailable?'partial':noArchitecture?'empty':'success';
-  const state=handoffState==='review'?'stale':baseState;
-  const nextCommands=[
-    'recall map --root . --sqlite .local/memory.sqlite --format summary',
-    ...(Array.isArray(report.readiness?.nextCommands)?report.readiness.nextCommands:[]),
-    report.readiness?.mcp?.command
-  ].filter((command,index,all)=>typeof command==='string'&&command.length>0&&all.indexOf(command)===index).slice(0,5);
-  return {
-    state,
-    generatedAt:report.generatedAt ?? null,
-    repository,
-    index:{
-      status:sourceGraph.status ?? 'unavailable',
-      kind:sourceGraph.status==='implemented'?'success':'error',
-      label:sourceGraph.status==='implemented'?'JS/TS map indexed':'Source graph unavailable',
-      copy:sourceGraph.status==='implemented'?'Bounded static metadata only; raw source bodies stay local.':'The local source graph could not be read.'
-    },
-    coverage:{
-      status:coverage.status ?? 'unavailable',
-      kind:coverage.status==='unavailable'?'error':'partial',
-      label:`${Number(coverage.analyzedFileCount??0)} / ${Number(coverage.maxFiles??0)} files`,
-      diagnosticCount:Number(coverage.diagnosticCount??0),
-      reasonCodes:Array.isArray(coverage.reasonCodes)?coverage.reasonCodes:[]
-    },
-    entryPoints,
-    hotspots,
-    impact:{
-      changedLocators,
-      representedChangedLocators,
-      affectedSymbols,
-      changedCount:changedLocators.length,
-      representedCount:representedChangedLocators.length,
-      affectedCount:affectedSymbols.length,
-      totalChangedCount:detectedChanges.status==='available'?detectedChanges.totalCount:changedLocators.length,
-      omittedChangedCount:detectedChanges.status==='available'?detectedChanges.omittedCount:0,
-      truncated:detectedChanges.truncated,
-      detectionStatus:detectedChanges.status,
-      detectionReason:detectedChanges.reason,
-      detectionMessage:detectedChanges.message,
-      repositoryDirtyCount:Number(repository.dirtyCount??0),
-      depth:Number(impact.depth??0)
-    },
-    memory:{
-      status:memory.status ?? 'unavailable',
-      kind:memory.status==='available'?(Number(memory.staleFactCount??0)>0?'stale':'success'):'error',
-      activeCount:activeFacts.length,
-      pendingCount:pendingProposals.length,
-      staleCount:Number(memory.staleFactCount??0),
-      unavailableReason:memory.unavailableReason ?? null
-    },
-    handoff:{
-      state:handoffState,
-      kind:handoffState==='ready'?'success':handoffState==='review'||handoffState==='pending'?'partial':'error',
-      command:report.readiness?.handoff?.command ?? 'recall handoff',
-      createdAt:handoffEntry?.createdAt ?? null,
-      ageLabel:relativeAge(handoffEntry?.createdAt,pinnedHandoffStatus?.generatedAt??report.generatedAt),
-      copy:handoffState==='ready'
-        ? 'Pinned handoff is verified for the next coding agent.'
-        : handoffState==='review'
-          ? 'Pinned sources changed and need review before handoff.'
-          : handoffState==='pending'
-            ? 'The handoff command is available; no verified pinned packet is active.'
-            : 'Handoff verification is unavailable. Review the local registry before sharing context.'
-    },
-    safeguards:report.safeguards ?? {},
-    commands:nextCommands.map((command)=>({ label:recallMapCommandLabel(command), command })),
-    recentActivity:[
-      ...pendingProposals.slice(0,3).map((proposal)=>({
-        kind:'proposal',
-        label:'Memory proposed',
-        detail:proposal.sourceLocator,
-        at:proposal.enqueuedAt
-      })),
-      ...activeFacts.slice(0,3).map((fact)=>({
-        kind:'memory',
-        label:'Memory current',
-        detail:fact.sourceLocator,
-        at:fact.validFrom
-      }))
-    ].sort((left,right)=>String(right.at).localeCompare(String(left.at))).slice(0,5)
-  };
+  const model=buildOrientationModel({
+    report,
+    error,
+    loading:!report&&!error,
+    gitChanges,
+    handoff:pinnedHandoffStatus,
+    handoffError:pinnedHandoffError
+  });
+  return model.state==='failure' ? Object.freeze({...model,state:'error'}) : model;
 }
 
 export function renderOverview(model) {
@@ -1414,14 +1289,6 @@ export function renderOverview(model) {
 }
 
 export const renderRecallMapHome=renderOverview;
-
-function recallMapCommandLabel(command) {
-  if (command.startsWith('recall map')) return 'Refresh map locally';
-  if (command.startsWith('recall handoff')) return 'Create Next-Agent Handoff';
-  if (command.includes('mcp inspect')) return 'Inspect read-only MCP';
-  if (command.includes('graph stats')) return 'Check source graph';
-  return 'Copy command';
-}
 
 function renderRuns() {
   if (activeRunDetail) return renderRunDetail(activeRunDetail);
@@ -3437,7 +3304,6 @@ async function loadRunById(id,{push=true}={}){
   }
 }
 
-function relativeAge(from,to){const start=Date.parse(String(from??''));const end=Date.parse(String(to??''));if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return 'Not pinned';const minutes=Math.floor((end-start)/60000);if(minutes<60)return `${Math.max(0,minutes)} minute${minutes===1?'':'s'} old`;const hours=Math.floor(minutes/60);if(hours<24)return `${hours} hour${hours===1?'':'s'} old`;const days=Math.floor(hours/24);return `${days} day${days===1?'':'s'} old`}
 function duration(start,end){if(!start)return '-';const from=Date.parse(start),to=end?Date.parse(end):Date.now();if(!Number.isFinite(from)||!Number.isFinite(to))return '-';const ms=Math.max(0,to-from);if(ms<1000)return `${ms} ms`;if(ms<60000)return `${Math.round(ms/1000)} s`;return `${Math.round(ms/60000)} min`}
 function labelize(value){return titleize(value).replace(/\bId\b/g,'ID')}
 function safeText(value){return String(value??'').replace(/[\r\n\t]+/g,' ').slice(0,160)}
