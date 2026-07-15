@@ -945,7 +945,7 @@ git commit -m "feat: share graph snapshots across local map routes"
 - Optional environment: `MEMORY_RECALL_LARGE_REPO_ROOT=/absolute/read-only/repository`.
 - Emits one JSON object with cold/cached timings, counts, coverage, cache reuse, and validation state.
 
-- [ ] **Step 1: Write the smoke script assertions before implementation**
+- [x] **Step 1: Write the smoke script assertions before implementation**
 
 Create the script entry with these terminal assertions:
 
@@ -960,7 +960,7 @@ must(cachedMs <= coldMs * 0.2, `large_repo_cache_not_80_percent_faster:${coldMs}
 
 The generated fixture must include at least 1,100 supported files, more than 50,000 candidate relations, ordinary `users` paths, `.worktrees`, `.venv`, generated output, nested `.gitignore`, and `.recallignore`. Use bounded file bodies and remove the temporary fixture in `finally`.
 
-- [ ] **Step 2: Add the package command and run it red**
+- [x] **Step 2: Add the package command and run it red**
 
 Add:
 
@@ -976,7 +976,7 @@ npm run source-graph:large-smoke
 
 Expected before the preceding tasks are complete: FAIL on unavailable graph, edge budget, ignored-tree traversal, or cache reuse.
 
-- [ ] **Step 3: Finish generated and optional real-repository measurement**
+- [x] **Step 3: Finish generated and optional real-repository measurement**
 
 Use one `createSourceGraphSnapshotService()` for both preview calls. When `MEMORY_RECALL_LARGE_REPO_ROOT` is present, run the same read-only checks against that canonical root without creating or editing files there. Emit:
 
@@ -994,11 +994,11 @@ console.log(JSON.stringify({
 }, null, 2));
 ```
 
-- [ ] **Step 4: Document operator behavior**
+- [x] **Step 4: Document operator behavior**
 
 Update `docs/usage/recall-map.md` with default exclusions, `.recallignore`, supported-file budgeting, partial coverage reason codes, automatic invalidation, explicit refresh, and the large-repository command. State that timings are local measurements, not universal claims.
 
-- [ ] **Step 5: Run foundation verification**
+- [x] **Step 5: Run foundation verification**
 
 Run:
 
@@ -1011,7 +1011,7 @@ npm run protocol:validate
 
 Expected: both smoke modes return non-empty valid results, the cached path is at least 80% faster, and all focused tests pass.
 
-- [ ] **Step 6: Commit performance proof**
+- [x] **Step 6: Commit performance proof**
 
 ```bash
 git add scripts/source-graph-large-repo-smoke.mjs package.json docs/usage/recall-map.md tests/source-graph-preview.test.mjs

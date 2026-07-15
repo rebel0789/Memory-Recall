@@ -54,9 +54,28 @@ Support, Architecture, Memory, Next commands, and Safeguards sections.
 
 ## What it reads and does not read
 
-Recall Map implements static JavaScript and TypeScript source coverage. It does
-not claim a language server, a semantic graph database, or support for every
-language. The report makes incomplete source coverage explicit.
+Recall Map implements static source coverage for `.js`, `.jsx`, `.mjs`, `.cjs`,
+`.ts`, and `.tsx` files. It does not claim a language server, a semantic graph
+database, or support for every language. The report makes incomplete source
+coverage explicit.
+
+Discovery analyzes at most 1,000 supported files. Unsupported files, ignored
+files, and excluded directories do not consume that budget. It honors root and
+descendant `.gitignore` files plus a root `.recallignore`. Default exclusions
+include source-control metadata, worktrees, dependency folders, virtual
+environments, caches, test results, coverage output, and common build or
+generated-output directories.
+
+Coverage is reported as `complete`, `partial`, `stale`, or `unavailable`.
+Partial reports include reason codes when file, node, or edge limits omit
+candidates. A stale report contains the last valid graph after a refresh fails;
+it is not presented as current or empty.
+
+The local Control API reuses one in-process source snapshot for Recall Map and
+source preview requests. Supported source and ignore-file changes invalidate
+the snapshot automatically. Environments without recursive file watching use
+a bounded metadata scan. A POST request can set `refresh: true` to request an
+explicit refresh; GET remains cache-aware and read-only.
 
 When `.local/memory.sqlite` is absent, the report remains read-only and reports
 the memory store as missing. It never creates a database just to produce a map.
@@ -72,6 +91,25 @@ Every format is local and read-only:
 - no absolute local workspace paths in the report.
 
 Recall Map exits `0` for a safe report and `2` for invalid command arguments.
+
+## Large repository check
+
+Run the generated large-repository fixture with:
+
+```bash
+npm run source-graph:large-smoke
+```
+
+To measure an existing repository without editing it:
+
+```bash
+MEMORY_RECALL_LARGE_REPO_ROOT=/absolute/path/to/repository \
+  npm run source-graph:large-smoke
+```
+
+The command verifies graph bounds, protocol validity, cache reuse, and local
+read-only safeguards. Its cold and cached timings are measurements from the
+current machine and repository, not universal performance claims.
 
 ## Continue from the map
 

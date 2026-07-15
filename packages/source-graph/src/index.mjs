@@ -25,6 +25,10 @@ const MAX_CHANGED_LOCATORS = 16;
 const NODE_KINDS = new Set(['file', 'chunk', 'symbol', 'module']);
 const EDGE_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
 const TRACE_DIRECTIONS = new Set(['outbound', 'inbound', 'both']);
+const VALIDATED_PUBLIC_GRAPHS = new WeakMap();
+const PREVIEW_DERIVATIONS = new WeakMap();
+const FULL_GRAPH_TOKEN_ESTIMATES = new WeakMap();
+const MAX_DERIVATIONS_PER_GRAPH = 32;
 
 export async function buildSourceGraphPreview({
   root,
@@ -64,6 +68,7 @@ export async function buildSourceGraphPreview({
 
   const generatedAt = clock();
   let graph;
+  let publicGraph;
   let snapshot;
   try {
     snapshot = snapshotService
@@ -91,7 +96,7 @@ export async function buildSourceGraphPreview({
           builtAt: generatedAt
         };
     graph = snapshot.graph;
-    assertFacadeSafeSourceGraph(graph);
+    publicGraph = assertFacadeSafeSourceGraph(graph);
   } catch (error) {
     return unavailableSourceGraphPreview({
       workspaceId: safeWorkspaceId,
@@ -109,55 +114,82 @@ export async function buildSourceGraphPreview({
       errorCode: safeSourceGraphErrorCode(error)
     });
   }
-  const ranking = rankArchitectureNodes(graph, {
+  const derivationKey = stableStringify({
+    query: String(query ?? ''),
+    startName,
+    startNodeId,
     changedLocators: normalizedChangedLocators,
-    query,
-    limit: 25
-  });
-  const search = searchSourceGraph(graph, {
-    query,
     nodeKinds: normalizedNodeKinds,
     edgeKinds: normalizedEdgeKinds,
     labelPattern,
     locatorPrefix: normalizedLocatorPrefix,
+    direction,
     limit: boundedLimit,
-    offset: boundedOffset
+    offset: boundedOffset,
+    depth: boundedDepth,
+    sampleLimit: boundedSampleLimit
   });
-  const trace = startName || startNodeId
-    ? traceSourceGraph(graph, {
-      startName,
-      startNodeId,
-      edgeKinds: normalizedEdgeKinds?.length ? normalizedEdgeKinds : ['calls'],
-      locatorPrefix: normalizedLocatorPrefix,
-      direction,
-      depth: boundedDepth,
-      limit: boundedLimit
-    })
-    : null;
-  const impact = normalizedChangedLocators.length
-    ? mapSourceGraphDiffImpact(graph, {
+  const derivations = previewDerivationsFor(graph);
+  let derived = derivations.get(derivationKey);
+  if (!derived) {
+    const ranking = rankArchitectureNodes(publicGraph, {
       changedLocators: normalizedChangedLocators,
-      depth: boundedDepth,
-      limit: boundedLimit
-    })
-    : null;
-  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
-  const orientation = buildSourceGraphOrientation(publicGraph, {
-    changedLocators: normalizedChangedLocators,
-    entryPoints: ranking.entryPoints
-  });
-  const focusRequested = Boolean(
-    String(query ?? '').trim()
-    || startName
-    || startNodeId
-    || normalizedChangedLocators.length
-    || normalizedLocatorPrefix
-  );
-  const focus = buildSourceGraphFocus(publicGraph, {
-    seedNodeIds: focusRequested ? sourceGraphFocusSeedIds({ search, trace, impact }) : [],
-    locatorPrefix: focusRequested ? normalizedLocatorPrefix : null
-  });
-  const compact = compactGraph(graph, boundedSampleLimit, ranking);
+      query,
+      limit: 25
+    });
+    const search = searchSourceGraph(publicGraph, {
+      query,
+      nodeKinds: normalizedNodeKinds,
+      edgeKinds: normalizedEdgeKinds,
+      labelPattern,
+      locatorPrefix: normalizedLocatorPrefix,
+      limit: boundedLimit,
+      offset: boundedOffset
+    });
+    const trace = startName || startNodeId
+      ? traceSourceGraph(publicGraph, {
+        startName,
+        startNodeId,
+        edgeKinds: normalizedEdgeKinds?.length ? normalizedEdgeKinds : ['calls'],
+        locatorPrefix: normalizedLocatorPrefix,
+        direction,
+        depth: boundedDepth,
+        limit: boundedLimit
+      })
+      : null;
+    const impact = normalizedChangedLocators.length
+      ? mapSourceGraphDiffImpact(publicGraph, {
+        changedLocators: normalizedChangedLocators,
+        depth: boundedDepth,
+        limit: boundedLimit
+      })
+      : null;
+    const orientation = buildSourceGraphOrientation(publicGraph, {
+      changedLocators: normalizedChangedLocators,
+      entryPoints: ranking.entryPoints
+    });
+    const focusRequested = Boolean(
+      String(query ?? '').trim()
+      || startName
+      || startNodeId
+      || normalizedChangedLocators.length
+      || normalizedLocatorPrefix
+    );
+    const focus = buildSourceGraphFocus(publicGraph, {
+      seedNodeIds: focusRequested ? sourceGraphFocusSeedIds({ search, trace, impact }) : [],
+      locatorPrefix: focusRequested ? normalizedLocatorPrefix : null
+    });
+    derived = Object.freeze({
+      search,
+      trace,
+      impact,
+      orientation,
+      focus,
+      compact: compactGraph(graph, boundedSampleLimit, ranking, publicGraph)
+    });
+    rememberPreviewDerivation(derivations, derivationKey, derived);
+  }
+  const { search, trace, impact, orientation, focus, compact } = derived;
 
   return Object.freeze({
     schemaVersion: '1.0.0',
@@ -188,8 +220,7 @@ export async function buildSourceGraphPreview({
   });
 }
 
-function compactGraph(graph, sampleLimit, ranking = null) {
-  const publicGraph = sanitizeSourceGraphPublicOutput(graph);
+function compactGraph(graph, sampleLimit, ranking = null, publicGraph = sanitizeSourceGraphPublicOutput(graph)) {
   const summary = ranking
     ? Object.freeze({
       ...graph.summary,
@@ -217,6 +248,8 @@ function compactGraph(graph, sampleLimit, ranking = null) {
 }
 
 function assertFacadeSafeSourceGraph(graph) {
+  const cached = VALIDATED_PUBLIC_GRAPHS.get(graph);
+  if (cached) return cached;
   if (!validateJsonSchema(sourceGraphSchema, graph).valid) throw new Error('source_graph_preview_graph_invalid');
   const publicOutput = sanitizeSourceGraphPublicOutput(graph);
   if (!publicOutput.completeEnvelope || !publicOutput.diagnosticsComplete) throw new Error('source_graph_preview_graph_invalid');
@@ -226,6 +259,8 @@ function assertFacadeSafeSourceGraph(graph) {
     || publicOutput.nodes.length !== graph.nodes.length
     || publicOutput.edges.length !== graph.edges.length
     || publicOutput.diagnostics.length !== graph.diagnostics.length) throw new Error('source_graph_preview_graph_invalid');
+  VALIDATED_PUBLIC_GRAPHS.set(graph, publicOutput);
+  return publicOutput;
 }
 
 function unavailableSourceGraphPreview({
@@ -345,11 +380,7 @@ function unavailableSourceGraphPreview({
 }
 
 function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact, orientation, focus, snapshot }) {
-  const fullGraphTokenEstimate = graph ? estimateTokens(JSON.stringify({
-    nodes: graph.nodes,
-    edges: graph.edges,
-    diagnostics: graph.diagnostics
-  })) : 0;
+  const fullGraphTokenEstimate = graph ? fullGraphTokenEstimateFor(graph) : 0;
   const deliveredTokenEstimate = estimateTokens(JSON.stringify({ graph: compact, search, trace, impact, orientation, focus, snapshot: sourceGraphPreviewSnapshot(snapshot) }));
   const omittedTokenEstimate = Math.max(0, fullGraphTokenEstimate - deliveredTokenEstimate);
   return Object.freeze({
@@ -362,6 +393,31 @@ function sourceGraphPreviewMeasurements({ graph, compact, search, trace, impact,
     sourceContentIncluded: false,
     providerBillingClaimed: false
   });
+}
+
+function previewDerivationsFor(graph) {
+  const cached = PREVIEW_DERIVATIONS.get(graph);
+  if (cached) return cached;
+  const derivations = new Map();
+  PREVIEW_DERIVATIONS.set(graph, derivations);
+  return derivations;
+}
+
+function rememberPreviewDerivation(derivations, key, value) {
+  if (derivations.size >= MAX_DERIVATIONS_PER_GRAPH) derivations.delete(derivations.keys().next().value);
+  derivations.set(key, value);
+}
+
+function fullGraphTokenEstimateFor(graph) {
+  const cached = FULL_GRAPH_TOKEN_ESTIMATES.get(graph);
+  if (cached !== undefined) return cached;
+  const estimate = estimateTokens(JSON.stringify({
+    nodes: graph.nodes,
+    edges: graph.edges,
+    diagnostics: graph.diagnostics
+  }));
+  FULL_GRAPH_TOKEN_ESTIMATES.set(graph, estimate);
+  return estimate;
 }
 
 function sourceGraphPreviewSnapshot(snapshot) {

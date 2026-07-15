@@ -83,6 +83,7 @@ const SOURCE_GRAPH_PUBLIC_FALLBACK_SOURCE_INDEX_FINGERPRINT = hashRef('source-gr
 const SOURCE_GRAPH_PUBLIC_FALLBACK_GRAPH_VERSION = 'oaf-source-graph-unavailable-1.0.0';
 const SOURCE_GRAPH_PUBLIC_FALLBACK_PARSER_VERSION = 'oaf-source-graph-unavailable';
 const SOURCE_GRAPH_PUBLIC_FALLBACK_BUILT_AT = '1970-01-01T00:00:00.000Z';
+const SOURCE_GRAPH_PUBLIC_PROJECTIONS = new WeakSet();
 const FIRST_ARGUMENT_CALLBACK_NAMES = new Set(['catch', 'every', 'filter', 'finally', 'find', 'findIndex', 'flatMap', 'forEach', 'map', 'reduce', 'reduceRight', 'some', 'sort', 'then']);
 const CALLABLE_DECLARATION_KINDS = new Set(['function', 'method']);
 const LOW_SIGNAL_REFERENCE_NAMES = new Set([
@@ -1347,15 +1348,16 @@ export function searchSourceGraph(graph, {
 // locators never leave a result array.
 export function sanitizeSourceGraphPublicOutput(graph) {
   assertSourceGraph(graph);
+  if (SOURCE_GRAPH_PUBLIC_PROJECTIONS.has(graph)) return graph;
   const metadata = sourceGraphPublicMetadata(graph);
   if (!metadata.envelopeValid) {
-    return Object.freeze({
+    return rememberPublicSourceGraphProjection(Object.freeze({
       ...metadata,
       diagnosticsComplete: false,
       nodes: Object.freeze([]),
       edges: Object.freeze([]),
       diagnostics: Object.freeze([])
-    });
+    }));
   }
   const nodes = graph.nodes
     .map((node) => publicSourceGraphNode(node, { workspaceId: metadata.workspaceId }))
@@ -1370,13 +1372,18 @@ export function sanitizeSourceGraphPublicOutput(graph) {
     .filter(Boolean);
   const rawDiagnostics = Array.isArray(graph.diagnostics) ? graph.diagnostics : [];
   const diagnostics = rawDiagnostics.map(publicSourceGraphDiagnostic).filter(Boolean);
-  return Object.freeze({
+  return rememberPublicSourceGraphProjection(Object.freeze({
     ...metadata,
     diagnosticsComplete: Array.isArray(graph.diagnostics) && diagnostics.length === graph.diagnostics.length,
     nodes: Object.freeze(nodes),
     edges: Object.freeze(edges),
     diagnostics: Object.freeze(diagnostics)
-  });
+  }));
+}
+
+function rememberPublicSourceGraphProjection(graph) {
+  SOURCE_GRAPH_PUBLIC_PROJECTIONS.add(graph);
+  return graph;
 }
 
 function sourceGraphPublicMetadata(graph) {
