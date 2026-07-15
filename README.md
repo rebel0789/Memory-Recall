@@ -22,9 +22,18 @@ Memory Recall turns a repository into a governed context source. New agent
 sessions get reviewed repo facts, changed-file impact, required local reads,
 and proof of what was sent instead of a giant pasted transcript.
 
-The current source checkout is the 1.1.0 release candidate. npm still serves
-1.0.5, which does not include Recall Map. Until 1.1.0 is published, run the
-current quickstart from a source checkout:
+The source and package release candidate are 1.1.0. Check the registry before
+using the global install path:
+
+```bash
+npm view memory-recall version
+npm install -g memory-recall@1.1.0
+recall setup
+recall map --root . --sqlite .local/memory.sqlite --format summary
+recall handoff
+```
+
+If the registry still reports an older version, use the source checkout:
 
 ```bash
 git clone https://github.com/rebel0789/Memory-Recall.git
@@ -36,8 +45,8 @@ npm run recall -- handoff
 ```
 
 `recall setup` creates only local state. `recall map` is the explicit first
-read-only repository scan; it does not run silently during setup. After 1.1.0
-is published, the global `recall` commands are the equivalent installed path.
+read-only repository scan; it does not run silently during setup. Source
+checkouts use `npm run recall -- <command>` in place of `recall <command>`.
 
 Normal quickstarts use `recall`. The [developer-first product contract](docs/product/memory-recall-developer-first.md)
 defines the `implemented`, `experimental`, and `unsupported` capability
@@ -59,30 +68,29 @@ for preserved legacy names and URIs.
 ## Five-Minute Path
 
 ```bash
-# Install the current source release candidate.
-git clone https://github.com/rebel0789/Memory-Recall.git
-cd Memory-Recall
-npm install
+# Confirm and install the 1.1.0 package.
+npm view memory-recall version
+npm install -g memory-recall@1.1.0
 
 # Create local state only. This does not scan the repository.
-npm run recall -- setup
+recall setup
 
 # Run the first explicit read-only repository map.
-npm run recall -- map --root . --sqlite .local/memory.sqlite --format summary
+recall map --root . --sqlite .local/memory.sqlite --format summary
 
 # Run the handoff verification gate.
-npm run recall -- verify
+recall verify
 
 # Preview local agent setup. This writes nothing.
-npm run recall -- connect codex --dry-run --format json
-npm run recall -- mcp install --client claude-code --dry-run --format json
+recall connect codex --dry-run --format json
+recall mcp install --client claude-code --dry-run --format json
 
 # Build governed memory proposals. Facts are not trusted until reviewed.
-npm run recall -- memory ingest --root . --sqlite .local/memory.sqlite --format json
-npm run recall -- memory review --root . --sqlite .local/memory.sqlite --format summary
+recall memory ingest --root . --sqlite .local/memory.sqlite --format json
+recall memory review --root . --sqlite .local/memory.sqlite --format summary
 
 # Produce the compact handoff for the next coding agent.
-npm run recall -- handoff
+recall handoff
 ```
 
 The default path is local and explicit: no hosted account, no model API key, no
@@ -93,9 +101,9 @@ consented provider request to create pending proposals from selected
 documentation. Start with the body-free plan:
 
 ```bash
-npm run recall -- semantic plan --harness codex --root . --dry-run
-npm run recall -- semantic task --harness codex --root .
-npm run recall -- semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite
+recall semantic plan --harness codex --root . --dry-run
+recall semantic task --harness codex --root .
+recall semantic import --input semantic-result.json --root . --sqlite .local/memory.sqlite
 ```
 
 The CLI does not invoke the harness. Direct API execution requires a user-owned
@@ -137,8 +145,12 @@ billing claims.
 | --- | ---: | --- |
 | Session cursor-delta fixture | 6/6 current answers and 72% lower estimated delivery than full resend | `recall bench session --read-only --root . --format json` |
 | Temporal current-truth fixture | 10/10 correct and clean; not a token-saving claim | `recall bench temporal --read-only --root . --format json` |
-| In-repo structured-ingest sufficiency | 12/12 checkout-derived answers present after structured ingest | `recall bench realqa --read-only --root . --format json` |
+| In-repo structured-ingest sufficiency | 12/12 checkout-derived answers present after structured ingest | Source checkout: `npm run recall -- bench realqa --read-only --root . --format json` |
 | Truth-floor regression gate | Fixture-backed merge gate, not a user-task benchmark | `recall benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json` |
+
+The package bundles the session, temporal, and truth-floor fixtures. The
+structured-ingest check measures this repository's own status and provider
+manifests, so run it only from a Memory Recall source checkout.
 
 Memory Recall is designed for changing repository context, repeated handoffs,
 and reviewed local truth. It is not a hosted memory API,
@@ -252,12 +264,12 @@ boundaries.
 
 ## Status
 
-Source release candidate: **1.1.0**. Published npm version: **1.0.5**.
+Release candidate: **1.1.0**. Registry version: verify with `npm view memory-recall version`.
 
 | Surface | Status |
 | --- | --- |
 | Source checkout | 1.1.0 local-ready release candidate |
-| npm package | 1.0.5 published; Recall Map quickstart awaits the 1.1.0 release |
+| npm package | 1.1.0 publish-ready; use only after the registry reports 1.1.0 |
 | CLI | `recall` |
 | Marketplace / plugin registry | Manifest prepared; not submitted |
 | Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |

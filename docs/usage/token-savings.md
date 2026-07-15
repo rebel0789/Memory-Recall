@@ -22,7 +22,6 @@ a fixed product-wide percentage or provider-billing statement.
 ```bash
 recall bench session --read-only --root . --format json
 recall bench temporal --read-only --root . --format json
-recall bench realqa --read-only --root . --format json
 recall benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json
 recall graph stats --root . --format summary
 recall graph search --root . --query "auth workflow" --format summary
@@ -31,8 +30,16 @@ recall graph trace --root . --symbol runAuthWorkflow --format summary
 
 The session fixture measures cursor deltas against full resend. The temporal
 fixture measures current, clean truth against a keyword timeline baseline; it
-is not a savings claim. The `realqa` command is an in-repo structured-ingest
-sufficiency check, not real-world question answering.
+is not a savings claim. These commands resolve their bundled datasets from the
+installed package when the target repository does not contain them.
+
+The `realqa` command is a source-checkout-only structured-ingest sufficiency
+check over Memory Recall's own status and provider manifests. It is not
+real-world question answering:
+
+```bash
+npm run recall -- bench realqa --read-only --root . --format json
+```
 
 ## LoCoMo method, not a headline
 

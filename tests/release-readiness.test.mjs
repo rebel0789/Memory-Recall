@@ -105,7 +105,7 @@ test('repository manifest generator ignores Cargo target build output directorie
   assert.equal(paths.some((filePath) => filePath.startsWith('rust/target/')), false);
 });
 
-test('npm package excludes private scratch local config and generated state', () => {
+test('npm package contains the runtime contract without checkout-only test weight', () => {
   const result = spawnSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   const [pack] = JSON.parse(result.stdout);
@@ -120,8 +120,12 @@ test('npm package excludes private scratch local config and generated state', ()
   assert.equal(paths.includes('README.md'), true);
   assert.equal(paths.includes('apps/cli/oaf.mjs'), true);
   assert.equal(paths.includes('scripts/verify-handoff.mjs'), true);
+  assert.equal(paths.some((filePath) => filePath.startsWith('tests/')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), true);
+  assert.ok(pack.entryCount <= 830, `npm package has ${pack.entryCount} files; expected at most 830`);
+  assert.ok(pack.size <= 1_220_000, `npm package is ${pack.size} compressed bytes; expected at most 1,220,000`);
+  assert.ok(pack.unpackedSize <= 5_250_000, `npm package is ${pack.unpackedSize} unpacked bytes; expected at most 5,250,000`);
 });
 
 test('installed npm package setup does not re-pack generated local state', () => {
@@ -165,6 +169,12 @@ test('installed npm package setup does not re-pack generated local state', () =>
   assert.match(map.stdout, /src\/index\.ts/);
   assert.doesNotMatch(map.stdout, new RegExp(packageRoot.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')));
   assert.equal(existsSync(path.join(packageRoot, '.local', 'state.json')), false);
+  const truthFloor = spawnSync(recall, ['benchmark', 'truth-floor', '--suite', 'benchmark-truth-floor', '--dataset', 'evals/benchmark-truth-floor/cases.v1.json', '--format', 'json'], { cwd: work, encoding: 'utf8', env });
+  assert.equal(truthFloor.status, 0, truthFloor.stderr);
+  assert.equal(JSON.parse(truthFloor.stdout).gateDecision, 'pass');
+  const temporal = spawnSync(recall, ['bench', 'temporal', '--read-only', '--root', '.', '--format', 'json'], { cwd: work, encoding: 'utf8', env });
+  assert.equal(temporal.status, 0, temporal.stderr);
+  assert.equal(JSON.parse(temporal.stdout).headline.oafWins, true);
   const hookPlan = spawnSync(oaf, ['hook', 'install', '--agent', 'codex', '--dry-run', '--format', 'json'], { cwd: work, encoding: 'utf8', env });
   assert.equal(hookPlan.status, 0, hookPlan.stderr);
   const hookReport = JSON.parse(hookPlan.stdout);
