@@ -322,14 +322,12 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(model.memory.pendingCount,1);
   assert.equal(model.handoff.state,'ready');
   const html=renderOverview(model);
-  assert.match(html,/Bounded coverage/);
-  assert.match(html,/1 coverage note/);
-  for (const label of ['Changes','Needs attention','Impact','Current handoff','Recent activity']) assert.match(html,new RegExp(label));
-  assert.match(html,/Review 1 proposal/);
+  assert.match(html,/data-status="partial">Partial/);
+  for (const label of ['Architecture','Start here','Current impact','Trusted context']) assert.match(html,new RegExp(label));
+  assert.match(html,/No supported groups/);
   assert.match(html,/memory-recall-map-home/);
   assert.match(html,/workspace:\/\/apps\/web\/app\.js/);
   assert.match(html,/data-route="source-graph"/);
-  assert.match(html,/data-route="memory"/);
   assert.doesNotMatch(html,/Developer-first/i);
   assert.doesNotMatch(html,/Read the local picture/i);
   assert.doesNotMatch(html,/recall-map-signals/);
@@ -341,10 +339,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   });
   assert.equal(staleMemoryOnlyModel.state,'success');
   assert.equal(selectOverviewPrimaryAction(staleMemoryOnlyModel),null);
-  assert.match(renderOverview(staleMemoryOnlyModel),/<strong>1 stale<\/strong>/);
-  assert.match(renderOverview(staleMemoryOnlyModel),/No action queued/);
-  assert.doesNotMatch(renderOverview(staleMemoryOnlyModel),/No review required/);
-  assert.doesNotMatch(renderOverview(staleMemoryOnlyModel),/Source changes need review/);
+  assert.match(renderOverview(staleMemoryOnlyModel),/<dt>Memory<\/dt><dd>stale<\/dd>/);
 
   const staleHandoffModel=buildRecallMapHomeModel({
     report:{...report,memory:{...report.memory,pendingProposals:[],staleFactCount:0}},
@@ -352,7 +347,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   });
   assert.equal(staleHandoffModel.state,'stale');
   assert.deepEqual(selectOverviewPrimaryAction(staleHandoffModel),{label:'Update handoff',route:'/handoffs',routeId:'context-pack'});
-  assert.match(renderOverview(staleHandoffModel),/Source changes need review/);
+  assert.match(renderOverview(staleHandoffModel),/<dt>Handoff<\/dt><dd>stale<\/dd>/);
 
   const blockedHandoffModel=buildRecallMapHomeModel({
     report:{...report,memory:{...report.memory,pendingProposals:[],staleFactCount:0}},
@@ -364,9 +359,8 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   });
   assert.equal(blockedHandoffModel.handoff.state,'blocked');
   assert.deepEqual(selectOverviewPrimaryAction(blockedHandoffModel),{label:'Repair handoff',route:'/handoffs',routeId:'context-pack'});
-  assert.match(renderOverview(blockedHandoffModel),/Handoff blocked/);
-  assert.doesNotMatch(renderOverview(blockedHandoffModel),/Nothing needs review/);
-  assert.match(renderOverview(blockedHandoffModel),/2 hours old/);
+  assert.match(renderOverview(blockedHandoffModel),/<dt>Handoff<\/dt><dd>tampered<\/dd>/);
+  assert.equal(blockedHandoffModel.handoff.ageLabel,'2 hours old');
 
   const detectedModel=buildRecallMapHomeModel({
     report:{...report,repository:{...report.repository,dirtyCount:6}},
@@ -375,7 +369,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   });
   assert.equal(detectedModel.impact.totalChangedCount,6);
   assert.equal(detectedModel.impact.omittedChangedCount,4);
-  assert.match(renderOverview(detectedModel),/1 shown · 4 omitted/);
+  assert.match(renderOverview(detectedModel),/5 changed files outside the represented graph/);
 
   const allOmittedModel=buildRecallMapHomeModel({
     report:{...report,repository:{...report.repository,dirtyCount:2},architecture:{...report.architecture,impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}},
@@ -386,9 +380,8 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(allOmittedModel.impact.omittedChangedCount,2);
   assert.deepEqual(allOmittedModel.impact.changedLocators,[]);
   const allOmittedHtml=renderOverview(allOmittedModel);
-  assert.match(allOmittedHtml,/0 shown · 2 omitted by safety or scan bounds/);
-  assert.match(allOmittedHtml,/2 changes omitted/);
-  assert.doesNotMatch(allOmittedHtml,/No changed files detected/);
+  assert.match(allOmittedHtml,/2 local changes/);
+  assert.match(allOmittedHtml,/2 changed files outside the represented graph/);
 
   const degradedModel=buildRecallMapHomeModel({
     report:{...report,repository:{...report.repository,dirtyCount:3},architecture:{...report.architecture,impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}},
@@ -398,11 +391,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(degradedModel.impact.detectionStatus,'unavailable');
   assert.equal(degradedModel.impact.repositoryDirtyCount,3);
   const degradedHtml=renderOverview(degradedModel);
-  assert.match(degradedHtml,/3 changed entries; file detection unavailable/);
-  assert.match(degradedHtml,/Git change detection is unavailable/);
-  assert.match(degradedHtml,/Retry scan/);
-  assert.match(degradedHtml,/Change detection unavailable/);
-  assert.doesNotMatch(degradedHtml,/No changed files are selected|Nothing needs review/);
+  assert.match(degradedHtml,/Local change detection unavailable/);
 
   assert.equal(shellStateMessageForOverview('stale'),'Pinned handoff source evidence changed and needs review.');
 
@@ -411,7 +400,7 @@ test('Recall Map home presents a repository-first daily Overview',()=>{
   assert.equal(buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},architecture:{...report.architecture,entryPoints:[],hotspots:[],impact:{...report.architecture.impact,changedLocators:[],representedChangedLocators:[],affectedSymbols:[]}}}}).state,'empty');
   const unavailableSourceModel=buildRecallMapHomeModel({report:{...report,memory:{...report.memory,staleFactCount:0},support:{...report.support,sourceGraph:{...report.support.sourceGraph,status:'unavailable',coverage:{...report.support.sourceGraph.coverage,status:'unavailable'}}}}});
   assert.equal(unavailableSourceModel.state,'partial');
-  assert.match(renderOverview(unavailableSourceModel),/Bounded coverage/);
+  assert.match(renderOverview(unavailableSourceModel),/data-status="failed">Unavailable/);
 });
 
 test('shell defers protected workspace loads until local session evidence exists',()=>{

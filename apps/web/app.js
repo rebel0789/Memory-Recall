@@ -1,6 +1,7 @@
-import { navigationItemsFor, navigationOwner, selectOverviewPrimaryAction } from './shell-model.js';
+import { navigationItemsFor, navigationOwner } from './shell-model.js';
 import { csrfToken, requestJson as api } from './api.js';
-import { buildOrientationModel } from './orientation-model.js';
+import { buildOrientationModel, selectOrientationGroup } from './orientation-model.js';
+import { bindOrientation, renderOrientation } from './orientation-view.js';
 import {
   buildApiErrorUiModel,
   escapeHtml as esc,
@@ -83,6 +84,8 @@ let sourceGraphError=null;
 let harnessSetupResult=null;
 let harnessSetupError=null;
 let activeFabricNode='context';
+let orientationModel=null;
+let orientationCleanup=()=>{};
 
 export function legacyViewPath(view) {
   return legacyViews.get(String(view??'')) ?? '/';
@@ -1005,6 +1008,8 @@ async function submitMemoryIntake(event) {
 }
 
 function render() {
+  orientationCleanup();
+  orientationCleanup=()=>{};
   const route=currentRoute();
   const setupScreen = shellState.kind === 'setup' || shellState.kind === 'denied';
   const appShell = document.querySelector('.app-shell');
@@ -1020,7 +1025,7 @@ function render() {
     : renderRoute(route);
   root.querySelectorAll('[data-action=run]').forEach(button=>button.addEventListener('click',runDemo));
   root.querySelectorAll('[data-action=reset]').forEach(button=>button.addEventListener('click',resetDemo));
-  root.querySelectorAll('[data-action=refresh-recall-map]').forEach(button=>button.addEventListener('click',refreshRecallMap));
+  if(route.id!=='home')root.querySelectorAll('[data-action=refresh-recall-map]').forEach(button=>button.addEventListener('click',refreshRecallMap));
   root.querySelectorAll('[data-run-id]').forEach(link=>link.addEventListener('click',showRun));
   root.querySelectorAll('[data-step-id],[data-record-id]').forEach(link=>link.addEventListener('click',navigateLocal));
   root.querySelector('#auth-form')?.addEventListener('submit',submitAuthForm);
@@ -1050,6 +1055,20 @@ function render() {
   root.querySelectorAll('[data-fabric-node]').forEach(button=>button.addEventListener('click',selectFabricNode));
   if(route.id==='memory-graph')drawMemoryGraphCanvas(root.querySelector('#memory-graph-canvas'),memoryGraph,memoryGraphOptions);
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
+  if(route.id==='home')bindCurrentOrientation(root);
+}
+
+function bindCurrentOrientation(root) {
+  orientationCleanup=bindOrientation(root,{
+    onSelectGroup:(groupId)=>{
+      orientationModel=selectOrientationGroup(orientationModel,groupId);
+      root.innerHTML=renderOrientation(orientationModel);
+      document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
+      orientationCleanup();
+      bindCurrentOrientation(root);
+    },
+    onRefresh:refreshRecallMap
+  });
 }
 
 function renderNav(container, mode) {
@@ -1068,6 +1087,10 @@ function renderRepositoryBar(route) {
   document.querySelector('#repository-name').textContent = repository?.name ?? 'Local workspace';
   document.querySelector('#repository-branch').textContent = repository?.branch ?? 'Branch unavailable';
   document.querySelector('#repository-scan').textContent = recallMap?.generatedAt ? `Scanned ${date(recallMap.generatedAt)}` : 'Not scanned';
+  const boundary=document.querySelector('#repository-boundary');
+  const externalWrites=recallMap?.safeguards?.externalWritesEnabled===true;
+  boundary.textContent=`Local only / External writes ${externalWrites?'on':'off'}`;
+  boundary.dataset.state=externalWrites?'warning':'safe';
   const conditionNode = document.querySelector('#repository-condition');
   conditionNode.textContent = condition.kind;
   conditionNode.dataset.state = condition.kind;
@@ -1209,13 +1232,16 @@ function renderRoute(route) {
 }
 
 function renderHome() {
-  return renderOverview(buildRecallMapHomeModel({
+  orientationModel=buildOrientationModel({
     report: recallMap,
     error: recallMapError,
+    loading:!recallMap&&!recallMapError,
     gitChanges: recallMapGitChanges,
-    pinnedHandoffStatus,
-    pinnedHandoffError
-  }));
+    handoff:pinnedHandoffStatus,
+    handoffError:pinnedHandoffError,
+    selectedGroupId:orientationModel?.selectedGroupId
+  });
+  return renderOrientation(orientationModel);
 }
 
 export function buildRecallMapHomeModel({ report=null, error=null, gitChanges=null, pinnedHandoffStatus=null, pinnedHandoffError=null }={}) {
@@ -1230,65 +1256,8 @@ export function buildRecallMapHomeModel({ report=null, error=null, gitChanges=nu
   return model.state==='failure' ? Object.freeze({...model,state:'error'}) : model;
 }
 
-export function renderOverview(model) {
-  if (model.state==='loading') return `<section class="overview"><header class="page-heading"><h1>Overview</h1><button class="button" data-action="refresh-recall-map" type="button">Scan repository</button></header>${statePanel('loading',model.title,model.copy)}</section>`;
-  if (model.state==='error') return `<section class="overview"><header class="page-heading"><h1>Overview</h1><button class="button" data-action="refresh-recall-map" type="button">Retry scan</button></header>${renderApiErrorPanel(model.title,model.error)}</section>`;
-  const action=selectOverviewPrimaryAction(model);
-  const actionHtml=action?.action
-    ? `<button class="button primary" data-action="${esc(action.action)}" type="button">${esc(action.label)}</button>`
-    : action
-      ? `<a class="button primary" href="${esc(action.route)}" data-route="${esc(action.routeId)}">${esc(action.label)}</a>`
-      : '<span class="overview-current">No action queued</span>';
-  const stateCopy=model.state==='stale'
-    ? statePanel('stale','Source changes need review','Repository evidence changed after the current handoff was pinned. Review the affected sources before sharing context.')
-    : model.state==='empty'
-      ? statePanel('empty','No JS/TS entry points yet','The map is live, but this workspace did not yield a bounded JS/TS entry point. Inspect supported coverage in Map before broadening the workspace.')
-      : model.state==='partial'||model.coverage.status==='partial'
-        ? statePanel('partial','Bounded coverage','The bounded scan completed, but the Map only indexes supported JS/TS metadata within its scan limits. Review its coverage notes before treating the repository picture as complete.')
-        : '';
-  const detectionFailed=model.impact.detectionStatus==='unavailable'||model.impact.detectionStatus==='error';
-  const omittedChangeEvidence=model.impact.detectionStatus==='available'&&model.impact.omittedChangedCount>0;
-  const changed=model.impact.changedLocators.length
-    ? `<ul class="plain-list overview-changes">${model.impact.changedLocators.map((locator)=>`<li><code>${esc(locator)}</code></li>`).join('')}</ul>${model.impact.omittedChangedCount?`<p class="muted">${model.impact.changedCount} shown · ${model.impact.omittedChangedCount} omitted by safety or scan bounds.</p>`:''}`
-    : detectionFailed
-      ? `<div class="change-detection-warning"><strong>${model.impact.repositoryDirtyCount>0?`${model.impact.repositoryDirtyCount} changed entr${model.impact.repositoryDirtyCount===1?'y':'ies'}; `:''}file detection unavailable.</strong><p>${esc(model.impact.detectionMessage)}</p><button class="button secondary" data-action="refresh-recall-map" type="button">Retry scan</button></div>`
-      : omittedChangeEvidence
-        ? `<p class="muted">0 shown · ${model.impact.omittedChangedCount} omitted by safety or scan bounds.</p>`
-      : model.impact.detectionStatus==='available'
-        ? '<p class="muted">No changed files detected.</p>'
-        : '<p class="muted">Changed-file detection has not run.</p>';
-  const attention=[
-    model.memory.pendingCount?`<a href="/memory" data-route="memory"><strong>${model.memory.pendingCount} pending</strong><span>Review proposed memory</span></a>`:'',
-    model.memory.staleCount?`<a href="/memory" data-route="memory"><strong>${model.memory.staleCount} stale</strong><span>Check source changes</span></a>`:'',
-    model.handoff.state==='blocked'?`<a href="/handoffs" data-route="context-pack"><strong>Handoff blocked</strong><span>Repair registry or pinned artifacts</span></a>`:'',
-    model.handoff.state==='review'?`<a href="/handoffs" data-route="context-pack"><strong>Handoff needs review</strong><span>Update changed sources</span></a>`:'',
-    detectionFailed?`<button type="button" data-action="refresh-recall-map"><strong>Change detection unavailable</strong><span>${esc(model.impact.detectionReason)}</span></button>`:'',
-    omittedChangeEvidence?`<a href="/map" data-route="source-graph"><strong>${model.impact.omittedChangedCount} change${model.impact.omittedChangedCount===1?'':'s'} omitted</strong><span>Inspect safety and scan bounds</span></a>`:'',
-    model.coverage.status==='partial'||model.coverage.diagnosticCount?`<a href="/map" data-route="source-graph"><strong>${model.coverage.diagnosticCount?`${model.coverage.diagnosticCount} coverage note${model.coverage.diagnosticCount===1?'':'s'}`:'Bounded coverage'}</strong><span>Inspect supported files and scan scope</span></a>`:''
-  ].filter(Boolean).join('')||'<p class="muted">Nothing needs review.</p>';
-  const affected=model.impact.affectedSymbols.length
-    ? `<ol class="plain-list">${model.impact.affectedSymbols.slice(0,6).map((entry)=>`<li><strong>${esc(entry.label)}</strong><code>${esc(entry.locator ?? 'locator unavailable')}</code></li>`).join('')}</ol>`
-    : '<p class="muted">No focused impact set.</p>';
-  const activity=model.recentActivity.length
-    ? `<ol class="activity-list">${model.recentActivity.map((item)=>`<li><span>${esc(item.label)}</span><code>${esc(item.detail ?? 'source unavailable')}</code><time>${esc(item.at?date(item.at):'time unavailable')}</time></li>`).join('')}</ol>`
-    : '<p class="muted">No memory activity recorded.</p>';
-  return `<section class="overview" aria-label="Repository overview">
-    <header class="page-heading">
-      <div><h1>${esc(model.repository.name)}</h1><p>${esc(model.repository.branch ?? 'Branch unavailable')} · ${model.repository.dirtyCount} changed · scanned ${esc(model.generatedAt?date(model.generatedAt):'not yet')}</p></div>
-      ${actionHtml}
-    </header>
-    ${stateCopy}
-    <div class="overview-grid">
-      <section class="overview-section"><header><h2>Changes</h2><a href="/map" data-route="source-graph">Open Map</a></header>${changed}</section>
-      <section class="overview-section"><header><h2>Needs attention</h2><a href="/memory" data-route="memory">Open Memory</a></header><div class="attention-list">${attention}</div></section>
-      <section class="overview-section overview-impact"><header><h2>Impact</h2><span>${model.impact.affectedCount} affected</span></header>${affected}</section>
-      <section class="overview-section"><header><h2>Current handoff</h2><a href="/handoffs" data-route="context-pack">Open Handoffs</a></header><dl class="summary-list"><div><dt>State</dt><dd>${esc(model.handoff.state)}</dd></div><div><dt>Age</dt><dd>${esc(model.handoff.ageLabel)}</dd></div><div><dt>Source check</dt><dd>${esc(model.handoff.copy)}</dd></div></dl></section>
-      <section class="overview-section overview-activity"><header><h2>Recent activity</h2><span>${model.recentActivity.length}</span></header>${activity}</section>
-    </div>
-  </section>`;
-}
-
-export const renderRecallMapHome=renderOverview;
+export const renderOverview=renderOrientation;
+export const renderRecallMapHome=renderOrientation;
 
 function renderRuns() {
   if (activeRunDetail) return renderRunDetail(activeRunDetail);
@@ -2088,11 +2057,12 @@ function contextPackFormDraft() {
   const payload=selectContextPackPinPayload({reviewedPayload:contextPackResult?.reviewedPayload ?? contextPackReviewedPayload});
   const memoryConfig=normalizeMemoryWorkspaceConfig(contextPackResult?.memoryConfig ?? contextPackMemoryConfig);
   const sourceFamilies=String(payload?.from ?? 'codex').split(',').map((item)=>item.trim()).filter(Boolean);
+  const objectiveFromUrl=String(new URL(globalThis.location?.href??'http://127.0.0.1/handoffs').searchParams.get('objective')??'').trim().slice(0,2000);
   return {
     targetHarness:String(payload?.targetHarness ?? 'codex'),
     tokenBudget:String(Number(payload?.tokenBudget ?? 4096)),
     sourceFamilies:sourceFamilies.length ? sourceFamilies : ['codex'],
-    objective:String(payload?.objective ?? DEFAULT_CONTEXT_PACK_OBJECTIVE),
+    objective:objectiveFromUrl||String(payload?.objective ?? DEFAULT_CONTEXT_PACK_OBJECTIVE),
     step:String(payload?.step ?? DEFAULT_CONTEXT_PACK_STEP),
     userSelectedFiles:(payload?.userSelectedFiles ?? []).join('\n'),
     changedLocators:(payload?.changedLocators ?? []).map((locator)=>String(locator).replace(/^workspace:\/\//u,'')).join('\n'),
@@ -2678,7 +2648,40 @@ function navigateLocal(event) {
   document.querySelector('#main').focus({preventScroll:true});
 }
 
-async function submitGlobalSearch(event){event.preventDefault();const input=event.currentTarget.elements.query;const query=String(input?.value??'').trim().slice(0,256);if(!query){input?.focus();return}const params=new URLSearchParams({query});const currentWorkspace=workspaceId();if(currentWorkspace!=='ws_local')params.set('workspaceId',currentWorkspace);history.pushState({},'',`/map?${params.toString()}`);document.querySelector('#live-status').textContent='Searching bounded repository metadata.';await loadRecallMap();render();document.querySelector('#main').focus({preventScroll:true});document.querySelector('#live-status').textContent=recallMapError?`Repository search failed. ${buildApiErrorUiModel(recallMapError).message}`:'Repository search loaded.'}
+const COMMAND_TARGETS=Object.freeze({
+  explain:(value)=>`/map?query=${encodeURIComponent(value)}`,
+  trace:(value)=>`/map?query=${encodeURIComponent(value)}&start=${encodeURIComponent(value)}`,
+  impact:(value)=>`/map?query=${encodeURIComponent(value)}&changed=${encodeURIComponent(value)}`,
+  handoff:(value)=>`/handoffs?objective=${encodeURIComponent(value)}`
+});
+
+async function submitGlobalSearch(event){
+  event.preventDefault();
+  const input=event.currentTarget.elements.query;
+  const query=String(input?.value??'').trim().slice(0,256);
+  if(!query){
+    input?.focus();
+    document.querySelector('#live-status').textContent='Enter a file, symbol, concept, or path.';
+    return;
+  }
+  const intent=String(event.currentTarget.elements.intent?.value??'explain');
+  const target=(COMMAND_TARGETS[intent]??COMMAND_TARGETS.explain)(query);
+  const url=new URL(target,'http://127.0.0.1');
+  const currentWorkspace=workspaceId();
+  if(currentWorkspace!=='ws_local')url.searchParams.set('workspaceId',currentWorkspace);
+  history.pushState({},'',`${url.pathname}${url.search}`);
+  if(intent==='handoff'){
+    render();
+    document.querySelector('#main').focus({preventScroll:true});
+    document.querySelector('#live-status').textContent='Handoff objective filled in for review.';
+    return;
+  }
+  document.querySelector('#live-status').textContent='Searching bounded repository metadata.';
+  await loadRecallMap();
+  render();
+  document.querySelector('#main').focus({preventScroll:true});
+  document.querySelector('#live-status').textContent=recallMapError?`Repository search failed. ${buildApiErrorUiModel(recallMapError).message}`:'Repository search loaded.';
+}
 
 function selectFabricNode(event) {
   activeFabricNode=event.currentTarget.dataset.fabricNode ?? 'context';

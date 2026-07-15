@@ -1,10 +1,35 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   buildOrientationModel,
   layerOrientationGroups,
   selectOrientationGroup
 } from '../apps/web/orientation-model.js';
+import { renderOrientation } from '../apps/web/orientation-view.js';
+
+test('Overview renders the first-ten-seconds contract without dashboard slop', () => {
+  const html = renderOrientation(buildOrientationModel({ report: orientationFixture({ groupCount: 8, entryPointCount: 5 }) }));
+  for (const label of ['Architecture', 'Start here', 'Current impact', 'Trusted context']) assert.match(html, new RegExp(label));
+  assert.equal((html.match(/class="orientation-group/g) ?? []).length, 8);
+  assert.equal((html.match(/class="start-item/g) ?? []).length, 3);
+  assert.match(html, /aria-label="Repository architecture outline"/);
+  assert.doesNotMatch(html, /class="metric-strip"/);
+  assert.doesNotMatch(html, /hero|tagline|AI-powered|intelligent|smart|magical|seamless|unlock|supercharge|next-generation/iu);
+});
+
+test('repository command bar exposes four deterministic intents', async () => {
+  const html = await readFile(new URL('../apps/web/index.html', import.meta.url), 'utf8');
+  for (const intent of ['explain', 'trace', 'impact', 'handoff']) assert.match(html, new RegExp(`value="${intent}"`));
+  assert.doesNotMatch(html, /chat|ask AI|thinking/iu);
+});
+
+test('repository truth bar names local and external-write state', async () => {
+  const html = await readFile(new URL('../apps/web/index.html', import.meta.url), 'utf8');
+  assert.match(html, /id="repository-boundary"/);
+  assert.match(html, /Local only/);
+  assert.match(html, /External writes off/);
+});
 
 test('orientation model is deterministic and bounded', () => {
   const report = orientationFixture({ groupCount: 16, entryPointCount: 8 });

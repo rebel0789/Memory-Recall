@@ -453,7 +453,7 @@ git commit -m "feat: model repository orientation deterministically"
 - Produces: `bindOrientation(root, { onSelectGroup, onRefresh }): () => void`.
 - Consumes: `OrientationModel` from Task 2 and primitives from Task 1.
 
-- [ ] **Step 1: Write failing minimalist Overview markup tests**
+- [x] **Step 1: Write failing minimalist Overview markup tests**
 
 Add to `tests/web-orientation.test.mjs`:
 
@@ -487,7 +487,7 @@ test('repository truth bar names local and external-write state', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and verify the missing renderer**
+- [x] **Step 2: Run the test and verify the missing renderer**
 
 Run:
 
@@ -497,7 +497,7 @@ node --test --test-name-pattern="first-ten-seconds" tests/web-orientation.test.m
 
 Expected: FAIL because `renderOrientation` does not exist.
 
-- [ ] **Step 3: Implement semantic orientation markup**
+- [x] **Step 3: Implement semantic orientation markup**
 
 Render this macrostructure, with no wrapper cards around the three secondary sections:
 
@@ -518,7 +518,7 @@ Group nodes are `<button type="button" class="orientation-group">` elements posi
 
 Keep repository name, branch, scan age, and textual coverage in the existing truth bar. Add one compact `<span id="repository-boundary">Local only · External writes off</span>`. In `renderRepositoryBar()`, derive `External writes on/off` from `recallMap.safeguards.externalWritesEnabled`, retain the `Local only` label, and set a warning state when writes are on. Do not represent either state with color alone.
 
-- [ ] **Step 4: Add compact workbench styling**
+- [x] **Step 4: Add compact workbench styling**
 
 Use the existing tokens only. Required declarations include:
 
@@ -534,11 +534,11 @@ Use the existing tokens only. Required declarations include:
 
 Do not use `.surface-primary`, fixed/minimum content heights, gradients, decorative shadows, or `metric-strip`. At 1440 × 900, the Overview title, architecture groups, three start items, impact state, and trust state must fit without scrolling.
 
-- [ ] **Step 5: Bind selection and delegate render from `app.js`**
+- [x] **Step 5: Bind selection and delegate render from `app.js`**
 
 `renderHome()` calls `renderOrientation()`. After each route render, call `bindOrientation()` and return/replace its cleanup callback before rebinding. Selecting a group updates the model and inspector without re-fetching; `Open in Map` navigates to `/map?group=<encoded-prefix>`.
 
-- [ ] **Step 6: Upgrade the existing global search into the single command bar**
+- [x] **Step 6: Upgrade the existing global search into the single command bar**
 
 Add a compact, labeled intent select to the existing `#global-search-form`; do not add a second input:
 
@@ -564,7 +564,7 @@ const commandTargets = {
 
 On Handoffs, use the bounded `objective` URL value only to prefill the existing form. Do not submit, write, or call a model automatically. On empty input, keep focus in the field and announce `Enter a file, symbol, concept, or path.`
 
-- [ ] **Step 7: Verify Overview markup and responsive shell**
+- [x] **Step 7: Verify Overview markup and responsive shell**
 
 Run:
 
