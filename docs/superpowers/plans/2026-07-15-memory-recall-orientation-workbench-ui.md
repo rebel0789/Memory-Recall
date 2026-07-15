@@ -730,7 +730,7 @@ git commit -m "feat: preserve Map query and failure state"
 - Worker produces `{ requestId, positions, bounds }`.
 - `graph-viewport.js` exports `createGraphViewport(canvas, outline, inspector, options)` with `fit`, `reset`, `focus`, `destroy` methods.
 
-- [ ] **Step 1: Write failing worker and outline-parity tests**
+- [x] **Step 1: Write failing worker and outline-parity tests**
 
 Add:
 
@@ -748,7 +748,7 @@ test('focused graph uses a worker and keeps outline selection canonical', async 
 });
 ```
 
-- [ ] **Step 2: Run the test and verify no worker exists**
+- [x] **Step 2: Run the test and verify no worker exists**
 
 Run:
 
@@ -758,7 +758,7 @@ node --test --test-name-pattern="focused graph uses a worker" tests/web-source-m
 
 Expected: FAIL with missing worker file or missing Worker construction.
 
-- [ ] **Step 3: Implement deterministic bounded layout**
+- [x] **Step 3: Implement deterministic bounded layout**
 
 The worker rejects more than 200 nodes or 400 edges. Use a deterministic breadth-first layered layout, avoiding force simulation entirely. Return plain serializable objects. Do not read the DOM or use randomness.
 
@@ -822,15 +822,15 @@ function layoutFocusedGraph(nodes, edges, width, height) {
 }
 ```
 
-- [ ] **Step 4: Implement viewport controls and shared selection**
+- [x] **Step 4: Implement viewport controls and shared selection**
 
 Use one `selectedNodeId` inside `createGraphViewport()`. Canvas hit testing and outline clicks both call the injected `onSelect(nodeId)`, update `aria-current`, render the same inspector through the route callback, and call `focus()` only when requested. Add pointer pan, wheel zoom clamped to `0.5..2.5`, fit-to-selection, reset, and resize handling. `destroy()` terminates the worker and removes listeners. `source-map-view.js` owns the outline and inspector markup, then passes their elements and route callbacks to the viewport.
 
-- [ ] **Step 5: Style the detailed graph without fake visual assets**
+- [x] **Step 5: Style the detailed graph without fake visual assets**
 
 The graph is a real data view drawn from response nodes and edges. Use no decorative SVG, CSS illustration, glow, or gradient. The canvas and outline sit in a flat split region. Status is visible in text, not color alone. Hide the canvas entirely when focus has no nodes.
 
-- [ ] **Step 6: Verify worker and Map tests**
+- [x] **Step 6: Verify worker and Map tests**
 
 Run:
 

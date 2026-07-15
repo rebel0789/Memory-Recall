@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   buildMapRequest,
   parseMapUrl,
   renderSourceMap,
   serializeMapUrl
 } from '../apps/web/source-map-view.js';
+import { layoutFocusedGraph } from '../apps/web/graph-layout-worker.js';
 
 test('Map query state round-trips through the URL', () => {
   const state = parseMapUrl('http://127.0.0.1:4318/map?query=copytrading&group=apps%2Fterminal&start=execute&changed=src%2Ftrade.ts&depth=3&limit=24');
@@ -51,6 +53,36 @@ test('Map renders architecture before focus and keeps an accessible outline', ()
   assert.match(html, /Repository groups/);
   assert.match(html, /aria-label="Source map outline"/);
   assert.doesNotMatch(html, /<canvas/);
+});
+
+test('focused graph uses a worker and keeps outline selection canonical', async () => {
+  const source = await readFile(new URL('../apps/web/source-map-view.js', import.meta.url), 'utf8');
+  const viewport = await readFile(new URL('../apps/web/graph-viewport.js', import.meta.url), 'utf8');
+  const worker = await readFile(new URL('../apps/web/graph-layout-worker.js', import.meta.url), 'utf8');
+  assert.match(viewport, /new Worker\(new URL\('\.\/graph-layout-worker\.js'/);
+  assert.match(source, /data-node-id/);
+  assert.match(source, /Fit selection/);
+  assert.match(source, /Reset view/);
+  assert.doesNotMatch(source, /for \(let tick = 0; tick < 90/);
+  assert.match(worker, /postMessage\(\{ requestId, positions, bounds \}\)/);
+});
+
+test('focused layout is deterministic and enforces display bounds', () => {
+  const nodes = [{ id: 'b' }, { id: 'a' }, { id: 'c' }];
+  const edges = [{ fromNodeId: 'a', toNodeId: 'b' }, { fromNodeId: 'b', toNodeId: 'c' }];
+  const first = layoutFocusedGraph(nodes, edges, 640, 400);
+  assert.deepEqual(first, layoutFocusedGraph(structuredClone(nodes), structuredClone(edges), 640, 400));
+  assert.deepEqual(Object.keys(first.positions).sort(), ['a', 'b', 'c']);
+  assert.throws(() => layoutFocusedGraph(Array.from({ length: 201 }, (_, index) => ({ id: String(index) })), []), /graph_layout_bounds_exceeded/);
+});
+
+test('focused Map renders a real canvas with outline parity', () => {
+  const report = mapPreviewFixture();
+  const html = renderSourceMap({ state: parseMapUrl('/map?query=router'), report });
+  assert.match(html, /id="source-map-canvas"/);
+  assert.match(html, /Fit selection/);
+  assert.equal((html.match(/data-node-id="sgnode_/g) ?? []).length, 1);
+  assert.match(html, /aria-label="Source map outline"/);
 });
 
 function mapPreviewFixture({ coverage } = {}) {

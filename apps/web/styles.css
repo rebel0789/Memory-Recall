@@ -385,6 +385,12 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
 .map-relations li span,.map-relations li small{color:var(--color-muted)}
 .map-focus-summary{display:flex;flex-wrap:wrap;gap:var(--space-xs);padding-bottom:var(--space-xs);color:var(--color-muted)}
 .map-focus-summary strong{color:var(--color-ink)}
+.map-graph-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-xs);padding-bottom:var(--space-xs)}
+.map-graph-toolbar>div:last-child{display:flex;gap:var(--space-2xs)}
+.map-graph-error{margin:0 0 var(--space-xs);padding:var(--space-xs);border:1px solid var(--color-danger);border-radius:var(--radius-control);color:var(--color-danger)}
+.source-map-canvas-wrap{height:clamp(380px,56vh,620px);overflow:hidden;border:1px solid var(--color-rule);border-radius:var(--radius-control);background:var(--color-panel);touch-action:none}
+.source-map-canvas-wrap canvas{display:block;width:100%;height:100%;cursor:grab}
+.source-map-canvas-wrap canvas:active{cursor:grabbing}
 .map-focus-list,.source-map-outline{margin:0;padding:0;list-style:none;border-top:1px solid var(--color-rule)}
 .map-focus-list button,.source-map-outline button{width:100%;min-height:44px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-xs);align-items:center;padding:var(--space-2xs);border:0;border-bottom:1px solid var(--color-rule);border-radius:0;background:transparent;color:var(--color-ink);text-align:left;cursor:pointer}
 .map-focus-list button:hover,.source-map-outline button:hover{background:var(--color-panel-muted)}
@@ -597,6 +603,9 @@ th{color:var(--slate);font-size:12px;text-transform:uppercase;letter-spacing:.08
   .map-advanced-fields{grid-template-columns:1fr}
   .map-advanced-fields .field:nth-child(3){grid-column:1}
   .map-query-actions .button{flex:1 1 auto}
+  .map-graph-toolbar{display:grid}
+  .map-graph-toolbar>div:last-child .button{flex:1}
+  .source-map-canvas-wrap{height:420px}
   .map-result-heading{display:grid}
   .map-snapshot{white-space:normal}
   .map-coverage-warning{grid-template-columns:1fr}

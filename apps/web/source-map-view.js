@@ -1,4 +1,5 @@
 import { escapeHtml, formatDate, renderApiErrorPanel, statePanel } from './ui-primitives.js';
+import { createGraphViewport } from './graph-viewport.js';
 
 const DEFAULT_DEPTH = 2;
 const DEFAULT_LIMIT = 20;
@@ -77,17 +78,49 @@ export function renderSourceMap({ state: value = {}, report = null, error = null
   </div>`;
 }
 
-export function bindSourceMap(root, { onSubmit, onRefresh, onSelectNode } = {}) {
+export function bindSourceMap(root, { report = null, onSubmit, onRefresh, onSelectNode } = {}) {
   if (!root) return () => {};
   const controller = new AbortController();
   const options = { signal: controller.signal };
+  let viewport = null;
   root.querySelector('#source-graph-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
     onSubmit?.(mapStateFromForm(event.currentTarget), event);
   }, options);
   root.querySelector('[data-action="refresh-source-map"]')?.addEventListener('click', (event) => onRefresh?.(event), options);
-  root.querySelectorAll('[data-node-id]').forEach((button) => button.addEventListener('click', () => onSelectNode?.(button.dataset.nodeId), options));
-  return () => controller.abort();
+  const canvas = root.querySelector('#source-map-canvas');
+  if (canvas) {
+    const nodes = arrayValue(report?.focus?.nodes);
+    viewport = createGraphViewport(
+      canvas,
+      root.querySelector('.source-map-outline'),
+      root.querySelector('#source-map-selection'),
+      {
+        nodes,
+        edges: arrayValue(report?.focus?.edges),
+        onSelect: (node) => {
+          const selection = root.querySelector('#source-map-selection');
+          if (selection) selection.innerHTML = renderSelection(node);
+          onSelectNode?.(node.id);
+        },
+        onError: (code) => {
+          const failure = root.querySelector('[data-graph-error]');
+          if (failure) {
+            failure.hidden = false;
+            failure.textContent = code === 'graph_layout_bounds_exceeded'
+              ? 'Focused graph exceeds the 200-node or 400-relationship display limit.'
+              : 'Graph layout could not start. Use the outline to inspect records.';
+          }
+        }
+      }
+    );
+  } else {
+    root.querySelectorAll('[data-node-id]').forEach((button) => button.addEventListener('click', () => onSelectNode?.(button.dataset.nodeId), options));
+  }
+  return () => {
+    controller.abort();
+    viewport?.destroy();
+  };
 }
 
 function renderMapForm(state) {
@@ -123,7 +156,7 @@ function renderMapResult(report, state) {
     ${coverage.status === 'partial' ? renderCoverageWarning(coverage) : ''}
     <div class="source-map-layout">
       <section class="source-map-stage" aria-label="${hasFocus ? 'Focused source relationships' : 'Repository group relationships'}">${content}</section>
-      <aside class="source-map-inspector"><h2>Selection</h2>${renderSelection(outlineNodes[0])}<hr><h2>Source map outline</h2>${renderMapOutline(outlineNodes, hasFocus)}<hr>${renderSourceTruth(report, coverage)}</aside>
+      <aside class="source-map-inspector"><h2>Selection</h2><div id="source-map-selection">${renderSelection(outlineNodes[0])}</div><hr><h2>Source map outline</h2>${renderMapOutline(outlineNodes, hasFocus)}<hr>${renderSourceTruth(report, coverage)}</aside>
     </div>
   </section>`;
 }
@@ -140,12 +173,12 @@ function renderGroups(groups, relations) {
 
 function renderFocus(nodes, edges, focus = {}) {
   if (!nodes.length) return statePanel('empty', 'No focused records', 'The submitted scope produced no bounded nodes. Broaden the query or remove a group filter.');
-  return `<div class="map-focus-summary"><strong>${number(nodes.length)} nodes</strong><span>${number(edges.length)} relationships</span>${number(focus.omittedNodes ?? focus.omittedNodeCount) ? `<span>${number(focus.omittedNodes ?? focus.omittedNodeCount)} nodes omitted</span>` : ''}${number(focus.omittedEdges ?? focus.omittedEdgeCount) ? `<span>${number(focus.omittedEdges ?? focus.omittedEdgeCount)} relationships omitted</span>` : ''}</div><ol class="map-focus-list">${nodes.map((node) => `<li><button type="button" data-node-id="${escapeHtml(node.id)}"><strong>${escapeHtml(node.label)}</strong><span>${escapeHtml(node.kind)} / ${escapeHtml(node.locator ?? 'locator unavailable')}</span></button></li>`).join('')}</ol>`;
+  return `<div class="map-graph-toolbar"><div class="map-focus-summary"><strong>${number(nodes.length)} nodes</strong><span>${number(edges.length)} relationships</span>${number(focus.omittedNodes ?? focus.omittedNodeCount) ? `<span>${number(focus.omittedNodes ?? focus.omittedNodeCount)} nodes omitted</span>` : ''}${number(focus.omittedEdges ?? focus.omittedEdgeCount) ? `<span>${number(focus.omittedEdges ?? focus.omittedEdgeCount)} relationships omitted</span>` : ''}</div><div><button class="button secondary" type="button" data-graph-action="fit">Fit selection</button><button class="button secondary" type="button" data-graph-action="reset">Reset view</button></div></div><p class="map-graph-error" data-graph-error hidden></p><div class="source-map-canvas-wrap"><canvas id="source-map-canvas" width="960" height="560" role="img" aria-label="Interactive focused source graph"></canvas></div>`;
 }
 
 function renderMapOutline(items, focused) {
   if (!items.length) return '<p>No records in the current outline.</p>';
-  return `<ol class="source-map-outline" aria-label="Source map outline">${items.map((item, index) => `<li><button type="button" data-node-id="${escapeHtml(item.id)}"${index === 0 ? ' aria-current="true"' : ''}><strong>${escapeHtml(focused ? item.label : item.prefix ?? item.label)}</strong><span>${escapeHtml(focused ? item.kind : `${number(item.fileCount)} files`)}</span></button></li>`).join('')}</ol>`;
+  return `<ol class="source-map-outline" aria-label="Source map outline">${items.map((item, index) => `<li><button type="button" data-node-id="${escapeHtml(item.id)}"${index === 0 ? ' aria-current="true"' : ''}><strong>${escapeHtml(focused ? item.label : item.prefix ?? item.label)}</strong><span>${escapeHtml(focused ? item.locator ?? item.kind : `${number(item.fileCount)} files`)}</span></button></li>`).join('')}</ol>`;
 }
 
 function renderSelection(item) {

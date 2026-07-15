@@ -1111,6 +1111,7 @@ function bindCurrentOrientation(root) {
 
 function bindCurrentSourceMap(root) {
   sourceMapCleanup=bindSourceMap(root,{
+    report:sourceGraphResult,
     onSubmit:submitSourceGraph,
     onRefresh:refreshSourceGraph
   });
