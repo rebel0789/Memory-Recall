@@ -1,6 +1,17 @@
 # Changelog
 
-## [Unreleased] — 1.1.0 release candidate
+## [Unreleased] — 1.1.1 patch candidate
+
+### Fixed
+
+- Default packaged benchmarks now use bundled fixtures unless the caller explicitly supplies `--dataset`, preventing same-named repository files from changing the package benchmark.
+- `recall serve` now forwards interrupt and termination signals to the Control API child process.
+
+### Changed
+
+- Token Saver and handoff measurement reuse the already-built context pack for their real MCP stdio readback, avoiding a second repository scan while preserving fingerprint verification.
+
+## [1.1.0] — 2026-07-15
 
 No breaking CLI migration is required. Local-only defaults, proposal-gated memory, and read-only MCP remain unchanged.
 
@@ -30,7 +41,7 @@ No breaking CLI migration is required. Local-only defaults, proposal-gated memor
 
 ### Internal
 
-- Release gates cover 659 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
+- Release gates cover the full Node suite, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
 
 ## [1.0.5] — 2026-07-09
 

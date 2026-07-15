@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "release": "1.1.0",
-  "phase": "1.1-release-candidate-readiness",
+  "release": "1.1.1",
+  "phase": "1.1.1-patch-readiness",
   "nextTask": null,
   "defaults": {
     "network": "deny",
@@ -785,8 +785,8 @@
         "docs/release/1.0-RELEASE-CHECKLIST.md"
       ],
       "limitations": [
-        "memory-recall 1.1.0 is the package release candidate; verify `npm view memory-recall version` returns 1.1.0 before using the global Recall Map quickstart",
-        "Publishing, tagging, or signing the 1.1.0 release candidate remains a maintainer action",
+        "memory-recall 1.1.1 is the source patch candidate; use `npm view memory-recall version` to verify the current registry release before global installation",
+        "Publishing, tagging, or signing the 1.1.1 patch remains a maintainer action",
         "No signing keys, release credentials, hosted publishing automation, external writes, or external adapter activation are added"
       ]
     },
@@ -1048,7 +1048,7 @@
       "npm run consumer:smoke",
       "npm run consumer:browser-smoke"
     ],
-    "testsExpected": 660,
+    "testsExpected": 664,
     "protocolFixturesExpected": 182,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

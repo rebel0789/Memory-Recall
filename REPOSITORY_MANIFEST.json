@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-15T14:04:23.410Z",
-  "fileCount": 923,
-  "totalBytes": 6437920,
+  "generatedAt": "2026-07-15T16:01:28.404Z",
+  "fileCount": 924,
+  "totalBytes": 6447558,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -457,8 +457,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 460424,
-      "sha256": "62512b730c7146f2ed243d22a9071290bd00301d28cce64d69b34461b1774787"
+      "bytes": 463181,
+      "sha256": "45c46ca2b9da9c9d1f9eb34b56ca51a8da6d325bbb6c34d6068d749b1d15bd48"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -517,8 +517,8 @@
     },
     {
       "path": "ASSIGN_TO_AGENT.md",
-      "bytes": 3313,
-      "sha256": "d200fc428f0f6b53ee9fd5a22e248564da09217e43e3662349504c7bd55ca578"
+      "bytes": 3299,
+      "sha256": "a624e8b7b523c6664d30e61cc675ecd2cb48e89a9329f3d8dc7d6120f73256ba"
     },
     {
       "path": "BOOTSTRAP_REPORT.md",
@@ -532,8 +532,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 24010,
-      "sha256": "0f0377bf2901ab2cc29d38fb80f858f4928c207f94b1d80941690be294fae1d6"
+      "bytes": 24533,
+      "sha256": "eecb3751e2cde2cf4032cae191a448e1baeda04d1ce83eab594b498939cf3bc5"
     },
     {
       "path": "CITATION.cff",
@@ -1078,12 +1078,12 @@
     {
       "path": "docs/release/1.0-COMPATIBILITY-MATRIX.md",
       "bytes": 5427,
-      "sha256": "5b5b502956a17a26abe69785faf0c11cc36f1d1d13f218fc1eaf9d67b79b69df"
+      "sha256": "1d494bfb2ed31dfdf8db2962df23a8836a3c09187c87d16abfbc5e32c39ff193"
     },
     {
       "path": "docs/release/1.0-MARKETPLACE-MANIFEST.json",
       "bytes": 911,
-      "sha256": "b24c59297530d79be9ae7b1c5b81f48c654fd72156c688a56bbd02191ef788a1"
+      "sha256": "19d49e9fa0887540b98920c9b974dd6fd88d18120ca3add8fbc29e8861f4d695"
     },
     {
       "path": "docs/release/1.0-NORTH-STAR-GAP-AUDIT.md",
@@ -1093,12 +1093,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "559f17ed84af28b5896f6bd346c3fd37fc8d4e1cd3b7c30886a907c3585c858b"
+      "sha256": "de1da2e3a2d45a5042d72ead1e348f0b9fc657ab36ce18a43ab276c68af06cdd"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
-      "bytes": 3391,
-      "sha256": "c143026eca72465202cc3f5a713e2c1efe98c03dac8e0423a34301a6760667fc"
+      "bytes": 3381,
+      "sha256": "65d15d1d57bf05a07d9d25f46eeb110c45d9347e8384bcba1f7f2edd8eb1775c"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1108,12 +1108,12 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1723,
-      "sha256": "ffaa143ba56be41c18e99ddee9826b518d2e609eaead617743a9ad7e02db0648"
+      "sha256": "e9daf1a1196a09c62474d968e83e00ae14de6e822f543f7c9d401ec3848508d7"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
       "bytes": 17159,
-      "sha256": "59e9ba25e87acc81c2b6cc02b6d803fee49bc5a7f7644a8590c8dd6562926e76"
+      "sha256": "e6d2b39f8a3d57ee29458eb094a273f837e5c08978f3c485e5273094e26e0430"
     },
     {
       "path": "docs/release/1.0-SECURITY-REVIEW.md",
@@ -2372,8 +2372,8 @@
     },
     {
       "path": "HANDOFF_VERIFICATION.json",
-      "bytes": 975,
-      "sha256": "fc3e3c8dcf101d72e70e1a1e062802fce1b7b70cab9c48aacfb3efabc12be7d2"
+      "bytes": 968,
+      "sha256": "eb2d810e244a03d9df572f3eea7fc1c15142ad4ccc7cb509a25264d746ccfe9f"
     },
     {
       "path": "LICENSE",
@@ -2403,12 +2403,12 @@
     {
       "path": "package-lock.json",
       "bytes": 11169,
-      "sha256": "66bac759b6c28f95c29eca52c0b42e9bb24237a4a926fb67a42093f9ee425ed7"
+      "sha256": "e7af858186750dbd7386fce41dd5e37303dca712915d31bc41fd22f7ecb0a368"
     },
     {
       "path": "package.json",
       "bytes": 4476,
-      "sha256": "0b4ad199b2c9bcb0d4832f3da1747633cee59deb65ec94d3a33f83292bef5dff"
+      "sha256": "69062661e8988c9d18d38201caf0e4d62547c5e2b1d86de4a57d9582e2ffaf19"
     },
     {
       "path": "packages/adapter-contracts/package.json",
@@ -3447,8 +3447,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 60894,
-      "sha256": "66a4cea825b1893e0f234f0f8ae71906dae322756cdde7cccfb967a4d44e2a83"
+      "bytes": 60872,
+      "sha256": "c45a2069a55fe9d917ba7f1d463726670f5c91fe00aa6dbc48b9f60e7b75b151"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3662,8 +3662,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 14946,
-      "sha256": "032ed4f09e75d866df80450c60f17f83dd772ea4a4d09ead0481156e407cc4e4"
+      "bytes": 14960,
+      "sha256": "e594862598e86418574f909056059e3c30014f14d56bbbbcd6ede477c9c48a6b"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3763,7 +3763,7 @@
     {
       "path": "scripts/consumer-smoke.mjs",
       "bytes": 15345,
-      "sha256": "c1a2e0bdd7b67707249d2dc8b62680c5c879e502b3716eb598cd782e12b1c134"
+      "sha256": "0934591890fdda7dea862d6d3655ccd0c05ce649c983ea516275bf9be575f762"
     },
     {
       "path": "scripts/context-recall-eval.mjs",
@@ -4466,6 +4466,11 @@
       "sha256": "56124e792cccb107c8528e50342dd81106235944828e17f37aecc4b270559af7"
     },
     {
+      "path": "tests/release-regressions.test.mjs",
+      "bytes": 6373,
+      "sha256": "e16538d23248aefdb543e4e7711aa285a365c74ae32dd685be753ce5dbf2b84e"
+    },
+    {
       "path": "tests/replay.test.mjs",
       "bytes": 2758,
       "sha256": "e0b3395ab1480ace5d7c3743a7475b2e9cbd578c00160930f471c19079256b8d"
@@ -4527,8 +4532,8 @@
     },
     {
       "path": "tests/usage-docs.test.mjs",
-      "bytes": 17606,
-      "sha256": "885efd11e5c90f3c41e2c45d452e802176f4b7523eb71756f8e05a674a7c6f1f"
+      "bytes": 17630,
+      "sha256": "071dca81f164e734308b88186c37b721350896fa2fbfddeda9288c4ecd814e0f"
     },
     {
       "path": "tests/web-shell.test.mjs",

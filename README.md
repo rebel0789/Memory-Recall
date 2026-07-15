@@ -22,18 +22,18 @@ Memory Recall turns a repository into a governed context source. New agent
 sessions get reviewed repo facts, changed-file impact, required local reads,
 and proof of what was sent instead of a giant pasted transcript.
 
-The source and package release candidate are 1.1.0. Check the registry before
-using the global install path:
+The source checkout is the 1.1.1 patch candidate. The registry remains the
+installation authority:
 
 ```bash
 npm view memory-recall version
-npm install -g memory-recall@1.1.0
+npm install -g memory-recall@latest
 recall setup
 recall map --root . --sqlite .local/memory.sqlite --format summary
 recall handoff
 ```
 
-If the registry still reports an older version, use the source checkout:
+Use the source checkout when testing changes that are not yet on the registry:
 
 ```bash
 git clone https://github.com/rebel0789/Memory-Recall.git
@@ -68,9 +68,9 @@ for preserved legacy names and URIs.
 ## Five-Minute Path
 
 ```bash
-# Confirm and install the 1.1.0 package.
+# Confirm and install the current registry release.
 npm view memory-recall version
-npm install -g memory-recall@1.1.0
+npm install -g memory-recall@latest
 
 # Create local state only. This does not scan the repository.
 recall setup
@@ -264,12 +264,12 @@ boundaries.
 
 ## Status
 
-Release candidate: **1.1.0**. Registry version: verify with `npm view memory-recall version`.
+Source patch candidate: **1.1.1**. Registry version: verify with `npm view memory-recall version`.
 
 | Surface | Status |
 | --- | --- |
-| Source checkout | 1.1.0 local-ready release candidate |
-| npm package | 1.1.0 publish-ready; use only after the registry reports 1.1.0 |
+| Source checkout | 1.1.1 local-ready patch candidate |
+| npm package | Install the current registry release with `memory-recall@latest` |
 | CLI | `recall` |
 | Marketplace / plugin registry | Manifest prepared; not submitted |
 | Client hooks | Opt-in Codex/Claude connect writer; dry-run/manual fallback |
