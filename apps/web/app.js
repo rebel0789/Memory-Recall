@@ -3,6 +3,13 @@ import { csrfToken, requestJson as api } from './api.js';
 import { buildOrientationModel, selectOrientationGroup } from './orientation-model.js';
 import { bindOrientation, renderOrientation } from './orientation-view.js';
 import {
+  bindSourceMap,
+  buildMapRequest,
+  parseMapUrl,
+  renderSourceMap,
+  serializeMapUrl
+} from './source-map-view.js';
+import {
   buildApiErrorUiModel,
   escapeHtml as esc,
   formatDate as date,
@@ -81,6 +88,9 @@ let contextSourcePreviewResult=null;
 let contextSourcePreviewError=null;
 let sourceGraphResult=null;
 let sourceGraphError=null;
+let sourceGraphLoading=false;
+let sourceGraphLoadSequence=0;
+let sourceMapCleanup=()=>{};
 let harnessSetupResult=null;
 let harnessSetupError=null;
 let activeFabricNode='context';
@@ -847,7 +857,14 @@ async function load() {
       return;
     }
     dashboard = await api(`/api/dashboard?workspaceId=${encodeURIComponent(workspaceId())}`);
-    await Promise.all([loadRecallMap(), loadPinnedHandoffStatus(), loadLoopWorkbench(), loadMemoryCockpit(), loadMemoryGraph()]);
+    await Promise.all([
+      loadRecallMap(),
+      loadPinnedHandoffStatus(),
+      loadLoopWorkbench(),
+      loadMemoryCockpit(),
+      loadMemoryGraph(),
+      currentRoute().id==='source-graph' ? loadSourceMap(parseMapUrl(globalThis.location?.href)) : Promise.resolve()
+    ]);
     shellState = classifyDashboardState(dashboard);
   } catch (error) {
     dashboard = { error:{ status:error.status, code:error.code, message:error.message }, metrics:{ runs:0, completed:0, events:0, pendingApprovals:0 }, runs:[], approvals:[], latestRun:null, latestManifest:null };
@@ -880,6 +897,25 @@ async function loadRecallMap() {
     recallMap = null;
     recallMapGitChanges = gitChanges;
     recallMapError = error;
+  }
+}
+
+async function loadSourceMap(state,{refresh=false}={}) {
+  const sequence=++sourceGraphLoadSequence;
+  sourceGraphLoading=true;
+  try{
+    sourceGraphResult=await api('/api/context/graph/preview',{
+      method:'POST',
+      body:JSON.stringify({workspaceId:workspaceId(),...buildMapRequest(state),...(refresh?{refresh:true}:{})})
+    });
+    if(sequence!==sourceGraphLoadSequence)return;
+    sourceGraphError=null;
+  }catch(error){
+    if(sequence!==sourceGraphLoadSequence)return;
+    sourceGraphResult=null;
+    sourceGraphError=error;
+  }finally{
+    if(sequence===sourceGraphLoadSequence)sourceGraphLoading=false;
   }
 }
 
@@ -1010,6 +1046,8 @@ async function submitMemoryIntake(event) {
 function render() {
   orientationCleanup();
   orientationCleanup=()=>{};
+  sourceMapCleanup();
+  sourceMapCleanup=()=>{};
   const route=currentRoute();
   const setupScreen = shellState.kind === 'setup' || shellState.kind === 'denied';
   const appShell = document.querySelector('.app-shell');
@@ -1034,7 +1072,6 @@ function render() {
   root.querySelectorAll('[data-action=detect-git-changes]').forEach(button=>button.addEventListener('click',detectContextPackGitChanges));
   root.querySelectorAll('[data-action=refresh-pinned-handoff]').forEach(button=>button.addEventListener('click',refreshPinnedHandoff));
   root.querySelectorAll('[data-action=receive-pinned-handoff]').forEach(button=>button.addEventListener('click',receivePinnedHandoff));
-  root.querySelector('#source-graph-form')?.addEventListener('submit',submitSourceGraph);
   root.querySelector('#memory-graph-form')?.addEventListener('submit',submitMemoryGraph);
   root.querySelector('#memory-intake-form')?.addEventListener('submit',submitMemoryIntake);
   root.querySelector('#memory-graph-history')?.addEventListener('change',toggleMemoryGraphHistory);
@@ -1056,6 +1093,7 @@ function render() {
   if(route.id==='memory-graph')drawMemoryGraphCanvas(root.querySelector('#memory-graph-canvas'),memoryGraph,memoryGraphOptions);
   document.querySelectorAll('[data-route]').forEach(link=>link.onclick=navigate);
   if(route.id==='home')bindCurrentOrientation(root);
+  if(route.id==='source-graph')bindCurrentSourceMap(root);
 }
 
 function bindCurrentOrientation(root) {
@@ -1068,6 +1106,13 @@ function bindCurrentOrientation(root) {
       bindCurrentOrientation(root);
     },
     onRefresh:refreshRecallMap
+  });
+}
+
+function bindCurrentSourceMap(root) {
+  sourceMapCleanup=bindSourceMap(root,{
+    onSubmit:submitSourceGraph,
+    onRefresh:refreshSourceGraph
   });
 }
 
@@ -2306,10 +2351,12 @@ function memoryConfigDownloadName() {
 }
 
 function renderSourceGraph() {
-  const errorPanel=sourceGraphError?renderApiErrorPanel('Source graph preview failed',sourceGraphError):'';
-  const query=recallMapSearchQuery();
-  const globalResults=renderRepositorySearchState({query,report:recallMap,error:recallMapError});
-  return `<div class="tool-workspace map-workspace"><header class="tool-page-heading"><div><p class="eyebrow">Repository structure</p><h1>Map</h1><p>Find an entry point, trace a symbol, or inspect the impact of a changed file.</p></div><span>Read-only · bounded metadata</span></header>${globalResults}<section class="tool-query"><form id="source-graph-form" class="stacked-form"><label class="field"><span>Query</span><input name="query" value="${esc(query||'where should I start')}" maxlength="512"></label><div class="field-grid"><label class="field"><span>Trace symbol</span><input name="startName" value="" placeholder="optional function or class name" maxlength="240"></label><label class="field"><span>Changed locator</span><input name="changedLocator" value="" placeholder="src/index.js" maxlength="512"></label></div><div class="query-options"><label class="field"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="8"></label><label class="field"><span>Depth</span><input name="depth" type="number" min="1" max="5" value="2"></label><button class="button primary" type="submit">Run map</button><span class="muted">No model or network calls</span></div></form></section>${errorPanel}${sourceGraphResult?renderSourceGraphResult(sourceGraphResult):statePanel('empty','No map results','Run the map to inspect files, symbols, import neighbors, and likely starting points.')}</div>`;
+  return renderSourceMap({
+    state:parseMapUrl(globalThis.location?.href),
+    report:sourceGraphResult,
+    error:sourceGraphError,
+    loading:sourceGraphLoading
+  });
 }
 
 function renderRecallMapSearchResults(report,query){const search=report?.architecture?.search;const results=Array.isArray(search?.results)?search.results:[];return `<section class="surface repository-search-results" aria-label="Repository search results"><div class="section-heading"><h2>Search results</h2><span>${Number(search?.total??0)} matches for ${esc(query)}</span></div>${results.length?`<ol class="plain-list">${results.map((item)=>`<li><strong>${esc(item.label)}</strong><code>${esc(item.locator)}</code></li>`).join('')}</ol>`:'<p class="muted">No bounded source-graph matches.</p>'}</section>`}
@@ -2318,76 +2365,6 @@ export function renderRepositorySearchState({query='',report=null,error=null}={}
   if(!query)return '';
   if(error)return renderApiErrorPanel('Repository search failed',error);
   return renderRecallMapSearchResults(report,query);
-}
-
-export function renderSourceGraphResult(report) {
-  const summary=report.graph?.summary ?? {};
-  return `<div class="tool-workspace map-workspace"><section class="tool-result-heading"><div><p class="eyebrow">Map results</p><h2>Repo Map</h2></div><dl class="tool-summary" aria-label="Source graph summary"><div><dt>Files</dt><dd>${Number(summary.fileCount??0)}</dd></div><div><dt>Symbols</dt><dd>${Number(summary.symbolCount??0)}</dd></div><div><dt>Relations</dt><dd>${Number(summary.edgeCount??0)}</dd></div><div><dt>Matches</dt><dd>${Number(report.search?.total??0)}</dd></div></dl></section>${renderRepoMap(report)}<section class="tool-detail-grid"><section><div class="section-heading"><h2>Search results</h2><span>${Number(report.search?.total??0)} matches</span></div>${sourceGraphSearchList(report.search?.results)}</section><section><div class="section-heading"><h2>Trace</h2><span>${report.trace?.paths?.length??0} paths</span></div>${sourceGraphTraceList(report.trace?.paths)}</section><section><div class="section-heading"><h2>Changed impact</h2><span>${report.impact?.affectedSymbols?.length??0} symbols</span></div>${sourceGraphImpactList(report.impact?.affectedSymbols)}</section><details class="tool-disclosure"><summary>Scan details</summary>${sourceGraphSafeguards(report.safeguards)}<div class="section-heading"><h3>Sample nodes</h3><span>${report.graph?.sampleNodes?.length??0}</span></div>${sourceGraphNodeList(report.graph?.sampleNodes)}<code>${esc(shortFingerprint(report.graph?.graphFingerprint))}</code></details></section></div>`;
-}
-
-function renderRepoMap(report) {
-  const nodes=report.graph?.sampleNodes ?? [];
-  const byId=new Map(nodes.map((node)=>[node.id,node]));
-  const files=nodes.filter((node)=>node.kind==='file').slice(0,6);
-  const symbols=uniqueBy([
-    ...(report.graph?.summary?.entryPoints ?? []),
-    ...(report.graph?.summary?.hotspots ?? []),
-    ...nodes.filter((node)=>node.kind==='symbol')
-  ],(item)=>item.locator ?? item.label).slice(0,6);
-  const imports=(report.graph?.sampleEdges ?? []).filter((edge)=>edge.kind==='imports').map((edge)=>{
-    const from=byId.get(edge.fromNodeId);
-    const to=byId.get(edge.toNodeId);
-    return from&&to?`${from.label} -> ${to.label}`:'';
-  }).filter(Boolean).slice(0,6);
-  const readFirst=(report.graph?.summary?.entryPoints ?? []).map((item)=>item.locator).filter(Boolean).slice(0,6);
-  return `<section class="work-grid repo-map"><div class="surface surface-primary"><div class="section-heading"><h2>Repo Map</h2><span>${files.length} files</span></div>${sourceGraphStartHere(report)}<div class="split-list"><div><h3>Read first</h3>${sourceGraphTextList(readFirst)}</div><div><h3>Files</h3>${sourceGraphNodeList(files)}</div></div></div><aside class="inspector"><div class="section-heading"><h2>Key symbols</h2><span>${symbols.length}</span></div>${sourceGraphSymbolList(symbols)}<hr><div class="section-heading"><h2>Import neighbors</h2><span>${imports.length}</span></div>${sourceGraphTextList(imports)}</aside></section>`;
-}
-
-function uniqueBy(items,key) {
-  const seen=new Set();
-  return items.filter((item)=>{const value=key(item);if(!value||seen.has(value))return false;seen.add(value);return true;});
-}
-
-function sourceGraphStartHere(report) {
-  const entry=report.graph?.summary?.entryPoints?.[0];
-  const changed=report.impact?.representedChangedLocators?.[0] ?? report.impact?.changedLocators?.[0];
-  const affected=report.impact?.affectedSymbols?.[0];
-  if(!entry && !changed && !affected)return '';
-  return `<div class="state-panel state-success"><h3>Start here</h3><p>${entry?`Begin at ${esc(entry.label)} (${esc(entry.locator)}).`:'Use the read-first list below.'}${changed?` Changed impact: ${esc(changed)}${affected?` touches ${esc(affected.name)}`:''}.`:''}</p></div>`;
-}
-
-function sourceGraphSymbolList(symbols=[]) {
-  if(!symbols.length)return '<p class="muted">No key symbols in the bounded preview.</p>';
-  return `<ol class="compact-list locator-list">${symbols.map((symbol)=>`<li><strong>${esc(symbol.label)}</strong><span>${esc(symbol.symbolKind??'symbol')} · ${esc(symbol.locator??`${Number(symbol.total??0)} links`)}</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphTextList(items=[]) {
-  if(!items.length)return '<p class="muted">No bounded preview items.</p>';
-  return `<ol class="compact-list locator-list">${items.map((item)=>`<li><strong>${esc(item)}</strong></li>`).join('')}</ol>`;
-}
-
-function sourceGraphSearchList(results=[]) {
-  if(!results.length)return '<p class="muted">No matching graph records.</p>';
-  return `<ol class="compact-list locator-list">${results.map((item)=>`<li><strong>${esc(item.label)}</strong><span>${esc(item.kind)} · ${esc(item.locator??'no locator')} · ${Number(item.score??0).toFixed(3)}</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphNodeList(nodes=[]) {
-  if(!nodes.length)return '<p class="muted">No sample nodes.</p>';
-  return `<ol class="compact-list locator-list">${nodes.map((node)=>`<li><strong>${esc(node.label)}</strong><span>${esc(node.kind)} · ${esc(node.locator??node.sourceRef??node.id)}</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphTraceList(paths=[]) {
-  if(!paths.length)return '<p class="muted">No trace paths for the selected symbol.</p>';
-  return `<ol class="compact-list locator-list">${paths.map((path)=>`<li><strong>${esc(path.terminalLabel)}</strong><span>depth ${Number(path.depth??0)} · ${path.nodeIds?.length??0} nodes</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphImpactList(symbols=[]) {
-  if(!symbols.length)return '<p class="muted">No impacted symbols for the supplied locator.</p>';
-  return `<ol class="compact-list locator-list">${symbols.map((symbol)=>`<li><strong>${esc(symbol.name)}</strong><span>${esc(symbol.symbolKind)} · ${esc(symbol.locator)}</span></li>`).join('')}</ol>`;
-}
-
-function sourceGraphSafeguards(safeguards={}) {
-  return `<dl class="facts compact-facts"><div><dt>Persisted</dt><dd>${safeguards.persisted?'yes':'no'}</dd></div><div><dt>Model calls</dt><dd>${Number(safeguards.modelCalls??0)}</dd></div><div><dt>Network</dt><dd>${Number(safeguards.networkCalls??0)}</dd></div><div><dt>Graph DB</dt><dd>${safeguards.graphDatabaseUsed?'yes':'no'}</dd></div><div><dt>Raw bodies</dt><dd>${safeguards.rawBodyIncluded?'included':'excluded'}</dd></div></dl>`;
 }
 
 function renderMemory() {
@@ -2633,10 +2610,11 @@ function keyValueFacts(items){
   return `<dl class="summary-list">${items.map((item)=>`<div><dt>${esc(item.key)}</dt><dd>${esc(item.value)}</dd></div>`).join('')}</dl>`;
 }
 
-function navigate(event) {
+async function navigate(event) {
   event.preventDefault();
   activeRunDetail=null;
   history.pushState({},'',event.currentTarget.getAttribute('href'));
+  if(currentRoute().id==='source-graph')await loadSourceMap(parseMapUrl(globalThis.location?.href));
   render();
   document.querySelector('#main').focus({preventScroll:true});
 }
@@ -2676,11 +2654,11 @@ async function submitGlobalSearch(event){
     document.querySelector('#live-status').textContent='Handoff objective filled in for review.';
     return;
   }
-  document.querySelector('#live-status').textContent='Searching bounded repository metadata.';
-  await loadRecallMap();
+  document.querySelector('#live-status').textContent='Loading bounded repository metadata.';
+  await loadSourceMap(parseMapUrl(globalThis.location?.href));
   render();
   document.querySelector('#main').focus({preventScroll:true});
-  document.querySelector('#live-status').textContent=recallMapError?`Repository search failed. ${buildApiErrorUiModel(recallMapError).message}`:'Repository search loaded.';
+  document.querySelector('#live-status').textContent=sourceGraphError?`Map request failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Map loaded.';
 }
 
 function selectFabricNode(event) {
@@ -3015,41 +2993,22 @@ async function pinCurrentContextPack(event) {
   }
 }
 
-async function submitSourceGraph(event){
-  event.preventDefault();
-  const form=event.currentTarget;
-  const button=form.querySelector('button[type=submit]');
-  const data=new FormData(form);
-  const query=String(data.get('query') ?? '').trim();
-  const startName=String(data.get('startName') ?? '').trim();
-  const changedLocator=String(data.get('changedLocator') ?? '').trim();
-  const limit=Number(data.get('limit') ?? 8);
-  const depth=Number(data.get('depth') ?? 2);
-  const body={
-    workspaceId:workspaceId(),
-    limit,
-    depth,
-    sampleLimit:6
-  };
-  if(query)body.query=query;
-  if(startName)body.startName=startName;
-  if(changedLocator)body.changedLocators=[changedLocator];
-  button.disabled=true;
-  button.textContent='Previewing...';
-  document.querySelector('#live-status').textContent='Previewing local source graph.';
-  try{
-    sourceGraphResult=await api('/api/context/graph/preview',{method:'POST',body:JSON.stringify(body)});
-    sourceGraphError=null;
-    document.querySelector('#live-status').textContent='Source graph preview ready.';
-    render();
-  }catch(error){
-    document.querySelector('#live-status').textContent=error.message;
-    sourceGraphError=error;
-    render();
-  }finally{
-    button.disabled=false;
-    button.textContent='Preview repo map';
-  }
+async function submitSourceGraph(state){
+  const target=serializeMapUrl(state);
+  const current=`${globalThis.location?.pathname??''}${globalThis.location?.search??''}`;
+  if(target!==current)history.pushState({},'',target);
+  document.querySelector('#live-status').textContent='Loading the submitted map scope.';
+  await loadSourceMap(state);
+  render();
+  document.querySelector('#live-status').textContent=sourceGraphError?`Map request failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Map loaded.';
+}
+
+async function refreshSourceGraph(){
+  const state=parseMapUrl(globalThis.location?.href);
+  document.querySelector('#live-status').textContent='Refreshing the local source scan.';
+  await loadSourceMap(state,{refresh:true});
+  render();
+  document.querySelector('#live-status').textContent=sourceGraphError?`Map refresh failed. ${buildApiErrorUiModel(sourceGraphError).message}`:'Map refreshed.';
 }
 
 async function submitMemoryGraph(event){
@@ -3478,7 +3437,7 @@ function boot(){
   document.querySelector('#reset-button')?.addEventListener('click',resetDemo);
   document.querySelector('#global-search-form')?.addEventListener('submit',submitGlobalSearch);
   document.addEventListener('keydown',(event)=>{if(event.key==='Escape'){const menu=document.querySelector('#repository-menu[open]');if(menu){menu.open=false;menu.querySelector('summary')?.focus()}}});
-  window.addEventListener('popstate',async()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else if(currentRoute().id==='source-graph'){await loadRecallMap();render()}else render()});
+  window.addEventListener('popstate',async()=>{activeRunDetail=null;const runId=new URL(location.href).searchParams.get('run');if(currentRoute().id==='runs'&&runId)loadRunById(runId,{push:false});else if(currentRoute().id==='source-graph'){await loadSourceMap(parseMapUrl(location.href));render()}else render()});
   const runId=new URL(location.href).searchParams.get('run');
   load().then(()=>{if(runId)loadRunById(runId,{push:false})});
 }

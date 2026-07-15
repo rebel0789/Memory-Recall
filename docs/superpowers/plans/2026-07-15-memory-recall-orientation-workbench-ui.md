@@ -596,7 +596,7 @@ git commit -m "feat: render the orientation-first Overview"
 - Produces: `renderSourceMap({ state, report, error }): string`.
 - Produces: `bindSourceMap(root, handlers): () => void`.
 
-- [ ] **Step 1: Write failing URL round-trip and failure tests**
+- [x] **Step 1: Write failing URL round-trip and failure tests**
 
 Create `tests/web-source-map.test.mjs`:
 
@@ -668,7 +668,7 @@ function mapPreviewFixture({ coverage } = {}) {
 }
 ```
 
-- [ ] **Step 2: Run the tests and verify the missing module**
+- [x] **Step 2: Run the tests and verify the missing module**
 
 Run:
 
@@ -678,15 +678,15 @@ node --test tests/web-source-map.test.mjs
 
 Expected: FAIL with module-not-found for `source-map-view.js`.
 
-- [ ] **Step 3: Implement bounded URL state and request mapping**
+- [x] **Step 3: Implement bounded URL state and request mapping**
 
 Normalize strings to existing API maxima. `buildMapRequest()` maps `group` to `locatorPrefix`, a single `changedLocator` to `changedLocators`, and returns `sampleLimit: 50`. Default state is an empty query, depth 2, limit 20; do not inject `where should I start` into the field. `advanced` is true only when start, changed, depth other than 2, or limit other than 20 is present.
 
-- [ ] **Step 4: Render query, disclosure, truth state, and outline**
+- [x] **Step 4: Render query, disclosure, truth state, and outline**
 
 `Query` remains visible. Put group, trace, changed locator, depth, and limit inside `<details class="map-advanced">`. Render snapshot/coverage state as text. Render grouped orientation before a focus exists; render `preview.focus` when a query/group/trace/impact exists. Always render a semantic outline and inspector. A failure uses `renderApiErrorPanel()` and never renders an empty-success message.
 
-- [ ] **Step 5: Delegate Map submit and history handling from `app.js`**
+- [x] **Step 5: Delegate Map submit and history handling from `app.js`**
 
 On submit:
 
@@ -698,7 +698,7 @@ On submit:
 
 Global search must navigate to `/map?query=<value>` and use the same path. Remove the old default query substitution. The visible `Refresh` action repeats the current request with `{ refresh: true }`; ordinary submit, reload, back, and forward use the cache-aware default.
 
-- [ ] **Step 6: Verify URL, shell, and API behavior**
+- [x] **Step 6: Verify URL, shell, and API behavior**
 
 Run:
 

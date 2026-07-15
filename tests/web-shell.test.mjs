@@ -49,7 +49,6 @@ import {
   selectContextPackPinPayload,
   renderMemoryCockpit,
   renderMemoryGraph,
-  renderSourceGraphResult,
   renderLoopWorkbenchMemoryFlow,
   renderSetupScreen,
   renderContextPackTokenSaverSummary,
@@ -62,6 +61,7 @@ import {
   summarizeRunSteps,
   writeClipboardText
 } from '../apps/web/app.js';
+import { parseMapUrl, renderSourceMap } from '../apps/web/source-map-view.js';
 
 test('web API and UI primitives are focused modules', async () => {
   const apiSource = await readFile(new URL('../apps/web/api.js', import.meta.url), 'utf8');
@@ -409,7 +409,7 @@ test('shell defers protected workspace loads until local session evidence exists
   assert.equal(shouldLoadProtectedShellData({ bootstrapRequired:false, csrfTokenValue:'csrf_1' }),true);
 });
 
-test('source graph preview renders repo map start points',()=>{
+test('source graph preview renders bounded focus with scan truth',()=>{
   const report={
     graph:{
       graphFingerprint:'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -432,6 +432,13 @@ test('source graph preview renders repo map start points',()=>{
         {kind:'calls',fromNodeId:'sgnode_workflow',toNodeId:'sgnode_auth'}
       ]
     },
+    orientation:{groups:[{id:'group_src',prefix:'src',fileCount:2,symbolCount:2,changedFileCount:1}],relations:[]},
+    focus:{nodes:[
+      {id:'sgnode_workflow',kind:'symbol',label:'runAuthWorkflow',locator:'workspace://src/workflow.ts#L3-L7'},
+      {id:'sgnode_auth',kind:'symbol',label:'TokenResetService',locator:'workspace://src/auth.ts#L1-L5'}
+    ],edges:[{id:'edge_1',kind:'calls',fromNodeId:'sgnode_workflow',toNodeId:'sgnode_auth'}],omittedNodes:0,omittedEdges:0},
+    snapshot:{status:'fresh',reuse:'cache',builtAt:'2026-07-15T10:00:00.000Z'},
+    coverage:{status:'complete',representedFileCount:2,omittedFileCount:0,omittedEdgeCount:0,reasonCodes:[]},
     search:{total:1,results:[]},
     trace:{paths:[]},
     impact:{
@@ -441,21 +448,18 @@ test('source graph preview renders repo map start points',()=>{
     },
     safeguards:{persisted:false,modelCalls:0,networkCalls:0,graphDatabaseUsed:false,rawBodyIncluded:false}
   };
-  const html=renderSourceGraphResult(report);
-  assert.match(html,/class="tool-workspace map-workspace"/);
-  assert.match(html,/Map results/);
-  assert.match(html,/Repo Map/);
-  assert.match(html,/Start here/);
+  const html=renderSourceMap({state:parseMapUrl('/map?query=runAuthWorkflow'),report});
+  assert.match(html,/class="tool-workspace source-map-workspace"/);
+  assert.match(html,/Focused map/);
   assert.match(html,/runAuthWorkflow/);
-  assert.match(html,/Changed impact/);
-  assert.match(html,/Read first/);
   assert.match(html,/workspace:\/\/src\/workflow\.ts#L3-L7/);
-  assert.match(html,/Files/);
   assert.match(html,/workspace:\/\/src\/auth\.ts/);
-  assert.match(html,/Key symbols/);
   assert.match(html,/TokenResetService/);
-  assert.match(html,/Import neighbors/);
-  assert.match(html,/src\/workflow\.ts -&gt; src\/auth\.ts/);
+  assert.match(html,/Source map outline/);
+  assert.match(html,/Scan truth/);
+  assert.match(html,/2 represented files/);
+  assert.match(html,/External writes/);
+  assert.match(html,/off/);
   assert.doesNotMatch(html,/class="metric-strip"/);
 });
 
@@ -682,6 +686,7 @@ test('context pack pin uses the reviewed build payload instead of a stale form p
 test('context pack user flow exposes artifact actions and safe harness commands',async()=>{
   assert.deepEqual(parseSelectedFiles('docs/handoff.md\n docs/handoff.md,notes/context.md '),['docs/handoff.md','notes/context.md']);
   const app=await readFile('apps/web/app.js','utf8');
+  const sourceMap=await readFile('apps/web/source-map-view.js','utf8');
   assert.match(app,/Build context pack/);
   assert.match(app,/data-action="copy-pack"/);
   assert.match(app,/data-action="copy-launch-prompt"/);
@@ -752,10 +757,11 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.match(app,/measure context-pack --read-only/);
   assert.match(app,/Read-only impact brief/);
   assert.match(app,/Change Impact/);
-  assert.match(app,/value="\$\{esc\(query\|\|'where should I start'\)\}"/);
-  assert.match(app,/name="startName" value="" placeholder="optional function or class name"/);
-  assert.match(app,/name="changedLocator" value="" placeholder="src\/index\.js"/);
-  assert.doesNotMatch(app,/name="changedLocator" value="apps\/web\/app\.js"/);
+  assert.match(sourceMap,/value="\$\{escapeHtml\(state\.query\)\}"/);
+  assert.match(sourceMap,/name="startName" value="\$\{escapeHtml\(state\.startName\)\}"/);
+  assert.match(sourceMap,/name="changedLocator" value="\$\{escapeHtml\(state\.changedLocator\)\}"/);
+  assert.doesNotMatch(sourceMap,/where should I start/iu);
+  assert.doesNotMatch(sourceMap,/name="changedLocator" value="apps\/web\/app\.js"/);
   assert.match(app,/Intake review/);
   assert.match(app,/Context pack proof metrics/);
   assert.match(app,/Pinned handoff status/);
