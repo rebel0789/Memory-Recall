@@ -3349,7 +3349,7 @@ async function benchmarkCommand(values) {
   }
 
   const suite = option(values, '--suite') ?? 'benchmark-truth-floor';
-  const datasetPath = option(values, '--dataset') ?? 'evals/benchmark-truth-floor/cases.v1.json';
+  const datasetPath = option(values, '--dataset');
   const format = option(values, '--format') ?? 'json';
   if (suite !== 'benchmark-truth-floor') {
     console.error(`unsupported suite: ${suite}`);
@@ -3363,7 +3363,8 @@ async function benchmarkCommand(values) {
   }
 
   try {
-    const input = JSON.parse(await readFile(datasetPath, 'utf8'));
+    const datasetSource = await resolveBenchmarkDataset(datasetPath, 'evals/benchmark-truth-floor/cases.v1.json');
+    const input = JSON.parse(await readFile(datasetSource.path, 'utf8'));
     const dataset = createBenchmarkDataset({ ...input, suite });
     const report = await runBenchmarkTruthFloor(dataset, {
       clock: () => '2026-06-23T00:00:00.000Z',
@@ -3428,8 +3429,8 @@ async function buildLocomoBenchmarkReport(values) {
   const sampleLimit = parseIntegerOption(values, '--sample', 0);
   const missLimit = parseIntegerOption(values, '--miss-limit', 12);
   const memorySource = option(values, '--memory-source') ?? 'turns+observations';
-  const datasetPath = option(values, '--dataset') ?? 'evals/locomo/smoke.v1.json';
-  const dataset = await loadLocomoDataset(datasetPath);
+  const datasetSource = await resolveBenchmarkDataset(option(values, '--dataset'), 'evals/locomo/smoke.v1.json');
+  const dataset = await loadLocomoDataset(datasetSource.path);
   const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-locomo-'));
   const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
   const cases = [];
@@ -3516,7 +3517,7 @@ async function buildLocomoBenchmarkReport(values) {
     dataset: {
       id: dataset.id,
       version: dataset.version,
-      ref: datasetPath.startsWith('/') ? 'local-absolute-dataset' : `workspace://${toPosix(datasetPath)}`,
+      ref: datasetSource.ref,
       sampleCount: dataset.samples.length,
       evaluatedSampleCount: sampleStats.length,
       qaCount: dataset.samples.reduce((sum, sample) => sum + (Array.isArray(sample.qa) ? sample.qa.length : 0), 0),
@@ -3996,8 +3997,8 @@ async function buildTemporalBenchmarkReport(values) {
   const generatedAt = fixedNow();
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 1024));
   const recallLimit = parseIntegerOption(values, '--limit', 8);
-  const datasetPath = option(values, '--dataset') ?? 'evals/temporal/gold.v1.json';
-  const dataset = await loadTemporalDataset(datasetPath);
+  const datasetSource = await resolveBenchmarkDataset(option(values, '--dataset'), 'evals/temporal/gold.v1.json');
+  const dataset = await loadTemporalDataset(datasetSource.path);
   const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-temporal-'));
   const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
   const sqliteValues = ['--sqlite', 'memory.sqlite'];
@@ -4088,7 +4089,7 @@ async function buildTemporalBenchmarkReport(values) {
     dataset: {
       id: dataset.id,
       version: dataset.version,
-      ref: datasetPath.startsWith('/') ? 'local-absolute-dataset' : `workspace://${toPosix(datasetPath)}`,
+      ref: datasetSource.ref,
       caseCount: dataset.cases.length
     },
     budget: {
@@ -4174,8 +4175,8 @@ async function buildSessionBenchmarkReport(values) {
   const workspaceId = option(values, '--workspace-id') ?? option(values, '--workspace') ?? 'ws_local';
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 1024));
   const recallLimit = parseIntegerOption(values, '--limit', 8);
-  const datasetPath = option(values, '--dataset') ?? 'evals/temporal/gold.v1.json';
-  const dataset = await loadTemporalDataset(datasetPath);
+  const datasetSource = await resolveBenchmarkDataset(option(values, '--dataset'), 'evals/temporal/gold.v1.json');
+  const dataset = await loadTemporalDataset(datasetSource.path);
   const item = dataset.cases[0];
   const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-session-'));
   const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
@@ -4263,7 +4264,7 @@ async function buildSessionBenchmarkReport(values) {
     dataset: {
       id: dataset.id,
       version: dataset.version,
-      ref: datasetPath.startsWith('/') ? 'local-absolute-dataset' : `workspace://${toPosix(datasetPath)}`,
+      ref: datasetSource.ref,
       caseCount: dataset.cases.length,
       sessionCaseId: item.id
     },
@@ -4624,6 +4625,29 @@ async function loadTemporalDataset(datasetPath) {
   return { id: parsed.id, version: parsed.version ?? '1.0.0', cases };
 }
 
+async function resolveBenchmarkDataset(requestedPath, bundledPath) {
+  const selectedPath = requestedPath ?? bundledPath;
+  const workspacePath = path.resolve(selectedPath);
+  const workspaceFile = await stat(workspacePath).catch(() => null);
+  if (workspaceFile?.isFile()) {
+    return {
+      path: workspacePath,
+      ref: path.isAbsolute(selectedPath) ? 'local-absolute-dataset' : `workspace://${toPosix(selectedPath)}`
+    };
+  }
+
+  if (!path.isAbsolute(selectedPath) && toPosix(path.normalize(selectedPath)) === bundledPath) {
+    const packagePath = path.join(PACKAGE_ROOT, ...bundledPath.split('/'));
+    const packageFile = await stat(packagePath).catch(() => null);
+    if (packageFile?.isFile()) return { path: packagePath, ref: `package://${bundledPath}` };
+  }
+
+  return {
+    path: selectedPath,
+    ref: path.isAbsolute(selectedPath) ? 'local-absolute-dataset' : `workspace://${toPosix(selectedPath)}`
+  };
+}
+
 function normalizeTemporalCase(item, index) {
   if (!item || typeof item !== 'object' || Array.isArray(item)) throw new Error('bench temporal case must be an object');
   const id = String(item.id ?? `case_${index + 1}`);
@@ -4745,8 +4769,8 @@ async function buildSufficiencyBenchmarkReport(values) {
   const generatedAt = fixedNow();
   const tokenBudget = parseIntegerOption(values, '--token-budget', parseIntegerOption(values, '--budget', 1024));
   const recallLimit = parseIntegerOption(values, '--limit', 8);
-  const datasetPath = option(values, '--dataset') ?? 'evals/sufficiency/gold.v1.json';
-  const dataset = await loadSufficiencyDataset(datasetPath);
+  const datasetSource = await resolveBenchmarkDataset(option(values, '--dataset'), 'evals/sufficiency/gold.v1.json');
+  const dataset = await loadSufficiencyDataset(datasetSource.path);
   const scratchRoot = await mkdtemp(path.join(tmpdir(), 'oaf-sufficiency-'));
   const scratchSqlite = path.join(scratchRoot, 'memory.sqlite');
   const sqliteValues = ['--sqlite', 'memory.sqlite'];
@@ -4852,7 +4876,7 @@ async function buildSufficiencyBenchmarkReport(values) {
     dataset: {
       id: dataset.id,
       version: dataset.version,
-      ref: datasetPath.startsWith('/') ? 'local-absolute-dataset' : `workspace://${toPosix(datasetPath)}`,
+      ref: datasetSource.ref,
       caseCount: dataset.cases.length
     },
     budget: {

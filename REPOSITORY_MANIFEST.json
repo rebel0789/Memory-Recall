@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-15T11:16:55.792Z",
+  "generatedAt": "2026-07-15T14:04:23.410Z",
   "fileCount": 923,
-  "totalBytes": 6428286,
+  "totalBytes": 6437920,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -457,8 +457,8 @@
     },
     {
       "path": "apps/cli/oaf.mjs",
-      "bytes": 459579,
-      "sha256": "fa7200d942591e92ef954ac3879cf1d9556cf1aa907a52658066ad1002ea9a4b"
+      "bytes": 460424,
+      "sha256": "62512b730c7146f2ed243d22a9071290bd00301d28cce64d69b34461b1774787"
     },
     {
       "path": "apps/web/AGENTS.md",
@@ -837,8 +837,8 @@
     },
     {
       "path": "docs/benchmarks.md",
-      "bytes": 8317,
-      "sha256": "0bbc131af4531e534aa028b0a88391af1c07f913349271885ebc3d9cbfe00e0e"
+      "bytes": 8750,
+      "sha256": "d486819287f1f97c1f51efded6dd7bf6c8491dc8e7a135c9cfaba9ed8f14b212"
     },
     {
       "path": "docs/implementation/AGENT_EXECUTION_PLAYBOOK.md",
@@ -1093,12 +1093,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "fb281b9df61cd9cf0012eebec67a668dd74635666fd2ea623ff8d983359de1cc"
+      "sha256": "559f17ed84af28b5896f6bd346c3fd37fc8d4e1cd3b7c30886a907c3585c858b"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 3391,
-      "sha256": "5ed33403f42cfc4fa86ba01c06c797ca7d641ea1db80b26e8764c9d39e023df6"
+      "sha256": "c143026eca72465202cc3f5a713e2c1efe98c03dac8e0423a34301a6760667fc"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1108,7 +1108,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1723,
-      "sha256": "b099296e900294decc60d6b48c5ad0ff4b6d1f6a2b34181c50499573b2ce4f2d"
+      "sha256": "ffaa143ba56be41c18e99ddee9826b518d2e609eaead617743a9ad7e02db0648"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1257,8 +1257,8 @@
     },
     {
       "path": "docs/usage/token-savings.md",
-      "bytes": 3138,
-      "sha256": "49caa5e970ac5a6125e42d5d5e521e4903971375cb32fcb6d2d112dfb7af1d6c"
+      "bytes": 3359,
+      "sha256": "b0bff7b987fded359fc2e46f3ced300f7ae29abe6b078c45e291b31b14e76c90"
     },
     {
       "path": "docs/usage/troubleshooting.md",
@@ -2407,8 +2407,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 4490,
-      "sha256": "7571776a443d6c4e5d91a824c8056b23c20d6378b8b194a316bd206a4b208359"
+      "bytes": 4476,
+      "sha256": "0b4ad199b2c9bcb0d4832f3da1747633cee59deb65ec94d3a33f83292bef5dff"
     },
     {
       "path": "packages/adapter-contracts/package.json",
@@ -3447,8 +3447,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 60855,
-      "sha256": "d69f9d5cd81b825dd4421b13a48e47090ed422a84fa10746a3f965291ba2d9f2"
+      "bytes": 60894,
+      "sha256": "66a4cea825b1893e0f234f0f8ae71906dae322756cdde7cccfb967a4d44e2a83"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3662,8 +3662,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 14677,
-      "sha256": "6290d03d15a62bd121fea8007824b5c14327a6e7ce4e20f45f0d11b6f584aa23"
+      "bytes": 14946,
+      "sha256": "032ed4f09e75d866df80450c60f17f83dd772ea4a4d09ead0481156e407cc4e4"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3762,8 +3762,8 @@
     },
     {
       "path": "scripts/consumer-smoke.mjs",
-      "bytes": 8884,
-      "sha256": "49c8f2d2df28b45dad7133e1f3f3d01cc819c57f2be037bc91c6fa926f2ad447"
+      "bytes": 15345,
+      "sha256": "c1a2e0bdd7b67707249d2dc8b62680c5c879e502b3716eb598cd782e12b1c134"
     },
     {
       "path": "scripts/context-recall-eval.mjs",
@@ -4192,8 +4192,8 @@
     },
     {
       "path": "tests/cli.test.mjs",
-      "bytes": 307264,
-      "sha256": "22a45353019af82c88a2d721e831ed360f5a1c6570aad556fb9de914da2af8f5"
+      "bytes": 307634,
+      "sha256": "308e9a00e6e07b882b14318fc5de57060ce1f1cde71c6115bcee6f32f930b55d"
     },
     {
       "path": "tests/content-intelligence.test.mjs",
@@ -4462,8 +4462,8 @@
     },
     {
       "path": "tests/release-readiness.test.mjs",
-      "bytes": 20683,
-      "sha256": "156a29dd7ad2a8a13288dcd312072492b5b68e9ac2eb1a87111a64e751f7acd5"
+      "bytes": 21729,
+      "sha256": "56124e792cccb107c8528e50342dd81106235944828e17f37aecc4b270559af7"
     },
     {
       "path": "tests/replay.test.mjs",
@@ -4527,8 +4527,8 @@
     },
     {
       "path": "tests/usage-docs.test.mjs",
-      "bytes": 17642,
-      "sha256": "b48a48ba58941a19d4fcca4cc7a7a7cc2cce3ef53d743dc7d8b0cbf7e2b7ca70"
+      "bytes": 17606,
+      "sha256": "885efd11e5c90f3c41e2c45d452e802176f4b7523eb71756f8e05a674a7c6f1f"
     },
     {
       "path": "tests/web-shell.test.mjs",

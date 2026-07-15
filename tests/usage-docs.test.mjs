@@ -6,15 +6,17 @@ function read(path) {
   return readFileSync(path, 'utf8');
 }
 
-test('README and status separate the source candidate from the published package', () => {
+test('README and status keep the release candidate honest across the registry handoff', () => {
   const readme = read('README.md');
   const status = JSON.parse(read('PROJECT_STATUS.json'));
   const release = status.capabilities.find((capability) => capability.id === 'release.readiness');
   const web = status.capabilities.find((capability) => capability.id === 'bootstrap.web');
 
-  assert.match(readme, /current source checkout is the 1\.1\.0 release candidate\. npm still serves\s+1\.0\.5, which does not include Recall Map/);
-  assert.match(readme, /npm run recall -- setup\nnpm run recall -- map --root \. --sqlite \.local\/memory\.sqlite --format summary\nnpm run recall -- handoff/);
-  assert.match(release.limitations.join('\n'), /1\.0\.5 is published; the 1\.1\.0 source release candidate on main is not yet published/);
+  assert.match(readme, /npm view memory-recall version/);
+  assert.match(readme, /npm install -g memory-recall@1\.1\.0\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
+  assert.match(readme, /If the registry still reports an older version, use the source checkout/);
+  assert.doesNotMatch(readme, /npm still serves\s+1\.0\.5/);
+  assert.match(release.limitations.join('\n'), /1\.1\.0 is the package release candidate; verify `npm view memory-recall version` returns 1\.1\.0/);
   assert.match(web.limitations.join('\n'), /confirm-gated proposal approval through the authenticated loopback API/);
 });
 
@@ -108,9 +110,8 @@ test('public usage docs avoid stale task and missing context-file examples while
   assert.match(contract, /Implemented: local JS\/TS static graph, reviewed SQLite memory, read-only MCP\./);
   assert.match(contract, /Experimental: Rust acceleration paths require a local build before explicit invocation\./);
   assert.match(contract, /Unsupported: automatic transcript capture, write-capable MCP, hosted sync, and non-JS\/TS source graph analysis\./);
-  assert.match(readme, /npm run recall -- setup\nnpm run recall -- map --root \. --sqlite \.local\/memory\.sqlite --format summary\nnpm run recall -- handoff/);
-  assert.match(readme, /current source checkout is the 1\.1\.0 release candidate\. npm still serves\s+1\.0\.5, which does not include Recall Map/);
-  assert.match(readme, /Source release candidate: \*\*1\.1\.0\*\*\. Published npm version: \*\*1\.0\.5\*\*\./);
+  assert.match(readme, /npm install -g memory-recall@1\.1\.0\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
+  assert.match(readme, /Release candidate: \*\*1\.1\.0\*\*\. Registry version: verify with `npm view memory-recall version`\./);
   assert.match(readme, /`recall setup` creates only local state\. `recall map` is the explicit first\s+read-only repository scan; it does not run silently during setup\./);
   assert.match(normalHandoff, /recall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
   assert.match(normalHandoff, /`recall setup` creates only local Recall state in the current repository; it\s+does not scan source files\. `recall map` is the explicit first read-only scan\./);

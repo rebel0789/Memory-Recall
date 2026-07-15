@@ -50,7 +50,7 @@ with `npm run recall --`.
 | Context-recall gate | `npm run eval:context-recall -- --budgets 8000` from a source checkout. |
 | Session delta | `recall bench session --read-only --root . --format json` |
 | Temporal current truth | `recall bench temporal --read-only --root . --format json` |
-| Structured-ingest sufficiency | `recall bench realqa --read-only --root . --format json` |
+| Structured-ingest sufficiency | `npm run recall -- bench realqa --read-only --root . --format json` from a Memory Recall source checkout |
 
 ## Result artifact
 
@@ -67,6 +67,12 @@ runs depend on the checked-out repository, and fixtures can change with code.
 Do not cite a protocol schema example as a completed benchmark run. Preserve the
 command, checkout revision, JSON output, and `reportFingerprint` when the
 command provides one.
+
+The npm package bundles the truth-floor, session, temporal, sufficiency, and
+LoCoMo fixtures. Installed benchmark commands resolve those exact fixture paths
+from the package when they are absent from the target repository. The
+structured-ingest command remains source-checkout-only because it derives its
+questions from this repository's `PROJECT_STATUS.json` and provider manifests.
 
 ## Pass condition
 
