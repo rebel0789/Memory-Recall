@@ -241,9 +241,9 @@ test('architecture ranking and search omit protocol-forbidden locators from dire
   const secret = 'RECALL_MAP_RANKING_LOCATOR_SECRET';
   for (const locator of [
     `workspace://src/server.ts?token=${secret}`,
-    'workspace://Users/rebel/secret.ts#L1-L1',
-    'workspace://private/secret.ts',
-    'workspace://var/folders/x.ts',
+    'workspace:///Users/rebel/secret.ts#L1-L1',
+    'workspace:///private/secret.ts',
+    'workspace:///var/folders/x.ts',
     'workspace://src/%252e%252e/REVIEW_SECRET.ts',
     'workspace://src/%25252e%25252e/REVIEW_SECRET.ts',
     'workspace://src/%252fREVIEW_SECRET.ts',
@@ -398,8 +398,8 @@ test('architecture ranking and search omit raw source-like and absolute labels f
     'data:text/plain',
     'node:../REVIEW_SECRET.ts',
     'default:page',
-    'Users/rebel/private-source.ts',
-    'var/folders/private-source.ts',
+    '/Users/rebel/private-source.ts',
+    '/var/folders/private-source.ts',
     'a'.repeat(241)
   ]) {
     const graph = {
@@ -477,15 +477,15 @@ test('source graph locator and label grammars are shared by ranking and both pro
   assert.equal(validateJsonSchema(sourceGraphSchema, sourceGraphFor('workspace://src/server.ts#L1-L1')).valid, true);
   assert.equal(SOURCE_GRAPH_WORKSPACE_LOCATOR_RE.test('workspace://app/api/items/[itemId]/route.ts#L1-L3'), true);
   assert.equal(validateJsonSchema(sourceGraphSchema, sourceGraphFor('workspace://app/api/items/[itemId]/route.ts#L1-L3')).valid, true);
-  for (const label of ['startServer', 'src/[id]/route.ts', 'node:fs', 'node:fs/promises', 'local:absolute-import', 'default-page', 'from calls to', 'from exports Alias to']) {
+  for (const label of ['startServer', 'src/[id]/route.ts', 'apps/api/users/[id]/route.ts', 'src/private/state.ts', 'var/folders/local.ts', 'node:fs', 'node:fs/promises', 'local:absolute-import', 'default-page', 'from calls to', 'from exports Alias to']) {
     assert.equal(SOURCE_GRAPH_SAFE_LABEL_RE.test(label), true);
     assert.equal(validateJsonSchema(sourceGraphSchema, sourceGraphFor('workspace://src/server.ts#L1-L1', label)).valid, true);
   }
   for (const locator of [
     'workspace://src/server.ts?token=secret',
-    'workspace://Users/rebel/secret.ts#L1-L1',
-    'workspace://private/secret.ts',
-    'workspace://var/folders/x.ts',
+    'workspace:///Users/rebel/secret.ts#L1-L1',
+    'workspace:///private/secret.ts',
+    'workspace:///var/folders/x.ts',
     'workspace://src/%2e%2e/secret.ts',
     'workspace://src/..%2fsecret.ts',
     'workspace://src/%252e%252e/REVIEW_SECRET.ts',
@@ -517,8 +517,8 @@ test('source graph locator and label grammars are shared by ranking and both pro
     'data:text/plain',
     'node:../REVIEW_SECRET.ts',
     'default:page',
-    'Users/rebel/private-source.ts',
-    'var/folders/private-source.ts',
+    '/Users/rebel/private-source.ts',
+    '/var/folders/private-source.ts',
     'a'.repeat(241)
   ]) {
     assert.equal(SOURCE_GRAPH_SAFE_LABEL_RE.test(label), false);

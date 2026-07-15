@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chmod, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
+import { normalizeSourceGraphWorkspaceLocator } from '../packages/protocol/src/source-graph-locator.mjs';
 import { buildSourceGraphPreview } from '../packages/source-graph/src/index.mjs';
 import { searchSourceGraph } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 
@@ -29,6 +30,37 @@ async function fixtureWorkspace() {
   ].join('\n'));
   return root;
 }
+
+test('source graph accepts ordinary relative users and private directories', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'recall-relative-users-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, 'apps', 'api', 'users', '[userRef]'), { recursive: true });
+  await mkdir(path.join(root, 'src', 'private'), { recursive: true });
+  await writeFile(path.join(root, 'apps', 'api', 'users', '[userRef]', 'route.ts'), 'export function GET(){ return "ok"; }\n');
+  await writeFile(path.join(root, 'src', 'private', 'state.ts'), 'export const state = "local";\n');
+
+  const preview = await buildSourceGraphPreview({ root, workspaceId: 'ws_local' });
+
+  assert.equal(preview.graph.summary.fileCount, 2);
+  assert.equal(preview.graph.diagnostics.some(({ code }) => code.startsWith('source_graph_unavailable')), false);
+  assert(preview.graph.sampleNodes.some(({ locator }) => locator?.includes('/users/')));
+  assert(preview.graph.sampleNodes.some(({ locator }) => locator?.includes('/private/')));
+});
+
+test('source graph still rejects absolute and encoded traversal locators', () => {
+  for (const locator of [
+    '/Users/rebel/project/src/app.js',
+    'C:\\Users\\rebel\\project\\src\\app.js',
+    'workspace:///Users/rebel/project/src/app.js',
+    'workspace://src/%252e%252e/secret.js',
+    'https://example.com/source.js'
+  ]) {
+    assert.throws(
+      () => normalizeSourceGraphWorkspaceLocator(locator),
+      /source_graph_workspace_locator_invalid/
+    );
+  }
+});
 
 test('source graph preview builds bounded read-only report without raw source bodies', async () => {
   const root = await fixtureWorkspace();
@@ -353,7 +385,7 @@ test('source graph preview rejects protocol-invalid locators before emitting a r
   for (const input of [
     { changedLocators: ['src/auth.ts?token=FACADE_LOCATOR_SECRET'] },
     { changedLocators: ['workspace://src/auth.ts#invalid-fragment'] },
-    { changedLocators: ['workspace://Users/rebel/private.ts'] },
+    { changedLocators: ['workspace:///Users/rebel/private.ts'] },
     { changedLocators: ['src/%2e%2e/secret.ts'] },
     { changedLocators: ['workspace://src/..%2fsecret.ts'] },
     { changedLocators: ['workspace://src/%252e%252e/REVIEW_SECRET.ts'] },
@@ -368,7 +400,7 @@ test('source graph preview rejects protocol-invalid locators before emitting a r
     { changedLocators: ['workspace://git:repo/path'] },
     { changedLocators: ['workspace://src/file:/etc/passwd'] },
     { changedLocators: ['workspace://src/%66ile%3A/etc/passwd'] },
-    { locatorPrefix: 'workspace://private/secret.ts' },
+    { locatorPrefix: 'workspace:///private/secret.ts' },
     { locatorPrefix: 'workspace://src/auth.ts?token=FACADE_LOCATOR_SECRET' },
     { locatorPrefix: 'workspace://src/auth.ts#invalid-fragment' },
     { locatorPrefix: 'workspace://src/%2E%2E/secret.ts' },

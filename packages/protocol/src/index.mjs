@@ -38,6 +38,7 @@ export function createEvent({ type, workspaceId='ws_local', runId, actorId='syst
 export { validateJsonSchema, assertJsonSchema } from './schema-validator.mjs';
 export { canonicalStringify, stableStringify, sha256Hex } from './fingerprint.mjs';
 export {
+  isSafeSourceGraphDisplayLabel,
   normalizeSourceGraphWorkspaceLocator,
   SOURCE_GRAPH_SAFE_LABEL_PATTERN,
   SOURCE_GRAPH_SAFE_LABEL_RE,

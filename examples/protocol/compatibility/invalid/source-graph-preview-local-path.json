@@ -30,7 +30,7 @@
         "workspaceId": "ws_local",
         "kind": "symbol",
         "label": "/Users/rebel/private/auth.ts",
-        "locator": "workspace://Users/rebel/private/auth.ts"
+        "locator": "workspace:///Users/rebel/project/src/auth.ts"
       }
     ],
     "sampleEdges": [],

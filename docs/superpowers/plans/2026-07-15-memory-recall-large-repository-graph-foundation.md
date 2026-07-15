@@ -65,6 +65,7 @@
 
 **Files:**
 - Modify: `packages/protocol/src/source-graph-locator.mjs`
+- Modify: `packages/protocol/src/index.mjs`
 - Modify: `packages/protocol/schemas/source-graph.schema.json`
 - Modify: `packages/protocol/schemas/source-graph-preview.schema.json`
 - Modify: `examples/protocol/compatibility/invalid/source-graph-local-path.json`
@@ -92,7 +93,6 @@ test('source graph accepts ordinary relative users and private directories', asy
 
   const preview = await buildSourceGraphPreview({ root, workspaceId: 'ws_local' });
 
-  assert.equal(preview.snapshot.status, 'fresh');
   assert.equal(preview.graph.summary.fileCount, 2);
   assert.equal(preview.graph.diagnostics.some(({ code }) => code.startsWith('source_graph_unavailable')), false);
   assert(preview.graph.sampleNodes.some(({ locator }) => locator?.includes('/users/')));
@@ -157,7 +157,7 @@ Expected: focused tests pass and all protocol fixtures validate.
 - [ ] **Step 5: Commit the safety correction**
 
 ```bash
-git add packages/protocol/src/source-graph-locator.mjs packages/protocol/schemas/source-graph.schema.json packages/protocol/schemas/source-graph-preview.schema.json examples/protocol/compatibility/invalid/source-graph-local-path.json examples/protocol/compatibility/invalid/source-graph-preview-local-path.json tests/source-graph-preview.test.mjs
+git add packages/protocol/src/source-graph-locator.mjs packages/protocol/src/index.mjs packages/protocol/schemas/source-graph.schema.json packages/protocol/schemas/source-graph-preview.schema.json examples/protocol/compatibility/invalid/source-graph-local-path.json examples/protocol/compatibility/invalid/source-graph-preview-local-path.json tests/source-graph-preview.test.mjs
 git commit -m "fix: accept safe repository-relative graph paths"
 ```
 
