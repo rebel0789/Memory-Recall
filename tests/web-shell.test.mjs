@@ -261,6 +261,10 @@ test('product shell omits prohibited marketing and removed dashboard patterns', 
   for (const phrase of ['developer-first', 'nervous system', 'unlock this workspace', 'supercharge', 'AI-powered', 'next-generation']) {
     assert.doesNotMatch(shell, new RegExp(phrase, 'i'));
   }
+  for (const retiredCopy of ['Open Agent Fabric', 'project:oaf', 'OAF compressed', 'read OAF resources', 'OAF server only']) {
+    assert.doesNotMatch(shell, new RegExp(retiredCopy, 'i'));
+  }
+  assert.match(shell, /Memory Recall/);
   for (const selector of ['page-eyebrow', 'recall-map-signals', 'nav-code']) {
     assert.doesNotMatch(shell, new RegExp(selector));
   }
@@ -585,9 +589,9 @@ test('memory route renders real temporal fact fields and computed token number',
     summary: { proposalCount: 0, activeMemoryCreated: 0 },
     proposalFacts: []
   });
-  assert.match(emptyIntakeHtml, /Try: Fact: project:oaf release_status release-candidate/);
+  assert.match(emptyIntakeHtml, /Try: Fact: project:memory-recall release_status release-candidate/);
   assert.match(html, new RegExp(`<dt>Naive baseline</dt><dd>${profile.contextBudget.historyTokensAvailable}</dd>`));
-  assert.match(html, new RegExp(`<dt>OAF compressed</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
+  assert.match(html, new RegExp(`<dt>Memory Recall delivery</dt><dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
   assert.match(html, /<dt>Provider billing<\/dt><dd>not claimed<\/dd>/);
   assert.match(html, /<dt>MCP calls<\/dt><dd>2<\/dd>/);
   assert.match(html, /<dt>MCP delivered<\/dt><dd>320<\/dd>/);

@@ -1,14 +1,14 @@
 # Architecture Overview
 
 ## Product boundary
-![Open Agent Fabric architecture](../assets/open-agent-fabric-architecture.png)
+![Memory Recall architecture](../assets/open-agent-fabric-architecture.png)
 
 _Conceptual target architecture. Boxes are responsibilities, not a requirement to deploy each as a separate service._
 
 
-Open Agent Fabric is the local-first tool for building, running, inspecting, and improving agents. It owns portable domain state and the default runtime surface: workspaces, runs, workflows, events, context manifests, source graph, retrieval, compaction views, memories, evidence, approvals, policies, artifacts, hooks, evaluations, and integration metadata.
+Memory Recall is the local-first repository memory and context tool for coding agents. Its current product path is Recall Map, governed memory, read-only MCP, and inspectable handoffs. The wider reference bootstrap also contains workspaces, runs, workflows, events, context manifests, evidence, approvals, policies, artifacts, hooks, evaluations, and integration metadata.
 
-It does not own foundation models, third-party agent framework internals, social platforms, or upstream hosted products. Those can enter through replaceable integrations, but they do not own OAF's canonical state, authority, or user workflow.
+It does not own foundation models, third-party agent framework internals, social platforms, or upstream hosted products. Those can enter through replaceable integrations, but they do not own Memory Recall's canonical state, authority, or user workflow.
 
 ## Logical architecture
 
@@ -103,7 +103,7 @@ Each step has typed input and output, context policy, allowed tools, side-effect
 
 ## Native reliability layer
 
-The core always has a local baseline. `providers/native/` implements the default local experience first. Optional integrations can implement the same ports later for compatibility or scale, but workflows and UI code still depend on OAF contracts.
+The core always has a local baseline. `providers/native/` implements the default local experience first. Optional integrations can implement the same ports later for compatibility or scale, but workflows and UI code still depend on internal contracts rather than provider details.
 
 The local baseline includes SQLite/FTS5 memory, content-addressed filesystem artifacts, an embedded workflow runtime, deterministic generation behind the local model gateway, and an explicit loopback-only Ollama option. Read `native-providers.md` and `model-gateway.md` for limitations.
 

@@ -9,7 +9,7 @@ Agent behavior is usually scattered across prompts, framework code, environment 
 
 ## Decision
 
-Open Agent Fabric defines a provider-neutral **Agent Pack** that versions the reproducible contract for an agent or agent team.
+Memory Recall defines a provider-neutral **Agent Pack** that versions the reproducible contract for an agent or agent team.
 
 An Agent Pack declares:
 

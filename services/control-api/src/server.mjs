@@ -1779,7 +1779,7 @@ async function main() {
     mcpStatsPath: path.join(dataDir, 'mcp-stats.jsonl')
   });
   api.server.listen(port, host, () => {
-    console.log(`Open Agent Fabric local bootstrap: http://${host}:${port}`);
+    console.log(`Memory Recall local workspace: http://${host}:${port}`);
     console.log('No external writes are enabled. Press Ctrl+C to stop.');
   });
   for (const signal of ['SIGINT', 'SIGTERM']) {

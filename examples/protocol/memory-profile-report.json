@@ -15,7 +15,7 @@
     "recordIds": ["mem_profile_active"],
     "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   },
-  "markdown": "# OAF Memory Profile\n\nGenerated from accepted Open Agent Fabric memory records only.\nEditing this file does not create, update, activate, or delete canonical memory.\n\nWorkspace: ws_local\nGenerated: 2026-06-23T00:00:00.000Z\n\n## decision\n\n- Every model call must reference a persisted context manifest.\n  - id: mem_profile_active\n  - source: evidence:ev_context\n  - evidence: ev_context\n",
+  "markdown": "# Memory Recall Profile\n\nGenerated from accepted Memory Recall records only.\nEditing this file does not create, update, activate, or delete canonical memory.\n\nWorkspace: ws_local\nGenerated: 2026-06-23T00:00:00.000Z\n\n## decision\n\n- Every model call must reference a persisted context manifest.\n  - id: mem_profile_active\n  - source: evidence:ev_context\n  - evidence: ev_context\n",
   "safeguards": {
     "networkCalls": 0,
     "modelCalls": 0,

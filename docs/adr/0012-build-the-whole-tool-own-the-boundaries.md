@@ -2,17 +2,17 @@
 
 - Status: Accepted
 - Date: 2026-06-19
-- Decision owners: Open Agent Fabric maintainers
+- Decision owners: Memory Recall maintainers
 
 ## Context
 
 The agent ecosystem already contains useful memory systems, research collectors, graph builders, collaboration tools, design studios, publishers, model panels, and workflow frameworks. Copying all of them into one repository would create incompatible dependencies, duplicated state, licensing risk, and a maintenance burden that would prevent the platform from evolving.
 
-At the same time, making Open Agent Fabric only a collection of wrappers would leave it without a durable product advantage. OAF is the tool users run: the local runtime, context system, memory lifecycle, code/repository intelligence, tool boundary, evidence trail, hooks, UI, CLI, and release surface. Optional integrations may help, but they do not define the product.
+At the same time, making Memory Recall only a collection of wrappers would leave it without a durable product advantage. Memory Recall is the tool users run: the local runtime, context system, memory lifecycle, code/repository intelligence, tool boundary, evidence trail, hooks, UI, CLI, and release surface. Optional integrations may help, but they do not define the product.
 
 ## Decision
 
-Open Agent Fabric will use four implementation strategies.
+Memory Recall will use four implementation strategies.
 
 1. **Build natively** when a capability defines the product, runtime quality, context quality, or reliability boundary.
 2. **Use hooks as accelerators** when a client can steer discovery, compact noisy tool output, or route retrieval earlier without granting authority.

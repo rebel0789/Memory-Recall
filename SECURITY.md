@@ -1,6 +1,6 @@
 # Security Policy
 
-Do not open a public issue for a suspected vulnerability. Use the repository's private security advisory feature: <https://github.com/rebel0789/open-agent-fabric/security/advisories/new>.
+Memory Recall accepts suspected vulnerability reports through the repository's private security advisory feature: <https://github.com/rebel0789/Memory-Recall/security/advisories/new>. Do not open a public issue for a suspected vulnerability.
 
 Supported security boundaries are documented in `docs/security/`. External adapters are disabled by default. No production security guarantee is made for the development bootstrap.
 

@@ -40,3 +40,55 @@ test('README describes bench realqa as checkout-derived structured-ingest suffic
   assert.match(readme, /checkout-derived structured-ingest sufficiency/);
   assert.doesNotMatch(readme, /real repo question answering/i);
 });
+
+test('canonical repository guidance uses Memory Recall as the product name', async () => {
+  const guidanceFiles = [
+    'AGENTS.md',
+    'ASSIGN_TO_AGENT.md',
+    'CITATION.cff',
+    'CONTEXT.md',
+    'GOVERNANCE.md',
+    'MAINTAINERS.md',
+    'NOTICE',
+    'PRODUCT.md',
+    'SECURITY.md',
+    'SUPPORT.md',
+    'docs/architecture/overview.md'
+  ];
+
+  for (const file of guidanceFiles) {
+    const document = await readFile(file, 'utf8');
+    assert.match(document, /Memory Recall/, `${file} must name the canonical product`);
+    assert.doesNotMatch(document, /Open Agent Fabric/, `${file} must not present the retired product name`);
+    assert.doesNotMatch(document, /rebel0789\/open-agent-fabric/iu, `${file} must use the current repository`);
+  }
+
+  const projectStatus = JSON.parse(await readFile('PROJECT_STATUS.json', 'utf8'));
+  const repositoryManifest = JSON.parse(await readFile('REPOSITORY_MANIFEST.json', 'utf8'));
+  assert.equal(projectStatus.project, 'memory-recall');
+  assert.equal(repositoryManifest.project, 'memory-recall');
+});
+
+test('repository-local scratch artifacts stay out of Git status', async () => {
+  const gitignore = await readFile('.gitignore', 'utf8');
+  assert.match(gitignore, /^\.scratch\/$/mu);
+});
+
+test('current product surfaces do not revive the retired product name', async () => {
+  const productSurfaces = [
+    'apps/web/favicon.svg',
+    'docs/api/openapi.yaml',
+    'docs/open-source/fork-policy.md',
+    'docs/product/loop-workbench.md',
+    'packages/harness-context/src/index.mjs',
+    'packages/memory-core/src/filesystem-ux.mjs',
+    'packages/protocol/schemas/agent-pack.schema.json',
+    'rust/README.md'
+  ];
+
+  for (const file of productSurfaces) {
+    const document = await readFile(file, 'utf8');
+    assert.match(document, /Memory Recall/, `${file} must name the canonical product`);
+    assert.doesNotMatch(document, /Open Agent Fabric/, `${file} must not present the retired product name`);
+  }
+});

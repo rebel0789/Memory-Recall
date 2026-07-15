@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "project": "open-agent-fabric",
+  "project": "memory-recall",
   "release": "1.1.0",
   "phase": "1.1-release-candidate-readiness",
   "nextTask": null,
@@ -1026,7 +1026,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-07-11",
+    "asOf": "2026-07-15",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run local:run",
@@ -1048,7 +1048,7 @@
       "npm run consumer:smoke",
       "npm run consumer:browser-smoke"
     ],
-    "testsExpected": 655,
+    "testsExpected": 659,
     "protocolFixturesExpected": 182,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

@@ -1,4 +1,4 @@
-# Open Agent Fabric Rust Runtime
+# Memory Recall Rust Runtime
 
 This workspace builds the local-first OAF Rust runtime:
 

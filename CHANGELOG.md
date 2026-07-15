@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] — 2026-07-11
+## [Unreleased] — 1.1.0 release candidate
 
 No breaking CLI migration is required. Local-only defaults, proposal-gated memory, and read-only MCP remain unchanged.
 
@@ -13,6 +13,7 @@ No breaking CLI migration is required. Local-only defaults, proposal-gated memor
 
 ### Changed
 
+- Canonical repository guidance, citation metadata, support links, project status, and generated manifest now use Memory Recall; legacy `oaf` commands, URIs, task IDs, and internal package scopes remain compatibility identifiers.
 - Replaced the fifteen-item dashboard navigation with a five-destination workbench, separated local workspace setup from Overview, and made Overview choose one deterministic scan, review, or handoff action from current local state.
 - Overview now hydrates bounded multi-file impact from current read-only git detection, preserves omitted-change evidence, reports degraded detection without claiming a clean tree, surfaces blocked handoffs, and exposes repository search with stable Map history and explicit failure states.
 - The repository bar now documents the one-repository-per-server boundary, and tablet navigation collapses to a semantic 72 px icon rail with accessible labels.
@@ -29,7 +30,27 @@ No breaking CLI migration is required. Local-only defaults, proposal-gated memor
 
 ### Internal
 
-- Release gates cover 655 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
+- Release gates cover 659 Node tests, 182 protocol fixtures, 144 evaluation assertions, installed-package smoke, browser smoke, package-content verification, and release-evidence drift checks.
+
+## [1.0.5] — 2026-07-09
+
+### Added
+
+- Bounded source-graph commands, previews, protocol examples, measurements, and focused validation coverage.
+
+### Changed
+
+- GitHub release metadata now points to the exact commit recorded by the published `memory-recall@1.0.5` package.
+
+## [1.0.4] — 2026-07-08
+
+### Added
+
+- Model-free LoCoMo-shaped retrieval benchmark with a small checked-in smoke fixture.
+
+### Changed
+
+- Public benchmark copy distinguishes retrieval coverage from official generative QA scoring.
 
 ## [1.0.0] — 2026-07-08
 

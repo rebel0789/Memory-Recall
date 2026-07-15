@@ -200,9 +200,9 @@ function pendingProposalRecord(record) {
 
 function profileMarkdown(records, { workspaceId, generatedAt }) {
   const lines = [
-    '# OAF Memory Profile',
+    '# Memory Recall Profile',
     '',
-    'Generated from accepted Open Agent Fabric memory records only.',
+    'Generated from accepted Memory Recall records only.',
     'Editing this file does not create, update, activate, or delete canonical memory.',
     '',
     `Workspace: ${workspaceId}`,

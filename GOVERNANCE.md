@@ -1,6 +1,6 @@
 # Governance
 
-Open Agent Fabric begins with maintainer-led governance and must evolve toward neutral stewardship before 1.0.
+Memory Recall uses maintainer-led governance and should evolve toward neutral stewardship as the contributor base grows.
 
 - Major protocol and architecture changes use public RFCs and ADRs.
 - Maintainers merge by evidence, compatibility, security, and user value.

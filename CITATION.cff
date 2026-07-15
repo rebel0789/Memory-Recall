@@ -1,10 +1,8 @@
 cff-version: 1.2.0
-message: "If you use Open Agent Fabric, cite the project and release."
-title: "Open Agent Fabric"
-version: "0.2.0-dev"
-date-released: 2026-06-19
+message: "If you use Memory Recall, cite the project."
+title: "Memory Recall"
 license: Apache-2.0
-repository-code: "https://github.com/rebel0789/open-agent-fabric"
+repository-code: "https://github.com/rebel0789/Memory-Recall"
 authors:
   - family-names: "Contributors"
-    given-names: "Open Agent Fabric"
+    given-names: "Memory Recall"

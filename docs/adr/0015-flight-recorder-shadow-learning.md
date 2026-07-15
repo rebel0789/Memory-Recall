@@ -9,7 +9,7 @@ Agents fail in ways that are difficult to reproduce. Systems also commonly let a
 
 ## Decision
 
-Open Agent Fabric treats every run as a flight record composed of versioned events, context manifests, tool decisions, model metadata, artifacts, approvals, evaluations, and outcomes.
+Memory Recall treats every run as a flight record composed of versioned events, context manifests, tool decisions, model metadata, artifacts, approvals, evaluations, and outcomes.
 
 The platform supports:
 
