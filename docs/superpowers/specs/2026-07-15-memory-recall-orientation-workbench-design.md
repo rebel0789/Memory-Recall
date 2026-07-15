@@ -2,7 +2,7 @@
 
 Date: 2026-07-15
 
-Status: Approved direction, pending written-spec review
+Status: Approved for implementation
 
 ## Decision
 
