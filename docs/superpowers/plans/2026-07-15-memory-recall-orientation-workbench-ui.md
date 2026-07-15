@@ -72,7 +72,7 @@ Complete and verify `docs/superpowers/plans/2026-07-15-memory-recall-large-repos
 - Produces: `escapeHtml`, `formatDate`, `shortFingerprint`, `buildApiErrorUiModel`, `renderApiErrorPanel`, and `statePanel` from `ui-primitives.js`.
 - `app.js` imports and delegates to these functions; route behavior remains unchanged.
 
-- [ ] **Step 0: Capture the rejected UI as baseline evidence**
+- [x] **Step 0: Capture the rejected UI as baseline evidence**
 
 Before changing any visual markup or CSS, run the existing browser smoke and preserve the current Overview, Map, and Memory screenshots outside the files later runs overwrite:
 
@@ -86,7 +86,7 @@ cp .scratch/ui-redesign/memory-desktop-1440.png .scratch/ui-redesign/before/memo
 
 Expected: the three baseline files exist and remain uncommitted for the final visual comparison.
 
-- [ ] **Step 1: Write failing module-boundary tests**
+- [x] **Step 1: Write failing module-boundary tests**
 
 Add to `tests/web-shell.test.mjs`:
 
@@ -104,7 +104,7 @@ test('web API and UI primitives are focused modules', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the boundary test and verify missing modules**
+- [x] **Step 2: Run the boundary test and verify missing modules**
 
 Run:
 
@@ -114,7 +114,7 @@ node --test --test-name-pattern="focused modules" tests/web-shell.test.mjs
 
 Expected: FAIL because `api.js` and `ui-primitives.js` do not exist.
 
-- [ ] **Step 3: Extract the API client**
+- [x] **Step 3: Extract the API client**
 
 Move the existing CSRF lookup, request headers, JSON parsing, correlation ID, issue list, and error mapping into `apps/web/api.js`. Keep the public shape small:
 
@@ -181,7 +181,7 @@ function apiError(response, payload) {
 
 Do not read storage, change auth semantics, retry automatically, or log response bodies.
 
-- [ ] **Step 4: Extract safe shared render helpers**
+- [x] **Step 4: Extract safe shared render helpers**
 
 Move only pure formatting, escaping, state-panel, and API-error rendering into `ui-primitives.js`. Use dependency injection for action markup instead of importing route state. The escaping implementation remains:
 
@@ -195,7 +195,7 @@ export function escapeHtml(value) {
 
 Export legacy aliases from `app.js` temporarily if existing tests or untouched routes import them. Do not duplicate implementation.
 
-- [ ] **Step 5: Run shell regression tests**
+- [x] **Step 5: Run shell regression tests**
 
 Run:
 
@@ -205,7 +205,7 @@ node --test tests/web-shell.test.mjs tests/control-api-boundary.test.mjs
 
 Expected: all existing shell and boundary tests pass with no visual behavior change.
 
-- [ ] **Step 6: Commit the extraction**
+- [x] **Step 6: Commit the extraction**
 
 ```bash
 git add apps/web/api.js apps/web/ui-primitives.js apps/web/app.js tests/web-shell.test.mjs

@@ -63,6 +63,18 @@ import {
   writeClipboardText
 } from '../apps/web/app.js';
 
+test('web API and UI primitives are focused modules', async () => {
+  const apiSource = await readFile(new URL('../apps/web/api.js', import.meta.url), 'utf8');
+  const primitiveSource = await readFile(new URL('../apps/web/ui-primitives.js', import.meta.url), 'utf8');
+  const appSource = await readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8');
+  assert.match(apiSource, /export async function requestJson/);
+  assert.match(apiSource, /export class ApiRequestError/);
+  assert.match(primitiveSource, /export function escapeHtml/);
+  assert.match(primitiveSource, /export function statePanel/);
+  assert.doesNotMatch(appSource, /async function api\(/);
+  assert.doesNotMatch(appSource, /function statePanel\(/);
+});
+
 test('setup is a focused workspace-security screen', () => {
   const html = renderSetupScreen('bootstrap', 'Create the first local owner.');
   assert.match(html, /Set up this workspace/);

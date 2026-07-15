@@ -1,4 +1,18 @@
 import { navigationItemsFor, navigationOwner, selectOverviewPrimaryAction } from './shell-model.js';
+import { csrfToken, requestJson as api } from './api.js';
+import {
+  buildApiErrorUiModel,
+  escapeHtml as esc,
+  formatDate as date,
+  renderApiErrorPanel,
+  renderApiErrorRecovery,
+  safeErrorToken,
+  shortFingerprint,
+  statePanel,
+  titleize
+} from './ui-primitives.js';
+
+export { buildApiErrorUiModel } from './ui-primitives.js';
 
 export const SHELL_STATES = new Set(['loading','setup','empty','error','denied','stale','partial','success']);
 
@@ -158,55 +172,6 @@ function gitDetectionUnavailableMessage(reason) {
     git_status_failed:'Git change detection is unavailable because local status could not be read.',
     git_status_timeout:'Git change detection is unavailable because local status timed out.'
   })[reason] ?? 'Git change detection is unavailable. Retry the local scan.';
-}
-
-const API_ISSUE_HINTS = new Map([
-  ['$.body.changedLocators',['Changed files','Use workspace-relative paths under this repository, one per line. Keep the list bounded and review it before building.']],
-  ['$.body.userSelectedFiles',['Explicit files','Use workspace-relative paths under this repository. Do not paste file bodies, absolute paths, credentials, or provider URLs.']],
-  ['$.body.memoryConfig.memoryPaths',['Memory preflight sources','Use reviewed workspace-relative files only. Do not use absolute paths, URLs, credentials, or generated/local state directories.']],
-  ['$.body.client',['Client','Choose a supported local harness client from the menu.']],
-  ['$.body.objective',['Objective','Use a plain task summary. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
-  ['$.body.step',['Step','Use a short current-step label. Do not include secrets, provider URLs, session tokens, absolute paths, or hidden reasoning.']],
-  ['$.body.tokenBudget',['Token budget','Use a positive number within the field limit.']],
-  ['$.body.sourceLocator',['Source locator','Use a workspace-relative source file such as notes/memory.md.']],
-  ['$.body.text',['Memory text','Use simple Fact or Decision lines with safe subject, predicate, and object text.']],
-  ['$.body.targetHarness',['Target','Choose Codex, Claude Code, Cursor, or Generic agent.']],
-  ['$.body.from',['Source families','Use supported source families only, such as codex, cursor, or claude-code.']],
-  ['$.body.workspaceId',['Workspace','Use the current local workspace.']]
-]);
-
-function safeErrorToken(value,fallback,maxLength=120) {
-  const text=String(value ?? '').trim();
-  if(!text)return fallback;
-  if(/(?:\/Users|\/private|\/var\/folders|https?:|file:|token|secret|api[_-]?key|authorization|cookie)/iu.test(text))return fallback;
-  const normalized=text.replace(/[^\w$.[\]:-]/gu,'_').slice(0,maxLength);
-  if(/(?:\/Users|\/private|\/var\/folders|https?:|file:|token|secret|api[_-]?key|authorization|cookie)/iu.test(normalized))return fallback;
-  return normalized;
-}
-
-function apiIssueHint(path,code) {
-  const direct=API_ISSUE_HINTS.get(path);
-  if(direct)return { label:direct[0], detail:direct[1] };
-  if(path.startsWith('$.body.'))return { label:titleize(path.slice('$.body.'.length)), detail:'Review this field and use only supported local values.' };
-  return { label:'Request field', detail:'Review the highlighted request field and retry with supported local values.' };
-}
-
-export function buildApiErrorUiModel(errorLike) {
-  const error=typeof errorLike==='object' && errorLike ? errorLike : { message:String(errorLike ?? 'Request failed.') };
-  const message=String(error.message ?? 'Request failed.');
-  const issues=Array.isArray(error.issues) ? error.issues.slice(0,5).map((issue)=>{
-    const path=safeErrorToken(issue?.path,'$.body');
-    const code=safeErrorToken(issue?.code,'validation_failed',64);
-    return { path, code, ...apiIssueHint(path,code) };
-  }) : [];
-  const correlationId=safeErrorToken(error.correlationId,'',96);
-  return {
-    message,
-    status:Number.isFinite(Number(error.status)) ? Number(error.status) : null,
-    code:safeErrorToken(error.code,'',64),
-    correlationId,
-    issues
-  };
 }
 
 export const WORKFLOW_STEPS = [
@@ -856,38 +821,8 @@ function currentRoute() {
   return resolveRoute(globalThis.location?.href ?? '/');
 }
 
-function csrfToken() {
-  return /(?:^|;\s*)oaf_csrf=([^;]+)/.exec(globalThis.document?.cookie ?? '')?.[1] ?? '';
-}
-
 export function shouldLoadProtectedShellData({ bootstrapRequired = false, csrfTokenValue = '' } = {}) {
   return bootstrapRequired === false && String(csrfTokenValue ?? '').trim().length > 0;
-}
-
-async function api(path, options = {}) {
-  const headers = new Headers(options.headers ?? {});
-  if (options.body && !headers.has('content-type')) headers.set('content-type','application/json');
-  const token = csrfToken();
-  if (token && options.method && !['GET','HEAD'].includes(options.method)) headers.set('x-csrf-token', token);
-  const response = await fetch(path, { ...options, headers });
-  const payload = await response.clone().json().catch(()=>null);
-  if (!response.ok) {
-    const code = payload?.error?.code ?? null;
-    const message = code === 'bootstrap_required'
-      ? 'Local owner setup is required.'
-      : code === 'invalid_credentials'
-        ? 'Username or password is incorrect.'
-        : response.status === 401
-          ? 'Local authentication required.'
-          : payload?.error?.message ?? `Request failed with ${response.status}`;
-    const error = new Error(message);
-    error.status = response.status;
-    error.code = code;
-    error.correlationId = payload?.error?.correlationId ?? response.headers.get('x-correlation-id') ?? null;
-    error.issues = Array.isArray(payload?.error?.issues) ? payload.error.issues : [];
-    throw error;
-  }
-  return payload ?? response.json();
 }
 
 async function load() {
@@ -2749,16 +2684,6 @@ function renderSettings() {
 function metric(value,label,copy){return `<div class="metric"><strong>${Number(value??0)}</strong><span>${label}</span><small>${copy}</small></div>`}
 function statusChip(kind,label,description){return `<span class="status-chip status-${esc(kind)}"><strong>${esc(label)}</strong><small>${esc(description)}</small></span>`}
 function localBoundary(){return `<dl class="facts"><div><dt>Residency</dt><dd>Local-only</dd></div><div><dt>Network</dt><dd>Denied by default</dd></div><div><dt>Writes</dt><dd>External writes disabled</dd></div><div><dt>Model</dt><dd>Deterministic offline default</dd></div></dl>`}
-function renderApiErrorPanel(heading,error) {
-  const model=buildApiErrorUiModel(error);
-  return statePanel('error',heading,model.message,false,renderApiErrorRecovery(model));
-}
-function renderApiErrorRecovery(model) {
-  const issues=model.issues.length ? `<div class="issue-recovery"><h3>Fix this field</h3><ul>${model.issues.map((issue)=>`<li><strong>${esc(issue.label)}</strong><span>${esc(issue.detail)}</span><code>${esc(issue.path)} · ${esc(issue.code)}</code></li>`).join('')}</ul></div>` : '';
-  const correlation=model.correlationId ? `<p class="error-correlation">Correlation <code>${esc(model.correlationId)}</code></p>` : '';
-  return `${issues}${correlation}`;
-}
-function statePanel(kind,heading,copy,button=false,extra=''){return `<section class="state-panel state-${esc(kind)}" aria-live="${kind==='loading'?'polite':'off'}"><h2>${esc(heading)}</h2><p>${esc(copy)}</p>${extra}${button?'<div class="action-row"><button class="button primary" data-action="run" type="button">Run local demo</button><button class="button secondary" data-action="reset" type="button">Reset demo</button></div>':''}</section>`}
 export function renderSetupScreen(mode, copy, inputModel=null) {
   const model=inputModel ?? buildAuthViewModel({mode,copy,draft:authDraft,error:authError});
   const isBootstrap = mode === 'bootstrap';
@@ -3512,12 +3437,8 @@ async function loadRunById(id,{push=true}={}){
   }
 }
 
-function esc(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]))}
 function relativeAge(from,to){const start=Date.parse(String(from??''));const end=Date.parse(String(to??''));if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)return 'Not pinned';const minutes=Math.floor((end-start)/60000);if(minutes<60)return `${Math.max(0,minutes)} minute${minutes===1?'':'s'} old`;const hours=Math.floor(minutes/60);if(hours<24)return `${hours} hour${hours===1?'':'s'} old`;const days=Math.floor(hours/24);return `${days} day${days===1?'':'s'} old`}
-function shortFingerprint(value){return `${String(value??'').slice(0,19)}...`}
-function date(value){return value?new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'-'}
 function duration(start,end){if(!start)return '-';const from=Date.parse(start),to=end?Date.parse(end):Date.now();if(!Number.isFinite(from)||!Number.isFinite(to))return '-';const ms=Math.max(0,to-from);if(ms<1000)return `${ms} ms`;if(ms<60000)return `${Math.round(ms/1000)} s`;return `${Math.round(ms/60000)} min`}
-function titleize(value){return String(value??'').split(/[-_]/).filter(Boolean).map((part)=>part[0]?.toUpperCase()+part.slice(1)).join(' ')||'Step'}
 function labelize(value){return titleize(value).replace(/\bId\b/g,'ID')}
 function safeText(value){return String(value??'').replace(/[\r\n\t]+/g,' ').slice(0,160)}
 function previewText(value){return safeText(value).slice(0,220)}
