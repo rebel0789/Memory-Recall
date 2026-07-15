@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-15T16:01:28.404Z",
+  "generatedAt": "2026-07-15T16:07:36.139Z",
   "fileCount": 924,
   "totalBytes": 6447558,
   "exclusions": [
@@ -3728,7 +3728,7 @@
     {
       "path": "rust/oaf/src/main.rs",
       "bytes": 179738,
-      "sha256": "0857b482770209875102cfb78510eb23af0540db020cab384ad591f6e6fb7379"
+      "sha256": "6bdcbfcf3b8d2ebab774df9ffcab2cbd1a9d9cea448fc466ca3fc22aa4ce494e"
     },
     {
       "path": "rust/README.md",
