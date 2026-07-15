@@ -2,6 +2,10 @@ import { createHash } from 'node:crypto';
 import { lstat, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { stableStringify } from '../../protocol/src/index.mjs';
+import {
+  SOURCE_GRAPH_SAFE_LABEL_RE,
+  SOURCE_GRAPH_WORKSPACE_LOCATOR_RE
+} from '../../protocol/src/source-graph-locator.mjs';
 import { inspectRepositoryIdentity } from '../../harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
@@ -24,10 +28,8 @@ const DEFAULT_MAP_LIMIT = 20;
 const MAX_STALE_FACTS = 500;
 const MAX_PROPOSAL_ATTEMPTS = 10;
 const EDGE_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
-const LOCATOR_SEGMENT = '(?!\\.{1,2}(?:/|#|$))[A-Za-z0-9._@+~,-]+';
-const SAFE_LOCATOR = new RegExp(`^workspace://${LOCATOR_SEGMENT}(?:/${LOCATOR_SEGMENT})*(?:#L[0-9]+-L[0-9]+)?$`, 'u');
-const LABEL_TOKEN = '[A-Za-z0-9_$@~./:#*+,-]+';
-const SAFE_LABEL = new RegExp(`^(?!/)(?![A-Za-z]:[\\\\/])(?!.*://)${LABEL_TOKEN}(?: (?:contains|defined_in|imports|exports|references|calls) ${LABEL_TOKEN})?$`, 'u');
+const SAFE_LOCATOR = SOURCE_GRAPH_WORKSPACE_LOCATOR_RE;
+const SAFE_LABEL = SOURCE_GRAPH_SAFE_LABEL_RE;
 const SAFE_GROUP_PREFIX = /^[A-Za-z0-9._~!$&'()*+,;=@%\[\]-]+(?:\/[A-Za-z0-9._~!$&'()*+,;=@%\[\]-]+){0,2}$/u;
 const GROUP_ID = /^sggroup_[a-f0-9]{24}$/u;
 const RELATION_ID = /^sgrelation_[a-f0-9]{24}$/u;
@@ -57,7 +59,9 @@ export async function buildRecallMap({
   depth = DEFAULT_MAP_DEPTH,
   limit = DEFAULT_MAP_LIMIT,
   clock = () => new Date().toISOString(),
-  sqliteLocator = SQLITE_LOCATOR
+  sqliteLocator = SQLITE_LOCATOR,
+  sourceGraphSnapshotService = null,
+  refreshSourceGraph = false
 } = {}) {
   const requestedRoot = normalizeRoot(root);
   const workspace = await canonicalizeWorkspaceRoot(requestedRoot);
@@ -84,6 +88,8 @@ export async function buildRecallMap({
     query: safeQuery,
     depth: safeDepth,
     limit: safeLimit,
+    snapshotService: sourceGraphSnapshotService,
+    refresh: Boolean(refreshSourceGraph),
     clock: () => generatedAt
   });
   const architecture = summarizeArchitecture(preview, { limit: safeLimit });
@@ -266,14 +272,20 @@ function isInsideRoot(root, candidate) {
 
 function summarizeSupport(preview, memory) {
   const diagnostics = preview.graph?.diagnostics ?? [];
-  const unavailable = diagnostics.some((item) => item.code?.startsWith('source_graph_unavailable'));
+  const unavailable = preview.snapshot?.status === 'unavailable'
+    || diagnostics.some((item) => item.code?.startsWith('source_graph_unavailable'));
   const summary = preview.graph?.summary ?? {};
+  const coverageStatus = unavailable
+    ? 'unavailable'
+    : preview.snapshot?.status === 'stale'
+      ? 'stale'
+      : summary.coverage?.status === 'complete' ? 'complete' : 'partial';
   return {
     sourceGraph: {
       status: unavailable ? 'unavailable' : 'implemented',
       languages: ['javascript', 'typescript'],
       coverage: {
-        status: unavailable ? 'unavailable' : 'partial',
+        status: coverageStatus,
         analyzedFileCount: boundedInteger(summary.fileCount, 0, DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
         maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
         maxFileBytes: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
@@ -281,11 +293,25 @@ function summarizeSupport(preview, memory) {
         reasonCodes: unavailable
           ? ['source_graph_unavailable']
           : ['static_js_ts_only', 'bounded_file_scan']
-      }
+      },
+      snapshot: summarizeSnapshot(preview.snapshot)
     },
     memory: {
       status: memory.status
     }
+  };
+}
+
+function summarizeSnapshot(snapshot) {
+  return {
+    status: ['fresh', 'stale', 'unavailable'].includes(snapshot?.status) ? snapshot.status : 'unavailable',
+    reuse: ['cold', 'cache', 'inflight', 'none'].includes(snapshot?.reuse) ? snapshot.reuse : 'none',
+    reason: snapshot?.reason ? safeCode(snapshot.reason, 'source_graph_snapshot_unavailable') : null,
+    validationMode: ['watcher', 'metadata-scan', 'none'].includes(snapshot?.validationMode) ? snapshot.validationMode : 'none',
+    builtAt: snapshot?.builtAt && !Number.isNaN(Date.parse(snapshot.builtAt)) ? normalizeTimestamp(snapshot.builtAt) : null,
+    buildDurationMs: Number.isFinite(snapshot?.buildDurationMs) && snapshot.buildDurationMs >= 0
+      ? Math.min(snapshot.buildDurationMs, 3_600_000)
+      : null
   };
 }
 

@@ -16,12 +16,20 @@
       "status": "implemented",
       "languages": ["javascript", "typescript"],
       "coverage": {
-        "status": "partial",
+        "status": "complete",
         "analyzedFileCount": 2,
         "maxFiles": 1000,
         "maxFileBytes": 524288,
         "diagnosticCount": 0,
         "reasonCodes": ["static_js_ts_only", "bounded_file_scan"]
+      },
+      "snapshot": {
+        "status": "fresh",
+        "reuse": "cache",
+        "reason": null,
+        "validationMode": "watcher",
+        "builtAt": "2026-07-10T00:00:00.000Z",
+        "buildDurationMs": 18
       }
     },
     "memory": {

@@ -9,6 +9,8 @@ import path from 'node:path';
 import { createControlApiServer, createLoginRateLimiter, resolveServeSourceGraphRoot } from '../services/control-api/src/server.mjs';
 import { API_ROUTE_CONTRACTS } from '../services/control-api/src/route-contracts.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
+import { buildJsTsSourceGraph } from '../providers/native/context-candidate-ast-code/src/index.mjs';
+import { createSourceGraphSnapshotService } from '../packages/source-graph/src/index.mjs';
 
 const baseState = () => ({ schemaVersion: '1.0.0', runs: [], events: [], memories: [], approvals: [], artifacts: [] });
 
@@ -342,6 +344,81 @@ function rawRequest(base, path, { method = 'POST', headers = {}, chunks = [] } =
   });
 }
 
+test('Recall Map and source preview share one source snapshot', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-shared-source-snapshot-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await mkdir(path.join(sourceGraphRoot, 'apps', 'api', 'users', '[userRef]'), { recursive: true });
+  await writeFile(path.join(sourceGraphRoot, 'src', 'app.js'), 'export const sharedSnapshotFixture = true;\n');
+  await writeFile(path.join(sourceGraphRoot, 'apps', 'api', 'users', '[userRef]', 'route.js'), 'export function GET(){ return true; }\n');
+
+  let buildCount = 0;
+  const sourceGraphSnapshotService = createSourceGraphSnapshotService({
+    buildGraph: async (options) => {
+      buildCount += 1;
+      return buildJsTsSourceGraph(options);
+    }
+  });
+  t.after(() => sourceGraphSnapshotService.close());
+  const api = await startServer(t, { sourceGraphRoot, sourceGraphSnapshotService });
+  const authHeaders = { cookie: api.auth.cookie, origin: api.base };
+
+  const recall = await request(api.base, '/api/recall/map?workspaceId=ws_local', {
+    headers: authHeaders
+  });
+  const map = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: {
+      ...authHeaders,
+      'content-type': 'application/json',
+      'x-csrf-token': api.auth.csrf
+    },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      changedLocators: ['apps/api/users/[userRef]/route.js'],
+      sampleLimit: 3
+    })
+  });
+
+  assert.equal(recall.status, 200, recall.text);
+  assert.equal(map.status, 200, map.text);
+  assert.equal(buildCount, 1);
+  assert.equal(recall.body.support.sourceGraph.snapshot.reuse, 'cold');
+  assert.equal(map.body.snapshot.reuse, 'cache');
+  assert.equal(map.body.graph.summary.fileCount > 0, true);
+  assert.deepEqual(map.body.impact.changedLocators, ['workspace://apps/api/users/[userRef]/route.js']);
+
+  const scopedRecall = await request(api.base, '/api/recall/map', {
+    method: 'POST',
+    headers: {
+      ...authHeaders,
+      'content-type': 'application/json',
+      'x-csrf-token': api.auth.csrf
+    },
+    body: JSON.stringify({
+      workspaceId: 'ws_local',
+      changedLocators: ['apps/api/users/[userRef]/route.js'],
+      query: 'GET'
+    })
+  });
+  assert.equal(scopedRecall.status, 200, scopedRecall.text);
+  assert.deepEqual(scopedRecall.body.architecture.impact.changedLocators, ['workspace://apps/api/users/[userRef]/route.js']);
+  assert.equal(buildCount, 1);
+
+  const refreshed = await request(api.base, '/api/context/graph/preview', {
+    method: 'POST',
+    headers: {
+      ...authHeaders,
+      'content-type': 'application/json',
+      'x-csrf-token': api.auth.csrf
+    },
+    body: JSON.stringify({ workspaceId: 'ws_local', sampleLimit: 3, refresh: true })
+  });
+  assert.equal(refreshed.status, 200, refreshed.text);
+  assert.equal(refreshed.body.snapshot.reuse, 'cold');
+  assert.equal(buildCount, 2);
+});
+
 const validContextPayload = () => ({
   request: {
     schemaVersion: '1.0.0',
@@ -404,7 +481,7 @@ test('Recall Map POST rate limit is route-local and returns Retry-After', async 
   const options = {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: api.base, cookie: api.auth.cookie, 'x-csrf-token': api.auth.csrf },
-    body: JSON.stringify({ workspaceId: 'ws_local', changedLocators: ['src/app.js'] })
+    body: JSON.stringify({ workspaceId: 'ws_local', changedLocators: ['src/app.js'], refresh: true })
   };
   const first = await request(api.base, '/api/recall/map', options);
   assert.equal(first.status, 200, first.text);

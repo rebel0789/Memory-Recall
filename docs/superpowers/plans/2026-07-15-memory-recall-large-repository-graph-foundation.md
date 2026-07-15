@@ -821,7 +821,7 @@ git commit -m "feat: reuse source graph snapshots"
 - `buildRecallMap(options)` adds `sourceGraphSnapshotService` and `refreshSourceGraph = false`.
 - `createControlApiServer(options)` adds injectable `sourceGraphSnapshotService`.
 
-- [ ] **Step 1: Write the failing shared-build Control API test**
+- [x] **Step 1: Write the failing shared-build Control API test**
 
 In `tests/control-api-boundary.test.mjs`, import `buildJsTsSourceGraph` and `createSourceGraphSnapshotService`. Use the existing `startServer()` injectable harness so the test exercises both authenticated routes against the same real service and temporary repository:
 
@@ -869,7 +869,7 @@ The test owns and closes its injected service. The server must never close a cal
 
 Also add a stale fixture to `tests/recall-map.test.mjs` and assert `support.sourceGraph.coverage.status === 'stale'`, not `unavailable` and not a zero-result ready state.
 
-- [ ] **Step 2: Run focused tests and verify duplicate construction**
+- [x] **Step 2: Run focused tests and verify duplicate construction**
 
 Run:
 
@@ -879,7 +879,7 @@ node --test --test-name-pattern="share one source snapshot|stale source snapshot
 
 Expected: FAIL because Recall Map and preview build independently and Recall Map has no snapshot projection.
 
-- [ ] **Step 3: Inject the service into Recall Map**
+- [x] **Step 3: Inject the service into Recall Map**
 
 Call `buildSourceGraphPreview({ snapshotService: sourceGraphSnapshotService, refresh: refreshSourceGraph, ... })`. Project snapshot truth under `support.sourceGraph.snapshot`:
 
@@ -896,7 +896,7 @@ snapshot: {
 
 Set coverage to `stale` when the last valid snapshot is shown after a failed refresh, `partial` for bounded omission, `complete` only for complete current coverage, and `unavailable` only when no graph exists.
 
-- [ ] **Step 4: Own one service in the Control API server**
+- [x] **Step 4: Own one service in the Control API server**
 
 Import `createSourceGraphSnapshotService`. In `createControlApiServer()`, use the injected service or create one:
 
@@ -910,11 +910,11 @@ server.once('close', () => {
 
 Pass `sourceSnapshots` to both `buildRecallMap()` cases and `buildSourceGraphPreview()` in `previewContextGraph`. Add an optional boolean `refresh` to the POST Recall Map and graph-preview request schemas. Pass it as `refreshSourceGraph` or `refresh`; a true value marks the root dirty before the request. GET remains cache-aware and read-only. Preserve all auth, rate-limit, validation, and side-effect behavior.
 
-- [ ] **Step 5: Extend Recall Map schema and examples additively**
+- [x] **Step 5: Extend Recall Map schema and examples additively**
 
 Allow coverage states `complete`, `partial`, `stale`, and `unavailable`. Add the bounded snapshot object and optional request `refresh` flag. Update the example and route contract fixtures. Do not rename existing source-graph or readiness fields.
 
-- [ ] **Step 6: Verify shared API behavior**
+- [x] **Step 6: Verify shared API behavior**
 
 Run:
 
@@ -925,7 +925,7 @@ npm run protocol:validate
 
 Expected: all focused API, boundary, and protocol tests pass with one shared graph build.
 
-- [ ] **Step 7: Commit Control API reuse**
+- [x] **Step 7: Commit Control API reuse**
 
 ```bash
 git add packages/recall-map/src/index.mjs packages/protocol/schemas/recall-map.schema.json examples/protocol/recall-map.json services/control-api/src/server.mjs services/control-api/src/route-contracts.mjs tests/recall-map.test.mjs tests/control-api-boundary.test.mjs

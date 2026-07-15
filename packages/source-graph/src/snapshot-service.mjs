@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstat, realpath, watch } from 'node:fs';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import { buildJsTsSourceGraph } from '../../../providers/native/context-candidate-ast-code/src/index.mjs';
 
 const realpathAsync = promisify(realpath);
 const lstatAsync = promisify(lstat);
@@ -17,7 +18,7 @@ const MAX_IGNORE_LOCATORS = 100;
 const MAX_DIRECTORY_LOCATORS = 2000;
 
 export function createSourceGraphSnapshotService({
-  buildGraph,
+  buildGraph = buildJsTsSourceGraph,
   watchRoot = defaultWatchRoot,
   freshnessProbe = defaultFreshnessProbe,
   clock = Date.now

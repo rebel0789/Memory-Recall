@@ -9,6 +9,7 @@ import path from 'node:path';
 import recallMapSchema from '../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };
 import { assertJsonSchema, validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import { buildRecallMap } from '../packages/recall-map/src/index.mjs';
+import { buildJsTsSourceGraph } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 
 const WORKSPACE_ID = 'ws_local';
@@ -114,7 +115,7 @@ test('Recall Map composes bounded architecture and governed-memory truth without
   assert.equal(report.safeguards.rawSourceBodiesIncluded, false);
   assert.equal(report.safeguards.localFilesWritten, 0);
   assert.equal(report.support.sourceGraph.status, 'implemented');
-  assert.equal(report.support.sourceGraph.coverage.status, 'partial');
+  assert.equal(report.support.sourceGraph.coverage.status, 'complete');
   assert.deepEqual(report.architecture.groups.map(({ prefix }) => prefix), ['src']);
   assert.deepEqual(report.architecture.groupRelations, []);
   assert.deepEqual(report.architecture.impact.changedLocators, ['workspace://src/index.ts']);
@@ -167,6 +168,36 @@ test('Recall Map forwards bounded depth and limit to safe source-graph summaries
     () => buildRecallMap({ root, limit: 51 }),
     /recall_map_limit_invalid/
   );
+});
+
+test('Recall Map reports a stale source snapshot without erasing the last valid graph', async (t) => {
+  const root = await fixtureWorkspace(t);
+  const graph = await buildJsTsSourceGraph({ root, workspaceId: WORKSPACE_ID });
+  const sourceGraphSnapshotService = {
+    async getSnapshot() {
+      return {
+        graph,
+        status: 'stale',
+        reuse: 'cold',
+        reason: 'fixture_build_failed',
+        generation: 1,
+        validationMode: 'watcher',
+        buildDurationMs: 3,
+        builtAt: graph.builtAt
+      };
+    }
+  };
+
+  const report = await buildRecallMap({
+    root,
+    sourceGraphSnapshotService,
+    clock: () => '2026-07-10T00:00:00.000Z'
+  });
+
+  assert.equal(report.support.sourceGraph.coverage.status, 'stale');
+  assert.equal(report.support.sourceGraph.status, 'implemented');
+  assert.equal(report.support.sourceGraph.snapshot.status, 'stale');
+  assert.equal(report.architecture.groups.length > 0, true);
 });
 
 test('Recall Map keeps active facts and pending proposals separate without exposing memory bodies or mutating SQLite', async (t) => {

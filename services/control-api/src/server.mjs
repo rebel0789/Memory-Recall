@@ -13,7 +13,8 @@ import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePla
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
-  buildSourceGraphPreview
+  buildSourceGraphPreview,
+  createSourceGraphSnapshotService
 } from '../../../packages/source-graph/src/index.mjs';
 import { buildRecallMap } from '../../../packages/recall-map/src/index.mjs';
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
@@ -674,6 +675,7 @@ export function createControlApiServer({
   memoryProvider = null,
   memoryDatabasePath = path.resolve(sourceGraphRoot, '.local/memory.sqlite'),
   mcpStatsPath = path.resolve(sourceGraphRoot, '.local/mcp-stats.jsonl'),
+  sourceGraphSnapshotService = null,
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   recallMapRateLimiter = createLoginRateLimiter({ clock: () => Date.now(), limit: 60 }),
@@ -694,6 +696,8 @@ export function createControlApiServer({
     decisionIdFactory: () => `poldet_${randomUUID()}`
   });
   const streams = new Set();
+  const sourceSnapshots = sourceGraphSnapshotService ?? createSourceGraphSnapshotService();
+  const ownsSourceSnapshots = !sourceGraphSnapshotService;
 
   const server = http.createServer(async (request, response) => {
     const started = Date.now();
@@ -707,6 +711,9 @@ export function createControlApiServer({
     } catch (error) {
       sendError(response, mapError(error), correlationId, { logger, started, operationId: error.operationId ?? null });
     }
+  });
+  server.once('close', () => {
+    if (ownsSourceSnapshots) sourceSnapshots.close();
   });
 
   async function handleApi({ request, response, correlationId, started }) {
@@ -813,6 +820,7 @@ export function createControlApiServer({
           workspaceId: context.workspaceId,
           changedLocators: context.query.changed ? [context.query.changed] : [],
           query: context.query.query ?? '',
+          sourceGraphSnapshotService: sourceSnapshots,
           clock
         });
       case 'postRecallMap': {
@@ -831,6 +839,8 @@ export function createControlApiServer({
           workspaceId: context.workspaceId,
           changedLocators: context.body.changedLocators,
           query: context.body.query ?? '',
+          sourceGraphSnapshotService: sourceSnapshots,
+          refreshSourceGraph: context.body.refresh === true,
           clock
         });
       }
@@ -1040,6 +1050,8 @@ export function createControlApiServer({
           sampleLimit: context.body.sampleLimit ?? 12,
           maxFiles: context.body.maxFiles ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
           maxFileBytes: context.body.maxFileBytes ?? DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+          snapshotService: sourceSnapshots,
+          refresh: context.body.refresh === true,
           clock
         });
       case 'planHarnessSetup':
