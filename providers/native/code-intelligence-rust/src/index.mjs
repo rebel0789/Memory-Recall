@@ -10,6 +10,8 @@ import responseSchema from '../../../../packages/protocol/schemas/code-intellige
 import graphSchema from '../../../../packages/protocol/schemas/code-intelligence-graph.schema.json' with { type: 'json' };
 import indexRequestSchema from '../../../../packages/protocol/schemas/code-intelligence-index-request.schema.json' with { type: 'json' };
 import indexResponseSchema from '../../../../packages/protocol/schemas/code-intelligence-index-response.schema.json' with { type: 'json' };
+import repositoryRequestSchema from '../../../../packages/protocol/schemas/code-intelligence-repository-request.schema.json' with { type: 'json' };
+import repositoryResponseSchema from '../../../../packages/protocol/schemas/code-intelligence-repository-response.schema.json' with { type: 'json' };
 
 const CAPABILITIES = Object.freeze([
   'code-intelligence.graph.build',
@@ -19,6 +21,9 @@ const CAPABILITIES = Object.freeze([
   'code-intelligence.index.status',
   'code-intelligence.index.doctor',
   'code-intelligence.index.query',
+  'code-intelligence.repository.register',
+  'code-intelligence.repository.list',
+  'code-intelligence.repository.search',
   'code-intelligence.local-read-only',
   'code-intelligence.native-preview'
 ]);
@@ -186,6 +191,35 @@ export class RustCodeIntelligenceProvider {
     });
   }
 
+  async registerRepository({ root, workspaceId = 'ws_local', displayName, rootLocator, signal } = {}) {
+    return this.#repositoryOperation('repository.register', { root, workspaceId, signal }, {
+      write: true,
+      displayName,
+      rootLocator
+    });
+  }
+
+  async listRepositories({ root, workspaceId = 'ws_local', limit = 64, signal } = {}) {
+    return this.#repositoryOperation('repository.list', { root, workspaceId, signal }, { limit });
+  }
+
+  async searchRepositories({
+    root,
+    workspaceId = 'ws_local',
+    query,
+    repositoryIds,
+    perRepositoryLimit = 25,
+    limit = 50,
+    signal
+  } = {}) {
+    return this.#repositoryOperation('repository.search', { root, workspaceId, signal }, {
+      query,
+      repositoryIds,
+      perRepositoryLimit,
+      limit
+    });
+  }
+
   async #indexOperation(operation, options, argumentsValue) {
     const workspace = await resolveWorkspace(options.root);
     const { path: binary } = await this.#resolveBinary();
@@ -228,6 +262,51 @@ export class RustCodeIntelligenceProvider {
     const serialized = JSON.stringify(frame.result);
     if (serialized.includes(workspace) || PRIVATE_PATH.test(serialized)) {
       throw new NativeCodeIntelligenceError('native_index_response_unsafe');
+    }
+    return deepFreeze(frame.result);
+  }
+
+  async #repositoryOperation(operation, options, argumentsValue) {
+    if (options.signal?.aborted) throw new NativeCodeIntelligenceError('native_engine_cancelled');
+    const workspace = await resolveWorkspace(options.root);
+    const { path: binary } = await this.#resolveBinary();
+    const requestId = `cireporeq_${randomBytes(16).toString('hex')}`;
+    const request = {
+      protocolVersion: '1.0.0',
+      requestId,
+      workspaceId: options.workspaceId ?? 'ws_local',
+      operation,
+      root: '.',
+      registryLocator: 'workspace://.local/source-index/registry.v1.sqlite',
+      deadlineMs: operation === 'repository.search' ? Math.min(this.timeoutMs, 2000) : this.timeoutMs,
+      responseSchemaVersion: '1.0.0',
+      arguments: argumentsValue
+    };
+    try {
+      assertJsonSchema(repositoryRequestSchema, request, 'native repository request');
+    } catch {
+      throw new NativeCodeIntelligenceError('native_repository_request_invalid');
+    }
+    const stdout = await runNativeProcess({
+      binary,
+      workspace,
+      request,
+      commandArgs: ['code-intelligence', 'repositories', '--stdio'],
+      timeoutMs: this.timeoutMs,
+      maxStdoutBytes: this.maxStdoutBytes,
+      maxStderrBytes: this.maxStderrBytes,
+      signal: options.signal
+    });
+    const frame = parseFrame(stdout, repositoryResponseSchema, requestId, 'native_repository_response_invalid');
+    if (!frame.ok) {
+      throw new NativeCodeIntelligenceError(frame.error.code, {
+        retryable: frame.error.retryable,
+        details: frame.error.details
+      });
+    }
+    const serialized = JSON.stringify(frame.result);
+    if (serialized.includes(workspace) || PRIVATE_PATH.test(serialized)) {
+      throw new NativeCodeIntelligenceError('native_repository_response_unsafe');
     }
     return deepFreeze(frame.result);
   }

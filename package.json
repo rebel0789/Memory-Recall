@@ -65,7 +65,7 @@
     "docs/agents/",
     "docs/api/",
     "docs/architecture/",
-    "docs/assets/",
+    "!docs/assets/",
     "docs/implementation/",
     "docs/open-source/",
     "docs/operations/",

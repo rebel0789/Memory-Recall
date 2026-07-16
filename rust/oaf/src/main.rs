@@ -2,6 +2,7 @@
 
 mod code_intelligence;
 mod index_protocol;
+mod repository_protocol;
 
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{SecondsFormat, Utc};
@@ -71,7 +72,12 @@ fn code_intelligence_command(args: &[String]) -> Result<()> {
         [index, stdio] if index == "index" && stdio == "--stdio" => {
             index_protocol::serve_stdio(SERVER_VERSION)
         }
-        _ => bail!("code-intelligence requires serve --stdio or index --stdio"),
+        [repositories, stdio] if repositories == "repositories" && stdio == "--stdio" => {
+            repository_protocol::serve_stdio(SERVER_VERSION)
+        }
+        _ => bail!(
+            "code-intelligence requires serve --stdio, index --stdio, or repositories --stdio"
+        ),
     }
 }
 

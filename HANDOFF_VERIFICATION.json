@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
   "version": "1.1.1",
-  "verifiedAt": "2026-07-16T21:24:03.796Z",
+  "verifiedAt": "2026-07-16T21:50:35.912Z",
   "environment": {
     "platform": "darwin",
     "release": "25.5.0",
@@ -18,32 +18,32 @@
     {
       "command": "npm run check",
       "exitCode": 0,
-      "durationMs": 375
+      "durationMs": 350
     },
     {
       "command": "npm run protocol:validate",
       "exitCode": 0,
-      "durationMs": 210
+      "durationMs": 222
     },
     {
       "command": "npm test",
       "exitCode": 0,
-      "durationMs": 53338
+      "durationMs": 52047
     },
     {
       "command": "npm run eval",
       "exitCode": 0,
-      "durationMs": 321
+      "durationMs": 316
     },
     {
       "command": "npm run demo",
       "exitCode": 0,
-      "durationMs": 283
+      "durationMs": 187
     },
     {
       "command": "npm run native:smoke",
       "exitCode": 0,
-      "durationMs": 286
+      "durationMs": 270
     }
   ],
   "result": "passed"

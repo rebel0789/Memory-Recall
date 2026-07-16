@@ -12,6 +12,8 @@ mod doctor;
 pub use doctor::*;
 mod model;
 pub use model::*;
+pub mod registry;
+pub use registry::*;
 mod watcher;
 pub use watcher::*;
 
@@ -159,6 +161,14 @@ CREATE INDEX index_nodes_locator ON index_nodes (generation_id, locator, canonic
 CREATE INDEX index_edges_source ON index_edges (generation_id, source_id, kind, canonical_id);
 CREATE INDEX index_edges_target ON index_edges (generation_id, target_id, kind, canonical_id);
 "#;
+
+pub fn repository_identity_hash(root: &Path, workspace_id: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(root.as_os_str().to_string_lossy().as_bytes());
+    hasher.update([0]);
+    hasher.update(workspace_id.as_bytes());
+    format!("sha256:{}", hex::encode(hasher.finalize()))
+}
 
 #[derive(Debug, Clone)]
 pub struct SourceIndexOptions {

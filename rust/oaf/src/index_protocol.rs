@@ -5,13 +5,14 @@ use crate::code_intelligence::{
 use anyhow::{bail, Context, Result};
 use oaf_index::{
     doctor_index, inspect_index, logical_database_bytes, normalized_generation_fingerprint,
-    repair_index, select_generation_files, CoverageRecord, DiscoveredFile, EdgeDirection,
-    GenerationInput, HealthStatus, IndexDoctorReport, IndexHealth, NodeRecord, QueryBounds,
-    RefreshPlan, SourceIndex, SourceIndexOptions,
+    repair_index, repository_identity_hash, select_generation_files, CoverageRecord,
+    DiscoveredFile, EdgeDirection, GenerationInput, HealthStatus, IndexDoctorReport, IndexHealth,
+    NodeRecord, QueryBounds, RefreshPlan, SourceIndex, SourceIndexOptions,
 };
 use oaf_ingest::{discover_file_hashes_bounded, FileHashDiscoveryBounds, IngestOptions};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
+#[cfg(test)]
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -361,7 +362,7 @@ fn validate_query_shape(arguments: &QueryArguments) -> Result<()> {
 fn execute_request(request: ParsedRequest, root: &Path, engine_version: &str) -> Result<Value> {
     let started = Instant::now();
     let root = root.canonicalize().context("index_workspace_invalid")?;
-    let repository_identity = repository_identity(&root, &request.workspace_id);
+    let repository_identity = repository_identity_hash(&root, &request.workspace_id);
     let options = SourceIndexOptions::new(&repository_identity, engine_version);
     let path = root.join(INDEX_RELATIVE_PATH);
     match &request.operation {
@@ -1545,14 +1546,6 @@ fn freshness(status: HealthStatus) -> &'static str {
         HealthStatus::Interrupted => "partial",
         _ => "unknown",
     }
-}
-
-fn repository_identity(root: &Path, workspace_id: &str) -> String {
-    let mut hasher = Sha256::new();
-    hasher.update(root.as_os_str().to_string_lossy().as_bytes());
-    hasher.update([0]);
-    hasher.update(workspace_id.as_bytes());
-    format!("sha256:{}", hex::encode(hasher.finalize()))
 }
 
 fn database_bytes(path: &Path) -> u64 {

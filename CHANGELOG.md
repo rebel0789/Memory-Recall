@@ -16,6 +16,7 @@
 - Extended the isolated native-package consumer gate through package removal and same-version reinstall. It proves the CLI and both npm packages are removed while workspace source, governed memory, home configuration, and the SQLite index bundle remain unchanged, then reopens the same generation from freshly installed exact tarballs without Cargo, rustc, build, or refresh.
 - Added confirmed `mcp uninstall` for Codex, Claude Code, and Cursor. Install and removal now reject drifted entries, bind confirmation to exact config bytes, create private backups, write atomically, and preserve neighboring configuration and workspace data.
 - Added a Rust-index cross-service fixture for bounded import, call, trace, and process evidence. Same-name and unresolved negatives pass; multi-repository and parity claims remain false.
+- Added a Rust-owned SQLite repository registry and explicit repository-scoped search for up to eight registered indexes. Results carry deterministic repository-qualified identities; list and search remain bounded, sequential, read-only, and local. Cross-repository relationships, trace, impact, and parity remain unproven.
 
 ### Fixed
 
@@ -31,7 +32,7 @@
 - Token Saver and handoff measurement reuse the already-built context pack for their real MCP stdio readback, avoiding a second repository scan while preserving fingerprint verification.
 - Native changed-file refresh now parses only the bounded invalidation closure plus dependency context. The clean Phase 3 receipt covers 781 files across one dependency fixture and three pinned repository scopes; it keeps scale, competitor, parity, and leadership claims false.
 - Tier 1 documentation now names the 46 capability rows that meet the sampled Phase 2 floor and the 108 rows that remain unmeasured or not applicable. Every language remains overall unmeasured, the JS engine remains the public default, and no competitor, parity, leadership, multi-repository, or scale claim is made.
-- The npm package excludes checkout-only Tier 1 audit and real-world benchmark scripts, the nested Rust build guide, and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
+- The npm package excludes checkout-only Tier 1 audit and real-world benchmark scripts, the nested Rust build guide, the architecture bitmap, and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
 
 ## [1.1.0] — 2026-07-15
 

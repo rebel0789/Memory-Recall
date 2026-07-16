@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memory-recall.dev/schemas/code-intelligence-repository-response.schema.json",
+  "title": "Code Intelligence Repository Response",
+  "oneOf": [
+    { "$ref": "#/$defs/success" },
+    { "$ref": "#/$defs/failure" }
+  ],
+  "$defs": {
+    "requestId": { "type": "string", "pattern": "^cireporeq_[a-f0-9]{32}$" },
+    "safeCode": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$" },
+    "repositoryId": { "type": "string", "pattern": "^repo_[a-f0-9]{32}$" },
+    "timestamp": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z$" },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryId", "displayName", "rootLocator", "indexLocator", "repositoryIdentityHash", "activeGeneration", "state", "freshness", "lastSeenAt"],
+      "properties": {
+        "repositoryId": { "$ref": "#/$defs/repositoryId" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[A-Za-z0-9][A-Za-z0-9._ -]*$" },
+        "rootLocator": { "type": "string", "minLength": 13, "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._@+-]+(?:/[A-Za-z0-9._@+-]+)*$" },
+        "indexLocator": { "type": "string", "minLength": 48, "maxLength": 560, "pattern": "^workspace://[A-Za-z0-9._@+-]+(?:/[A-Za-z0-9._@+-]+)*/\\.local/source-index/index\\.v1\\.sqlite$" },
+        "repositoryIdentityHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "activeGeneration": { "type": ["integer", "null"], "minimum": 1, "maximum": 9007199254740991 },
+        "state": { "enum": ["ready", "unavailable"] },
+        "freshness": { "const": "unverified" },
+        "lastSeenAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "qualifiedNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nativeId", "repositoryId", "kind", "label", "locator", "confidence", "generation"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mrnode_[a-f0-9]{32}$" },
+        "nativeId": { "type": "string", "pattern": "^cinode_[a-f0-9]{32}$" },
+        "repositoryId": { "$ref": "#/$defs/repositoryId" },
+        "kind": { "$ref": "#/$defs/safeCode" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Za-z0-9_.$:/#@ +()<>,-]+$" },
+        "locator": { "type": "string", "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._/@+-]+(?:/[A-Za-z0-9._@+-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "generation": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
+      }
+    },
+    "perRepository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryId", "state", "resultCount", "truncated", "reasonCodes"],
+      "properties": {
+        "repositoryId": { "$ref": "#/$defs/repositoryId" },
+        "state": { "enum": ["ready", "unavailable"] },
+        "resultCount": { "type": "integer", "minimum": 0, "maximum": 25 },
+        "truncated": { "type": "boolean" },
+        "reasonCodes": { "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/safeCode" } }
+      }
+    },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["durationMs", "selectedRepositoryCount", "openedRepositoryCount", "resultCount", "localFilesWritten"],
+      "properties": {
+        "durationMs": { "type": "integer", "minimum": 0, "maximum": 120000 },
+        "selectedRepositoryCount": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "openedRepositoryCount": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "resultCount": { "type": "integer", "minimum": 0, "maximum": 50 },
+        "localFilesWritten": { "type": "integer", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readOnly", "localFilesWritten", "canonicalMemoryWrites", "networkCalls", "modelCalls", "rawSourceBodiesIncluded", "absolutePathsIncluded"],
+      "properties": {
+        "readOnly": { "type": "boolean" },
+        "localFilesWritten": { "type": "integer", "minimum": 0, "maximum": 1 },
+        "canonicalMemoryWrites": { "const": 0 },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "rawSourceBodiesIncluded": { "const": false },
+        "absolutePathsIncluded": { "const": false }
+      }
+    },
+    "success": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "ok", "result"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "ok": { "const": true },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["responseSchemaVersion", "operation", "registryLocator", "state", "repositories", "results", "perRepository", "partial", "truncated", "measurements", "safeguards"],
+          "properties": {
+            "responseSchemaVersion": { "const": "1.0.0" },
+            "operation": { "enum": ["repository.register", "repository.list", "repository.search"] },
+            "registryLocator": { "const": "workspace://.local/source-index/registry.v1.sqlite" },
+            "state": { "enum": ["ready", "partial"] },
+            "repositories": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/repository" } },
+            "results": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/qualifiedNode" } },
+            "perRepository": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/perRepository" } },
+            "partial": { "type": "boolean" },
+            "truncated": { "type": "boolean" },
+            "measurements": { "$ref": "#/$defs/measurements" },
+            "safeguards": { "$ref": "#/$defs/safeguards" }
+          }
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "ok", "error"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "ok": { "const": false },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "retryable", "details"],
+          "properties": {
+            "code": { "$ref": "#/$defs/safeCode" },
+            "retryable": { "const": false },
+            "details": { "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/safeCode" } }
+          }
+        }
+      }
+    }
+  }
+}
