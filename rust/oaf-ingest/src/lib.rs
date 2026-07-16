@@ -24,6 +24,7 @@ pub struct IngestOptions {
     pub max_file_bytes: u64,
     pub workers: usize,
     pub only_sources: Option<BTreeSet<String>>,
+    pub prefer_cpp_headers: bool,
 }
 
 impl IngestOptions {
@@ -34,6 +35,7 @@ impl IngestOptions {
             max_file_bytes: DEFAULT_MAX_FILE_BYTES,
             workers: 1,
             only_sources: None,
+            prefer_cpp_headers: false,
         }
     }
 }
@@ -149,6 +151,7 @@ struct ParsedRepo {
     constructs: Vec<ConstructRef>,
     imports: Vec<ImportRef>,
     re_exports: Vec<ImportRef>,
+    parts: Vec<ImportRef>,
     exports: Vec<ExportRef>,
     routes: Vec<RouteRef>,
     heritage: Vec<HeritageRef>,
@@ -169,6 +172,7 @@ impl ParsedRepo {
             constructs: Vec::new(),
             imports: Vec::new(),
             re_exports: Vec::new(),
+            parts: Vec::new(),
             exports: Vec::new(),
             routes: Vec::new(),
             heritage: Vec::new(),
@@ -244,6 +248,16 @@ impl ParsedRepo {
 
     fn add_re_export(&mut self, owner: &str, target: ImportTarget, source: &str, span: CodeSpan) {
         self.re_exports.push(ImportRef {
+            owner: owner.to_string(),
+            raw: target.raw,
+            fallback: target.fallback,
+            source: source.to_string(),
+            span,
+        });
+    }
+
+    fn add_part(&mut self, owner: &str, target: ImportTarget, source: &str, span: CodeSpan) {
+        self.parts.push(ImportRef {
             owner: owner.to_string(),
             raw: target.raw,
             fallback: target.fallback,
@@ -398,6 +412,30 @@ impl ParsedRepo {
             );
         }
 
+        let parts = std::mem::take(&mut self.parts);
+        for part in parts {
+            let target = self
+                .resolve_import_target(&part)
+                .unwrap_or(part.fallback.clone());
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    "Module",
+                    &part.source,
+                    "oaf.ingest:dart-part-module",
+                    part.span,
+                );
+            }
+            self.add_fact_at(
+                target,
+                "PART_OF",
+                part.owner,
+                &part.source,
+                "oaf.ingest:dart-part",
+                part.span,
+            );
+        }
+
         let routes = std::mem::take(&mut self.routes);
         for route in routes {
             let route_id = route_id(&route.method, &route.path);
@@ -488,16 +526,21 @@ impl ParsedRepo {
                 self.resolve_type_symbol_name_in_source(&relation.subject, &relation.source)
                     .unwrap_or_else(|| format!("external_struct:{}", relation.subject))
             };
-            let resolved = self
-                .resolve_type_symbol_name_in_source(&relation.target_name, &relation.source)
-                .or_else(|| self.resolve_type_symbol_name(&relation.target_name));
+            let resolved = if relation.predicate == "EXTENDS_TYPE" {
+                self.resolve_extended_type(&relation.target_name, &relation.source)
+            } else {
+                self.resolve_type_symbol_name_in_source(&relation.target_name, &relation.source)
+                    .or_else(|| self.resolve_type_symbol_name(&relation.target_name))
+            };
             let predicate = if relation.predicate == "INHERITS" {
                 if subject.starts_with("interface:") {
                     "EXTENDS"
-                } else if resolved
-                    .as_deref()
-                    .is_some_and(|target| target.starts_with("interface:"))
-                {
+                } else if resolved.as_deref().is_some_and(|target| {
+                    matches!(
+                        target.split_once(':').map(|(kind, _)| kind),
+                        Some("interface" | "protocol" | "trait" | "mixin")
+                    )
+                }) {
                     "IMPLEMENTS"
                 } else {
                     "EXTENDS"
@@ -506,23 +549,20 @@ impl ParsedRepo {
                 relation.predicate
             };
             let target = resolved.clone().unwrap_or_else(|| {
-                format!(
-                    "external_{}:{}",
-                    if predicate == "IMPLEMENTS" {
-                        "interface"
-                    } else {
-                        "class"
-                    },
-                    relation.target_name
-                )
+                let kind = match predicate {
+                    "IMPLEMENTS" => "interface",
+                    "MIXES_IN" => "mixin",
+                    _ => "class",
+                };
+                format!("external_{kind}:{}", relation.target_name)
             });
             if !self.has_entity_subject(&target) {
                 self.add_entity_at(
                     target.clone(),
-                    if predicate == "IMPLEMENTS" {
-                        "Interface"
-                    } else {
-                        "Class"
+                    match predicate {
+                        "IMPLEMENTS" => "Interface",
+                        "MIXES_IN" => "Mixin",
+                        _ => "Class",
                     },
                     &relation.source,
                     "oaf.ingest:heritage-target",
@@ -605,6 +645,10 @@ impl ParsedRepo {
         let mut candidates = Vec::new();
         if let Some(stem) = resolve_relative_import(source_rel, &import.raw) {
             candidates.push(stem);
+        } else if is_relative_source_reference(&import.raw) {
+            if let Some(stem) = resolve_relative_import(source_rel, &format!("./{}", import.raw)) {
+                candidates.push(stem);
+            }
         }
         if let Some(stem) = resolve_package_import(&self.package_entries, &import.raw) {
             candidates.push(stem);
@@ -793,15 +837,43 @@ impl ParsedRepo {
         (local.len() == 1).then(|| local[0].clone())
     }
 
+    fn resolve_extended_type(&self, name: &str, source: &str) -> Option<String> {
+        let name = sanitize_symbol(name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let candidates = subjects
+            .iter()
+            .filter(|subject| is_type_subject(subject) && !subject.starts_with("extension:"))
+            .cloned()
+            .collect::<Vec<_>>();
+        let local = candidates
+            .iter()
+            .filter(|subject| {
+                self.facts.iter().any(|fact| {
+                    fact.predicate == "IS_A"
+                        && fact.subject == subject.as_str()
+                        && fact.source == source
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if local.len() == 1 {
+            return Some(local[0].clone());
+        }
+        (candidates.len() == 1).then(|| candidates[0].clone())
+    }
+
     fn resolve_known_call_target(&self, callee_name: &str) -> Option<String> {
         let name = sanitize_symbol(callee_name)?;
         match self.definitions_by_name.get(&name) {
             Some(subjects) if subjects.len() == 1 => subjects.iter().next().cloned(),
-            Some(subjects) => subjects
-                .iter()
-                .find(|subject| subject.starts_with("function:"))
-                .cloned()
-                .or_else(|| subjects.iter().next().cloned()),
+            Some(subjects) => {
+                let functions = subjects
+                    .iter()
+                    .filter(|subject| subject.starts_with("function:"))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                (functions.len() == 1).then(|| functions[0].clone())
+            }
             None => None,
         }
     }
@@ -825,6 +897,7 @@ impl ParsedRepo {
         self.constructs.extend(other.constructs);
         self.imports.extend(other.imports);
         self.re_exports.extend(other.re_exports);
+        self.parts.extend(other.parts);
         self.exports.extend(other.exports);
         self.routes.extend(other.routes);
         self.heritage.extend(other.heritage);
@@ -1076,6 +1149,7 @@ fn declared_container(root: Node<'_>, source: &[u8], lang: LangKind) -> Option<D
         LangKind::Java => &["package_declaration"][..],
         LangKind::Kotlin => &["package_header"][..],
         LangKind::CSharp => &["namespace_declaration", "file_scoped_namespace_declaration"][..],
+        LangKind::Dart => &["library_name"][..],
         _ => return None,
     };
     let node = first_descendant_matching(root, &|candidate| expected.contains(&candidate.kind()))?;
@@ -1092,15 +1166,16 @@ fn declared_container(root: Node<'_>, source: &[u8], lang: LangKind) -> Option<D
                             | "scoped_identifier"
                             | "qualified_identifier"
                             | "qualified_name"
+                            | "dotted_identifier_list"
                     )
                 })
                 .map(|child| node_text(child, source))
         })?;
     let name = normalize_container_name(raw_name)?;
-    let (prefix, kind) = if lang == LangKind::CSharp {
-        ("namespace", "Namespace")
-    } else {
-        ("package", "Package")
+    let (prefix, kind) = match lang {
+        LangKind::CSharp => ("namespace", "Namespace"),
+        LangKind::Dart => ("library", "Library"),
+        _ => ("package", "Package"),
     };
     Some(DeclaredContainer {
         subject: format!("{prefix}:{name}"),
@@ -1122,6 +1197,19 @@ fn first_descendant_matching<'tree>(
         if let Some(found) = first_descendant_matching(child, predicate) {
             return Some(found);
         }
+    }
+    None
+}
+
+fn first_ancestor_matching<'tree>(
+    mut node: Node<'tree>,
+    predicate: &impl Fn(Node<'tree>) -> bool,
+) -> Option<Node<'tree>> {
+    while let Some(parent) = node.parent() {
+        if predicate(parent) {
+            return Some(parent);
+        }
+        node = parent;
     }
     None
 }
@@ -1190,6 +1278,8 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         }
     }
 
+    augment_cmake_targets(&root, &mut parsed)?;
+
     let generated_call_count = parsed.generated_call_count;
     let import_count = parsed.import_count;
     let definition_count = parsed.definition_count;
@@ -1213,6 +1303,133 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         code_facts,
         language_counts,
     })
+}
+
+fn augment_cmake_targets(root: &Path, parsed: &mut ParsedRepo) -> Result<()> {
+    let mut builder = WalkBuilder::new(root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+    for entry in builder.build().filter_map(Result::ok) {
+        let path = entry.path();
+        if path.file_name().and_then(|name| name.to_str()) != Some("CMakeLists.txt") {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
+        if metadata.len() > DEFAULT_MAX_FILE_BYTES {
+            continue;
+        }
+        let relative = workspace_rel(root, path)?;
+        let source_ref = format!("workspace://{relative}");
+        let source = fs::read_to_string(path)
+            .with_context(|| format!("read build configuration {relative}"))?;
+        for (command, arguments, line) in cmake_target_calls(&source) {
+            let mut tokens = arguments.split_whitespace();
+            let Some(target_name) = tokens.next().and_then(sanitize_symbol) else {
+                continue;
+            };
+            let sources = tokens
+                .filter(|token| !matches!(*token, "STATIC" | "SHARED" | "MODULE" | "OBJECT"))
+                .filter_map(|token| {
+                    let token = token.trim_matches(['"', '\'']);
+                    matches!(
+                        language_for_path(Path::new(token)),
+                        Some(LangKind::C | LangKind::Cpp)
+                    )
+                    .then_some(token)
+                })
+                .collect::<Vec<_>>();
+            let modules = sources
+                .iter()
+                .filter_map(|source| {
+                    let resolved = resolve_config_relative(&relative, source);
+                    parsed.resolve_existing_module_subject(&resolved)
+                })
+                .collect::<BTreeSet<_>>();
+            if modules.is_empty() {
+                continue;
+            }
+            let target = format!("build_target:{target_name}");
+            let span = CodeSpan {
+                start_line: line,
+                start_column: 0,
+                end_line: line,
+                end_column: 1,
+            };
+            let note = if sources
+                .iter()
+                .any(|source| language_for_path(Path::new(source)) == Some(LangKind::Cpp))
+            {
+                "oaf.ingest:cmake-cpp"
+            } else {
+                "oaf.ingest:cmake-c"
+            };
+            parsed.add_entity_at(target.clone(), "BuildTarget", &source_ref, note, span);
+            for module in modules {
+                parsed.add_fact_at(
+                    target.clone(),
+                    "DEPENDS_ON",
+                    module,
+                    &source_ref,
+                    note,
+                    span,
+                );
+            }
+            if command.eq_ignore_ascii_case("add_executable")
+                && parsed.has_entity_subject("function:main")
+            {
+                parsed.add_fact_at(
+                    "function:main".to_string(),
+                    "ENTRY_POINT",
+                    target,
+                    &source_ref,
+                    note,
+                    span,
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn cmake_target_calls(source: &str) -> Vec<(&str, &str, u32)> {
+    let mut out = Vec::new();
+    for command in ["add_executable", "add_library"] {
+        let mut offset = 0usize;
+        while let Some(found) = source[offset..].find(command) {
+            let start = offset + found;
+            let tail = &source[start + command.len()..];
+            let Some(open) = tail.find('(') else {
+                break;
+            };
+            let Some(arguments) = parenthesized_segments(&tail[open..]).into_iter().next() else {
+                break;
+            };
+            let line = source[..start]
+                .bytes()
+                .filter(|byte| *byte == b'\n')
+                .count() as u32
+                + 1;
+            out.push((command, arguments, line));
+            offset = start + command.len() + open + arguments.len() + 2;
+        }
+    }
+    out.sort_by_key(|(_, _, line)| *line);
+    out
+}
+
+fn resolve_config_relative(config: &str, source: &str) -> String {
+    let directory = config.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    let joined = if directory.is_empty() {
+        source.to_string()
+    } else {
+        format!("{directory}/{source}")
+    };
+    strip_known_extension(&joined).to_string()
 }
 
 pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHash>> {
@@ -1362,7 +1579,7 @@ fn discover_jobs(
         if !path.is_file() {
             continue;
         }
-        let Some(lang) = language_for_path(path) else {
+        let Some(lang) = language_for_path_with_options(path, options) else {
             continue;
         };
         scanned_file_count += 1;
@@ -2462,6 +2679,7 @@ fn walk_fingerprint_nodes(
     out: &mut Vec<CodeFingerprint>,
 ) {
     let mut next = context.clone();
+    apply_scoped_namespace(node, source, context, &mut next, None);
     if let Some((name, subject, _, _)) = type_declaration(node, source, context.lang) {
         let (name, subject) = qualified_type_identity(name, subject, context);
         next.class_name = Some(name);
@@ -2653,13 +2871,35 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         if let Some(framework) = node_http_server(node, source, context) {
             parsed.frameworks.push(framework);
         }
+        let is_flutter_entry = context.lang == LangKind::Dart
+            && context.caller.as_deref() == Some("function:main")
+            && callee_name(node, source).as_deref() == Some("runApp");
+        if is_flutter_entry {
+            let component = "framework:flutter_application".to_string();
+            let span = CodeSpan::from_node(node);
+            parsed.add_entity_at(
+                component.clone(),
+                "FrameworkComponent",
+                &context.source,
+                "oaf.ingest:flutter-entry",
+                span,
+            );
+            parsed.add_fact_at(
+                "function:main".to_string(),
+                "ENTRY_POINT",
+                component,
+                &context.source,
+                "oaf.ingest:flutter-entry",
+                span,
+            );
+        }
         let route = route_registration(node, source, context);
         let is_route_registration = route.is_some();
         if let Some(route) = route {
             parsed.routes.push(route);
             suppress_child_calls = true;
         }
-        if !is_route_registration && !context.suppress_calls {
+        if !is_route_registration && !is_flutter_entry && !context.suppress_calls {
             if let Some(caller) = context.caller.as_deref() {
                 if let Some(callee) = callee_name(node, source) {
                     if !is_declaration_signature_call(node, context.lang, caller, &callee) {
@@ -2671,8 +2911,14 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
                                 source: context.source.clone(),
                                 span: CodeSpan::from_node(node),
                             });
-                        } else if matches!(context.lang, LangKind::Python | LangKind::Kotlin)
-                            && looks_like_type_name(&callee)
+                        } else if matches!(
+                            context.lang,
+                            LangKind::Python
+                                | LangKind::Kotlin
+                                | LangKind::Cpp
+                                | LangKind::Swift
+                                | LangKind::Dart
+                        ) && looks_like_type_name(&callee)
                         {
                             parsed.constructs.push(ConstructRef {
                                 caller: caller.to_string(),
@@ -2707,12 +2953,34 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
 
     if is_import_node(node.kind()) {
         for target in import_targets(node, source, context.lang) {
-            parsed.add_import(
-                &context.module,
-                target,
-                &context.source,
-                CodeSpan::from_node(node),
-            );
+            let owner = if context.lang == LangKind::Dart {
+                context.owner_subject.as_deref().unwrap_or(&context.module)
+            } else {
+                &context.module
+            };
+            parsed.add_import(owner, target, &context.source, CodeSpan::from_node(node));
+        }
+    }
+
+    if context.lang == LangKind::Dart && node.kind() == "library_export" {
+        for raw in quoted_literals(node_text(node, source)) {
+            if let Some(target) = import_target_from_raw(&raw) {
+                let owner = context.owner_subject.as_deref().unwrap_or(&context.module);
+                parsed.add_re_export(owner, target, &context.source, CodeSpan::from_node(node));
+            }
+        }
+    }
+
+    if context.lang == LangKind::Dart && node.kind() == "part_directive" {
+        for raw in quoted_literals(node_text(node, source)) {
+            if let Some(target) = import_target_from_raw(&raw) {
+                parsed.add_part(
+                    &context.module,
+                    target,
+                    &context.source,
+                    CodeSpan::from_node(node),
+                );
+            }
         }
     }
 
@@ -2744,6 +3012,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
     if suppress_child_calls {
         next.suppress_calls = true;
     }
+    apply_scoped_namespace(node, source, context, &mut next, Some(parsed));
     if let Some((simple_type_name, type_id, type_kind, establishes_owner)) =
         type_declaration(node, source, context.lang)
     {
@@ -2851,6 +3120,9 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             go_receiver_name(node_text(node, source))
         } else if context.lang == LangKind::Rust && subject.starts_with("method:") {
             context.impl_name.clone()
+        } else if context.lang == LangKind::Cpp && subject.starts_with("method:") {
+            cpp_callable_owner(node, source, context)
+                .and_then(|owner| owner.rsplit('.').next().map(str::to_string))
         } else {
             None
         };
@@ -2905,6 +3177,51 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
     }
 }
 
+fn apply_scoped_namespace(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+    next: &mut WalkContext,
+    mut parsed: Option<&mut ParsedRepo>,
+) {
+    if context.lang != LangKind::Cpp || node.kind() != "namespace_definition" {
+        return;
+    }
+    let Some(simple_name) = node
+        .child_by_field_name("name")
+        .map(|child| node_text(child, source))
+        .and_then(sanitize_symbol)
+    else {
+        return;
+    };
+    let name = context
+        .container_name
+        .as_deref()
+        .map(|parent| format!("{parent}.{simple_name}"))
+        .unwrap_or(simple_name);
+    let subject = format!("namespace:{name}");
+    if let Some(parsed) = parsed.as_mut() {
+        let owner = context.owner_subject.as_deref().unwrap_or(&context.module);
+        parsed.add_entity_at(
+            subject.clone(),
+            "Namespace",
+            &context.source,
+            "oaf.ingest:namespace",
+            CodeSpan::from_node(node),
+        );
+        parsed.add_definition_at(
+            owner,
+            &subject,
+            &context.source,
+            "oaf.ingest:define-namespace",
+            CodeSpan::from_node(node),
+        );
+        parsed.add_symbol_name(&name, &subject);
+    }
+    next.container_name = Some(name);
+    next.owner_subject = Some(subject);
+}
+
 fn is_declaration_signature_call(
     node: Node<'_>,
     lang: LangKind,
@@ -2919,7 +3236,17 @@ fn is_declaration_signature_call(
 fn is_type_subject(subject: &str) -> bool {
     matches!(
         subject.split_once(':').map(|(kind, _)| kind),
-        Some("class" | "interface" | "struct" | "enum" | "trait" | "protocol" | "type_alias")
+        Some(
+            "class"
+                | "interface"
+                | "struct"
+                | "enum"
+                | "trait"
+                | "protocol"
+                | "mixin"
+                | "extension"
+                | "type_alias"
+        )
     )
 }
 
@@ -2937,22 +3264,46 @@ fn callable_definition(
         | "function_definition"
         | "function_item"
         | "create_function"
-        | "method" => {
+        | "method"
+        | "field_declaration" => {
+            if kind == "field_declaration"
+                && (context.lang != LangKind::Cpp
+                    || !descendant_has_kind(node, "function_declarator"))
+            {
+                return None;
+            }
             let name = callable_node_name(node, source, context)?;
             let sanitized = sanitize_symbol(&name)?;
             if context.caller.is_none()
                 && matches!(
                     context.lang,
-                    LangKind::Java | LangKind::Kotlin | LangKind::CSharp
+                    LangKind::Java
+                        | LangKind::Kotlin
+                        | LangKind::CSharp
+                        | LangKind::Cpp
+                        | LangKind::Swift
+                        | LangKind::Dart
                 )
             {
                 let signature = callable_parameter_signature(node, source, context.lang);
-                if let Some(owner) = context.class_name.as_deref() {
-                    let qualified = format!("{owner}.{sanitized}{signature}");
+                let callable = if context.lang == LangKind::Cpp
+                    && context
+                        .class_name
+                        .as_deref()
+                        .is_some_and(|owner| owner.rsplit('.').next() == Some(sanitized.as_str()))
+                {
+                    "new"
+                } else {
+                    &sanitized
+                };
+                if let Some(owner) =
+                    cpp_callable_owner(node, source, context).or_else(|| context.class_name.clone())
+                {
+                    let qualified = format!("{owner}.{callable}{signature}");
                     return Some((qualified.clone(), format!("method:{qualified}"), "Method"));
                 }
                 if let Some(container) = context.container_name.as_deref() {
-                    let qualified = format!("{container}.{sanitized}{signature}");
+                    let qualified = format!("{container}.{callable}{signature}");
                     return Some((
                         qualified.clone(),
                         format!("function:{qualified}"),
@@ -3008,7 +3359,10 @@ fn callable_definition(
         "method_definition" | "method_declaration" => {
             let name = callable_node_name(node, source, context)?;
             let sanitized = sanitize_symbol(&name)?;
-            if matches!(context.lang, LangKind::Java | LangKind::CSharp) {
+            if matches!(
+                context.lang,
+                LangKind::Java | LangKind::CSharp | LangKind::Swift | LangKind::Dart
+            ) {
                 let owner = context.class_name.as_deref()?;
                 let signature = callable_parameter_signature(node, source, context.lang);
                 let qualified = format!("{owner}.{sanitized}{signature}");
@@ -3072,34 +3426,57 @@ fn callable_definition(
 
 fn callable_parameter_signature(node: Node<'_>, source: &[u8], lang: LangKind) -> String {
     let parameters = node.child_by_field_name("parameters").or_else(|| {
-        (0..node.named_child_count())
-            .filter_map(|index| node.named_child(index))
-            .find(|child| {
-                matches!(
-                    child.kind(),
-                    "formal_parameters" | "function_value_parameters" | "parameter_list"
-                )
-            })
+        first_descendant_matching(node, &|child| {
+            matches!(
+                child.kind(),
+                "formal_parameters"
+                    | "function_value_parameters"
+                    | "parameter_list"
+                    | "formal_parameter_list"
+            )
+        })
     });
-    let Some(parameters) = parameters else {
-        return "()".to_string();
-    };
     let mut types = Vec::new();
-    collect_parameter_types(parameters, source, lang, &mut types);
+    if let Some(parameters) = parameters {
+        collect_parameter_types(parameters, source, lang, &mut types);
+    } else {
+        for index in 0..node.named_child_count() {
+            if let Some(child) = node.named_child(index) {
+                if matches!(child.kind(), "parameter" | "formal_parameter") {
+                    collect_parameter_types(child, source, lang, &mut types);
+                }
+            }
+        }
+    }
     format!("({})", types.join(","))
 }
 
 fn collect_parameter_types(node: Node<'_>, source: &[u8], lang: LangKind, out: &mut Vec<String>) {
     if matches!(
         node.kind(),
-        "formal_parameter" | "spread_parameter" | "receiver_parameter" | "parameter"
+        "formal_parameter"
+            | "spread_parameter"
+            | "receiver_parameter"
+            | "parameter"
+            | "parameter_declaration"
     ) {
         let type_name = node
             .child_by_field_name("type")
             .map(|child| node_text(child, source))
             .and_then(signature_type_name)
             .or_else(|| {
-                (lang == LangKind::Kotlin)
+                (lang == LangKind::Dart)
+                    .then(|| {
+                        (0..node.named_child_count())
+                            .filter_map(|index| node.named_child(index))
+                            .find(|child| child.kind() == "type")
+                            .map(|child| node_text(child, source))
+                    })
+                    .flatten()
+                    .and_then(signature_type_name)
+            })
+            .or_else(|| {
+                matches!(lang, LangKind::Kotlin | LangKind::Swift)
                     .then(|| {
                         node_text(node, source)
                             .split_once(':')
@@ -3117,6 +3494,25 @@ fn collect_parameter_types(node: Node<'_>, source: &[u8], lang: LangKind, out: &
             collect_parameter_types(child, source, lang, out);
         }
     }
+}
+
+fn cpp_callable_owner(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<String> {
+    if context.lang != LangKind::Cpp || node.kind() != "function_definition" {
+        return None;
+    }
+    let declarator = node.child_by_field_name("declarator")?;
+    let name = declarator
+        .child_by_field_name("declarator")
+        .unwrap_or(declarator);
+    let (owner, _) = node_text(name, source).rsplit_once("::")?;
+    let owner = last_identifier(owner).and_then(|value| sanitize_symbol(&value))?;
+    Some(
+        context
+            .container_name
+            .as_deref()
+            .map(|container| format!("{container}.{owner}"))
+            .unwrap_or(owner),
+    )
 }
 
 fn signature_type_name(value: &str) -> Option<String> {
@@ -3169,6 +3565,14 @@ fn extension_receiver_type(node: Node<'_>, source: &[u8], lang: LangKind) -> Opt
                 .map(|child| node_text(child, source))
                 .and_then(signature_type_name)
         }
+        LangKind::Dart if node.kind() == "method_declaration" => {
+            let extension =
+                first_ancestor_matching(node, &|parent| parent.kind() == "extension_declaration")?;
+            extension
+                .child_by_field_name("class")
+                .map(|child| node_text(child, source))
+                .and_then(signature_type_name)
+        }
         _ => None,
     }
 }
@@ -3181,6 +3585,8 @@ fn type_declaration(
     let (prefix, kind, establishes_owner) = match node.kind() {
         "interface_declaration" | "interface_definition" => ("interface", "Interface", true),
         "type_alias_declaration" => ("type_alias", "TypeAlias", false),
+        "mixin_declaration" => ("mixin", "Mixin", true),
+        "extension_declaration" => ("extension", "Extension", true),
         "record_declaration" => ("class", "Class", true),
         "enum_declaration" | "enum_item" => ("enum", "Enum", true),
         "struct_item" | "struct_specifier" => ("struct", "Struct", true),
@@ -3193,6 +3599,31 @@ fn type_declaration(
             } else {
                 ("class", "Class", true)
             }
+        }
+        "class_declaration" if lang == LangKind::Swift => {
+            let header = node_text(node, source).split('{').next().unwrap_or("");
+            let keywords = header
+                .split(|character: char| !character.is_ascii_alphabetic())
+                .filter(|token| !token.is_empty())
+                .collect::<BTreeSet<_>>();
+            if keywords.contains("extension") {
+                ("extension", "Extension", true)
+            } else if keywords.contains("struct") {
+                ("struct", "Struct", true)
+            } else if keywords.contains("enum") {
+                ("enum", "Enum", true)
+            } else {
+                ("class", "Class", true)
+            }
+        }
+        "class_declaration"
+            if lang == LangKind::Dart
+                && node_text(node, source)
+                    .split('{')
+                    .next()
+                    .is_some_and(|header| header.contains("interface class")) =>
+        {
+            ("interface", "Interface", true)
         }
         "class_declaration"
         | "class"
@@ -3237,6 +3668,13 @@ fn type_declaration(
     ))
 }
 
+fn declaration_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    node.child_by_field_name("name")
+        .map(|child| node_text(child, source))
+        .and_then(last_identifier)
+        .and_then(|name| sanitize_symbol(&name))
+}
+
 fn qualified_type_identity(
     name: String,
     subject: String,
@@ -3244,7 +3682,7 @@ fn qualified_type_identity(
 ) -> (String, String) {
     if !matches!(
         context.lang,
-        LangKind::Java | LangKind::Kotlin | LangKind::CSharp
+        LangKind::Java | LangKind::Kotlin | LangKind::CSharp | LangKind::Cpp | LangKind::Dart
     ) {
         return (name, subject);
     }
@@ -3309,6 +3747,9 @@ fn heritage_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<(&'sta
     if matches!(lang, LangKind::Java | LangKind::Kotlin | LangKind::CSharp) {
         return batch_c_heritage_targets(node, source, lang);
     }
+    if matches!(lang, LangKind::Cpp | LangKind::Swift | LangKind::Dart) {
+        return batch_d_heritage_targets(node, source, lang);
+    }
     if matches!(
         lang,
         LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
@@ -3361,6 +3802,72 @@ fn heritage_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<(&'sta
     }
 
     heritage_targets_from_text(node_text(node, source))
+}
+
+fn batch_d_heritage_targets(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+) -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    match lang {
+        LangKind::Cpp => {
+            for index in 0..node.named_child_count() {
+                if let Some(child) = node.named_child(index) {
+                    if child.kind() == "base_class_clause" {
+                        collect_heritage_names(child, source, "INHERITS", &mut out);
+                    }
+                }
+            }
+        }
+        LangKind::Swift => {
+            if node_text(node, source)
+                .trim_start()
+                .starts_with("extension ")
+            {
+                if let Some(name) = declaration_name(node, source) {
+                    out.push(("EXTENDS_TYPE", name));
+                }
+            } else {
+                for index in 0..node.named_child_count() {
+                    if let Some(child) = node.named_child(index) {
+                        if child.kind() == "inheritance_specifier" {
+                            collect_heritage_names(child, source, "INHERITS", &mut out);
+                        }
+                    }
+                }
+            }
+        }
+        LangKind::Dart if node.kind() == "extension_declaration" => {
+            if let Some(target) = node
+                .child_by_field_name("class")
+                .and_then(|child| heritage_target_name(child, source))
+            {
+                out.push(("EXTENDS_TYPE", target));
+            }
+        }
+        LangKind::Dart => {
+            if let Some(superclass) = node.child_by_field_name("superclass") {
+                for index in 0..superclass.named_child_count() {
+                    let Some(child) = superclass.named_child(index) else {
+                        continue;
+                    };
+                    if child.kind() == "mixins" {
+                        collect_heritage_names(child, source, "MIXES_IN", &mut out);
+                    } else if let Some(name) = heritage_target_name(child, source) {
+                        out.push(("EXTENDS", name));
+                    }
+                }
+            }
+            if let Some(interfaces) = node.child_by_field_name("interfaces") {
+                collect_heritage_names(interfaces, source, "IMPLEMENTS", &mut out);
+            }
+        }
+        _ => {}
+    }
+    out.sort();
+    out.dedup();
+    out
 }
 
 fn batch_c_heritage_targets(
@@ -3501,11 +4008,15 @@ fn callable_node_name(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
     if matches!(
         context.lang,
         LangKind::C | LangKind::Cpp | LangKind::ObjectiveC
-    ) && node.kind() == "function_definition"
+    ) && matches!(node.kind(), "function_definition" | "field_declaration")
     {
-        return node
-            .child_by_field_name("declarator")
-            .and_then(|child| descendant_identifier_name(child, source))
+        return first_descendant_matching(node, &|child| child.kind() == "function_declarator")
+            .and_then(|declarator| {
+                let name = declarator
+                    .child_by_field_name("declarator")
+                    .unwrap_or(declarator);
+                last_identifier(node_text(name, source))
+            })
             .or_else(|| node_name(node, source));
     }
     if context.lang == LangKind::Sql && node.kind() == "create_function" {
@@ -3690,8 +4201,10 @@ fn typed_call_note(lang: LangKind) -> Option<&'static str> {
         LangKind::Rust => Some("oaf.ingest:typed-call-rust"),
         LangKind::Java => Some("oaf.ingest:typed-call-java"),
         LangKind::CSharp => Some("oaf.ingest:typed-call-csharp"),
+        LangKind::Cpp => Some("oaf.ingest:typed-call-cpp"),
         LangKind::Swift => Some("oaf.ingest:typed-call-swift"),
         LangKind::Kotlin => Some("oaf.ingest:typed-call-kotlin"),
+        LangKind::Dart => Some("oaf.ingest:typed-call-dart"),
         LangKind::JavaScript => Some("oaf.ingest:typed-call-javascript"),
         LangKind::TypeScript | LangKind::Tsx => Some("oaf.ingest:typed-call-typescript"),
         _ => None,
@@ -3724,12 +4237,18 @@ fn local_type_bindings(
     }
     if matches!(
         context.lang,
-        LangKind::Java | LangKind::Kotlin | LangKind::CSharp
+        LangKind::Java
+            | LangKind::Kotlin
+            | LangKind::CSharp
+            | LangKind::Cpp
+            | LangKind::Swift
+            | LangKind::Dart
     ) {
         bindings.extend(batch_c_type_bindings(node, source, context.lang));
         bindings.extend(constructor_type_bindings(node_text(node, source)));
         if let Some(type_name) = context.class_name.as_deref() {
             bindings.insert("this".to_string(), type_name.to_string());
+            bindings.insert("self".to_string(), type_name.to_string());
         }
         return bindings;
     }
@@ -3766,14 +4285,22 @@ fn collect_batch_c_type_bindings(
 ) {
     if matches!(
         node.kind(),
-        "formal_parameter" | "spread_parameter" | "receiver_parameter" | "parameter"
+        "formal_parameter"
+            | "spread_parameter"
+            | "receiver_parameter"
+            | "parameter"
+            | "parameter_declaration"
     ) {
         let text = node_text(node, source);
         let name = node
             .child_by_field_name("name")
             .map(|child| node_text(child, source).to_string())
             .or_else(|| {
-                (lang == LangKind::Kotlin)
+                node.child_by_field_name("declarator")
+                    .map(|child| node_text(child, source).to_string())
+            })
+            .or_else(|| {
+                matches!(lang, LangKind::Kotlin | LangKind::Swift)
                     .then(|| {
                         text.split_once(':')
                             .map(|(value, _)| value.trim().to_string())
@@ -3787,7 +4314,18 @@ fn collect_batch_c_type_bindings(
             .map(|child| node_text(child, source))
             .and_then(signature_type_name)
             .or_else(|| {
-                (lang == LangKind::Kotlin)
+                (lang == LangKind::Dart)
+                    .then(|| {
+                        (0..node.named_child_count())
+                            .filter_map(|index| node.named_child(index))
+                            .find(|child| child.kind() == "type")
+                            .map(|child| node_text(child, source))
+                    })
+                    .flatten()
+                    .and_then(signature_type_name)
+            })
+            .or_else(|| {
+                matches!(lang, LangKind::Kotlin | LangKind::Swift)
                     .then(|| text.split_once(':').map(|(_, value)| value))
                     .flatten()
                     .and_then(signature_type_name)
@@ -4002,18 +4540,51 @@ fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
             route_handler_name(text)?,
             "oaf.ingest:route-aspnet-minimal",
         ),
+        LangKind::Swift if matches!(receiver.as_str(), "app" | "router" | "routes") => (
+            http_method(&method)?,
+            context.caller.clone()?,
+            "oaf.ingest:route-vapor",
+        ),
+        LangKind::Dart if receiver == "router" => (
+            http_method(&method)?,
+            context.caller.clone()?,
+            "oaf.ingest:route-shelf",
+        ),
         _ => return None,
     };
-    let path = first_quoted_route_path(text)?;
+    let path = if context.lang == LangKind::Swift {
+        vapor_route_path(node, source)?
+    } else {
+        first_quoted_route_path(text)?
+    };
     Some(RouteRef {
         method,
         path,
-        handler_subject: None,
-        handler_name: Some(handler_name),
+        handler_subject: matches!(context.lang, LangKind::Swift | LangKind::Dart)
+            .then_some(handler_name.clone()),
+        handler_name: (!matches!(context.lang, LangKind::Swift | LangKind::Dart))
+            .then_some(handler_name),
         source: context.source.clone(),
         note,
         span: CodeSpan::from_node(node),
     })
+}
+
+fn vapor_route_path(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let arguments = first_descendant_matching(node, &|child| child.kind() == "value_arguments")?;
+    let segments = (0..arguments.named_child_count())
+        .filter_map(|index| arguments.named_child(index))
+        .filter_map(|argument| {
+            quoted_literals(node_text(argument, source))
+                .into_iter()
+                .next()
+        })
+        .take(8)
+        .collect::<Vec<_>>();
+    if segments.is_empty() {
+        return None;
+    }
+    Some(canon_route_path(&format!("/{}", segments.join("/"))))
 }
 
 fn rust_route_handler(text: &str) -> Option<(String, String)> {
@@ -4581,6 +5152,11 @@ fn module_from_import(value: &str) -> Option<String> {
     sanitize_symbol(first).map(|token| format!("module:{token}"))
 }
 
+fn is_relative_source_reference(value: &str) -> bool {
+    let value = value.trim();
+    !value.contains(':') && strip_known_extension(value) != value
+}
+
 fn resolve_relative_import(source_rel: &str, raw: &str) -> Option<String> {
     let raw = raw.trim();
     if !raw.starts_with('.') {
@@ -4868,6 +5444,15 @@ fn language_for_path(path: &Path) -> Option<LangKind> {
         "jl" => Some(LangKind::Julia),
         "zig" => Some(LangKind::Zig),
         _ => None,
+    }
+}
+
+fn language_for_path_with_options(path: &Path, options: &IngestOptions) -> Option<LangKind> {
+    if options.prefer_cpp_headers && path.extension().and_then(|value| value.to_str()) == Some("h")
+    {
+        Some(LangKind::Cpp)
+    } else {
+        language_for_path(path)
     }
 }
 

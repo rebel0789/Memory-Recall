@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_cpp_catch2_approx", "language": "cpp",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_cpp_catchorg_catch2@ae5d271da2c88b859d6365281ac075112115d4b1#src/Catch2" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "unmeasured", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_catch_approx_custom", "semanticKey": "node:method:Approx-custom", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "custom()", "qualifiedName": "catch_approx.cpp::Catch.Approx::custom()", "locator": "workspace://catch_approx.cpp#L34-L36" },
+    { "id": "cititem_catch_approx_tostring", "semanticKey": "node:method:Approx-toString", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "toString()", "qualifiedName": "catch_approx.cpp::Catch.Approx::toString()", "locator": "workspace://catch_approx.cpp#L45-L49" },
+    { "id": "cititem_catch_approx_convert", "semanticKey": "node:method:Approx-convert", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "convert(Approx)", "qualifiedName": "catch_approx.cpp::Catch.Approx::convert(Approx)", "locator": "workspace://catch_approx.cpp#L81-L83" },
+    { "id": "cititem_catch_construct_approx", "semanticKey": "edge:constructs:custom:Approx", "capability": "types", "expectation": "present", "recordKind": "edge", "kind": "constructs", "from": { "kind": "method", "name": "custom()", "locator": "workspace://catch_approx.cpp#L34-L36" }, "to": { "kind": "class", "name": "Approx", "locator": "workspace://catch_approx.hpp#L17-L114" }, "locator": "workspace://catch_approx.cpp#L35-L35", "resolution": "exact" },
+    { "id": "cititem_catch_call_tostring", "semanticKey": "edge:calls:convert:toString", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "method", "name": "convert(Approx)", "locator": "workspace://catch_approx.cpp#L81-L83" }, "to": { "kind": "method", "name": "toString()", "locator": "workspace://catch_approx.cpp#L45-L49" }, "locator": "workspace://catch_approx.cpp#L82-L82", "resolution": "typed" }
+  ],
+  "truthFingerprint": "sha256:00a521543f36d5954138d550e322442659d94b74609551227bb1cfbfaa903f89"
+}

@@ -96,6 +96,10 @@ struct GraphBuild {
     omitted_edge_count: usize,
 }
 
+type NodeLookup = BTreeMap<(String, String), String>;
+type SubjectLookup = BTreeMap<String, Vec<(String, String)>>;
+type NodeBuildOutput = (Vec<Value>, NodeLookup, SubjectLookup, usize);
+
 pub fn serve_stdio(engine_version: &str) -> Result<()> {
     let stdin = io::stdin();
     let stdout = io::stdout();
@@ -310,9 +314,10 @@ fn build_graph_at_root(
     let root = root.canonicalize().map_err(|_| internal_failure())?;
     let mut discovery_options = IngestOptions::new(&root);
     discovery_options.max_file_bytes = request.max_file_bytes;
+    discovery_options.prefer_cpp_headers = prefers_cpp_headers(&request.languages);
     let mut hashes = discover_file_hashes(&discovery_options).map_err(|_| internal_failure())?;
     hashes.retain(|item| {
-        source_language(&item.source).is_some_and(|language| {
+        source_language_for_request(&item.source, &request.languages).is_some_and(|language| {
             request.languages.is_empty() || request.languages.contains(language)
         })
     });
@@ -327,6 +332,7 @@ fn build_graph_at_root(
     let mut options = IngestOptions::new(&root);
     options.max_file_bytes = request.max_file_bytes;
     options.only_sources = Some(selected_sources);
+    options.prefer_cpp_headers = prefers_cpp_headers(&request.languages);
     let report = extract_repo(&options).map_err(|_| internal_failure())?;
     check_deadline(request, started)?;
 
@@ -357,6 +363,7 @@ fn build_graph_at_root(
         &hash_by_source,
         &request.workspace_id,
         &generation_id,
+        &request.languages,
         request.max_nodes,
     );
     let (edges, candidate_edge_count) = build_edges(
@@ -364,6 +371,7 @@ fn build_graph_at_root(
         &node_lookup,
         &subject_lookup,
         &generation_id,
+        &request.languages,
         request.max_edges,
     );
     let omitted_node_count = candidate_node_count.saturating_sub(nodes.len());
@@ -422,13 +430,9 @@ fn build_nodes(
     hash_by_source: &BTreeMap<String, String>,
     workspace_id: &str,
     generation_id: &str,
+    requested_languages: &BTreeSet<String>,
     max_nodes: usize,
-) -> (
-    Vec<Value>,
-    BTreeMap<(String, String), String>,
-    BTreeMap<String, Vec<(String, String)>>,
-    usize,
-) {
+) -> NodeBuildOutput {
     let parent_by_child = facts
         .iter()
         .filter(|fact| fact.predicate == "DEFINES")
@@ -442,7 +446,15 @@ fn build_nodes(
     let mut candidates = facts
         .iter()
         .filter(|fact| fact.predicate == "IS_A")
-        .filter_map(|fact| native_node(fact, hash_by_source, workspace_id, &parent_by_child))
+        .filter_map(|fact| {
+            native_node(
+                fact,
+                hash_by_source,
+                workspace_id,
+                &parent_by_child,
+                requested_languages,
+            )
+        })
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| {
         left.source
@@ -489,12 +501,14 @@ fn native_node(
     hash_by_source: &BTreeMap<String, String>,
     workspace_id: &str,
     parent_by_child: &BTreeMap<(String, String), String>,
+    requested_languages: &BTreeSet<String>,
 ) -> Option<NativeNode> {
     let kind = match fact.object.as_str() {
         "File" => "file",
         "Module" => "module",
         "Package" => "package",
         "Namespace" => "namespace",
+        "Library" => "library",
         "Function" => "function",
         "Method" => "method",
         "Class" => "class",
@@ -503,12 +517,15 @@ fn native_node(
         "Enum" => "enum",
         "Trait" => "trait",
         "Protocol" => "protocol",
+        "Mixin" => "mixin",
+        "Extension" => "extension",
         "TypeAlias" => "type_alias",
+        "BuildTarget" => "build_target",
         "FrameworkComponent" => "framework_component",
         "Route" => "route",
         _ => return None,
     };
-    let language = source_language(&fact.source)?.to_string();
+    let language = fact_language_for_request(fact, requested_languages)?.to_string();
     let raw_name = if kind == "file" {
         fact.source.rsplit('/').next().unwrap_or("source")
     } else {
@@ -589,9 +606,10 @@ fn qualified_symbol_name(
 
 fn build_edges(
     facts: &[CodeFactRecord],
-    node_lookup: &BTreeMap<(String, String), String>,
-    subject_lookup: &BTreeMap<String, Vec<(String, String)>>,
+    node_lookup: &NodeLookup,
+    subject_lookup: &SubjectLookup,
     generation_id: &str,
+    requested_languages: &BTreeSet<String>,
     max_edges: usize,
 ) -> (Vec<Value>, usize) {
     let mut candidates = Vec::new();
@@ -610,7 +628,7 @@ fn build_edges(
         else {
             continue;
         };
-        let language = match source_language(&fact.source) {
+        let language = match fact_language_for_request(fact, requested_languages) {
             Some(language) => language,
             None => continue,
         };
@@ -643,20 +661,40 @@ fn build_edges(
         }));
     }
     candidates.sort_by(|left, right| {
-        left["kind"]
-            .as_str()
-            .cmp(&right["kind"].as_str())
-            .then_with(|| {
-                left["fromNodeId"]
-                    .as_str()
-                    .cmp(&right["fromNodeId"].as_str())
-            })
-            .then_with(|| left["toNodeId"].as_str().cmp(&right["toNodeId"].as_str()))
+        edge_priority(
+            left["kind"].as_str().unwrap_or(""),
+            left["resolution"].as_str().unwrap_or("unresolved"),
+        )
+        .cmp(&edge_priority(
+            right["kind"].as_str().unwrap_or(""),
+            right["resolution"].as_str().unwrap_or("unresolved"),
+        ))
+        .then_with(|| left["kind"].as_str().cmp(&right["kind"].as_str()))
+        .then_with(|| {
+            left["fromNodeId"]
+                .as_str()
+                .cmp(&right["fromNodeId"].as_str())
+        })
+        .then_with(|| left["toNodeId"].as_str().cmp(&right["toNodeId"].as_str()))
     });
     candidates.dedup_by(|left, right| left["id"] == right["id"]);
     let candidate_count = candidates.len();
     candidates.truncate(max_edges);
     (candidates, candidate_count)
+}
+
+fn edge_priority(kind: &str, resolution: &str) -> u8 {
+    match kind {
+        "defines" | "contains" | "member_of" => 0,
+        "imports" | "exports" | "re_exports" => 1,
+        "inherits" | "implements" | "extends" | "mixes_in" | "extends_type" => 2,
+        "depends_on" | "part_of" | "entry_point" | "handles_route" | "process_step" => 3,
+        "constructs" | "references" | "reads" | "writes" | "emits" | "listens" => 4,
+        "calls" if resolution == "typed" => 5,
+        "calls" if resolution == "inferred" || resolution == "lexical" => 6,
+        "calls" => 7,
+        _ => 4,
+    }
 }
 
 fn edge_mapping(
@@ -739,6 +777,42 @@ fn edge_mapping(
             "memory-recall.heritage",
             0.5,
             "unresolved",
+        )),
+        "MIXES_IN" if fact.note == "oaf.ingest:resolved-heritage" => Some((
+            "mixes_in",
+            "heritage",
+            "memory-recall.heritage",
+            1.0,
+            "exact",
+        )),
+        "MIXES_IN" => Some((
+            "mixes_in",
+            "heritage",
+            "memory-recall.heritage",
+            0.5,
+            "unresolved",
+        )),
+        "EXTENDS_TYPE" if fact.note == "oaf.ingest:resolved-heritage" => Some((
+            "extends_type",
+            "heritage",
+            "memory-recall.extension",
+            1.0,
+            "exact",
+        )),
+        "EXTENDS_TYPE" => Some((
+            "extends_type",
+            "heritage",
+            "memory-recall.extension",
+            0.5,
+            "unresolved",
+        )),
+        "PART_OF" => Some(("part_of", "import", "memory-recall.part", 1.0, "exact")),
+        "ENTRY_POINT" => Some((
+            "entry_point",
+            "framework",
+            "memory-recall.entry-point",
+            1.0,
+            "exact",
         )),
         "DEPENDS_ON" => Some((
             "depends_on",
@@ -1056,6 +1130,32 @@ fn source_language(source: &str) -> Option<&'static str> {
     }
 }
 
+fn source_language_for_request(
+    source: &str,
+    requested_languages: &BTreeSet<String>,
+) -> Option<&'static str> {
+    if source.to_ascii_lowercase().ends_with(".h") && prefers_cpp_headers(requested_languages) {
+        Some("cpp")
+    } else {
+        source_language(source)
+    }
+}
+
+fn fact_language_for_request(
+    fact: &CodeFactRecord,
+    requested_languages: &BTreeSet<String>,
+) -> Option<&'static str> {
+    source_language_for_request(&fact.source, requested_languages).or(match fact.note.as_str() {
+        "oaf.ingest:cmake-c" => Some("c"),
+        "oaf.ingest:cmake-cpp" => Some("cpp"),
+        _ => None,
+    })
+}
+
+fn prefers_cpp_headers(requested_languages: &BTreeSet<String>) -> bool {
+    requested_languages.contains("cpp") && !requested_languages.contains("c")
+}
+
 fn normalize_language_group(group: &str) -> &str {
     match group {
         "javascript-jsx" => "javascript",
@@ -1109,10 +1209,11 @@ fn language_kind(kind: &str) -> &str {
 fn node_priority(kind: &str) -> usize {
     match kind {
         "file" => 0,
-        "module" | "package" | "namespace" => 1,
-        "class" | "interface" | "struct" | "enum" | "trait" | "protocol" => 2,
+        "module" | "package" | "namespace" | "library" => 1,
+        "class" | "interface" | "struct" | "enum" | "trait" | "protocol" | "mixin"
+        | "extension" => 2,
         "function" | "method" => 3,
-        "route" => 4,
+        "route" | "build_target" => 4,
         _ => 5,
     }
 }

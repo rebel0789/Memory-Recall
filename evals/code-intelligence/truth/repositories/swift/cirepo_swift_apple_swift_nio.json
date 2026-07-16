@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_swift_nio_addressed_envelope", "language": "swift",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_swift_apple_swift_nio@0b18836bd8b0162e7e17a995a3fbee20ed8f3b2b#Sources/NIOCore" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "partial", "types": "partial", "calls": "unmeasured", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_nio_addressed_envelope", "semanticKey": "node:struct:AddressedEnvelope", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "struct", "name": "AddressedEnvelope", "qualifiedName": "AddressedEnvelope.swift::AddressedEnvelope", "locator": "workspace://AddressedEnvelope.swift#L20-L75" },
+    { "id": "cititem_nio_envelope_metadata", "semanticKey": "node:struct:AddressedEnvelope-Metadata", "capability": "types", "expectation": "present", "recordKind": "node", "kind": "struct", "name": "Metadata", "qualifiedName": "AddressedEnvelope.swift::AddressedEnvelope::Metadata", "locator": "workspace://AddressedEnvelope.swift#L38-L74" },
+    { "id": "cititem_nio_ecn_state", "semanticKey": "node:enum:NIOExplicitCongestionNotificationState", "capability": "types", "expectation": "present", "recordKind": "node", "kind": "enum", "name": "NIOExplicitCongestionNotificationState", "qualifiedName": "AddressedEnvelope.swift::NIOExplicitCongestionNotificationState", "locator": "workspace://AddressedEnvelope.swift#L90-L99" },
+    { "id": "cititem_nio_addressed_extension", "semanticKey": "node:extension:AddressedEnvelope", "capability": "heritage", "expectation": "present", "recordKind": "node", "kind": "extension", "name": "AddressedEnvelope", "qualifiedName": "AddressedEnvelope.swift::AddressedEnvelope", "locator": "workspace://AddressedEnvelope.swift#L77-L81" },
+    { "id": "cititem_nio_extends_envelope", "semanticKey": "edge:extends-type:AddressedEnvelope", "capability": "heritage", "expectation": "present", "recordKind": "edge", "kind": "extends_type", "from": { "kind": "extension", "name": "AddressedEnvelope", "locator": "workspace://AddressedEnvelope.swift#L77-L81" }, "to": { "kind": "struct", "name": "AddressedEnvelope", "locator": "workspace://AddressedEnvelope.swift#L20-L75" }, "locator": "workspace://AddressedEnvelope.swift#L77-L81", "resolution": "exact" }
+  ],
+  "truthFingerprint": "sha256:4aebece4220dcfc8cd9694d3b1e7847df372a8ede591c632ce22eec92e95bf7f"
+}

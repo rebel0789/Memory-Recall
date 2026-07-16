@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_cpp_fmt_c_api", "language": "cpp",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_cpp_fmtlib_fmt@a79df4504cd4e42ed004b1113fb82171e62ed822#src" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "partial", "exports": "unmeasured", "heritage": "unmeasured", "types": "unmeasured", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_fmt_convert_args", "semanticKey": "node:function:convert-c-format-args", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "convert_c_format_args", "qualifiedName": "fmt-c.cc::convert_c_format_args", "locator": "workspace://fmt-c.cc#L14-L36" },
+    { "id": "cititem_fmt_vformat", "semanticKey": "node:function:fmt-vformat", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "fmt_vformat", "qualifiedName": "fmt-c.cc::fmt_vformat", "locator": "workspace://fmt-c.cc#L38-L49" },
+    { "id": "cititem_fmt_vprint", "semanticKey": "node:function:fmt-vprint", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "fmt_vprint", "qualifiedName": "fmt-c.cc::fmt_vprint", "locator": "workspace://fmt-c.cc#L54-L64" },
+    { "id": "cititem_fmt_import_header", "semanticKey": "edge:imports:fmt-c:fmt", "capability": "imports", "expectation": "present", "recordKind": "edge", "kind": "imports", "from": { "kind": "module", "name": "fmt_c", "locator": "workspace://fmt-c.cc#L1-L68" }, "to": { "kind": "module", "name": "fmt", "locator": "workspace://fmt.cc#L1-L158" }, "locator": "workspace://fmt-c.cc#L8-L9", "resolution": "exact" },
+    { "id": "cititem_fmt_call_convert", "semanticKey": "edge:calls:fmt-vformat:convert", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "function", "name": "fmt_vformat", "locator": "workspace://fmt-c.cc#L38-L49" }, "to": { "kind": "function", "name": "convert_c_format_args", "locator": "workspace://fmt-c.cc#L14-L36" }, "locator": "workspace://fmt-c.cc#L41-L41", "resolution": "inferred" }
+  ],
+  "truthFingerprint": "sha256:45c37b6763ef04424bc87575abf4c369617069fae9eb05cfb1fd20894f8f5525"
+}

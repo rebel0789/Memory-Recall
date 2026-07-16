@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_c_curl_altsvc", "language": "c",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_c_curl_curl@4176aba5e4871a2f1c7c120dd76568f80f5d5ddc#lib" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "unmeasured", "types": "unmeasured", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_curl_altsvc_add", "semanticKey": "node:function:altsvc-add", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "add", "qualifiedName": "altsvc.c::add", "locator": "workspace://altsvc.c#L168-L227" },
+    { "id": "cititem_curl_altsvc_load_local", "semanticKey": "node:function:altsvc-load-local", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "load", "qualifiedName": "altsvc.c::load", "locator": "workspace://altsvc.c#L237-L270" },
+    { "id": "cititem_curl_altsvc_load_public", "semanticKey": "node:function:Curl-altsvc-load", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "Curl_altsvc_load", "qualifiedName": "altsvc.c::Curl_altsvc_load", "locator": "workspace://altsvc.c#L346-L350" },
+    { "id": "cititem_curl_defines_load", "semanticKey": "edge:defines:altsvc:load", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "module", "name": "altsvc", "locator": "workspace://altsvc.c#L1-L717" }, "to": { "kind": "function", "name": "load", "locator": "workspace://altsvc.c#L237-L270" }, "locator": "workspace://altsvc.c#L237-L270", "resolution": "exact" },
+    { "id": "cititem_curl_call_load", "semanticKey": "edge:calls:Curl-altsvc-load:load", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "function", "name": "Curl_altsvc_load", "locator": "workspace://altsvc.c#L346-L350" }, "to": { "kind": "function", "name": "load", "locator": "workspace://altsvc.c#L237-L270" }, "locator": "workspace://altsvc.c#L349-L349", "resolution": "inferred" }
+  ],
+  "truthFingerprint": "sha256:cecc799320b5b78aa1f621ba0130c4b8062666272d62804716c200e80d927688"
+}

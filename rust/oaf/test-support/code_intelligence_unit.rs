@@ -636,6 +636,197 @@ mod tests {
     }
 
     #[test]
+    fn batch_d_native_graph_preserves_entry_points_extensions_mixins_and_parts() {
+        let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-d")
+            .canonicalize()
+            .unwrap();
+
+        for language in ["c", "cpp", "swift", "dart"] {
+            let mut request_value = valid_request();
+            request_value["arguments"]["languages"] = json!([language]);
+            request_value["arguments"]["maxNodes"] = json!(1_000);
+            request_value["arguments"]["maxEdges"] = json!(2_000);
+            let request = parse_request(&request_value).unwrap();
+            let graph = build_graph_at_root(
+                &request,
+                "test",
+                &fixture_root.join(language),
+                Instant::now(),
+            )
+            .unwrap()
+            .graph;
+            let nodes = graph["nodes"].as_array().unwrap();
+            let edges = graph["edges"].as_array().unwrap();
+
+            match language {
+                "c" => {
+                    let target = nodes
+                        .iter()
+                        .find(|node| node["kind"] == "build_target" && node["name"] == "items")
+                        .and_then(|node| node["id"].as_str())
+                        .unwrap();
+                    assert!(edges.iter().any(|edge| {
+                        edge["kind"] == "entry_point" && edge["toNodeId"] == target
+                    }));
+                    assert!(!edges.iter().any(|edge| edge["kind"] == "handles_route"));
+                }
+                "cpp" => {
+                    assert!(nodes.iter().any(|node| {
+                        node["kind"] == "namespace" && node["name"] == "demo"
+                    }));
+                    let lookup = nodes
+                        .iter()
+                        .find(|node| {
+                            node["kind"] == "method"
+                                && node["name"] == "lookup(string)"
+                                && node["locator"]
+                                    == "workspace://src/item_service.cpp#L4-L4"
+                        })
+                        .and_then(|node| node["id"].as_str())
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "{:#?}",
+                                nodes
+                                    .iter()
+                                    .filter(|node| {
+                                        node["qualifiedName"]
+                                            .as_str()
+                                            .is_some_and(|name| name.contains("lookup"))
+                                    })
+                                    .collect::<Vec<_>>()
+                            )
+                        });
+                    assert!(edges.iter().any(|edge| {
+                        edge["kind"] == "calls"
+                            && edge["toNodeId"] == lookup
+                            && edge["resolution"] == "typed"
+                    }));
+                    assert!(!edges.iter().any(|edge| edge["kind"] == "handles_route"));
+                }
+                "swift" => {
+                    assert!(nodes.iter().any(|node| {
+                        node["kind"] == "extension" && node["name"] == "ItemService"
+                    }));
+                    assert!(edges.iter().any(|edge| edge["kind"] == "extends_type"));
+                    assert!(edges.iter().any(|edge| edge["kind"] == "implements"));
+                    assert!(edges.iter().any(|edge| {
+                        edge["kind"] == "handles_route"
+                            && edge["evidence"]["locator"]
+                                == "workspace://Sources/App/routes.swift#L4-L6"
+                    }));
+                }
+                "dart" => {
+                    for kind in ["library", "mixin", "extension"] {
+                        assert!(nodes.iter().any(|node| node["kind"] == kind), "{kind}");
+                    }
+                    assert!(edges.iter().any(|edge| edge["kind"] == "mixes_in"));
+                    assert!(edges.iter().any(|edge| edge["kind"] == "part_of"));
+                    assert!(edges.iter().any(|edge| edge["kind"] == "entry_point"));
+                    assert!(edges.iter().any(|edge| edge["kind"] == "handles_route"));
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    #[test]
+    fn cpp_requests_parse_ambiguous_dot_h_headers_as_cpp() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-cpp-header-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("legacy.h"),
+            "namespace demo { class HeaderOnly { public: void run(); }; }\n",
+        )
+        .unwrap();
+        fs::write(root.join("main.cpp"), "#include \"legacy.h\"\nint main() { return 0; }\n")
+            .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["cpp"]);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+
+        assert!(graph["nodes"].as_array().unwrap().iter().any(|node| {
+            node["kind"] == "class"
+                && node["language"] == "cpp"
+                && node["qualifiedName"] == "legacy.h::demo::HeaderOnly"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn swift_structs_and_enums_keep_their_native_kinds() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-swift-kinds-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("Models.swift"),
+            "public struct Packet { public let id: Int }\npublic enum State { case ready }\n",
+        )
+        .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["swift"]);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "struct" && node["qualifiedName"] == "Models.swift::Packet"
+        }));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "enum" && node["qualifiedName"] == "Models.swift::State"
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn edge_budgets_keep_structural_evidence_before_unresolved_calls() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-edge-priority-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("main.c"),
+            "int helper(void) { return 1; }\nint main(void) { a(); b(); c(); d(); e(); f(); return helper(); }\n",
+        )
+        .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["c"]);
+        request_value["arguments"]["maxEdges"] = json!(3);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let main_id = nodes
+            .iter()
+            .find(|node| node["kind"] == "function" && node["name"] == "main")
+            .and_then(|node| node["id"].as_str())
+            .unwrap();
+
+        assert!(graph["edges"].as_array().unwrap().iter().any(|edge| {
+            edge["kind"] == "defines" && edge["toNodeId"] == main_id
+        }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn go_type_and_same_named_method_keep_distinct_graph_identities() {
         let root = std::env::temp_dir().join(format!(
             "memory-recall-code-intelligence-go-same-name-{}",

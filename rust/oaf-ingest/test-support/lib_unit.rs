@@ -869,4 +869,107 @@ mod tests {
 
         fs::remove_dir_all(root).unwrap();
     }
+
+    #[test]
+    fn batch_d_preserves_native_mobile_language_structure() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-d")
+            .canonicalize()
+            .unwrap();
+
+        let c = extract_repo(&IngestOptions::new(root.join("c"))).unwrap();
+        assert!(c.facts.iter().any(|fact| {
+            fact.subject == "module:src_main"
+                && fact.predicate == "IMPORTS"
+                && fact.object == "module:include_item"
+        }));
+        assert!(c.facts.iter().any(|fact| {
+            fact.subject == "function:main"
+                && fact.predicate == "ENTRY_POINT"
+                && fact.object == "build_target:items"
+        }));
+        assert!(!c.facts.iter().any(|fact| fact.predicate == "HANDLES"));
+
+        let cpp = extract_repo(&IngestOptions::new(root.join("cpp"))).unwrap();
+        assert!(cpp.facts.iter().any(|fact| {
+            fact.subject == "namespace:demo"
+                && fact.predicate == "DEFINES"
+                && fact.object == "class:demo.ItemService"
+        }));
+        assert!(cpp.facts.iter().any(|fact| {
+            fact.subject == "class:demo.ItemService"
+                && fact.predicate == "EXTENDS"
+                && fact.object == "class:demo.ItemLoader"
+        }));
+        for signature in ["find(string)", "find(long)"] {
+            assert!(cpp.facts.iter().any(|fact| {
+                fact.subject == "class:demo.ItemService"
+                    && fact.predicate == "DEFINES"
+                    && fact.object == format!("method:demo.ItemService.{signature}")
+            }));
+        }
+        assert!(cpp.facts.iter().any(|fact| {
+            fact.subject == "method:demo.ItemService.lookup(string)"
+                && fact.predicate == "IS_A"
+                && fact.object == "Method"
+                && fact.source == "workspace://src/item_service.cpp"
+        }), "{:#?}", cpp.facts.iter().filter(|fact| fact.subject.contains("lookup")).collect::<Vec<_>>());
+        assert!(cpp.facts.iter().any(|fact| {
+            fact.subject == "function:demo.load_item(ItemService,string)"
+                && fact.predicate == "CALLS"
+                && fact.object == "method:demo.ItemService.lookup(string)"
+                && fact.notes.as_deref() == Some("oaf.ingest:typed-call-cpp")
+        }), "{:#?}", cpp.facts.iter().filter(|fact| fact.predicate == "CALLS").collect::<Vec<_>>());
+        assert!(cpp.facts.iter().any(|fact| {
+            fact.subject == "function:demo.ambiguous(string)"
+                && fact.predicate == "CALLS"
+                && fact.object == "external_function:find"
+        }));
+        assert!(!cpp.facts.iter().any(|fact| fact.predicate == "HANDLES"));
+
+        let swift = extract_repo(&IngestOptions::new(root.join("swift"))).unwrap();
+        assert!(swift.facts.iter().any(|fact| {
+            fact.subject == "class:ItemService"
+                && fact.predicate == "IMPLEMENTS"
+                && fact.object == "protocol:ItemLoading"
+        }));
+        assert!(swift.facts.iter().any(|fact| {
+            fact.subject == "extension:ItemService"
+                && fact.predicate == "EXTENDS_TYPE"
+                && fact.object == "class:ItemService"
+        }));
+        assert!(swift.facts.iter().any(|fact| {
+            fact.predicate == "HANDLES"
+                && fact.object == "route:GET_items_param"
+                && fact.notes.as_deref() == Some("oaf.ingest:route-vapor")
+        }));
+
+        let dart = extract_repo(&IngestOptions::new(root.join("dart"))).unwrap();
+        assert!(dart.facts.iter().any(|fact| {
+            fact.subject == "library:demo.item"
+                && fact.predicate == "DEFINES"
+                && fact.object == "class:demo.item.ItemService"
+        }));
+        assert!(dart.facts.iter().any(|fact| {
+            fact.subject == "class:demo.item.ItemService"
+                && fact.predicate == "MIXES_IN"
+                && fact.object == "mixin:demo.item.ItemLogging"
+        }));
+        assert!(dart.facts.iter().any(|fact| {
+            fact.subject == "module:lib_routes_part"
+                && fact.predicate == "PART_OF"
+                && fact.object == "module:lib_routes"
+        }), "{:#?}", dart.facts.iter().filter(|fact| fact.predicate == "PART_OF").collect::<Vec<_>>());
+        assert!(dart.facts.iter().any(|fact| {
+            fact.predicate == "HANDLES"
+                && fact.object == "route:GET_items_param"
+                && fact.notes.as_deref() == Some("oaf.ingest:route-shelf")
+        }));
+        assert!(dart.facts.iter().any(|fact| {
+            fact.subject == "function:main"
+                && fact.predicate == "ENTRY_POINT"
+                && fact.object == "framework:flutter_application"
+        }));
+    }
+
 }

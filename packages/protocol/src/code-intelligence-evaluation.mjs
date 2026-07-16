@@ -6,9 +6,10 @@ import { sha256Hex, stableStringify } from './fingerprint.mjs';
 import { validateJsonSchema } from './schema-validator.mjs';
 
 const SYMBOL_NODE_KINDS = new Set([
-  'namespace', 'function', 'method', 'class', 'interface', 'struct', 'enum',
-  'trait', 'protocol', 'type_alias', 'variable', 'constant', 'route',
-  'configuration_resource', 'framework_component', 'execution_process'
+  'namespace', 'library', 'function', 'method', 'class', 'interface', 'struct', 'enum',
+  'trait', 'protocol', 'mixin', 'extension', 'type_alias', 'variable', 'constant',
+  'route', 'configuration_resource', 'framework_component', 'execution_process',
+  'build_target'
 ]);
 const PRIVATE_PATH = /(?:^|[\s"'(])(?:\/Users\/|\/home\/[A-Za-z0-9._-]+\/|\/private\/|\/var\/folders\/|[A-Za-z]:\\)/u;
 

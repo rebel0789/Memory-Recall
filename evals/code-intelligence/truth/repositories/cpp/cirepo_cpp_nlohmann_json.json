@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_cpp_nlohmann_from_json", "language": "cpp",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_cpp_nlohmann_json@722c03495f9978eb727f480b6ea0742f652e06a9#include/nlohmann/detail" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "unmeasured", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_json_arithmetic_value", "semanticKey": "node:function:get-arithmetic-value", "capability": "types", "expectation": "present", "recordKind": "node", "kind": "function", "name": "get_arithmetic_value", "qualifiedName": "conversions/from_json.hpp::from_json::get_arithmetic_value", "locator": "workspace://conversions/from_json.hpp#L78-L108" },
+    { "id": "cititem_json_tuple_get", "semanticKey": "node:function:from-json-tuple-get", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "from_json_tuple_get_impl", "qualifiedName": "conversions/from_json.hpp::from_json::from_json_tuple_get_impl", "locator": "workspace://conversions/from_json.hpp#L468-L471" },
+    { "id": "cititem_json_tuple_base", "semanticKey": "node:function:from-json-tuple-base", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "from_json_tuple_impl_base", "qualifiedName": "conversions/from_json.hpp::from_json::from_json_tuple_impl_base", "locator": "workspace://conversions/from_json.hpp#L491-L494" },
+    { "id": "cititem_json_defines_tuple_base", "semanticKey": "edge:defines:from-json:tuple-base", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "function", "name": "from_json", "locator": "workspace://conversions/from_json.hpp#L43-L617" }, "to": { "kind": "function", "name": "from_json_tuple_impl_base", "locator": "workspace://conversions/from_json.hpp#L491-L494" }, "locator": "workspace://conversions/from_json.hpp#L491-L494", "resolution": "exact" },
+    { "id": "cititem_json_call_tuple_get", "semanticKey": "edge:calls:tuple-base:tuple-get", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "function", "name": "from_json_tuple_impl_base", "locator": "workspace://conversions/from_json.hpp#L491-L494" }, "to": { "kind": "function", "name": "from_json_tuple_get_impl", "locator": "workspace://conversions/from_json.hpp#L468-L471" }, "locator": "workspace://conversions/from_json.hpp#L493-L493", "resolution": "inferred" }
+  ],
+  "truthFingerprint": "sha256:c310c2f482573c49f7e443190763808bd9f089911aaa10ad7b5c9325d8867e97"
+}

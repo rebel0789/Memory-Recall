@@ -56,10 +56,10 @@
     },
     "itemId": { "type": "string", "pattern": "^cititem_[a-z0-9_]{3,120}$" },
     "nodeKind": {
-      "enum": ["file", "package", "module", "namespace", "function", "method", "class", "interface", "struct", "enum", "trait", "protocol", "type_alias", "variable", "constant", "route", "configuration_resource", "framework_component", "execution_process"]
+      "enum": ["file", "package", "module", "library", "namespace", "function", "method", "class", "interface", "struct", "enum", "trait", "protocol", "mixin", "extension", "type_alias", "variable", "constant", "route", "configuration_resource", "framework_component", "execution_process", "build_target"]
     },
     "edgeKind": {
-      "enum": ["contains", "defines", "imports", "exports", "re_exports", "references", "calls", "constructs", "inherits", "implements", "extends", "handles_route", "reads", "writes", "emits", "listens", "depends_on", "member_of", "process_step"]
+      "enum": ["contains", "defines", "imports", "exports", "re_exports", "references", "calls", "constructs", "inherits", "implements", "extends", "mixes_in", "extends_type", "part_of", "entry_point", "handles_route", "reads", "writes", "emits", "listens", "depends_on", "member_of", "process_step"]
     },
     "resolution": { "enum": ["exact", "typed", "inferred", "lexical", "unresolved"] },
     "source": {

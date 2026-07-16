@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_c_libuv_fs_poll", "language": "c",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_c_libuv_libuv@2cadaa40167050baf7c6905ac897e6fb57afb2c6#src" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "unmeasured", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_libuv_poll_ctx", "semanticKey": "node:struct:poll-ctx", "capability": "types", "expectation": "present", "recordKind": "node", "kind": "struct", "name": "poll_ctx", "qualifiedName": "fs-poll.c::poll_ctx::poll_ctx", "locator": "workspace://fs-poll.c#L37-L49" },
+    { "id": "cititem_libuv_poll_init", "semanticKey": "node:function:uv-fs-poll-init", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "uv_fs_poll_init", "qualifiedName": "fs-poll.c::uv_fs_poll_init", "locator": "workspace://fs-poll.c#L59-L63" },
+    { "id": "cititem_libuv_poll_start", "semanticKey": "node:function:uv-fs-poll-start", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "uv_fs_poll_start", "qualifiedName": "fs-poll.c::uv_fs_poll_start", "locator": "workspace://fs-poll.c#L66-L113" },
+    { "id": "cititem_libuv_poll_stop", "semanticKey": "node:function:uv-fs-poll-stop", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "function", "name": "uv_fs_poll_stop", "qualifiedName": "fs-poll.c::uv_fs_poll_stop", "locator": "workspace://fs-poll.c#L116-L135" },
+    { "id": "cititem_libuv_defines_start", "semanticKey": "edge:defines:fs-poll:start", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "module", "name": "fs_poll", "locator": "workspace://fs-poll.c#L1-L291" }, "to": { "kind": "function", "name": "uv_fs_poll_start", "locator": "workspace://fs-poll.c#L66-L113" }, "locator": "workspace://fs-poll.c#L66-L113", "resolution": "exact" },
+    { "id": "cititem_libuv_call_handle_start", "semanticKey": "edge:calls:poll-start:handle-start", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "function", "name": "uv_fs_poll_start", "locator": "workspace://fs-poll.c#L66-L113" }, "to": { "kind": "function", "name": "uv__handle_start", "locator": "workspace://fs-poll.c#L106-L106" }, "locator": "workspace://fs-poll.c#L106-L106", "resolution": "unresolved" }
+  ],
+  "truthFingerprint": "sha256:8d1f319af68a62f27f9dd69f9e7fe8adc5f57a8f83c97bc6b099f4f835126506"
+}
