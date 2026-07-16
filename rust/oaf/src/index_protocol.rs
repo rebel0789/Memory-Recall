@@ -546,6 +546,7 @@ fn read_index(
     let mut summary = None;
     let mut omitted_count = 0;
     let mut results = Vec::new();
+    let mut relationships = Vec::new();
     let mut next_cursor = None;
     if path.is_file()
         && matches!(
@@ -563,7 +564,7 @@ fn read_index(
             if elapsed >= request.deadline_ms {
                 bail!("source_index_query_timeout");
             }
-            (results, next_cursor) = execute_query(
+            (results, relationships, next_cursor) = execute_query(
                 &index,
                 arguments,
                 request.deadline_ms.saturating_sub(elapsed),
@@ -572,7 +573,7 @@ fn read_index(
     } else if query.is_some() {
         bail!("source_index_query_unavailable");
     }
-    Ok(success_frame(
+    let mut response = success_frame(
         &request.request_id,
         if doctor {
             "index.doctor"
@@ -604,7 +605,11 @@ fn read_index(
             .iter()
             .map(|code| json!({ "code": code, "count": 1 }))
             .collect(),
-    ))
+    );
+    if query.is_some() {
+        response["result"]["relationships"] = Value::Array(relationships);
+    }
+    Ok(response)
 }
 
 fn build_generation(
@@ -775,35 +780,60 @@ fn execute_query(
     index: &SourceIndex,
     arguments: &QueryArguments,
     deadline_ms: u64,
-) -> Result<(Vec<Value>, Option<String>)> {
+) -> Result<(Vec<Value>, Vec<Value>, Option<String>)> {
     let mut bounds = QueryBounds::new(arguments.limit).with_depth(arguments.depth.unwrap_or(1));
     bounds.timeout_ms = deadline_ms.min(2_000);
     if let Some(cursor) = arguments.cursor.as_deref() {
         bounds.cursor = Some(format!("cinode_{}", &cursor[7..]));
     }
     match arguments.kind.as_str() {
-        "summary" => Ok((Vec::new(), None)),
+        "summary" => Ok((Vec::new(), Vec::new(), None)),
         "exact" => {
             let query = query_seed(arguments)?;
             let page = index.find_exact_nodes(query, &bounds)?;
             let next = page.next_cursor.as_deref().and_then(node_cursor);
-            Ok((nodes_to_results(page.items, index)?, next))
+            Ok((nodes_to_results(page.items, index)?, Vec::new(), next))
         }
         "search" => {
             let query = query_seed(arguments)?;
             let page = index.find_nodes(query, &bounds)?;
             let next = page.next_cursor.as_deref().and_then(node_cursor);
-            Ok((nodes_to_results(page.items, index)?, next))
+            Ok((nodes_to_results(page.items, index)?, Vec::new(), next))
         }
         "routes" => {
             let page = index.nodes_by_kind("route", &bounds)?;
             let next = page.next_cursor.as_deref().and_then(node_cursor);
-            Ok((nodes_to_results(page.items, index)?, next))
+            let mut relationships = BTreeMap::new();
+            for route in &page.items {
+                let remaining = bounds.limit.saturating_sub(relationships.len());
+                if remaining == 0 {
+                    break;
+                }
+                let edges = index.dependency_edges(
+                    &route.canonical_id,
+                    EdgeDirection::Both,
+                    &query_bounds_without_cursor(&bounds, remaining),
+                )?;
+                for edge in edges.items {
+                    if matches!(edge.kind.as_str(), "entry_point" | "handles_route") {
+                        relationships.insert(edge.canonical_id.clone(), edge);
+                    }
+                }
+            }
+            Ok((
+                nodes_to_results(page.items, index)?,
+                edges_to_results(relationships.into_values().collect(), index)?,
+                next,
+            ))
         }
         "neighborhood" => {
             let seed = find_seed(index, arguments, &bounds)?;
             let graph = index.neighborhood(&seed.canonical_id, &bounds)?;
-            Ok((nodes_to_results(graph.nodes, index)?, None))
+            Ok((
+                nodes_to_results(graph.nodes, index)?,
+                edges_to_results(graph.edges, index)?,
+                None,
+            ))
         }
         "dependencies" | "impact" => {
             let seed = find_seed(index, arguments, &bounds)?;
@@ -817,7 +847,11 @@ fn execute_query(
                 }
             };
             let graph = index.dependency_neighborhood(&seed.canonical_id, direction, &bounds)?;
-            Ok((nodes_to_results(graph.nodes, index)?, None))
+            Ok((
+                nodes_to_results(graph.nodes, index)?,
+                edges_to_results(graph.edges, index)?,
+                None,
+            ))
         }
         "trace" => {
             let from = find_seed(index, arguments, &bounds)?;
@@ -833,15 +867,22 @@ fn execute_query(
                 .context("source_index_trace_target_not_found")?;
             let routes = index.trace_routes(&from.canonical_id, &target.canonical_id, &bounds)?;
             let mut nodes = BTreeMap::new();
+            let mut edges = BTreeMap::new();
             for route in routes {
                 for node_id in route.node_ids {
                     if let Some(node) = index.node(&node_id)? {
                         nodes.insert(node.canonical_id.clone(), node);
                     }
                 }
+                for edge_id in route.edge_ids {
+                    if let Some(edge) = index.edge(&edge_id)? {
+                        edges.insert(edge.canonical_id.clone(), edge);
+                    }
+                }
             }
             Ok((
-                nodes_to_results(nodes.into_values().collect(), index)?,
+                nodes_to_results(nodes.into_values().take(bounds.limit).collect(), index)?,
+                edges_to_results(edges.into_values().take(bounds.limit).collect(), index)?,
                 None,
             ))
         }
@@ -902,6 +943,36 @@ fn nodes_to_results(nodes: Vec<NodeRecord>, index: &SourceIndex) -> Result<Vec<V
                 "locator": node.locator,
                 "confidence": 1.0,
                 "generation": generation,
+            })
+        })
+        .collect())
+}
+
+fn edges_to_results(edges: Vec<oaf_index::EdgeRecord>, index: &SourceIndex) -> Result<Vec<Value>> {
+    let generation = index
+        .active_generation()
+        .context("source_index_active_generation_missing")?;
+    Ok(edges
+        .into_iter()
+        .filter(|edge| {
+            valid_edge_id(&edge.canonical_id)
+                && valid_node_id(&edge.source_id)
+                && valid_node_id(&edge.target_id)
+                && valid_locator(&edge.locator)
+        })
+        .map(|edge| {
+            json!({
+                "id": edge.canonical_id,
+                "kind": safe_code(&edge.kind),
+                "fromNodeId": edge.source_id,
+                "toNodeId": edge.target_id,
+                "locator": edge.locator,
+                "confidence": edge.confidence,
+                "resolution": safe_code(&edge.resolution_class),
+                "resolver": safe_code(&edge.resolver),
+                "resolverVersion": edge.resolver_version,
+                "generation": generation,
+                "stale": edge.stale,
             })
         })
         .collect())
@@ -1119,6 +1190,10 @@ fn node_cursor(value: &str) -> Option<String> {
 
 fn valid_node_id(value: &str) -> bool {
     valid_prefixed_hex(value, "cinode_")
+}
+
+fn valid_edge_id(value: &str) -> bool {
+    valid_prefixed_hex(value, "ciedge_")
 }
 
 fn valid_hash(value: &str) -> bool {
@@ -1468,6 +1543,16 @@ mod tests {
             .unwrap()
             .iter()
             .any(|item| item["label"].as_str().unwrap().contains("leaf")));
+        let relationships = depth_one["result"]["relationships"].as_array().unwrap();
+        assert_eq!(relationships.len(), 1);
+        assert_eq!(relationships[0]["kind"], "calls");
+        assert_eq!(relationships[0]["confidence"], 0.75);
+        assert_eq!(relationships[0]["resolution"], "inferred");
+        assert_eq!(relationships[0]["stale"], false);
+        assert!(relationships[0]["locator"]
+            .as_str()
+            .unwrap()
+            .starts_with("workspace://src/index.ts#L"));
 
         let depth_two = execute_request(
             parse_request(request(

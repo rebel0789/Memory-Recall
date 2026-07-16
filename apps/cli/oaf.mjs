@@ -106,8 +106,10 @@ const SEMANTIC_RESULT_MAX_BYTES = 256 * 1024;
 const SECRET_LIKE = /\b(?:authorization\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|(?:Bearer|Basic|Digest|Token)\s+[^\s"'`,;)]+|[^\s"'`,;)]+)|(?:api[_-]?key|token|secret|password)\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s"'`,;)]+))/iu;
 const PRIVATE_LOCAL_PATH = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)|\/home\/[A-Za-z0-9._-]+(?:\/|$)|\/private(?:\/|$)|\/var\/folders(?:\/|$)|[A-Za-z]:\\)/u;
 const AUTO_DETECTED_SECRET_PATH = /(^|\/)(?:\.env(?:[./_-]|$)|secrets?(?:[./_-]|$)|credentials?(?:[./_-]|$)|id_rsa(?:[./_-]|$)|id_ed25519(?:[./_-]|$)|[^/]+\.(?:pem|key|p12|pfx|crt|cert)$)/iu;
-const MCP_PRIVATE_MATERIAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
-const MCP_PRIVATE_MATERIAL_GLOBAL = /(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*|sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
+const MCP_PRIVATE_PATH = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*)/u;
+const MCP_PRIVATE_PATH_GLOBAL = /(?:^|[\s"'`(])(?:\/Users(?:\/|$)[^\s"',;]*|\/home\/[A-Za-z0-9._-]+(?:\/|$)[^\s"',;]*|[A-Za-z]:\\[^\s"',;]*)/gu;
+const MCP_SECRET_MATERIAL = /(?:sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/iu;
+const MCP_SECRET_MATERIAL_GLOBAL = /(?:sk-[A-Za-z0-9_-]{12,}|OPENAI_API_KEY|AKIA[0-9A-Z]{16}|gh[opsu]_[A-Za-z0-9_]{12,}|(?:token|secret|password|api[_-]?key)\s*[=:]\s*[^\s"',;]+)/giu;
 const MEMORY_BATCH_UNSAFE_TEXT = /(?:^|[\s('"`])\/(?:[A-Za-z0-9._-]+\/)+[^\s)'"<>]+|file:\/\/|[A-Za-z]:\\|\n|\r/iu;
 const MEMORY_BATCH_CONFIDENCES = new Set(['extracted', 'inferred', 'ambiguous']);
 const REALQA_QUERY_STOPWORDS = new Set(['what', 'which', 'who', 'where', 'when', 'why', 'how', 'is', 'the', 'a', 'an', 'by', 'does', 'do', 'for', 'to', 'of', 'provider', 'default', 'implements']);
@@ -1884,21 +1886,21 @@ async function normalizeMemoryBatchFact(root, input) {
 function safeMemoryBatchToken(value, name) {
   const text = String(value ?? '').trim();
   if (!/^[A-Za-z0-9:_-]{1,128}$/u.test(text)) throw new Error(`${name} must be safe`);
-  if (MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error(`${name} must be safe`);
+  if (mcpContainsPrivateMaterial(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error(`${name} must be safe`);
   return text;
 }
 
 function safeMemoryBatchObject(value) {
   const text = String(value ?? '').trim().replace(/[.;:,]+$/u, '').trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9:_./ =,;()'-]{0,239}$/u.test(text)) throw new Error('object must be safe');
-  if (MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('object must be safe');
+  if (mcpContainsPrivateMaterial(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('object must be safe');
   return text;
 }
 
 function safeMemoryBatchNotes(value) {
   const text = String(value ?? '').trim();
   if (!text || text.length > 500) throw new Error('notes must be safe');
-  if (/[\n\r]/u.test(text) || MCP_PRIVATE_MATERIAL.test(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('notes must be safe');
+  if (/[\n\r]/u.test(text) || mcpContainsPrivateMaterial(text) || MEMORY_BATCH_UNSAFE_TEXT.test(text)) throw new Error('notes must be safe');
   return text;
 }
 
@@ -6840,6 +6842,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
               query,
               selected: selected.results[0] ? nativeStructuralNode(selected.results[0]) : null,
               related: neighborhood.results.map(nativeStructuralNode),
+              relationships: (neighborhood.relationships ?? []).map(nativeStructuralRelationship),
               source: nativeIndexSource(neighborhood)
             }
           }));
@@ -6880,7 +6883,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           const result = await nativeQuery('dependencies', { query: symbol, direction, depth, limit });
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.trace', workspaceId, generatedAt: fixedNow(),
-            data: { symbol, direction, depth, nodes: result.results.filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralNode), source: nativeIndexSource(result) }
+            data: { symbol, direction, depth, nodes: result.results.filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralNode), relationships: (result.relationships ?? []).filter((item) => !locatorPrefix || item.locator.startsWith(locatorPrefix)).map(nativeStructuralRelationship), source: nativeIndexSource(result) }
           }));
         }
         const intelligence = await loadIntelligence();
@@ -6917,7 +6920,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           const result = await nativeQuery('dependencies', { query, direction, depth, limit });
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
-            data: { query, direction, depth, nodes: result.results.map(nativeStructuralNode), source: nativeIndexSource(result) }
+            data: { query, direction, depth, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship), source: nativeIndexSource(result) }
           }));
         }
         const intelligence = await loadIntelligence();
@@ -6951,7 +6954,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             .map(nativeStructuralNode);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.routes', workspaceId, generatedAt: fixedNow(),
-            data: { query, routes, source: nativeIndexSource(result) }
+            data: { query, routes, relationships: (result.relationships ?? []).map(nativeStructuralRelationship), source: nativeIndexSource(result) }
           }));
         }
         const intelligence = await loadIntelligence();
@@ -6988,7 +6991,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           const impact = [];
           for (const locator of changedLocators) {
             const result = await nativeQuery('impact', { query: locator, limit, depth: 2 });
-            impact.push({ locator, nodes: result.results.map(nativeStructuralNode) });
+            impact.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship) });
           }
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'repo.map', workspaceId, generatedAt: fixedNow(),
@@ -7035,7 +7038,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           const results = [];
           for (const locator of changedLocators) {
             const result = await nativeQuery('impact', { query: locator, depth, limit });
-            results.push({ locator, nodes: result.results.map(nativeStructuralNode) });
+            results.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship) });
           }
           const status = await nativeStatus();
           return mcpToolJsonResult(mcpStructuralPayload({
@@ -7232,7 +7235,7 @@ function mcpMapArguments(args, allowedKeys, toolName) {
 
 function mcpMapClient(value) {
   if (value === undefined || value === null) return;
-  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,80}$/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{1,80}$/u.test(value) || mcpContainsPrivateMaterial(value)) {
     throw new Error('repo.map client is invalid');
   }
 }
@@ -7245,7 +7248,7 @@ function mcpMapChangedLocators(value, { required }) {
   if (!Array.isArray(value) || value.length > 16 || (required && !value.length)) throw new Error('mcp map changed locators are invalid');
   if (!value.length) return [];
   const locators = value.map((item) => {
-    if (typeof item !== 'string' || item.length > 512 || MCP_PRIVATE_MATERIAL.test(item)) {
+    if (typeof item !== 'string' || item.length > 512 || mcpContainsPrivateMaterial(item)) {
       throw new Error('mcp map changed locators are invalid');
     }
     try {
@@ -7259,7 +7262,7 @@ function mcpMapChangedLocators(value, { required }) {
 
 function mcpMapQuery(value) {
   if (value === undefined || value === null) return '';
-  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || mcpContainsPrivateMaterial(value)) {
     throw new Error('repo.map query is invalid');
   }
   return value.trim();
@@ -7278,7 +7281,7 @@ function mcpStructuralString(value, name, { required, max }) {
     if (required) throw new Error(`${name} is invalid`);
     return '';
   }
-  if (typeof value !== 'string' || value.length > max || /[\0\r\n]/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+  if (typeof value !== 'string' || value.length > max || /[\0\r\n]/u.test(value) || mcpContainsPrivateMaterial(value)) {
     throw new Error(`${name} is invalid`);
   }
   const normalized = value.trim();
@@ -7302,7 +7305,7 @@ function mcpStructuralDirection(value) {
 
 function mcpStructuralLocatorPrefix(value) {
   if (value === undefined || value === null || value === '') return null;
-  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || mcpContainsPrivateMaterial(value)) {
     throw new Error('mcp locator prefix is invalid');
   }
   try {
@@ -7849,15 +7852,24 @@ function mcpBoundedInteger(value, fallback, { min, max }) {
   return Math.max(min, Math.min(max, parsed));
 }
 
+function mcpContainsPrivateMaterial(value) {
+  return MCP_PRIVATE_PATH.test(value) || MCP_SECRET_MATERIAL.test(value);
+}
+
 function mcpSanitizeString(value, maxLength = 240) {
-  const text = String(value ?? '').replace(MCP_PRIVATE_MATERIAL_GLOBAL, '[redacted]').normalize('NFKC').replace(/\s+/gu, ' ').trim();
+  const text = String(value ?? '')
+    .replace(MCP_PRIVATE_PATH_GLOBAL, '[redacted]')
+    .replace(MCP_SECRET_MATERIAL_GLOBAL, '[redacted]')
+    .normalize('NFKC')
+    .replace(/\s+/gu, ' ')
+    .trim();
   return text.slice(0, maxLength);
 }
 
 function mcpSafeLocator(value) {
   const raw = String(value ?? '');
   if (!raw) return null;
-  if (MCP_PRIVATE_MATERIAL.test(raw) || raw.startsWith('file:')) return fingerprintJson(raw);
+  if (mcpContainsPrivateMaterial(raw) || raw.startsWith('file:')) return fingerprintJson(raw);
   return mcpSanitizeString(raw, 240);
 }
 
@@ -7925,6 +7937,22 @@ function nativeStructuralNode(item) {
     locator: item.locator,
     confidence: item.confidence,
     generation: item.generation
+  };
+}
+
+function nativeStructuralRelationship(item) {
+  return {
+    id: item.id,
+    kind: item.kind,
+    fromNodeId: item.fromNodeId,
+    toNodeId: item.toNodeId,
+    locator: item.locator,
+    confidence: item.confidence,
+    resolution: item.resolution,
+    resolver: item.resolver,
+    resolverVersion: item.resolverVersion,
+    generation: item.generation,
+    stale: item.stale
   };
 }
 
@@ -8235,7 +8263,7 @@ function mcpToolJsonResult(payload) {
 }
 
 function mcpToolTextResult(text) {
-  if (MCP_PRIVATE_MATERIAL.test(text)) throw new Error('mcp tool output contains private material');
+  if (mcpContainsPrivateMaterial(text)) throw new Error('mcp tool output contains private material');
   return { content: [{ type: 'text', text }] };
 }
 
@@ -10891,7 +10919,7 @@ function cleanDecisionObject(value) {
     .replace(/[.;:,]+$/u, '')
     .trim()
     .slice(0, 240);
-  if (!object || MCP_PRIVATE_MATERIAL.test(object)) return null;
+  if (!object || mcpContainsPrivateMaterial(object)) return null;
   return object;
 }
 

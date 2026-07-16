@@ -83,6 +83,13 @@ test('source index response contract rejects source bodies, local paths, raw dat
     ...reader,
     result: {
       ...reader.result,
+      relationships: [{ ...reader.result.relationships[0], locator: '/Users/example/repository/src/private.ts' }]
+    }
+  }).valid, false);
+  assert.equal(validateJsonSchema(schema, {
+    ...reader,
+    result: {
+      ...reader.result,
       diagnostics: [{ code: 'index_corrupt', count: 1, detail: 'database disk image is malformed' }]
     }
   }).valid, false);

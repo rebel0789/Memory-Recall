@@ -113,14 +113,17 @@ test('structural MCP tools reject unsafe and unbounded arguments', () => {
   const input = [
     { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
     { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.trace', arguments: { symbol: 'entry', direction: 'sideways', depth: 9 } } },
-    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'entry', locatorPrefix: '../outside', limit: 500 } } }
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'entry', locatorPrefix: '../outside', limit: 500 } } },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'code.search', arguments: { query: '/Users/rebel/private.ts' } } }
   ].map((message) => JSON.stringify(message)).join('\n');
   const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], { encoding: 'utf8', input });
   assert.equal(result.status, 0, result.stderr);
   const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
   assert(responses.find((entry) => entry.id === 2).error);
   assert(responses.find((entry) => entry.id === 3).error);
+  assert(responses.find((entry) => entry.id === 4).error);
   assert.equal(result.stdout.includes('../outside'), false);
+  assert.equal(result.stdout.includes('/Users/rebel'), false);
 });
 
 test('MCP structural tools reuse a persistent index without mutating it', () => {
@@ -148,12 +151,14 @@ test('MCP structural tools reuse a persistent index without mutating it', () => 
 test('explicit native-preview MCP reads the prebuilt SQLite index without rebuilding or mutating it', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-native-index-'));
   mkdirSync(path.join(root, 'src'), { recursive: true });
+  mkdirSync(path.join(root, 'app', 'api', 'users'), { recursive: true });
   mkdirSync(path.join(root, '.local'), { recursive: true });
   writeFileSync(path.join(root, 'src', 'index.ts'), [
     'export function main(){ return helper(); }',
     'export function helper(){ return 1; }'
   ].join('\n'));
   writeFileSync(path.join(root, 'src', 'worker.py'), 'def worker():\n    return 1\n');
+  writeFileSync(path.join(root, 'app', 'api', 'users', 'route.ts'), 'export function GET(){ return { ok: true }; }\n');
   const memoryPath = path.join(root, '.local', 'memory.sqlite');
   writeFileSync(memoryPath, 'governed-memory-sentinel');
   const env = {
@@ -191,7 +196,7 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   assert.deepEqual(responses.find((entry) => entry.id === 2).result.tools.map((tool) => tool.name).sort(), EXPECTED_TOOLS);
   for (let id = 3; id <= 11; id += 1) {
     const response = responses.find((entry) => entry.id === id);
-    assert.equal(response.error, undefined, JSON.stringify(response.error));
+    assert.equal(response.error, undefined, `tool response ${id}: ${JSON.stringify(response.error)}`);
     const payload = JSON.parse(response.result.content[0].text);
     assert.equal(payload.safeguards.readOnly, true);
     assert.equal(payload.safeguards.localFilesWritten, 0);
@@ -200,6 +205,10 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     assert.equal(source.kind, 'native-persistent-index-preview');
   }
   assert(JSON.parse(responses.find((entry) => entry.id === 5).result.content[0].text).data.results.some((item) => item.label === 'main'));
+  assert(JSON.parse(responses.find((entry) => entry.id === 6).result.content[0].text).data.relationships.some((item) => item.kind === 'calls' && item.confidence > 0));
+  const routes = JSON.parse(responses.find((entry) => entry.id === 9).result.content[0].text).data;
+  assert(routes.routes.some((item) => item.locator.includes('app/api/users/route.ts')));
+  assert(routes.relationships.some((item) => item.kind === 'handles_route' && item.confidence > 0));
   assert.deepEqual(readFileSync(indexPath), indexBefore);
   assert.equal(statSync(indexPath).mtimeMs, indexMtimeBefore);
   assert.deepEqual(readFileSync(memoryPath), memoryBefore);

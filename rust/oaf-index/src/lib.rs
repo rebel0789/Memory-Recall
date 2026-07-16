@@ -651,6 +651,21 @@ impl SourceIndex {
         self.node_by_id(generation_id, node_id)
     }
 
+    pub fn edge(&self, edge_id: &str) -> Result<Option<EdgeRecord>> {
+        validate_identifier(edge_id)?;
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(None);
+        };
+        self.connection
+            .query_row(
+                "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND canonical_id = ?2",
+                params![generation_id, edge_id],
+                row_to_edge,
+            )
+            .optional()
+            .context("source_index_edge_query_failed")
+    }
+
     pub fn nodes_by_kind(&self, kind: &str, bounds: &QueryBounds) -> Result<QueryPage<NodeRecord>> {
         validate_query_bounds(bounds)?;
         validate_token(kind, "source_index_node_kind_invalid")?;

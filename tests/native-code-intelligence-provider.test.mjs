@@ -16,7 +16,7 @@ async function workspace(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-provider-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, 'src'), { recursive: true });
-  await writeFile(path.join(root, 'src', 'index.ts'), 'export function main(){ return 1; }\n');
+  await writeFile(path.join(root, 'src', 'index.ts'), 'export function main(){ return helper(); }\nexport function helper(){ return 1; }\n');
   return root;
 }
 
@@ -150,10 +150,20 @@ test('native provider owns the bounded source-index lifecycle without mutating r
     query: 'mai',
     limit: 10
   });
+  const dependencies = await instance.queryIndex({
+    root,
+    workspaceId: 'ws_local',
+    kind: 'dependencies',
+    query: 'main',
+    direction: 'outbound',
+    depth: 1,
+    limit: 10
+  });
   assert.equal(status.state, 'ready');
   assert.equal(doctor.health.status, 'ready');
   assert(query.results.some((item) => item.label === 'main'));
   assert(search.results.some((item) => item.label === 'main'));
+  assert(dependencies.relationships.some((item) => item.kind === 'calls' && item.confidence > 0));
   assert.deepEqual(await indexSnapshot(indexPath), beforeReaders);
 
   const unchanged = await instance.refreshIndex({

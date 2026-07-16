@@ -10,7 +10,6 @@
   "arguments": {
     "kind": "neighborhood",
     "query": "UserController",
-    "direction": "both",
     "depth": 2,
     "limit": 25
   }

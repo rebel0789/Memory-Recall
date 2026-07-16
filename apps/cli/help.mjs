@@ -265,10 +265,11 @@ Options for read commands:
 Graph read commands return bounded locator-only stats, search, trace, or
 changed-file impact reports. The JS/TS engine remains the default. Native
 preview is explicit and fails clearly when its verified binary is unavailable;
-compatibility mode runs both engines and does not claim parity. Index writes are explicit.
-The default JS index stores structural metadata under .local/source-graph. The
-explicit native preview stores its versioned SQLite index under .local/source-index and
-  raw source bodies are not included. MCP reads the index but never builds or refreshes it.
+compatibility mode runs both engines and does not claim parity. Index writes are
+explicit. The default JS index stores structural metadata under .local/source-graph.
+The explicit native preview stores its versioned SQLite index under
+.local/source-index. Both indexes store metadata only; raw source bodies are not included.
+MCP reads the index but never builds or refreshes it.
 No graph command makes model or network calls.`],
     ['context handoff', `Memory Recall CLI: context handoff
 
