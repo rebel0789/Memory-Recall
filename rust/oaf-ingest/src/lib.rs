@@ -40,11 +40,117 @@ impl IngestOptions {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct IngestFileHash {
     pub source: String,
     pub sha256: String,
     pub bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct IngestFileRename {
+    pub from_source: String,
+    pub to_source: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct IngestFileHashDiff {
+    pub added: Vec<IngestFileHash>,
+    pub changed: Vec<IngestFileHash>,
+    pub deleted: Vec<String>,
+    pub renamed: Vec<IngestFileRename>,
+    pub unchanged_count: usize,
+}
+
+pub fn diff_file_hashes(
+    previous: &[IngestFileHash],
+    current: &[IngestFileHash],
+) -> Result<IngestFileHashDiff> {
+    let previous = unique_hashes_by_source(previous)?;
+    let current = unique_hashes_by_source(current)?;
+    let mut added = current
+        .iter()
+        .filter(|(source, _)| !previous.contains_key(*source))
+        .map(|(_, value)| (*value).clone())
+        .collect::<Vec<_>>();
+    let mut deleted = previous
+        .keys()
+        .filter(|source| !current.contains_key(*source))
+        .map(|source| (*source).clone())
+        .collect::<Vec<_>>();
+    let changed = current
+        .iter()
+        .filter(|(source, value)| {
+            previous
+                .get(*source)
+                .is_some_and(|old| old.sha256 != value.sha256 || old.bytes != value.bytes)
+        })
+        .map(|(_, value)| (*value).clone())
+        .collect::<Vec<_>>();
+    let unchanged_count = current
+        .iter()
+        .filter(|(source, value)| {
+            previous
+                .get(*source)
+                .is_some_and(|old| old.sha256 == value.sha256 && old.bytes == value.bytes)
+        })
+        .count();
+    let mut added_by_hash = BTreeMap::<&str, Vec<&str>>::new();
+    let mut deleted_by_hash = BTreeMap::<&str, Vec<&str>>::new();
+    for file in &added {
+        added_by_hash
+            .entry(&file.sha256)
+            .or_default()
+            .push(&file.source);
+    }
+    for source in &deleted {
+        deleted_by_hash
+            .entry(&previous[source].sha256)
+            .or_default()
+            .push(source);
+    }
+    let mut renamed = added_by_hash
+        .into_iter()
+        .filter_map(|(hash, destinations)| {
+            let sources = deleted_by_hash.get(hash)?;
+            (destinations.len() == 1 && sources.len() == 1).then(|| IngestFileRename {
+                from_source: sources[0].to_string(),
+                to_source: destinations[0].to_string(),
+            })
+        })
+        .collect::<Vec<_>>();
+    renamed.sort_by(|left, right| left.from_source.cmp(&right.from_source));
+    let renamed_from = renamed
+        .iter()
+        .map(|item| item.from_source.as_str())
+        .collect::<BTreeSet<_>>();
+    let renamed_to = renamed
+        .iter()
+        .map(|item| item.to_source.as_str())
+        .collect::<BTreeSet<_>>();
+    added.retain(|file| !renamed_to.contains(file.source.as_str()));
+    deleted.retain(|source| !renamed_from.contains(source.as_str()));
+    Ok(IngestFileHashDiff {
+        added,
+        changed,
+        deleted,
+        renamed,
+        unchanged_count,
+    })
+}
+
+fn unique_hashes_by_source(values: &[IngestFileHash]) -> Result<BTreeMap<String, &IngestFileHash>> {
+    let mut output = BTreeMap::new();
+    for value in values {
+        if value.source.is_empty()
+            || value.sha256.len() != 64
+            || !value.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+            || output.insert(value.source.clone(), value).is_some()
+        {
+            bail!("ingest_file_hash_diff_invalid");
+        }
+    }
+    Ok(output)
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, Ord, PartialOrd)]

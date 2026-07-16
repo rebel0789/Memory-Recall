@@ -137,19 +137,19 @@ Commit: `feat: persist normalized code intelligence generations`
 - Modify: `rust/oaf/src/code_intelligence.rs`
 - Add mixed-language incremental fixtures and tests
 
-- [ ] **Step 1: Write add/change/delete/rename/no-change tests**
+- [x] **Step 1: Write add/change/delete/rename/no-change tests**
 
 Cover same-size same-mtime content changes, file rename, directory rename, ignore-rule changes, branch-like replacement, malformed changed files, and deleted dependency targets.
 
-- [ ] **Step 2: Build a deterministic invalidation closure**
+- [x] **Step 2: Build a deterministic invalidation closure**
 
 Start with changed file owners; include direct importers, callers with typed/exact targets, heritage dependents, re-exporters, route owners, and config/package dependents. Bound traversal and report omissions.
 
-- [ ] **Step 3: Reparse and re-resolve only affected scope**
+- [x] **Step 3: Reparse and re-resolve only affected scope**
 
 Reuse unchanged file records. Remove deleted ownership records. Preserve repository-level partial coverage if one file fails. A no-change refresh returns the current generation and performs no writer transaction.
 
-- [ ] **Step 4: Prove incremental equals clean rebuild**
+- [x] **Step 4: Prove incremental equals clean rebuild**
 
 For mixed-language fixtures and selected pinned repositories, compare canonical nodes, edges, unresolved records, coverage, and structural fingerprint after incremental refresh versus a clean build.
 

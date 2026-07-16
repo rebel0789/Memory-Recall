@@ -1166,4 +1166,46 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
+    #[test]
+    fn file_hash_diff_uses_content_and_detects_only_unambiguous_renames() {
+        let hash = |source: &str, sha256: &str, bytes: u64| IngestFileHash {
+            source: source.to_string(),
+            sha256: sha256.repeat(64),
+            bytes,
+        };
+        let previous = vec![
+            hash("workspace://same.ts", "a", 100),
+            hash("workspace://changed.ts", "b", 100),
+            hash("workspace://old.ts", "c", 50),
+            hash("workspace://deleted.ts", "d", 25),
+        ];
+        let current = vec![
+            hash("workspace://same.ts", "a", 100),
+            hash("workspace://changed.ts", "e", 100),
+            hash("workspace://renamed.ts", "c", 50),
+            hash("workspace://added.ts", "f", 10),
+        ];
+
+        let diff = diff_file_hashes(&previous, &current).unwrap();
+        assert_eq!(diff.unchanged_count, 1);
+        assert_eq!(
+            diff.changed
+                .iter()
+                .map(|file| file.source.as_str())
+                .collect::<Vec<_>>(),
+            ["workspace://changed.ts"]
+        );
+        assert_eq!(diff.deleted, ["workspace://deleted.ts"]);
+        assert_eq!(
+            diff.added
+                .iter()
+                .map(|file| file.source.as_str())
+                .collect::<Vec<_>>(),
+            ["workspace://added.ts"]
+        );
+        assert_eq!(diff.renamed.len(), 1);
+        assert_eq!(diff.renamed[0].from_source, "workspace://old.ts");
+        assert_eq!(diff.renamed[0].to_source, "workspace://renamed.ts");
+    }
+
 }

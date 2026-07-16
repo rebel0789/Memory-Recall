@@ -1,7 +1,10 @@
 #[cfg(test)]
 mod tests {
     use super::*;
-    use oaf_index::{SourceIndex, SourceIndexOptions};
+    use oaf_index::{
+        normalized_generation_fingerprint, select_generation_files, DiscoveredFile,
+        RefreshBounds, SourceIndex, SourceIndexOptions,
+    };
     use std::fs;
 
     fn valid_request() -> Value {
@@ -1190,5 +1193,253 @@ mod tests {
         }
 
         fs::remove_dir_all(scratch).unwrap();
+    }
+
+    #[test]
+    fn mixed_language_incremental_refresh_matches_clean_graph_and_reparses_only_affected_files() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-incremental-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("util.ts"),
+            "export function target(): string { return 'one'; }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("app.ts"),
+            "import { target } from './util';\nexport function run(): string { return target(); }\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("unrelated.py"),
+            "def unrelated():\n    return 'stable'\n",
+        )
+        .unwrap();
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["typescript", "python"]);
+        let request = parse_request(&request_value).unwrap();
+        let base_graph = build_graph_at_root(&request, "1.1.1", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let base = index_generation_from_graph(&base_graph, &root).unwrap();
+        let options = SourceIndexOptions::new(
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "1.1.1",
+        );
+        let path = root.join("index/index.sqlite");
+        let mut index = SourceIndex::open(&path, &options).unwrap();
+        index.commit_generation(&base).unwrap();
+
+        fs::write(
+            root.join("util.ts"),
+            "export function target(): string { return 'two'; }\n",
+        )
+        .unwrap();
+        let clean_graph = build_graph_at_root(&request, "1.1.1", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let clean = index_generation_from_graph(&clean_graph, &root).unwrap();
+        let current = clean
+            .files
+            .iter()
+            .map(|file| DiscoveredFile {
+                locator: file.locator.clone(),
+                content_hash: file.content_hash.clone(),
+                byte_size: file.byte_size,
+            })
+            .collect::<Vec<_>>();
+        let plan = index
+            .plan_refresh(&current, None, &RefreshBounds::default())
+            .unwrap();
+        assert_eq!(
+            plan.invalidated_files,
+            ["workspace://app.ts", "workspace://util.ts"]
+        );
+        assert!(!plan
+            .invalidated_files
+            .contains(&"workspace://unrelated.py".to_string()));
+
+        let invalidated = plan
+            .invalidated_files
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let mut partial_options = IngestOptions::new(&root);
+        partial_options.only_sources = Some(invalidated.clone());
+        let partial_report = extract_repo(&partial_options).unwrap();
+        assert_eq!(partial_report.parsed_file_count, 2);
+
+        let replacement = select_generation_files(&clean, &invalidated);
+        index.commit_incremental(&plan, &replacement).unwrap();
+        let loaded = index.load_active_generation().unwrap().unwrap().input;
+        let expected_fingerprint = normalized_generation_fingerprint(&clean).unwrap();
+        assert_eq!(loaded.structural_fingerprint, expected_fingerprint);
+        assert_eq!(
+            normalized_generation_fingerprint(&loaded).unwrap(),
+            expected_fingerprint
+        );
+        assert!(loaded
+            .nodes
+            .iter()
+            .any(|node| node.locator.starts_with("workspace://unrelated.py")));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn selected_pinned_repositories_incremental_refresh_matches_clean_rebuild() {
+        let Ok(specification) = std::env::var("MEMORY_RECALL_PINNED_INCREMENTAL_ROOTS") else {
+            return;
+        };
+        for entry in specification
+            .split(';')
+            .filter(|entry| !entry.is_empty())
+        {
+            let (language, source_root) = entry
+                .split_once('=')
+                .expect("pinned root must use language=/absolute/path");
+            let source_root = std::path::PathBuf::from(source_root)
+                .canonicalize()
+                .unwrap();
+            let scratch = std::env::temp_dir().join(format!(
+                "memory-recall-pinned-incremental-{language}-{}",
+                std::process::id()
+            ));
+            let _ = fs::remove_dir_all(&scratch);
+            fs::create_dir_all(&scratch).unwrap();
+            let hashes = discover_file_hashes(&IngestOptions::new(&source_root)).unwrap();
+            assert!(!hashes.is_empty(), "{language}: no supported files");
+            for item in hashes.iter().take(250) {
+                let relative = item.source.strip_prefix("workspace://").unwrap();
+                let destination = scratch.join(relative);
+                fs::create_dir_all(destination.parent().unwrap()).unwrap();
+                fs::copy(source_root.join(relative), destination).unwrap();
+            }
+            let mut request_value = valid_request();
+            request_value["arguments"]["languages"] = json!([language]);
+            request_value["arguments"]["maxFiles"] = json!(500);
+            let request = parse_request(&request_value).unwrap();
+            let base_graph = build_graph_at_root(&request, "1.1.1", &scratch, Instant::now())
+                .unwrap()
+                .graph;
+            let base = index_generation_from_graph(&base_graph, &scratch).unwrap();
+            assert!(!base.nodes.is_empty(), "{language}: no nodes");
+            let options = SourceIndexOptions::new(
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "1.1.1",
+            );
+            let path = scratch.join(".local/index.sqlite");
+            let mut index = SourceIndex::open(&path, &options).unwrap();
+            index.commit_generation(&base).unwrap();
+
+            let changed = base
+                .files
+                .iter()
+                .find(|file| file.parse_state == "parsed")
+                .unwrap()
+                .locator
+                .strip_prefix("workspace://")
+                .unwrap()
+                .to_string();
+            use std::io::Write as _;
+            writeln!(
+                fs::OpenOptions::new()
+                    .append(true)
+                    .open(scratch.join(&changed))
+                    .unwrap()
+            )
+            .unwrap();
+
+            let clean_graph = build_graph_at_root(&request, "1.1.1", &scratch, Instant::now())
+                .unwrap()
+                .graph;
+            let clean = index_generation_from_graph(&clean_graph, &scratch).unwrap();
+            let current = clean
+                .files
+                .iter()
+                .map(|file| DiscoveredFile {
+                    locator: file.locator.clone(),
+                    content_hash: file.content_hash.clone(),
+                    byte_size: file.byte_size,
+                })
+                .collect::<Vec<_>>();
+            let plan = index
+                .plan_refresh(&current, None, &RefreshBounds::default())
+                .unwrap();
+            assert!(!plan.invalidated_files.is_empty(), "{language}: no invalidation");
+            let invalidated = plan
+                .invalidated_files
+                .iter()
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            let mut partial_options = IngestOptions::new(&scratch);
+            partial_options.only_sources = Some(invalidated.clone());
+            let partial = extract_repo(&partial_options).unwrap();
+            assert!(
+                partial.parsed_file_count <= invalidated.len(),
+                "{language}: reparsed outside invalidation"
+            );
+            let replacement = select_generation_files(&clean, &invalidated);
+            index.commit_incremental(&plan, &replacement).unwrap();
+            let loaded = index.load_active_generation().unwrap().unwrap().input;
+            let mut expected = clean.clone();
+            expected.structural_fingerprint = loaded.structural_fingerprint.clone();
+            expected
+                .files
+                .sort_by(|left, right| left.locator.cmp(&right.locator));
+            expected
+                .nodes
+                .sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+            expected
+                .edges
+                .sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+            expected
+                .unresolved
+                .sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+            expected.coverage.sort_by(|left, right| {
+                left.language
+                    .cmp(&right.language)
+                    .then_with(|| left.capability.cmp(&right.capability))
+            });
+            expected
+                .diagnostics
+                .sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+            assert_eq!(loaded.reason, expected.reason, "{language}: reason");
+            assert_eq!(loaded.created_at, expected.created_at, "{language}: created_at");
+            assert_eq!(
+                loaded.ignore_fingerprint, expected.ignore_fingerprint,
+                "{language}: ignore fingerprint"
+            );
+            assert_eq!(loaded.files.len(), expected.files.len(), "{language}: files");
+            assert_eq!(loaded.nodes.len(), expected.nodes.len(), "{language}: nodes");
+            assert_eq!(loaded.edges.len(), expected.edges.len(), "{language}: edges");
+            for (position, (left, right)) in loaded.files.iter().zip(&expected.files).enumerate() {
+                assert_eq!(left, right, "{language}: file record {position}");
+            }
+            for (position, (left, right)) in loaded.nodes.iter().zip(&expected.nodes).enumerate() {
+                assert_eq!(left, right, "{language}: node record {position}");
+            }
+            for (position, (left, right)) in loaded.edges.iter().zip(&expected.edges).enumerate() {
+                assert_eq!(left, right, "{language}: edge record {position}");
+            }
+            assert_eq!(
+                loaded.unresolved, expected.unresolved,
+                "{language}: unresolved"
+            );
+            assert_eq!(loaded.coverage, expected.coverage, "{language}: coverage");
+            assert_eq!(
+                loaded.diagnostics, expected.diagnostics,
+                "{language}: diagnostics"
+            );
+            assert_eq!(
+                normalized_generation_fingerprint(&loaded).unwrap(),
+                normalized_generation_fingerprint(&clean).unwrap(),
+                "{language}: incremental graph differs from clean rebuild"
+            );
+            fs::remove_dir_all(scratch).unwrap();
+        }
     }
 }

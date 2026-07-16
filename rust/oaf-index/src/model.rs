@@ -79,12 +79,62 @@ pub struct GenerationInput {
     pub reason: String,
     pub created_at: String,
     pub structural_fingerprint: String,
+    pub ignore_fingerprint: Option<String>,
     pub files: Vec<FileRecord>,
     pub nodes: Vec<NodeRecord>,
     pub edges: Vec<EdgeRecord>,
     pub unresolved: Vec<UnresolvedRecord>,
     pub coverage: Vec<CoverageRecord>,
     pub diagnostics: Vec<DiagnosticRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DiscoveredFile {
+    pub locator: String,
+    pub content_hash: String,
+    pub byte_size: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FileRename {
+    pub from_locator: String,
+    pub to_locator: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RefreshBounds {
+    pub max_depth: usize,
+    pub max_invalidated_files: usize,
+}
+
+impl Default for RefreshBounds {
+    fn default() -> Self {
+        Self {
+            max_depth: 8,
+            max_invalidated_files: 10_000,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RefreshPlan {
+    pub added_files: Vec<String>,
+    pub changed_files: Vec<String>,
+    pub deleted_files: Vec<String>,
+    pub renamed_files: Vec<FileRename>,
+    pub invalidated_files: Vec<String>,
+    pub unchanged_file_count: usize,
+    pub ignore_rules_changed: bool,
+    pub truncated: bool,
+    pub no_change: bool,
+    pub reason_codes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RefreshCommit {
+    pub summary: GenerationSummary,
+    pub wrote: bool,
+    pub invalidated_file_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -100,6 +150,7 @@ pub struct GenerationSummary {
     pub unresolved_count: i64,
     pub diagnostic_count: i64,
     pub structural_fingerprint: String,
+    pub ignore_fingerprint: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

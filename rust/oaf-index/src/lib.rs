@@ -39,7 +39,8 @@ CREATE TABLE index_generations (
   edge_count INTEGER NOT NULL DEFAULT 0,
   unresolved_count INTEGER NOT NULL DEFAULT 0,
   diagnostic_count INTEGER NOT NULL DEFAULT 0,
-  structural_fingerprint TEXT
+  structural_fingerprint TEXT,
+  ignore_fingerprint TEXT
 ) STRICT;
 CREATE TABLE index_files (
   generation_id INTEGER NOT NULL REFERENCES index_generations(id) ON DELETE CASCADE,
@@ -254,8 +255,8 @@ impl SourceIndex {
             |row| row.get::<_, i64>(0),
         )?;
         transaction.execute(
-            "INSERT INTO index_generations (id, parent_id, state, reason, created_at, structural_fingerprint) VALUES (?1, ?2, 'staging', ?3, ?4, ?5)",
-            params![generation_id, parent_id, input.reason, input.created_at, input.structural_fingerprint],
+            "INSERT INTO index_generations (id, parent_id, state, reason, created_at, structural_fingerprint, ignore_fingerprint) VALUES (?1, ?2, 'staging', ?3, ?4, ?5, ?6)",
+            params![generation_id, parent_id, input.reason, input.created_at, input.structural_fingerprint, input.ignore_fingerprint],
         )?;
         insert_generation_records(&transaction, generation_id, input)?;
         let committed_at = timestamp_token();
@@ -269,8 +270,8 @@ impl SourceIndex {
             params![generation_id, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count],
         )?;
         transaction.execute(
-            "UPDATE index_metadata SET active_generation = ?1, updated_at = ?2 WHERE singleton = 1",
-            params![generation_id, committed_at],
+            "UPDATE index_metadata SET active_generation = ?1, ignore_fingerprint = ?2, updated_at = ?3 WHERE singleton = 1",
+            params![generation_id, input.ignore_fingerprint, committed_at],
         )?;
         transaction.execute(
             "UPDATE index_health SET integrity_status = 'ready', interrupted_generation = NULL, last_successful_refresh_at = ?1, repair_reason_code = NULL, updated_at = ?1 WHERE singleton = 1",
@@ -297,6 +298,7 @@ impl SourceIndex {
             unresolved_count,
             diagnostic_count,
             structural_fingerprint: input.structural_fingerprint.clone(),
+            ignore_fingerprint: input.ignore_fingerprint.clone(),
         })
     }
 
@@ -305,7 +307,7 @@ impl SourceIndex {
             bail!("source_index_query_limit_invalid");
         }
         let mut statement = self.connection.prepare(
-            "SELECT id, parent_id, reason, created_at, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count, structural_fingerprint FROM index_generations WHERE state = 'committed' ORDER BY id DESC LIMIT ?1",
+            "SELECT id, parent_id, reason, created_at, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count, structural_fingerprint, ignore_fingerprint FROM index_generations WHERE state = 'committed' ORDER BY id DESC LIMIT ?1",
         )?;
         let summaries = statement
             .query_map([count_i64(limit)?], row_to_summary)?
@@ -322,12 +324,184 @@ impl SourceIndex {
 
     pub fn load_generation(&self, generation_id: i64) -> Result<StoredGeneration> {
         let summary = self.connection.query_row(
-            "SELECT id, parent_id, reason, created_at, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count, structural_fingerprint FROM index_generations WHERE id = ?1 AND state = 'committed'",
+            "SELECT id, parent_id, reason, created_at, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count, structural_fingerprint, ignore_fingerprint FROM index_generations WHERE id = ?1 AND state = 'committed'",
             [generation_id],
             row_to_summary,
         ).context("source_index_generation_not_found")?;
         let input = load_generation_records(&self.connection, &summary)?;
         Ok(StoredGeneration { summary, input })
+    }
+
+    pub fn plan_refresh(
+        &self,
+        current_files: &[DiscoveredFile],
+        ignore_fingerprint: Option<&str>,
+        bounds: &RefreshBounds,
+    ) -> Result<RefreshPlan> {
+        validate_refresh_bounds(bounds)?;
+        if let Some(fingerprint) = ignore_fingerprint {
+            validate_hash(fingerprint)?;
+        }
+        let mut current = BTreeMap::new();
+        for file in current_files {
+            validate_locator(&file.locator)?;
+            validate_hash(&file.content_hash)?;
+            if file.byte_size < 0 || current.insert(file.locator.clone(), file).is_some() {
+                bail!("source_index_refresh_discovery_invalid");
+            }
+        }
+        let Some(active) = self.load_active_generation()? else {
+            let added_files = current.keys().cloned().collect::<Vec<_>>();
+            return Ok(RefreshPlan {
+                invalidated_files: added_files.clone(),
+                added_files,
+                changed_files: Vec::new(),
+                deleted_files: Vec::new(),
+                renamed_files: Vec::new(),
+                unchanged_file_count: 0,
+                ignore_rules_changed: ignore_fingerprint.is_some(),
+                truncated: false,
+                no_change: false,
+                reason_codes: vec!["source_index_initial_build".to_string()],
+            });
+        };
+        let previous = active
+            .input
+            .files
+            .iter()
+            .map(|file| (file.locator.clone(), file))
+            .collect::<BTreeMap<_, _>>();
+        let mut added = current
+            .keys()
+            .filter(|locator| !previous.contains_key(*locator))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let mut deleted = previous
+            .keys()
+            .filter(|locator| !current.contains_key(*locator))
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let changed = current
+            .iter()
+            .filter(|(locator, file)| {
+                previous.get(*locator).is_some_and(|old| {
+                    old.content_hash != file.content_hash || old.byte_size != file.byte_size
+                })
+            })
+            .map(|(locator, _)| locator.clone())
+            .collect::<BTreeSet<_>>();
+        let unchanged_file_count = current
+            .iter()
+            .filter(|(locator, file)| {
+                previous.get(*locator).is_some_and(|old| {
+                    old.content_hash == file.content_hash && old.byte_size == file.byte_size
+                })
+            })
+            .count();
+        let renamed_files = detect_renames(&previous, &current, &added, &deleted);
+        for rename in &renamed_files {
+            added.remove(&rename.to_locator);
+            deleted.remove(&rename.from_locator);
+        }
+        let ignore_rules_changed = active.input.ignore_fingerprint.as_deref() != ignore_fingerprint;
+        let no_change = added.is_empty()
+            && deleted.is_empty()
+            && changed.is_empty()
+            && renamed_files.is_empty()
+            && !ignore_rules_changed;
+        if no_change {
+            return Ok(RefreshPlan {
+                added_files: Vec::new(),
+                changed_files: Vec::new(),
+                deleted_files: Vec::new(),
+                renamed_files: Vec::new(),
+                invalidated_files: Vec::new(),
+                unchanged_file_count,
+                ignore_rules_changed: false,
+                truncated: false,
+                no_change: true,
+                reason_codes: vec!["source_index_no_change".to_string()],
+            });
+        }
+        let mut seed_files = changed.clone();
+        seed_files.extend(deleted.iter().cloned());
+        seed_files.extend(
+            renamed_files
+                .iter()
+                .map(|rename| rename.from_locator.clone()),
+        );
+        let (mut invalidated, mut truncated) = if ignore_rules_changed {
+            (current.keys().cloned().collect::<BTreeSet<_>>(), false)
+        } else {
+            invalidation_closure(&active.input, &seed_files, bounds)
+        };
+        invalidated.extend(added.iter().cloned());
+        invalidated.extend(renamed_files.iter().map(|rename| rename.to_locator.clone()));
+        invalidated.retain(|locator| current.contains_key(locator));
+        if invalidated.len() > bounds.max_invalidated_files {
+            invalidated = invalidated
+                .into_iter()
+                .take(bounds.max_invalidated_files)
+                .collect();
+            truncated = true;
+        }
+        let mut reason_codes = Vec::new();
+        for (present, code) in [
+            (!changed.is_empty(), "source_index_content_changed"),
+            (!added.is_empty(), "source_index_files_added"),
+            (!deleted.is_empty(), "source_index_files_deleted"),
+            (!renamed_files.is_empty(), "source_index_files_renamed"),
+            (ignore_rules_changed, "source_index_ignore_rules_changed"),
+            (truncated, "source_index_invalidation_truncated"),
+        ] {
+            if present {
+                reason_codes.push(code.to_string());
+            }
+        }
+        Ok(RefreshPlan {
+            added_files: added.into_iter().collect(),
+            changed_files: changed.into_iter().collect(),
+            deleted_files: deleted.into_iter().collect(),
+            renamed_files,
+            invalidated_files: invalidated.into_iter().collect(),
+            unchanged_file_count,
+            ignore_rules_changed,
+            truncated,
+            no_change: false,
+            reason_codes,
+        })
+    }
+
+    pub fn commit_incremental(
+        &mut self,
+        plan: &RefreshPlan,
+        replacement: &GenerationInput,
+    ) -> Result<RefreshCommit> {
+        if plan.no_change {
+            let summary = self
+                .generation_summaries(1)?
+                .into_iter()
+                .next()
+                .context("source_index_active_generation_missing")?;
+            return Ok(RefreshCommit {
+                summary,
+                wrote: false,
+                invalidated_file_count: 0,
+            });
+        }
+        if plan.truncated {
+            bail!("source_index_refresh_plan_truncated");
+        }
+        let active = self
+            .load_active_generation()?
+            .context("source_index_active_generation_missing")?;
+        let merged = merge_incremental_generation(&active.input, replacement, plan)?;
+        let summary = self.commit_generation(&merged)?;
+        Ok(RefreshCommit {
+            summary,
+            wrote: true,
+            invalidated_file_count: plan.invalidated_files.len(),
+        })
     }
 
     pub fn find_nodes(&self, query: &str, bounds: &QueryBounds) -> Result<QueryPage<NodeRecord>> {
@@ -659,6 +833,7 @@ fn load_generation_records(
         reason: summary.reason.clone(),
         created_at: summary.created_at.clone(),
         structural_fingerprint: summary.structural_fingerprint.clone(),
+        ignore_fingerprint: summary.ignore_fingerprint.clone(),
         files,
         nodes,
         edges,
@@ -698,6 +873,7 @@ fn row_to_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<GenerationSummary
         unresolved_count: row.get(8)?,
         diagnostic_count: row.get(9)?,
         structural_fingerprint: row.get(10)?,
+        ignore_fingerprint: row.get(11)?,
     })
 }
 
@@ -765,12 +941,292 @@ impl CursorRecord for EdgeRecord {
     }
 }
 
+pub fn normalized_generation_fingerprint(input: &GenerationInput) -> Result<String> {
+    let mut normalized = input.clone();
+    normalize_generation_records(&mut normalized);
+    let structural = serde_json::json!({
+        "ignoreFingerprint": normalized.ignore_fingerprint,
+        "files": normalized.files,
+        "nodes": normalized.nodes,
+        "edges": normalized.edges,
+        "unresolved": normalized.unresolved,
+        "coverage": normalized.coverage,
+        "diagnostics": normalized.diagnostics,
+    });
+    Ok(format!(
+        "sha256:{}",
+        hex::encode(Sha256::digest(serde_json::to_vec(&structural)?))
+    ))
+}
+
+pub fn select_generation_files(
+    input: &GenerationInput,
+    locators: &BTreeSet<String>,
+) -> GenerationInput {
+    let node_ids = input
+        .nodes
+        .iter()
+        .filter(|node| locators.contains(locator_file(&node.locator)))
+        .map(|node| node.canonical_id.clone())
+        .collect::<BTreeSet<_>>();
+    GenerationInput {
+        reason: input.reason.clone(),
+        created_at: input.created_at.clone(),
+        structural_fingerprint: input.structural_fingerprint.clone(),
+        ignore_fingerprint: input.ignore_fingerprint.clone(),
+        files: input
+            .files
+            .iter()
+            .filter(|file| locators.contains(&file.locator))
+            .cloned()
+            .collect(),
+        nodes: input
+            .nodes
+            .iter()
+            .filter(|node| node_ids.contains(&node.canonical_id))
+            .cloned()
+            .collect(),
+        edges: input
+            .edges
+            .iter()
+            .filter(|edge| node_ids.contains(&edge.source_id))
+            .cloned()
+            .collect(),
+        unresolved: input
+            .unresolved
+            .iter()
+            .filter(|item| node_ids.contains(&item.source_id))
+            .cloned()
+            .collect(),
+        coverage: input.coverage.clone(),
+        diagnostics: input
+            .diagnostics
+            .iter()
+            .filter(|item| locators.contains(locator_file(&item.locator)))
+            .cloned()
+            .collect(),
+    }
+}
+
+pub fn merge_incremental_generation(
+    active: &GenerationInput,
+    replacement: &GenerationInput,
+    plan: &RefreshPlan,
+) -> Result<GenerationInput> {
+    let mut removed_files = plan
+        .invalidated_files
+        .iter()
+        .chain(plan.deleted_files.iter())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    removed_files.extend(
+        plan.renamed_files
+            .iter()
+            .map(|rename| rename.from_locator.clone()),
+    );
+    let removed_nodes = active
+        .nodes
+        .iter()
+        .filter(|node| removed_files.contains(locator_file(&node.locator)))
+        .map(|node| node.canonical_id.clone())
+        .collect::<BTreeSet<_>>();
+    let mut merged = GenerationInput {
+        reason: replacement.reason.clone(),
+        created_at: replacement.created_at.clone(),
+        structural_fingerprint: replacement.structural_fingerprint.clone(),
+        ignore_fingerprint: replacement.ignore_fingerprint.clone(),
+        files: active
+            .files
+            .iter()
+            .filter(|file| !removed_files.contains(&file.locator))
+            .cloned()
+            .chain(replacement.files.iter().cloned())
+            .collect(),
+        nodes: active
+            .nodes
+            .iter()
+            .filter(|node| !removed_nodes.contains(&node.canonical_id))
+            .cloned()
+            .chain(replacement.nodes.iter().cloned())
+            .collect(),
+        edges: active
+            .edges
+            .iter()
+            .filter(|edge| {
+                !removed_nodes.contains(&edge.source_id)
+                    && !removed_files.contains(locator_file(&edge.locator))
+            })
+            .cloned()
+            .chain(replacement.edges.iter().cloned())
+            .collect(),
+        unresolved: active
+            .unresolved
+            .iter()
+            .filter(|item| {
+                !removed_nodes.contains(&item.source_id)
+                    && !removed_files.contains(locator_file(&item.locator))
+            })
+            .cloned()
+            .chain(replacement.unresolved.iter().cloned())
+            .collect(),
+        coverage: if replacement.coverage.is_empty() {
+            active.coverage.clone()
+        } else {
+            replacement.coverage.clone()
+        },
+        diagnostics: active
+            .diagnostics
+            .iter()
+            .filter(|item| !removed_files.contains(locator_file(&item.locator)))
+            .cloned()
+            .chain(replacement.diagnostics.iter().cloned())
+            .collect(),
+    };
+    let final_nodes = merged
+        .nodes
+        .iter()
+        .map(|node| node.canonical_id.as_str())
+        .collect::<BTreeSet<_>>();
+    merged.edges.retain(|edge| {
+        final_nodes.contains(edge.source_id.as_str())
+            && final_nodes.contains(edge.target_id.as_str())
+    });
+    normalize_generation_records(&mut merged);
+    merged.structural_fingerprint = normalized_generation_fingerprint(&merged)?;
+    validate_generation(&merged)?;
+    Ok(merged)
+}
+
+fn normalize_generation_records(input: &mut GenerationInput) {
+    input
+        .files
+        .sort_by(|left, right| left.locator.cmp(&right.locator));
+    input
+        .nodes
+        .sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+    input
+        .edges
+        .sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+    input
+        .unresolved
+        .sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+    input.coverage.sort_by(|left, right| {
+        left.language
+            .cmp(&right.language)
+            .then_with(|| left.capability.cmp(&right.capability))
+    });
+    input
+        .diagnostics
+        .sort_by(|left, right| left.canonical_id.cmp(&right.canonical_id));
+}
+
+fn detect_renames(
+    previous: &BTreeMap<String, &FileRecord>,
+    current: &BTreeMap<String, &DiscoveredFile>,
+    added: &BTreeSet<String>,
+    deleted: &BTreeSet<String>,
+) -> Vec<FileRename> {
+    let mut added_by_hash = BTreeMap::<&str, Vec<&str>>::new();
+    let mut deleted_by_hash = BTreeMap::<&str, Vec<&str>>::new();
+    for locator in added {
+        added_by_hash
+            .entry(current[locator].content_hash.as_str())
+            .or_default()
+            .push(locator);
+    }
+    for locator in deleted {
+        deleted_by_hash
+            .entry(previous[locator].content_hash.as_str())
+            .or_default()
+            .push(locator);
+    }
+    let mut renames = added_by_hash
+        .into_iter()
+        .filter_map(|(hash, added_locators)| {
+            let deleted_locators = deleted_by_hash.get(hash)?;
+            (added_locators.len() == 1 && deleted_locators.len() == 1).then(|| FileRename {
+                from_locator: deleted_locators[0].to_string(),
+                to_locator: added_locators[0].to_string(),
+            })
+        })
+        .collect::<Vec<_>>();
+    renames.sort_by(|left, right| left.from_locator.cmp(&right.from_locator));
+    renames
+}
+
+fn invalidation_closure(
+    generation: &GenerationInput,
+    seed_files: &BTreeSet<String>,
+    bounds: &RefreshBounds,
+) -> (BTreeSet<String>, bool) {
+    let file_by_node = generation
+        .nodes
+        .iter()
+        .map(|node| {
+            (
+                node.canonical_id.as_str(),
+                locator_file(&node.locator).to_string(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut invalidated = seed_files.clone();
+    let mut frontier = file_by_node
+        .iter()
+        .filter(|(_, locator)| seed_files.contains(*locator))
+        .map(|(node_id, _)| (*node_id).to_string())
+        .collect::<BTreeSet<_>>();
+    let mut truncated = false;
+    for _ in 0..bounds.max_depth {
+        let mut next = BTreeSet::new();
+        for edge in &generation.edges {
+            if !frontier.contains(&edge.target_id) || !invalidation_edge(edge) {
+                continue;
+            }
+            let Some(locator) = file_by_node.get(edge.source_id.as_str()) else {
+                continue;
+            };
+            if invalidated.insert(locator.clone()) {
+                if invalidated.len() >= bounds.max_invalidated_files {
+                    truncated = true;
+                    return (invalidated, truncated);
+                }
+                next.insert(edge.source_id.clone());
+            }
+        }
+        if next.is_empty() {
+            break;
+        }
+        frontier = next;
+    }
+    (invalidated, truncated)
+}
+
+fn invalidation_edge(edge: &EdgeRecord) -> bool {
+    match edge.kind.as_str() {
+        "calls" => matches!(edge.resolution_class.as_str(), "typed" | "exact"),
+        "imports" | "exports" | "re_exports" | "inherits" | "extends" | "implements"
+        | "mixes_in" | "extends_type" | "depends_on" | "part_of" | "entry_point"
+        | "handles_route" | "process_step" | "constructs" | "references" => true,
+        _ => false,
+    }
+}
+
+fn validate_refresh_bounds(bounds: &RefreshBounds) -> Result<()> {
+    if bounds.max_depth > 8 || !(1..=100_000).contains(&bounds.max_invalidated_files) {
+        bail!("source_index_refresh_bounds_invalid");
+    }
+    Ok(())
+}
+
 fn validate_generation(input: &GenerationInput) -> Result<()> {
     validate_token(&input.reason, "source_index_generation_reason_invalid")?;
     if input.created_at.is_empty() || input.created_at.len() > 64 {
         bail!("source_index_generation_timestamp_invalid");
     }
     validate_hash(&input.structural_fingerprint)?;
+    if let Some(fingerprint) = &input.ignore_fingerprint {
+        validate_hash(fingerprint)?;
+    }
     let mut files = BTreeSet::new();
     for record in &input.files {
         validate_locator(&record.locator)?;

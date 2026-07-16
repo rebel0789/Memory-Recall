@@ -19,6 +19,7 @@ fn sample_generation(fingerprint: &str, suffix: &str) -> GenerationInput {
         reason: "test_build".into(),
         created_at: "2026-07-16T00:00:00.000Z".into(),
         structural_fingerprint: fingerprint.into(),
+        ignore_fingerprint: None,
         files: vec![FileRecord {
             locator: file.clone(),
             content_hash: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

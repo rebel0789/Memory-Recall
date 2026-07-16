@@ -606,6 +606,7 @@ fn index_generation_from_graph(graph: &Value, root: &std::path::Path) -> Result<
         reason: "graph_build".to_string(),
         created_at: json_string(&graph["generation"], "builtAt")?,
         structural_fingerprint: json_string(graph, "graphFingerprint")?,
+        ignore_fingerprint: None,
         files,
         nodes,
         edges,
