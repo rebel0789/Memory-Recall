@@ -24,3 +24,142 @@ jobs:
       - run: node scripts/rust-intelligence-quality.mjs
       - run: node scripts/rust-distribution-quality.mjs
       - run: node scripts/rust-eval.mjs
+
+  native-artifacts:
+    name: Native artifact (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-15
+            binary: rust/target/release/oaf
+            platform: darwin
+            arch: arm64
+            libc: ''
+          - target: darwin-x64
+            runner: macos-15-intel
+            binary: rust/target/release/oaf
+            platform: darwin
+            arch: x64
+            libc: ''
+          - target: linux-arm64-gnu
+            runner: ubuntu-22.04-arm
+            binary: rust/target/release/oaf
+            platform: linux
+            arch: arm64
+            libc: glibc
+          - target: linux-x64-gnu
+            runner: ubuntu-22.04
+            binary: rust/target/release/oaf
+            platform: linux
+            arch: x64
+            libc: glibc
+          - target: win32-x64
+            runner: windows-2025
+            binary: rust/target/release/oaf.exe
+            platform: win32
+            arch: x64
+            libc: ''
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Verify native runner identity
+        env:
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: node -e "const assert=require('node:assert/strict'); assert.equal(process.platform, process.env.EXPECTED_PLATFORM); assert.equal(process.arch, process.env.EXPECTED_ARCH);"
+      - name: Build locked release binary
+        shell: bash
+        run: cargo build --locked --release --manifest-path rust/Cargo.toml --package oaf
+      - name: Stage unsigned platform package
+        shell: bash
+        run: |
+          node -e "require('fs').mkdirSync('output', { recursive: true })"
+          node scripts/package-native-platform.mjs \
+            --target '${{ matrix.target }}' \
+            --binary '${{ matrix.binary }}' \
+            --out output/native-packages \
+            > output/native-package-report.json
+      - name: Verify packed platform package
+        shell: bash
+        env:
+          EXPECTED_TARGET: ${{ matrix.target }}
+          EXPECTED_PLATFORM: ${{ matrix.platform }}
+          EXPECTED_ARCH: ${{ matrix.arch }}
+          EXPECTED_LIBC: ${{ matrix.libc }}
+        run: |
+          TARBALL="$(node -p "JSON.parse(require('fs').readFileSync('output/native-package-report.json', 'utf8')).tarball")"
+          npm install --prefix output/verify "$TARBALL" --ignore-scripts --no-audit --no-fund
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          import { spawnSync } from 'node:child_process';
+          import { readdirSync, readFileSync, statSync } from 'node:fs';
+          import path from 'node:path';
+
+          const report = JSON.parse(readFileSync('output/native-package-report.json', 'utf8'));
+          assert.equal(report.target, process.env.EXPECTED_TARGET);
+          assert.equal(report.entryCount, 5);
+          assert.equal(statSync(report.tarball).isFile(), true);
+
+          const packageRoot = path.join('output', 'verify', 'node_modules', ...report.packageName.split('/'));
+          const packageJson = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+          const manifest = JSON.parse(readFileSync(path.join(packageRoot, 'native-manifest.json'), 'utf8'));
+          assert.equal(packageJson.name, report.packageName);
+          assert.equal(packageJson.version, report.version);
+          assert.deepEqual(packageJson.os, [process.env.EXPECTED_PLATFORM]);
+          assert.deepEqual(packageJson.cpu, [process.env.EXPECTED_ARCH]);
+          assert.deepEqual(packageJson.libc ?? [], process.env.EXPECTED_LIBC ? [process.env.EXPECTED_LIBC] : []);
+          assert.deepEqual(Object.keys(manifest).sort(), [
+            'binary', 'packageName', 'packageVersion', 'schemaVersion', 'sha256', 'target'
+          ]);
+          assert.equal(manifest.schemaVersion, '1.0.0');
+          assert.equal(manifest.packageName, report.packageName);
+          assert.equal(manifest.packageVersion, report.version);
+          assert.equal(manifest.target, process.env.EXPECTED_TARGET);
+
+          const binary = path.join(packageRoot, manifest.binary);
+          const checksum = `sha256:${createHash('sha256').update(readFileSync(binary)).digest('hex')}`;
+          assert.equal(manifest.sha256, checksum);
+          assert.equal(report.binarySha256, checksum);
+          const version = spawnSync(binary, ['--version'], { encoding: 'utf8', windowsHide: true });
+          assert.equal(version.status, 0, version.stderr || version.error?.message);
+          assert.equal(version.stdout.trim(), `oaf ${report.version}`);
+
+          const files = [];
+          const walk = (directory, relative = '') => {
+            for (const entry of readdirSync(directory, { withFileTypes: true })) {
+              const next = relative ? `${relative}/${entry.name}` : entry.name;
+              if (entry.isDirectory()) walk(path.join(directory, entry.name), next);
+              else files.push(next);
+            }
+          };
+          walk(packageRoot);
+          assert.deepEqual(files.sort(), [
+            'LICENSE', 'NOTICE', manifest.binary, 'native-manifest.json', 'package.json'
+          ].sort());
+          NODE
+      - name: Record Linux ABI baseline
+        if: ${{ matrix.platform == 'linux' }}
+        shell: bash
+        run: |
+          ldd --version
+          file '${{ matrix.binary }}'
+      - name: Verify exact artifact in installed consumer
+        shell: bash
+        run: |
+          export MEMORY_RECALL_NATIVE_PACKAGE_TARBALL="$(node -p "JSON.parse(require('fs').readFileSync('output/native-package-report.json', 'utf8')).tarball")"
+          node scripts/native-code-intelligence-consumer-smoke.mjs
+      - name: Upload unsigned native package
+        uses: actions/upload-artifact@v6
+        with:
+          name: memory-recall-native-${{ matrix.target }}-unsigned-${{ github.sha }}
+          path: output/native-packages/*.tgz
+          if-no-files-found: error
+          retention-days: 14
