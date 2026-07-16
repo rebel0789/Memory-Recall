@@ -11600,6 +11600,8 @@ async function readHomeFile(home, relativePath) {
 }
 
 async function writeHomeFileIfChanged({ home, relativePath, current, nextText, generatedAt, role }) {
+  const latest = await readHomeFile(home, relativePath);
+  if (fingerprintMcpConfigPreimage(latest) !== fingerprintMcpConfigPreimage(current)) throw new Error('home config changed after preflight; retry the command');
   if ((current.text ?? '') === nextText) return {
     role,
     target: `home://${toPosix(relativePath)}`,
@@ -11610,14 +11612,9 @@ async function writeHomeFileIfChanged({ home, relativePath, current, nextText, g
   };
   const { root, absolute } = await resolveHomePath(home, relativePath);
   await assertNoSymlinkAncestors(root, relativePath);
-  await mkdir(path.dirname(absolute), { recursive: true });
+  await mkdir(path.dirname(absolute), { recursive: true, mode: 0o700 });
   const backupRef = current.exists ? await writeHomeBackup({ home, relativePath, text: current.text, generatedAt }) : null;
-  const existing = await lstat(absolute).catch((error) => {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  });
-  if (existing?.isSymbolicLink()) throw new Error(`home config target is a symlink: ${relativePath}`);
-  await writeFile(absolute, nextText, 'utf8');
+  await writePrivateFileAtomic(absolute, nextText);
   return {
     role,
     target: `home://${toPosix(relativePath)}`,

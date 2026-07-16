@@ -2616,6 +2616,32 @@ test('connect preserves positional agent after boolean flags',()=>{
   assert.equal(existsSync(path.join(home,'.codex','config.toml')),false);
 });
 
+test('connect and disconnect write private configs and backups',()=>{
+  const home=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-connect-private-'));
+  const mcpPath=path.join(home,'.claude','mcp.json');
+  mkdirSync(path.dirname(mcpPath),{recursive:true});
+  writeFileSync(mcpPath,`${JSON.stringify({mcpServers:{neighbor:{command:'neighbor'}}},null,2)}\n`,{mode:0o644});
+  const env={...process.env,OAF_FIXED_NOW:'2026-06-24T00:00:00.000Z'};
+  const connected=spawnSync(process.execPath,['apps/cli/oaf.mjs','connect','claude-code','--yes','--home',home,'--format','json'],{encoding:'utf8',env});
+  assert.equal(connected.status,0,connected.stderr);
+  const connectedReport=JSON.parse(connected.stdout);
+  assert.equal(statSync(mcpPath).mode&0o777,0o600);
+  assert.equal(statSync(path.join(home,'.claude','settings.json')).mode&0o777,0o600);
+  const connectBackup=connectedReport.receipt.operations.find((item)=>item.role==='mcp').backupRef;
+  assert.equal(statSync(path.join(home,connectBackup.slice('home://'.length))).mode&0o777,0o600);
+
+  const disconnected=spawnSync(process.execPath,['apps/cli/oaf.mjs','disconnect','claude-code','--yes','--home',home,'--format','json'],{encoding:'utf8',env});
+  assert.equal(disconnected.status,0,disconnected.stderr);
+  const disconnectedReport=JSON.parse(disconnected.stdout);
+  assert.equal(statSync(mcpPath).mode&0o777,0o600);
+  for(const operation of disconnectedReport.receipt.operations.filter((item)=>item.backupRef)){
+    assert.equal(statSync(path.join(home,operation.backupRef.slice('home://'.length))).mode&0o777,0o600);
+  }
+  const config=JSON.parse(readFileSync(mcpPath,'utf8'));
+  assert.deepEqual(config.mcpServers.neighbor,{command:'neighbor'});
+  assert.equal(config.mcpServers.oaf,undefined);
+});
+
 test('connect validates hook config before writing MCP config',()=>{
   const home=mkdtempSync(path.join(os.tmpdir(),'oaf-cli-connect-hook-preflight-'));
   mkdirSync(path.join(home,'.codex'),{recursive:true});

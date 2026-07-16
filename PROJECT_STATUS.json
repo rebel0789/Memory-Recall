@@ -1164,7 +1164,7 @@
       "node scripts/code-intelligence-phase3-index.mjs --check",
       "node scripts/code-intelligence-phase4-intelligence.mjs --check"
     ],
-    "testsExpected": 779,
+    "testsExpected": 780,
     "protocolFixturesExpected": 208,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

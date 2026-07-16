@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- Hardened the existing `connect` and `disconnect` config writer with exact preflight rechecks, private atomic replacement, and `0600` config and backup files.
 - Default packaged benchmarks now use bundled fixtures unless the caller explicitly supplies `--dataset`, preventing same-named repository files from changing the package benchmark.
 - `recall serve` now forwards interrupt and termination signals to the Control API child process.
 - Raised the native provider output ceiling within its existing 10 MB hard maximum so valid 5,000-node engine responses do not fail on medium repositories.
