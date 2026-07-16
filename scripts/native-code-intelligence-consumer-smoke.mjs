@@ -1,42 +1,66 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 import graphSchema from '../packages/protocol/schemas/code-intelligence-graph.schema.json' with { type: 'json' };
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
+import { nativeTarget } from '../providers/native/code-intelligence-rust/src/binary-resolver.mjs';
+import { packageNativePlatform } from './package-native-platform.mjs';
 
 const root = process.cwd();
 const temp = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-consumer-'));
 const workspace = path.join(temp, 'workspace');
+const cliWorkspace = path.join(temp, 'cli-workspace');
 const home = path.join(temp, 'home');
 const npmCache = path.join(temp, 'npm-cache');
 const packDirectory = path.join(temp, 'pack');
 const prefix = path.join(temp, 'prefix');
+const runtimeBin = path.join(temp, 'runtime-bin');
 const nativeBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+const fixtureRoot = path.resolve('evals', 'code-intelligence', 'fixtures');
+const target = nativeTarget();
+const languages = Object.freeze([
+  'typescript', 'javascript', 'python', 'java', 'kotlin', 'csharp', 'go', 'rust',
+  'php', 'ruby', 'swift', 'c', 'cpp', 'dart'
+]);
+const rawSourceSentinel = 'RAW_SOURCE_SENTINEL_INSTALLED_CONSUMER_9f47c2';
+const governedMemory = path.join(workspace, '.local', 'memory.sqlite');
 
 try {
   must((await stat(nativeBinary)).isFile(), 'build the local release native engine before running this smoke');
-  await mkdir(path.join(workspace, 'src'), { recursive: true });
   await mkdir(home, { recursive: true });
   await mkdir(npmCache, { recursive: true });
   await mkdir(packDirectory, { recursive: true });
+  await mkdir(runtimeBin, { recursive: true });
+  await createPolyglotWorkspace();
+  await mkdir(path.join(cliWorkspace, 'src'), { recursive: true });
+  await writeFile(
+    path.join(cliWorkspace, 'src', 'index.ts'),
+    'export function launchSmoke(){ return helper(); }\nexport function helper(){ return "ready"; }\n'
+  );
+  await mkdir(path.dirname(governedMemory), { recursive: true });
+  await writeFile(governedMemory, 'governed-memory-sentinel');
   await writeFile(path.join(workspace, 'package.json'), `${JSON.stringify({ name: 'native-preview-consumer' }, null, 2)}\n`);
-  await writeFile(path.join(workspace, 'src', 'index.ts'), [
-    'export function launchSmoke(){ return helper(); }',
-    'export function helper(){ return "ready"; }',
-    ''
-  ].join('\n'));
 
-  const initialWorkspace = await treeFingerprint(workspace);
+  const initialSource = await treeFingerprint(path.join(workspace, 'languages'));
+  const initialCliSource = await treeFingerprint(cliWorkspace);
+  const initialMemory = await readFile(governedMemory);
+  const nativePackage = await packageNativePlatform({
+    target,
+    binaryPath: nativeBinary,
+    outDirectory: packDirectory,
+    root
+  });
   const [pack] = runJson('npm', ['pack', '--pack-destination', packDirectory, '--json'], { cwd: root });
   const packedPaths = new Set(pack.files.map((file) => file.path));
   for (const required of [
     'apps/cli/oaf.mjs',
     'providers/native/code-intelligence-rust/provider.json',
     'providers/native/code-intelligence-rust/src/index.mjs',
+    'providers/native/code-intelligence-rust/src/binary-resolver.mjs',
     'packages/source-graph/src/native-compatibility.mjs',
     'packages/protocol/schemas/code-intelligence-engine-request.schema.json',
     'packages/protocol/schemas/code-intelligence-engine-response.schema.json',
@@ -50,50 +74,114 @@ try {
   must(!packedPaths.has('scripts/native-code-intelligence-consumer-smoke.mjs'), 'package excludes checkout-only native consumer smoke');
 
   const tarball = path.join(packDirectory, pack.filename);
-  const { MEMORY_RECALL_NATIVE_BINARY: _ambientNativeBinary, ...ambientEnvironment } = process.env;
+  const {
+    MEMORY_RECALL_NATIVE_BINARY: _ambientNativeBinary,
+    MEMORY_RECALL_NATIVE_SHA256: _ambientNativeSha256,
+    ...ambientEnvironment
+  } = process.env;
   const installEnvironment = {
     ...ambientEnvironment,
     HOME: home,
     NPM_CONFIG_CACHE: npmCache
   };
   run('npm', [
-    'install', '-g', '--prefix', prefix, tarball,
+    'install', '-g', '--prefix', prefix, tarball, nativePackage.tarball,
     '--ignore-scripts', '--offline', '--no-audit', '--no-fund'
   ], { cwd: temp, env: installEnvironment });
 
   const recall = path.join(prefix, 'bin', process.platform === 'win32' ? 'recall.cmd' : 'recall');
-  const packageRoot = path.join(prefix, 'lib', 'node_modules', 'memory-recall');
+  must((await stat(recall)).isFile(), 'installed root package exposes the recall executable');
+  const installedModules = run('npm', ['root', '--global', '--prefix', prefix], {
+    cwd: temp,
+    env: installEnvironment
+  }).stdout.trim();
+  const packageRoot = path.join(installedModules, 'memory-recall');
+  const platformPackageRoot = path.join(installedModules, '@memory-recall', `native-${target}`);
   const isolatedEnvironment = {
     ...ambientEnvironment,
     HOME: home,
-    PATH: `${path.join(prefix, 'bin')}${path.delimiter}${ambientEnvironment.PATH ?? ''}`,
+    PATH: runtimeBin,
     OAF_FIXED_NOW: '2026-07-16T00:00:00.000Z'
-  };
-  const nativeEnvironment = {
-    ...isolatedEnvironment,
-    MEMORY_RECALL_NATIVE_BINARY: nativeBinary
   };
   const initialHome = await treeFingerprint(home);
   const initialPackage = await treeFingerprint(packageRoot);
+  const initialPlatformPackage = await treeFingerprint(platformPackageRoot);
 
   const providerUrl = pathToFileURL(path.join(packageRoot, 'providers', 'native', 'code-intelligence-rust', 'src', 'index.mjs')).href;
   const { RustCodeIntelligenceProvider } = await import(providerUrl);
-  const providerGraph = await new RustCodeIntelligenceProvider({ binaryPath: nativeBinary }).buildGraph({ root: workspace });
+  assertCommandUnavailable('cargo', isolatedEnvironment);
+  assertCommandUnavailable('rustc', isolatedEnvironment);
+  const { health, providerGraph, built, status, query } = await withProcessEnvironment(
+    isolatedEnvironment,
+    async () => {
+      const provider = new RustCodeIntelligenceProvider({ timeoutMs: 60_000 });
+      const health = await provider.health();
+      const providerGraph = await provider.buildGraph({
+        root: workspace,
+        workspaceId: 'ws_installed_polyglot',
+        languages,
+        maxFiles: 1_000,
+        maxNodes: 5_000,
+        maxEdges: 10_000
+      });
+      const built = await provider.buildIndex({
+        root: workspace,
+        workspaceId: 'ws_installed_polyglot',
+        languages,
+        maxFiles: 1_000,
+        maxNodes: 5_000,
+        maxEdges: 10_000
+      });
+      const indexPath = path.join(workspace, '.local', 'source-index', 'index.v1.sqlite');
+      const beforeReaders = await fileSnapshot(indexPath);
+      const status = await provider.indexStatus({ root: workspace, workspaceId: 'ws_installed_polyglot' });
+      const query = await provider.queryIndex({
+        root: workspace,
+        workspaceId: 'ws_installed_polyglot',
+        kind: 'search',
+        query: 'typescriptSentinel',
+        limit: 25
+      });
+      must(sameFileSnapshot(await fileSnapshot(indexPath), beforeReaders), 'installed status and query leave the source index unchanged');
+      return { health, providerGraph, built, status, query };
+    }
+  );
+  must(health.status === 'healthy', 'installed provider reports healthy');
+  must(health.details?.source === 'platform-package', 'installed provider auto-selects the platform package');
+  must(health.details?.target === target, 'installed provider selects the current native target');
+  must(health.details?.verified === true, 'installed provider verifies platform manifest, version, and checksum');
   const graphValidation = validateJsonSchema(graphSchema, providerGraph);
   must(graphValidation.valid, `installed provider returns the strict graph contract: ${graphValidation.errors.join('; ')}`);
-  must(providerGraph.nodes.some((node) => node.name === 'launchSmoke'), 'installed provider graph contains launchSmoke');
-  must(!JSON.stringify(providerGraph).includes(workspace), 'installed provider graph redacts the workspace path');
+  const representedLanguages = new Set(
+    providerGraph.nodes
+      .filter((node) => node.kind !== 'file')
+      .map((node) => node.language)
+  );
+  for (const language of languages) must(representedLanguages.has(language), `installed provider parses ${language}`);
+  must(representedLanguages.size === languages.length, 'installed provider returns only the requested Tier-1 languages');
+  must(built.operation === 'index.build' && built.state === 'ready', 'installed provider builds the SQLite index');
+  must(built.measurements?.parsedFileCount >= languages.length, 'installed index build parses every Tier-1 language fixture');
+  must(built.safeguards?.localFilesWritten === 1, 'installed index build writes only its explicit local index');
+  must(built.safeguards?.canonicalMemoryWrites === 0, 'installed index build does not write governed memory');
+  must(status.operation === 'index.status' && status.state === 'ready', 'installed provider reads index status');
+  must(status.safeguards?.readOnly === true && status.safeguards?.localFilesWritten === 0, 'installed index status is read-only');
+  must(query.results?.some((item) => item.label === 'typescriptSentinel'), 'installed provider queries the persisted index');
+  must(query.safeguards?.readOnly === true && query.safeguards?.localFilesWritten === 0, 'installed index query is read-only');
+  const installedReports = JSON.stringify({ health, providerGraph, built, status, query });
+  must(!installedReports.includes(workspace), 'installed native reports redact the workspace path');
+  must(!installedReports.includes(rawSourceSentinel), 'installed native reports omit raw source bodies');
 
-  const stats = runJson(recall, [
-    'graph', 'stats', '--root', workspace, '--engine', 'native-preview', '--format', 'json'
-  ], { cwd: workspace, env: nativeEnvironment });
+  const installedCli = path.join(packageRoot, 'apps', 'cli', 'oaf.mjs');
+  const stats = runJson(process.execPath, [installedCli,
+    'graph', 'stats', '--root', cliWorkspace, '--engine', 'native-preview', '--format', 'json'
+  ], { cwd: cliWorkspace, env: isolatedEnvironment });
   must(stats.engine?.selection === 'native-preview', 'packed CLI selects native preview explicitly');
   must(stats.engine?.previewOnly === true && stats.engine?.publicDefaultChanged === false, 'packed CLI keeps native preview non-default');
   must(stats.graph?.summary?.fileCount >= 1 && stats.graph?.summary?.symbolCount >= 2, 'packed CLI reports native graph coverage');
 
-  const search = runJson(recall, [
-    'graph', 'search', '--root', workspace, '--query', 'launchSmoke', '--engine', 'native-preview', '--format', 'json'
-  ], { cwd: workspace, env: nativeEnvironment });
+  const search = runJson(process.execPath, [installedCli,
+    'graph', 'search', '--root', cliWorkspace, '--query', 'launchSmoke', '--engine', 'native-preview', '--format', 'json'
+  ], { cwd: cliWorkspace, env: isolatedEnvironment });
   must(search.search?.results?.some((item) => item.label === 'launchSmoke'), 'packed CLI native search returns launchSmoke');
   for (const report of [stats, search]) {
     must(report.safeguards?.canonicalStateMutated === false, 'native preview does not mutate canonical memory');
@@ -101,29 +189,36 @@ try {
     must(report.safeguards?.networkCalls === 0, 'native preview makes no network calls');
     must(report.safeguards?.modelCalls === 0, 'native preview makes no model calls');
     must(report.safeguards?.rawBodyIncluded === false, 'native preview omits source bodies');
-    must(!JSON.stringify(report).includes(workspace), 'native preview report redacts the workspace path');
+    must(!JSON.stringify(report).includes(cliWorkspace), 'native preview report redacts the workspace path');
   }
 
-  const unavailable = runFailure(recall, [
-    'graph', 'stats', '--root', workspace, '--engine', 'native-preview', '--format', 'json'
-  ], { cwd: workspace, env: isolatedEnvironment });
-  must(unavailable.status === 2, 'native preview fails closed without the explicit binary override');
-  must(/native_engine_unavailable/u.test(unavailable.stderr), 'missing native engine reports native_engine_unavailable');
+  const unavailable = runFailure(process.execPath, [installedCli,
+    'graph', 'stats', '--root', cliWorkspace, '--engine', 'native-preview', '--format', 'json'
+  ], {
+    cwd: cliWorkspace,
+    env: { ...isolatedEnvironment, MEMORY_RECALL_NATIVE_BINARY: path.join(temp, 'missing-native') }
+  });
+  must(unavailable.status === 2, 'invalid explicit native override fails closed');
+  must(/native_engine_unavailable/u.test(unavailable.stderr), 'invalid explicit native override reports native_engine_unavailable');
 
-  const jsDefault = runJson(recall, ['graph', 'stats', '--root', workspace, '--format', 'json'], {
-    cwd: workspace,
+  const jsDefault = runJson(process.execPath, [installedCli, 'graph', 'stats', '--root', cliWorkspace, '--format', 'json'], {
+    cwd: cliWorkspace,
     env: isolatedEnvironment
   });
   must(jsDefault.engine?.selection === 'js' && jsDefault.engine?.publicDefaultChanged === false, 'packed CLI keeps JS as the default');
 
-  must(await treeFingerprint(workspace) === initialWorkspace, 'native preview leaves the consumer workspace unchanged');
+  must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'native preview leaves consumer source unchanged');
+  must(await treeFingerprint(cliWorkspace) === initialCliSource, 'native preview leaves CLI consumer source unchanged');
+  must((await readFile(governedMemory)).equals(initialMemory), 'native preview leaves governed memory unchanged');
   must(await treeFingerprint(home) === initialHome, 'native preview leaves the isolated home and config unchanged');
   must(await treeFingerprint(packageRoot) === initialPackage, 'native preview leaves the installed package unchanged');
+  must(await treeFingerprint(platformPackageRoot) === initialPlatformPackage, 'native preview leaves the platform package unchanged');
 
-  console.log('PASS packed native provider and protocol contract');
-  console.log('PASS explicit native preview stats and search');
-  console.log('PASS missing native binary fails closed');
-  console.log('PASS no network, model, memory, config, package, or workspace writes');
+  console.log(`PASS installed verified native platform package ${target}`);
+  console.log('PASS compiler-free 14-language graph and SQLite lifecycle');
+  console.log('PASS automatic native preview stats and search');
+  console.log('PASS invalid explicit native override fails closed');
+  console.log('PASS no source, governed-memory, config, or package mutation');
   console.log('PASS JavaScript remains the public default');
 } finally {
   await rm(temp, { recursive: true, force: true });
@@ -171,4 +266,80 @@ async function treeFingerprint(directory) {
       }
     }
   }
+}
+
+async function createPolyglotWorkspace() {
+  const fixtures = Object.freeze([
+    ['python', 'batch-b/python'],
+    ['go', 'batch-b/go'],
+    ['rust', 'batch-b/rust'],
+    ['java', 'batch-c/java'],
+    ['kotlin', 'batch-c/kotlin'],
+    ['csharp', 'batch-c/csharp'],
+    ['c', 'batch-d/c'],
+    ['cpp', 'batch-d/cpp'],
+    ['dart', 'batch-d/dart'],
+    ['swift', 'batch-d/swift'],
+    ['php', 'batch-e/php'],
+    ['ruby', 'batch-e/ruby']
+  ]);
+  for (const [language, relative] of fixtures) {
+    await cp(path.join(fixtureRoot, relative), path.join(workspace, 'languages', language), { recursive: true });
+  }
+  await mkdir(path.join(workspace, 'languages', 'javascript'), { recursive: true });
+  await mkdir(path.join(workspace, 'languages', 'typescript'), { recursive: true });
+  await writeFile(
+    path.join(workspace, 'languages', 'javascript', 'index.js'),
+    `// ${rawSourceSentinel}\nimport { javascriptHelper } from './helper.js';\nexport function javascriptSentinel() { return javascriptHelper(); }\n`
+  );
+  await writeFile(
+    path.join(workspace, 'languages', 'javascript', 'helper.js'),
+    'export function javascriptHelper() { return 1; }\n'
+  );
+  await writeFile(
+    path.join(workspace, 'languages', 'typescript', 'index.ts'),
+    `// ${rawSourceSentinel}\nimport { typescriptHelper } from './helper.js';\nexport function typescriptSentinel(): number { return typescriptHelper(); }\n`
+  );
+  await writeFile(
+    path.join(workspace, 'languages', 'typescript', 'helper.ts'),
+    'export function typescriptHelper(): number { return 1; }\n'
+  );
+}
+
+function assertCommandUnavailable(command, environment) {
+  const result = spawnSync(command, ['--version'], { encoding: 'utf8', env: environment });
+  must(result.error?.code === 'ENOENT', `${command} is unavailable in the installed consumer runtime`);
+}
+
+async function withProcessEnvironment(environment, runTask) {
+  const previous = new Map();
+  for (const [name, value] of Object.entries(environment)) {
+    previous.set(name, process.env[name]);
+    process.env[name] = value;
+  }
+  for (const name of ['MEMORY_RECALL_NATIVE_BINARY', 'MEMORY_RECALL_NATIVE_SHA256']) {
+    if (!previous.has(name)) previous.set(name, process.env[name]);
+    delete process.env[name];
+  }
+  try {
+    return await runTask();
+  } finally {
+    for (const [name, value] of previous) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
+async function fileSnapshot(file) {
+  const [metadata, body] = await Promise.all([stat(file), readFile(file)]);
+  return Object.freeze({
+    size: metadata.size,
+    mtimeMs: metadata.mtimeMs,
+    sha256: createHash('sha256').update(body).digest('hex')
+  });
+}
+
+function sameFileSnapshot(left, right) {
+  return left.size === right.size && left.mtimeMs === right.mtimeMs && left.sha256 === right.sha256;
 }

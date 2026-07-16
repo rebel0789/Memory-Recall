@@ -27,6 +27,7 @@ async function mockBinary(t, behavior) {
   const frame = JSON.stringify(exampleResponse);
   await writeFile(file, [
     '#!/usr/bin/env node',
+    "if (process.argv[2] === '--version') { console.log('oaf 1.1.1'); process.exit(0); }",
     "let input = '';",
     "process.stdin.setEncoding('utf8');",
     "process.stdin.on('data', (chunk) => { input += chunk; });",

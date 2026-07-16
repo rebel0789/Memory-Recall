@@ -3,16 +3,14 @@ import { spawn } from 'node:child_process';
 import { realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
 import { assertJsonSchema } from '../../../../packages/protocol/src/schema-validator.mjs';
+import { resolveNativeBinary } from './binary-resolver.mjs';
 import requestSchema from '../../../../packages/protocol/schemas/code-intelligence-engine-request.schema.json' with { type: 'json' };
 import responseSchema from '../../../../packages/protocol/schemas/code-intelligence-engine-response.schema.json' with { type: 'json' };
 import graphSchema from '../../../../packages/protocol/schemas/code-intelligence-graph.schema.json' with { type: 'json' };
 import indexRequestSchema from '../../../../packages/protocol/schemas/code-intelligence-index-request.schema.json' with { type: 'json' };
 import indexResponseSchema from '../../../../packages/protocol/schemas/code-intelligence-index-response.schema.json' with { type: 'json' };
 
-const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-const DEFAULT_BINARY = path.join(PACKAGE_ROOT, 'rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 const CAPABILITIES = Object.freeze([
   'code-intelligence.graph.build',
   'code-intelligence.index.build',
@@ -38,12 +36,15 @@ export class NativeCodeIntelligenceError extends Error {
 
 export class RustCodeIntelligenceProvider {
   constructor({
-    binaryPath = process.env.MEMORY_RECALL_NATIVE_BINARY ?? DEFAULT_BINARY,
+    binaryPath = process.env.MEMORY_RECALL_NATIVE_BINARY,
+    binarySha256 = process.env.MEMORY_RECALL_NATIVE_SHA256,
     timeoutMs = 30_000,
     maxStdoutBytes = 8_000_000,
     maxStderrBytes = 64 * 1024
   } = {}) {
-    this.binaryPath = path.resolve(binaryPath);
+    this.binaryPath = binaryPath === undefined ? undefined : path.resolve(binaryPath);
+    this.binarySha256 = binarySha256;
+    this.binaryResolution = null;
     this.timeoutMs = boundedInteger(timeoutMs, 1, 120_000, 'native_engine_timeout_invalid');
     this.maxStdoutBytes = boundedInteger(maxStdoutBytes, 1, 10_000_000, 'native_engine_stdout_limit_invalid');
     this.maxStderrBytes = boundedInteger(maxStderrBytes, 1, 1_000_000, 'native_engine_stderr_limit_invalid');
@@ -51,10 +52,22 @@ export class RustCodeIntelligenceProvider {
 
   async health() {
     try {
-      await this.#resolveBinary();
-      return Object.freeze({ status: 'healthy', details: Object.freeze({ binary: 'available', previewOnly: true }) });
-    } catch {
-      return Object.freeze({ status: 'unavailable', details: Object.freeze({ binary: 'unavailable', previewOnly: true }) });
+      const selected = await this.#resolveBinary();
+      return Object.freeze({
+        status: 'healthy',
+        details: Object.freeze({
+          binary: 'available',
+          source: selected.source,
+          target: selected.target,
+          verified: selected.verified,
+          previewOnly: true
+        })
+      });
+    } catch (error) {
+      return Object.freeze({
+        status: 'unavailable',
+        details: Object.freeze({ binary: 'unavailable', reason: error?.code ?? 'native_engine_unavailable', previewOnly: true })
+      });
     }
   }
 
@@ -73,7 +86,7 @@ export class RustCodeIntelligenceProvider {
     signal
   } = {}) {
     const workspace = await resolveWorkspace(root);
-    const binary = await this.#resolveBinary();
+    const { path: binary } = await this.#resolveBinary();
     const requestId = `cireq_${randomBytes(16).toString('hex')}`;
     const request = {
       protocolVersion: '1.0.0',
@@ -175,7 +188,7 @@ export class RustCodeIntelligenceProvider {
 
   async #indexOperation(operation, options, argumentsValue) {
     const workspace = await resolveWorkspace(options.root);
-    const binary = await this.#resolveBinary();
+    const { path: binary } = await this.#resolveBinary();
     const requestId = `ciidxreq_${randomBytes(16).toString('hex')}`;
     const request = {
       protocolVersion: '1.0.0',
@@ -220,13 +233,15 @@ export class RustCodeIntelligenceProvider {
   }
 
   async #resolveBinary() {
+    if (this.binaryResolution) return this.binaryResolution;
     try {
-      const resolved = await realpath(this.binaryPath);
-      const metadata = await stat(resolved);
-      if (!metadata.isFile()) throw new Error('not a file');
-      return resolved;
-    } catch {
-      throw new NativeCodeIntelligenceError('native_engine_unavailable');
+      this.binaryResolution = await resolveNativeBinary({
+        binaryPath: this.binaryPath,
+        expectedSha256: this.binarySha256
+      });
+      return this.binaryResolution;
+    } catch (error) {
+      throw new NativeCodeIntelligenceError(error?.code ?? 'native_engine_unavailable');
     }
   }
 }
