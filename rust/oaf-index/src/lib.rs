@@ -6,6 +6,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+mod doctor;
+pub use doctor::*;
 mod model;
 pub use model::*;
 mod watcher;
@@ -153,7 +155,8 @@ impl SourceIndexOptions {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum HealthStatus {
     Absent,
     Ready,
@@ -165,7 +168,7 @@ pub enum HealthStatus {
     UnsupportedSchema,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct IndexHealth {
     pub status: HealthStatus,
     pub reason_codes: Vec<String>,

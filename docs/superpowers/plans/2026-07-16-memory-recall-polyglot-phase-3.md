@@ -187,22 +187,22 @@ Commit: `feat: add bounded source index watcher`
 **Files:**
 
 - Modify: Rust index/store and protocol adapters
-- Modify: Node CLI help and command routing
+- Modify: Node CLI help and command routing during the Task 7 native lifecycle bridge
 - Add doctor/repair fixtures and tests
 
-- [ ] **Step 1: Add failure fixtures**
+- [x] **Step 1: Add failure fixtures**
 
 Cover corrupt header/pages, failed integrity check, missing tables, checksum mismatch, interrupted staging generation, wrong repository identity, stale engine version, and unsupported future schema.
 
-- [ ] **Step 2: Implement read-only doctor**
+- [x] **Step 2: Implement read-only doctor**
 
 Doctor never creates or mutates the database. It emits a sanitized diagnosis, whether the last valid generation is readable, and an exact repair plan fingerprint.
 
-- [ ] **Step 3: Implement explicit rebuild repair**
+- [x] **Step 3: Implement explicit rebuild repair**
 
 Repair requires a prior doctor plan and matching confirmation. It renames the invalid database to a bounded local backup, builds a new database, verifies it, and only then offers backup cleanup as a separate action.
 
-- [ ] **Step 4: Prove rollback and backup behavior**
+- [x] **Step 4: Prove rollback and backup behavior**
 
 Failed repair restores the prior path; successful repair leaves a readable backup and current index. No memory database is touched.
 
