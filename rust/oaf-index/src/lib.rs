@@ -1,5 +1,7 @@
 use anyhow::{bail, Context, Result};
-use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
+use rusqlite::{
+    params, params_from_iter, types::Value as SqlValue, Connection, OpenFlags, OptionalExtension,
+};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
@@ -535,15 +537,32 @@ impl SourceIndex {
             });
         };
         let cursor = bounds.cursor.as_deref().unwrap_or("");
-        let pattern = format!("%{}%", escape_like(query));
-        let mut statement = self.connection.prepare(
-            "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 AND canonical_id > ?2 AND (qualified_name LIKE ?3 ESCAPE '\\' OR locator LIKE ?3 ESCAPE '\\') ORDER BY canonical_id LIMIT ?4",
-        )?;
+        let terms = search_terms(query);
+        let predicates = terms
+            .iter()
+            .enumerate()
+            .map(|(index, _)| {
+                let parameter = index + 3;
+                format!("(lower(qualified_name) LIKE ?{parameter} ESCAPE '\\' OR lower(locator) LIKE ?{parameter} ESCAPE '\\')")
+            })
+            .collect::<Vec<_>>()
+            .join(" AND ");
+        let limit_parameter = terms.len() + 3;
+        let sql = format!(
+            "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 AND canonical_id > ?2 AND {predicates} ORDER BY canonical_id LIMIT ?{limit_parameter}"
+        );
+        let mut parameters = Vec::with_capacity(terms.len() + 3);
+        parameters.push(SqlValue::Integer(generation_id));
+        parameters.push(SqlValue::Text(cursor.to_string()));
+        parameters.extend(
+            terms
+                .into_iter()
+                .map(|term| SqlValue::Text(format!("%{}%", escape_like(&term)))),
+        );
+        parameters.push(SqlValue::Integer(count_i64(bounds.limit + 1)?));
+        let mut statement = self.connection.prepare(&sql)?;
         let items = statement
-            .query_map(
-                params![generation_id, cursor, pattern, count_i64(bounds.limit + 1)?],
-                row_to_node,
-            )?
+            .query_map(params_from_iter(parameters.iter()), row_to_node)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         ensure_deadline(started, bounds)?;
         bounded_page(items, bounds)
@@ -1449,6 +1468,19 @@ fn validate_query_text(value: &str) -> Result<()> {
         bail!("source_index_query_text_invalid");
     }
     Ok(())
+}
+
+fn search_terms(query: &str) -> Vec<String> {
+    let terms = query
+        .split(|character: char| !character.is_alphanumeric())
+        .filter(|term| !term.is_empty())
+        .map(str::to_lowercase)
+        .collect::<BTreeSet<_>>();
+    if terms.is_empty() {
+        vec![query.to_lowercase()]
+    } else {
+        terms.into_iter().collect()
+    }
 }
 
 fn validate_cursor(value: &str) -> Result<()> {

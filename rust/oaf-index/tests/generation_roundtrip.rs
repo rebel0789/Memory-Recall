@@ -244,6 +244,52 @@ fn read_queries_are_stable_paginated_and_bounded() {
 }
 
 #[test]
+fn search_matches_all_natural_language_terms_and_keeps_pagination() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("index.sqlite");
+    let mut input = sample_generation(
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "one",
+    );
+    for (canonical_id, qualified_name) in [
+        ("node_auth_approve", "src/auth/token.ts::approveTokenReset"),
+        (
+            "node_auth_approve_handler",
+            "src/auth/token.ts::approveTokenResetHandler",
+        ),
+    ] {
+        input.nodes.push(NodeRecord {
+            canonical_id: canonical_id.into(),
+            kind: "function".into(),
+            language_kind: "function".into(),
+            qualified_name: qualified_name.into(),
+            locator: "workspace://src/one.ts".into(),
+            start_line: 1,
+            end_line: 3,
+            content_hash: None,
+            visibility: "public".into(),
+        });
+    }
+    let mut writer = SourceIndex::open(&path, &options()).unwrap();
+    writer.commit_generation(&input).unwrap();
+    drop(writer);
+    let index = SourceIndex::open_read_only(&path, &options()).unwrap();
+
+    let first = index
+        .find_nodes("approve token reset", &QueryBounds::new(1))
+        .unwrap();
+    assert_eq!(first.items[0].canonical_id, "node_auth_approve");
+    let second = index
+        .find_nodes(
+            "approve token reset",
+            &QueryBounds::new(1).with_cursor(first.next_cursor.unwrap()),
+        )
+        .unwrap();
+    assert_eq!(second.items[0].canonical_id, "node_auth_approve_handler");
+    assert!(second.next_cursor.is_none());
+}
+
+#[test]
 fn dependency_neighborhood_honors_direction_and_depth() {
     let root = tempdir().unwrap();
     let path = root.path().join("index.sqlite");
