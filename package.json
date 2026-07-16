@@ -34,6 +34,7 @@
     ".npmrc",
     ".nvmrc",
     "*.json",
+    "!REPOSITORY_MANIFEST.json",
     "*.md",
     "CITATION.cff",
     "Dockerfile",

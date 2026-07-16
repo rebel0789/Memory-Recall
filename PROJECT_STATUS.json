@@ -126,6 +126,9 @@
         "tests/native-memory-profile-context.test.mjs",
         "tests/ast-code-candidate-source.test.mjs",
         "tests/source-graph-preview.test.mjs",
+        "tests/source-graph-index-store.test.mjs",
+        "tests/cli-graph-index.test.mjs",
+        "tests/mcp-code-intelligence.test.mjs",
         "tests/recall-map-ranking.test.mjs",
         "evals/recall-map/architecture-ranking.v1.json",
         "tests/cli.test.mjs",
@@ -137,6 +140,8 @@
         "packages/protocol/schemas/source-graph-preview.schema.json",
         "packages/protocol/src/source-graph-locator.mjs",
         "packages/source-graph/src/index.mjs",
+        "packages/source-graph/src/index-store.mjs",
+        "packages/source-graph/src/intelligence.mjs",
         "packages/protocol/schemas/context-candidate.schema.json",
         "packages/protocol/schemas/context-selection-policy.schema.json",
         "packages/protocol/schemas/context-selection-result.schema.json",
@@ -151,9 +156,32 @@
         "Context views are opt-in deterministic local representations for noisy selected records and tool output; they preserve original/view hashes and token accounting but do not replace canonical source or memory state",
         "No model reranking, embeddings, vector database, graph database, external search, browser automation, outbound network, or adapter activation",
         "Compressed memory profile context and oaf measure savings use bounded local before/after delivery-token estimates over a realistic workspace candidate-file and git-history baseline, surfaced in the memory cockpit and MCP stats; MCP stats separates context.profile compression-path savings from memory.recall compaction savings and does not claim provider billing-token savings",
-        "Native source graph is read-only derived metadata; graph candidate records are locator-only and it is not canonical source state, not a graph database, and not persisted as memory",
+        "Native source graph is read-only derived metadata; graph candidate records are locator-only and it is not canonical source state, a graph database, or persisted memory; an optional explicit local structural index can cache it across processes",
         "Token estimate is approximate",
         "Manifest persistence is local native or repository-layer only; no production orchestration is implied"
+      ]
+    },
+    {
+      "id": "source.graph-index",
+      "name": "Persistent incremental JS/TS source index",
+      "status": "implemented",
+      "evidence": [
+        "apps/cli/oaf.mjs",
+        "packages/source-graph/src/index-store.mjs",
+        "packages/source-graph/src/intelligence.mjs",
+        "providers/native/context-candidate-ast-code/src/index.mjs",
+        "tests/source-graph-index-store.test.mjs",
+        "tests/cli-graph-index.test.mjs",
+        "tests/mcp-code-intelligence.test.mjs",
+        "docs/usage/mcp-server-reference.md",
+        "docs/usage/support-matrix.md"
+      ],
+      "limitations": [
+        "The default index is bounded to 1,000 supported JS/TS-family files, 512 KiB per file, 20,000 graph nodes, and 50,000 graph edges; larger limits do not imply million-node support",
+        "Index writes require explicit graph index --write or --refresh; MCP only reads a current index and falls back to a bounded scan when it is stale",
+        "Incremental refresh reuses unchanged per-file structural shards and reparses changed or added files; ignore-rule, parser-version, or scan-setting changes trigger a full rebuild",
+        "The index contains hashes, locators, structural parse metadata, and a sanitized graph; it contains no raw source bodies or absolute workspace paths",
+        "No non-JS/TS, semantic embedding, cross-repository, remote, or graph-database index is claimed"
       ]
     },
     {
@@ -884,6 +912,7 @@
         "packages/harness-context/src/index.mjs",
         "tests/protocol-bridges.test.mjs",
         "tests/cli.test.mjs",
+        "tests/mcp-code-intelligence.test.mjs",
         "docs/architecture/protocol-bridges.md",
         "docs/implementation/OAF-028-protocol-bridges-note.md"
       ],
@@ -892,6 +921,7 @@
         "In-process dependency-free MCP-shaped bridge plus local read-only CLI stdio compositions and the preview-confirm mcp install planner using npm --silent; no HTTP, SSE, hosted bridge, or network listener is started",
         "Read-only resources expose sanitized summaries for status, latest context manifest, latest run, memory proposals, handoff/artifact review, opt-in current context packs, auto-discovered pinned context-pack use plans, pinned context-pack registry verification, skill catalog, per-skill load plans, and the reviewed tool catalog; they do not expose write tools, source bodies, skill bodies, tool manifest bodies, prompts, model results, credentials, provider URLs, absolute local paths, external egress, or canonical state mutation",
         "MCP memory.recall and context.profile serve active temporal facts first and pending proposal facts separately, include active/proposal count summaries, support since cursors for deltas, and persist last-delivered cursors locally per client/scope",
+        "The read-only MCP server exposes twelve tools: governed memory and compact context plus repository map, architecture, index status, code search, symbol context, call trace, dependencies, routes, and changed-file impact; all structural results are bounded and locator-only",
         "The read-only bridge never approves proposals or activates memory",
         "The MCP token-saver install command writes only the selected local client MCP config entry after --apply plus a matching dry-run fingerprint; default dry-run prints exact config only, rejects --write, and does not print raw home config bodies or absolute paths",
         "The stdio bridge enforces bounded stdin, JSON-RPC line size, message count, child runtime, child stdout/stderr, JSON-RPC id, method, resource URI, and tool name limits; JSON-RPC batch arrays are rejected and request-metadata failures are redacted",
@@ -1036,7 +1066,7 @@
     }
   ],
   "qualitySnapshot": {
-    "asOf": "2026-07-15",
+    "asOf": "2026-07-16",
     "commands": [
       "npm ci --ignore-scripts --no-audit --no-fund",
       "npm run local:run",
@@ -1058,7 +1088,7 @@
       "npm run consumer:smoke",
       "npm run consumer:browser-smoke"
     ],
-    "testsExpected": 705,
+    "testsExpected": 721,
     "protocolFixturesExpected": 182,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

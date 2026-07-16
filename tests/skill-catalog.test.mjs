@@ -266,7 +266,7 @@ test('skill catalog CLI exposes governed manifests without raw skill bodies', ()
   assert.equal(inspectReport.summary.toolContextTierCounts['governed-memory'], 1);
   assert.equal(inspectReport.summary.toolContextTierCounts['selected-context'], 1);
   assert.equal(inspectReport.summary.toolContextTierCounts['handoff-context'], 1);
-  assert.equal(inspectReport.summary.toolContextTierCounts['tool-capability'], 2);
+  assert.equal(inspectReport.summary.toolContextTierCounts['tool-capability'], 9);
   assert(inspectReport.resources.some((resource) => resource.uri === 'oaf://workspace/ws_local/skills/oaf-memory/load-plan' && resource.contextTier === 'procedural-skill'));
   assert(inspectReport.serverTools.some((tool) => tool.name === 'memory.recall' && tool.contextTier === 'governed-memory'));
   assert.equal(inspectReport.summary.toolsExposedByServerCommand, 12);

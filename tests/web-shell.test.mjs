@@ -52,6 +52,7 @@ import {
   renderContextPackTokenSaverSummary,
   renderMemoryIntakePanel,
   renderOverview,
+  renderSecondaryRoute,
   renderRepositorySearchState,
   renderRecallMapHome,
   shellStateMessageForOverview,
@@ -157,6 +158,16 @@ test('workbench navigation has five desktop and four mobile destinations', () =>
   assert.deepEqual(MOBILE_NAV.map((item) => item.label), ['Start', 'Explore code', 'Review memory', 'Prepare handoff']);
   assert.equal(navigationItemsFor('rail'), PRIMARY_NAV);
   assert.equal(navigationItemsFor('bottom'), MOBILE_NAV);
+});
+
+test('advanced routes keep a clear page title without entering the primary navigation', () => {
+  const route = ROUTES.find((item) => item.id === 'runs');
+  const html = renderSecondaryRoute(route, '<section>Run content</section>');
+  assert.match(html, /<h1>Runs<\/h1>/);
+  assert.match(html, /Run history, status, current step/);
+  assert.match(html, /Advanced view/);
+  assert.match(html, /<section>Run content<\/section>/);
+  assert.equal(PRIMARY_NAV.some((item) => item.routeId === 'runs'), false);
 });
 
 test('web tokens use the approved restrained workbench system', async () => {

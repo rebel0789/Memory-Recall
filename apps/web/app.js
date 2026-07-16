@@ -1276,21 +1276,25 @@ function renderRoute(route) {
   if (shellState.kind === 'denied') return renderSetupScreen('login', 'Use the local owner account for this workspace.');
   if (shellState.kind === 'error') return statePanel('error','Could not load local state', shellState.message, true);
   if (route.id === 'home') return renderHome();
-  if (route.id === 'runs') return activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns();
-  if (route.id === 'workflows') return renderWorkflows();
-  if (route.id === 'loop-workbench') return renderLoopWorkbench();
-  if (route.id === 'fabric-map') return renderFabricMap();
-  if (route.id === 'context') return renderContext();
+  if (route.id === 'runs') return renderSecondaryRoute(route, activeRunDetail ? renderRunDetail(activeRunDetail) : renderRuns());
+  if (route.id === 'workflows') return renderSecondaryRoute(route, renderWorkflows());
+  if (route.id === 'loop-workbench') return renderSecondaryRoute(route, renderLoopWorkbench());
+  if (route.id === 'fabric-map') return renderSecondaryRoute(route, renderFabricMap());
+  if (route.id === 'context') return renderSecondaryRoute(route, renderContext());
   if (route.id === 'context-pack') return renderContextPack();
   if (route.id === 'source-graph') return renderSourceGraph();
   if (route.id === 'memory') return renderMemory();
   if (route.id === 'memory-graph') return renderMemoryGraphView(buildMemoryGraphViewModel(memoryGraph,memoryGraphOptions,memoryGraphError));
-  if (route.id === 'evidence') return renderEvidence();
-  if (route.id === 'approvals') return renderApprovals();
-  if (route.id === 'content') return renderContentLab();
-  if (route.id === 'agents') return renderAgentsTools();
+  if (route.id === 'evidence') return renderSecondaryRoute(route, renderEvidence());
+  if (route.id === 'approvals') return renderSecondaryRoute(route, renderApprovals());
+  if (route.id === 'content') return renderSecondaryRoute(route, renderContentLab());
+  if (route.id === 'agents') return renderSecondaryRoute(route, renderAgentsTools());
   if (route.id === 'settings') return renderSettings();
   return renderHome();
+}
+
+export function renderSecondaryRoute(route, content) {
+  return `<div class="tool-workspace advanced-workspace"><header class="tool-page-heading"><div><h1>${esc(route?.title ?? 'Advanced view')}</h1><p>${esc(route?.description ?? '')}</p></div><span>Advanced view</span></header>${content}</div>`;
 }
 
 function renderHome() {

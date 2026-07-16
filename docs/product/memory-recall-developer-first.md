@@ -22,11 +22,13 @@ a read-only handoff for the next coding-agent session.
 
 ## Support contract
 
-- Implemented: local JS/TS static graph, reviewed SQLite memory, read-only MCP.
+- Implemented: local JS/TS static graph, optional persistent incremental index,
+  reviewed SQLite memory, and twelve read-only MCP tools.
 - Implemented: bounded semantic plan and task packets, strict result import, pending proposals, and source-rechecked named approval.
 - Experimental: Rust acceleration paths require a local build before explicit invocation.
 - Experimental: explicit one-shot Gemini and OpenAI-compatible semantic API execution.
-- Unsupported: automatic transcript capture, write-capable MCP, hosted sync, and non-JS/TS source graph analysis.
+- Unsupported: automatic transcript capture, write-capable MCP, hosted sync,
+  non-JS/TS source graph analysis, cross-repository analysis, and million-node indexes.
 - Unsupported: automatic harness invocation, arbitrary semantic providers,
   semantic retrieval, raw source-code upload, background semantic sync, and
   automatic semantic memory activation.

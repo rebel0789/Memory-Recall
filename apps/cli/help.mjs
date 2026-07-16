@@ -252,7 +252,7 @@ Graph commands build a bounded local JS/TS source graph and return locator-only
 stats, search, trace, or changed-file impact reports. Index writes are explicit.
 The index stores structural metadata under .local/source-graph by default and
 never stores raw source bodies. MCP reads the index but never builds or refreshes it.
-No graph command makes model or network calls.`],
+raw source bodies are not included. No graph command makes model or network calls.`],
     ['context handoff', `Memory Recall CLI: context handoff
 
 Usage:

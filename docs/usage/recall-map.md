@@ -107,9 +107,11 @@ MEMORY_RECALL_LARGE_REPO_ROOT=/absolute/path/to/repository \
   npm run source-graph:large-smoke
 ```
 
-The command verifies graph bounds, protocol validity, cache reuse, and local
-read-only safeguards. Its cold and cached timings are measurements from the
-current machine and repository, not universal performance claims.
+The generated-fixture command verifies graph bounds, protocol validity,
+in-process cache reuse, persistent-index reload, one-file incremental refresh,
+and local safeguards. Its timings are measurements from the current machine,
+not universal performance claims. A configured external repository remains
+read-only, so that mode does not create a persistent index.
 
 ## Continue from the map
 

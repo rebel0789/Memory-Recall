@@ -60,6 +60,7 @@ for preserved legacy names and URIs.
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
 | Fast local code intelligence | Implemented JS/TS static graph; experimental Rust ingest and graph/search require a local build. |
+| Larger JS/TS repositories | Explicit local index with incremental refresh and watch mode; MCP reads it without writing. |
 | First look at a repository | Recall Map shows bounded source coverage, entry points, changed impact, and separate memory status without writing. |
 | Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
 | Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
@@ -113,7 +114,7 @@ approval.
 
 Manual MCP install flow: run the `mcp install --client claude-code --dry-run --format json`
 preview, review it, then run the printed `--apply --confirm <fingerprint>`
-command only when the fingerprint matches. That path installs the five-tool
+command only when the fingerprint matches. That path installs the twelve-tool
 read-only MCP server. `recall connect` is separate: it installs a resource
 bridge plus hooks for Codex or Claude Code, and its MCP `tools/list` is empty.
 The support matrix names the difference and reversal path.
@@ -177,9 +178,12 @@ cross-product benchmark leaderboard.
   harness; strict result import; pending-only proposals; and source-rechecked
   named approval. Optional direct API execution is experimental and explicitly
   consented.
-- Read-only `recall mcp server` exposing `memory.recall`, `context.profile`,
-  `context.pack`, `repo.map`, and `code.impact` over local stdio with active
-  facts separated from proposals.
+- Read-only `recall mcp server` exposing twelve local tools for governed memory,
+  compact context, repository maps, architecture, code search, symbol context,
+  call traces, dependencies, routes, changed-file impact, and index status.
+- Explicit persistent JS/TS source index with atomic writes, per-file structural
+  shards, incremental refresh, stale detection, and watch mode. MCP can read a
+  current index but never creates or refreshes one.
 - Persisted MCP cursors and `since` deltas so repeated reads send only changed
   current truth, including after restart.
 - Preview-then-confirm install paths for Claude Code, Cursor, and Codex with
@@ -214,7 +218,8 @@ for the deeper boundary rules.
 Production PostgreSQL repositories, production authentication, hosted embeddings,
 vector databases, hosted memory sync, write-capable MCP tools, automatic harness
 history import, real social connectors, hardened sandboxes, signed Agent Pack
-distribution, and a production frontend framework are not claimed.
+distribution, non-JS/TS static analysis, cross-repository analysis, and
+million-node index support are not claimed.
 
 `PROJECT_STATUS.json` is the machine-readable source for current capability
 status and limitations.
@@ -234,6 +239,9 @@ recall token-saver
 recall graph stats --root . --format summary
 recall graph search --root . --query "auth workflow" --format summary
 recall graph trace --root . --symbol runAuthWorkflow --format summary
+recall graph index --status --root . --format summary
+recall graph index --write --root . --format json
+recall graph index --refresh --watch --root . --format summary
 recall context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --format summary
 recall handoff
 ```

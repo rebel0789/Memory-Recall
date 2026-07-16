@@ -2965,7 +2965,7 @@ function compactGraphIndexReport(result) {
       edgeCount: result.graph.edges.length
     },
     measurements: result.measurements,
-    safeguards: graphIndexSafeguards({ localFilesWritten: 1 })
+    safeguards: graphIndexSafeguards({ localFilesWritten: result.measurements.localFilesWritten ?? 1 })
   };
 }
 

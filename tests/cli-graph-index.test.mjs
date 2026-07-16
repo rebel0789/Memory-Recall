@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -31,9 +31,21 @@ test('graph index CLI builds, reports, and incrementally refreshes a local persi
   assert.equal(builtReport.measurements.parsedFileCount, 2);
   assert.equal(builtReport.safeguards.rawSourceBodiesIncluded, false);
 
+  const custom = run('--write', '--out', '.local/custom-index.json');
+  assert.equal(custom.status, 0, custom.stderr);
+  assert.equal(JSON.parse(custom.stdout).indexLocator, 'workspace://.local/custom-index.json');
+  assert.equal(existsSync(path.join(root, '.local', 'custom-index.json')), true);
+
   const status = run('--status');
   assert.equal(status.status, 0, status.stderr);
   assert.equal(JSON.parse(status.stdout).fileCount, 2);
+
+  const indexPath = path.join(root, '.local', 'source-graph', 'index.v1.json');
+  const beforeNoop = statSync(indexPath).mtimeMs;
+  const noop = run('--refresh');
+  assert.equal(noop.status, 0, noop.stderr);
+  assert.equal(JSON.parse(noop.stdout).safeguards.localFilesWritten, 0);
+  assert.equal(statSync(indexPath).mtimeMs, beforeNoop);
 
   writeFileSync(path.join(root, 'src', 'one.ts'), 'export function one() { return 2; }\n');
   const refreshed = run('--refresh');

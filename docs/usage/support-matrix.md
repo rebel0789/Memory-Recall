@@ -11,8 +11,10 @@ provide that surface.
 There are two different local MCP paths:
 
 - `recall mcp install` installs `recall mcp server --read-only` for Codex,
-  Claude Code, or Cursor. It exposes five tools: `memory.recall`,
-  `context.profile`, `context.pack`, `repo.map`, and `code.impact`.
+  Claude Code, or Cursor. It exposes twelve tools: `memory.recall`,
+  `context.profile`, `context.pack`, `repo.map`, `repo.architecture`,
+  `repo.index_status`, `code.search`, `code.context`, `code.trace`,
+  `code.dependencies`, `code.routes`, and `code.impact`.
 - `recall connect` is only for Codex and Claude Code. It writes a separate
   `mcp resources --read-only --stdio` resource bridge plus optional hooks. Its
   MCP `tools/list` is empty, so it does not expose Recall Map tools.
@@ -25,7 +27,7 @@ reversal path.
 
 | Client or surface | Install mode | Config write behavior | Hook behavior | Graph coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| Codex tool server | `recall mcp install --client codex --dry-run --format json`, then the printed `--apply --confirm` command | Writes only `$HOME/.codex/config.toml` (or an explicit safe `--home`/`--config`) after the matching confirmation fingerprint | None from this install | `repo.map` and `code.impact` expose the bounded JS/TS static graph | Implemented |
+| Codex tool server | `recall mcp install --client codex --dry-run --format json`, then the printed `--apply --confirm` command | Writes only `$HOME/.codex/config.toml` (or an explicit safe `--home`/`--config`) after the matching confirmation fingerprint | None from this install | Twelve read-only memory, context, and bounded JS/TS structural tools | Implemented |
 | Claude Code tool server | `recall mcp install --client claude-code --dry-run --format json`, then confirmed apply | Writes only `$HOME/.claude/mcp.json` after matching confirmation | None from this install | Same bounded JS/TS graph tools | Implemented |
 | Cursor tool server | `recall mcp install --client cursor --dry-run --format json`, then confirmed apply | Writes only `$HOME/.cursor/mcp.json` after matching confirmation | No hook writer | Same bounded JS/TS graph tools | Implemented |
 | Codex resource bridge | `recall connect codex --dry-run --format json`, then `--yes` | `connect --yes` writes only matching resource-bridge entries and creates backups when it changes existing home config | Connect-owned `SessionStart`, `UserPromptSubmit`, and `PreCompact` hook entries | Resources only; no MCP graph tools | Implemented |
@@ -43,13 +45,20 @@ files only, up to 1,000 files and 512 KiB per file, and reports skipped or
 partial coverage. It is not a language server, semantic graph database, or
 universal code index.
 
+`recall graph index --write` creates an optional local structural index under
+`.local/source-graph/`. `--refresh` reparses changed and added files, reuses
+unchanged shards, and removes deleted files. `--refresh --watch` keeps it
+current while the process runs. Index writes are explicit; MCP only reads a
+current index and falls back to a fresh bounded scan when it is stale.
+
 ## Config and data boundary
 
 `mcp install` is dry-run by default and requires `--apply --confirm
 sha256:<plan-fingerprint>` before it changes a home config file. `harness
 setup` and `hook install` are previews/manual snippets only. Normal
 `memory.recall` and `context.profile` calls can persist local cursor and
-delivery telemetry; `repo.map` and `code.impact` do not record that telemetry.
+delivery telemetry; structural map, search, trace, route, dependency, impact,
+architecture, and index-status tools do not record that telemetry.
 
 For current commands and limitations, see the [MCP server reference](mcp-server-reference.md)
 and [developer-first contract](../product/memory-recall-developer-first.md).

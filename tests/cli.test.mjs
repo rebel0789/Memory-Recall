@@ -2055,7 +2055,7 @@ test('mcp inspect classifies read-only resources by context tier', () => {
   assert.equal(report.summary.toolContextTierCounts['governed-memory'], 1);
   assert.equal(report.summary.toolContextTierCounts['selected-context'], 1);
   assert.equal(report.summary.toolContextTierCounts['handoff-context'], 1);
-  assert.equal(report.summary.toolContextTierCounts['tool-capability'], 2);
+  assert.equal(report.summary.toolContextTierCounts['tool-capability'], 9);
   assert(report.resources.some((item) => item.resourceKind === 'context-manifest-summary' && item.contextTier === 'selected-context'));
   assert(report.serverTools.some((item) => item.name === 'memory.recall' && item.contextTier === 'governed-memory'));
 

@@ -1,12 +1,15 @@
-import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import sourceGraphPreviewSchema from '../packages/protocol/schemas/source-graph-preview.schema.json' with { type: 'json' };
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import {
+  buildPersistentSourceGraphIndex,
   buildSourceGraphPreview,
-  createSourceGraphSnapshotService
+  createSourceGraphSnapshotService,
+  loadPersistentSourceGraphIndex,
+  refreshPersistentSourceGraphIndex
 } from '../packages/source-graph/src/index.mjs';
 
 const configuredRoot = process.env.MEMORY_RECALL_LARGE_REPO_ROOT || null;
@@ -34,6 +37,7 @@ try {
   const second = await buildSourceGraphPreview(request);
   const cachedMs = elapsedMs(cachedStarted);
   const protocolValid = validateJsonSchema(sourceGraphPreviewSchema, first).valid;
+  const persistentIndex = configuredRoot ? null : await verifyPersistentIndex(root);
 
   must(first.graph.summary.fileCount > 0, 'large_repo_graph_empty');
   must(!first.graph.diagnostics.some(({ code }) => code.startsWith('source_graph_unavailable')), 'large_repo_graph_unavailable');
@@ -56,14 +60,77 @@ try {
     cachedMs,
     cacheReductionPercent: Number(((1 - cachedMs / coldMs) * 100).toFixed(2)),
     snapshot: second.snapshot,
-    summary: first.graph.summary,
+    summary: compactSummary(first.graph.summary),
     diagnostics: first.graph.diagnostics.map(({ code }) => code),
     safeguards: first.safeguards,
+    persistentIndex,
     protocolValid
   }, null, 2));
 } finally {
   service?.close();
   if (generatedRoot) await rm(generatedRoot, { recursive: true, force: true });
+}
+
+function compactSummary(summary) {
+  return {
+    fileCount: summary.fileCount,
+    symbolCount: summary.symbolCount,
+    moduleCount: summary.moduleCount,
+    nodeCount: summary.nodeCount,
+    edgeCount: summary.edgeCount,
+    nodeKindCounts: summary.nodeKindCounts,
+    edgeKindCounts: summary.edgeKindCounts,
+    coverage: {
+      status: summary.coverage?.status,
+      representedFileCount: summary.coverage?.representedFileCount,
+      omittedNodeCount: summary.coverage?.omittedNodeCount,
+      omittedEdgeCount: summary.coverage?.omittedEdgeCount,
+      ignoredFileCount: summary.coverage?.ignoredFileCount,
+      excludedDirectoryCount: summary.coverage?.excludedDirectoryCount,
+      maxFilesReached: summary.coverage?.maxFilesReached,
+      reasonCodes: summary.coverage?.reasonCodes
+    }
+  };
+}
+
+async function verifyPersistentIndex(root) {
+  const options = {
+    root,
+    workspaceId: 'ws_large_smoke',
+    maxFiles: 1000,
+    maxFileBytes: 512 * 1024
+  };
+  const coldStarted = performance.now();
+  const built = await buildPersistentSourceGraphIndex(options);
+  const coldMs = elapsedMs(coldStarted);
+  const warmStarted = performance.now();
+  const loaded = await loadPersistentSourceGraphIndex(options);
+  const warmMs = elapsedMs(warmStarted);
+  await new Promise((resolve) => setTimeout(resolve, 12));
+  const corePath = path.join(root, 'src', 'core.js');
+  await writeFile(corePath, `${await readFile(corePath, 'utf8')}\nexport const refreshedIndexMarker = true;\n`);
+  const refreshStarted = performance.now();
+  const refreshed = await refreshPersistentSourceGraphIndex(options);
+  const oneFileRefreshMs = elapsedMs(refreshStarted);
+  const indexPath = path.join(root, '.local', 'source-graph', 'index.v1.json');
+  const indexText = await readFile(indexPath, 'utf8');
+  must(loaded.source.kind === 'persistent-index', 'large_repo_persistent_index_not_loaded');
+  must(refreshed.measurements.parsedFileCount === 1, `large_repo_incremental_parse_count:${refreshed.measurements.parsedFileCount}`);
+  must(refreshed.measurements.reusedFileCount === 999, `large_repo_incremental_reuse_count:${refreshed.measurements.reusedFileCount}`);
+  must(!indexText.includes('refreshedIndexMarker = true'), 'large_repo_index_stored_raw_source');
+  return {
+    fixtureFiles: built.measurements.parsedFileCount,
+    coldMs,
+    warmMs,
+    oneFileRefreshMs,
+    parsedOnRefresh: refreshed.measurements.parsedFileCount,
+    reusedOnRefresh: refreshed.measurements.reusedFileCount,
+    nodeCount: built.graph.nodes.length,
+    edgeCount: built.graph.edges.length,
+    indexBytes: (await stat(indexPath)).size,
+    rawSourceBodiesIncluded: false,
+    providerBillingClaimed: false
+  };
 }
 
 async function configuredRepositoryRoot(value) {

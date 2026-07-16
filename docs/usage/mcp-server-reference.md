@@ -22,10 +22,22 @@ npm run recall -- mcp server --read-only --root . --sqlite .local/memory.sqlite 
 | `context.profile` | Return a compact profile selected under a context budget. | No |
 | `context.pack` | Return a safe locator handoff for the current task. | No |
 | `repo.map` | Return a bounded Recall Map of local source coverage, governed memory, and handoff readiness. | No |
+| `repo.architecture` | Return bounded architecture groups, entry points, and structural hotspots. | No |
+| `repo.index_status` | Report whether the optional persistent source index is missing, ready, stale, or invalid. | No |
+| `code.search` | Search symbols, files, modules, and relationships. | No |
+| `code.context` | Return one symbol with bounded incoming and outgoing relationships. | No |
+| `code.trace` | Trace bounded inbound or outbound call paths from a symbol. | No |
+| `code.dependencies` | Walk a bounded dependency neighborhood for a file, module, or symbol. | No |
+| `code.routes` | Discover HTTP method exports in route-like JS/TS files. | No |
 | `code.impact` | Return bounded locator-safe impact for changed local source files. | No |
 
 The server does not expose memory approval, config mutation, shell, or external
 write tools.
+
+All structural tools return safe labels, relationship metadata, and
+`workspace://` locators. They do not return source bodies or absolute local
+paths. Results are bounded to at most 50 requested rows and trace or dependency
+depth is capped at 3.
 
 `repo.map` accepts optional `changed`, `query`, and `limit` inputs. `changed`
 uses safe workspace-relative source locators and `limit` is bounded to `1..50`.
@@ -34,6 +46,34 @@ or `3` plus a `limit` of `1..50`. Both return safe labels and
 `workspace://` locators only; neither records MCP delivery stats, cursors,
 graph state, or memory state. The established Recall Map v1 response envelope
 remains capped at 20 listed architecture, search, and impact items.
+
+`code.search` accepts a query plus optional node kinds, edge kinds, locator
+prefix, limit, and offset. `code.context` selects a symbol and reports its direct
+incoming and outgoing relationships. `code.trace` follows call edges.
+`code.dependencies` walks imports and related structural edges. `code.routes`
+uses static HTTP-method exports in route-like paths; it does not execute a
+framework or claim runtime route coverage.
+
+## Persistent Source Index
+
+The source index is optional and local:
+
+```bash
+recall graph index --status --root . --format summary
+recall graph index --write --root . --format json
+recall graph index --refresh --root . --format json
+recall graph index --refresh --watch --root . --format summary
+```
+
+The default file is `.local/source-graph/index.v1.json`. It contains hashes,
+locators, symbol metadata, per-file parse shards, and a bounded graph. It does
+not contain source bodies or absolute paths. Writes are atomic and require the
+explicit CLI command. Refresh reparses changed and added files, reuses unchanged
+shards, and removes deleted files.
+
+MCP checks index freshness but never writes the index. A current index is reused
+across processes. A stale index is reported as stale and structural tools fall
+back to a fresh bounded scan.
 
 ## Resource Catalog
 
@@ -68,6 +108,7 @@ recall mcp install --client claude-code --apply --confirm sha256:<plan-fingerpri
 - No network calls.
 - No active memory creation.
 - No raw source bodies in normal handoff output.
+- No implicit source-index build or refresh.
 - No hidden harness-history import.
 - No config write without dry-run review and confirmation.
 

@@ -38,7 +38,7 @@ version, or missing global install issues.
 ## MCP Tools Are Missing
 
 `recall mcp install` and `recall connect` install different MCP paths. The
-confirmed `mcp install` path exposes five read-only tools, including `repo.map`
+confirmed `mcp install` path exposes twelve read-only tools, including `repo.map`
 and `code.impact`. The Codex/Claude Code `connect` path installs a resource
 bridge and hooks; its MCP `tools/list` is intentionally empty.
 

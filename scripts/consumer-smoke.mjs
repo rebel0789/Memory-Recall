@@ -114,7 +114,7 @@ try {
   const appJs = await text(base, '/app.js');
   for (const phrase of ['Developer-first', 'nervous system', 'supercharge', 'AI-powered', 'next-generation']) must(!appJs.toLocaleLowerCase().includes(phrase.toLocaleLowerCase()), `web shell omits ${phrase}`);
   const shellModel = await text(base, '/shell-model.js');
-  for (const label of ['Overview', 'Map', 'Memory', 'Handoffs', 'Settings']) must(shellModel.includes(`label: '${label}'`), `workbench shell exposes ${label}`);
+  for (const label of ['Start', 'Explore code', 'Review memory', 'Prepare handoff', 'Settings']) must(shellModel.includes(`label: '${label}'`), `workbench shell exposes ${label}`);
 
   const setup = await json(base, '/api/harness/setup/plan', {
     method: 'POST',

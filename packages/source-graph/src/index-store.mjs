@@ -43,8 +43,9 @@ export async function buildPersistentSourceGraphIndex(options = {}) {
     changedFileCount: 0,
     deletedFileCount: 0,
     durationMs: Date.now() - startedAt,
-    rebuildReason: 'explicit_build'
-  });
+    rebuildReason: 'explicit_build',
+    localFilesWritten: 1
+  }, settings.relativePath);
 }
 
 export async function refreshPersistentSourceGraphIndex(options = {}) {
@@ -99,8 +100,9 @@ export async function refreshPersistentSourceGraphIndex(options = {}) {
       changedFileCount: 0,
       deletedFileCount: 0,
       durationMs: Date.now() - startedAt,
-      rebuildReason: null
-    });
+      rebuildReason: null,
+      localFilesWritten: 0
+    }, settings.relativePath);
   }
 
   const parsedScan = parsedPaths.length
@@ -142,8 +144,9 @@ export async function refreshPersistentSourceGraphIndex(options = {}) {
     changedFileCount: changed.length,
     deletedFileCount: deleted.length,
     durationMs: Date.now() - startedAt,
-    rebuildReason: null
-  });
+    rebuildReason: null,
+    localFilesWritten: 1
+  }, settings.relativePath);
 }
 
 export async function loadPersistentSourceGraphIndex(options = {}) {
@@ -311,11 +314,11 @@ async function writeIndexDocument(indexPath, document) {
   }
 }
 
-function indexResult(document, graph, measurements) {
+function indexResult(document, graph, measurements, relativePath) {
   return Object.freeze({
     schemaVersion: INDEX_SCHEMA_VERSION,
     status: 'ready',
-    indexLocator: workspaceIndexLocator(DEFAULT_SOURCE_GRAPH_INDEX_PATH),
+    indexLocator: workspaceIndexLocator(relativePath),
     graph,
     measurements: Object.freeze(measurements),
     source: Object.freeze({ kind: 'persistent-index', freshness: 'current', persisted: true, generatedAt: document.generatedAt })

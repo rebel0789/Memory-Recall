@@ -121,6 +121,13 @@ local measurements, not fixed provider-billing or cross-repository claims.
 
 ## Methods without a headline number
 
+`npm run source-graph:large-smoke` creates a temporary 1,100-file JS fixture,
+exercises the 1,000-file default scan bound, builds and reloads the persistent
+index, changes one represented file, and verifies that refresh parses one file
+while reusing 999 shards. The JSON includes cold, warm, and one-file refresh
+times plus graph and index sizes. Those values are machine-specific and are not
+a production latency or million-node claim.
+
 `recall bench locomo --read-only --root . --dataset evals/locomo/smoke.v1.json --budget 512 --limit 4 --format json`
 is a model-free retrieval-coverage method. The committed smoke fixture contains
 one conversation and three questions. Its report explicitly says it does not
