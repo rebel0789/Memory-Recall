@@ -3,6 +3,7 @@ use oaf_index::{
     GenerationInput, NodeRecord, RefreshBounds, SourceIndex, SourceIndexOptions, UnresolvedRecord,
 };
 use std::collections::BTreeSet;
+use std::fs;
 use tempfile::tempdir;
 
 const HASH_A: &str = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -395,4 +396,43 @@ fn malformed_changed_file_commits_partial_truth_without_stale_nodes() {
         .unresolved
         .iter()
         .any(|item| item.reason_code == "target_parse_failed"));
+}
+
+#[test]
+fn incomplete_incremental_replacement_is_rejected_before_any_write() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("index.sqlite");
+    let mut index = SourceIndex::open(&path, &options()).unwrap();
+    let base = base_generation();
+    let committed = index.commit_generation(&base).unwrap();
+    let before = fs::read(&path).unwrap();
+    let before_modified = fs::metadata(&path).unwrap().modified().unwrap();
+
+    let mut current = discovery(&base);
+    current[0].content_hash = HASH_E.into();
+    let plan = index
+        .plan_refresh(
+            &current,
+            base.ignore_fingerprint.as_deref(),
+            &RefreshBounds::default(),
+        )
+        .unwrap();
+    assert!(plan
+        .invalidated_files
+        .contains(&"workspace://a.ts".to_string()));
+    let replacement = subset(&base, &["workspace://b.py", "workspace://c.go"]);
+
+    let error = index.commit_incremental(&plan, &replacement).unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("source_index_refresh_replacement_incomplete"));
+    assert_eq!(fs::read(&path).unwrap(), before);
+    assert_eq!(
+        fs::metadata(&path).unwrap().modified().unwrap(),
+        before_modified
+    );
+    assert_eq!(
+        index.load_active_generation().unwrap().unwrap().summary.id,
+        committed.id
+    );
 }

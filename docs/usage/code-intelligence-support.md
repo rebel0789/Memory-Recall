@@ -162,6 +162,14 @@ persisted, so status uses the protocol's 10 MiB maximum and may conservatively
 report stale for a file that an earlier lower limit excluded. It cannot turn
 that ambiguity into a false current result.
 
+Native `index.refresh` also requires a complete source snapshot. If `maxFiles`,
+the hash-byte budget, or the request deadline stops discovery early, refresh
+returns partial, reports zero parsed, changed, deleted, and written files, and
+preserves the active generation plus its SQLite, WAL, and SHM files. Increase
+`maxFiles` and retry to refresh a larger workspace. The index store separately
+rejects an incremental commit when any invalidated live file is missing from
+the replacement, before the transaction can write.
+
 ## Phase 6 local distribution gate
 
 The checkout-only `scripts/native-code-intelligence-consumer-smoke.mjs` builds

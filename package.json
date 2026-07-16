@@ -121,7 +121,7 @@
     "!native-packages/",
     "rust/Cargo.lock",
     "rust/Cargo.toml",
-    "rust/README.md",
+    "!rust/README.md",
     "rust/oaf-ingest/Cargo.toml",
     "rust/oaf-ingest/src/",
     "rust/oaf-store/Cargo.toml",

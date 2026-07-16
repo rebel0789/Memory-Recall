@@ -572,6 +572,18 @@ impl SourceIndex {
         if plan.truncated {
             bail!("source_index_refresh_plan_truncated");
         }
+        let replacement_files = replacement
+            .files
+            .iter()
+            .map(|file| file.locator.as_str())
+            .collect::<BTreeSet<_>>();
+        if plan
+            .invalidated_files
+            .iter()
+            .any(|locator| !replacement_files.contains(locator.as_str()))
+        {
+            bail!("source_index_refresh_replacement_incomplete");
+        }
         let active = self
             .load_active_generation()?
             .context("source_index_active_generation_missing")?;

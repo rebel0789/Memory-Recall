@@ -19,13 +19,14 @@
 - `recall serve` now forwards interrupt and termination signals to the Control API child process.
 - Raised the native provider output ceiling within its existing 10 MB hard maximum so valid 5,000-node engine responses do not fail on medium repositories.
 - Native `index.status` now verifies the active SQLite generation against a bounded source snapshot and reports changed, added, deleted, partial, or unverified state without writing the database. Normal queries remain SQLite-only, and stale source state requires refresh rather than repair.
+- Native `index.refresh` now refuses to plan or write from incomplete discovery. If `maxFiles`, the byte budget, or the deadline prevents a complete source snapshot, it returns partial with zero writes and keeps the active generation unchanged; raising `maxFiles` permits a complete recovery refresh.
 
 ### Changed
 
 - Token Saver and handoff measurement reuse the already-built context pack for their real MCP stdio readback, avoiding a second repository scan while preserving fingerprint verification.
 - Native changed-file refresh now parses only the bounded invalidation closure plus dependency context. The clean Phase 3 receipt covers 781 files across one dependency fixture and three pinned repository scopes; it keeps scale, competitor, parity, and leadership claims false.
 - Tier 1 documentation now names the 46 capability rows that meet the sampled Phase 2 floor and the 108 rows that remain unmeasured or not applicable. Every language remains overall unmeasured, the JS engine remains the public default, and no competitor, parity, leadership, multi-repository, or scale claim is made.
-- The npm package excludes checkout-only Tier 1 audit scripts and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
+- The npm package excludes checkout-only Tier 1 audit scripts, the nested Rust build guide, and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
 
 ## [1.1.0] — 2026-07-15
 

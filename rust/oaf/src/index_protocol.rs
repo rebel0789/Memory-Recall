@@ -9,9 +9,7 @@ use oaf_index::{
     GenerationInput, HealthStatus, IndexDoctorReport, IndexHealth, NodeRecord, QueryBounds,
     RefreshPlan, SourceIndex, SourceIndexOptions,
 };
-use oaf_ingest::{
-    discover_file_hashes, discover_file_hashes_bounded, FileHashDiscoveryBounds, IngestOptions,
-};
+use oaf_ingest::{discover_file_hashes_bounded, FileHashDiscoveryBounds, IngestOptions};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -128,6 +126,13 @@ struct Measurements {
     changed_file_count: usize,
     deleted_file_count: usize,
     local_files_written: usize,
+}
+
+struct RefreshDiscovery {
+    files: Vec<DiscoveredFile>,
+    partial_reason: Option<&'static str>,
+    omitted_count: usize,
+    reason_codes: Vec<String>,
 }
 
 #[derive(Default)]
@@ -484,11 +489,55 @@ fn refresh_index(
     started: Instant,
 ) -> Result<Value> {
     let languages = arguments.languages.iter().cloned().collect::<BTreeSet<_>>();
-    let current = discover_files(root, &languages, arguments)?;
     let reader = SourceIndex::open_read_only(path, options)?;
     let active = reader
         .load_active_generation()?
         .context("source_index_active_generation_missing")?;
+    let discovery = discover_refresh_files(root, &languages, arguments, request, started)?;
+    if let Some(partial_reason) = discovery.partial_reason {
+        let summary = active.summary;
+        let health = inspect_index(path, options);
+        let mut diagnostics = vec![
+            json!({ "code": "source_index_refresh_partial", "count": 1 }),
+            json!({ "code": partial_reason, "count": 1 }),
+        ];
+        diagnostics.extend(
+            discovery
+                .reason_codes
+                .into_iter()
+                .map(|code| json!({ "code": code, "count": 1 })),
+        );
+        if discovery.omitted_count > 0 {
+            diagnostics.push(json!({
+                "code": "source_index_files_omitted",
+                "count": discovery.omitted_count,
+            }));
+        }
+        return Ok(success_frame(
+            &request.request_id,
+            "index.refresh",
+            repository_identity,
+            engine_version,
+            path,
+            &health,
+            None,
+            Some(&summary),
+            persisted_omitted_count(&active.input),
+            Vec::new(),
+            None,
+            Measurements {
+                duration_ms: elapsed_ms(started),
+                parsed_file_count: 0,
+                reused_file_count: 0,
+                changed_file_count: 0,
+                deleted_file_count: 0,
+                local_files_written: 0,
+            },
+            false,
+            diagnostics,
+        ));
+    }
+    let current = discovery.files;
     let plan = reader.plan_refresh(&current, None, &oaf_index::RefreshBounds::default())?;
     if plan.no_change {
         let omitted_count = persisted_omitted_count(&active.input);
@@ -933,19 +982,58 @@ fn locator_file(locator: &str) -> &str {
     locator.split_once('#').map_or(locator, |(file, _)| file)
 }
 
-fn discover_files(
+fn discover_refresh_files(
     root: &Path,
     languages: &BTreeSet<String>,
     arguments: &WriterArguments,
-) -> Result<Vec<DiscoveredFile>> {
+    request: &ParsedRequest,
+    started: Instant,
+) -> Result<RefreshDiscovery> {
     let mut options = IngestOptions::new(root);
     options.max_file_bytes = arguments.max_file_bytes;
     options.prefer_cpp_headers = languages.contains("cpp") && !languages.contains("c");
-    let mut hashes = discover_file_hashes(&options)?;
-    hashes.retain(|item| index_source_language(&item.source, languages).is_some());
-    hashes.sort_by(|left, right| left.source.cmp(&right.source));
-    hashes.truncate(arguments.max_files);
-    hashes
+    let deadline = started
+        .checked_add(Duration::from_millis(request.deadline_ms))
+        .unwrap_or(started);
+    let report = discover_file_hashes_bounded(
+        &options,
+        &FileHashDiscoveryBounds {
+            max_candidate_files: arguments
+                .max_files
+                .saturating_add(1)
+                .min(SOURCE_FRESHNESS_MAX_CANDIDATE_FILES),
+            max_hashed_bytes: SOURCE_FRESHNESS_MAX_HASHED_BYTES,
+            selected_file_limit: None,
+            deadline,
+        },
+        |source| index_source_language(source, languages).is_some(),
+    )?;
+    if !report.complete {
+        let file_budget_exceeded = report
+            .reason_codes
+            .iter()
+            .any(|code| code == "source_index_freshness_candidate_cap");
+        return Ok(RefreshDiscovery {
+            files: Vec::new(),
+            partial_reason: Some(if file_budget_exceeded {
+                "source_index_refresh_file_budget_exceeded"
+            } else {
+                "source_index_refresh_discovery_incomplete"
+            }),
+            omitted_count: 0,
+            reason_codes: report.reason_codes,
+        });
+    }
+    if report.hashes.len() > arguments.max_files {
+        return Ok(RefreshDiscovery {
+            omitted_count: report.hashes.len() - arguments.max_files,
+            files: Vec::new(),
+            partial_reason: Some("source_index_refresh_file_budget_exceeded"),
+            reason_codes: Vec::new(),
+        });
+    }
+    let files = report
+        .hashes
         .into_iter()
         .map(|item| {
             Ok(DiscoveredFile {
@@ -954,7 +1042,13 @@ fn discover_files(
                 byte_size: i64::try_from(item.bytes).context("source_index_file_size_invalid")?,
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>>>()?;
+    Ok(RefreshDiscovery {
+        files,
+        partial_reason: None,
+        omitted_count: 0,
+        reason_codes: Vec::new(),
+    })
 }
 
 fn execute_query(
@@ -1269,11 +1363,17 @@ fn success_frame(
     read_only: bool,
     diagnostics: Vec<Value>,
 ) -> Value {
-    let partial = health.status == HealthStatus::Ready && omitted_count > 0;
+    let transient_partial = diagnostics.iter().any(|diagnostic| {
+        diagnostic["code"]
+            .as_str()
+            .is_some_and(|code| code == "source_index_refresh_partial")
+    });
+    let persisted_partial = health.status == HealthStatus::Ready && omitted_count > 0;
+    let partial = transient_partial || persisted_partial;
     let mut health_value = Map::new();
     health_value.insert(
         "status".into(),
-        Value::String(if partial {
+        Value::String(if persisted_partial {
             "partial".into()
         } else {
             health_status(health.status).into()
@@ -2118,4 +2218,6 @@ mod tests {
         assert_eq!(status["result"]["health"]["repairRequired"], false);
         assert_eq!(bundle_snapshot(&index_path), before);
     }
+
+    include!("../test-support/index_protocol_refresh.rs");
 }
