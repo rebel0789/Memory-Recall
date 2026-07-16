@@ -106,7 +106,15 @@ test('repository provider rejects requests outside the protocol schema before tr
     () => instance.searchRepositories({ root, workspaceId: 'ws_local', query: 'main*unsafe', repositoryIds: [REPOSITORY_ID] }),
     () => instance.searchRepositories({ root, workspaceId: 'ws_local', query: 'main', repositoryIds: [REPOSITORY_ID, REPOSITORY_ID] }),
     () => instance.searchRepositories({ root, workspaceId: 'ws_local', query: 'main', repositoryIds: [REPOSITORY_ID], perRepositoryLimit: 26 }),
-    () => instance.searchRepositories({ root, workspaceId: 'ws_local', query: 'main', repositoryIds: [REPOSITORY_ID], limit: 51 })
+    () => instance.searchRepositories({ root, workspaceId: 'ws_local', query: 'main', repositoryIds: [REPOSITORY_ID], limit: 51 }),
+    () => instance.resolveGoRepositories({
+      root,
+      repositoryIds: [REPOSITORY_ID, `repo_${'b'.repeat(32)}`],
+      clientRepositoryId: `repo_${'b'.repeat(32)}`,
+      serviceRepositoryId: REPOSITORY_ID,
+      clientEntryNativeId: `cinode_${'c'.repeat(32)}`,
+      serviceTargetNativeId: `cinode_${'d'.repeat(32)}`
+    })
   ];
   for (const call of invalidCalls) {
     await assert.rejects(
@@ -149,7 +157,10 @@ test('repository provider passes register, list, and search frames through one n
   assert.deepEqual((await instance.capabilities()).filter((capability) => capability.includes('.repository.')), [
     'code-intelligence.repository.register',
     'code-intelligence.repository.list',
-    'code-intelligence.repository.search'
+    'code-intelligence.repository.search',
+    'code-intelligence.repository.go.resolve',
+    'code-intelligence.repository.go.trace',
+    'code-intelligence.repository.go.impact'
   ]);
 
   const requests = (await readFile(capturePath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line));

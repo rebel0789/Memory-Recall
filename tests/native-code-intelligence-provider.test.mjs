@@ -80,6 +80,9 @@ test('native provider builds and validates one local read-only graph', async (t)
     'code-intelligence.repository.register',
     'code-intelligence.repository.list',
     'code-intelligence.repository.search',
+    'code-intelligence.repository.go.resolve',
+    'code-intelligence.repository.go.trace',
+    'code-intelligence.repository.go.impact',
     'code-intelligence.local-read-only',
     'code-intelligence.native-preview'
   ]);

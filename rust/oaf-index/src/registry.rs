@@ -1,6 +1,6 @@
 use super::{
-    open_read_only_connection, repository_identity_hash, secure_permissions, QueryBounds,
-    SourceIndex, SourceIndexOptions,
+    locator_file, open_read_only_connection, repository_identity_hash, secure_permissions,
+    EdgeDirection, NodeRecord, QueryBounds, SourceIndex, SourceIndexOptions,
 };
 use anyhow::{bail, Context, Result};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -88,6 +88,59 @@ pub struct RepositorySearchOutput {
     pub partial: bool,
     pub truncated: bool,
     pub opened_repository_count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoRepositoryModule {
+    pub repository_id: String,
+    pub module_coordinate: String,
+    pub manifest_locator: String,
+    pub required_module_coordinates: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoRepositoryRelationship {
+    pub id: String,
+    pub kind: String,
+    pub source_repository_id: String,
+    pub target_repository_id: String,
+    pub from_node_id: String,
+    pub to_node_id: String,
+    pub evidence_locator: String,
+    pub evidence_native_relationship_ids: Vec<String>,
+    pub confidence: f64,
+    pub resolution: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoRepositoryPath {
+    pub node_ids: Vec<String>,
+    pub relationship_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepositoryGoOutput {
+    pub repositories: Vec<RegisteredRepository>,
+    pub go_modules: Vec<GoRepositoryModule>,
+    pub go_relationships: Vec<GoRepositoryRelationship>,
+    pub paths: Vec<GoRepositoryPath>,
+    pub impacted_nodes: Vec<QualifiedRepositoryNode>,
+    pub partial: bool,
+    pub truncated: bool,
+    pub opened_repository_count: usize,
+}
+
+pub struct GoRepositoryQuery<'a> {
+    pub repository_ids: &'a [String],
+    pub client_repository_id: &'a str,
+    pub service_repository_id: &'a str,
+    pub client_entry_native_id: &'a str,
+    pub service_target_native_id: &'a str,
+    pub deadline_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -340,6 +393,253 @@ impl RepositoryRegistry {
         Ok(output)
     }
 
+    pub fn resolve_go(&self, query: &GoRepositoryQuery<'_>) -> Result<RepositoryGoOutput> {
+        self.go_relationships(query, None, GoOutputKind::Resolve)
+    }
+
+    pub fn trace_go(
+        &self,
+        query: &GoRepositoryQuery<'_>,
+        limit: usize,
+    ) -> Result<RepositoryGoOutput> {
+        self.go_relationships(query, Some(limit), GoOutputKind::Trace)
+    }
+
+    pub fn impact_go(
+        &self,
+        query: &GoRepositoryQuery<'_>,
+        limit: usize,
+    ) -> Result<RepositoryGoOutput> {
+        self.go_relationships(query, Some(limit), GoOutputKind::Impact)
+    }
+
+    fn go_relationships(
+        &self,
+        query: &GoRepositoryQuery<'_>,
+        limit: Option<usize>,
+        output_kind: GoOutputKind,
+    ) -> Result<RepositoryGoOutput> {
+        validate_go_request(query, limit)?;
+        let client_repository_id = query.client_repository_id;
+        let service_repository_id = query.service_repository_id;
+        let started = Instant::now();
+        let wanted = query
+            .repository_ids
+            .iter()
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let rows = self.load_rows(2, Some(&wanted))?;
+        if rows.len() != 2 {
+            bail!("repository_not_registered");
+        }
+        let by_id = rows
+            .into_iter()
+            .map(|row| (row.repository_id.clone(), row))
+            .collect::<BTreeMap<_, _>>();
+        let client_row = by_id
+            .get(client_repository_id)
+            .context("repository_not_registered")?;
+        let service_row = by_id
+            .get(service_repository_id)
+            .context("repository_not_registered")?;
+
+        ensure_go_deadline(started, query.deadline_ms)?;
+        let (_, service_root) =
+            resolve_repository_root(&self.fleet_root, &service_row.root_locator)?;
+        let service_manifest = read_go_manifest(&service_root)?;
+        let service_options =
+            SourceIndexOptions::new(&service_row.repository_identity_hash, &self.engine_version);
+        let service_index = SourceIndex::open_read_only(
+            &service_root.join(REPOSITORY_INDEX_RELATIVE_PATH),
+            &service_options,
+        )
+        .context("repository_index_unavailable")?;
+        let service_generation = service_index
+            .active_generation()
+            .context("repository_index_active_generation_missing")?;
+        let service_target = service_index
+            .node(query.service_target_native_id)?
+            .context("repository_go_target_not_found")?;
+        let expected_import = go_import_coordinate(&service_manifest.module, &service_target)?;
+        drop(service_index);
+
+        ensure_go_deadline(started, query.deadline_ms)?;
+        let (_, client_root) = resolve_repository_root(&self.fleet_root, &client_row.root_locator)?;
+        let client_manifest = read_go_manifest(&client_root)?;
+        if !client_manifest.requires.contains(&service_manifest.module) {
+            bail!("repository_go_module_mismatch");
+        }
+        let client_options =
+            SourceIndexOptions::new(&client_row.repository_identity_hash, &self.engine_version);
+        let client_index = SourceIndex::open_read_only(
+            &client_root.join(REPOSITORY_INDEX_RELATIVE_PATH),
+            &client_options,
+        )
+        .context("repository_index_unavailable")?;
+        let client_generation = client_index
+            .active_generation()
+            .context("repository_index_active_generation_missing")?;
+        let client_entry = client_index
+            .node(query.client_entry_native_id)?
+            .context("repository_go_entry_not_found")?;
+        let query_bounds = QueryBounds {
+            limit: REPOSITORY_SEARCH_MAX_PER_REPOSITORY,
+            max_depth: 1,
+            max_output_bytes: REPOSITORY_SEARCH_MAX_OUTPUT_BYTES,
+            timeout_ms: remaining_ms(started, query.deadline_ms),
+            cursor: None,
+        };
+        let client_file = locator_file(&client_entry.locator);
+        let import_targets = client_index
+            .find_exact_nodes(&expected_import, &query_bounds)?
+            .items;
+        let mut import_edge = None;
+        for target in import_targets
+            .into_iter()
+            .filter(|node| symbol_tail(&node.qualified_name) == expected_import)
+        {
+            import_edge = client_index
+                .dependency_edges(&target.canonical_id, EdgeDirection::Incoming, &query_bounds)?
+                .items
+                .into_iter()
+                .find(|edge| {
+                    edge.kind == "imports"
+                        && edge.resolution_class == "unresolved"
+                        && !edge.stale
+                        && locator_file(&edge.locator) == client_file
+                });
+            if import_edge.is_some() {
+                break;
+            }
+        }
+        let import_edge = import_edge.context("repository_go_import_not_found")?;
+        let target_name = symbol_tail(&service_target.qualified_name);
+        let execution_edge = client_index
+            .dependency_edges(
+                query.client_entry_native_id,
+                EdgeDirection::Outgoing,
+                &query_bounds,
+            )?
+            .items
+            .into_iter()
+            .find(|edge| {
+                if !matches!(edge.kind.as_str(), "calls" | "constructs")
+                    || edge.resolution_class != "unresolved"
+                    || edge.stale
+                    || locator_file(&edge.locator) != client_file
+                {
+                    return false;
+                }
+                client_index
+                    .node(&edge.target_id)
+                    .ok()
+                    .flatten()
+                    .is_some_and(|node| symbol_tail(&node.qualified_name) == target_name)
+            })
+            .context("repository_go_relationship_not_found")?;
+        drop(client_index);
+        ensure_go_deadline(started, query.deadline_ms)?;
+
+        let client_entry = qualify_node(client_repository_id, client_entry, client_generation, 1.0);
+        let service_target = qualify_node(
+            service_repository_id,
+            service_target,
+            service_generation,
+            1.0,
+        );
+        let import_relationship_id = prefixed_digest(
+            "mrrel_",
+            &[
+                client_repository_id.as_bytes(),
+                service_repository_id.as_bytes(),
+                import_edge.canonical_id.as_bytes(),
+            ],
+        );
+        let execution_relationship_id = prefixed_digest(
+            "mrrel_",
+            &[
+                client_repository_id.as_bytes(),
+                service_repository_id.as_bytes(),
+                execution_edge.canonical_id.as_bytes(),
+                query.service_target_native_id.as_bytes(),
+            ],
+        );
+        let relationships = vec![
+            GoRepositoryRelationship {
+                id: import_relationship_id,
+                kind: "imports".to_string(),
+                source_repository_id: client_repository_id.to_string(),
+                target_repository_id: service_repository_id.to_string(),
+                from_node_id: derive_qualified_node_id(
+                    client_repository_id,
+                    &import_edge.source_id,
+                ),
+                to_node_id: service_target.id.clone(),
+                evidence_locator: import_edge.locator,
+                evidence_native_relationship_ids: vec![import_edge.canonical_id.clone()],
+                confidence: import_edge.confidence,
+                resolution: "exact_module_coordinate".to_string(),
+            },
+            GoRepositoryRelationship {
+                id: execution_relationship_id.clone(),
+                kind: execution_edge.kind,
+                source_repository_id: client_repository_id.to_string(),
+                target_repository_id: service_repository_id.to_string(),
+                from_node_id: client_entry.id.clone(),
+                to_node_id: service_target.id.clone(),
+                evidence_locator: execution_edge.locator,
+                evidence_native_relationship_ids: vec![
+                    import_edge.canonical_id.clone(),
+                    execution_edge.canonical_id,
+                ],
+                confidence: import_edge.confidence.min(execution_edge.confidence),
+                resolution: "exact_module_coordinate".to_string(),
+            },
+        ];
+        let path = GoRepositoryPath {
+            node_ids: vec![client_entry.id.clone(), service_target.id.clone()],
+            relationship_ids: vec![execution_relationship_id],
+        };
+        let mut repositories = vec![
+            repository_from_row(client_row, Some(client_generation)),
+            repository_from_row(service_row, Some(service_generation)),
+        ];
+        repositories.sort_by(|left, right| left.repository_id.cmp(&right.repository_id));
+        let output = RepositoryGoOutput {
+            repositories,
+            go_modules: vec![
+                GoRepositoryModule {
+                    repository_id: client_repository_id.to_string(),
+                    module_coordinate: client_manifest.module,
+                    manifest_locator: "workspace://go.mod".to_string(),
+                    required_module_coordinates: vec![service_manifest.module.clone()],
+                },
+                GoRepositoryModule {
+                    repository_id: service_repository_id.to_string(),
+                    module_coordinate: service_manifest.module,
+                    manifest_locator: "workspace://go.mod".to_string(),
+                    required_module_coordinates: Vec::new(),
+                },
+            ],
+            go_relationships: relationships,
+            paths: matches!(output_kind, GoOutputKind::Trace | GoOutputKind::Impact)
+                .then_some(path)
+                .into_iter()
+                .collect(),
+            impacted_nodes: matches!(output_kind, GoOutputKind::Impact)
+                .then_some(client_entry)
+                .into_iter()
+                .collect(),
+            partial: false,
+            truncated: false,
+            opened_repository_count: 2,
+        };
+        if serde_json::to_vec(&output)?.len() > REPOSITORY_SEARCH_MAX_OUTPUT_BYTES {
+            bail!("repository_go_output_too_large");
+        }
+        Ok(output)
+    }
+
     fn load_rows(
         &self,
         limit: usize,
@@ -425,6 +725,160 @@ impl RepositoryRegistry {
         let truncated = page.next_cursor.is_some();
         Ok((generation, page.items, truncated))
     }
+}
+
+#[derive(Clone, Copy)]
+enum GoOutputKind {
+    Resolve,
+    Trace,
+    Impact,
+}
+
+struct GoManifest {
+    module: String,
+    requires: BTreeSet<String>,
+}
+
+fn validate_go_request(query: &GoRepositoryQuery<'_>, limit: Option<usize>) -> Result<()> {
+    if query.repository_ids.len() != 2
+        || query.repository_ids[0] != query.client_repository_id
+        || query.repository_ids[1] != query.service_repository_id
+        || query.client_repository_id == query.service_repository_id
+        || query
+            .repository_ids
+            .iter()
+            .any(|id| !valid_prefixed_hex(id, "repo_"))
+        || !valid_prefixed_hex(query.client_entry_native_id, "cinode_")
+        || !valid_prefixed_hex(query.service_target_native_id, "cinode_")
+        || limit.is_some_and(|value| !(1..=REPOSITORY_SEARCH_MAX_PER_REPOSITORY).contains(&value))
+        || !(1..=REPOSITORY_SEARCH_MAX_DEADLINE_MS).contains(&query.deadline_ms)
+    {
+        bail!("repository_go_request_invalid");
+    }
+    Ok(())
+}
+
+fn read_go_manifest(root: &Path) -> Result<GoManifest> {
+    const MAX_GO_MOD_BYTES: u64 = 64 * 1024;
+    let path = root.join("go.mod");
+    let canonical = path
+        .canonicalize()
+        .context("repository_go_module_unavailable")?;
+    if !canonical.starts_with(root) {
+        bail!("repository_go_module_unavailable");
+    }
+    let metadata = fs::metadata(&canonical).context("repository_go_module_unavailable")?;
+    if !metadata.is_file() || metadata.len() > MAX_GO_MOD_BYTES {
+        bail!("repository_go_module_unavailable");
+    }
+    let source = fs::read_to_string(canonical).context("repository_go_module_unavailable")?;
+    let mut module = None;
+    let mut requires = BTreeSet::new();
+    let mut require_block = false;
+    for line in source.lines() {
+        let line = line.split("//").next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        if module.is_none() {
+            if let Some(value) = line.strip_prefix("module ") {
+                let value = value.trim();
+                if valid_go_coordinate(value) {
+                    module = Some(value.to_string());
+                }
+                continue;
+            }
+        }
+        if line == "require (" {
+            require_block = true;
+            continue;
+        }
+        if require_block && line == ")" {
+            require_block = false;
+            continue;
+        }
+        let value = if require_block {
+            line.split_whitespace().next()
+        } else {
+            line.strip_prefix("require ")
+                .and_then(|rest| rest.split_whitespace().next())
+        };
+        if let Some(value) = value.filter(|value| valid_go_coordinate(value)) {
+            requires.insert(value.to_string());
+        }
+    }
+    Ok(GoManifest {
+        module: module.context("repository_go_module_unavailable")?,
+        requires,
+    })
+}
+
+fn valid_go_coordinate(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 512
+        && !value.starts_with('/')
+        && !value.ends_with('/')
+        && !value.contains("//")
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte))
+}
+
+fn go_import_coordinate(module: &str, target: &NodeRecord) -> Result<String> {
+    let file = target.locator.split('#').next().unwrap_or(&target.locator);
+    let relative = file
+        .strip_prefix("workspace://")
+        .context("repository_go_target_not_found")?;
+    if !relative.ends_with(".go") || relative.contains("..") {
+        bail!("repository_go_target_not_found");
+    }
+    let directory = relative.rsplit_once('/').map(|(directory, _)| directory);
+    let coordinate = directory.map_or_else(
+        || module.to_string(),
+        |directory| format!("{module}/{directory}"),
+    );
+    if !valid_go_coordinate(&coordinate) {
+        bail!("repository_go_target_not_found");
+    }
+    Ok(coordinate)
+}
+
+fn symbol_tail(qualified_name: &str) -> &str {
+    qualified_name.rsplit("::").next().unwrap_or(qualified_name)
+}
+
+fn qualify_node(
+    repository_id: &str,
+    node: NodeRecord,
+    generation: i64,
+    confidence: f64,
+) -> QualifiedRepositoryNode {
+    let label = result_label(&node);
+    let kind = safe_result_code(&node.kind);
+    QualifiedRepositoryNode {
+        id: derive_qualified_node_id(repository_id, &node.canonical_id),
+        native_id: node.canonical_id,
+        repository_id: repository_id.to_string(),
+        kind,
+        label,
+        locator: node.locator,
+        confidence,
+        generation,
+    }
+}
+
+fn ensure_go_deadline(started: Instant, deadline_ms: u64) -> Result<()> {
+    if started.elapsed() >= Duration::from_millis(deadline_ms) {
+        bail!("repository_go_deadline_exceeded");
+    }
+    Ok(())
+}
+
+fn remaining_ms(started: Instant, deadline_ms: u64) -> u64 {
+    deadline_ms
+        .saturating_sub(elapsed_ms(started))
+        .max(1)
+        .min(REPOSITORY_SEARCH_MAX_DEADLINE_MS)
 }
 
 pub fn derive_repository_id(

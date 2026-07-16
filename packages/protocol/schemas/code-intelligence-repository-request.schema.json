@@ -5,7 +5,10 @@
   "oneOf": [
     { "$ref": "#/$defs/register" },
     { "$ref": "#/$defs/list" },
-    { "$ref": "#/$defs/search" }
+    { "$ref": "#/$defs/search" },
+    { "$ref": "#/$defs/goResolve" },
+    { "$ref": "#/$defs/goTrace" },
+    { "$ref": "#/$defs/goImpact" }
   ],
   "$defs": {
     "requestId": { "type": "string", "pattern": "^cireporeq_[a-f0-9]{32}$" },
@@ -45,6 +48,43 @@
         },
         "perRepositoryLimit": { "type": "integer", "minimum": 1, "maximum": 25 },
         "limit": { "type": "integer", "minimum": 1, "maximum": 50 }
+      }
+    },
+    "goResolveArguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryIds", "clientRepositoryId", "serviceRepositoryId", "clientEntryNativeId", "serviceTargetNativeId"],
+      "properties": {
+        "repositoryIds": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/repositoryId" }
+        },
+        "clientRepositoryId": { "$ref": "#/$defs/repositoryId" },
+        "serviceRepositoryId": { "$ref": "#/$defs/repositoryId" },
+        "clientEntryNativeId": { "type": "string", "pattern": "^cinode_[a-f0-9]{32}$" },
+        "serviceTargetNativeId": { "type": "string", "pattern": "^cinode_[a-f0-9]{32}$" }
+      }
+    },
+    "goBoundedArguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryIds", "clientRepositoryId", "serviceRepositoryId", "clientEntryNativeId", "serviceTargetNativeId", "limit"],
+      "properties": {
+        "repositoryIds": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/repositoryId" }
+        },
+        "clientRepositoryId": { "$ref": "#/$defs/repositoryId" },
+        "serviceRepositoryId": { "$ref": "#/$defs/repositoryId" },
+        "clientEntryNativeId": { "type": "string", "pattern": "^cinode_[a-f0-9]{32}$" },
+        "serviceTargetNativeId": { "type": "string", "pattern": "^cinode_[a-f0-9]{32}$" },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 25 }
       }
     },
     "register": {
@@ -93,6 +133,54 @@
         "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 2000 },
         "responseSchemaVersion": { "const": "1.0.0" },
         "arguments": { "$ref": "#/$defs/searchArguments" }
+      }
+    },
+    "goResolve": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "registryLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "repository.go.resolve" },
+        "root": { "const": "." },
+        "registryLocator": { "$ref": "#/$defs/registryLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 2000 },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/goResolveArguments" }
+      }
+    },
+    "goTrace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "registryLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "repository.go.trace" },
+        "root": { "const": "." },
+        "registryLocator": { "$ref": "#/$defs/registryLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 2000 },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/goBoundedArguments" }
+      }
+    },
+    "goImpact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "registryLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "repository.go.impact" },
+        "root": { "const": "." },
+        "registryLocator": { "$ref": "#/$defs/registryLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 2000 },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/goBoundedArguments" }
       }
     }
   }

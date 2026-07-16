@@ -16,6 +16,12 @@
     "code-intelligence.index.status",
     "code-intelligence.index.doctor",
     "code-intelligence.index.query",
+    "code-intelligence.repository.register",
+    "code-intelligence.repository.list",
+    "code-intelligence.repository.search",
+    "code-intelligence.repository.go.resolve",
+    "code-intelligence.repository.go.trace",
+    "code-intelligence.repository.go.impact",
     "code-intelligence.local-read-only",
     "code-intelligence.native-preview"
   ],
@@ -31,7 +37,8 @@
     "previewOnly": true
   },
   "dataPaths": [
-    ".local/source-index/index.v1.sqlite"
+    ".local/source-index/index.v1.sqlite",
+    ".local/source-index/registry.v1.sqlite"
   ],
   "experimental": true,
   "notes": [

@@ -4,6 +4,7 @@
   "title": "Code Intelligence Repository Response",
   "oneOf": [
     { "$ref": "#/$defs/success" },
+    { "$ref": "#/$defs/goSuccess" },
     { "$ref": "#/$defs/failure" }
   ],
   "$defs": {
@@ -40,6 +41,66 @@
         "locator": { "type": "string", "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._/@+-]+(?:/[A-Za-z0-9._@+-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$" },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
         "generation": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
+      }
+    },
+    "goModule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryId", "moduleCoordinate", "manifestLocator", "requiredModuleCoordinates"],
+      "properties": {
+        "repositoryId": { "$ref": "#/$defs/repositoryId" },
+        "moduleCoordinate": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[A-Za-z0-9._~/-]+$" },
+        "manifestLocator": { "type": "string", "minLength": 12, "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._/@+-]+$" },
+        "requiredModuleCoordinates": {
+          "type": "array",
+          "maxItems": 25,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[A-Za-z0-9._~/-]+$" }
+        }
+      }
+    },
+    "goRelationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "sourceRepositoryId", "targetRepositoryId", "fromNodeId", "toNodeId", "evidenceLocator", "evidenceNativeRelationshipIds", "confidence", "resolution"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mrrel_[a-f0-9]{32}$" },
+        "kind": { "enum": ["imports", "calls", "constructs"] },
+        "sourceRepositoryId": { "$ref": "#/$defs/repositoryId" },
+        "targetRepositoryId": { "$ref": "#/$defs/repositoryId" },
+        "fromNodeId": { "type": "string", "pattern": "^mrnode_[a-f0-9]{32}$" },
+        "toNodeId": { "type": "string", "pattern": "^mrnode_[a-f0-9]{32}$" },
+        "evidenceLocator": { "type": "string", "maxLength": 512, "pattern": "^workspace://[A-Za-z0-9._/@+-]+(?:/[A-Za-z0-9._@+-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$" },
+        "evidenceNativeRelationshipIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^ciedge_[a-f0-9]{32}$" }
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "resolution": { "const": "exact_module_coordinate" }
+      }
+    },
+    "goPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeIds", "relationshipIds"],
+      "properties": {
+        "nodeIds": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 26,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^mrnode_[a-f0-9]{32}$" }
+        },
+        "relationshipIds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 25,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^mrrel_[a-f0-9]{32}$" }
+        }
       }
     },
     "perRepository": {
@@ -102,6 +163,38 @@
             "perRepository": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/perRepository" } },
             "partial": { "type": "boolean" },
             "truncated": { "type": "boolean" },
+            "measurements": { "$ref": "#/$defs/measurements" },
+            "safeguards": { "$ref": "#/$defs/safeguards" }
+          }
+        }
+      }
+    },
+    "goSuccess": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "ok", "result"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "ok": { "const": true },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["responseSchemaVersion", "operation", "registryLocator", "state", "repositories", "results", "perRepository", "goModules", "goRelationships", "paths", "impactedNodes", "partial", "truncated", "measurements", "safeguards"],
+          "properties": {
+            "responseSchemaVersion": { "const": "1.0.0" },
+            "operation": { "enum": ["repository.go.resolve", "repository.go.trace", "repository.go.impact"] },
+            "registryLocator": { "const": "workspace://.local/source-index/registry.v1.sqlite" },
+            "state": { "const": "ready" },
+            "repositories": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/repository" } },
+            "results": { "type": "array", "maxItems": 0, "items": { "$ref": "#/$defs/qualifiedNode" } },
+            "perRepository": { "type": "array", "maxItems": 0, "items": { "$ref": "#/$defs/perRepository" } },
+            "goModules": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/goModule" } },
+            "goRelationships": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/goRelationship" } },
+            "paths": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/goPath" } },
+            "impactedNodes": { "type": "array", "maxItems": 25, "items": { "$ref": "#/$defs/qualifiedNode" } },
+            "partial": { "const": false },
+            "truncated": { "const": false },
             "measurements": { "$ref": "#/$defs/measurements" },
             "safeguards": { "$ref": "#/$defs/safeguards" }
           }

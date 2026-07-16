@@ -24,6 +24,9 @@ const CAPABILITIES = Object.freeze([
   'code-intelligence.repository.register',
   'code-intelligence.repository.list',
   'code-intelligence.repository.search',
+  'code-intelligence.repository.go.resolve',
+  'code-intelligence.repository.go.trace',
+  'code-intelligence.repository.go.impact',
   'code-intelligence.local-read-only',
   'code-intelligence.native-preview'
 ]);
@@ -220,6 +223,30 @@ export class RustCodeIntelligenceProvider {
     });
   }
 
+  async resolveGoRepositories(options = {}) {
+    return this.#repositoryOperation(
+      'repository.go.resolve',
+      options,
+      goRepositoryArguments(options)
+    );
+  }
+
+  async traceGoRepositories({ limit = 25, ...options } = {}) {
+    return this.#repositoryOperation(
+      'repository.go.trace',
+      options,
+      goRepositoryArguments(options, limit)
+    );
+  }
+
+  async impactGoRepositories({ limit = 25, ...options } = {}) {
+    return this.#repositoryOperation(
+      'repository.go.impact',
+      options,
+      goRepositoryArguments(options, limit)
+    );
+  }
+
   async #indexOperation(operation, options, argumentsValue) {
     const workspace = await resolveWorkspace(options.root);
     const { path: binary } = await this.#resolveBinary();
@@ -278,7 +305,9 @@ export class RustCodeIntelligenceProvider {
       operation,
       root: '.',
       registryLocator: 'workspace://.local/source-index/registry.v1.sqlite',
-      deadlineMs: operation === 'repository.search' ? Math.min(this.timeoutMs, 2000) : this.timeoutMs,
+      deadlineMs: operation === 'repository.search' || operation.startsWith('repository.go.')
+        ? Math.min(this.timeoutMs, 2000)
+        : this.timeoutMs,
       responseSchemaVersion: '1.0.0',
       arguments: argumentsValue
     };
@@ -337,6 +366,30 @@ async function resolveWorkspace(root) {
   } catch {
     throw new NativeCodeIntelligenceError('native_engine_workspace_invalid');
   }
+}
+
+function goRepositoryArguments({
+  repositoryIds,
+  clientRepositoryId,
+  serviceRepositoryId,
+  clientEntryNativeId,
+  serviceTargetNativeId
+}, limit) {
+  if (!Array.isArray(repositoryIds)
+    || repositoryIds.length !== 2
+    || repositoryIds[0] !== clientRepositoryId
+    || repositoryIds[1] !== serviceRepositoryId
+    || clientRepositoryId === serviceRepositoryId) {
+    throw new NativeCodeIntelligenceError('native_repository_request_invalid');
+  }
+  return {
+    repositoryIds,
+    clientRepositoryId,
+    serviceRepositoryId,
+    clientEntryNativeId,
+    serviceTargetNativeId,
+    ...(limit === undefined ? {} : { limit })
+  };
 }
 
 function runNativeProcess({ binary, workspace, request, commandArgs, timeoutMs, maxStdoutBytes, maxStderrBytes, signal }) {

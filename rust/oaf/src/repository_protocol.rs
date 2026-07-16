@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use oaf_index::{
-    RepositoryRegistry, RepositorySearchOutput, REPOSITORY_REGISTRY_LOCATOR,
-    REPOSITORY_SEARCH_MAX_OUTPUT_BYTES,
+    GoRepositoryQuery, RepositoryGoOutput, RepositoryRegistry, RepositorySearchOutput,
+    REPOSITORY_REGISTRY_LOCATOR, REPOSITORY_SEARCH_MAX_OUTPUT_BYTES,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -51,6 +51,17 @@ struct SearchArguments {
     limit: usize,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct GoArguments {
+    repository_ids: Vec<String>,
+    client_repository_id: String,
+    service_repository_id: String,
+    client_entry_native_id: String,
+    service_target_native_id: String,
+    limit: Option<usize>,
+}
+
 struct ParsedRequest {
     request_id: String,
     workspace_id: String,
@@ -62,6 +73,78 @@ enum Operation {
     Register(RegisterArguments),
     List(ListArguments),
     Search(SearchArguments),
+    Go(GoOperation, GoArguments),
+}
+
+#[derive(Clone, Copy)]
+enum GoOperation {
+    Resolve,
+    Trace,
+    Impact,
+}
+
+impl GoOperation {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Resolve => "repository.go.resolve",
+            Self::Trace => "repository.go.trace",
+            Self::Impact => "repository.go.impact",
+        }
+    }
+
+    fn run(
+        self,
+        registry: &RepositoryRegistry,
+        query: &GoRepositoryQuery<'_>,
+        limit: Option<usize>,
+    ) -> Result<RepositoryGoOutput> {
+        match self {
+            Self::Resolve => registry.resolve_go(query),
+            Self::Trace => registry.trace_go(query, limit.context("repository_request_invalid")?),
+            Self::Impact => registry.impact_go(query, limit.context("repository_request_invalid")?),
+        }
+    }
+}
+
+impl GoArguments {
+    fn parse(value: Value, deadline_ms: u64, operation: GoOperation) -> Result<Self> {
+        let has_limit = value
+            .as_object()
+            .is_some_and(|arguments| arguments.contains_key("limit"));
+        let arguments: Self = serde_json::from_value(value)
+            .map_err(|_| anyhow::anyhow!("repository_request_invalid"))?;
+        let limit_valid = match (operation, has_limit, arguments.limit) {
+            (GoOperation::Resolve, false, None) => true,
+            (GoOperation::Trace | GoOperation::Impact, true, Some(limit)) => {
+                (1..=25).contains(&limit)
+            }
+            _ => false,
+        };
+        if deadline_ms > 2_000
+            || !limit_valid
+            || !valid_go_selectors(
+                &arguments.repository_ids,
+                &arguments.client_repository_id,
+                &arguments.service_repository_id,
+                &arguments.client_entry_native_id,
+                &arguments.service_target_native_id,
+            )
+        {
+            bail!("repository_request_invalid");
+        }
+        Ok(arguments)
+    }
+
+    fn query(&self, deadline_ms: u64) -> GoRepositoryQuery<'_> {
+        GoRepositoryQuery {
+            repository_ids: &self.repository_ids,
+            client_repository_id: &self.client_repository_id,
+            service_repository_id: &self.service_repository_id,
+            client_entry_native_id: &self.client_entry_native_id,
+            service_target_native_id: &self.service_target_native_id,
+            deadline_ms,
+        }
+    }
 }
 
 pub fn serve_stdio(engine_version: &str) -> Result<()> {
@@ -149,6 +232,18 @@ fn parse_request(value: Value) -> Result<ParsedRequest> {
             }
             Operation::Search(arguments)
         }
+        "repository.go.resolve" => Operation::Go(
+            GoOperation::Resolve,
+            GoArguments::parse(frame.arguments, frame.deadline_ms, GoOperation::Resolve)?,
+        ),
+        "repository.go.trace" => Operation::Go(
+            GoOperation::Trace,
+            GoArguments::parse(frame.arguments, frame.deadline_ms, GoOperation::Trace)?,
+        ),
+        "repository.go.impact" => Operation::Go(
+            GoOperation::Impact,
+            GoArguments::parse(frame.arguments, frame.deadline_ms, GoOperation::Impact)?,
+        ),
         _ => bail!("repository_operation_unsupported"),
     };
     Ok(ParsedRequest {
@@ -221,6 +316,18 @@ fn execute_request(
                 request.deadline_ms,
             )?;
             search_success_frame(&request.request_id, output, elapsed_ms(started))
+        }
+        Operation::Go(operation, arguments) => {
+            let registry =
+                RepositoryRegistry::open_read_only(root, &request.workspace_id, engine_version)?;
+            let query = arguments.query(request.deadline_ms);
+            let output = operation.run(&registry, &query, arguments.limit)?;
+            go_success_frame(
+                &request.request_id,
+                operation.name(),
+                output,
+                elapsed_ms(started),
+            )
         }
     }
 }
@@ -314,6 +421,54 @@ fn search_success_frame(
     ))
 }
 
+fn go_success_frame(
+    request_id: &str,
+    operation: &str,
+    output: RepositoryGoOutput,
+    duration_ms: u64,
+) -> Result<Value> {
+    let result_count = output
+        .go_relationships
+        .len()
+        .saturating_add(output.impacted_nodes.len());
+    Ok(json!({
+        "protocolVersion": PROTOCOL_VERSION,
+        "requestId": request_id,
+        "ok": true,
+        "result": {
+            "responseSchemaVersion": RESPONSE_SCHEMA_VERSION,
+            "operation": operation,
+            "registryLocator": REPOSITORY_REGISTRY_LOCATOR,
+            "state": "ready",
+            "repositories": output.repositories,
+            "results": [],
+            "perRepository": [],
+            "goModules": output.go_modules,
+            "goRelationships": output.go_relationships,
+            "paths": output.paths,
+            "impactedNodes": output.impacted_nodes,
+            "partial": output.partial,
+            "truncated": output.truncated,
+            "measurements": {
+                "durationMs": duration_ms.min(120_000),
+                "selectedRepositoryCount": 2,
+                "openedRepositoryCount": output.opened_repository_count,
+                "resultCount": result_count,
+                "localFilesWritten": 0
+            },
+            "safeguards": {
+                "readOnly": true,
+                "localFilesWritten": 0,
+                "canonicalMemoryWrites": 0,
+                "networkCalls": 0,
+                "modelCalls": 0,
+                "rawSourceBodiesIncluded": false,
+                "absolutePathsIncluded": false
+            }
+        }
+    }))
+}
+
 fn failure_frame(request_id: &str, code: &str) -> Value {
     json!({
         "protocolVersion": PROTOCOL_VERSION,
@@ -346,6 +501,15 @@ fn safe_error_code(error: &anyhow::Error) -> &'static str {
         "repository_index_active_generation_missing",
         "repository_search_request_invalid",
         "repository_search_output_too_large",
+        "repository_go_request_invalid",
+        "repository_go_module_unavailable",
+        "repository_go_module_mismatch",
+        "repository_go_import_not_found",
+        "repository_go_entry_not_found",
+        "repository_go_target_not_found",
+        "repository_go_relationship_not_found",
+        "repository_go_deadline_exceeded",
+        "repository_go_output_too_large",
     ];
     SAFE_CODES
         .iter()
@@ -361,6 +525,23 @@ fn valid_prefixed_hex(value: &str, prefix: &str) -> bool {
                 .bytes()
                 .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
     })
+}
+
+fn valid_go_selectors(
+    repository_ids: &[String],
+    client_repository_id: &str,
+    service_repository_id: &str,
+    client_entry_native_id: &str,
+    service_target_native_id: &str,
+) -> bool {
+    repository_ids.len() == 2
+        && repository_ids[0] == client_repository_id
+        && repository_ids[1] == service_repository_id
+        && client_repository_id != service_repository_id
+        && valid_prefixed_hex(client_repository_id, "repo_")
+        && valid_prefixed_hex(service_repository_id, "repo_")
+        && valid_prefixed_hex(client_entry_native_id, "cinode_")
+        && valid_prefixed_hex(service_target_native_id, "cinode_")
 }
 
 fn valid_workspace_id(value: &str) -> bool {
@@ -499,6 +680,48 @@ mod tests {
             .operation,
             Operation::Search(_)
         ));
+        let go_selectors = json!({
+            "repositoryIds": [
+                "repo_11111111111111111111111111111111",
+                "repo_22222222222222222222222222222222"
+            ],
+            "clientRepositoryId": "repo_11111111111111111111111111111111",
+            "serviceRepositoryId": "repo_22222222222222222222222222222222",
+            "clientEntryNativeId": "cinode_33333333333333333333333333333333",
+            "serviceTargetNativeId": "cinode_44444444444444444444444444444444"
+        });
+        assert!(matches!(
+            parse_request(request(
+                "repository.go.resolve",
+                2_000,
+                go_selectors.clone()
+            ))
+            .unwrap()
+            .operation,
+            Operation::Go(GoOperation::Resolve, _)
+        ));
+        let mut resolve_with_limit = go_selectors.clone();
+        resolve_with_limit["limit"] = Value::Null;
+        assert!(
+            parse_request(request("repository.go.resolve", 2_000, resolve_with_limit)).is_err()
+        );
+        let mut bounded = go_selectors.clone();
+        bounded["limit"] = json!(25);
+        assert!(matches!(
+            parse_request(request("repository.go.trace", 2_000, bounded.clone()))
+                .unwrap()
+                .operation,
+            Operation::Go(GoOperation::Trace, _)
+        ));
+        assert!(matches!(
+            parse_request(request("repository.go.impact", 2_000, bounded.clone()))
+                .unwrap()
+                .operation,
+            Operation::Go(GoOperation::Impact, _)
+        ));
+        bounded["limit"] = json!(26);
+        assert!(parse_request(request("repository.go.trace", 2_000, bounded)).is_err());
+        assert!(parse_request(request("repository.go.resolve", 2_001, go_selectors)).is_err());
         assert!(parse_request(request(
             "repository.search",
             2_001,
