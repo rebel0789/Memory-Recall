@@ -8,6 +8,8 @@ use std::time::{Duration, Instant};
 
 mod model;
 pub use model::*;
+mod watcher;
+pub use watcher::*;
 
 pub const SCHEMA_VERSION: i64 = 1;
 const MIGRATION_ID: &str = "0001_source_index";

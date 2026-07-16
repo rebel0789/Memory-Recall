@@ -161,22 +161,22 @@ Commit: `feat: add dependency aware incremental indexing`
 
 - Create: `rust/oaf-index/src/watcher.rs`
 - Modify: `rust/oaf-index/src/lib.rs`
-- Modify: `rust/oaf/src/main.rs`
+- Modify: `rust/oaf/src/main.rs` during the Task 7 native lifecycle bridge
 - Add watcher/concurrency tests
 
-- [ ] **Step 1: Write debounce, storm, cancellation, and clean-shutdown tests**
+- [x] **Step 1: Write debounce, storm, cancellation, and clean-shutdown tests**
 
 Model editor temporary-file sequences, 10,000-event storms, overlapping refresh requests, rename pairs, directory replacement, watcher overflow, SIGINT, and killed workers.
 
-- [ ] **Step 2: Implement one bounded coalescing queue per repository**
+- [x] **Step 2: Implement one bounded coalescing queue per repository**
 
 Use a fixed queue and debounce window. Coalesce paths and fall back to a bounded metadata/hash discovery after overflow. Only one writer runs per repository; readers continue using the active generation.
 
-- [ ] **Step 3: Expose watcher state without write authority**
+- [x] **Step 3: Expose watcher state without write authority**
 
 Status reports running/stopped/degraded, queued path count, overflow count, last convergence duration, and last safe reason code. MCP reads status only.
 
-- [ ] **Step 4: Prove convergence**
+- [x] **Step 4: Prove convergence**
 
 After every tested storm, the final active fingerprint must equal a clean rebuild and the queue must drain within the documented bound.
 
