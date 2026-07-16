@@ -872,6 +872,18 @@
       "expectedValid": false
     },
     {
+      "id": "code-intelligence-capability-matrix-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-capability-matrix.schema.json",
+      "instance": "evals/code-intelligence/capability-matrix.v1.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-capability-matrix-false-full-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-capability-matrix.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-capability-matrix-false-full.json",
+      "expectedValid": false
+    },
+    {
       "id": "source-graph-preview-current-valid",
       "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
       "instance": "examples/protocol/source-graph-preview.json",

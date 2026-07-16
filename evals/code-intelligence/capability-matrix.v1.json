@@ -1,0 +1,3395 @@
+{
+  "schemaVersion": "1.0.0",
+  "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
+  "generatedAt": "2026-07-16T00:00:00.000Z",
+  "languages": [
+    {
+      "id": "typescript",
+      "displayName": "TypeScript",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "structure": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "imports": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "exports": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "calls": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "config": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "impact": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Only the bounded Node.js path is production-facing in Phase 0."
+      ]
+    },
+    {
+      "id": "javascript",
+      "displayName": "JavaScript",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "structure": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "imports": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "exports": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "calls": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "config": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "impact": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Only the bounded Node.js path is production-facing in Phase 0."
+      ]
+    },
+    {
+      "id": "python",
+      "displayName": "Python",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "java",
+      "displayName": "Java",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "kotlin",
+      "displayName": "Kotlin",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "csharp",
+      "displayName": "C#",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "go",
+      "displayName": "Go",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "rust",
+      "displayName": "Rust",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "php",
+      "displayName": "PHP",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "ruby",
+      "displayName": "Ruby",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "swift",
+      "displayName": "Swift",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "c",
+      "displayName": "C",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "cpp",
+      "displayName": "C++",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "dart",
+      "displayName": "Dart",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf/src/main.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+      ]
+    },
+    {
+      "id": "lua",
+      "displayName": "Lua",
+      "tier": 2,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "This parser remains experimental and outside the Tier 1 release scope."
+      ]
+    },
+    {
+      "id": "bash",
+      "displayName": "Bash",
+      "tier": 2,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "This parser remains experimental and outside the Tier 1 release scope."
+      ]
+    },
+    {
+      "id": "sql",
+      "displayName": "SQL",
+      "tier": 2,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "This parser remains experimental and outside the Tier 1 release scope."
+      ]
+    },
+    {
+      "id": "objective-c",
+      "displayName": "Objective-C",
+      "tier": 2,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "This parser remains experimental and outside the Tier 1 release scope."
+      ]
+    },
+    {
+      "id": "scala",
+      "displayName": "Scala",
+      "tier": 2,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "This parser remains experimental and outside the Tier 1 release scope."
+      ]
+    },
+    {
+      "id": "r",
+      "displayName": "R",
+      "tier": 2,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "This parser remains experimental and outside the Tier 1 release scope."
+      ]
+    },
+    {
+      "id": "julia",
+      "displayName": "Julia",
+      "tier": 2,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "This parser remains experimental and outside the Tier 1 release scope."
+      ]
+    },
+    {
+      "id": "zig",
+      "displayName": "Zig",
+      "tier": 2,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "structure": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            }
+          ],
+          "limitations": [
+            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+          ]
+        },
+        "imports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "exports": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "heritage": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "types": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "calls": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "config": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "frameworks": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "impact": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        },
+        "processes": {
+          "productStatus": "specified",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            }
+          ],
+          "limitations": [
+            "The target contract is written, but no qualifying production implementation is claimed."
+          ]
+        }
+      },
+      "limitations": [
+        "This parser remains experimental and outside the Tier 1 release scope."
+      ]
+    }
+  ]
+}

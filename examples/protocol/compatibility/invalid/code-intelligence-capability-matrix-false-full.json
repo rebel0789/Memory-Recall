@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
+  "generatedAt": "2026-07-16T00:00:00.000Z",
+  "languages": [
+    {
+      "id": "typescript",
+      "displayName": "TypeScript",
+      "tier": 1,
+      "benchmarkStatus": "unmeasured",
+      "capabilities": {
+        "parse": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            }
+          ],
+          "limitations": [
+            "No fixture or real-repository benchmark evidence is attached."
+          ],
+          "claim": "full"
+        }
+      },
+      "limitations": [
+        "This fixture intentionally makes an unsupported full claim."
+      ]
+    }
+  ]
+}

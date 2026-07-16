@@ -6,6 +6,9 @@ This matrix separates what works today from what requires a manual experiment.
 an installer-backed client promise. `Unsupported` means Memory Recall does not
 provide that surface.
 
+For per-language code-intelligence evidence and benchmark status, see
+[Code-intelligence language support](code-intelligence-support.md).
+
 ## Choose the MCP path deliberately
 
 There are two different local MCP paths:

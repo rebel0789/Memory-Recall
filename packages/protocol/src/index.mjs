@@ -46,3 +46,9 @@ export {
   SOURCE_GRAPH_WORKSPACE_LOCATOR_PATTERN,
   SOURCE_GRAPH_WORKSPACE_LOCATOR_RE
 } from './source-graph-locator.mjs';
+export {
+  CODE_INTELLIGENCE_CAPABILITIES,
+  CODE_INTELLIGENCE_TIER_1_LANGUAGES,
+  CODE_INTELLIGENCE_TIER_2_LANGUAGES,
+  auditCodeIntelligenceCapabilityMatrix
+} from './code-intelligence-contract.mjs';
