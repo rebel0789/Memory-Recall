@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{SecondsFormat, Utc};
-use oaf_ingest::{discover_file_hashes, extract_repo, IngestOptions};
-use oaf_store::BatchFact;
+use oaf_ingest::{discover_file_hashes, extract_repo, CodeFactRecord, CodeSpan, IngestOptions};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
@@ -85,6 +84,7 @@ struct NativeNode {
     name: String,
     qualified_name: String,
     content_hash: Option<String>,
+    span: CodeSpan,
 }
 
 #[derive(Debug)]
@@ -296,8 +296,18 @@ fn build_graph(
     engine_version: &str,
     started: Instant,
 ) -> std::result::Result<GraphBuild, EngineFailure> {
-    check_deadline(request, started)?;
     let root = env::current_dir().map_err(|_| internal_failure())?;
+    build_graph_at_root(request, engine_version, &root, started)
+}
+
+fn build_graph_at_root(
+    request: &EngineRequest,
+    engine_version: &str,
+    root: &std::path::Path,
+    started: Instant,
+) -> std::result::Result<GraphBuild, EngineFailure> {
+    check_deadline(request, started)?;
+    let root = root.canonicalize().map_err(|_| internal_failure())?;
     let mut discovery_options = IngestOptions::new(&root);
     discovery_options.max_file_bytes = request.max_file_bytes;
     let mut hashes = discover_file_hashes(&discovery_options).map_err(|_| internal_failure())?;
@@ -343,14 +353,14 @@ fn build_graph(
     let generation_id = format!("cigen_{}", &generation_fingerprint[7..39]);
 
     let (nodes, node_lookup, subject_lookup, candidate_node_count) = build_nodes(
-        &report.facts,
+        &report.code_facts,
         &hash_by_source,
         &request.workspace_id,
         &generation_id,
         request.max_nodes,
     );
     let (edges, candidate_edge_count) = build_edges(
-        &report.facts,
+        &report.code_facts,
         &node_lookup,
         &subject_lookup,
         &generation_id,
@@ -366,6 +376,7 @@ fn build_graph(
     );
     let diagnostics = build_diagnostics(
         &report.skipped_files,
+        &report.recovered_files,
         omitted_file_count,
         omitted_node_count,
         omitted_edge_count,
@@ -407,7 +418,7 @@ fn build_graph(
 }
 
 fn build_nodes(
-    facts: &[BatchFact],
+    facts: &[CodeFactRecord],
     hash_by_source: &BTreeMap<String, String>,
     workspace_id: &str,
     generation_id: &str,
@@ -418,10 +429,20 @@ fn build_nodes(
     BTreeMap<String, Vec<(String, String)>>,
     usize,
 ) {
+    let parent_by_child = facts
+        .iter()
+        .filter(|fact| fact.predicate == "DEFINES")
+        .map(|fact| {
+            (
+                (fact.object.clone(), fact.source.clone()),
+                fact.subject.clone(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
     let mut candidates = facts
         .iter()
         .filter(|fact| fact.predicate == "IS_A")
-        .filter_map(|fact| native_node(fact, hash_by_source, workspace_id))
+        .filter_map(|fact| native_node(fact, hash_by_source, workspace_id, &parent_by_child))
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| {
         left.source
@@ -449,8 +470,8 @@ fn build_nodes(
                 "languageKind": language_kind(node.kind),
                 "name": node.name,
                 "qualifiedName": node.qualified_name,
-                "locator": with_default_span(&node.source),
-                "span": default_span(),
+                "locator": with_span(&node.source, node.span),
+                "span": span_json(node.span),
                 "generationId": generation_id,
                 "freshness": "current",
             });
@@ -464,9 +485,10 @@ fn build_nodes(
 }
 
 fn native_node(
-    fact: &BatchFact,
+    fact: &CodeFactRecord,
     hash_by_source: &BTreeMap<String, String>,
     workspace_id: &str,
+    parent_by_child: &BTreeMap<(String, String), String>,
 ) -> Option<NativeNode> {
     let kind = match fact.object.as_str() {
         "File" => "file",
@@ -479,6 +501,8 @@ fn native_node(
         "Enum" => "enum",
         "Trait" => "trait",
         "Protocol" => "protocol",
+        "TypeAlias" => "type_alias",
+        "FrameworkComponent" => "framework_component",
         "Route" => "route",
         _ => return None,
     };
@@ -490,9 +514,16 @@ fn native_node(
             .split_once(':')
             .map_or(fact.subject.as_str(), |(_, name)| name)
     };
-    let name = safe_name(raw_name);
+    let parent = parent_by_child.get(&(fact.subject.clone(), fact.source.clone()));
+    let name = safe_name(&display_symbol_name(raw_name, parent.map(String::as_str)));
     let relative = fact.source.strip_prefix("workspace://").unwrap_or("source");
-    let qualified_name = safe_name(&format!("{relative}::{name}"));
+    let qualified_name = qualified_symbol_name(
+        relative,
+        &fact.subject,
+        &fact.source,
+        &name,
+        parent_by_child,
+    );
     let id_fingerprint = fingerprint(&json!({
         "workspaceId": workspace_id,
         "source": fact.source,
@@ -510,11 +541,52 @@ fn native_node(
         content_hash: (kind == "file")
             .then(|| hash_by_source.get(&fact.source).cloned())
             .flatten(),
+        span: fact.span,
     })
 }
 
+fn display_symbol_name(raw_name: &str, parent: Option<&str>) -> String {
+    let Some(parent_name) = parent.and_then(|value| value.split_once(':').map(|(_, name)| name))
+    else {
+        return raw_name.to_string();
+    };
+    raw_name
+        .strip_prefix(parent_name)
+        .and_then(|value| value.strip_prefix('_'))
+        .unwrap_or(raw_name)
+        .to_string()
+}
+
+fn qualified_symbol_name(
+    relative: &str,
+    subject: &str,
+    source: &str,
+    name: &str,
+    parent_by_child: &BTreeMap<(String, String), String>,
+) -> String {
+    let mut owners = Vec::new();
+    let mut current = subject.to_string();
+    let mut seen = BTreeSet::new();
+    while seen.insert(current.clone()) {
+        let Some(parent) = parent_by_child.get(&(current.clone(), source.to_string())) else {
+            break;
+        };
+        if !parent.starts_with("file:") && !parent.starts_with("module:") {
+            let raw = parent
+                .split_once(':')
+                .map_or(parent.as_str(), |(_, value)| value);
+            let grandparent = parent_by_child.get(&(parent.clone(), source.to_string()));
+            owners.push(display_symbol_name(raw, grandparent.map(String::as_str)));
+        }
+        current = parent.clone();
+    }
+    owners.reverse();
+    owners.push(name.to_string());
+    safe_name(&format!("{relative}::{}", owners.join("::")))
+}
+
 fn build_edges(
-    facts: &[BatchFact],
+    facts: &[CodeFactRecord],
     node_lookup: &BTreeMap<(String, String), String>,
     subject_lookup: &BTreeMap<String, Vec<(String, String)>>,
     generation_id: &str,
@@ -540,7 +612,7 @@ fn build_edges(
             Some(language) => language,
             None => continue,
         };
-        let locator = with_default_span(&fact.source);
+        let locator = with_span(&fact.source, fact.span);
         let edge_fingerprint = fingerprint(&json!({
             "kind": kind,
             "fromNodeId": from_node_id,
@@ -555,7 +627,7 @@ fn build_edges(
             "evidence": {
                 "kind": evidence_kind,
                 "locator": locator,
-                "span": default_span(),
+                "span": span_json(fact.span),
             },
             "resolver": {
                 "name": resolver,
@@ -586,7 +658,7 @@ fn build_edges(
 }
 
 fn edge_mapping(
-    fact: &BatchFact,
+    fact: &CodeFactRecord,
 ) -> Option<(&'static str, &'static str, &'static str, f64, &'static str)> {
     match fact.predicate.as_str() {
         "DEFINES" => Some((
@@ -596,16 +668,90 @@ fn edge_mapping(
             1.0,
             "exact",
         )),
-        "IMPORTS" => Some(("imports", "import", "memory-recall.import", 0.9, "inferred")),
-        "CALLS"
-            if fact
-                .notes
-                .as_deref()
-                .is_some_and(|note| note.contains("typed")) =>
-        {
+        "IMPORTS" if fact.note == "oaf.ingest:resolved-import" => {
+            Some(("imports", "import", "memory-recall.import", 1.0, "exact"))
+        }
+        "IMPORTS" => Some((
+            "imports",
+            "import",
+            "memory-recall.import",
+            0.75,
+            "unresolved",
+        )),
+        "RE_EXPORTS" if fact.note == "oaf.ingest:resolved-re-export" => {
+            Some(("re_exports", "export", "memory-recall.export", 1.0, "exact"))
+        }
+        "RE_EXPORTS" => Some((
+            "re_exports",
+            "export",
+            "memory-recall.export",
+            0.75,
+            "unresolved",
+        )),
+        "EXPORTS" => Some(("exports", "export", "memory-recall.export", 1.0, "exact")),
+        "CALLS" if fact.note.starts_with("oaf.ingest:typed-call-") => {
             Some(("calls", "call", "memory-recall.typed-call", 0.95, "typed"))
         }
+        "CALLS" if fact.note == "oaf.ingest:unresolved-call" => {
+            Some(("calls", "call", "memory-recall.call", 0.25, "unresolved"))
+        }
         "CALLS" => Some(("calls", "call", "memory-recall.call", 0.75, "inferred")),
+        "CONSTRUCTS" if fact.note == "oaf.ingest:resolved-construct" => Some((
+            "constructs",
+            "call",
+            "memory-recall.construct",
+            1.0,
+            "exact",
+        )),
+        "CONSTRUCTS" => Some((
+            "constructs",
+            "call",
+            "memory-recall.construct",
+            0.5,
+            "unresolved",
+        )),
+        "EXTENDS" | "INHERITS" if fact.note == "oaf.ingest:resolved-heritage" => Some((
+            "extends",
+            "heritage",
+            "memory-recall.heritage",
+            1.0,
+            "exact",
+        )),
+        "IMPLEMENTS" if fact.note == "oaf.ingest:resolved-heritage" => Some((
+            "implements",
+            "heritage",
+            "memory-recall.heritage",
+            1.0,
+            "exact",
+        )),
+        "EXTENDS" | "INHERITS" => Some((
+            "extends",
+            "heritage",
+            "memory-recall.heritage",
+            0.5,
+            "unresolved",
+        )),
+        "IMPLEMENTS" => Some((
+            "implements",
+            "heritage",
+            "memory-recall.heritage",
+            0.5,
+            "unresolved",
+        )),
+        "DEPENDS_ON" => Some((
+            "depends_on",
+            "framework",
+            "memory-recall.framework",
+            1.0,
+            "exact",
+        )),
+        "LISTENS" => Some((
+            "listens",
+            "framework",
+            "memory-recall.framework",
+            1.0,
+            "exact",
+        )),
         "HANDLES" => Some((
             "handles_route",
             "framework",
@@ -686,6 +832,7 @@ fn build_coverage(
 
 fn build_diagnostics(
     skipped_files: &[oaf_ingest::SkippedFile],
+    recovered_files: &[oaf_ingest::RecoveredFile],
     omitted_file_count: usize,
     omitted_node_count: usize,
     omitted_edge_count: usize,
@@ -704,6 +851,17 @@ fn build_diagnostics(
             })
         })
         .collect::<Vec<_>>();
+    diagnostics.extend(recovered_files.iter().filter_map(|file| {
+        source_language(&file.workspace_ref).map(|language| {
+            json!({
+                "code": "parse_recovered",
+                "severity": "warning",
+                "language": language,
+                "locator": file.workspace_ref,
+                "count": 1,
+            })
+        })
+    }));
     for (code, count) in [
         ("file_budget_reached", omitted_file_count),
         ("node_budget_reached", omitted_node_count),
@@ -922,12 +1080,17 @@ fn safe_name(value: &str) -> String {
     output
 }
 
-fn with_default_span(source: &str) -> String {
-    format!("{source}#L1-L1")
+fn with_span(source: &str, span: CodeSpan) -> String {
+    format!("{source}#L{}-L{}", span.start_line, span.end_line)
 }
 
-fn default_span() -> Value {
-    json!({ "startLine": 1, "startColumn": 0, "endLine": 1, "endColumn": 0 })
+fn span_json(span: CodeSpan) -> Value {
+    json!({
+        "startLine": span.start_line,
+        "startColumn": span.start_column,
+        "endLine": span.end_line,
+        "endColumn": span.end_column,
+    })
 }
 
 fn language_kind(kind: &str) -> &str {
@@ -970,6 +1133,7 @@ fn write_frame(writer: &mut impl Write, value: &Value) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     fn valid_request() -> Value {
         json!({
@@ -1021,5 +1185,330 @@ mod tests {
             parse_request(&operation).unwrap_err().code,
             "engine_unsupported_operation"
         );
+    }
+
+    #[test]
+    fn unresolved_notes_never_match_resolved_edge_mappings() {
+        let fact = |predicate: &str, note: &str| CodeFactRecord {
+            subject: "function:caller".to_string(),
+            predicate: predicate.to_string(),
+            object: "function:target".to_string(),
+            source: "workspace://sample.ts".to_string(),
+            note: note.to_string(),
+            span: CodeSpan {
+                start_line: 1,
+                start_column: 0,
+                end_line: 1,
+                end_column: 1,
+            },
+        };
+
+        assert_eq!(
+            edge_mapping(&fact("IMPORTS", "oaf.ingest:unresolved-import"))
+                .unwrap()
+                .4,
+            "unresolved"
+        );
+        assert_eq!(
+            edge_mapping(&fact("RE_EXPORTS", "oaf.ingest:unresolved-re-export"))
+                .unwrap()
+                .4,
+            "unresolved"
+        );
+        assert_eq!(
+            edge_mapping(&fact("CONSTRUCTS", "oaf.ingest:unresolved-construct"))
+                .unwrap()
+                .4,
+            "unresolved"
+        );
+        assert_eq!(
+            edge_mapping(&fact("EXTENDS", "oaf.ingest:unresolved-heritage"))
+                .unwrap()
+                .4,
+            "unresolved"
+        );
+    }
+
+    #[test]
+    fn javascript_typescript_graph_preserves_structure_resolution_and_spans() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-batch-a-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/util.ts"),
+            [
+                "export interface Service { run(): string }",
+                "export class Greeter implements Service {",
+                "  run(): string { return this.greet(); }",
+                "  greet(): string { return 'hello'; }",
+                "}",
+                "export function helper(): string {",
+                "  return 'ok';",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/index.ts"),
+            [
+                "import { Greeter, helper } from './util';",
+                "export function outer(): string {",
+                "  const greeter = new Greeter();",
+                "  function inner(): string {",
+                "    return greeter.greet();",
+                "  }",
+                "  return helper() + inner();",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/server.cjs"),
+            [
+                "const express = require('express');",
+                "const app = express();",
+                "function listUsers(req, res) { return res.json([]); }",
+                "app.get('/users/:id', listUsers);",
+                "http.createServer(listUsers);",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = parse_request(&valid_request()).unwrap();
+        let build = build_graph_at_root(&request, "test", &root, Instant::now());
+        let graph = build.unwrap().graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+        let helper = nodes
+            .iter()
+            .find(|node| node["name"] == "helper")
+            .expect("helper function node");
+        assert_eq!(helper["qualifiedName"], "src/util.ts::helper");
+        assert_eq!(helper["locator"], "workspace://src/util.ts#L6-L8");
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "interface" && node["qualifiedName"] == "src/util.ts::Service"
+        }));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "function" && node["qualifiedName"] == "src/index.ts::outer::inner"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "imports"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L1-L1"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "constructs"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L3-L3"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "calls"
+                && edge["resolution"] == "typed"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L5-L5"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "imports"
+                && edge["evidence"]["locator"] == "workspace://src/server.cjs#L1-L1"
+        }));
+        assert!(edges.iter().any(|edge| edge["kind"] == "handles_route"));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "framework_component" && node["name"] == "node_http_server"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "listens"
+                && edge["evidence"]["locator"] == "workspace://src/server.cjs#L5-L5"
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn javascript_typescript_graph_covers_aliases_exports_heritage_and_server_routes() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-batch-a-frameworks-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src/lib")).unwrap();
+        fs::create_dir_all(root.join("app/api/users/[id]")).unwrap();
+        fs::write(
+            root.join("tsconfig.json"),
+            r#"{"compilerOptions":{"baseUrl":".","paths":{"@lib/*":["src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/base.ts"),
+            [
+                "export interface Runnable { run(): string }",
+                "export class BaseTask { run(): string { return 'base'; } }",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/lib/task.ts"),
+            [
+                "import { Runnable, BaseTask } from '../base';",
+                "export type TaskId = string;",
+                "export class Task extends BaseTask implements Runnable {",
+                "  run(): string { return 'task'; }",
+                "}",
+                "export function execute(): string { return new Task().run(); }",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/index.ts"),
+            [
+                "import { execute } from '@lib/task';",
+                "export { execute } from '@lib/task';",
+                "fastify.get('/tasks/:id', execute);",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("app/api/users/[id]/route.ts"),
+            "export async function GET() { return Response.json({ ok: true }); }\n",
+        )
+        .unwrap();
+
+        let request = parse_request(&valid_request()).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "type_alias" && node["qualifiedName"] == "src/lib/task.ts::TaskId"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "imports"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L1-L1"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "re_exports"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L2-L2"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "exports"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/lib/task.ts#L2-L2"
+        }));
+        assert!(edges
+            .iter()
+            .any(|edge| edge["kind"] == "extends" && edge["resolution"] == "exact"));
+        assert!(edges
+            .iter()
+            .any(|edge| edge["kind"] == "implements" && edge["resolution"] == "exact"));
+        assert!(nodes
+            .iter()
+            .any(|node| node["kind"] == "route" && node["name"] == "GET_tasks_param"));
+        assert!(nodes
+            .iter()
+            .any(|node| node["kind"] == "route" && node["name"] == "GET_api_users_param"));
+        assert!(
+            edges
+                .iter()
+                .filter(|edge| edge["kind"] == "handles_route")
+                .count()
+                >= 2
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn typescript_graph_extracts_nestjs_controller_routes() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-batch-a-nestjs-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/cats.controller.ts"),
+            [
+                "@Controller('/cats')",
+                "export class CatsController {",
+                "  @Get('/:id')",
+                "  findOne(): string { return externalLookup(); }",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = parse_request(&valid_request()).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+
+        assert!(nodes
+            .iter()
+            .any(|node| { node["kind"] == "route" && node["name"] == "GET_cats_param" }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "handles_route"
+                && edge["evidence"]["locator"] == "workspace://src/cats.controller.ts#L3-L4"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "calls"
+                && edge["resolution"] == "unresolved"
+                && edge["evidence"]["locator"] == "workspace://src/cats.controller.ts#L4-L4"
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn graph_reports_recovered_syntax_without_failing_the_file() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-recovery-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("recover.ts"),
+            "const incomplete = ;\nexport function stillWorks() { return 1; }\n",
+        )
+        .unwrap();
+
+        let request = parse_request(&valid_request()).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+
+        let typescript_coverage = graph["coverage"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["language"] == "typescript")
+            .unwrap();
+        assert_eq!(typescript_coverage["failedFileCount"], 0);
+        assert!(graph["diagnostics"].as_array().unwrap().iter().any(|item| {
+            item["code"] == "parse_recovered"
+                && item["locator"] == "workspace://recover.ts"
+                && item["severity"] == "warning"
+        }));
+        assert!(!graph["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["code"] == "parse_failed"));
+
+        fs::remove_dir_all(root).unwrap();
     }
 }

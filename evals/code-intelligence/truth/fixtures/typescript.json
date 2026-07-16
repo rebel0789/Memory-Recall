@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_typescript_import_call_fixture",
+  "language": "typescript",
+  "source": {
+    "class": "fixture",
+    "ref": "fixture://sha256:f2992ddcf7fba78474ac2f8e1c005290dd6bd513273fd106f7807279f09cce4b"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "exhaustive",
+    "relationships": "exhaustive",
+    "calls": "exhaustive"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_typescript_helper",
+      "semanticKey": "node:function:src/helper.ts:helper",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "helper",
+      "qualifiedName": "src/helper.ts::helper",
+      "locator": "workspace://src/helper.ts#L1-L1"
+    },
+    {
+      "id": "cititem_typescript_result",
+      "semanticKey": "node:interface:src/index.ts:Result",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "interface",
+      "name": "Result",
+      "qualifiedName": "src/index.ts::Result",
+      "locator": "workspace://src/index.ts#L2-L2"
+    },
+    {
+      "id": "cititem_typescript_main",
+      "semanticKey": "node:function:src/index.ts:main",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "main",
+      "qualifiedName": "src/index.ts::main",
+      "locator": "workspace://src/index.ts#L3-L3"
+    },
+    {
+      "id": "cititem_typescript_import_helper",
+      "semanticKey": "edge:imports:src/index.ts:src/helper.ts",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "src_index",
+        "qualifiedName": "src/index.ts::src_index",
+        "locator": "workspace://src/index.ts#L1-L4"
+      },
+      "to": {
+        "kind": "module",
+        "name": "src_helper",
+        "qualifiedName": "src/helper.ts::src_helper",
+        "locator": "workspace://src/helper.ts#L1-L2"
+      },
+      "locator": "workspace://src/index.ts#L1-L1",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_typescript_export_result",
+      "semanticKey": "edge:exports:src/index.ts:Result",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "src_index",
+        "qualifiedName": "src/index.ts::src_index",
+        "locator": "workspace://src/index.ts#L1-L4"
+      },
+      "to": {
+        "kind": "interface",
+        "name": "Result",
+        "qualifiedName": "src/index.ts::Result",
+        "locator": "workspace://src/index.ts#L2-L2"
+      },
+      "locator": "workspace://src/index.ts#L2-L2",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_typescript_call_helper",
+      "semanticKey": "edge:calls:src/index.ts:main:helper",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "main",
+        "qualifiedName": "src/index.ts::main",
+        "locator": "workspace://src/index.ts#L3-L3"
+      },
+      "to": {
+        "kind": "function",
+        "name": "helper",
+        "qualifiedName": "src/helper.ts::helper",
+        "locator": "workspace://src/helper.ts#L1-L1"
+      },
+      "locator": "workspace://src/index.ts#L3-L3",
+      "resolution": "inferred"
+    },
+    {
+      "id": "cititem_typescript_call_result_absent",
+      "semanticKey": "edge:calls:src/index.ts:main:Result:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "main",
+        "qualifiedName": "src/index.ts::main",
+        "locator": "workspace://src/index.ts#L3-L3"
+      },
+      "to": {
+        "kind": "interface",
+        "name": "Result",
+        "qualifiedName": "src/index.ts::Result",
+        "locator": "workspace://src/index.ts#L2-L2"
+      },
+      "locator": "workspace://src/index.ts#L3-L3"
+    }
+  ],
+  "truthFingerprint": "sha256:5849600e5d3ce2e2cf807f7596ea025e06b5a4f28a6c436c638bd6611686a9b9"
+}

@@ -1,0 +1,1459 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-code-intelligence-phase2-batch-a-1",
+  "phase": 2,
+  "batch": "A",
+  "generatedAt": "2026-07-16T10:29:44.384Z",
+  "inputs": {
+    "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
+    "bounds": {
+      "maxFiles": 5000,
+      "maxFileBytes": 524288,
+      "maxNodes": 5000,
+      "maxEdges": 10000
+    },
+    "fixtureTruth": [
+      "evals/code-intelligence/truth/fixtures/typescript.json",
+      "evals/code-intelligence/truth/fixtures/javascript.json"
+    ],
+    "repositoryTruth": [
+      "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json",
+      "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json",
+      "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json",
+      "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json",
+      "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json",
+      "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json"
+    ],
+    "repositoryRefs": [
+      "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+      "corpus://cirepo_typescript_microsoft_vscode@53e335d0387969ba6b6bd68f2481be89252089ca#src/vs/base/common",
+      "corpus://cirepo_typescript_vercel_next_js@153bf8ac5fa00888ef5fbb2b65cac12f0942a44f#packages/next/src/server/route-modules/app-route",
+      "corpus://cirepo_javascript_axios_axios@3041b8fd1daf17404d1bad1f9d94026ea5ab400b#lib/core",
+      "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#lib",
+      "corpus://cirepo_javascript_lodash_lodash@a666ba591064c8011988275790ad7d625279f09c#."
+    ]
+  },
+  "thresholds": {
+    "symbolRecallMinimum": 0.95,
+    "resolvedCallPrecisionMinimum": 0.9,
+    "duplicateCanonicalSymbolMaximum": 0,
+    "deterministicStructuralFingerprintRequired": true,
+    "malformedFileRepositoryFailureMaximum": 0,
+    "explicitPartialAndUnsupportedDiagnosticsRequired": true,
+    "realRepositoryGatesRequired": true
+  },
+  "cases": [
+    {
+      "id": "fixture_typescript_import_call",
+      "language": "typescript",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:f2992ddcf7fba78474ac2f8e1c005290dd6bd513273fd106f7807279f09cce4b",
+      "truthPath": "evals/code-intelligence/truth/fixtures/typescript.json",
+      "graph": {
+        "fingerprint": "sha256:4468dd2cfeff298c320a8deca157877bdd92b1a8c9645e4c3dd3a172a2588921",
+        "nodeCount": 7,
+        "edgeCount": 10,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "typescript",
+            "support": "partial",
+            "discoveredFileCount": 2,
+            "indexedFileCount": 2,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 12.552,
+        "secondElapsedMs": 10.428,
+        "evaluatorMaxRssKb": 57840,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_typescript_import_call_fixture",
+        "language": "typescript",
+        "sourceRef": "fixture://sha256:f2992ddcf7fba78474ac2f8e1c005290dd6bd513273fd106f7807279f09cce4b",
+        "graphFingerprints": [
+          "sha256:4468dd2cfeff298c320a8deca157877bdd92b1a8c9645e4c3dd3a172a2588921",
+          "sha256:4468dd2cfeff298c320a8deca157877bdd92b1a8c9645e4c3dd3a172a2588921"
+        ],
+        "reviewCoverage": {
+          "declarations": "exhaustive",
+          "relationships": "exhaustive",
+          "calls": "exhaustive"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 7,
+          "matchedTruthItemCount": 7
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:c5355751048ee3ad4bb8ebc748b2396d8b4321ac182d9f2db7203dcbdd1bb046"
+      }
+    },
+    {
+      "id": "fixture_javascript_import_call",
+      "language": "javascript",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:1b50b0e6528f5495afff53ce1dd819b6201f81d7d0558f8dce6baa8f9c928e02",
+      "truthPath": "evals/code-intelligence/truth/fixtures/javascript.json",
+      "graph": {
+        "fingerprint": "sha256:6f9ddbf74fe1ea73b02bf3d99ebd4cdcbdd467e66786eba4fb345b6401fcf4ca",
+        "nodeCount": 6,
+        "edgeCount": 8,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "javascript",
+            "support": "partial",
+            "discoveredFileCount": 2,
+            "indexedFileCount": 2,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 10.492,
+        "secondElapsedMs": 9.071,
+        "evaluatorMaxRssKb": 59200,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_javascript_import_call_fixture",
+        "language": "javascript",
+        "sourceRef": "fixture://sha256:1b50b0e6528f5495afff53ce1dd819b6201f81d7d0558f8dce6baa8f9c928e02",
+        "graphFingerprints": [
+          "sha256:6f9ddbf74fe1ea73b02bf3d99ebd4cdcbdd467e66786eba4fb345b6401fcf4ca",
+          "sha256:6f9ddbf74fe1ea73b02bf3d99ebd4cdcbdd467e66786eba4fb345b6401fcf4ca"
+        ],
+        "reviewCoverage": {
+          "declarations": "exhaustive",
+          "relationships": "exhaustive",
+          "calls": "exhaustive"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:db4ee23d2e4f8b21316f8af0e12aa9b9f97d1f8089414cfaa594c5b967083602"
+      }
+    },
+    {
+      "id": "cirepo_typescript_microsoft_typescript",
+      "language": "typescript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+      "commit": "637d5746b70257028fb95aad32ddec6b26ab0a14",
+      "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json",
+      "graph": {
+        "fingerprint": "sha256:49021888c46abed597d439fc66925b769d3de85ee3ec27544f05d49a8df8323c",
+        "nodeCount": 3823,
+        "edgeCount": 10000,
+        "diagnosticCount": 2,
+        "coverage": [
+          {
+            "language": "typescript",
+            "support": "partial",
+            "discoveredFileCount": 26,
+            "indexedFileCount": 26,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 731.417,
+        "secondElapsedMs": 706.985,
+        "evaluatorMaxRssKb": 165328,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_typescript_microsoft_typescript",
+        "language": "typescript",
+        "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+        "graphFingerprints": [
+          "sha256:49021888c46abed597d439fc66925b769d3de85ee3ec27544f05d49a8df8323c",
+          "sha256:49021888c46abed597d439fc66925b769d3de85ee3ec27544f05d49a8df8323c"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 4,
+          "matchedTruthItemCount": 4
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:92db91070b1166efb397e468f2abbb9158aa216e7fce73f321862224f506e8a2"
+      }
+    },
+    {
+      "id": "cirepo_typescript_microsoft_vscode",
+      "language": "typescript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_typescript_microsoft_vscode@53e335d0387969ba6b6bd68f2481be89252089ca#src/vs/base/common",
+      "commit": "53e335d0387969ba6b6bd68f2481be89252089ca",
+      "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json",
+      "graph": {
+        "fingerprint": "sha256:ea7fb304270eb0b80f920b9b5f74a9daedef9665b45cddf8775c1b6f9abd11c6",
+        "nodeCount": 5000,
+        "edgeCount": 10000,
+        "diagnosticCount": 2,
+        "coverage": [
+          {
+            "language": "typescript",
+            "support": "partial",
+            "discoveredFileCount": 154,
+            "indexedFileCount": 154,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 826.795,
+        "secondElapsedMs": 788.655,
+        "evaluatorMaxRssKb": 216576,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_typescript_microsoft_vscode",
+        "language": "typescript",
+        "sourceRef": "corpus://cirepo_typescript_microsoft_vscode@53e335d0387969ba6b6bd68f2481be89252089ca#src/vs/base/common",
+        "graphFingerprints": [
+          "sha256:ea7fb304270eb0b80f920b9b5f74a9daedef9665b45cddf8775c1b6f9abd11c6",
+          "sha256:ea7fb304270eb0b80f920b9b5f74a9daedef9665b45cddf8775c1b6f9abd11c6"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 4,
+          "matchedTruthItemCount": 4
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:6210d29030e2348f5c704dbb0059763d0b9a5813ee22ca90b21252e18e0add1f"
+      }
+    },
+    {
+      "id": "cirepo_typescript_vercel_next_js",
+      "language": "typescript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_typescript_vercel_next_js@153bf8ac5fa00888ef5fbb2b65cac12f0942a44f#packages/next/src/server/route-modules/app-route",
+      "commit": "153bf8ac5fa00888ef5fbb2b65cac12f0942a44f",
+      "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json",
+      "graph": {
+        "fingerprint": "sha256:aa597714e64c2434fcf73172bd158ea20ad22f39d135fafd243fd78dc6c246ca",
+        "nodeCount": 145,
+        "edgeCount": 299,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "typescript",
+            "support": "partial",
+            "discoveredFileCount": 8,
+            "indexedFileCount": 8,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 29.826,
+        "secondElapsedMs": 29.249,
+        "evaluatorMaxRssKb": 216576,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_typescript_vercel_next_js",
+        "language": "typescript",
+        "sourceRef": "corpus://cirepo_typescript_vercel_next_js@153bf8ac5fa00888ef5fbb2b65cac12f0942a44f#packages/next/src/server/route-modules/app-route",
+        "graphFingerprints": [
+          "sha256:aa597714e64c2434fcf73172bd158ea20ad22f39d135fafd243fd78dc6c246ca",
+          "sha256:aa597714e64c2434fcf73172bd158ea20ad22f39d135fafd243fd78dc6c246ca"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 5,
+          "matchedTruthItemCount": 5
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:38a1891254ad98d65f0beee4ff576aaf7bee454a6ea2e688934f01d60dcd9150"
+      }
+    },
+    {
+      "id": "cirepo_javascript_axios_axios",
+      "language": "javascript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_javascript_axios_axios@3041b8fd1daf17404d1bad1f9d94026ea5ab400b#lib/core",
+      "commit": "3041b8fd1daf17404d1bad1f9d94026ea5ab400b",
+      "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json",
+      "graph": {
+        "fingerprint": "sha256:5b21ac7e36aad2fc33006ed4848413cf3628278edcbe24183877d05167f5f322",
+        "nodeCount": 230,
+        "edgeCount": 437,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "javascript",
+            "support": "partial",
+            "discoveredFileCount": 10,
+            "indexedFileCount": 10,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 34.596,
+        "secondElapsedMs": 33.645,
+        "evaluatorMaxRssKb": 216576,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_javascript_axios_axios",
+        "language": "javascript",
+        "sourceRef": "corpus://cirepo_javascript_axios_axios@3041b8fd1daf17404d1bad1f9d94026ea5ab400b#lib/core",
+        "graphFingerprints": [
+          "sha256:5b21ac7e36aad2fc33006ed4848413cf3628278edcbe24183877d05167f5f322",
+          "sha256:5b21ac7e36aad2fc33006ed4848413cf3628278edcbe24183877d05167f5f322"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 5,
+          "matchedTruthItemCount": 5
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:ddbaee16c927e2ce821b919bd1c76aac4915093f80015595412a053e6eb9187e"
+      }
+    },
+    {
+      "id": "cirepo_javascript_expressjs_express",
+      "language": "javascript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#lib",
+      "commit": "ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4",
+      "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json",
+      "graph": {
+        "fingerprint": "sha256:6b237f15297ac6216fc81d1fc9e52672f59e85e568357e8132df8c5655850add",
+        "nodeCount": 94,
+        "edgeCount": 141,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "javascript",
+            "support": "partial",
+            "discoveredFileCount": 6,
+            "indexedFileCount": 6,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 23.705,
+        "secondElapsedMs": 21.07,
+        "evaluatorMaxRssKb": 216576,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_javascript_expressjs_express",
+        "language": "javascript",
+        "sourceRef": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#lib",
+        "graphFingerprints": [
+          "sha256:6b237f15297ac6216fc81d1fc9e52672f59e85e568357e8132df8c5655850add",
+          "sha256:6b237f15297ac6216fc81d1fc9e52672f59e85e568357e8132df8c5655850add"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 4,
+          "matchedTruthItemCount": 4
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:e68c8759f36e2c54cbe248c1553f7df1f7bb506c476dd90fdb70669d88dacb3a"
+      }
+    },
+    {
+      "id": "cirepo_javascript_lodash_lodash",
+      "language": "javascript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_javascript_lodash_lodash@a666ba591064c8011988275790ad7d625279f09c#.",
+      "commit": "a666ba591064c8011988275790ad7d625279f09c",
+      "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json",
+      "graph": {
+        "fingerprint": "sha256:ea6d2ea5da682c5e7c12138515bbfc7fb79a346a365fbea7496a391efdd8d81a",
+        "nodeCount": 370,
+        "edgeCount": 572,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "javascript",
+            "support": "partial",
+            "discoveredFileCount": 45,
+            "indexedFileCount": 45,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 138.104,
+        "secondElapsedMs": 137.794,
+        "evaluatorMaxRssKb": 216576,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_javascript_lodash_lodash",
+        "language": "javascript",
+        "sourceRef": "corpus://cirepo_javascript_lodash_lodash@a666ba591064c8011988275790ad7d625279f09c#.",
+        "graphFingerprints": [
+          "sha256:ea6d2ea5da682c5e7c12138515bbfc7fb79a346a365fbea7496a391efdd8d81a",
+          "sha256:ea6d2ea5da682c5e7c12138515bbfc7fb79a346a365fbea7496a391efdd8d81a"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 4,
+          "matchedTruthItemCount": 4
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:8e91b3198c371711464e1ebd4a16efa474adf9e473ef6a1abff9fa8e8b1a7e2b"
+      }
+    }
+  ],
+  "languages": [
+    {
+      "language": "javascript",
+      "caseCount": 4,
+      "fixtureCount": 1,
+      "repositoryCount": 3,
+      "metrics": {
+        "declarationRecall": {
+          "numerator": 5,
+          "denominator": 5,
+          "value": 1
+        },
+        "relationshipRecall": {
+          "numerator": 6,
+          "denominator": 6,
+          "value": 1
+        },
+        "reviewedCallPrecision": {
+          "numerator": 4,
+          "denominator": 4,
+          "value": 1
+        },
+        "duplicateCanonicalSymbolCount": 0,
+        "parseFailureCount": 0,
+        "deterministicGraphFingerprint": true
+      },
+      "gateDecision": "pass"
+    },
+    {
+      "language": "typescript",
+      "caseCount": 4,
+      "fixtureCount": 1,
+      "repositoryCount": 3,
+      "metrics": {
+        "declarationRecall": {
+          "numerator": 6,
+          "denominator": 6,
+          "value": 1
+        },
+        "relationshipRecall": {
+          "numerator": 6,
+          "denominator": 6,
+          "value": 1
+        },
+        "reviewedCallPrecision": {
+          "numerator": 4,
+          "denominator": 4,
+          "value": 1
+        },
+        "duplicateCanonicalSymbolCount": 0,
+        "parseFailureCount": 0,
+        "deterministicGraphFingerprint": true
+      },
+      "gateDecision": "pass"
+    }
+  ],
+  "failures": [],
+  "gateDecision": "pass",
+  "publicDefault": {
+    "engine": "js",
+    "changed": false
+  },
+  "claims": {
+    "accuracyFloorMet": true,
+    "parity": false,
+    "leadership": false,
+    "reason": "Batch A measures reviewed JavaScript and TypeScript truth. It does not change the public engine or claim competitor parity."
+  },
+  "safeguards": {
+    "rawSourceStored": false,
+    "absoluteCheckoutPathsStored": false,
+    "environmentVariablesStored": false,
+    "engineNetworkCalls": 0,
+    "engineModelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "workspaceWrites": 0
+  },
+  "reportFingerprint": "sha256:aa30039a57676aaf8460323e41bb7e746a01e8477e8070ced46adb6f252183a9"
+}

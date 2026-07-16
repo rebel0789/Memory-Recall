@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_typescript_microsoft_typescript",
+  "language": "typescript",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "unmeasured",
+    "exports": "unmeasured",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_ts_compiler_class_facts",
+      "semanticKey": "node:enum:classFields.ts:ClassFacts",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "enum",
+      "name": "ClassFacts",
+      "qualifiedName": "classFields.ts::ClassFacts",
+      "locator": "workspace://classFields.ts#L333-L340"
+    },
+    {
+      "id": "cititem_ts_compiler_identifier_map_construct",
+      "semanticKey": "edge:constructs:module/module.ts:appendExportsOfImportDeclaration:IdentifierNameMap",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": {
+        "kind": "function",
+        "name": "appendExportsOfImportDeclaration",
+        "qualifiedName": "module/module.ts::transformModule::appendExportsOfImportDeclaration",
+        "locator": "workspace://module/module.ts#L1960-L1992"
+      },
+      "to": {
+        "kind": "class",
+        "name": "IdentifierNameMap",
+        "qualifiedName": "utilities.ts::IdentifierNameMap",
+        "locator": "workspace://utilities.ts#L389-L439"
+      },
+      "locator": "workspace://module/module.ts#L1970-L1970",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_ts_compiler_chain_bundle_call",
+      "semanticKey": "edge:calls:es2016.ts:transformES2016:chainBundle",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "transformES2016",
+        "qualifiedName": "es2016.ts::transformES2016",
+        "locator": "workspace://es2016.ts#L21-L122"
+      },
+      "to": {
+        "kind": "function",
+        "name": "chainBundle",
+        "qualifiedName": "utilities.ts::chainBundle",
+        "locator": "workspace://utilities.ts#L135-L145"
+      },
+      "locator": "workspace://es2016.ts#L27-L27",
+      "resolution": "inferred"
+    },
+    {
+      "id": "cititem_ts_compiler_chain_bundle_false_call",
+      "semanticKey": "edge:calls:es2016.ts:transformES2016:ClassFacts:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "transformES2016",
+        "qualifiedName": "es2016.ts::transformES2016",
+        "locator": "workspace://es2016.ts#L21-L122"
+      },
+      "to": {
+        "kind": "enum",
+        "name": "ClassFacts",
+        "qualifiedName": "classFields.ts::ClassFacts",
+        "locator": "workspace://classFields.ts#L333-L340"
+      },
+      "locator": "workspace://es2016.ts#L27-L27"
+    }
+  ],
+  "truthFingerprint": "sha256:06ad8c18d3c08cce295b9093af907b4379ae046fd6880ad896e0c54b31fe2cb6"
+}

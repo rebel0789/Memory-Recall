@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_typescript_microsoft_vscode",
+  "language": "typescript",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_typescript_microsoft_vscode@53e335d0387969ba6b6bd68f2481be89252089ca#src/vs/base/common"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "unmeasured",
+    "exports": "unmeasured",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_vscode_action",
+      "semanticKey": "node:class:actions.ts:Action",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "Action",
+      "qualifiedName": "actions.ts::Action",
+      "locator": "workspace://actions.ts#L60-L166"
+    },
+    {
+      "id": "cititem_vscode_enum_validator_construct",
+      "semanticKey": "edge:constructs:validation.ts:vEnum:EnumValidator",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": {
+        "kind": "function",
+        "name": "vEnum",
+        "qualifiedName": "validation.ts::vEnum",
+        "locator": "workspace://validation.ts#L331-L333"
+      },
+      "to": {
+        "kind": "class",
+        "name": "EnumValidator",
+        "qualifiedName": "validation.ts::EnumValidator",
+        "locator": "workspace://validation.ts#L311-L329"
+      },
+      "locator": "workspace://validation.ts#L332-L332",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_vscode_fuzzy_multiple_call",
+      "semanticKey": "edge:calls:fuzzyScorer.ts:scoreFuzzy2:doScoreFuzzy2Multiple",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "scoreFuzzy2",
+        "qualifiedName": "fuzzyScorer.ts::scoreFuzzy2",
+        "locator": "workspace://fuzzyScorer.ts#L291-L301"
+      },
+      "to": {
+        "kind": "function",
+        "name": "doScoreFuzzy2Multiple",
+        "qualifiedName": "fuzzyScorer.ts::doScoreFuzzy2Multiple",
+        "locator": "workspace://fuzzyScorer.ts#L303-L322"
+      },
+      "locator": "workspace://fuzzyScorer.ts#L296-L296",
+      "resolution": "inferred"
+    },
+    {
+      "id": "cititem_vscode_fuzzy_false_call",
+      "semanticKey": "edge:calls:fuzzyScorer.ts:scoreFuzzy2:Action:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "scoreFuzzy2",
+        "qualifiedName": "fuzzyScorer.ts::scoreFuzzy2",
+        "locator": "workspace://fuzzyScorer.ts#L291-L301"
+      },
+      "to": {
+        "kind": "class",
+        "name": "Action",
+        "qualifiedName": "actions.ts::Action",
+        "locator": "workspace://actions.ts#L60-L166"
+      },
+      "locator": "workspace://fuzzyScorer.ts#L296-L296"
+    }
+  ],
+  "truthFingerprint": "sha256:b4e5ab9b014f1e610318ca54a10807faf0670f84fa6d78742a94cd16f5427d23"
+}

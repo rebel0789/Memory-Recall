@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_javascript_lodash_lodash",
+  "language": "javascript",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_javascript_lodash_lodash@a666ba591064c8011988275790ad7d625279f09c#."
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "unmeasured",
+    "heritage": "unmeasured",
+    "types": "unmeasured",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_lodash_base_convert",
+      "semanticKey": "node:function:fp/_baseConvert.js:baseConvert",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "baseConvert",
+      "qualifiedName": "fp/_baseConvert.js::baseConvert",
+      "locator": "workspace://fp/_baseConvert.js#L138-L567"
+    },
+    {
+      "id": "cititem_lodash_import_common_file",
+      "semanticKey": "edge:imports:lib/fp/build-doc.js:lib/common/file.js",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "lib_fp_build_doc",
+        "qualifiedName": "lib/fp/build-doc.js::lib_fp_build_doc",
+        "locator": "workspace://lib/fp/build-doc.js#L1-L79"
+      },
+      "to": {
+        "kind": "module",
+        "name": "lib_common_file",
+        "qualifiedName": "lib/common/file.js::lib_common_file",
+        "locator": "workspace://lib/common/file.js#L1-L72"
+      },
+      "locator": "workspace://lib/fp/build-doc.js#L7-L7",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_lodash_auto_link_call",
+      "semanticKey": "edge:calls:lib/main/build-site.js:build:autoLink",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "build",
+        "qualifiedName": "lib/main/build-site.js::build",
+        "locator": "workspace://lib/main/build-site.js#L181-L237"
+      },
+      "to": {
+        "kind": "function",
+        "name": "autoLink",
+        "qualifiedName": "lib/main/build-site.js::autoLink",
+        "locator": "workspace://lib/main/build-site.js#L48-L57"
+      },
+      "locator": "workspace://lib/main/build-site.js#L208-L208",
+      "resolution": "inferred"
+    },
+    {
+      "id": "cititem_lodash_false_horizontal_call",
+      "semanticKey": "edge:calls:lib/main/build-site.js:build:removeHorizontalRules:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "build",
+        "qualifiedName": "lib/main/build-site.js::build",
+        "locator": "workspace://lib/main/build-site.js#L181-L237"
+      },
+      "to": {
+        "kind": "function",
+        "name": "removeHorizontalRules",
+        "qualifiedName": "lib/main/build-site.js::removeHorizontalRules",
+        "locator": "workspace://lib/main/build-site.js#L65-L67"
+      },
+      "locator": "workspace://lib/main/build-site.js#L208-L208"
+    }
+  ],
+  "truthFingerprint": "sha256:1afe3cd8a06153ff2d6fbbdbd97f676ef66ca481e462144b96db76aba8628ce8"
+}

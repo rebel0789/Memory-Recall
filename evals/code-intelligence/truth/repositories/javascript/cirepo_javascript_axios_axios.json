@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_javascript_axios_axios",
+  "language": "javascript",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_javascript_axios_axios@3041b8fd1daf17404d1bad1f9d94026ea5ab400b#lib/core"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "partial",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_axios_class",
+      "semanticKey": "node:class:Axios.js:Axios",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "Axios",
+      "qualifiedName": "Axios.js::Axios",
+      "locator": "workspace://Axios.js#L22-L240"
+    },
+    {
+      "id": "cititem_axios_import_transform_data",
+      "semanticKey": "edge:imports:dispatchRequest.js:transformData.js",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": {
+        "kind": "module",
+        "name": "dispatchRequest",
+        "qualifiedName": "dispatchRequest.js::dispatchRequest",
+        "locator": "workspace://dispatchRequest.js#L1-L90"
+      },
+      "to": {
+        "kind": "module",
+        "name": "transformData",
+        "qualifiedName": "transformData.js::transformData",
+        "locator": "workspace://transformData.js#L1-L29"
+      },
+      "locator": "workspace://dispatchRequest.js#L3-L3",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_axios_export_dispatch_request",
+      "semanticKey": "edge:exports:dispatchRequest.js:dispatchRequest",
+      "capability": "exports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "exports",
+      "from": {
+        "kind": "module",
+        "name": "dispatchRequest",
+        "qualifiedName": "dispatchRequest.js::dispatchRequest",
+        "locator": "workspace://dispatchRequest.js#L1-L90"
+      },
+      "to": {
+        "kind": "function",
+        "name": "dispatchRequest",
+        "qualifiedName": "dispatchRequest.js::dispatchRequest",
+        "locator": "workspace://dispatchRequest.js#L34-L89"
+      },
+      "locator": "workspace://dispatchRequest.js#L34-L89",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_axios_stringify_safely_call",
+      "semanticKey": "edge:calls:AxiosError.js:aggregateErrorMessage:stringifySafely",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "aggregateErrorMessage",
+        "qualifiedName": "AxiosError.js::aggregateErrorMessage",
+        "locator": "workspace://AxiosError.js#L83-L96"
+      },
+      "to": {
+        "kind": "function",
+        "name": "stringifySafely",
+        "qualifiedName": "AxiosError.js::stringifySafely",
+        "locator": "workspace://AxiosError.js#L75-L81"
+      },
+      "locator": "workspace://AxiosError.js#L87-L87",
+      "resolution": "inferred"
+    },
+    {
+      "id": "cititem_axios_false_merge_call",
+      "semanticKey": "edge:calls:AxiosError.js:aggregateErrorMessage:mergeConfig:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "function",
+        "name": "aggregateErrorMessage",
+        "qualifiedName": "AxiosError.js::aggregateErrorMessage",
+        "locator": "workspace://AxiosError.js#L83-L96"
+      },
+      "to": {
+        "kind": "function",
+        "name": "mergeConfig",
+        "qualifiedName": "mergeConfig.js::mergeConfig",
+        "locator": "workspace://mergeConfig.js#L28-L174"
+      },
+      "locator": "workspace://AxiosError.js#L87-L87"
+    }
+  ],
+  "truthFingerprint": "sha256:a49799b7b16c655e5b4a0ec20d9f1bcfd4c79db06806a8319f61e8177066105c"
+}

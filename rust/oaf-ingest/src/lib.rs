@@ -45,6 +45,37 @@ pub struct IngestFileHash {
     pub bytes: u64,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, Ord, PartialOrd)]
+pub struct CodeSpan {
+    pub start_line: u32,
+    pub start_column: u32,
+    pub end_line: u32,
+    pub end_column: u32,
+}
+
+impl CodeSpan {
+    fn from_node(node: Node<'_>) -> Self {
+        let start = node.start_position();
+        let end = node.end_position();
+        Self {
+            start_line: start.row as u32 + 1,
+            start_column: start.column as u32,
+            end_line: end.row as u32 + 1,
+            end_column: end.column as u32,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub struct CodeFactRecord {
+    pub subject: String,
+    pub predicate: String,
+    pub object: String,
+    pub source: String,
+    pub note: String,
+    pub span: CodeSpan,
+}
+
 pub const CODE_MINHASH_K: usize = 64;
 
 #[derive(Debug, Clone)]
@@ -72,8 +103,11 @@ pub struct IngestReport {
     pub cgroup_memory_limit_bytes: Option<u64>,
     pub elapsed_ms: u128,
     pub skipped_files: Vec<SkippedFile>,
+    pub recovered_files: Vec<RecoveredFile>,
     #[serde(skip)]
     pub facts: Vec<BatchFact>,
+    #[serde(skip)]
+    pub code_facts: Vec<CodeFactRecord>,
     pub language_counts: BTreeMap<String, usize>,
 }
 
@@ -100,12 +134,24 @@ pub struct SkippedFile {
     pub bytes: u64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveredFile {
+    pub workspace_ref: String,
+    pub reason: String,
+    pub bytes: u64,
+}
+
 #[derive(Debug, Clone)]
 struct ParsedRepo {
     facts: BTreeSet<FactKey>,
     calls: Vec<CallRef>,
+    constructs: Vec<ConstructRef>,
     imports: Vec<ImportRef>,
+    re_exports: Vec<ImportRef>,
+    exports: Vec<ExportRef>,
     routes: Vec<RouteRef>,
+    heritage: Vec<HeritageRef>,
+    frameworks: Vec<FrameworkRef>,
     definitions_by_name: BTreeMap<String, BTreeSet<String>>,
     package_entries: BTreeMap<String, String>,
     generated_call_count: usize,
@@ -118,8 +164,13 @@ impl ParsedRepo {
         Self {
             facts: BTreeSet::new(),
             calls: Vec::new(),
+            constructs: Vec::new(),
             imports: Vec::new(),
+            re_exports: Vec::new(),
+            exports: Vec::new(),
             routes: Vec::new(),
+            heritage: Vec::new(),
+            frameworks: Vec::new(),
             definitions_by_name: BTreeMap::new(),
             package_entries: BTreeMap::new(),
             generated_call_count: 0,
@@ -128,57 +179,65 @@ impl ParsedRepo {
         }
     }
 
-    fn add_entity(
+    fn add_entity_at(
         &mut self,
         subject: String,
         kind: &'static str,
         source: &str,
         note: &'static str,
+        span: CodeSpan,
     ) {
-        self.add_fact(subject, "IS_A", kind.to_string(), source, note);
+        self.add_fact_at(subject, "IS_A", kind.to_string(), source, note, span);
     }
 
-    fn add_definition(&mut self, owner: &str, symbol: &str, source: &str, note: &'static str) {
+    fn add_definition_at(
+        &mut self,
+        owner: &str,
+        symbol: &str,
+        source: &str,
+        note: &'static str,
+        span: CodeSpan,
+    ) {
         self.definition_count += 1;
-        self.add_fact(
+        self.add_fact_at(
             owner.to_string(),
             "DEFINES",
             symbol.to_string(),
             source,
             note,
+            span,
         );
     }
 
-    fn add_import(&mut self, owner: &str, target: ImportTarget, source: &str) {
+    fn add_import(&mut self, owner: &str, target: ImportTarget, source: &str, span: CodeSpan) {
         self.import_count += 1;
-        self.add_entity(
-            target.fallback.clone(),
-            "Module",
-            source,
-            "oaf.ingest:import-module",
-        );
-        self.add_fact(
-            owner.to_string(),
-            "IMPORTS",
-            target.fallback.clone(),
-            source,
-            "oaf.ingest:import",
-        );
         self.imports.push(ImportRef {
             owner: owner.to_string(),
             raw: target.raw,
             fallback: target.fallback,
             source: source.to_string(),
+            span,
         });
     }
 
-    fn add_fact(
+    fn add_re_export(&mut self, owner: &str, target: ImportTarget, source: &str, span: CodeSpan) {
+        self.re_exports.push(ImportRef {
+            owner: owner.to_string(),
+            raw: target.raw,
+            fallback: target.fallback,
+            source: source.to_string(),
+            span,
+        });
+    }
+
+    fn add_fact_at(
         &mut self,
         subject: String,
         predicate: &'static str,
         object: String,
         source: &str,
         note: &'static str,
+        span: CodeSpan,
     ) {
         self.facts.insert(FactKey {
             subject,
@@ -186,6 +245,7 @@ impl ParsedRepo {
             object,
             source: source.to_string(),
             note: note.to_string(),
+            span,
         });
     }
 
@@ -201,7 +261,9 @@ impl ParsedRepo {
         caller: &str,
         callee_name: &str,
         typed_target: Option<TypedCallHint>,
+        allow_name_resolution: bool,
         source: &str,
+        span: CodeSpan,
     ) {
         if callee_name.is_empty()
             || matches!(
@@ -216,52 +278,124 @@ impl ParsedRepo {
             caller: caller.to_string(),
             callee_name: callee_name.to_string(),
             typed_target,
+            allow_name_resolution,
             source: source.to_string(),
+            span,
         });
     }
 
-    fn finish(mut self) -> Vec<BatchFact> {
+    fn finish(mut self) -> (Vec<BatchFact>, Vec<CodeFactRecord>) {
         let imports = std::mem::take(&mut self.imports);
         for import in imports {
-            if let Some(target) = self.resolve_import_target(&import) {
-                if target != import.fallback {
-                    self.add_entity(
-                        target.clone(),
-                        "Module",
-                        &import.source,
-                        "oaf.ingest:resolved-import-module",
-                    );
-                    self.add_fact(
-                        import.owner,
-                        "IMPORTS",
-                        target,
-                        &import.source,
-                        "oaf.ingest:resolved-import",
-                    );
-                }
+            let resolved = self.resolve_import_target(&import);
+            let target = resolved.clone().unwrap_or_else(|| import.fallback.clone());
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    "Module",
+                    &import.source,
+                    if resolved.is_some() {
+                        "oaf.ingest:resolved-import-module"
+                    } else {
+                        "oaf.ingest:import-module"
+                    },
+                    import.span,
+                );
             }
+            self.add_fact_at(
+                import.owner,
+                "IMPORTS",
+                target,
+                &import.source,
+                if resolved.is_some() {
+                    "oaf.ingest:resolved-import"
+                } else {
+                    "oaf.ingest:unresolved-import"
+                },
+                import.span,
+            );
+        }
+        let re_exports = std::mem::take(&mut self.re_exports);
+        for export in re_exports {
+            let resolved = self.resolve_import_target(&export);
+            let target = resolved.clone().unwrap_or_else(|| export.fallback.clone());
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    "Module",
+                    &export.source,
+                    "oaf.ingest:re-export-module",
+                    export.span,
+                );
+            }
+            self.add_fact_at(
+                export.owner,
+                "RE_EXPORTS",
+                target,
+                &export.source,
+                if resolved.is_some() {
+                    "oaf.ingest:resolved-re-export"
+                } else {
+                    "oaf.ingest:unresolved-re-export"
+                },
+                export.span,
+            );
+        }
+        let exports = std::mem::take(&mut self.exports);
+        for export in exports {
+            let target = if self.has_entity_subject(&export.target) {
+                Some(export.target)
+            } else {
+                self.resolve_exact_symbol_name(&export.target)
+            };
+            let Some(target) = target else {
+                continue;
+            };
+            self.add_fact_at(
+                export.owner,
+                "EXPORTS",
+                target,
+                &export.source,
+                "oaf.ingest:resolved-export",
+                export.span,
+            );
         }
 
         let routes = std::mem::take(&mut self.routes);
         for route in routes {
             let route_id = route_id(&route.method, &route.path);
-            self.add_entity(route_id.clone(), "Route", &route.source, "oaf.ingest:route");
-            self.add_fact(
+            self.add_entity_at(
+                route_id.clone(),
+                "Route",
+                &route.source,
+                "oaf.ingest:route",
+                route.span,
+            );
+            self.add_fact_at(
                 route_id.clone(),
                 "HAS_METHOD",
                 format!("method={}", route.method),
                 &route.source,
                 route.note,
+                route.span,
             );
-            self.add_fact(
+            self.add_fact_at(
                 route_id.clone(),
                 "HAS_PATH",
                 format!("path={}", route.path),
                 &route.source,
                 route.note,
+                route.span,
             );
             if let Some(handler) = self.resolve_route_handler(&route) {
-                self.add_fact(handler, "HANDLES", route_id, &route.source, route.note);
+                self.add_fact_at(
+                    handler,
+                    "HANDLES",
+                    route_id,
+                    &route.source,
+                    route.note,
+                    route.span,
+                );
             }
         }
 
@@ -269,19 +403,134 @@ impl ParsedRepo {
         for call in calls {
             let (target, note) = self.resolve_call(&call);
             if !self.has_definition_subject(&target) {
-                self.add_entity(
+                self.add_entity_at(
                     target.clone(),
                     symbol_kind(&target),
                     &call.source,
                     "oaf.ingest:call-target",
+                    call.span,
                 );
             }
-            self.add_fact(call.caller, "CALLS", target, &call.source, note);
+            self.add_fact_at(call.caller, "CALLS", target, &call.source, note, call.span);
         }
-        self.facts
-            .into_iter()
-            .map(FactKey::into_batch_fact)
-            .collect()
+        let constructs = std::mem::take(&mut self.constructs);
+        for construct in constructs {
+            let resolved = self.resolve_exact_symbol_name(&construct.type_name);
+            let target = resolved
+                .clone()
+                .unwrap_or_else(|| format!("external_class:{}", construct.type_name));
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    "Class",
+                    &construct.source,
+                    "oaf.ingest:construct-target",
+                    construct.span,
+                );
+            }
+            self.add_fact_at(
+                construct.caller,
+                "CONSTRUCTS",
+                target,
+                &construct.source,
+                if resolved.is_some() {
+                    "oaf.ingest:resolved-construct"
+                } else {
+                    "oaf.ingest:unresolved-construct"
+                },
+                construct.span,
+            );
+        }
+        let heritage = std::mem::take(&mut self.heritage);
+        for relation in heritage {
+            let resolved = self.resolve_exact_symbol_name(&relation.target_name);
+            let target = resolved.clone().unwrap_or_else(|| {
+                format!(
+                    "external_{}:{}",
+                    if relation.predicate == "IMPLEMENTS" {
+                        "interface"
+                    } else {
+                        "class"
+                    },
+                    relation.target_name
+                )
+            });
+            if !self.has_entity_subject(&target) {
+                self.add_entity_at(
+                    target.clone(),
+                    if relation.predicate == "IMPLEMENTS" {
+                        "Interface"
+                    } else {
+                        "Class"
+                    },
+                    &relation.source,
+                    "oaf.ingest:heritage-target",
+                    relation.span,
+                );
+            }
+            self.add_fact_at(
+                relation.subject,
+                relation.predicate,
+                target,
+                &relation.source,
+                if resolved.is_some() {
+                    "oaf.ingest:resolved-heritage"
+                } else {
+                    "oaf.ingest:unresolved-heritage"
+                },
+                relation.span,
+            );
+        }
+        let frameworks = std::mem::take(&mut self.frameworks);
+        for framework in frameworks {
+            self.add_entity_at(
+                framework.component.clone(),
+                "FrameworkComponent",
+                &framework.source,
+                "oaf.ingest:framework-component",
+                framework.span,
+            );
+            self.add_fact_at(
+                framework.owner,
+                "DEPENDS_ON",
+                framework.component.clone(),
+                &framework.source,
+                "oaf.ingest:framework",
+                framework.span,
+            );
+            if let Some(handler) = framework
+                .handler_name
+                .as_deref()
+                .and_then(|name| self.resolve_exact_symbol_name(name))
+            {
+                self.add_fact_at(
+                    handler,
+                    "LISTENS",
+                    framework.component,
+                    &framework.source,
+                    "oaf.ingest:framework-handler",
+                    framework.span,
+                );
+            }
+        }
+        let code_facts = self
+            .facts
+            .iter()
+            .cloned()
+            .map(FactKey::into_code_fact)
+            .collect::<Vec<_>>();
+        let mut facts = BTreeMap::new();
+        for fact in self.facts {
+            let key = (
+                fact.subject.clone(),
+                fact.predicate.clone(),
+                fact.object.clone(),
+                fact.source.clone(),
+                fact.note.clone(),
+            );
+            facts.entry(key).or_insert_with(|| fact.into_batch_fact());
+        }
+        (facts.into_values().collect(), code_facts)
     }
 
     fn resolve_import_target(&self, import: &ImportRef) -> Option<String> {
@@ -310,10 +559,20 @@ impl ParsedRepo {
                 return (target, hint.note);
             }
         }
-        (
-            self.resolve_call_target(&call.callee_name),
-            "oaf.ingest:call",
-        )
+        match call
+            .allow_name_resolution
+            .then(|| self.resolve_known_call_target(&call.callee_name))
+            .flatten()
+        {
+            Some(target) => (target, "oaf.ingest:resolved-call"),
+            None => (
+                format!(
+                    "external_function:{}",
+                    sanitize_symbol(&call.callee_name).unwrap_or_else(|| "unknown".to_string())
+                ),
+                "oaf.ingest:unresolved-call",
+            ),
+        }
     }
 
     fn resolve_exact_symbol_name(&self, name: &str) -> Option<String> {
@@ -328,17 +587,16 @@ impl ParsedRepo {
             .cloned()
     }
 
-    fn resolve_call_target(&self, callee_name: &str) -> String {
-        let name = sanitize_symbol(callee_name).unwrap_or_else(|| "unknown".to_string());
+    fn resolve_known_call_target(&self, callee_name: &str) -> Option<String> {
+        let name = sanitize_symbol(callee_name)?;
         match self.definitions_by_name.get(&name) {
-            Some(subjects) if subjects.len() == 1 => subjects.iter().next().cloned().unwrap(),
+            Some(subjects) if subjects.len() == 1 => subjects.iter().next().cloned(),
             Some(subjects) => subjects
                 .iter()
                 .find(|subject| subject.starts_with("function:"))
                 .cloned()
-                .or_else(|| subjects.iter().next().cloned())
-                .unwrap_or_else(|| format!("function:{name}")),
-            None => format!("function:{name}"),
+                .or_else(|| subjects.iter().next().cloned()),
+            None => None,
         }
     }
 
@@ -348,11 +606,22 @@ impl ParsedRepo {
             .any(|subjects| subjects.contains(subject))
     }
 
+    fn has_entity_subject(&self, subject: &str) -> bool {
+        self.facts
+            .iter()
+            .any(|fact| fact.predicate == "IS_A" && fact.subject == subject)
+    }
+
     fn merge(&mut self, other: ParsedRepo) {
         self.facts.extend(other.facts);
         self.calls.extend(other.calls);
+        self.constructs.extend(other.constructs);
         self.imports.extend(other.imports);
+        self.re_exports.extend(other.re_exports);
+        self.exports.extend(other.exports);
         self.routes.extend(other.routes);
+        self.heritage.extend(other.heritage);
+        self.frameworks.extend(other.frameworks);
         for (name, subjects) in other.definitions_by_name {
             self.definitions_by_name
                 .entry(name)
@@ -378,6 +647,15 @@ struct ImportRef {
     raw: String,
     fallback: String,
     source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct ExportRef {
+    owner: String,
+    target: String,
+    source: String,
+    span: CodeSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -388,6 +666,7 @@ struct RouteRef {
     handler_name: Option<String>,
     source: String,
     note: &'static str,
+    span: CodeSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -395,7 +674,35 @@ struct CallRef {
     caller: String,
     callee_name: String,
     typed_target: Option<TypedCallHint>,
+    allow_name_resolution: bool,
     source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct ConstructRef {
+    caller: String,
+    type_name: String,
+    source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct HeritageRef {
+    subject: String,
+    predicate: &'static str,
+    target_name: String,
+    source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct FrameworkRef {
+    owner: String,
+    component: String,
+    handler_name: Option<String>,
+    source: String,
+    span: CodeSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -411,9 +718,21 @@ struct FactKey {
     object: String,
     source: String,
     note: String,
+    span: CodeSpan,
 }
 
 impl FactKey {
+    fn into_code_fact(self) -> CodeFactRecord {
+        CodeFactRecord {
+            subject: self.subject,
+            predicate: self.predicate,
+            object: self.object,
+            source: self.source,
+            note: self.note,
+            span: self.span,
+        }
+    }
+
     fn into_batch_fact(self) -> BatchFact {
         BatchFact {
             subject: self.subject,
@@ -518,6 +837,8 @@ struct WalkContext {
     source: String,
     lang: LangKind,
     class_name: Option<String>,
+    owner_subject: Option<String>,
+    route_prefix: Option<String>,
     impl_name: Option<String>,
     caller: Option<String>,
     type_bindings: BTreeMap<String, String>,
@@ -546,9 +867,13 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
     let mut parsed_file_count = 0usize;
     let mut parsed_bytes = 0u64;
     let mut language_counts = BTreeMap::new();
+    let mut recovered_files = Vec::new();
 
     for result in results {
         parsed_bytes += result.bytes_read;
+        if let Some(recovered) = result.recovered {
+            recovered_files.push(recovered);
+        }
         if let Some(skipped) = result.skipped {
             skipped_files.push(skipped);
             continue;
@@ -565,7 +890,7 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
     let generated_call_count = parsed.generated_call_count;
     let import_count = parsed.import_count;
     let definition_count = parsed.definition_count;
-    let facts = parsed.finish();
+    let (facts, code_facts) = parsed.finish();
     Ok(IngestReport {
         scanned_file_count,
         parsed_file_count,
@@ -580,7 +905,9 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         cgroup_memory_limit_bytes,
         elapsed_ms: started.elapsed().as_millis(),
         skipped_files,
+        recovered_files,
         facts,
+        code_facts,
         language_counts,
     })
 }
@@ -675,7 +1002,8 @@ pub fn report_quality_fields(report: &IngestReport) -> Value {
         "cgroupMemoryLimitBytes": report.cgroup_memory_limit_bytes,
         "elapsedMs": report.elapsed_ms,
         "languageCounts": report.language_counts,
-        "skippedFiles": report.skipped_files
+        "skippedFiles": report.skipped_files,
+        "recoveredFiles": report.recovered_files
     })
 }
 
@@ -696,6 +1024,7 @@ struct FileParse {
     bytes_read: u64,
     parsed: Option<ParsedRepo>,
     skipped: Option<SkippedFile>,
+    recovered: Option<RecoveredFile>,
 }
 
 fn discover_jobs(
@@ -1477,7 +1806,7 @@ fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {
 fn is_manifest_name(name: &str) -> bool {
     matches!(
         name,
-        "package.json" | "Cargo.toml" | "pyproject.toml" | "go.mod"
+        "package.json" | "tsconfig.json" | "Cargo.toml" | "pyproject.toml" | "go.mod"
     )
 }
 
@@ -1489,10 +1818,45 @@ fn parse_manifest_entries(
 ) {
     match name {
         "package.json" => parse_package_json_entries(rel, source, entries),
+        "tsconfig.json" => parse_tsconfig_entries(rel, source, entries),
         "Cargo.toml" => parse_cargo_toml_entries(rel, source, entries),
         "pyproject.toml" => parse_pyproject_toml_entries(rel, source, entries),
         "go.mod" => parse_go_mod_entries(rel, source, entries),
         _ => {}
+    }
+}
+
+fn parse_tsconfig_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
+    let Ok(root) = serde_json::from_str::<Value>(source) else {
+        return;
+    };
+    let Some(compiler_options) = root.get("compilerOptions") else {
+        return;
+    };
+    let base_url = compiler_options
+        .get("baseUrl")
+        .and_then(Value::as_str)
+        .unwrap_or(".")
+        .trim_matches('/');
+    let Some(paths) = compiler_options.get("paths").and_then(Value::as_object) else {
+        return;
+    };
+    let config_dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    for (pattern, targets) in paths {
+        let Some(target) = targets
+            .as_array()
+            .and_then(|items| items.first())
+            .and_then(Value::as_str)
+        else {
+            continue;
+        };
+        let target = target.trim().trim_end_matches('*').trim_end_matches('/');
+        let parts = [config_dir, base_url, target]
+            .into_iter()
+            .filter(|part| !part.is_empty() && *part != ".")
+            .collect::<Vec<_>>();
+        let stem = strip_known_extension(&parts.join("/")).to_string();
+        insert_package_entry(entries, pattern, &stem);
     }
 }
 
@@ -1686,36 +2050,44 @@ fn parse_file_job(job: FileJob) -> Result<FileParse> {
     let tree = parser
         .parse(&bytes, None)
         .with_context(|| format!("parse {}", job.source))?;
-    if tree.root_node().has_error() {
-        return Ok(FileParse {
-            index: job.index,
-            lang: job.lang,
-            bytes_read,
-            parsed: None,
-            skipped: Some(SkippedFile {
-                workspace_ref: job.source,
-                reason: "tree-sitter parse error".to_string(),
-                bytes: job.bytes,
-            }),
-        });
-    }
+    let recovered = tree.root_node().has_error().then(|| RecoveredFile {
+        workspace_ref: job.source.clone(),
+        reason: "tree-sitter recovered syntax error".to_string(),
+        bytes: job.bytes,
+    });
 
     let mut parsed = ParsedRepo::new();
     let file_id = format!("file:{}", path_token(&job.rel));
     let module = format!("module:{}", module_token(&job.rel));
-    parsed.add_entity(file_id.clone(), "File", &job.source, "oaf.ingest:file");
-    parsed.add_entity(module.clone(), "Module", &job.source, "oaf.ingest:module");
-    parsed.add_definition(
+    let file_span = CodeSpan::from_node(tree.root_node());
+    parsed.add_entity_at(
+        file_id.clone(),
+        "File",
+        &job.source,
+        "oaf.ingest:file",
+        file_span,
+    );
+    parsed.add_entity_at(
+        module.clone(),
+        "Module",
+        &job.source,
+        "oaf.ingest:module",
+        file_span,
+    );
+    parsed.add_definition_at(
         &file_id,
         &module,
         &job.source,
         "oaf.ingest:file-defines-module",
+        file_span,
     );
     let context = WalkContext {
         module,
         source: job.source,
         lang: job.lang,
         class_name: None,
+        owner_subject: None,
+        route_prefix: None,
         impl_name: None,
         caller: None,
         type_bindings: BTreeMap::new(),
@@ -1727,6 +2099,7 @@ fn parse_file_job(job: FileJob) -> Result<FileParse> {
         bytes_read,
         parsed: Some(parsed),
         skipped: None,
+        recovered,
     })
 }
 
@@ -1739,15 +2112,14 @@ fn extract_file_fingerprints(job: FileJob) -> Result<Vec<CodeFingerprint>> {
     let tree = parser
         .parse(&bytes, None)
         .with_context(|| format!("parse {}", job.source))?;
-    if tree.root_node().has_error() {
-        return Ok(Vec::new());
-    }
     let module = format!("module:{}", module_token(&job.rel));
     let context = WalkContext {
         module,
         source: job.source,
         lang: job.lang,
         class_name: None,
+        owner_subject: None,
+        route_prefix: None,
         impl_name: None,
         caller: None,
         type_bindings: BTreeMap::new(),
@@ -1764,8 +2136,9 @@ fn walk_fingerprint_nodes(
     out: &mut Vec<CodeFingerprint>,
 ) {
     let mut next = context.clone();
-    if let Some(class_name) = class_name(node, source, context.lang) {
-        next.class_name = Some(class_name);
+    if let Some((name, subject, _, _)) = type_declaration(node, source, context.lang) {
+        next.class_name = Some(name);
+        next.owner_subject = Some(subject);
     }
     if context.lang == LangKind::Rust && node.kind() == "impl_item" {
         next.impl_name = rust_impl_name(node, source);
@@ -1890,6 +2263,19 @@ fn read_cgroup_limit(path: &str) -> Option<u64> {
 }
 
 fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
+    if node.kind() == "new_expression" {
+        if let Some(caller) = context.caller.as_deref() {
+            if let Some(type_name) = constructor_callee(node, source) {
+                parsed.constructs.push(ConstructRef {
+                    caller: caller.to_string(),
+                    type_name,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
+        }
+    }
+
     if matches!(
         node.kind(),
         "call_expression"
@@ -1905,6 +2291,25 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             | "message_expression"
             | "command"
     ) {
+        if matches!(
+            context.lang,
+            LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+        ) && callee_name(node, source).as_deref() == Some("require")
+        {
+            for raw in quoted_literals(node_text(node, source)) {
+                if let Some(target) = import_target_from_raw(&raw) {
+                    parsed.add_import(
+                        &context.module,
+                        target,
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
+                }
+            }
+        }
+        if let Some(framework) = node_http_server(node, source, context) {
+            parsed.frameworks.push(framework);
+        }
         if let Some(route) = route_registration(node, source, context) {
             parsed.routes.push(route);
         }
@@ -1912,7 +2317,20 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             if let Some(callee) = callee_name(node, source) {
                 if !is_declaration_signature_call(node, context.lang, caller, &callee) {
                     let typed_target = typed_call_target(node, source, context);
-                    parsed.add_call_with_hint(caller, &callee, typed_target, &context.source);
+                    let member_access = node
+                        .child_by_field_name("function")
+                        .or_else(|| node.named_child(0))
+                        .is_some_and(|function| {
+                            receiver_method(node_text(function, source)).is_some()
+                        });
+                    parsed.add_call_with_hint(
+                        caller,
+                        &callee,
+                        typed_target,
+                        !member_access,
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
                 }
             }
         }
@@ -1920,27 +2338,87 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
 
     if is_import_node(node.kind()) {
         for target in import_targets(node, source, context.lang) {
-            parsed.add_import(&context.module, target, &context.source);
+            parsed.add_import(
+                &context.module,
+                target,
+                &context.source,
+                CodeSpan::from_node(node),
+            );
+        }
+    }
+
+    if node.kind() == "export_statement" {
+        if let Some(source_node) = node.child_by_field_name("source") {
+            for raw in quoted_literals(node_text(source_node, source)) {
+                if let Some(target) = import_target_from_raw(&raw) {
+                    parsed.add_re_export(
+                        &context.module,
+                        target,
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
+                }
+            }
+        } else {
+            for target in exported_subjects(node, source, context) {
+                parsed.exports.push(ExportRef {
+                    owner: context.module.clone(),
+                    target,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
         }
     }
 
     let mut next = context.clone();
-    if let Some(class_name) = class_name(node, source, context.lang) {
-        let class_id = format!("class:{class_name}");
-        parsed.add_entity(
-            class_id.clone(),
-            "Class",
+    if let Some((type_name, type_id, type_kind, establishes_owner)) =
+        type_declaration(node, source, context.lang)
+    {
+        let definition_owner = context
+            .caller
+            .as_deref()
+            .or(context.owner_subject.as_deref())
+            .unwrap_or(&context.module);
+        parsed.add_entity_at(
+            type_id.clone(),
+            type_kind,
             &context.source,
-            "oaf.ingest:class",
+            "oaf.ingest:type",
+            CodeSpan::from_node(node),
         );
-        parsed.add_definition(
-            &context.module,
-            &class_id,
+        parsed.add_definition_at(
+            definition_owner,
+            &type_id,
             &context.source,
-            "oaf.ingest:define-class",
+            "oaf.ingest:define-type",
+            CodeSpan::from_node(node),
         );
-        parsed.add_symbol_name(&class_name, &class_id);
-        next.class_name = Some(class_name);
+        parsed.add_symbol_name(&type_name, &type_id);
+        for (predicate, target_name) in heritage_targets(node, source, context.lang) {
+            parsed.heritage.push(HeritageRef {
+                subject: type_id.clone(),
+                predicate,
+                target_name,
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+        if establishes_owner {
+            next.class_name = Some(type_name);
+            next.owner_subject = Some(type_id);
+            if matches!(
+                context.lang,
+                LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+            ) {
+                let controller_text = node
+                    .parent()
+                    .filter(|parent| parent.kind() == "export_statement")
+                    .map(|parent| node_text(parent, source))
+                    .unwrap_or_else(|| node_text(node, source));
+                next.route_prefix = nest_controller_prefix(controller_text);
+            }
+        }
     }
 
     if context.lang == LangKind::Rust && node.kind() == "impl_item" {
@@ -1948,26 +2426,25 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
     }
 
     if let Some((name, subject, kind)) = callable_definition(node, source, context) {
-        parsed.add_entity(
+        let definition_owner = context
+            .caller
+            .as_deref()
+            .or(context.owner_subject.as_deref())
+            .unwrap_or(&context.module);
+        parsed.add_entity_at(
             subject.clone(),
             kind,
             &context.source,
             "oaf.ingest:callable",
+            CodeSpan::from_node(node),
         );
-        parsed.add_definition(
-            &context.module,
+        parsed.add_definition_at(
+            definition_owner,
             &subject,
             &context.source,
             "oaf.ingest:define-callable",
+            CodeSpan::from_node(node),
         );
-        if let Some(class_name) = context.class_name.as_deref() {
-            parsed.add_definition(
-                &format!("class:{class_name}"),
-                &subject,
-                &context.source,
-                "oaf.ingest:class-defines-method",
-            );
-        }
         parsed.add_symbol_name(&name, &subject);
         if subject.starts_with("method:") {
             if let Some((_, bare)) = name.rsplit_once('_') {
@@ -2100,40 +2577,182 @@ fn callable_definition(
     }
 }
 
-fn class_name(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
-    match node.kind() {
+fn type_declaration(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+) -> Option<(String, String, &'static str, bool)> {
+    let (prefix, kind, establishes_owner) = match node.kind() {
+        "interface_declaration" | "interface_definition" => ("interface", "Interface", true),
+        "type_alias_declaration" => ("type_alias", "TypeAlias", false),
+        "enum_declaration" | "enum_item" => ("enum", "Enum", true),
+        "struct_item" | "struct_specifier" => ("struct", "Struct", true),
+        "trait_item" | "trait_definition" => ("trait", "Trait", true),
+        "protocol_declaration" => ("protocol", "Protocol", true),
         "class_declaration"
         | "class"
         | "abstract_class_declaration"
         | "class_definition"
         | "class_implementation"
         | "class_interface"
-        | "object_definition"
-        | "trait_definition" => node_name(node, source).and_then(|name| sanitize_symbol(&name)),
-        "struct_definition" if lang == LangKind::Julia => {
-            descendant_identifier_name(node, source).and_then(|name| sanitize_symbol(&name))
-        }
+        | "object_definition" => ("class", "Class", true),
+        "struct_definition" if lang == LangKind::Julia => ("struct", "Struct", true),
         "variable_declaration" if lang == LangKind::Zig => {
             if !node_text(node, source).contains("struct") {
                 return None;
             }
-            node_name(node, source).and_then(|name| sanitize_symbol(&name))
+            ("struct", "Struct", true)
         }
-        "class_specifier" if lang == LangKind::Cpp => {
-            node_name(node, source).and_then(|name| sanitize_symbol(&name))
-        }
-        "struct_item" | "enum_item" | "trait_item" if lang == LangKind::Rust => {
-            node_name(node, source).and_then(|name| sanitize_symbol(&name))
-        }
+        "class_specifier" if lang == LangKind::Cpp => ("class", "Class", true),
         "type_spec" if lang == LangKind::Go => {
             let text = node_text(node, source);
-            if !text.contains("struct") && !text.contains("interface") {
+            if text.contains("struct") {
+                ("struct", "Struct", true)
+            } else if text.contains("interface") {
+                ("interface", "Interface", true)
+            } else {
                 return None;
             }
-            node_name(node, source).and_then(|name| sanitize_symbol(&name))
         }
-        _ => None,
+        _ => return None,
+    };
+    let raw_name = if node.kind() == "struct_definition" && lang == LangKind::Julia {
+        descendant_identifier_name(node, source)
+    } else {
+        node_name(node, source)
+    }?;
+    let name = sanitize_symbol(&raw_name)?;
+    Some((
+        name.clone(),
+        format!("{prefix}:{name}"),
+        kind,
+        establishes_owner,
+    ))
+}
+
+fn exported_subjects(node: Node<'_>, source: &[u8], context: &WalkContext) -> Vec<String> {
+    let mut subjects = Vec::new();
+    for index in 0..node.named_child_count() {
+        let Some(child) = node.named_child(index) else {
+            continue;
+        };
+        if let Some((_, subject, _)) = callable_definition(child, source, context) {
+            subjects.push(subject);
+            continue;
+        }
+        if let Some((_, subject, _, _)) = type_declaration(child, source, context.lang) {
+            subjects.push(subject);
+            continue;
+        }
+        if child.kind() == "export_clause" {
+            for child_index in 0..child.named_child_count() {
+                if let Some(name) = child
+                    .named_child(child_index)
+                    .and_then(|item| descendant_identifier_name(item, source))
+                    .and_then(|value| sanitize_symbol(&value))
+                {
+                    subjects.push(name);
+                }
+            }
+        }
     }
+    subjects.sort();
+    subjects.dedup();
+    subjects
+}
+
+fn heritage_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<(&'static str, String)> {
+    if matches!(
+        lang,
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+    ) {
+        let mut clauses = Vec::new();
+        for index in 0..node.named_child_count() {
+            let Some(child) = node.named_child(index) else {
+                continue;
+            };
+            if child.kind() == "class_heritage" {
+                for clause_index in 0..child.named_child_count() {
+                    if let Some(clause) = child.named_child(clause_index) {
+                        clauses.push(clause);
+                    }
+                }
+            } else if matches!(
+                child.kind(),
+                "extends_clause" | "extends_type_clause" | "implements_clause"
+            ) {
+                clauses.push(child);
+            }
+        }
+
+        let mut out = Vec::new();
+        for clause in clauses {
+            let predicate = if clause.kind() == "implements_clause" {
+                "IMPLEMENTS"
+            } else {
+                "EXTENDS"
+            };
+            if clause.kind() == "extends_clause" {
+                if let Some(target) = clause.child_by_field_name("value") {
+                    if let Some(name) = heritage_target_name(target, source) {
+                        out.push((predicate, name));
+                    }
+                }
+                continue;
+            }
+            for index in 0..clause.named_child_count() {
+                if let Some(target) = clause.named_child(index) {
+                    if let Some(name) = heritage_target_name(target, source) {
+                        out.push((predicate, name));
+                    }
+                }
+            }
+        }
+        out.sort();
+        out.dedup();
+        return out;
+    }
+
+    heritage_targets_from_text(node_text(node, source))
+}
+
+fn heritage_target_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let target = if node.kind() == "generic_type" {
+        node.child_by_field_name("name").unwrap_or(node)
+    } else if node.kind() == "call_expression" {
+        node.child_by_field_name("function").unwrap_or(node)
+    } else {
+        node
+    };
+    last_identifier(node_text(target, source)).and_then(|name| sanitize_symbol(&name))
+}
+
+fn heritage_targets_from_text(text: &str) -> Vec<(&'static str, String)> {
+    let header = text.split('{').next().unwrap_or(text);
+    let mut out = Vec::new();
+    for (keyword, predicate) in [("extends", "EXTENDS"), ("implements", "IMPLEMENTS")] {
+        let Some((_, tail)) = header.split_once(keyword) else {
+            continue;
+        };
+        let tail = tail
+            .split("implements")
+            .next()
+            .unwrap_or(tail)
+            .split("extends")
+            .next()
+            .unwrap_or(tail);
+        for raw in tail.split(',') {
+            let candidate = raw
+                .split_whitespace()
+                .next()
+                .and_then(last_identifier)
+                .and_then(|name| sanitize_symbol(&name));
+            if let Some(name) = candidate {
+                out.push((predicate, name));
+            }
+        }
+    }
+    out
 }
 
 fn node_name(node: Node<'_>, source: &[u8]) -> Option<String> {
@@ -2252,6 +2871,14 @@ fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
     last_identifier(text).and_then(|name| sanitize_symbol(&name))
 }
 
+fn constructor_callee(node: Node<'_>, source: &[u8]) -> Option<String> {
+    node.child_by_field_name("constructor")
+        .or_else(|| node.named_child(0))
+        .map(|child| node_text(child, source))
+        .and_then(last_identifier)
+        .and_then(|name| sanitize_symbol(&name))
+}
+
 fn typed_call_target(
     node: Node<'_>,
     source: &[u8],
@@ -2266,7 +2893,16 @@ fn typed_call_target(
         node_text(function, source)
     };
     let (receiver_type, method) = if let Some((receiver, method)) = receiver_method(function_text) {
-        (context.type_bindings.get(&receiver)?.clone(), method)
+        let receiver_type = if matches!(receiver.as_str(), "this" | "self") {
+            context.class_name.clone()?
+        } else if let Some(bound) = context.type_bindings.get(&receiver) {
+            bound.clone()
+        } else if looks_like_type_name(&receiver) {
+            receiver
+        } else {
+            return None;
+        };
+        (receiver_type, method)
     } else if let Some(class_name) = context.class_name.as_ref() {
         let method = sanitize_symbol(function_text)?;
         (class_name.clone(), method)
@@ -2286,6 +2922,8 @@ fn typed_call_note(lang: LangKind) -> Option<&'static str> {
         LangKind::CSharp => Some("oaf.ingest:typed-call-csharp"),
         LangKind::Swift => Some("oaf.ingest:typed-call-swift"),
         LangKind::Kotlin => Some("oaf.ingest:typed-call-kotlin"),
+        LangKind::JavaScript => Some("oaf.ingest:typed-call-javascript"),
+        LangKind::TypeScript | LangKind::Tsx => Some("oaf.ingest:typed-call-typescript"),
         _ => None,
     }
 }
@@ -2295,8 +2933,9 @@ fn local_type_bindings(
     source: &[u8],
     context: &WalkContext,
 ) -> BTreeMap<String, String> {
+    let mut bindings = context.type_bindings.clone();
     if context.lang == LangKind::Python {
-        let mut bindings = python_type_bindings(node, source);
+        bindings.extend(python_type_bindings(node, source));
         if let Some(class_name) = context.class_name.as_deref() {
             bindings.insert("self".to_string(), class_name.to_string());
         }
@@ -2304,11 +2943,17 @@ fn local_type_bindings(
     }
     if matches!(
         context.lang,
-        LangKind::Java | LangKind::CSharp | LangKind::Swift | LangKind::Kotlin
+        LangKind::JavaScript
+            | LangKind::TypeScript
+            | LangKind::Tsx
+            | LangKind::Java
+            | LangKind::CSharp
+            | LangKind::Swift
+            | LangKind::Kotlin
     ) {
-        return constructor_type_bindings(node_text(node, source));
+        bindings.extend(constructor_type_bindings(node_text(node, source)));
     }
-    BTreeMap::new()
+    bindings
 }
 
 fn constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
@@ -2371,7 +3016,7 @@ fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
     let (receiver, method) = receiver_method(node_text(function, source))?;
-    if !matches!(receiver.as_str(), "app" | "router") {
+    if !matches!(receiver.as_str(), "app" | "router" | "fastify" | "server") {
         return None;
     }
     let method = http_method(&method)?;
@@ -2384,7 +3029,35 @@ fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
         handler_subject: None,
         handler_name: Some(handler_name),
         source: context.source.clone(),
-        note: "oaf.ingest:route-express",
+        note: if receiver == "fastify" {
+            "oaf.ingest:route-fastify"
+        } else {
+            "oaf.ingest:route-javascript"
+        },
+        span: CodeSpan::from_node(node),
+    })
+}
+
+fn node_http_server(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<FrameworkRef> {
+    if !matches!(
+        context.lang,
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+    ) {
+        return None;
+    }
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let (receiver, method) = receiver_method(node_text(function, source))?;
+    if receiver != "http" || method != "createServer" {
+        return None;
+    }
+    Some(FrameworkRef {
+        owner: context.module.clone(),
+        component: "framework:node_http_server".to_string(),
+        handler_name: route_handler_name(node_text(node, source)),
+        source: context.source.clone(),
+        span: CodeSpan::from_node(node),
     })
 }
 
@@ -2394,6 +3067,34 @@ fn callable_route(
     context: &WalkContext,
     handler_subject: &str,
 ) -> Option<RouteRef> {
+    if matches!(
+        context.lang,
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+    ) {
+        let name = callable_node_name(node, source, context)?;
+        let (method, path, note) = if let (Some(method), Some(path)) =
+            (http_method(&name), next_server_route_path(&context.source))
+        {
+            (method, path, "oaf.ingest:route-nextjs")
+        } else {
+            let (method, method_path) = nest_method_route(node, source)?;
+            let prefix = context.route_prefix.as_deref().unwrap_or("/");
+            (
+                method,
+                join_route_paths(prefix, &method_path),
+                "oaf.ingest:route-nestjs",
+            )
+        };
+        return Some(RouteRef {
+            method,
+            path,
+            handler_subject: Some(handler_subject.to_string()),
+            handler_name: None,
+            source: context.source.clone(),
+            note,
+            span: decorator_aware_span(node, source),
+        });
+    }
     if context.lang != LangKind::Python {
         return None;
     }
@@ -2414,10 +3115,80 @@ fn callable_route(
                 handler_name: None,
                 source: context.source.clone(),
                 note: "oaf.ingest:route-flask",
+                span: CodeSpan::from_node(parent),
             });
         }
     }
     None
+}
+
+fn nest_controller_prefix(text: &str) -> Option<String> {
+    text.lines()
+        .find(|line| line.trim_start().starts_with("@Controller"))
+        .and_then(first_quoted_route_path)
+        .or_else(|| text.contains("@Controller()").then(|| "/".to_string()))
+}
+
+fn nest_method_route(node: Node<'_>, source: &[u8]) -> Option<(String, String)> {
+    let decorator = preceding_decorator(node, source)?;
+    for line in decorator.lines() {
+        let line = line.trim();
+        let Some(rest) = line.strip_prefix('@') else {
+            continue;
+        };
+        let decorator = rest.split_once('(')?.0;
+        let method = http_method(decorator)?;
+        let path = first_quoted_route_path(line).unwrap_or_else(|| "/".to_string());
+        return Some((method, path));
+    }
+    None
+}
+
+fn preceding_decorator<'a>(node: Node<'_>, source: &'a [u8]) -> Option<&'a str> {
+    let parent = node.parent()?;
+    let prefix = source.get(parent.start_byte()..node.start_byte())?;
+    std::str::from_utf8(prefix)
+        .ok()?
+        .lines()
+        .rev()
+        .find(|line| line.trim_start().starts_with('@'))
+}
+
+fn decorator_aware_span(node: Node<'_>, source: &[u8]) -> CodeSpan {
+    let mut span = CodeSpan::from_node(node);
+    if preceding_decorator(node, source).is_some() && span.start_line > 1 {
+        span.start_line -= 1;
+        span.start_column = 0;
+    }
+    span
+}
+
+fn join_route_paths(prefix: &str, suffix: &str) -> String {
+    let prefix = prefix.trim_end_matches('/');
+    let suffix = suffix.trim_start_matches('/');
+    canon_route_path(&format!("{prefix}/{suffix}"))
+}
+
+fn next_server_route_path(source: &str) -> Option<String> {
+    let relative = source.strip_prefix("workspace://")?;
+    let parts = relative.split('/').collect::<Vec<_>>();
+    let app_index = parts.iter().position(|part| *part == "app")?;
+    let file = *parts.last()?;
+    if !matches!(file, "route.ts" | "route.tsx" | "route.js" | "route.jsx") {
+        return None;
+    }
+    let segments = parts[app_index + 1..parts.len() - 1]
+        .iter()
+        .filter(|segment| !segment.starts_with('(') || !segment.ends_with(')'))
+        .map(|segment| {
+            if segment.starts_with('[') && segment.ends_with(']') {
+                ":param"
+            } else {
+                *segment
+            }
+        })
+        .collect::<Vec<_>>();
+    Some(canon_route_path(&format!("/{}", segments.join("/"))))
 }
 
 fn python_route_decorator(line: &str) -> Option<(String, String)> {
@@ -2697,6 +3468,15 @@ fn resolve_package_import(entries: &BTreeMap<String, String>, raw: &str) -> Opti
     if let Some(stem) = entries.get(raw) {
         return Some(stem.clone());
     }
+    for (pattern, stem) in entries.iter().filter(|(key, _)| key.ends_with("/*")) {
+        let prefix = pattern.trim_end_matches('*');
+        let Some(suffix) = raw.strip_prefix(prefix) else {
+            continue;
+        };
+        if !suffix.is_empty() {
+            return Some(format!("{stem}/{suffix}"));
+        }
+    }
     for separator in ['/', '.', ':'] {
         if let Some(stem) = resolve_package_prefix(entries, raw, separator) {
             return Some(stem);
@@ -2875,18 +3655,12 @@ fn symbol_kind(subject: &str) -> &'static str {
 
 fn sanitize_symbol(value: &str) -> Option<String> {
     let mut out = String::new();
-    let mut last_underscore = false;
     for ch in value.trim().chars() {
-        if ch.is_ascii_alphanumeric() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '_' | '$') {
             out.push(ch);
-            last_underscore = false;
-        } else if (ch == '_' || ch == '-') && !last_underscore && !out.is_empty() {
+        } else if ch == '-' && !out.ends_with('_') {
             out.push('_');
-            last_underscore = true;
         }
-    }
-    while out.ends_with('_') {
-        out.pop();
     }
     if out.is_empty() {
         return None;
@@ -2987,13 +3761,10 @@ mod tests {
         let mut parsed = ParsedRepo::new();
         parsed.add_symbol_name("runServer", "function:runServer");
         assert_eq!(
-            parsed.resolve_call_target("runServer"),
-            "function:runServer"
+            parsed.resolve_known_call_target("runServer").as_deref(),
+            Some("function:runServer")
         );
-        assert_eq!(
-            parsed.resolve_call_target("missingModule"),
-            "function:missingModule"
-        );
+        assert_eq!(parsed.resolve_known_call_target("missingModule"), None);
     }
 
     #[test]
@@ -3189,6 +3960,148 @@ mod tests {
         assert_eq!(sequential.parsed_file_count, parallel.parsed_file_count);
         assert!(parallel.effective_worker_count >= 1);
         assert!(parallel.effective_worker_count <= 4);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn recovers_useful_facts_from_partially_parsed_typescript() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-typescript-recovery-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("recover.ts"),
+            "const incomplete = ;\nexport function stillWorks() { return 1; }\n",
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        assert_eq!(report.parsed_file_count, 1);
+        assert_eq!(report.skipped_file_count, 0);
+        assert_eq!(report.recovered_files.len(), 1);
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "function:stillWorks"
+                && fact.predicate == "IS_A"
+                && fact.object == "Function"
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn typescript_exports_and_generic_heritage_use_structural_fields() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-typescript-structural-fields-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("module.ts"),
+            [
+                "export class RouteModule<T> {}",
+                "export type Userland = { userland: string };",
+                "export interface Options extends Omit<RouteModule<Userland>, 'userland'> {}",
+                "export class AppRoute extends RouteModule<Userland> {",
+                "  /** Loaded from the 'userland' module. */",
+                "  message = \"from source\";",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let facts = report
+            .facts
+            .iter()
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.predicate.as_str(),
+                    fact.object.as_str(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert!(facts.contains(&("class:AppRoute", "EXTENDS", "class:RouteModule")));
+        assert!(facts.contains(&("interface:Options", "EXTENDS", "external_class:Omit")));
+        assert!(!facts.iter().any(|(_, predicate, object)| {
+            *predicate == "RE_EXPORTS"
+                || (*predicate == "EXTENDS"
+                    && matches!(*object, "type_alias:Userland" | "method:userland"))
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn javascript_keeps_private_methods_and_member_call_resolution_scoped() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-javascript-member-calls-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("client.js"),
+            [
+                "class Helper { static run() { return 1; } }",
+                "class Client {",
+                "  request() { return this._request(); }",
+                "  _request() { return Helper.run(); }",
+                "}",
+                "function resolve() { return 'local'; }",
+                "function build() { return path.resolve('out'); }",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let facts = report
+            .facts
+            .iter()
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.predicate.as_str(),
+                    fact.object.as_str(),
+                    fact.notes.as_deref(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert!(facts.contains(&(
+            "class:Client",
+            "DEFINES",
+            "method:Client__request",
+            Some("oaf.ingest:define-callable")
+        )));
+        assert!(
+            facts.contains(&(
+                "method:Client_request",
+                "CALLS",
+                "method:Client__request",
+                Some("oaf.ingest:typed-call-javascript")
+            )),
+            "{facts:#?}"
+        );
+        assert!(facts.contains(&(
+            "method:Client__request",
+            "CALLS",
+            "method:Helper_run",
+            Some("oaf.ingest:typed-call-javascript")
+        )));
+        assert!(facts.contains(&(
+            "function:build",
+            "CALLS",
+            "external_function:resolve",
+            Some("oaf.ingest:unresolved-call")
+        )));
 
         fs::remove_dir_all(root).unwrap();
     }

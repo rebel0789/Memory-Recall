@@ -100,23 +100,23 @@ Commit: `feat: add polyglot truth evaluation contracts`
 - Modify: `tests/native-code-intelligence-provider.test.mjs`
 - Add focused Rust tests in `rust/oaf-ingest/src/lib.rs`
 
-- [ ] **Step 1: Turn Phase 1 gaps into failing fixtures**
+- [x] **Step 1: Turn Phase 1 gaps into failing fixtures**
 
 Cover ESM relative imports, package imports, aliases, CommonJS `require`, exports and re-exports, nested functions, class/interface/type declarations, receiver methods, constructors, typed calls, unresolved calls, Node HTTP, Express, Fastify, NestJS, and Next.js server routes. Reproduce the Phase 1 TypeScript import mismatch and Express CommonJS import/call gaps.
 
-- [ ] **Step 2: Normalize declarations and relationships**
+- [x] **Step 2: Normalize declarations and relationships**
 
 Give symbols repository-unique qualified names that include module and owner scope. Preserve function/method/type distinctions. Emit export/re-export, construct, inheritance/implementation, and unresolved-call facts with exact syntax spans. Prevent module targets from being emitted as functions.
 
-- [ ] **Step 3: Add deterministic JS/TS resolution**
+- [x] **Step 3: Add deterministic JS/TS resolution**
 
 Resolve extensions, index files, package entry points, TypeScript path aliases only when configuration evidence exists, CommonJS imports, receiver calls with explicit types/constructors, and route handlers. Confidence is `exact`, `typed`, `inferred`, or `unresolved`; lexical matches cannot become typed edges.
 
-- [ ] **Step 4: Run all six pinned JS/TS repositories**
+- [x] **Step 4: Run all six pinned JS/TS repositories**
 
 Use the three TypeScript and three JavaScript corpus commits. Record bounded scopes, graph fingerprints, truth counts, recall/precision, duplicates, parse failures, time, RSS, and disk-neutral read behavior. If a floor fails, keep the matrix partial/unmeasured or `does-not-meet-floor` and preserve the failing evidence.
 
-- [ ] **Step 5: Verify and commit Batch A**
+- [x] **Step 5: Verify and commit Batch A**
 
 Run focused Rust, provider, graph compatibility, fixture evaluation, real-repository evidence, packed-consumer, and default-engine tests.
 
