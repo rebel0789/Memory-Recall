@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -88,19 +89,26 @@ export async function packageNativePlatform({
     ]);
     if (expected.platform !== 'win32') await chmod(stagedBinary, 0o755);
     await mkdir(outDirectory, { recursive: true });
-    const packed = spawnSync(npmCommand(), [
+    const packed = spawnNpmSync([
       'pack', stage,
       '--pack-destination', path.resolve(outDirectory),
       '--json',
       '--ignore-scripts'
     ], { cwd: root, encoding: 'utf8', windowsHide: true });
-    if (packed.status !== 0) throw new Error(`npm pack failed: ${packed.stderr || packed.stdout}`);
-    const [result] = JSON.parse(packed.stdout);
+    if (packed.status !== 0) throw new Error(`npm pack failed: ${packed.stderr || packed.stdout || packed.error?.message || 'unknown error'}`);
+    const results = JSON.parse(packed.stdout);
+    if (!Array.isArray(results) || results.length !== 1) throw new Error('npm pack must return exactly one package result');
+    const [result] = results;
+    if (typeof result?.filename !== 'string' || result.filename.length === 0 || path.basename(result.filename) !== result.filename) {
+      throw new Error('npm pack returned an invalid tarball filename');
+    }
+    const tarball = path.resolve(outDirectory, result.filename);
+    if (!(await stat(tarball)).isFile()) throw new Error('npm pack did not create the reported tarball');
     return Object.freeze({
       target,
       packageName: template.name,
       version: template.version,
-      tarball: path.resolve(outDirectory, result.filename),
+      tarball,
       binarySha256: manifest.sha256,
       entryCount: result.entryCount,
       size: result.size,
@@ -150,8 +158,15 @@ async function readJson(file) {
   return JSON.parse(await readFile(file, 'utf8'));
 }
 
-function npmCommand() {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+export function spawnNpmSync(args, options = {}) {
+  const candidates = [
+    process.env.npm_execpath,
+    path.resolve(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    path.resolve(path.dirname(process.execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  ].filter((candidate) => typeof candidate === 'string' && candidate.length > 0);
+  const npmCli = candidates.find((candidate) => existsSync(candidate));
+  if (!npmCli) throw new Error('npm CLI is unavailable');
+  return spawnSync(process.execPath, [npmCli, ...args], { windowsHide: true, ...options });
 }
 
 function parseArguments(argv) {

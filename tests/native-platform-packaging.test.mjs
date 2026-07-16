@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { buildNativeManifest, buildPublishedPackageJson, NATIVE_TARGETS } from '../scripts/package-native-platform.mjs';
+import { buildNativeManifest, buildPublishedPackageJson, NATIVE_TARGETS, spawnNpmSync } from '../scripts/package-native-platform.mjs';
 
 const rootPackage = JSON.parse(await readFile('package.json', 'utf8'));
 const packageLock = JSON.parse(await readFile('package-lock.json', 'utf8'));
@@ -41,4 +41,10 @@ test('native platform package metadata stays aligned with the public package and
     assert.deepEqual(published.cpu, [NATIVE_TARGETS[target].arch]);
     assert.deepEqual(published.libc ?? [], NATIVE_TARGETS[target].libc ? [NATIVE_TARGETS[target].libc] : []);
   }
+});
+
+test('native packaging invokes npm through the cross-platform JavaScript CLI', () => {
+  const result = spawnNpmSync(['--version'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr || result.error?.message);
+  assert.match(result.stdout.trim(), /^\d+\.\d+\.\d+/u);
 });

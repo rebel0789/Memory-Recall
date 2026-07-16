@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import graphSchema from '../packages/protocol/schemas/code-intelligence-graph.schema.json' with { type: 'json' };
 import { validateJsonSchema } from '../packages/protocol/src/schema-validator.mjs';
 import { nativeTarget } from '../providers/native/code-intelligence-rust/src/binary-resolver.mjs';
-import { packageNativePlatform } from './package-native-platform.mjs';
+import { packageNativePlatform, spawnNpmSync } from './package-native-platform.mjs';
 
 const root = process.cwd();
 const temp = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-consumer-'));
@@ -20,6 +20,7 @@ const packDirectory = path.join(temp, 'pack');
 const prefix = path.join(temp, 'prefix');
 const runtimeBin = path.join(temp, 'runtime-bin');
 const nativeBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+const suppliedNativePackageTarball = process.env.MEMORY_RECALL_NATIVE_PACKAGE_TARBALL;
 const fixtureRoot = path.resolve('evals', 'code-intelligence', 'fixtures');
 const target = nativeTarget();
 const languages = Object.freeze([
@@ -48,12 +49,10 @@ try {
   const initialSource = await treeFingerprint(path.join(workspace, 'languages'));
   const initialCliSource = await treeFingerprint(cliWorkspace);
   const initialMemory = await readFile(governedMemory);
-  const nativePackage = await packageNativePlatform({
-    target,
-    binaryPath: nativeBinary,
-    outDirectory: packDirectory,
-    root
-  });
+  const nativePackage = suppliedNativePackageTarball
+    ? { tarball: path.resolve(suppliedNativePackageTarball) }
+    : await packageNativePlatform({ target, binaryPath: nativeBinary, outDirectory: packDirectory, root });
+  must((await stat(nativePackage.tarball)).isFile(), 'native package tarball is available');
   const [pack] = runJson('npm', ['pack', '--pack-destination', packDirectory, '--json'], { cwd: root });
   const packedPaths = new Set(pack.files.map((file) => file.path));
   for (const required of [
@@ -77,6 +76,7 @@ try {
   const {
     MEMORY_RECALL_NATIVE_BINARY: _ambientNativeBinary,
     MEMORY_RECALL_NATIVE_SHA256: _ambientNativeSha256,
+    MEMORY_RECALL_NATIVE_PACKAGE_TARBALL: _ambientNativePackageTarball,
     ...ambientEnvironment
   } = process.env;
   const installEnvironment = {
@@ -89,7 +89,9 @@ try {
     '--ignore-scripts', '--offline', '--no-audit', '--no-fund'
   ], { cwd: temp, env: installEnvironment });
 
-  const recall = path.join(prefix, 'bin', process.platform === 'win32' ? 'recall.cmd' : 'recall');
+  const recall = process.platform === 'win32'
+    ? path.join(prefix, 'recall.cmd')
+    : path.join(prefix, 'bin', 'recall');
   must((await stat(recall)).isFile(), 'installed root package exposes the recall executable');
   const installedModules = run('npm', ['root', '--global', '--prefix', prefix], {
     cwd: temp,
@@ -225,8 +227,10 @@ try {
 }
 
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, { encoding: 'utf8', ...options });
-  if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
+  const result = command === 'npm'
+    ? spawnNpmSync(args, { encoding: 'utf8', ...options })
+    : spawnSync(command, args, { encoding: 'utf8', ...options });
+  if (result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr || result.stdout || result.error?.message || 'unknown error'}`);
   return result;
 }
 
