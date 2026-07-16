@@ -142,6 +142,7 @@
     "!scripts/code-intelligence-phase2-tier1.mjs",
     "!scripts/code-intelligence-phase3-index.mjs",
     "!scripts/code-intelligence-phase4-intelligence.mjs",
+    "!scripts/code-intelligence-phase5-cross-service.mjs",
     "!scripts/native-code-intelligence-consumer-smoke.mjs",
     "!scripts/package-native-platform.mjs",
     "!scripts/pin-code-intelligence-corpus.mjs",

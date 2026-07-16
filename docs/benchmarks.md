@@ -160,6 +160,19 @@ This is a deterministic local correctness and deadline gate, not a competitor
 benchmark or a general latency promise. It makes no parity, leadership,
 multi-repository, packaged-binary, or million-node claim.
 
+## Code-intelligence Phase 5 cross-service gate
+
+Verify `evals/code-intelligence/results/phase5-cross-service.json` with:
+
+```bash
+node scripts/code-intelligence-phase5-cross-service.mjs --check
+```
+
+Five TypeScript fixture reads prove a gateway-to-orders import, call, trace,
+and process. Negative cases and bounds pass, reads preserve SQLite, and the
+recorded macOS arm64 p95 was 8.027 ms. This is single-repository evidence; no
+registry, multi-repository, parity, leadership, or scale claim is made.
+
 ## Native package consumer gate
 
 Run the checkout-only installed-product gate after a release build:

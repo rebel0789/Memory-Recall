@@ -56,13 +56,17 @@ unchanged shards, and removes deleted files. `--refresh --watch` keeps it
 current while the process runs. Index writes are explicit; MCP only reads a
 current index and falls back to a fresh bounded scan when it is stale.
 
-`recall graph stats`, `search`, `trace`, `dependencies`, `routes`, and `impact`
-also accept `--engine native-preview` or `--engine compatibility` after a local
-Rust build. Native preview can parse the 14 Tier 1 languages. The Phase 2 audit
-covers one fixture and three pinned repositories per language, but it promotes
-only the 46 capability rows with qualifying evidence. Every language still has
-applicable unmeasured rows. These modes are read-only and explicit; neither
-changes the public default or creates an installer-backed polyglot promise.
+`recall graph stats`, `recall graph search`, `recall graph trace`, and
+`recall graph impact` accept `--engine native-preview` or `--engine
+compatibility` after a local Rust build. Dependency and route reads are exposed
+through MCP as `code.dependencies` and `code.routes`; there are no `recall graph
+dependencies` or `recall graph routes` CLI subcommands.
+
+Native preview can parse the 14 Tier 1 languages. The Phase 2 audit covers one
+fixture and three pinned repositories per language, but it promotes only the 46
+capability rows with qualifying evidence. Every language still has applicable
+unmeasured rows. These modes are read-only and explicit; neither changes the
+public default or creates an installer-backed polyglot promise.
 
 ## Config and data boundary
 
