@@ -9,7 +9,9 @@ use oaf_index::{
     GenerationInput, HealthStatus, IndexDoctorReport, IndexHealth, NodeRecord, QueryBounds,
     RefreshPlan, SourceIndex, SourceIndexOptions,
 };
-use oaf_ingest::{discover_file_hashes, IngestOptions};
+use oaf_ingest::{
+    discover_file_hashes, discover_file_hashes_bounded, FileHashDiscoveryBounds, IngestOptions,
+};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -17,13 +19,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 const PROTOCOL_VERSION: &str = "1.0.0";
 const RESPONSE_SCHEMA_VERSION: &str = "1.0.0";
 const INDEX_LOCATOR: &str = "workspace://.local/source-index/index.v1.sqlite";
 const INDEX_RELATIVE_PATH: &str = ".local/source-index/index.v1.sqlite";
 const MAX_LINE_BYTES: usize = 64 * 1024;
+const SOURCE_FRESHNESS_MAX_CANDIDATE_FILES: usize = 1_000_000;
+const SOURCE_FRESHNESS_MAX_HASHED_BYTES: u64 = 350 * 1024 * 1024;
+const SOURCE_FRESHNESS_MAX_FILE_BYTES: u64 = 10 * 1024 * 1024;
 const FALLBACK_REQUEST_ID: &str = "ciidxreq_00000000000000000000000000000000";
 const LANGUAGES: &[&str] = &[
     "typescript",
@@ -433,6 +438,7 @@ fn execute_request(request: ParsedRequest, root: &Path, engine_version: &str) ->
         }
         Operation::Status => read_index(
             &request,
+            &root,
             &path,
             &options,
             &repository_identity,
@@ -443,6 +449,7 @@ fn execute_request(request: ParsedRequest, root: &Path, engine_version: &str) ->
         ),
         Operation::Doctor => read_index(
             &request,
+            &root,
             &path,
             &options,
             &repository_identity,
@@ -453,6 +460,7 @@ fn execute_request(request: ParsedRequest, root: &Path, engine_version: &str) ->
         ),
         Operation::Query(arguments) => read_index(
             &request,
+            &root,
             &path,
             &options,
             &repository_identity,
@@ -564,6 +572,7 @@ fn refresh_index(
 #[allow(clippy::too_many_arguments)]
 fn read_index(
     request: &ParsedRequest,
+    root: &Path,
     path: &Path,
     options: &SourceIndexOptions,
     repository_identity: &str,
@@ -573,13 +582,26 @@ fn read_index(
     started: Instant,
 ) -> Result<Value> {
     let report = doctor.then(|| doctor_index(path, options)).transpose()?;
-    let health = report.as_ref().map_or_else(
+    let mut health = report.as_ref().map_or_else(
         || inspect_index(path, options),
         |value| value.health.clone(),
     );
     let mut summary = None;
     let mut omitted_count = 0;
     let mut query_output = QueryOutput::default();
+    let mut measurements = Measurements {
+        duration_ms: 0,
+        parsed_file_count: 0,
+        reused_file_count: 0,
+        changed_file_count: 0,
+        deleted_file_count: 0,
+        local_files_written: 0,
+    };
+    let mut response_diagnostics = health
+        .reason_codes
+        .iter()
+        .map(|code| json!({ "code": code, "count": 1 }))
+        .collect::<Vec<_>>();
     if path.is_file()
         && matches!(
             health.status,
@@ -589,6 +611,25 @@ fn read_index(
         let index = SourceIndex::open_read_only(path, options)?;
         if let Some(active) = index.load_active_generation()? {
             omitted_count = persisted_omitted_count(&active.input);
+            if !doctor && query.is_none() && health.status == HealthStatus::Ready {
+                let (source_health, reused, changed, deleted) = verify_source_freshness(
+                    root,
+                    request,
+                    started,
+                    &index,
+                    &active.input,
+                    &health,
+                )?;
+                health = source_health;
+                measurements.reused_file_count = reused;
+                measurements.changed_file_count = changed;
+                measurements.deleted_file_count = deleted;
+                response_diagnostics = health
+                    .reason_codes
+                    .iter()
+                    .map(|code| json!({ "code": code, "count": 1 }))
+                    .collect();
+            }
             summary = Some(active.summary);
         }
         if let Some(arguments) = query {
@@ -625,18 +666,10 @@ fn read_index(
         query_output.next_cursor,
         Measurements {
             duration_ms: elapsed_ms(started),
-            parsed_file_count: 0,
-            reused_file_count: 0,
-            changed_file_count: 0,
-            deleted_file_count: 0,
-            local_files_written: 0,
+            ..measurements
         },
         true,
-        health
-            .reason_codes
-            .iter()
-            .map(|code| json!({ "code": code, "count": 1 }))
-            .collect(),
+        response_diagnostics,
     );
     if query.is_some() {
         response["result"]["relationships"] = Value::Array(query_output.relationships);
@@ -648,6 +681,99 @@ fn read_index(
         }
     }
     Ok(response)
+}
+
+fn verify_source_freshness(
+    root: &Path,
+    request: &ParsedRequest,
+    started: Instant,
+    index: &SourceIndex,
+    active: &GenerationInput,
+    base_health: &IndexHealth,
+) -> Result<(IndexHealth, usize, usize, usize)> {
+    let scope_all_languages = active
+        .coverage
+        .iter()
+        .find(|record| {
+            record.language == "source-index" && record.capability == "scan-scope-all-languages"
+        })
+        .and_then(|record| match record.represented_count {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        });
+    let Some(scope_all_languages) = scope_all_languages else {
+        let mut health = base_health.clone();
+        health.status = HealthStatus::Stale;
+        health.reason_codes = vec![
+            "source_index_freshness_scope_unverified".to_string(),
+            "source_index_freshness_unverified".to_string(),
+        ];
+        return Ok((health, 0, 0, 0));
+    };
+    let mut languages = active
+        .coverage
+        .iter()
+        .filter(|record| record.capability == "files" && record.language != "source-index")
+        .map(|record| record.language.clone())
+        .collect::<BTreeSet<_>>();
+    if scope_all_languages {
+        languages.clear();
+    } else if languages.is_empty() {
+        languages.extend(active.files.iter().map(|file| file.language.clone()));
+    }
+    let mut ingest_options = IngestOptions::new(root);
+    ingest_options.max_file_bytes = SOURCE_FRESHNESS_MAX_FILE_BYTES;
+    ingest_options.prefer_cpp_headers = languages.contains("cpp") && !languages.contains("c");
+    let selected_file_limit =
+        (persisted_omitted_file_count(active) > 0).then_some(active.files.len());
+    let deadline = started
+        .checked_add(Duration::from_millis(request.deadline_ms))
+        .unwrap_or(started);
+    let report = discover_file_hashes_bounded(
+        &ingest_options,
+        &FileHashDiscoveryBounds {
+            max_candidate_files: SOURCE_FRESHNESS_MAX_CANDIDATE_FILES,
+            max_hashed_bytes: SOURCE_FRESHNESS_MAX_HASHED_BYTES,
+            selected_file_limit,
+            deadline,
+        },
+        |source| index_source_language(source, &languages).is_some(),
+    )?;
+    if !report.complete {
+        let mut reason_codes = report.reason_codes;
+        reason_codes.push("source_index_freshness_unverified".to_string());
+        reason_codes.sort();
+        reason_codes.dedup();
+        let mut health = base_health.clone();
+        health.status = HealthStatus::Stale;
+        health.reason_codes = reason_codes;
+        return Ok((health, 0, 0, 0));
+    }
+    let current = report
+        .hashes
+        .into_iter()
+        .map(|item| {
+            Ok(DiscoveredFile {
+                locator: item.source,
+                content_hash: format!("sha256:{}", item.sha256),
+                byte_size: i64::try_from(item.bytes).context("source_index_file_size_invalid")?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let plan = index.plan_refresh(&current, None, &oaf_index::RefreshBounds::default())?;
+    if plan.no_change {
+        return Ok((base_health.clone(), plan.unchanged_file_count, 0, 0));
+    }
+    let mut health = base_health.clone();
+    health.status = HealthStatus::Stale;
+    health.reason_codes = plan.reason_codes;
+    Ok((
+        health,
+        plan.unchanged_file_count,
+        plan.changed_files.len() + plan.added_files.len() + plan.renamed_files.len(),
+        plan.deleted_files.len(),
+    ))
 }
 
 fn build_generation(
@@ -667,7 +793,7 @@ fn build_generation(
         request.deadline_ms,
         engine_version,
     )?;
-    record_omissions(&mut build)?;
+    record_omissions(&mut build, arguments.languages.is_empty())?;
     Ok(build)
 }
 
@@ -742,7 +868,7 @@ fn refresh_parse_sources(
     selected
 }
 
-fn record_omissions(build: &mut IndexGenerationBuild) -> Result<()> {
+fn record_omissions(build: &mut IndexGenerationBuild, scope_all_languages: bool) -> Result<()> {
     let counts = [
         (
             "omitted-files",
@@ -771,6 +897,14 @@ fn record_omissions(build: &mut IndexGenerationBuild) -> Result<()> {
                     reason_code: (count > 0).then(|| format!("source_index_{capability}")),
                 }),
         );
+    build.generation.coverage.push(CoverageRecord {
+        language: "source-index".to_string(),
+        capability: "scan-scope-all-languages".to_string(),
+        represented_count: i64::from(scope_all_languages),
+        omitted_count: 0,
+        failed_count: 0,
+        reason_code: None,
+    });
     build.generation.structural_fingerprint = normalized_generation_fingerprint(&build.generation)?;
     Ok(())
 }
@@ -782,6 +916,15 @@ fn persisted_omitted_count(input: &GenerationInput) -> u64 {
         .filter(|record| {
             record.language == "source-index" && record.capability.starts_with("omitted-")
         })
+        .map(|record| u64::try_from(record.omitted_count).unwrap_or(0))
+        .sum()
+}
+
+fn persisted_omitted_file_count(input: &GenerationInput) -> u64 {
+    input
+        .coverage
+        .iter()
+        .filter(|record| record.language == "source-index" && record.capability == "omitted-files")
         .map(|record| u64::try_from(record.omitted_count).unwrap_or(0))
         .sum()
 }
@@ -1126,17 +1269,27 @@ fn success_frame(
     read_only: bool,
     diagnostics: Vec<Value>,
 ) -> Value {
+    let partial = health.status == HealthStatus::Ready && omitted_count > 0;
     let mut health_value = Map::new();
     health_value.insert(
         "status".into(),
-        Value::String(health_status(health.status).into()),
+        Value::String(if partial {
+            "partial".into()
+        } else {
+            health_status(health.status).into()
+        }),
     );
     health_value.insert("reasonCodes".into(), json!(health.reason_codes));
     health_value.insert("lastSuccessfulRefreshAt".into(), Value::Null);
     health_value.insert(
         "repairRequired".into(),
         Value::Bool(doctor.map_or_else(
-            || !matches!(health.status, HealthStatus::Absent | HealthStatus::Ready),
+            || {
+                !matches!(
+                    health.status,
+                    HealthStatus::Absent | HealthStatus::Ready | HealthStatus::Stale
+                )
+            },
             |report| report.repair_required,
         )),
     );
@@ -1174,9 +1327,9 @@ fn success_frame(
             "indexLocator": INDEX_LOCATOR,
             "storageSchemaVersion": health.schema_version.map_or(Value::Null, |version| Value::String(version.to_string())),
             "engineVersion": engine_version,
-            "state": response_state(health.status),
+            "state": if partial { "partial" } else { response_state(health.status) },
             "activeGeneration": summary.map(|value| value.id),
-            "freshness": freshness(health.status),
+            "freshness": if partial { "partial" } else { freshness(health.status) },
             "health": Value::Object(health_value),
             "summary": {
                 "fileCount": file_count,
@@ -1813,5 +1966,156 @@ mod tests {
         assert_eq!(repaired["result"]["operation"], "index.repair");
         assert_eq!(repaired["result"]["health"]["status"], "ready");
         assert_eq!(repaired["result"]["safeguards"]["repairPerformed"], true);
+    }
+
+    #[test]
+    fn status_detects_cross_language_source_drift_without_writing_the_index() {
+        let workspace = tempdir().unwrap();
+        fs::write(
+            workspace.path().join("main.ts"),
+            "export function oldValue(): number { return 1; }\n",
+        )
+        .unwrap();
+        fs::write(
+            workspace.path().join("stable.py"),
+            "def stable_value():\n    return 1\n",
+        )
+        .unwrap();
+        fs::write(
+            workspace.path().join("removed.go"),
+            "package sample\nfunc RemovedValue() int { return 1 }\n",
+        )
+        .unwrap();
+        let mut arguments = writer_arguments();
+        arguments["languages"] = json!([]);
+        let build = execute_request(
+            parse_request(request("index.build", arguments.clone())).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        let generation = build["result"]["activeGeneration"].clone();
+        let index_path = workspace.path().join(INDEX_RELATIVE_PATH);
+        let clean_snapshot = bundle_snapshot(&index_path);
+
+        let current = execute_request(
+            parse_request(request("index.status", json!({}))).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(current["result"]["state"], "ready");
+        assert_eq!(current["result"]["freshness"], "current");
+        assert_eq!(current["result"]["measurements"]["reusedFileCount"], 3);
+        assert_eq!(bundle_snapshot(&index_path), clean_snapshot);
+
+        fs::write(
+            workspace.path().join("main.ts"),
+            "export function newValue(): number { return 2; }\n",
+        )
+        .unwrap();
+        fs::write(
+            workspace.path().join("Added.java"),
+            "final class Added { static int value() { return 1; } }\n",
+        )
+        .unwrap();
+        fs::remove_file(workspace.path().join("removed.go")).unwrap();
+
+        let stored_query = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "exact", "query": "oldValue", "limit": 10 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert!(stored_query["result"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["label"].as_str().unwrap().contains("oldValue")));
+        assert_eq!(bundle_snapshot(&index_path), clean_snapshot);
+
+        let stale = execute_request(
+            parse_request(request("index.status", json!({}))).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(stale["result"]["state"], "stale");
+        assert_eq!(stale["result"]["freshness"], "stale");
+        assert_eq!(stale["result"]["health"]["status"], "stale");
+        assert_eq!(stale["result"]["health"]["repairRequired"], false);
+        assert_eq!(stale["result"]["activeGeneration"], generation);
+        assert_eq!(stale["result"]["measurements"]["changedFileCount"], 2);
+        assert_eq!(stale["result"]["measurements"]["deletedFileCount"], 1);
+        let reason_codes = stale["result"]["health"]["reasonCodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| value.as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            reason_codes,
+            BTreeSet::from([
+                "source_index_content_changed",
+                "source_index_files_added",
+                "source_index_files_deleted",
+            ])
+        );
+        assert_eq!(bundle_snapshot(&index_path), clean_snapshot);
+
+        let refreshed = execute_request(
+            parse_request(request("index.refresh", arguments)).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_ne!(refreshed["result"]["activeGeneration"], generation);
+        let refreshed_status = execute_request(
+            parse_request(request("index.status", json!({}))).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(refreshed_status["result"]["freshness"], "current");
+    }
+
+    #[test]
+    fn persisted_coverage_omissions_remain_partial_on_status() {
+        let workspace = tempdir().unwrap();
+        fs::write(
+            workspace.path().join("main.ts"),
+            "export function main(): number { return helper(); }\nexport function helper(): number { return 1; }\n",
+        )
+        .unwrap();
+        let mut arguments = writer_arguments();
+        arguments["maxNodes"] = json!(1);
+        let build = execute_request(
+            parse_request(request("index.build", arguments)).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(build["result"]["state"], "partial");
+        assert_eq!(build["result"]["freshness"], "partial");
+        assert_eq!(build["result"]["health"]["status"], "partial");
+        assert!(build["result"]["summary"]["omittedCount"].as_u64().unwrap() > 0);
+
+        let index_path = workspace.path().join(INDEX_RELATIVE_PATH);
+        let before = bundle_snapshot(&index_path);
+        let status = execute_request(
+            parse_request(request("index.status", json!({}))).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert_eq!(status["result"]["state"], "partial");
+        assert_eq!(status["result"]["freshness"], "partial");
+        assert_eq!(status["result"]["health"]["status"], "partial");
+        assert_eq!(status["result"]["health"]["repairRequired"], false);
+        assert_eq!(bundle_snapshot(&index_path), before);
     }
 }

@@ -47,6 +47,21 @@ pub struct IngestFileHash {
     pub bytes: u64,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct FileHashDiscoveryBounds {
+    pub max_candidate_files: usize,
+    pub max_hashed_bytes: u64,
+    pub selected_file_limit: Option<usize>,
+    pub deadline: Instant,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct IngestFileHashReport {
+    pub hashes: Vec<IngestFileHash>,
+    pub complete: bool,
+    pub reason_codes: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct IngestFileRename {
     pub from_source: String,
@@ -1648,6 +1663,136 @@ pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHas
     hashes.sort_by(|left, right| left.source.cmp(&right.source));
     hashes.dedup_by(|left, right| left.source == right.source);
     Ok(hashes)
+}
+
+pub fn discover_file_hashes_bounded(
+    options: &IngestOptions,
+    bounds: &FileHashDiscoveryBounds,
+    include_source: impl Fn(&str) -> bool,
+) -> Result<IngestFileHashReport> {
+    if bounds.max_candidate_files == 0 || bounds.max_hashed_bytes == 0 {
+        bail!("ingest_file_hash_discovery_bounds_invalid");
+    }
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "hash discovery root must point at a local workspace directory: {}",
+            options.root.display()
+        )
+    })?;
+    let mut builder = WalkBuilder::new(&root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+
+    let mut candidates = Vec::<(String, PathBuf, u64)>::new();
+    let mut reason_codes = BTreeSet::new();
+    for entry in builder.build() {
+        if Instant::now() >= bounds.deadline {
+            reason_codes.insert("source_index_freshness_deadline_exceeded".to_string());
+            break;
+        }
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => {
+                reason_codes.insert("source_index_freshness_walk_failed".to_string());
+                break;
+            }
+        };
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let is_cmake = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("CMakeLists.txt"));
+        if !is_cmake && language_for_path_with_options(path, options).is_none() {
+            continue;
+        }
+        let relative = match workspace_rel(&root, path) {
+            Ok(relative) => relative,
+            Err(_) => {
+                reason_codes.insert("source_index_freshness_path_failed".to_string());
+                break;
+            }
+        };
+        let source = format!("workspace://{relative}");
+        if !include_source(&source)
+            || options
+                .only_sources
+                .as_ref()
+                .is_some_and(|selected| !selected.contains(&source))
+        {
+            continue;
+        }
+        let metadata = match fs::metadata(path) {
+            Ok(metadata) => metadata,
+            Err(_) => {
+                reason_codes.insert("source_index_freshness_stat_failed".to_string());
+                break;
+            }
+        };
+        let bytes = metadata.len();
+        if bytes > options.max_file_bytes {
+            continue;
+        }
+        let canonical = match path.canonicalize() {
+            Ok(canonical) if canonical.starts_with(&root) => canonical,
+            _ => {
+                reason_codes.insert("source_index_freshness_path_failed".to_string());
+                break;
+            }
+        };
+        if candidates.len() >= bounds.max_candidate_files {
+            reason_codes.insert("source_index_freshness_candidate_cap".to_string());
+            break;
+        }
+        candidates.push((source, canonical, bytes));
+    }
+
+    candidates.sort_by(|left, right| left.0.cmp(&right.0));
+    candidates.dedup_by(|left, right| left.0 == right.0);
+    if let Some(limit) = bounds.selected_file_limit {
+        candidates.truncate(limit);
+    }
+
+    let mut hashes = Vec::with_capacity(candidates.len());
+    let mut hashed_bytes = 0u64;
+    if reason_codes.is_empty() {
+        for (source, path, bytes) in candidates {
+            if Instant::now() >= bounds.deadline {
+                reason_codes.insert("source_index_freshness_deadline_exceeded".to_string());
+                break;
+            }
+            if hashed_bytes.saturating_add(bytes) > bounds.max_hashed_bytes {
+                reason_codes.insert("source_index_freshness_byte_cap".to_string());
+                break;
+            }
+            let content = match fs::read(path) {
+                Ok(content) => content,
+                Err(_) => {
+                    reason_codes.insert("source_index_freshness_read_failed".to_string());
+                    break;
+                }
+            };
+            hashed_bytes = hashed_bytes.saturating_add(content.len() as u64);
+            hashes.push(IngestFileHash {
+                source,
+                sha256: hex::encode(Sha256::digest(&content)),
+                bytes: content.len() as u64,
+            });
+        }
+    }
+    let complete = reason_codes.is_empty();
+    Ok(IngestFileHashReport {
+        hashes,
+        complete,
+        reason_codes: reason_codes.into_iter().collect(),
+    })
 }
 
 pub fn extract_code_fingerprints(options: &IngestOptions) -> Result<Vec<CodeFingerprint>> {
@@ -6132,3 +6277,96 @@ fn stable_hash64(parts: &[&str]) -> u64 {
 
 #[cfg(test)]
 include!("../test-support/lib_unit.rs");
+
+#[cfg(test)]
+mod bounded_hash_discovery_tests {
+    use super::*;
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    fn fixture_root() -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "memory-recall-hash-discovery-{}-{unique}",
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn bounded_hash_discovery_fails_closed_at_each_resource_cap() {
+        let root = fixture_root();
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("a.ts"), "export const a = 1;\n").unwrap();
+        fs::write(root.join("b.ts"), "export const b = 2;\n").unwrap();
+        let options = IngestOptions::new(&root);
+
+        let complete = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 2,
+                max_hashed_bytes: 1024,
+                selected_file_limit: None,
+                deadline: Instant::now() + Duration::from_secs(1),
+            },
+            |_| true,
+        )
+        .unwrap();
+        assert!(complete.complete);
+        assert_eq!(complete.hashes.len(), 2);
+
+        let candidate_capped = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 1,
+                max_hashed_bytes: 1024,
+                selected_file_limit: None,
+                deadline: Instant::now() + Duration::from_secs(1),
+            },
+            |_| true,
+        )
+        .unwrap();
+        assert!(!candidate_capped.complete);
+        assert_eq!(
+            candidate_capped.reason_codes,
+            vec!["source_index_freshness_candidate_cap"]
+        );
+
+        let byte_capped = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 2,
+                max_hashed_bytes: 1,
+                selected_file_limit: None,
+                deadline: Instant::now() + Duration::from_secs(1),
+            },
+            |_| true,
+        )
+        .unwrap();
+        assert!(!byte_capped.complete);
+        assert_eq!(
+            byte_capped.reason_codes,
+            vec!["source_index_freshness_byte_cap"]
+        );
+
+        let deadline_capped = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 2,
+                max_hashed_bytes: 1024,
+                selected_file_limit: None,
+                deadline: Instant::now(),
+            },
+            |_| true,
+        )
+        .unwrap();
+        assert!(!deadline_capped.complete);
+        assert_eq!(
+            deadline_capped.reason_codes,
+            vec!["source_index_freshness_deadline_exceeded"]
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+}
