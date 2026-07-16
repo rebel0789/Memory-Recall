@@ -2,6 +2,10 @@
 
 ## [Unreleased] — 1.1.1 patch candidate
 
+### Added
+
+- Approved the Rust/Node production-engine boundary, added provider-neutral graph and language-evidence contracts, pinned a 42-repository Tier 1 benchmark corpus, and recorded a clean Phase 0 baseline. The baseline does not claim GitNexus or Codebase Memory MCP parity.
+
 ### Fixed
 
 - Default packaged benchmarks now use bundled fixtures unless the caller explicitly supplies `--dataset`, preventing same-named repository files from changing the package benchmark.

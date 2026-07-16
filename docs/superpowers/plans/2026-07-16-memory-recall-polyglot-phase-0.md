@@ -33,7 +33,7 @@
 - Consumes: approved polyglot leadership specification at commit `34f8b67`.
 - Produces: accepted ADR 0023 and a stable link used by later provider, storage, distribution, and release work.
 
-- [ ] **Step 1: Write the failing documentation test**
+- [x] **Step 1: Write the failing documentation test**
 
 Add this test to `tests/usage-docs.test.mjs`:
 
@@ -51,13 +51,13 @@ test('polyglot leadership contract is approved and owns the native engine bounda
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `node --test tests/usage-docs.test.mjs`
 
 Expected: FAIL because ADR 0023 does not exist and the design status is still proposed.
 
-- [ ] **Step 3: Accept the design and write ADR 0023**
+- [x] **Step 3: Accept the design and write ADR 0023**
 
 Change the design header to:
 
@@ -83,13 +83,13 @@ Node and Rust communicate through a versioned JSON Lines subprocess protocol. Th
 
 The ADR must also cover alternatives rejected, failure boundaries, compatibility, security, distribution, and reversal.
 
-- [ ] **Step 4: Run the focused test and documentation hygiene checks**
+- [x] **Step 4: Run the focused test and documentation hygiene checks**
 
 Run: `node --test tests/usage-docs.test.mjs && git diff --check`
 
 Expected: all usage-document tests pass and `git diff --check` prints nothing.
 
-- [ ] **Step 5: Commit the accepted decision**
+- [x] **Step 5: Commit the accepted decision**
 
 ```bash
 git add docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md docs/adr/0023-production-rust-code-intelligence-engine.md tests/usage-docs.test.mjs
@@ -112,7 +112,7 @@ git commit -m "docs: accept production code intelligence engine"
 - Consumes: workspace-locator rules from `packages/protocol/src/source-graph-locator.mjs` and the node/edge vocabulary approved in the design.
 - Produces: schema ID `https://openagentfabric.dev/schemas/code-intelligence-graph.schema.json`, graph version `memory-recall-code-intelligence-1`, node IDs matching `^cinode_[a-f0-9]{32}$`, and edge IDs matching `^ciedge_[a-f0-9]{32}$`.
 
-- [ ] **Step 1: Write failing valid and invalid fixture tests**
+- [x] **Step 1: Write failing valid and invalid fixture tests**
 
 Create `tests/code-intelligence-contract.test.mjs`:
 
@@ -142,13 +142,13 @@ test('code intelligence graph rejects source bodies and absolute paths', async (
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs`
 
 Expected: FAIL because the schema and fixtures do not exist.
 
-- [ ] **Step 3: Create the bounded graph schema**
+- [x] **Step 3: Create the bounded graph schema**
 
 The top-level schema must require:
 
@@ -181,23 +181,23 @@ The top-level schema must require:
 
 Use closed objects. Bound nodes to 5,000, edges to 10,000, coverage rows to 64, and diagnostics to 1,000. Use the exact node, edge, resolution, evidence, language, and freshness enums from the approved design. Locators must be workspace-relative and may include `#Lx-Ly`; no `body`, `sourceText`, arbitrary metadata, absolute path, URI, or provider-native ID property is permitted.
 
-- [ ] **Step 4: Add one valid example and two invalid fixtures**
+- [x] **Step 4: Add one valid example and two invalid fixtures**
 
 The valid example contains one TypeScript file node, one function node, and one exact `defines` edge with a bounded evidence span. The raw-body fixture copies the valid example and adds `sourceText`. The absolute-path fixture replaces the file locator with `/Users/example/private.ts`.
 
 Register all three in `examples/protocol/compatibility/fixtures.json` with expected validity `true`, `false`, and `false`.
 
-- [ ] **Step 5: Document the additive protocol**
+- [x] **Step 5: Document the additive protocol**
 
 Add a concise section to `packages/protocol/README.md` and `rfcs/0001-protocol-contracts.md` stating that the new contract is provider-neutral, bounded, additive within v1, and separate from canonical memory. Keep `source-graph.schema.json` as the current JS/TS compatibility schema until Phase 1 migration.
 
-- [ ] **Step 6: Run protocol verification**
+- [x] **Step 6: Run protocol verification**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs tests/protocol-schema-validator.test.mjs && npm run protocol:validate`
 
 Expected: focused tests pass and the compatibility fixture total increases by three with zero failures.
 
-- [ ] **Step 7: Commit the graph contract**
+- [x] **Step 7: Commit the graph contract**
 
 ```bash
 git add packages/protocol/schemas/code-intelligence-graph.schema.json packages/protocol/README.md rfcs/0001-protocol-contracts.md examples/protocol/code-intelligence-graph.json examples/protocol/compatibility/invalid/code-intelligence-graph-raw-body.json examples/protocol/compatibility/invalid/code-intelligence-graph-absolute-path.json examples/protocol/compatibility/fixtures.json tests/code-intelligence-contract.test.mjs
@@ -221,7 +221,7 @@ git commit -m "feat: define provider-neutral code intelligence graph"
 - Consumes: fourteen Tier 1 language IDs and eleven capability IDs from the approved specification.
 - Produces: `CODE_INTELLIGENCE_TIER_1_LANGUAGES`, `CODE_INTELLIGENCE_TIER_2_LANGUAGES`, `CODE_INTELLIGENCE_CAPABILITIES`, and `auditCodeIntelligenceCapabilityMatrix(matrix, { root })`.
 
-- [ ] **Step 1: Add failing matrix tests**
+- [x] **Step 1: Add failing matrix tests**
 
 Append to `tests/code-intelligence-contract.test.mjs`:
 
@@ -248,13 +248,13 @@ test('matrix audit rejects unsupported full claims without fixture and real-repo
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs`
 
 Expected: FAIL because the contract module and matrix do not exist.
 
-- [ ] **Step 3: Implement constants and evidence audit**
+- [x] **Step 3: Implement constants and evidence audit**
 
 Create `packages/protocol/src/code-intelligence-contract.mjs` with frozen arrays for:
 
@@ -276,7 +276,7 @@ export const CODE_INTELLIGENCE_CAPABILITIES = Object.freeze([
 
 `auditCodeIntelligenceCapabilityMatrix` must return stable findings for duplicate/missing languages, missing capabilities, evidence paths that are absolute, escape the repository, or do not exist, and any `meets-floor` capability without both `fixture` and `real-repo` evidence classes. It performs no network calls and writes no files.
 
-- [ ] **Step 4: Create the schema and initial matrix**
+- [x] **Step 4: Create the schema and initial matrix**
 
 The matrix includes all fourteen Tier 1 and eight Tier 2 languages. Each capability has:
 
@@ -295,17 +295,17 @@ Use `implemented` only for behavior on the public Node path, `experimental` for 
 
 Register the matrix as a valid protocol fixture and create one invalid fixture that marks a capability `meets-floor` without fixture or real-repository evidence.
 
-- [ ] **Step 5: Publish the readable support page**
+- [x] **Step 5: Publish the readable support page**
 
 `docs/usage/code-intelligence-support.md` must explain Tier 1, Tier 2, product status, benchmark status, evidence requirements, and the current JS/TS versus experimental Rust boundary. Link it from `docs/usage/support-matrix.md`. Do not hand-copy every matrix cell into Markdown; the JSON file remains authoritative.
 
-- [ ] **Step 6: Verify the matrix**
+- [x] **Step 6: Verify the matrix**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs && npm run protocol:validate`
 
 Expected: tests pass, the valid matrix fixture validates, the false-full fixture is rejected by the schema or evidence audit, and no current capability claims `meets-floor`.
 
-- [ ] **Step 7: Commit the capability contract**
+- [x] **Step 7: Commit the capability contract**
 
 ```bash
 git add packages/protocol/schemas/code-intelligence-capability-matrix.schema.json packages/protocol/src/code-intelligence-contract.mjs packages/protocol/src/index.mjs evals/code-intelligence/capability-matrix.v1.json examples/protocol/compatibility/fixtures.json examples/protocol/compatibility/invalid/code-intelligence-capability-matrix-false-full.json tests/code-intelligence-contract.test.mjs docs/usage/code-intelligence-support.md docs/usage/support-matrix.md
@@ -326,7 +326,7 @@ git commit -m "feat: add evidence-bearing language capability matrix"
 - Consumes: exact Tier 1 language constants and public Git repository URLs.
 - Produces: a deterministic corpus with three pinned real repositories per Tier 1 language and explicit small, medium, or large size class.
 
-- [ ] **Step 1: Add failing corpus tests**
+- [x] **Step 1: Add failing corpus tests**
 
 Append:
 
@@ -351,13 +351,13 @@ test('benchmark gates preserve the approved accuracy floors', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs`
 
 Expected: FAIL because the corpus and gate files do not exist.
 
-- [ ] **Step 3: Create the candidate list**
+- [x] **Step 3: Create the candidate list**
 
 Use these exact repository groups:
 
@@ -383,25 +383,25 @@ straightforward permissive licenses for benchmark use and derived metadata.
 
 Each candidate includes repository ID, HTTPS Git URL, primary language, size class, role, SPDX license expression, and an authoritative license URL. Candidate entries contain no commit field.
 
-- [ ] **Step 4: Implement deterministic pinning**
+- [x] **Step 4: Implement deterministic pinning**
 
 `scripts/pin-code-intelligence-corpus.mjs --write` reads the candidates, runs `git ls-remote <url> HEAD`, validates one 40-character commit per repository, sorts by language and ID, and atomically writes `evals/code-intelligence/corpus.v1.json`. It must fail on non-HTTPS Git URLs, duplicate URLs, missing commits, extra output, missing license evidence, or fewer/more than three repositories per Tier 1 language.
 
 `--check` is offline. It validates that the committed corpus exactly matches the candidate identities and metadata, contains immutable 40-character pins, and satisfies the schema without comparing pins to a moving remote branch. A later `--refresh` mode may resolve new HEAD commits, but it must print the proposed pin changes and require a separate explicit `--write` invocation to replace the corpus.
 
-- [ ] **Step 5: Pin the corpus**
+- [x] **Step 5: Pin the corpus**
 
 Run: `node scripts/pin-code-intelligence-corpus.mjs --write`
 
 Expected: 42 repositories pinned with 40-character commits and one local file written.
 
-- [ ] **Step 6: Verify schema and gates**
+- [x] **Step 6: Verify schema and gates**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs && node scripts/pin-code-intelligence-corpus.mjs --check`
 
 Expected: tests pass and the committed corpus matches its candidate identities, license metadata, cardinality, and immutable-pin schema without a network call.
 
-- [ ] **Step 7: Commit the corpus contract**
+- [x] **Step 7: Commit the corpus contract**
 
 ```bash
 git add packages/protocol/schemas/code-intelligence-benchmark-manifest.schema.json evals/code-intelligence/corpus-candidates.v1.json evals/code-intelligence/corpus.v1.json evals/code-intelligence/benchmark-gates.v1.json scripts/pin-code-intelligence-corpus.mjs tests/code-intelligence-contract.test.mjs
@@ -420,7 +420,7 @@ git commit -m "test: pin polyglot benchmark corpus"
 - Consumes: current Node JS/TS tests, current Rust quality harnesses, corpus manifest, and benchmark gates.
 - Produces: an immutable current-state report that separates public Node behavior, experimental Rust behavior, missing competitive measurements, and commands executed.
 
-- [ ] **Step 1: Add a failing report-truth test**
+- [x] **Step 1: Add a failing report-truth test**
 
 Append:
 
@@ -438,13 +438,13 @@ test('Phase 0 baseline separates public, experimental, and unmeasured evidence',
 });
 ```
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs`
 
 Expected: FAIL because the baseline report does not exist.
 
-- [ ] **Step 3: Implement the baseline runner**
+- [x] **Step 3: Implement the baseline runner**
 
 The runner executes these commands in order and records command, exit code, duration, and SHA-256 of stdout and stderr without embedding raw output:
 
@@ -463,23 +463,23 @@ The report records platform, architecture, Node version, Rust version, current c
 
 Support `--out evals/code-intelligence/results/phase0-baseline.json`. Write through a same-directory temporary file and rename. Do not include source bodies, absolute repository roots, environment variables, command stdout, or command stderr.
 
-- [ ] **Step 4: Run the baseline**
+- [x] **Step 4: Run the baseline**
 
 Run: `node scripts/code-intelligence-phase0-baseline.mjs --out evals/code-intelligence/results/phase0-baseline.json`
 
 Expected: all six commands exit zero and the report is written once.
 
-- [ ] **Step 5: Document the baseline honestly**
+- [x] **Step 5: Document the baseline honestly**
 
 Add a Phase 0 section to `docs/benchmarks.md` with the report path, command, what was measured, and what remains unmeasured. State that the public product remains JS/TS-only and that experimental Rust parser/harness success is not GitNexus or Codebase Memory MCP parity.
 
-- [ ] **Step 6: Verify the report**
+- [x] **Step 6: Verify the report**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs && git diff --check`
 
 Expected: tests pass, the report claims no parity or leadership, and diff hygiene passes.
 
-- [ ] **Step 7: Commit the current baseline**
+- [x] **Step 7: Commit the current baseline**
 
 ```bash
 git add scripts/code-intelligence-phase0-baseline.mjs evals/code-intelligence/results/phase0-baseline.json tests/code-intelligence-contract.test.mjs docs/benchmarks.md
@@ -498,19 +498,19 @@ git commit -m "test: record polyglot phase zero baseline"
 - Consumes: accepted ADR, graph schema, capability matrix, pinned corpus, gates, and baseline report.
 - Produces: machine-readable Phase 0 status and the clean handoff into Phase 1.
 
-- [ ] **Step 1: Add Phase 0 evidence to project status**
+- [x] **Step 1: Add Phase 0 evidence to project status**
 
 Add a specified capability named `code-intelligence.polyglot-production-engine` whose evidence lists the approved spec, ADR, schemas, capability matrix, corpus, gates, baseline, and contract tests. Its limitations must state that the public runtime remains JS/TS-only, the Rust engine remains experimental, competitors remain unmeasured, and no parity claim exists.
 
-- [ ] **Step 2: Update support and changelog truth**
+- [x] **Step 2: Update support and changelog truth**
 
 Add one changelog entry under Unreleased describing contracts and baseline only. Update the support page with the baseline report link and next phase. Do not change README language support claims.
 
-- [ ] **Step 3: Mark every completed plan checkbox**
+- [x] **Step 3: Mark every completed plan checkbox**
 
 Change each executed `- [ ]` in this file to `- [x]`. Leave no checked item whose command or artifact was not completed.
 
-- [ ] **Step 4: Run the complete Phase 0 gate**
+- [x] **Step 4: Run the complete Phase 0 gate**
 
 Run:
 

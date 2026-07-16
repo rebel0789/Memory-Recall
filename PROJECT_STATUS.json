@@ -1063,6 +1063,30 @@
         "Most fixtures are expectations, not evidence that adapters are installed or passing",
         "adapter:tool:ecc is the single experimental exception with executable conformance evidence"
       ]
+    },
+    {
+      "id": "code-intelligence.polyglot-production-engine",
+      "name": "Polyglot production code-intelligence engine contract",
+      "status": "specified",
+      "evidence": [
+        "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md",
+        "docs/adr/0023-production-rust-code-intelligence-engine.md",
+        "packages/protocol/schemas/code-intelligence-graph.schema.json",
+        "packages/protocol/schemas/code-intelligence-capability-matrix.schema.json",
+        "packages/protocol/schemas/code-intelligence-benchmark-manifest.schema.json",
+        "packages/protocol/src/code-intelligence-contract.mjs",
+        "evals/code-intelligence/capability-matrix.v1.json",
+        "evals/code-intelligence/corpus.v1.json",
+        "evals/code-intelligence/benchmark-gates.v1.json",
+        "evals/code-intelligence/results/phase0-baseline.json",
+        "tests/code-intelligence-contract.test.mjs"
+      ],
+      "limitations": [
+        "The public code-intelligence runtime remains bounded JavaScript and TypeScript static analysis.",
+        "The broader Rust Tree-sitter engine remains experimental and is not selected by the public npm CLI, MCP server, or web workbench.",
+        "GitNexus and Codebase Memory MCP remain unmeasured on the pinned corpus.",
+        "Phase 0 establishes contracts and a current-state baseline only; it makes no parity or leadership claim."
+      ]
     }
   ],
   "qualitySnapshot": {
@@ -1086,10 +1110,13 @@
       "npm run native:smoke",
       "npm run verify:handoff",
       "npm run consumer:smoke",
-      "npm run consumer:browser-smoke"
+      "npm run consumer:browser-smoke",
+      "node --test tests/code-intelligence-contract.test.mjs",
+      "node scripts/pin-code-intelligence-corpus.mjs --check",
+      "node scripts/code-intelligence-phase0-baseline.mjs --out evals/code-intelligence/results/phase0-baseline.json"
     ],
-    "testsExpected": 721,
-    "protocolFixturesExpected": 182,
+    "testsExpected": 729,
+    "protocolFixturesExpected": 187,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

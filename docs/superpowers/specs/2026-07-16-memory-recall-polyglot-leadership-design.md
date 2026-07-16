@@ -691,7 +691,7 @@ Promote the eight existing experimental languages under the Tier 1 gates. Then a
 
 - GitNexus README, supported language matrix and indexing pipeline: <https://github.com/nxpatterns/gitnexus>
 - Codebase Memory MCP README, broad-language and large-index reference: <https://github.com/DeusData/codebase-memory-mcp>
-- Existing Memory Recall task-first design: `docs/superpowers/specs/2026-07-16-memory-recall-task-first-code-intelligence-design.md`
+- Existing Memory Recall task-first code-intelligence design in the same specs directory.
 - Existing Rust runtime: `rust/README.md`
 - Existing Rust parser: `rust/oaf-ingest/src/lib.rs`
 - Current Node JS/TS provider: `providers/native/context-candidate-ast-code/src/index.mjs`
