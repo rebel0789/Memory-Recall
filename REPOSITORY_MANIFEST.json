@@ -1,9 +1,9 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-16T09:22:43.051Z",
-  "fileCount": 981,
-  "totalBytes": 7059668,
+  "generatedAt": "2026-07-16T15:18:23.235Z",
+  "fileCount": 1113,
+  "totalBytes": 8350422,
   "exclusions": [
     ".git/**",
     ".local/**",
@@ -577,8 +577,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 25390,
-      "sha256": "0055d8341da8f11cb83158a8e5f940b91820caa675017b371d4d38f5b3003141"
+      "bytes": 26278,
+      "sha256": "e2fa7147c881c875441cfa6503f89736d8d828fd631995f28659dfdd68e4b772"
     },
     {
       "path": "CITATION.cff",
@@ -887,8 +887,8 @@
     },
     {
       "path": "docs/benchmarks.md",
-      "bytes": 11687,
-      "sha256": "c60eccb9119f6aa3250439e83d87ffddf0fdbe4fc996e382fcaad0c468eba37b"
+      "bytes": 13394,
+      "sha256": "b5621f9dffe6e0d43af6f3a9173f539da74540f51482883896e58356b2473cc9"
     },
     {
       "path": "docs/implementation/AGENT_EXECUTION_PLAYBOOK.md",
@@ -1143,12 +1143,12 @@
     {
       "path": "docs/release/1.0-PROVENANCE.json",
       "bytes": 2414,
-      "sha256": "58438988f45128c18694f3274c0886e67811c8ca5115efe7fec5cdac3e0f16d9"
+      "sha256": "52b0b89bb56286b539a0a7489b6db6ebb70247054f46d1ab847db4ee498298b4"
     },
     {
       "path": "docs/release/1.0-READINESS-REPORT.md",
       "bytes": 3381,
-      "sha256": "bec14fcca74b860320f5dae43226fb27f2d4247af6f12d591ede2ade978f8779"
+      "sha256": "ae48adb425f2135b500ff61909564cfb8fe9f257e94823445881917f45524ab5"
     },
     {
       "path": "docs/release/1.0-RELEASE-CHECKLIST.md",
@@ -1158,7 +1158,7 @@
     {
       "path": "docs/release/1.0-REPRODUCIBILITY.md",
       "bytes": 1723,
-      "sha256": "b8eb1e8a747203ecad082dd39a4280d39f2cb7ba7b757aeef9b3b469c84fc977"
+      "sha256": "9ceedf651ca1aa1f085dcb721c00f38110bb9133e36dfe1dafef5f0a47a39257"
     },
     {
       "path": "docs/release/1.0-SBOM.json",
@@ -1247,8 +1247,8 @@
     },
     {
       "path": "docs/usage/code-intelligence-support.md",
-      "bytes": 3777,
-      "sha256": "2617d1411d22cb1be4c6d7a897e7091f448342ce18387dff82fa2aacf162d33b"
+      "bytes": 7129,
+      "sha256": "0e440120fa51c38228a2b62d724ef12e2a72a8043254eb91954efd92e0207754"
     },
     {
       "path": "docs/usage/codex-setup.md",
@@ -1307,8 +1307,8 @@
     },
     {
       "path": "docs/usage/support-matrix.md",
-      "bytes": 5647,
-      "sha256": "7f69081563c392d7348138e305d3ecae9ef515a59a325c55a72cbc3e41dd9f58"
+      "bytes": 6005,
+      "sha256": "b1e830edb54d672e5127636342985d2d8133f05bdbffa607da7527c92e4fb46a"
     },
     {
       "path": "docs/usage/token-savings.md",
@@ -1377,8 +1377,8 @@
     },
     {
       "path": "evals/code-intelligence/capability-matrix.v1.json",
-      "bytes": 114612,
-      "sha256": "398d6e24b562929bf14210b447bb45b2bd4613a25e60b93bbadd78ae58a4e236"
+      "bytes": 174453,
+      "sha256": "097fe0b8403ecd59c3b126fa573b359c931f07e59b8f4b1cd1a0724021f039c8"
     },
     {
       "path": "evals/code-intelligence/corpus-candidates.v1.json",
@@ -1391,14 +1391,574 @@
       "sha256": "4a60e29562ea17b73f61002b3f7ec920095e34b1bd5586a5a948314206690503"
     },
     {
+      "path": "evals/code-intelligence/fixtures/batch-b/go/api/routes.go",
+      "bytes": 264,
+      "sha256": "d8baa74b2cdb9a5cdb24097598ce64f70073f41ab61f36eed8dbf99a3b36d702"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/go/go.mod",
+      "bytes": 33,
+      "sha256": "f1f4b932d4c5239bc3890b499c05844a84bb6eccdb1e4208d3eed77d0c00ba5d"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/go/service/service.go",
+      "bytes": 195,
+      "sha256": "6ffaff386b38653a7498e49c1053c802116ebcaf08658f6483cb62081fe10fd3"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/python/pyproject.toml",
+      "bytes": 46,
+      "sha256": "abc237752d5486897316f297cbe8a2dcc8583f0f550aba4c93077e6c2062f616"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/python/src/demo_app/api.py",
+      "bytes": 287,
+      "sha256": "0822a033efadc3f0466d1fd8ced84b6608441dfb1019d536fd1dd4709cc4eb7d"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/python/src/demo_app/base.py",
+      "bytes": 60,
+      "sha256": "bc6b11b9723ee774da7cc8d0856728c15fa1ab561dfe1eb910c70de2dfe66f9e"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/python/src/demo_app/service.py",
+      "bytes": 112,
+      "sha256": "fc9c32c28555149f41a4fed9e851e29783c03a29864766d61e0692bf7bc3e77c"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/rust/Cargo.toml",
+      "bytes": 65,
+      "sha256": "9740eff6b92845309c301682c15bedf99312f9a0deb91f8de9dde382f4f51eb3"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/rust/src/lib.rs",
+      "bytes": 342,
+      "sha256": "a805d9c71e59359a377c3b1f6e0a338cdc961c2554fd9048ba9259101e227bb7"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-b/rust/src/service.rs",
+      "bytes": 307,
+      "sha256": "1ace400c771238f9d636a50e38c37df2d9899598cf48c664c16f29f88832c7f7"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/csharp/src/Demo/Api.cs",
+      "bytes": 686,
+      "sha256": "46d28a16e7215c462f8bedb0e4887498db15da5cd63607f6e757acb18ad1082a"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/csharp/src/Demo/Models.cs",
+      "bytes": 62,
+      "sha256": "b04ca5882630f45623c191f84b9fdd8b38b60dad4f9f34ee93a2de48a33a4b46"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/csharp/src/Demo/Services.cs",
+      "bytes": 402,
+      "sha256": "ad522a040adc2968e245ddc1b0b73675e422f9d54de4b480a15b6876e9faddfd"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/java/src/main/java/com/acme/api/ItemController.java",
+      "bytes": 658,
+      "sha256": "900b87174336fa4334af7d29b708e85023159d320e206e3501e1a62b595c1ba3"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/java/src/main/java/com/acme/model/Item.java",
+      "bytes": 58,
+      "sha256": "80ea51977ff10507d20bf85fa9beee66502ddfd11f734d0dcf6c0b0b1aa38ffa"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/java/src/main/java/com/acme/service/ItemService.java",
+      "bytes": 379,
+      "sha256": "358b7b2b52e2378f156d3108e6e41b053a6355f01d7b74f808a4ef4ec7752ba8"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/kotlin/src/main/kotlin/com/acme/api/Routes.kt",
+      "bytes": 361,
+      "sha256": "2bdd4a1314523debf11e37774de49394df6d6e8ef12c73a46fbc2b2ea464df54"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/kotlin/src/main/kotlin/com/acme/model/Item.kt",
+      "bytes": 56,
+      "sha256": "5bef93c39c4d6379f588a0466fc82c0c11d62e4114f07309cd90d8f0b1013570"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-c/kotlin/src/main/kotlin/com/acme/service/ItemService.kt",
+      "bytes": 376,
+      "sha256": "5fb8298c5271e2b236f27c2a39ebdbe47957988c508cc2bc8087691ed0a6b658"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/c/CMakeLists.txt",
+      "bytes": 98,
+      "sha256": "d1f0ded956621518d5700f86ecc401631844cfe8bad973adcf12bd6d7291820b"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/c/include/item.h",
+      "bytes": 120,
+      "sha256": "7ca5e02feb71ac36c28f07ca9692e00573cf7ca0360c44f5ee2e56bcf4ed0868"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/c/src/item.c",
+      "bytes": 100,
+      "sha256": "df27596301efb98fb1ac7021f533c4d243960a08e513960eac055b03541574f0"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/c/src/main.c",
+      "bytes": 104,
+      "sha256": "ec82b793161accc286fda1fcee55a71687306733e8dcef74e269118fa4a8b416"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/cpp/CMakeLists.txt",
+      "bytes": 120,
+      "sha256": "40ae3c72b5c82f0b816cfec20e7cf41a05f29dd84f9fbe2cd56a567c40d61a4e"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/cpp/include/item_service.hpp",
+      "bytes": 382,
+      "sha256": "0376279dd1d81f28f3ba6591dbd9ff5f6d669c5765e59228444138fc8a356769"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/cpp/src/item_service.cpp",
+      "bytes": 442,
+      "sha256": "daeb8f7634250075b92338eb2c1fa9a3c7b5c8f44ecbd1e02f8c46f28282e041"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/cpp/src/main.cpp",
+      "bytes": 125,
+      "sha256": "1c722a7c4d63b0e4d1211111aa41763a6eb400b7a52c1b3ff9173021ffe3ab18"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/dart/lib/item.dart",
+      "bytes": 421,
+      "sha256": "64fe207f87ecbfea3b9575bb6c6cad38337da6ed1c4b65bcd1787c77915a237e"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/dart/lib/main.dart",
+      "bytes": 139,
+      "sha256": "6579f06c19c878e84e22a96be27ec2f659a8cbe8bb63ef2ceca3546e3ff595a9"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/dart/lib/routes_part.dart",
+      "bytes": 55,
+      "sha256": "0420555af70718feb67d436b10e3276a503d5fe6f29e99d0f66c2bb47b46e6a1"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/dart/lib/routes.dart",
+      "bytes": 309,
+      "sha256": "6ad05b92c07ef564c0cd7251fbc044f63745e9e448b44d26838e40a14047ef70"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/dart/pubspec.yaml",
+      "bytes": 107,
+      "sha256": "73fe8a5feb6dc153265031f8817ac791999dacb71ae67ea126330b2a9d56aeaa"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/swift/Package.swift",
+      "bytes": 270,
+      "sha256": "0a8adfaa723e2dd99230e33b46148c0d5c3d7b85fa24e4edf368217acf5a7412"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/swift/Sources/App/Item.swift",
+      "bytes": 95,
+      "sha256": "385489a8960f7936db6e00d4f7667305f382f1de92963f0efba50dda75342c69"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/swift/Sources/App/ItemService.swift",
+      "bytes": 289,
+      "sha256": "bb541ef0a439320162765b5c66f891203789873fde8bfbb3053b219ab7209c4e"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-d/swift/Sources/App/routes.swift",
+      "bytes": 180,
+      "sha256": "f66ccd6a663f63581d0d1be0aa9dbdf960bb0eb7ff4e1f125df93af898234594"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/php/composer.json",
+      "bytes": 51,
+      "sha256": "cc2c40955526b0a0a975fd54639b62605343c6d65dc3d1536f3b07ba6584dd3e"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/php/routes/web.php",
+      "bytes": 137,
+      "sha256": "70b13f4888cbf07789078127d88b23ae9206521cc50d8f35b8acfc482e7f7e64"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/php/src/BaseService.php",
+      "bytes": 52,
+      "sha256": "642b76d6d6a4d0802ac90d600eb6885864bf9791b1b1c9a225a1f05a8cd4605f"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/php/src/Contracts/ItemLoader.php",
+      "bytes": 103,
+      "sha256": "fb8715d7347a355cc693ea34ead05403b7b01e7f88842683bc910cf09fb6c5dd"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/php/src/Controller/ItemController.php",
+      "bytes": 336,
+      "sha256": "14936bdfd17fbe69b8ba8998856db4678a597471591843063bad2fa8a8ad1ee2"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/php/src/Item.php",
+      "bytes": 97,
+      "sha256": "bef7499d9162430814547d5252cabab8c5ce153c7dc41455494ffff78f143512"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/php/src/ItemService.php",
+      "bytes": 466,
+      "sha256": "0fc1bdeb91fc4b253ab251c3fd4b65f681cde202a63470949c70d2bda0b31abd"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/php/src/Support/LogsItems.php",
+      "bytes": 99,
+      "sha256": "6fc0b6b2ab2d13af96bc6d00582d570b507a7c757c161914a4e35c46779081bb"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/ruby/app.rb",
+      "bytes": 126,
+      "sha256": "bc77525e032f7210b9d93b3f94bb4391c0847d0580b0ff9ad938de669f6f1d69"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/ruby/app/controllers/items_controller.rb",
+      "bytes": 83,
+      "sha256": "89327faf625b10b396eadf983c14c0699dcea8b4a69d9892cb16f9d238376a87"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/ruby/config/routes.rb",
+      "bytes": 74,
+      "sha256": "9078cd1a3a63714f14313ad2cce74fc95baf7b7455fc8d1b195c4e2aced172e6"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/ruby/lib/demo/item_service.rb",
+      "bytes": 369,
+      "sha256": "e02fee4e0dc17ad8a24e83bbc0cf4ee872461cc5ccbfce4a5e81eefc71351db9"
+    },
+    {
+      "path": "evals/code-intelligence/fixtures/batch-e/ruby/lib/demo/item.rb",
+      "bytes": 102,
+      "sha256": "2093b475a630087e7af2f55a6ccae43d6d48926fa54535be60068fd35b44a015"
+    },
+    {
       "path": "evals/code-intelligence/results/phase0-baseline.json",
       "bytes": 5380,
       "sha256": "a77535e5451c06c9909f3bc5d05cb7a24aab9c3244cc6f5c63e8f4aeb8365be4"
     },
     {
       "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json",
-      "bytes": 12958,
-      "sha256": "6ac9a7b3b81ea6776ba03df10db8b4ce3262b4d6bea31a6c612ad6497618446f"
+      "bytes": 12957,
+      "sha256": "f6ec190b8ee5e2d70b4c299edcaf9ad3cc17b1ab270c21f41f628cec0fa30501"
+    },
+    {
+      "path": "evals/code-intelligence/results/phase2-batch-a.json",
+      "bytes": 46804,
+      "sha256": "6f175168d1dbd048de4047122fb0495eed560702b87adc75dd707dc505c3eedf"
+    },
+    {
+      "path": "evals/code-intelligence/results/phase2-batch-b.json",
+      "bytes": 67744,
+      "sha256": "35696d8529b88752e73466810b613893b78d2cbdd4a22b31faefbd97590001fd"
+    },
+    {
+      "path": "evals/code-intelligence/results/phase2-batch-c.json",
+      "bytes": 69349,
+      "sha256": "faa0b85a2708ba8827fadbd1d97cc9acf546c11f3d62560ded20668f2c9e4a5c"
+    },
+    {
+      "path": "evals/code-intelligence/results/phase2-batch-d.json",
+      "bytes": 90791,
+      "sha256": "a3de5c0f56ec5470e2ae5737d6f0e5c7bf842a9e7f49b02049ebacfb9452dde9"
+    },
+    {
+      "path": "evals/code-intelligence/results/phase2-batch-e.json",
+      "bytes": 45757,
+      "sha256": "b15feebe45f9c81595ca1651518b97d31c760d8403d1bc0c067bd07920a4b491"
+    },
+    {
+      "path": "evals/code-intelligence/results/phase2-tier1-summary.json",
+      "bytes": 354889,
+      "sha256": "4ab113bb0ba53f3e0ef3dbca3d2c59b2cb64579b31f972f38a25c9cb0b66d26c"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/c.json",
+      "bytes": 3795,
+      "sha256": "af1838fbd95f41fc084c919e32831a2b9a0e68b71ede0929332a0a7e36cb2e09"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/cpp.json",
+      "bytes": 5326,
+      "sha256": "f8ee6e5bee41d90d5e72cb771af445043a40a2eb896643d204cdce5077c1c37e"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/csharp.json",
+      "bytes": 8953,
+      "sha256": "9dc9e9f3c3eaa66d14643858de1ec897e31aa7c5173869990270c443d28f5ab7"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/dart.json",
+      "bytes": 7552,
+      "sha256": "dad0420de79176a12440d943458323fbb82e7caa710bef310b9682e41ecf8182"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/go.json",
+      "bytes": 7257,
+      "sha256": "136b090527a02faa512a069d43503df82432ad97840cf1cdf7f0e5fc8b54d87a"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/java.json",
+      "bytes": 9088,
+      "sha256": "7b8defab09d5bfe426af7a9bce3ace87551352c49c62729e49e2cbebd9c21904"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/javascript.json",
+      "bytes": 4497,
+      "sha256": "346e306f99f3dfed0fc639f6275011aba9f6d4e8ed54c8d8d9c802fa717ba371"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/kotlin.json",
+      "bytes": 8755,
+      "sha256": "62c75dc9af9e9f01079e29968e667954b41afce415577ae5a80aec632d2ab474"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/php.json",
+      "bytes": 6172,
+      "sha256": "8e8616ebd6759f1124e81a4cfae2e3d9a4210b632b81010a35cfdcf216e14e51"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/python.json",
+      "bytes": 8770,
+      "sha256": "1a07a6c4bdad4ed3362b3147d799378afde45392d10895b75d921768436f2c72"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/ruby.json",
+      "bytes": 5377,
+      "sha256": "ee6575ed004f148a180511a6536873d40804b9a6fdedd08f42b5ffd5da66e92e"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/rust.json",
+      "bytes": 9160,
+      "sha256": "a6ed43e2e09b940d7f77356f33b442977d0d673d12384a1c70d65a056995f4d4"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/swift.json",
+      "bytes": 5567,
+      "sha256": "28c86fa2ba7a952ec55f07b35315dc68eb1d822acf52f6526724a6bf7e0bacb3"
+    },
+    {
+      "path": "evals/code-intelligence/truth/fixtures/typescript.json",
+      "bytes": 4774,
+      "sha256": "eea74a7786391e0f4a84067e9bd5c8123011800d0055099ea4a6432bc070f531"
+    },
+    {
+      "path": "evals/code-intelligence/truth/README.md",
+      "bytes": 3969,
+      "sha256": "0447f7cbfc2d8a7bb926ee5cd3bfd96c154a4cbd8bd66b1886a509132afd5e85"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_antirez_kilo.json",
+      "bytes": 2625,
+      "sha256": "446bf7124ed455b3a1e19c1f440afa1f53705632ca032431e025ce6a5afc5511"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_curl_curl.json",
+      "bytes": 2665,
+      "sha256": "6a882966ea1fad947ffdbcacdb4fea33d1e0823c869fe29eab16402d9aac656b"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_libuv_libuv.json",
+      "bytes": 3031,
+      "sha256": "b0edf985051e1703f516415c1628400afda641a6f539d4f82a7de0c3d7159452"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_catchorg_catch2.json",
+      "bytes": 2821,
+      "sha256": "684d7b17f9b60450db44813c3d456136316254a7d0db6adbbf374dbfaee758f8"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_fmtlib_fmt.json",
+      "bytes": 2664,
+      "sha256": "5d9c2ca5a877b70d142c1ccc85f70e679059d1e55be9daa0a671ddb4268e430b"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_nlohmann_json.json",
+      "bytes": 3104,
+      "sha256": "7c1e1481bf9e728a6a2fed0e7c7106a797d58ad6d087b7b342d32774debad781"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json",
+      "bytes": 3317,
+      "sha256": "468946075534f6fa90dcea06161a89604ff5f942baf486ebc331a3dbdc894081"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json",
+      "bytes": 3023,
+      "sha256": "8bef289fedec8a9575753bd87482e12fc4b4f921635baa4abc4fafe60d564cd7"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json",
+      "bytes": 2870,
+      "sha256": "def11e1ad256307fa319fe3670370d49ab7f0c099ebee52a0a783c36852f99ae"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json",
+      "bytes": 3398,
+      "sha256": "2a3b472ac4080f937c73901dcaa76537fe4870619d7fdde8d9f960f392ac4c10"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json",
+      "bytes": 3281,
+      "sha256": "39bc8c9104cb0cdd973ac36ecab19b6a947af9c5a6ea369b87de1bfe18525b93"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json",
+      "bytes": 3157,
+      "sha256": "c7e85cb7b5431436c8b9a1369c83a2f374a7a47df4072e2fbd31693696f3bb45"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json",
+      "bytes": 3032,
+      "sha256": "bf9b17476e570db6b01950a9d27599595d7b2c66d72a0321110ccf0784b30a14"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json",
+      "bytes": 3795,
+      "sha256": "6db9e356862f59ae9f7fe56c52dfa51610ddd09b464c9762a34f314f249ec51a"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json",
+      "bytes": 3072,
+      "sha256": "9fb5ad101712cce787421e23b432ebfaca2fd475e9f21e7224bd15468894e37c"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json",
+      "bytes": 2927,
+      "sha256": "f6073297fd3a0baef389e5e36f1440bf1eafd69daa4b0e0ab66f0a0909b50e6b"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json",
+      "bytes": 2882,
+      "sha256": "e28487af6eb4bec58aa8067a8122d7f839f027e67639f6c1e9c45f18b5f9a5c4"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json",
+      "bytes": 3693,
+      "sha256": "b252bacd1b3efbb041ec4621d3c0dffa941a3345d2d74137a33ddc849e903753"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json",
+      "bytes": 4351,
+      "sha256": "13b552c7ed40cc881d6428e16c1985cccceda604e9cdbbb78103c4bc312aa240"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json",
+      "bytes": 3532,
+      "sha256": "9565a61d1832d15eb34f32ce607df554758d4be0c42144d644901893f8aeecf1"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json",
+      "bytes": 3697,
+      "sha256": "44c2553c566cf4865b5a96f8b1ba1bf191436f1e40cd9521cae64c07c6983e47"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json",
+      "bytes": 3786,
+      "sha256": "a7593602a31d9d949b078a7c60f2de8aa5bdb34e00774fb5a5b53511c52bb3ee"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json",
+      "bytes": 3098,
+      "sha256": "74be59c285dfec1518b7024974cedf38cba1e6f9dacd13f91593c7083cadd87a"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json",
+      "bytes": 3260,
+      "sha256": "78a470c975b602fcd539c67782d28ec871f9432cedc9022b7a3fef504fcf757e"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_laravel_framework.json",
+      "bytes": 4069,
+      "sha256": "6794b943e53c1d109d1127741708e50447544ce13501d0bca8c075380f3e64e8"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_slimphp_slim.json",
+      "bytes": 4092,
+      "sha256": "4bea53964c0cc50fe883c2102cb884d70dec3387efe7285507a9d0e7df9fdb23"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_symfony_symfony.json",
+      "bytes": 4164,
+      "sha256": "0d0783a50b8a32554547e4aa90a03810a26d5fa7c1672e175a3b56ba1d690642"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json",
+      "bytes": 3446,
+      "sha256": "2a2315db18f69a37c126dc499a6be240d8895cdf7dddd934e3b0be7211f893c8"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json",
+      "bytes": 3353,
+      "sha256": "4fad1ae689c2f56eedca0684c26c07a086f26dab7e96865b628f257a04bb625b"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json",
+      "bytes": 3988,
+      "sha256": "0d2c4e82febdbe8d5cf83afd16b0c0a6adb1726b6ffaa04ef66a76410e3e1f94"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_rails_rails.json",
+      "bytes": 4288,
+      "sha256": "42630392ac0e20effd87edaecbe2741f6c08fd316c0b3c5eaa25c5c00712b235"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_ruby_rake.json",
+      "bytes": 3787,
+      "sha256": "5f7057b99498ffeb4021f9ca35974b89136ff0a5f7b133b3107f1e13162965ea"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_sinatra_sinatra.json",
+      "bytes": 3752,
+      "sha256": "ffcbee8a7f528294f573fbabfb63e1c7d580b14b62d24765b6164f8428ca4985"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json",
+      "bytes": 4109,
+      "sha256": "e5cc4f2e7ed23ef2f9e351b96e049fc066b395fd2fbe623e51bcf7f216660ad2"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json",
+      "bytes": 3500,
+      "sha256": "36bb8f068265960bd0bc2a6a8a00f5a9e9ee0a1ebf46f6d65ec875a7b5cfe7d7"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json",
+      "bytes": 4589,
+      "sha256": "1d8b15aafe77e59e199374a41615fc4a78b8de6b3deda55f287286d845868ed5"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json",
+      "bytes": 3182,
+      "sha256": "43917aab8dece2bd1ce07f19efe23e21c3793f23224082955db621329d65f8fe"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_apple_swift_nio.json",
+      "bytes": 2879,
+      "sha256": "b0e2a3ca5edb1d4ed97310931c06a38d1ca9260dfbde9441279d89ab0de67091"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_vapor_vapor.json",
+      "bytes": 3012,
+      "sha256": "6fa5422e35a4355829c445965e2b990786123e77ebf81f660845591f4aea07b1"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json",
+      "bytes": 3712,
+      "sha256": "fc18a5ebad22f31a3867850dd6c3cdc96b7677985456d4c918b1ac84d19a27d1"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json",
+      "bytes": 3556,
+      "sha256": "4608e5b02c0096396056193f58e8dd1fe6ffd15c9853b6a2a587c47062b3c7fd"
+    },
+    {
+      "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json",
+      "bytes": 4827,
+      "sha256": "b5514c7a8523f095b9a21120f6f0476dc70c95c9fc0770d81ea508edde278181"
     },
     {
       "path": "evals/context-recall/oaf-repo-gold.v1.json",
@@ -1691,6 +2251,16 @@
       "sha256": "8547d7e59583d2a3c0c4294076c14a7ba406b4c6edc75ccc2af0f5a1c7af2883"
     },
     {
+      "path": "examples/protocol/code-intelligence-language-report.json",
+      "bytes": 2810,
+      "sha256": "d555d3ca26c20830ecae6ff972d554765f39acae2de8adab13c0e2e5bf115a66"
+    },
+    {
+      "path": "examples/protocol/code-intelligence-language-truth.json",
+      "bytes": 2096,
+      "sha256": "c309c4fb9a39c5fdde35b0e4e79b2ae0db37fece250e84ba13caffcdfc9f177b"
+    },
+    {
       "path": "examples/protocol/compatibility/bounded-tool/error-code-valid.json",
       "bytes": 21,
       "sha256": "3cc60b2bb3d84f8cfd0e52262dbbb4a508070e40a0d8527c355ea9044cb19c72"
@@ -1777,8 +2347,8 @@
     },
     {
       "path": "examples/protocol/compatibility/fixtures.json",
-      "bytes": 48161,
-      "sha256": "2befe05557cd5fcd2f50073825a12f6370be753ab80638406b3158cd3f056dcc"
+      "bytes": 49324,
+      "sha256": "d8014c0388e6b295005bf65110cea504000710b818bf2182cb60e6352b790c2a"
     },
     {
       "path": "examples/protocol/compatibility/invalid-harness-context-source.json",
@@ -1844,6 +2414,26 @@
       "path": "examples/protocol/compatibility/invalid/code-intelligence-graph-raw-body.json",
       "bytes": 1214,
       "sha256": "4d40dbd6764b0f4c32f0553d85e2716dcc33021fb6d8b59e5533330638044576"
+    },
+    {
+      "path": "examples/protocol/compatibility/invalid/code-intelligence-language-truth-absolute-path.json",
+      "bytes": 1376,
+      "sha256": "12411bcf7602ffb7cf84d31c63d7f02056e39d37b5715dee59702f57d265dca6"
+    },
+    {
+      "path": "examples/protocol/compatibility/invalid/code-intelligence-language-truth-duplicate-id.json",
+      "bytes": 1664,
+      "sha256": "663fa3699183673a5c5a6636fd01b78a43e3ef8608953e79308925920c14d427"
+    },
+    {
+      "path": "examples/protocol/compatibility/invalid/code-intelligence-language-truth-raw-body.json",
+      "bytes": 1420,
+      "sha256": "c733b99452b147b77822e711c9ef09eb3477150174fc5edb2d5964b2cd0c80b8"
+    },
+    {
+      "path": "examples/protocol/compatibility/invalid/code-intelligence-language-truth-unsupported-full.json",
+      "bytes": 1368,
+      "sha256": "851cd534400c8c7072a3cf7c5c28fe0ad6d40e87f38789c2be346c4cfe69ec80"
     },
     {
       "path": "examples/protocol/compatibility/invalid/context-pack-handoff-report-memory-preflight-leak.json",
@@ -2498,7 +3088,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 967,
-      "sha256": "dfbf345737398c7b7c425462b4bd0fa7d8f35802b7e68e1ae4e6cdde19411a2d"
+      "sha256": "7ba4976e1181c54aa9d37ac90805ac75ab39c78a7688a974dacb71d8e2f47e71"
     },
     {
       "path": "LICENSE",
@@ -2532,8 +3122,8 @@
     },
     {
       "path": "package.json",
-      "bytes": 6005,
-      "sha256": "45eed950b3c05a6716b040663a0d7bae1db737cad0ae6f748f6226493a8c4d94"
+      "bytes": 7087,
+      "sha256": "83fbf96c208e66c351f9e5f7f55f58c1221c7ac537250ca9d7e9450f18b7669e"
     },
     {
       "path": "packages/adapter-contracts/package.json",
@@ -2702,8 +3292,8 @@
     },
     {
       "path": "packages/protocol/README.md",
-      "bytes": 13722,
-      "sha256": "b41e9a719923a18d8af98564868e90cf528ea828f004bdd9d25fb1729d31ea99"
+      "bytes": 14868,
+      "sha256": "e19669e9a757778ada1e7a77a87fbab00df3773396dc4bb45194e1df06c7bcee"
     },
     {
       "path": "packages/protocol/schemas/adapter-conformance-fixture.schema.json",
@@ -2942,8 +3532,18 @@
     },
     {
       "path": "packages/protocol/schemas/code-intelligence-graph.schema.json",
-      "bytes": 9342,
-      "sha256": "754e00b04ac6abb8a2641ff0ffd4d8a41dee083f0861d351f32412510c9b734d"
+      "bytes": 9541,
+      "sha256": "236c661df380f9377e907bf43183966db4170ca401bab3dd9be1586640b7e21a"
+    },
+    {
+      "path": "packages/protocol/schemas/code-intelligence-language-report.schema.json",
+      "bytes": 5669,
+      "sha256": "92fc9dc8652dbb24442e4de0202d7222b95732c78164d9fad4c36f1d6541bc52"
+    },
+    {
+      "path": "packages/protocol/schemas/code-intelligence-language-truth.schema.json",
+      "bytes": 7547,
+      "sha256": "0b502bc60af696962876467d7bc4ff28c5ab9b64476acf22006ba2cfb2f411c8"
     },
     {
       "path": "packages/protocol/schemas/content-local-draft-outcome.schema.json",
@@ -3436,14 +4036,19 @@
       "sha256": "f72a42d598120d51c21b941e3d13651d853f1b3cfea4f8135055b7326e39fb4e"
     },
     {
+      "path": "packages/protocol/src/code-intelligence-evaluation.mjs",
+      "bytes": 9413,
+      "sha256": "32c2d26391e45380c2ebb591e96952fb4fde3a0e3b1716e49fb575cfed7df363"
+    },
+    {
       "path": "packages/protocol/src/fingerprint.mjs",
       "bytes": 545,
       "sha256": "8f52b460798012377a4ceef8b0e35d3f161256cddb60b9e375b3238fcf9fd797"
     },
     {
       "path": "packages/protocol/src/index.mjs",
-      "bytes": 2945,
-      "sha256": "14b836414122add8bc21572c6c56fb66537ad18dcdb894f9ab366dfa0a10e1ae"
+      "bytes": 3092,
+      "sha256": "eedd1674407a7bb73a847e8cb3ef579e6a711dcba9cbdc48e05ac0ac0ae667e9"
     },
     {
       "path": "packages/protocol/src/schema-validator.mjs",
@@ -3627,8 +4232,8 @@
     },
     {
       "path": "PROJECT_STATUS.json",
-      "bytes": 66005,
-      "sha256": "1ea0b9b39b00c9c353954c5906e742ce8a81b93dd81d740832668c2fe5a0731f"
+      "bytes": 67034,
+      "sha256": "6b2d610ba7f89dee8ee569987922bd24f1621c9a73713851c62d5acc6c3bbb2b"
     },
     {
       "path": "providers/AGENTS.md",
@@ -3857,8 +4462,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 15562,
-      "sha256": "270ae1b54d6017a7979bf40918a1125435fb1c9b2224b2d793df2c50742ce197"
+      "bytes": 15667,
+      "sha256": "47854dfc146b58fa7d61c050887660acf4accac04b6c1d11deab0ed5b23a1de9"
     },
     {
       "path": "REPOSITORY_MAP.md",
@@ -3897,8 +4502,13 @@
     },
     {
       "path": "rust/oaf-ingest/src/lib.rs",
-      "bytes": 100061,
-      "sha256": "59b7e5b74ca2d2a201c61945735f094289883fef606b6da43e30c56fc803bbaa"
+      "bytes": 201701,
+      "sha256": "c2a419709760c3e5bd6d7a2ee986fef205900c21397e29f7191e78e03800768d"
+    },
+    {
+      "path": "rust/oaf-ingest/test-support/lib_unit.rs",
+      "bytes": 44109,
+      "sha256": "4f6ce645e19244586f748c155819d8b4f87b15163fc05369a0047acc3e23929e"
     },
     {
       "path": "rust/oaf-store/Cargo.toml",
@@ -3922,13 +4532,18 @@
     },
     {
       "path": "rust/oaf/src/code_intelligence.rs",
-      "bytes": 32853,
-      "sha256": "4c5cd6e2c8e6cb3cd431f37a68c50ef0920e21616eb8d3338925f32bd5eefce8"
+      "bytes": 41114,
+      "sha256": "f1157843e3bf80d95d75a405d22476462f666274d3a7a19745ecfc79bb84288b"
     },
     {
       "path": "rust/oaf/src/main.rs",
       "bytes": 180129,
       "sha256": "d781614399cccc4a2774e6919d4d12936ac37f58b66f9c5e34f2c1de257a2a8b"
+    },
+    {
+      "path": "rust/oaf/test-support/code_intelligence_unit.rs",
+      "bytes": 42608,
+      "sha256": "780404c59a45de743639a1e88f864e3b450054515deafac85f423cfcdd011baa"
     },
     {
       "path": "rust/README.md",
@@ -3956,6 +4571,36 @@
       "sha256": "a5cec9490a619d954189f4da3e46bf3d9816a05b96c59b73a0a4cf559bc6972f"
     },
     {
+      "path": "scripts/code-intelligence-batch-a.mjs",
+      "bytes": 15148,
+      "sha256": "eaed91b7dd9558f0ba3cd3971d55285609997d1e19a194bdd9475bec28dcf487"
+    },
+    {
+      "path": "scripts/code-intelligence-batch-b.mjs",
+      "bytes": 687,
+      "sha256": "5a10856d8f20f647955e44e9420808410f5c3093e2e6bd5194fa6051565bab1c"
+    },
+    {
+      "path": "scripts/code-intelligence-batch-c.mjs",
+      "bytes": 1089,
+      "sha256": "15529aa3a10f51af81f71f32b028dc64ef6485d5c60a56cf0ef780d3014ef3ad"
+    },
+    {
+      "path": "scripts/code-intelligence-batch-d.mjs",
+      "bytes": 896,
+      "sha256": "1f126f332aa4833cc1036e55c34e356a2f9653e09edd948a8dd0e95286611aaa"
+    },
+    {
+      "path": "scripts/code-intelligence-batch-e.mjs",
+      "bytes": 623,
+      "sha256": "f14d1f33f7fe297768368c7d32afa92d2dad357cc2c93a845dbc30d99bf40ba3"
+    },
+    {
+      "path": "scripts/code-intelligence-language-batch.mjs",
+      "bytes": 13636,
+      "sha256": "9c1426881f3abe44dc7a03710910cd59b74351b230f2369775516ff19454d240"
+    },
+    {
       "path": "scripts/code-intelligence-phase0-baseline.mjs",
       "bytes": 6979,
       "sha256": "49ae5805cf61b93263e6986955f245ad38b2ba843874b383dfc00340060bb133"
@@ -3964,6 +4609,11 @@
       "path": "scripts/code-intelligence-phase1-compatibility.mjs",
       "bytes": 13616,
       "sha256": "2ff61cd4b763a55e7ca3c69e043e4740e18fdf95ff6e5bd8ce5380deadd9bf84"
+    },
+    {
+      "path": "scripts/code-intelligence-phase2-tier1.mjs",
+      "bytes": 17874,
+      "sha256": "e5f2d0191fa2553f7657ca8b795fba183a5ad05fbb233e142a0af333ac73db46"
     },
     {
       "path": "scripts/consumer-browser-smoke.mjs",
@@ -4436,6 +5086,16 @@
       "sha256": "c9610fcfda59620701d62c85d27115da033290d1e89e83fd635d543f83318532"
     },
     {
+      "path": "tests/code-intelligence-language-evaluation.test.mjs",
+      "bytes": 5079,
+      "sha256": "cc8283712d6f38e52cfdaf2c4a2d8b532b8fd7cd8a1cea41872c9c231248ae53"
+    },
+    {
+      "path": "tests/code-intelligence-tier1.test.mjs",
+      "bytes": 4032,
+      "sha256": "39335b7d418fd3beb98658694f8d9bfa3911a5f50288dbed34265334c6502f8c"
+    },
+    {
       "path": "tests/content-intelligence.test.mjs",
       "bytes": 10585,
       "sha256": "456fba1654a408f861017b293637c25d6b2520a931a02c49eeead13275f035b4"
@@ -4712,8 +5372,8 @@
     },
     {
       "path": "tests/release-readiness.test.mjs",
-      "bytes": 21729,
-      "sha256": "44028c61a57705f6011ed79af98aac1b8ff515936aaa1e391bd33f35d993cff1"
+      "bytes": 22490,
+      "sha256": "42b1957d2993635ff59fe472d53808b5a4f82e30550b2b3559a0876250b53106"
     },
     {
       "path": "tests/release-regressions.test.mjs",

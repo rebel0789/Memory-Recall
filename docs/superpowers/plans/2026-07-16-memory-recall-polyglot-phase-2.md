@@ -171,23 +171,23 @@ Commit: `feat: add python go rust intelligence batch`
 - Create: `evals/code-intelligence/results/phase2-batch-c.json`
 - Add focused Rust and Node tests
 
-- [ ] **Step 1: Add failing JVM/.NET fixtures**
+- [x] **Step 1: Add failing JVM/.NET fixtures**
 
 Cover package/namespace declarations, imports/using aliases, classes/interfaces/records/data classes, inheritance and implementation, constructors, overload-safe call identities, annotations/attributes, extension methods where resolvable, Spring MVC/Boot, Ktor, ASP.NET controllers, and minimal APIs.
 
-- [ ] **Step 2: Add package, namespace, heritage, and typed receiver resolution**
+- [x] **Step 2: Add package, namespace, heritage, and typed receiver resolution**
 
 Qualified identities include package/namespace, owner, member, and stable signature discriminator when overloads exist. Resolve only evidence-backed receiver types. Record ambiguity instead of choosing an arbitrary overload.
 
-- [ ] **Step 3: Add framework route extraction**
+- [x] **Step 3: Add framework route extraction**
 
 Combine annotation/attribute and configuration evidence. Normalize methods and paths without copying request bodies or controller source.
 
-- [ ] **Step 4: Run all nine pinned repositories and update exact matrix cells**
+- [x] **Step 4: Run all nine pinned repositories and update exact matrix cells**
 
 Record floors and failures independently for Java, Kotlin, and C#.
 
-- [ ] **Step 5: Verify and commit Batch C**
+- [x] **Step 5: Verify and commit Batch C**
 
 Commit: `feat: add jvm dotnet intelligence batch`
 
@@ -202,7 +202,7 @@ Commit: `feat: add jvm dotnet intelligence batch`
 - Create: `evals/code-intelligence/results/phase2-batch-d.json`
 - Add focused Rust and Node tests
 
-- [ ] **Step 1: Add failing native/mobile fixtures**
+- [x] **Step 1: Add failing native/mobile fixtures**
 
 C/C++: translation units, headers/includes, macros only where structurally safe, functions, structs/classes, namespaces, methods, constructors, inheritance, and CMake/build entry targets without invented HTTP routes.
 
@@ -210,17 +210,17 @@ Swift: modules/imports, functions/types/protocols/extensions, protocol conforman
 
 Dart: libraries/imports/exports/parts, functions/classes/mixins/extensions, receiver calls, Shelf routes, Flutter application entry points.
 
-- [ ] **Step 2: Implement includes/modules, protocols, and bounded ambiguity**
+- [x] **Step 2: Implement includes/modules, protocols, and bounded ambiguity**
 
 Header relationships remain include edges until evidence resolves ownership. C/C++ overload ambiguity is explicit. Swift protocols/extensions and Dart mixins/parts receive distinct normalized relationships.
 
-- [ ] **Step 3: Add supported framework and entry-point detection**
+- [x] **Step 3: Add supported framework and entry-point detection**
 
 Vapor and Shelf routes require syntax-backed registrations. Flutter, C, and C++ expose application/build entry points and dependencies, not fabricated web framework support.
 
-- [ ] **Step 4: Run all twelve pinned repositories and update exact matrix cells**
+- [x] **Step 4: Run all twelve pinned repositories and update exact matrix cells**
 
-- [ ] **Step 5: Verify and commit Batch D**
+- [x] **Step 5: Verify and commit Batch D**
 
 Commit: `feat: add native mobile intelligence batch`
 
@@ -235,23 +235,23 @@ Commit: `feat: add native mobile intelligence batch`
 - Create: `evals/code-intelligence/results/phase2-batch-e.json`
 - Add focused Rust and Node tests
 
-- [ ] **Step 1: Add failing dynamic-language fixtures**
+- [x] **Step 1: Add failing dynamic-language fixtures**
 
 PHP: namespaces, `use` aliases, includes, functions/classes/interfaces/traits, inheritance/implementation, typed receivers, Laravel and Symfony routes.
 
 Ruby: require/load paths, modules/classes/mixins, methods, inheritance, receiver calls with bounded confidence, Rails routes/controllers.
 
-- [ ] **Step 2: Implement namespace/convention resolution and dynamic confidence**
+- [x] **Step 2: Implement namespace/convention resolution and dynamic confidence**
 
 Use explicit types, constructors, imports, owners, and framework configuration before convention. Dynamic dispatch without evidence remains unresolved or inferred; it cannot count toward resolved-call precision.
 
-- [ ] **Step 3: Add Laravel, Symfony, and Rails structure**
+- [x] **Step 3: Add Laravel, Symfony, and Rails structure**
 
 Framework evidence joins route configuration/DSL registration to a handler locator. Do not mark controller-name string matches as exact handlers without configuration or syntax evidence.
 
-- [ ] **Step 4: Run all six pinned repositories and update exact matrix cells**
+- [x] **Step 4: Run all six pinned repositories and update exact matrix cells**
 
-- [ ] **Step 5: Verify and commit Batch E**
+- [x] **Step 5: Verify and commit Batch E**
 
 Commit: `feat: add php ruby intelligence batch`
 
@@ -269,19 +269,19 @@ Commit: `feat: add php ruby intelligence batch`
 - Modify: `CHANGELOG.md`
 - Modify generated release evidence
 
-- [ ] **Step 1: Aggregate without averaging away failures**
+- [x] **Step 1: Aggregate without averaging away failures**
 
 The summary lists every fixture and repository result. Per-language status uses the worst applicable required capability, not a macro average. A single nondeterministic case, repository failure, duplicate canonical symbol, or missing real-repository truth blocks `meets-floor` for that capability.
 
-- [ ] **Step 2: Verify safety and bounded resource behavior**
+- [x] **Step 2: Verify safety and bounded resource behavior**
 
 Record platform, engine/protocol version, exact commits/scopes, bounds, wall time, peak RSS where measurable, response bytes, graph counts, and write/network/model/memory safeguards. Reports contain hashes and counts, not raw output or paths.
 
-- [ ] **Step 3: Update public support language from the evidence only**
+- [x] **Step 3: Update public support language from the evidence only**
 
 Name exact per-language values. Do not describe all fourteen as supported unless every required row passes. Keep npm binary availability, default-engine, MCP, web, multi-repo, scale, semantic search, communities, and process limitations explicit.
 
-- [ ] **Step 4: Verify and commit the Tier 1 audit**
+- [x] **Step 4: Verify and commit the Tier 1 audit**
 
 Commit: `test: record tier one language evidence`
 
@@ -294,7 +294,7 @@ Commit: `test: record tier one language evidence`
 - Modify: generated release evidence
 - Modify: this plan
 
-- [ ] **Step 1: Run every batch check plus the complete repository gate**
+- [x] **Step 1: Run every batch check plus the complete repository gate**
 
 ```bash
 npm run check
@@ -316,11 +316,11 @@ npm run release:readiness:check
 git diff --check
 ```
 
-- [ ] **Step 2: Verify claims and defaults**
+- [x] **Step 2: Verify claims and defaults**
 
 Assert that default graph and all MCP reads still select JS, native remains preview-only, npm bundles no native binary, no non-evidenced language cell says `meets-floor`, competitor status remains unmeasured, and no parity/leadership claim exists.
 
-- [ ] **Step 3: Commit and verify a clean Phase 2 boundary**
+- [x] **Step 3: Commit and verify a clean Phase 2 boundary**
 
 Commit: `docs: close polyglot phase two`
 

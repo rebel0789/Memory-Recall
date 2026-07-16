@@ -127,6 +127,8 @@ test('npm package contains the runtime contract without checkout-only test weigh
   assert.equal(paths.includes('scripts/code-intelligence-language-batch.mjs'), false);
   assert.equal(paths.includes('scripts/code-intelligence-phase2-tier1.mjs'), false);
   assert.equal(paths.includes('evals/code-intelligence/capability-matrix.v1.json'), false);
+  assert.equal(paths.some((filePath) => filePath.startsWith('rust/target/')), false);
+  assert.equal(paths.some((filePath) => /\.(?:node|dylib|so|dll|exe)$/u.test(filePath)), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('tests/')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), true);
