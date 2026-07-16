@@ -162,15 +162,15 @@ Commit: `feat: expose native graph preview`
 - Modify: `package.json` package allowlist only if Phase 1 runtime files are missing
 - Modify: `tests/release-regressions.test.mjs`
 
-- [ ] **Step 1: Add a failing packed-product test**
+- [x] **Step 1: Add a failing packed-product test**
 
 Pack the npm tarball, install it into an isolated temporary home and repository, provide the locally built native binary only through the documented preview override, run one native preview, verify the graph contract, then remove the override and verify a clear unavailable error. Prove no network, model, canonical-memory, config, or unexpected workspace writes.
 
-- [ ] **Step 2: Make the smallest package-boundary correction**
+- [x] **Step 2: Make the smallest package-boundary correction**
 
 Include only the provider, protocol, translator, and runtime files required by Phase 1. Do not ship checkout-only corpus, benchmark results, Rust build output, or toolchain dependencies. Signed platform binary distribution remains Phase 6.
 
-- [ ] **Step 3: Verify and commit the consumer proof**
+- [x] **Step 3: Verify and commit the consumer proof**
 
 Run: `node scripts/native-code-intelligence-consumer-smoke.mjs && node --test tests/release-regressions.test.mjs && npm pack --dry-run --json`
 

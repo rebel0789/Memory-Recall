@@ -2,13 +2,37 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
 const CLI_PATH = path.resolve('apps/cli/oaf.mjs');
 const TEMPORAL_FIXTURE = path.resolve('evals/temporal/gold.v1.json');
+
+test('packed native intelligence preview has an isolated consumer gate and runtime contract', () => {
+  assert.equal(existsSync('scripts/native-code-intelligence-consumer-smoke.mjs'), true);
+
+  const result = spawnSync('npm', ['pack', '--dry-run', '--json'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  const [pack] = JSON.parse(result.stdout);
+  const paths = new Set(pack.files.map((file) => file.path));
+
+  for (const required of [
+    'providers/native/code-intelligence-rust/provider.json',
+    'providers/native/code-intelligence-rust/src/index.mjs',
+    'packages/source-graph/src/native-compatibility.mjs',
+    'packages/protocol/schemas/code-intelligence-engine-request.schema.json',
+    'packages/protocol/schemas/code-intelligence-engine-response.schema.json',
+    'packages/protocol/schemas/code-intelligence-graph.schema.json'
+  ]) assert.equal(paths.has(required), true, required);
+
+  for (const forbiddenPrefix of [
+    'rust/target/',
+    'evals/code-intelligence/results/'
+  ]) assert.equal([...paths].some((filePath) => filePath.startsWith(forbiddenPrefix)), false, forbiddenPrefix);
+  assert.equal(paths.has('scripts/native-code-intelligence-consumer-smoke.mjs'), false);
+});
 
 test('default packaged benchmark ignores a same-named workspace fixture', () => {
   const root = temporalShadowWorkspace('workspace-shadow-default');
