@@ -69,9 +69,19 @@
       "evidence": [
         "apps/web/index.html",
         "apps/web/app.js",
+        "apps/web/orientation-model.js",
+        "apps/web/orientation-view.js",
+        "apps/web/source-map-view.js",
+        "apps/web/graph-layout-worker.js",
+        "apps/web/graph-viewport.js",
+        "apps/web/memory-graph-view.js",
         "apps/web/styles.css",
         "apps/web/tokens.css",
+        "tests/web-orientation.test.mjs",
+        "tests/web-source-map.test.mjs",
+        "tests/web-memory-graph.test.mjs",
         "tests/web-shell.test.mjs",
+        "scripts/consumer-browser-smoke.mjs",
         "docs/implementation/OAF-022-production-web-shell-note.md",
         "docs/implementation/OAF-023-run-context-inspector-note.md",
         "docs/implementation/OAF-024-memory-evidence-approval-views-note.md",
@@ -1048,7 +1058,7 @@
       "npm run consumer:smoke",
       "npm run consumer:browser-smoke"
     ],
-    "testsExpected": 664,
+    "testsExpected": 705,
     "protocolFixturesExpected": 182,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

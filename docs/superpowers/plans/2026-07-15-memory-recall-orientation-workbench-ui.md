@@ -1141,7 +1141,7 @@ git commit -m "test: verify orientation workbench in browser"
 **Interfaces:**
 - Produces a clean implementation branch ready for review, not npm publication or merge.
 
-- [ ] **Step 1: Run focused UI and graph verification**
+- [x] **Step 1: Run focused UI and graph verification**
 
 ```bash
 node --test tests/source-graph-discovery.test.mjs tests/source-graph-snapshot-service.test.mjs tests/source-graph-preview.test.mjs tests/recall-map-ranking.test.mjs tests/recall-map.test.mjs tests/control-api.test.mjs tests/control-api-boundary.test.mjs tests/web-orientation.test.mjs tests/web-source-map.test.mjs tests/web-memory-graph.test.mjs tests/web-shell.test.mjs
@@ -1152,7 +1152,7 @@ npm run consumer:browser-smoke
 
 Expected: every command exits 0.
 
-- [ ] **Step 2: Run full repository gates**
+- [x] **Step 2: Run full repository gates**
 
 ```bash
 npm run ci
@@ -1163,7 +1163,7 @@ npm pack --dry-run
 
 Expected: CI, consumer smoke, release readiness, and package manifest checks pass.
 
-- [ ] **Step 3: Test the packed artifact in a fresh repository**
+- [x] **Step 3: Test the packed artifact in a fresh repository**
 
 ```bash
 SOURCE_ROOT="/Users/rebel/Downloads/memoryforge-launch"
@@ -1179,7 +1179,7 @@ npx recall verify --root . --format summary
 
 Expected: the installed package reports the intended version and verifies the fresh consumer repository without relying on the source checkout.
 
-- [ ] **Step 4: Confirm implementation truth**
+- [x] **Step 4: Confirm implementation truth**
 
 ```bash
 git status --short
