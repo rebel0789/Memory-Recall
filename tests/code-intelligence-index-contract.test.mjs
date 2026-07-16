@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
@@ -99,4 +100,31 @@ test('source index response contract rejects source bodies, local paths, raw dat
       safeguards: { ...writer.result.safeguards, canonicalMemoryWrites: 1 }
     }
   }).valid, false);
+});
+
+test('Phase 3 source-index evidence binds clean pinned cases without scale or parity claims', async () => {
+  const report = await readJson('evals/code-intelligence/results/phase3-source-index.json');
+  const { generatedAt: _generatedAt, reportFingerprint, ...comparable } = report;
+  const expectedFingerprint = `sha256:${createHash('sha256').update(JSON.stringify(comparable)).digest('hex')}`;
+
+  assert.equal(reportFingerprint, expectedFingerprint);
+  assert.equal(report.gateDecision, 'pass');
+  assert.deepEqual(report.failures, []);
+  assert.equal(report.checkout.dirtyBeforeRun, false);
+  assert.match(report.checkout.commit, /^[a-f0-9]{40}$/u);
+  assert.equal(report.summary.caseCount, 4);
+  assert.equal(report.summary.fixtureCount, 1);
+  assert.equal(report.summary.repositoryCount, 3);
+  assert(report.summary.totalFileCount >= 700);
+  assert(report.summary.totalNodeCount >= 6_000);
+  assert(report.summary.totalEdgeCount >= 15_000);
+  assert.equal(report.cases.every((item) => item.invariants.noChangeDatabaseUnchanged), true);
+  assert.equal(report.cases.every((item) => item.invariants.readQueriesDatabaseUnchanged), true);
+  assert.equal(report.cases.every((item) => item.operations.exactLookup.localFilesWritten === 0), true);
+  assert.equal(report.cases.every((item) => item.operations.impact.localFilesWritten === 0), true);
+  assert.equal(report.claims.competitorParity, false);
+  assert.equal(report.claims.leadership, false);
+  assert.equal(report.claims.multiRepository, false);
+  assert.equal(report.claims.millionNodeScale, false);
+  assert.doesNotMatch(JSON.stringify(report), /(?:\/Users\/|\/home\/[^/]+\/|\/private\/|\/var\/folders\/|[A-Za-z]:\\)/u);
 });

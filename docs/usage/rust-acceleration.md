@@ -102,6 +102,7 @@ node scripts/rust-realworld-bench.mjs
 node scripts/rust-code-intelligence-protocol-quality.mjs
 node scripts/native-code-intelligence-consumer-smoke.mjs
 node scripts/code-intelligence-phase1-compatibility.mjs --check
+node scripts/code-intelligence-phase3-index.mjs --check
 ```
 
 Some Rust benchmark scripts clone public repositories before running local

@@ -218,23 +218,23 @@ Commit: `feat: add source index diagnosis and repair`
 - Modify: MCP structural tools to read an explicitly selected native index in preview tests only
 - Add packed-consumer and zero-write tests
 
-- [ ] **Step 1: Add bounded provider lifecycle methods**
+- [x] **Step 1: Add bounded provider lifecycle methods**
 
 Node sends closed lifecycle/query frames and enforces timeout, cancellation, stdout/stderr byte limits, workspace containment, protocol version, and safe errors.
 
-- [ ] **Step 2: Add explicit preview CLI commands**
+- [x] **Step 2: Add explicit preview CLI commands**
 
 Build, refresh, status, doctor, watch, and query require `--engine native-preview`; writer commands require explicit write/confirmation flags. Existing JS JSON index commands remain compatible.
 
-- [ ] **Step 3: Prove twelve MCP tools are read-only**
+- [x] **Step 3: Prove twelve MCP tools are read-only**
 
 Run every structural MCP tool against a prebuilt native SQLite index. Database hashes/mtime and governed memory remain unchanged. MCP never falls back to building or refreshing.
 
-- [ ] **Step 4: Prove packed-package behavior**
+- [x] **Step 4: Prove packed-package behavior**
 
 The npm tarball contains protocols and wrappers but no binary. With an explicit verified local binary, restart/build/refresh/query work in an isolated repository. Without it, preview fails closed and JS stays default.
 
-Commit: `feat: bridge persistent native source index`
+Commit: `6ff1644 feat: bridge native source index lifecycle`
 
 ## Task 8: Benchmark and close Phase 3
 
@@ -244,19 +244,23 @@ Commit: `feat: bridge persistent native source index`
 - Modify: capability/support docs, benchmarks, status, changelog, release evidence, handoff, and manifest
 - Modify: this plan
 
-- [ ] **Step 1: Run migration, corruption, concurrency, and restart gates**
+- [x] **Step 1: Run migration, corruption, concurrency, and restart gates**
 
 Run focused Rust/Node suites plus full repository, protocol, evaluation, package, release, and handoff gates.
 
-- [ ] **Step 2: Run bounded repository performance cases**
+- [x] **Step 2: Run bounded repository performance cases**
 
 Measure cold build, warm open, no-change refresh, one-file refresh, dependency-closure refresh, exact lookup, neighborhood, trace, impact seed, database size, RSS, and response bytes on fixtures and selected pinned repositories.
 
-- [ ] **Step 3: Publish exact limits and failures**
+- [x] **Step 3: Publish exact limits and failures**
 
 Name platform, commits/scopes, file/node/edge counts, generation counts, percentiles, queue bounds, omissions, and failure recovery. Keep million-node, multi-repository, parity, and leadership unmeasured.
 
-- [ ] **Step 4: Close Phase 3 on a clean additive commit**
+- [x] **Step 4: Close Phase 3 on a clean additive commit**
+
+Incremental refresh and the reproducible benchmark harness landed in
+`919d10e perf: bound native incremental refresh`. The closing evidence commit
+is recorded in repository history after this plan update.
 
 Commit: `docs: close polyglot phase three`
 

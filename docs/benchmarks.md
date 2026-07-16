@@ -4,9 +4,9 @@ This page is the source of truth for Memory Recall's public measurements. The
 artifact shape is stated for each benchmark below: most CLI benches emit JSON
 with a `reportFingerprint`, while the Context Recall script emits JSON without
 that field and the product-proof commands deliberately render summaries. The
-Phase 0 baseline, Phase 1 JS/TS compatibility receipt, and Phase 2 Tier 1 audit
-are the committed versioned code-intelligence results. Save other output
-yourself if you need to retain a run.
+Phase 0 baseline, Phase 1 JS/TS compatibility receipt, Phase 2 Tier 1 audit, and
+Phase 3 source-index receipt are the committed versioned code-intelligence
+results. Save other output yourself if you need to retain a run.
 
 All token figures are local delivery estimates using `ceil(chars/4)`. They are
 not provider-billed tokens, production-cost estimates, or production-latency
@@ -106,6 +106,38 @@ it can say `meets-floor`. Consequently every language remains overall
 `unmeasured`. The native engine stays an unbundled preview; the npm, MCP, and
 web defaults remain JS. Competitors remain unmeasured, and the receipt makes no
 parity, leadership, multi-repository, or scale claim.
+
+## Code-intelligence Phase 3 source index
+
+The committed receipt is
+`evals/code-intelligence/results/phase3-source-index.json`. Verify its pinned
+inputs, fingerprint, safety boundary, and pass decision with:
+
+```bash
+node scripts/code-intelligence-phase3-index.mjs --check
+```
+
+Run the script without `--check` to fetch the same exact commits into temporary
+directories and remeasure them. The stored clean run used Memory Recall commit
+`919d10e1f6e7b7038f9510e5057fc0b3b82155cf` on macOS 25.5 arm64, Apple M2 Max,
+Node 22.22.3. It covers a 600-file TypeScript dependency fixture, the pinned
+HashiCorp go-multierror repository, the pinned Express repository, and the
+pinned TypeScript compiler-transformers scope.
+
+Across 781 files, 6,808 nodes, and 15,115 edges, the four cold builds had a
+machine-specific p50 of 156.646 ms and maximum of 910.639 ms. Warm status p50
+was 13.362 ms; no-change refresh p50 was 23.411 ms. The 600-file fixture parsed
+zero files on an exact no-op refresh, 11 files after the sampled isolated file
+change, and 5 files after the sampled dependency-impact change. All no-op and
+reader checks preserved the exact SQLite bytes and modification time.
+
+The receipt stores five-sample exact, neighborhood, impact, and trace timings,
+response bytes, database sizes, changed/reused counts, evaluator RSS, omissions,
+and safe diagnostics per case. These are machine-specific preview measurements,
+not latency promises. The engine made no network or model calls; the benchmark
+harness made three network fetches to obtain the pinned repositories. It does
+not measure a packaged native binary, competitors, multi-repository behavior, or
+million-node scale, so it makes no parity or leadership claim.
 
 ## Dataset
 

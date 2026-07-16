@@ -110,6 +110,14 @@ refresh is covered across reviewed fixtures for all fourteen Tier 1 languages:
 it parses and writes zero files, preserves the active generation, and leaves the
 database bytes and modification time unchanged.
 
+The clean Phase 3 receipt is
+[`phase3-source-index.json`](../../evals/code-intelligence/results/phase3-source-index.json).
+It measures one 600-file dependency fixture and three exact-commit repository
+scopes. The run covers 781 files, 6,808 nodes, and 15,115 edges with no recorded
+omissions. On the dependency fixture, one sampled file change reparsed 11 files
+and the sampled dependency-impact change reparsed 5, instead of reparsing all
+600. Timings and RSS are machine-specific evidence, not performance promises.
+
 This evidence proves the local lifecycle and language integration boundary. It
 does not prove full language support, packaged native distribution,
 multi-repository indexing, million-node scale, or competitor parity.

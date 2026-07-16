@@ -148,6 +148,7 @@ billing claims.
 | Temporal current-truth fixture | 10/10 correct and clean; not a token-saving claim | `recall bench temporal --read-only --root . --format json` |
 | In-repo structured-ingest sufficiency | 12/12 checkout-derived answers present after structured ingest | Source checkout: `npm run recall -- bench realqa --read-only --root . --format json` |
 | Truth-floor regression gate | Fixture-backed merge gate, not a user-task benchmark | `recall benchmark truth-floor --suite benchmark-truth-floor --dataset evals/benchmark-truth-floor/cases.v1.json --format json` |
+| Native source-index Phase 3 | Clean pinned receipt over 781 files, 6,808 nodes, and 15,115 edges; machine-specific, not a scale or parity claim | Source checkout: `node scripts/code-intelligence-phase3-index.mjs --check` |
 
 The package bundles the session, temporal, and truth-floor fixtures. The
 structured-ingest check measures this repository's own status and provider
