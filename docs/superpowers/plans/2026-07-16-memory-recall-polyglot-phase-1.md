@@ -27,7 +27,7 @@
 - Modify: `rfcs/0001-protocol-contracts.md`
 - Modify: `tests/code-intelligence-contract.test.mjs`
 
-- [ ] **Step 1: Add failing protocol tests**
+- [x] **Step 1: Add failing protocol tests**
 
 Test a valid `graph.build` request and success response. Reject unknown major protocol versions, absolute or traversing roots, unbounded limits, additional properties, source bodies, raw error text, and absolute paths in error details.
 
@@ -35,11 +35,11 @@ Run: `node --test tests/code-intelligence-contract.test.mjs`
 
 Expected: new assertions fail because the schemas and fixtures do not exist.
 
-- [ ] **Step 2: Add closed, additive v1 schemas and fixtures**
+- [x] **Step 2: Add closed, additive v1 schemas and fixtures**
 
 Use protocol version `1.0.0`, bounded request IDs, workspace IDs, relative root `.` only, operation `graph.build`, a deadline duration, optional cancellation token, requested graph schema version, and bounded graph arguments. Responses are a success frame containing the provider-neutral graph or a failure frame containing only a stable code, retryability, and bounded sanitized details.
 
-- [ ] **Step 3: Verify and commit the protocol**
+- [x] **Step 3: Verify and commit the protocol**
 
 Run: `node --test tests/code-intelligence-contract.test.mjs && npm run protocol:validate && git diff --check`
 

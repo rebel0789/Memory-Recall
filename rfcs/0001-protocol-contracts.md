@@ -71,6 +71,14 @@ does not become canonical memory or approval authority. This schema is additive
 within v1; `source-graph.schema.json` remains the JavaScript and TypeScript
 compatibility surface until the native migration passes its release gates.
 
+The native engine request and response schemas add the versioned JSON Lines
+process contract. Node supplies one bounded `graph.build` request rooted at the
+child process working directory, enforces the deadline and optional
+cancellation token, and validates both the response envelope and nested graph.
+The engine emits protocol frames only on stdout. Failures use stable error
+codes with sanitized details; raw errors, source text, absolute paths, provider
+objects, filesystem authority, and network authority are not protocol fields.
+
 ## Requirements
 
 - canonical IDs are independent of providers;

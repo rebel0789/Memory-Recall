@@ -192,6 +192,21 @@ not canonical memory. The existing `source-graph.schema.json` remains the
 JavaScript and TypeScript compatibility contract until the measured native
 migration is complete.
 
+`code-intelligence-engine-request.schema.json` and
+`code-intelligence-engine-response.schema.json` define the replaceable JSON
+Lines subprocess boundary between the Node product shell and the native engine.
+Requests are limited to a workspace-contained `graph.build` operation with a
+relative root, explicit deadline, bounded graph arguments, and an optional
+cancellation token. Success envelopes are validated twice: first against the
+engine response schema, then against `code-intelligence-graph.schema.json`.
+Failure envelopes contain stable codes and sanitized detail tokens only.
+
+The engine protocol carries no absolute root, source body, environment value,
+provider identity, raw parser error, network authority, write authority, or
+canonical-memory operation. Unknown major versions and additional fields fail
+closed. This boundary is additive within protocol v1; it does not switch the
+public source-graph provider by itself.
+
 ## Recall Map report schema
 
 `recall-map.schema.json` is the additive internal contract for the read-only

@@ -1122,6 +1122,30 @@
       "schema": "packages/protocol/schemas/loop-run.schema.json",
       "instance": "examples/protocol/compatibility/invalid/loop-run-auto-merge.json",
       "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-engine-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-engine-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-engine-request.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-engine-response-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-engine-response.schema.json",
+      "instance": "examples/protocol/code-intelligence-engine-response.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-engine-request-absolute-root-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-engine-request.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-engine-request-absolute-root.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-engine-response-raw-error-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-engine-response.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-engine-response-raw-error.json",
+      "expectedValid": false
     }
   ]
 }

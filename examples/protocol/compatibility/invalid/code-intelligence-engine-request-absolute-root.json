@@ -1,0 +1,15 @@
+{
+  "protocolVersion": "1.0.0",
+  "requestId": "cireq_0123456789abcdef0123456789abcdef",
+  "workspaceId": "ws_local",
+  "operation": "graph.build",
+  "root": "/private/tmp/repository",
+  "deadlineMs": 30000,
+  "responseSchemaVersion": "1.0.0",
+  "arguments": {
+    "maxFiles": 1000,
+    "maxFileBytes": 524288,
+    "maxNodes": 5000,
+    "maxEdges": 10000
+  }
+}

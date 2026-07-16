@@ -28,6 +28,60 @@ test('code intelligence graph rejects source bodies and absolute paths', async (
   }
 });
 
+test('native code intelligence engine request and response contracts are closed and bounded', async () => {
+  const requestSchema = await readJson('packages/protocol/schemas/code-intelligence-engine-request.schema.json');
+  const responseSchema = await readJson('packages/protocol/schemas/code-intelligence-engine-response.schema.json');
+  const request = await readJson('examples/protocol/code-intelligence-engine-request.json');
+  const response = await readJson('examples/protocol/code-intelligence-engine-response.json');
+
+  assert.equal(validateJsonSchema(requestSchema, request).valid, true);
+  assert.equal(validateJsonSchema(responseSchema, response).valid, true);
+
+  for (const invalid of [
+    { ...request, protocolVersion: '2.0.0' },
+    { ...request, root: '/private/tmp/repository' },
+    { ...request, root: '../repository' },
+    { ...request, arguments: { ...request.arguments, maxFiles: 100_001 } },
+    { ...request, sourceBody: 'export const secret = true;' }
+  ]) {
+    assert.equal(validateJsonSchema(requestSchema, invalid).valid, false);
+  }
+
+  const failure = {
+    protocolVersion: '1.0.0',
+    requestId: request.requestId,
+    ok: false,
+    error: {
+      code: 'engine_invalid_request',
+      retryable: false,
+      details: ['request failed']
+    }
+  };
+  assert.equal(validateJsonSchema(responseSchema, failure).valid, true);
+  assert.equal(validateJsonSchema(responseSchema, {
+    ...failure,
+    error: { ...failure.error, rawError: 'read /Users/example/private.ts' }
+  }).valid, false);
+  assert.equal(validateJsonSchema(responseSchema, {
+    ...failure,
+    error: { ...failure.error, details: ['/Users/example/private.ts'] }
+  }).valid, false);
+});
+
+test('native engine compatibility fixtures reject roots and raw errors', async () => {
+  const requestSchema = await readJson('packages/protocol/schemas/code-intelligence-engine-request.schema.json');
+  const responseSchema = await readJson('packages/protocol/schemas/code-intelligence-engine-response.schema.json');
+
+  assert.equal(validateJsonSchema(
+    requestSchema,
+    await readJson('examples/protocol/compatibility/invalid/code-intelligence-engine-request-absolute-root.json')
+  ).valid, false);
+  assert.equal(validateJsonSchema(
+    responseSchema,
+    await readJson('examples/protocol/compatibility/invalid/code-intelligence-engine-response-raw-error.json')
+  ).valid, false);
+});
+
 test('capability matrix covers every Tier 1 language and capability honestly', async () => {
   const matrix = await readJson('evals/code-intelligence/capability-matrix.v1.json');
 
