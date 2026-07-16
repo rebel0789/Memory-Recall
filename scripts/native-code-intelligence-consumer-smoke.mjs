@@ -18,6 +18,7 @@ const home = path.join(temp, 'home');
 const npmCache = path.join(temp, 'npm-cache');
 const packDirectory = path.join(temp, 'pack');
 const prefix = path.join(temp, 'prefix');
+const reinstallPrefix = path.join(temp, 'reinstall-prefix');
 const runtimeBin = path.join(temp, 'runtime-bin');
 const nativeBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 const suppliedNativePackageTarball = process.env.MEMORY_RECALL_NATIVE_PACKAGE_TARBALL;
@@ -108,6 +109,7 @@ try {
   const initialHome = await treeFingerprint(home);
   const initialPackage = await treeFingerprint(packageRoot);
   const initialPlatformPackage = await treeFingerprint(platformPackageRoot);
+  const indexPath = path.join(workspace, '.local', 'source-index', 'index.v1.sqlite');
 
   const providerUrl = pathToFileURL(path.join(packageRoot, 'providers', 'native', 'code-intelligence-rust', 'src', 'index.mjs')).href;
   const { RustCodeIntelligenceProvider } = await import(providerUrl);
@@ -134,7 +136,6 @@ try {
         maxNodes: 5_000,
         maxEdges: 10_000
       });
-      const indexPath = path.join(workspace, '.local', 'source-index', 'index.v1.sqlite');
       const beforeReaders = await fileSnapshot(indexPath);
       const status = await provider.indexStatus({ root: workspace, workspaceId: 'ws_installed_polyglot' });
       const query = await provider.queryIndex({
@@ -216,12 +217,78 @@ try {
   must(await treeFingerprint(packageRoot) === initialPackage, 'native preview leaves the installed package unchanged');
   must(await treeFingerprint(platformPackageRoot) === initialPlatformPackage, 'native preview leaves the platform package unchanged');
 
+  const indexBeforeUninstall = await fileBundleSnapshot(indexPath);
+  run('npm', [
+    'uninstall', '-g', '--prefix', prefix, 'memory-recall', `@memory-recall/native-${target}`,
+    '--ignore-scripts', '--offline', '--no-audit', '--no-fund'
+  ], { cwd: temp, env: installEnvironment });
+  must(!(await pathExists(recall)), 'package uninstall removes the recall executable');
+  must(!(await pathExists(packageRoot)), 'package uninstall removes the root package');
+  must(!(await pathExists(platformPackageRoot)), 'package uninstall removes the native platform package');
+  must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'package uninstall preserves consumer source');
+  must((await readFile(governedMemory)).equals(initialMemory), 'package uninstall preserves governed memory');
+  must(sameFileBundleSnapshot(await fileBundleSnapshot(indexPath), indexBeforeUninstall), 'package uninstall preserves SQLite, WAL, and SHM state');
+  must(await treeFingerprint(home) === initialHome, 'package uninstall preserves home configuration');
+
+  run('npm', [
+    'install', '-g', '--prefix', reinstallPrefix, tarball, nativePackage.tarball,
+    '--ignore-scripts', '--offline', '--no-audit', '--no-fund'
+  ], { cwd: temp, env: installEnvironment });
+  const reinstalledModules = run('npm', ['root', '--global', '--prefix', reinstallPrefix], {
+    cwd: temp,
+    env: installEnvironment
+  }).stdout.trim();
+  const reinstalledPackageRoot = path.join(reinstalledModules, 'memory-recall');
+  const reinstalledProviderUrl = pathToFileURL(path.join(
+    reinstalledPackageRoot,
+    'providers',
+    'native',
+    'code-intelligence-rust',
+    'src',
+    'index.mjs'
+  )).href;
+  const { RustCodeIntelligenceProvider: ReinstalledProvider } = await import(reinstalledProviderUrl);
+  const reopenQueries = ['typescriptSentinel', 'read_item', 'Register'];
+  const reopened = await withProcessEnvironment(isolatedEnvironment, async () => {
+    const provider = new ReinstalledProvider({ timeoutMs: 60_000 });
+    const reopenedHealth = await provider.health();
+    const reopenedStatus = await provider.indexStatus({ root: workspace, workspaceId: 'ws_installed_polyglot' });
+    const reopenedQueries = [];
+    for (const queryText of reopenQueries) {
+      reopenedQueries.push(await provider.queryIndex({
+        root: workspace,
+        workspaceId: 'ws_installed_polyglot',
+        kind: 'search',
+        query: queryText,
+        limit: 25
+      }));
+    }
+    return { reopenedHealth, reopenedStatus, reopenedQueries };
+  });
+  must(reopened.reopenedHealth.status === 'healthy', 'reinstall restores a healthy native provider');
+  must(reopened.reopenedHealth.details?.source === 'platform-package', 'reinstall rediscovers the native platform package');
+  must(reopened.reopenedHealth.details?.verified === true, 'reinstall revalidates native package integrity');
+  must(reopened.reopenedStatus.state === 'ready' && reopened.reopenedStatus.freshness === 'current', 'reinstall reopens the current index without rebuilding');
+  must(reopened.reopenedStatus.activeGeneration === status.activeGeneration, 'reinstall preserves the active generation');
+  must(JSON.stringify(reopened.reopenedStatus.summary) === JSON.stringify(status.summary), 'reinstall preserves the index summary');
+  for (const [index, queryText] of reopenQueries.entries()) {
+    const reopenedQuery = reopened.reopenedQueries[index];
+    must(reopenedQuery.results?.some((item) => item.label === queryText), `reinstall queries ${queryText}`);
+    must(reopenedQuery.safeguards?.readOnly === true && reopenedQuery.safeguards?.localFilesWritten === 0, `reinstall query ${queryText} is read-only`);
+  }
+  must(sameFileBundleSnapshot(await fileBundleSnapshot(indexPath), indexBeforeUninstall), 'reinstall status and queries preserve SQLite, WAL, and SHM state');
+  must((await readFile(governedMemory)).equals(initialMemory), 'reinstall preserves governed memory');
+  must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'reinstall preserves consumer source');
+  must(await treeFingerprint(home) === initialHome, 'reinstall preserves home configuration');
+
   console.log(`PASS installed verified native platform package ${target}`);
   console.log('PASS compiler-free 14-language graph and SQLite lifecycle');
   console.log('PASS automatic native preview stats and search');
   console.log('PASS invalid explicit native override fails closed');
   console.log('PASS no source, governed-memory, config, or package mutation');
   console.log('PASS JavaScript remains the public default');
+  console.log('PASS uninstall removes packages and preserves workspace-local state');
+  console.log('PASS same-version reinstall reopens the existing index without rebuilding');
 } finally {
   await rm(temp, { recursive: true, force: true });
 }
@@ -341,6 +408,25 @@ async function fileSnapshot(file) {
     size: metadata.size,
     mtimeMs: metadata.mtimeMs,
     sha256: createHash('sha256').update(body).digest('hex')
+  });
+}
+
+async function fileBundleSnapshot(file) {
+  return Promise.all([file, `${file}-wal`, `${file}-shm`].map(async (candidate) => (
+    await pathExists(candidate) ? fileSnapshot(candidate) : null
+  )));
+}
+
+function sameFileBundleSnapshot(left, right) {
+  return left.length === right.length && left.every((snapshot, index) => (
+    snapshot === null ? right[index] === null : right[index] !== null && sameFileSnapshot(snapshot, right[index])
+  ));
+}
+
+async function pathExists(file) {
+  return stat(file).then(() => true, (error) => {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
   });
 }
 

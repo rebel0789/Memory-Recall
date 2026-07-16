@@ -13,6 +13,7 @@
 - Added deterministic bounded communities and evidence-backed entry-to-sink processes to the existing native `repo.architecture` MCP result, plus a reproducible Phase 4 correctness and query-deadline receipt. The MCP surface remains twelve read-only tools and no parity claim is made.
 - Added five optional native-platform package templates, exact npm/Cargo/binary version alignment, a verified platform-binary resolver, and an offline macOS arm64 installed-package gate covering all fourteen Tier 1 parsers and the SQLite lifecycle without a compiler. A five-runner CI matrix now defines the same exact-tarball gate for the remaining targets, but those hosted runs, signing, and publication remain unproven; JS remains the public default.
 - Added explicit MCP `--engine auto` selection. Each structural read uses the native SQLite index only while it is healthy and current; otherwise it returns a reason-labeled bounded JS result without writing or repairing the index. Omitting `--engine` still selects JS.
+- Extended the isolated native-package consumer gate through package removal and same-version reinstall. It proves the CLI and both npm packages are removed while workspace source, governed memory, home configuration, and the SQLite index bundle remain unchanged, then reopens the same generation from freshly installed exact tarballs without Cargo, rustc, build, or refresh.
 
 ### Fixed
 

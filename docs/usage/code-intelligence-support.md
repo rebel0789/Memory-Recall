@@ -183,13 +183,18 @@ checksum, target, contained path, executable, and version, then parses all
 fourteen Tier 1 fixture languages. It also builds, reads, and queries the
 workspace-local SQLite source index while preserving source files, governed
 memory, home configuration, and installed package bytes. Cargo and rustc are
-absent from the runtime path.
+absent from the runtime path. The gate then removes both installed npm packages,
+proves the executable is gone while the workspace-local SQLite bundle and
+governed memory remain byte-identical, installs the exact same tarballs into a
+fresh prefix, and reopens the same generation for TypeScript, Python, and Go
+queries without building or refreshing.
 
 The recorded local pass is macOS arm64 only. It does not prove macOS x64,
 Linux GNU arm64/x64, or Windows x64 artifacts, signing/notarization,
 trusted-publisher ownership for the scoped packages, public installation, or a
-native public default. The explicit JS fallback therefore remains frozen and
-the current registry instructions remain unchanged.
+native public default. It proves same-version removal/reinstall survivability,
+not downgrade compatibility with an older release. The explicit JS fallback
+therefore remains frozen and the current registry instructions remain unchanged.
 
 The Rust CI workflow defines native-runner packaging lanes for those five
 targets. Each lane checks the runner architecture, builds the locked release

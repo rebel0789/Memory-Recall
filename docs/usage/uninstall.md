@@ -72,6 +72,12 @@ This removes the installed package and executable. It does not touch any
 repository's `.local` directory, home-config backups, or manually created
 context packs.
 
+The checkout-only native consumer gate verifies this boundary on the current
+platform: removing both exact root and native packages leaves source, governed
+memory, home configuration, and the SQLite index bundle byte-identical. A fresh
+same-version install reopens that generation without rebuilding it. This is not
+evidence that an older release can read state written by a newer release.
+
 ## 5. Preserve or intentionally manage `.local`
 
 Before any manual cleanup, inspect and back up the directory outside the

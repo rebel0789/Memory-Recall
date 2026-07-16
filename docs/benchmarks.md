@@ -179,6 +179,12 @@ preservation, and unchanged installed package bytes. It is a current-platform
 consumer gate, not cross-platform, signing, publication, parity, or leadership
 evidence.
 
+The same gate removes both packages, verifies that the executable and package
+roots are gone while the workspace SQLite bundle and governed memory are
+unchanged, then installs the exact same tarballs into a fresh prefix and reopens
+the existing generation for representative TypeScript, Python, and Go queries.
+That proves same-version reinstall survivability, not cross-version downgrade.
+
 The five-target Rust CI matrix reuses this installed-consumer gate with the
 exact unsigned tarball produced by each native runner. Only the macOS arm64 lane
 has been reproduced locally; the workflow configuration does not count as a
