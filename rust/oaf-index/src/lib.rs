@@ -179,6 +179,7 @@ pub struct IndexHealth {
 pub struct SourceIndex {
     connection: Connection,
     _path: PathBuf,
+    engine_version: String,
 }
 
 impl SourceIndex {
@@ -195,23 +196,25 @@ impl SourceIndex {
         Ok(Self {
             connection,
             _path: path.to_path_buf(),
+            engine_version: options.engine_version.clone(),
         })
     }
 
     pub fn open_read_only(path: &Path, options: &SourceIndexOptions) -> Result<Self> {
         validate_options(options)?;
-        let connection = Connection::open_with_flags(
-            path,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )
-        .context("source_index_read_only_open_failed")?;
+        let connection =
+            open_read_only_connection(path).context("source_index_read_only_open_failed")?;
         connection
             .pragma_update(None, "foreign_keys", "ON")
             .context("source_index_foreign_keys_failed")?;
+        connection
+            .pragma_update(None, "query_only", "ON")
+            .context("source_index_query_only_failed")?;
         validate_current(&connection, options)?;
         Ok(Self {
             connection,
             _path: path.to_path_buf(),
+            engine_version: options.engine_version.clone(),
         })
     }
 
@@ -275,8 +278,8 @@ impl SourceIndex {
             params![generation_id, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count],
         )?;
         transaction.execute(
-            "UPDATE index_metadata SET active_generation = ?1, ignore_fingerprint = ?2, updated_at = ?3 WHERE singleton = 1",
-            params![generation_id, input.ignore_fingerprint, committed_at],
+            "UPDATE index_metadata SET active_generation = ?1, ignore_fingerprint = ?2, engine_version = ?3, updated_at = ?4 WHERE singleton = 1",
+            params![generation_id, input.ignore_fingerprint, self.engine_version, committed_at],
         )?;
         transaction.execute(
             "UPDATE index_health SET integrity_status = 'ready', interrupted_generation = NULL, last_successful_refresh_at = ?1, repair_reason_code = NULL, updated_at = ?1 WHERE singleton = 1",
@@ -291,6 +294,18 @@ impl SourceIndex {
             [],
         )?;
         transaction.commit()?;
+        let (busy, log_frames, checkpointed_frames) =
+            self.connection
+                .query_row("PRAGMA wal_checkpoint(FULL)", [], |row| {
+                    Ok((
+                        row.get::<_, i64>(0)?,
+                        row.get::<_, i64>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                })?;
+        if busy != 0 || log_frames != checkpointed_frames {
+            bail!("source_index_checkpoint_incomplete");
+        }
         Ok(GenerationSummary {
             id: generation_id,
             parent_id,
@@ -512,6 +527,7 @@ impl SourceIndex {
     pub fn find_nodes(&self, query: &str, bounds: &QueryBounds) -> Result<QueryPage<NodeRecord>> {
         validate_query_bounds(bounds)?;
         validate_query_text(query)?;
+        let started = Instant::now();
         let Some(generation_id) = self.active_generation() else {
             return Ok(QueryPage {
                 items: Vec::new(),
@@ -529,6 +545,35 @@ impl SourceIndex {
                 row_to_node,
             )?
             .collect::<rusqlite::Result<Vec<_>>>()?;
+        ensure_deadline(started, bounds)?;
+        bounded_page(items, bounds)
+    }
+
+    pub fn find_exact_nodes(
+        &self,
+        query: &str,
+        bounds: &QueryBounds,
+    ) -> Result<QueryPage<NodeRecord>> {
+        validate_query_bounds(bounds)?;
+        validate_query_text(query)?;
+        let started = Instant::now();
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(QueryPage {
+                items: Vec::new(),
+                next_cursor: None,
+            });
+        };
+        let cursor = bounds.cursor.as_deref().unwrap_or("");
+        let mut statement = self.connection.prepare(
+            "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 AND canonical_id > ?2 AND (canonical_id = ?3 OR qualified_name = ?3 OR locator = ?3 OR (length(qualified_name) > length(?3) + 2 AND substr(qualified_name, -(length(?3) + 2)) = '::' || ?3)) ORDER BY canonical_id LIMIT ?4",
+        )?;
+        let items = statement
+            .query_map(
+                params![generation_id, cursor, query, count_i64(bounds.limit + 1)?],
+                row_to_node,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        ensure_deadline(started, bounds)?;
         bounded_page(items, bounds)
     }
 
@@ -540,6 +585,7 @@ impl SourceIndex {
     ) -> Result<QueryPage<EdgeRecord>> {
         validate_query_bounds(bounds)?;
         validate_identifier(node_id)?;
+        let started = Instant::now();
         let Some(generation_id) = self.active_generation() else {
             return Ok(QueryPage {
                 items: Vec::new(),
@@ -566,6 +612,7 @@ impl SourceIndex {
                 row_to_edge,
             )?
             .collect::<rusqlite::Result<Vec<_>>>()?;
+        ensure_deadline(started, bounds)?;
         bounded_page(items, bounds)
     }
 
@@ -577,7 +624,48 @@ impl SourceIndex {
         self.dependency_edges(node_id, EdgeDirection::Incoming, bounds)
     }
 
+    pub fn node(&self, node_id: &str) -> Result<Option<NodeRecord>> {
+        validate_identifier(node_id)?;
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(None);
+        };
+        self.node_by_id(generation_id, node_id)
+    }
+
+    pub fn nodes_by_kind(&self, kind: &str, bounds: &QueryBounds) -> Result<QueryPage<NodeRecord>> {
+        validate_query_bounds(bounds)?;
+        validate_token(kind, "source_index_node_kind_invalid")?;
+        let started = Instant::now();
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(QueryPage {
+                items: Vec::new(),
+                next_cursor: None,
+            });
+        };
+        let cursor = bounds.cursor.as_deref().unwrap_or("");
+        let mut statement = self.connection.prepare(
+            "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 AND kind = ?2 AND canonical_id > ?3 ORDER BY canonical_id LIMIT ?4",
+        )?;
+        let items = statement
+            .query_map(
+                params![generation_id, kind, cursor, count_i64(bounds.limit + 1)?],
+                row_to_node,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        ensure_deadline(started, bounds)?;
+        bounded_page(items, bounds)
+    }
+
     pub fn neighborhood(&self, node_id: &str, bounds: &QueryBounds) -> Result<GraphNeighborhood> {
+        self.dependency_neighborhood(node_id, EdgeDirection::Both, bounds)
+    }
+
+    pub fn dependency_neighborhood(
+        &self,
+        node_id: &str,
+        direction: EdgeDirection,
+        bounds: &QueryBounds,
+    ) -> Result<GraphNeighborhood> {
         validate_query_bounds(bounds)?;
         validate_identifier(node_id)?;
         let Some(generation_id) = self.active_generation() else {
@@ -604,21 +692,19 @@ impl SourceIndex {
             let mut next = BTreeSet::new();
             for current in frontier {
                 ensure_deadline(started, bounds)?;
-                let page = self.dependency_edges(
-                    &current,
-                    EdgeDirection::Both,
-                    &QueryBounds::new(bounds.limit),
-                )?;
+                let page =
+                    self.dependency_edges(&current, direction, &QueryBounds::new(bounds.limit))?;
                 truncated |= page.next_cursor.is_some();
                 for edge in page.items {
                     if edges.len() >= bounds.limit {
                         truncated = true;
                         break;
                     }
-                    let other = if edge.source_id == current {
-                        edge.target_id.clone()
-                    } else {
-                        edge.source_id.clone()
+                    let other = match direction {
+                        EdgeDirection::Incoming => edge.source_id.clone(),
+                        EdgeDirection::Outgoing => edge.target_id.clone(),
+                        EdgeDirection::Both if edge.source_id == current => edge.target_id.clone(),
+                        EdgeDirection::Both => edge.source_id.clone(),
                     };
                     edges.entry(edge.canonical_id.clone()).or_insert(edge);
                     if !nodes.contains_key(&other) {
@@ -1458,13 +1544,13 @@ pub fn inspect_index(path: &Path, options: &SourceIndexOptions) -> IndexHealth {
     if !path.is_file() {
         return health(HealthStatus::Absent, "source_index_absent", None, None);
     }
-    let connection = match Connection::open_with_flags(
-        path,
-        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    ) {
+    let connection = match open_read_only_connection(path) {
         Ok(connection) => connection,
         Err(_) => return health(HealthStatus::Corrupt, "source_index_corrupt", None, None),
     };
+    if connection.pragma_update(None, "query_only", "ON").is_err() {
+        return health(HealthStatus::Corrupt, "source_index_corrupt", None, None);
+    }
     let schema_version =
         match connection.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0)) {
             Ok(version) => version,
@@ -1557,6 +1643,40 @@ pub fn inspect_index(path: &Path, options: &SourceIndexOptions) -> IndexHealth {
         active_generation,
         Some(schema_version),
     )
+}
+
+pub fn logical_database_bytes(path: &Path) -> u64 {
+    let logical_bytes = open_read_only_connection(path).and_then(|connection| {
+        connection.pragma_update(None, "query_only", "ON")?;
+        let page_count =
+            connection.pragma_query_value(None, "page_count", |row| row.get::<_, u64>(0))?;
+        let page_size =
+            connection.pragma_query_value(None, "page_size", |row| row.get::<_, u64>(0))?;
+        Ok(page_count.saturating_mul(page_size))
+    });
+    logical_bytes.unwrap_or_else(|_| fs::metadata(path).map_or(0, |metadata| metadata.len()))
+}
+
+fn open_read_only_connection(path: &Path) -> Result<Connection> {
+    let path = path.to_str().context("source_index_path_invalid")?;
+    let mut uri = String::with_capacity(path.len() + 32);
+    uri.push_str("file:");
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'.' | b'_' | b'~' | b':') {
+            uri.push(char::from(byte));
+        } else {
+            use std::fmt::Write as _;
+            write!(&mut uri, "%{byte:02X}").context("source_index_path_invalid")?;
+        }
+    }
+    uri.push_str("?mode=ro&immutable=1");
+    Connection::open_with_flags(
+        uri,
+        OpenFlags::SQLITE_OPEN_READ_ONLY
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | OpenFlags::SQLITE_OPEN_URI,
+    )
+    .context("source_index_read_only_open_failed")
 }
 
 fn configure_writer(connection: &Connection) -> Result<()> {

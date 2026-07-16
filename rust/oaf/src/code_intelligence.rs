@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use chrono::{SecondsFormat, Utc};
-#[cfg(test)]
 use oaf_index::{
     CoverageRecord, DiagnosticRecord, EdgeRecord, FileRecord, GenerationInput, NodeRecord,
 };
@@ -98,6 +97,14 @@ struct GraphBuild {
     indexed_file_count: usize,
     omitted_node_count: usize,
     omitted_edge_count: usize,
+}
+
+pub(crate) struct IndexGenerationBuild {
+    pub generation: GenerationInput,
+    pub scanned_file_count: usize,
+    pub indexed_file_count: usize,
+    pub omitted_node_count: usize,
+    pub omitted_edge_count: usize,
 }
 
 type NodeLookup = BTreeMap<(String, String), String>;
@@ -429,12 +436,67 @@ fn build_graph_at_root(
     })
 }
 
+pub(crate) fn build_index_generation_at_root(
+    root: &std::path::Path,
+    workspace_id: &str,
+    max_files: usize,
+    max_file_bytes: u64,
+    max_nodes: usize,
+    max_edges: usize,
+    languages: BTreeSet<String>,
+    deadline_ms: u64,
+    engine_version: &str,
+) -> Result<IndexGenerationBuild> {
+    let request = EngineRequest {
+        request_id: FALLBACK_REQUEST_ID.to_string(),
+        workspace_id: workspace_id.to_string(),
+        deadline_ms,
+        max_files,
+        max_file_bytes,
+        max_nodes,
+        max_edges,
+        languages,
+    };
+    let build = build_graph_at_root(&request, engine_version, root, Instant::now())
+        .map_err(|failure| anyhow::anyhow!(failure.code))?;
+    let generation = index_generation_from_graph_with_options(
+        &build.graph,
+        root,
+        &request.languages,
+        request.max_files,
+        request.max_file_bytes,
+    )?;
+    Ok(IndexGenerationBuild {
+        generation,
+        scanned_file_count: build.scanned_file_count,
+        indexed_file_count: build.indexed_file_count,
+        omitted_node_count: build.omitted_node_count,
+        omitted_edge_count: build.omitted_edge_count,
+    })
+}
+
 #[cfg(test)]
 fn index_generation_from_graph(graph: &Value, root: &std::path::Path) -> Result<GenerationInput> {
+    index_generation_from_graph_with_options(graph, root, &BTreeSet::new(), usize::MAX, 10_485_760)
+}
+
+fn index_generation_from_graph_with_options(
+    graph: &Value,
+    root: &std::path::Path,
+    requested_languages: &BTreeSet<String>,
+    max_files: usize,
+    max_file_bytes: u64,
+) -> Result<GenerationInput> {
     let root = root
         .canonicalize()
         .context("canonicalize indexed repository")?;
-    let hashes = discover_file_hashes(&IngestOptions::new(&root))?;
+    let mut discovery_options = IngestOptions::new(&root);
+    discovery_options.max_file_bytes = max_file_bytes;
+    discovery_options.prefer_cpp_headers = prefers_cpp_headers(requested_languages);
+    let mut hashes = discover_file_hashes(&discovery_options)?;
+    hashes.retain(|item| index_source_language(&item.source, requested_languages).is_some());
+    hashes.sort_by(|left, right| left.source.cmp(&right.source));
+    hashes.truncate(max_files);
     let graph_nodes = graph["nodes"]
         .as_array()
         .context("code intelligence graph nodes missing")?;
@@ -473,9 +535,9 @@ fn index_generation_from_graph(graph: &Value, root: &std::path::Path) -> Result<
     let mut files = hashes
         .iter()
         .filter_map(|item| {
-            let language = source_language(&item.source)
-                .map(str::to_string)
-                .or_else(|| language_by_file.get(&item.source).cloned())?;
+            let language = language_by_file.get(&item.source).cloned().or_else(|| {
+                index_source_language(&item.source, requested_languages).map(str::to_string)
+            })?;
             Some(FileRecord {
                 locator: item.source.clone(),
                 content_hash: format!("sha256:{}", item.sha256),
@@ -616,7 +678,6 @@ fn index_generation_from_graph(graph: &Value, root: &std::path::Path) -> Result<
     })
 }
 
-#[cfg(test)]
 fn json_string(value: &Value, key: &str) -> Result<String> {
     value[key]
         .as_str()
@@ -624,14 +685,12 @@ fn json_string(value: &Value, key: &str) -> Result<String> {
         .with_context(|| format!("code intelligence field missing: {key}"))
 }
 
-#[cfg(test)]
 fn json_i64(value: &Value, key: &str) -> Result<i64> {
     value[key]
         .as_i64()
         .with_context(|| format!("code intelligence integer missing: {key}"))
 }
 
-#[cfg(test)]
 fn locator_file(locator: &str) -> &str {
     locator.split_once('#').map_or(locator, |(file, _)| file)
 }
@@ -1379,6 +1438,28 @@ fn source_language_for_request(
     } else {
         source_language(source)
     }
+}
+
+pub(crate) fn index_source_language(
+    source: &str,
+    requested_languages: &BTreeSet<String>,
+) -> Option<&'static str> {
+    if source
+        .rsplit('/')
+        .next()
+        .is_some_and(|name| name.eq_ignore_ascii_case("CMakeLists.txt"))
+    {
+        return if requested_languages.is_empty() || requested_languages.contains("c") {
+            Some("c")
+        } else if requested_languages.contains("cpp") {
+            Some("cpp")
+        } else {
+            None
+        };
+    }
+    source_language_for_request(source, requested_languages).filter(|language| {
+        requested_languages.is_empty() || requested_languages.contains(*language)
+    })
 }
 
 fn fact_language_for_request(

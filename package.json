@@ -89,6 +89,7 @@
     "!examples/protocol/code-intelligence-engine-response.json",
     "!examples/protocol/code-intelligence-index-build-request.json",
     "!examples/protocol/code-intelligence-index-refresh-request.json",
+    "!examples/protocol/code-intelligence-index-repair-request.json",
     "!examples/protocol/code-intelligence-index-status-request.json",
     "!examples/protocol/code-intelligence-index-doctor-request.json",
     "!examples/protocol/code-intelligence-index-query-request.json",

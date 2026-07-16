@@ -199,6 +199,17 @@ fn read_queries_are_stable_paginated_and_bounded() {
     assert_eq!(second.items.len(), 1);
     assert_ne!(first.items[0].canonical_id, second.items[0].canonical_id);
 
+    let exact = index
+        .find_exact_nodes("caller", &QueryBounds::new(10))
+        .unwrap();
+    assert_eq!(exact.items.len(), 1);
+    assert_eq!(exact.items[0].canonical_id, "node_one_caller");
+    assert!(index
+        .find_exact_nodes("one", &QueryBounds::new(10))
+        .unwrap()
+        .items
+        .is_empty());
+
     let caller = "node_one_caller";
     let outgoing = index
         .dependency_edges(caller, EdgeDirection::Outgoing, &QueryBounds::new(10))
@@ -230,4 +241,101 @@ fn read_queries_are_stable_paginated_and_bounded() {
     assert!(index
         .find_nodes("src", &QueryBounds::new(10).with_cursor("bad\0cursor"))
         .is_err());
+}
+
+#[test]
+fn dependency_neighborhood_honors_direction_and_depth() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("index.sqlite");
+    let mut input = sample_generation(
+        "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "one",
+    );
+    input.nodes.push(NodeRecord {
+        canonical_id: "node_one_terminal".into(),
+        kind: "function".into(),
+        language_kind: "function".into(),
+        qualified_name: "src/one.ts::terminal".into(),
+        locator: "workspace://src/one.ts".into(),
+        start_line: 9,
+        end_line: 10,
+        content_hash: None,
+        visibility: "internal".into(),
+    });
+    input.edges.push(EdgeRecord {
+        canonical_id: "edge_one_terminal".into(),
+        source_id: "node_one_callee".into(),
+        target_id: "node_one_terminal".into(),
+        kind: "calls".into(),
+        locator: "workspace://src/one.ts".into(),
+        start_line: 6,
+        end_line: 6,
+        resolver: "memory-recall.typed-call".into(),
+        resolver_version: "0.1.0".into(),
+        confidence: 0.95,
+        resolution_class: "typed".into(),
+        stale: false,
+    });
+    let mut writer = SourceIndex::open(&path, &options()).unwrap();
+    writer.commit_generation(&input).unwrap();
+    drop(writer);
+    let index = SourceIndex::open_read_only(&path, &options()).unwrap();
+
+    let depth_zero = index
+        .dependency_neighborhood(
+            "node_one_caller",
+            EdgeDirection::Outgoing,
+            &QueryBounds::new(10).with_depth(0),
+        )
+        .unwrap();
+    assert_eq!(
+        depth_zero
+            .nodes
+            .iter()
+            .map(|node| node.canonical_id.as_str())
+            .collect::<Vec<_>>(),
+        ["node_one_caller"]
+    );
+    assert!(depth_zero.edges.is_empty());
+
+    let depth_one = index
+        .dependency_neighborhood(
+            "node_one_caller",
+            EdgeDirection::Outgoing,
+            &QueryBounds::new(10).with_depth(1),
+        )
+        .unwrap();
+    assert!(depth_one
+        .nodes
+        .iter()
+        .any(|node| node.canonical_id == "node_one_callee"));
+    assert!(!depth_one
+        .nodes
+        .iter()
+        .any(|node| node.canonical_id == "node_one_terminal"));
+
+    let outgoing = index
+        .dependency_neighborhood(
+            "node_one_caller",
+            EdgeDirection::Outgoing,
+            &QueryBounds::new(10).with_depth(2),
+        )
+        .unwrap();
+    assert!(outgoing
+        .nodes
+        .iter()
+        .any(|node| node.canonical_id == "node_one_terminal"));
+
+    let incoming = index
+        .dependency_neighborhood(
+            "node_one_terminal",
+            EdgeDirection::Incoming,
+            &QueryBounds::new(10).with_depth(2),
+        )
+        .unwrap();
+    assert!(incoming
+        .nodes
+        .iter()
+        .any(|node| node.canonical_id == "node_one_caller"));
+    assert_eq!(incoming.edges.len(), 2);
 }

@@ -1604,6 +1604,49 @@ pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHas
             bytes: bytes.len() as u64,
         });
     }
+    let root = options.root.canonicalize().with_context(|| {
+        format!(
+            "hash discovery root must point at a local workspace directory: {}",
+            options.root.display()
+        )
+    })?;
+    let mut builder = WalkBuilder::new(&root);
+    builder
+        .follow_links(false)
+        .git_ignore(true)
+        .git_exclude(true)
+        .parents(true)
+        .hidden(false)
+        .filter_entry(should_descend);
+    for entry in builder.build().filter_map(Result::ok) {
+        let path = entry.path();
+        if path.file_name().and_then(|name| name.to_str()) != Some("CMakeLists.txt") {
+            continue;
+        }
+        let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
+        if metadata.len() > options.max_file_bytes {
+            continue;
+        }
+        let relative = workspace_rel(&root, path)?;
+        let source = format!("workspace://{relative}");
+        if options
+            .only_sources
+            .as_ref()
+            .is_some_and(|selected| !selected.contains(&source))
+        {
+            continue;
+        }
+        let bytes = fs::read(path).with_context(|| format!("read {source}"))?;
+        let mut hasher = Sha256::new();
+        hasher.update(&bytes);
+        hashes.push(IngestFileHash {
+            source,
+            sha256: hex::encode(hasher.finalize()),
+            bytes: bytes.len() as u64,
+        });
+    }
+    hashes.sort_by(|left, right| left.source.cmp(&right.source));
+    hashes.dedup_by(|left, right| left.source == right.source);
     Ok(hashes)
 }
 

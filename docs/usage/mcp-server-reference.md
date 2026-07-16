@@ -75,6 +75,23 @@ MCP checks index freshness but never writes the index. A current index is reused
 across processes. A stale index is reported as stale and structural tools fall
 back to a fresh bounded scan.
 
+### Native preview index
+
+After a local Rust release build, an isolated SQLite index is available only
+when `--engine native-preview` is explicit:
+
+```bash
+recall graph index --write --engine native-preview --root . --format summary
+recall graph index --query main --kind exact --engine native-preview --root . --format json
+recall graph index --doctor --engine native-preview --root . --format summary
+recall mcp server --read-only --engine native-preview --root . --stdio
+```
+
+Its fixed path is `.local/source-index/index.v1.sqlite`. The native MCP preview
+queries that prebuilt index and fails clearly if it is unavailable; it never
+builds, refreshes, repairs, or falls back to the JS engine. Normal MCP startup
+continues to use the JS index behavior above.
+
 ## Resource Catalog
 
 ```bash

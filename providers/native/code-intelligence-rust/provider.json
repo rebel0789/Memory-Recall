@@ -10,6 +10,12 @@
   "contractVersion": "1.0.0",
   "capabilities": [
     "code-intelligence.graph.build",
+    "code-intelligence.index.build",
+    "code-intelligence.index.refresh",
+    "code-intelligence.index.repair",
+    "code-intelligence.index.status",
+    "code-intelligence.index.doctor",
+    "code-intelligence.index.query",
     "code-intelligence.local-read-only",
     "code-intelligence.native-preview"
   ],
@@ -19,17 +25,19 @@
     "maxFileBytes": 10485760,
     "maxNodes": 5000,
     "maxEdges": 10000,
-    "writes": false,
+    "writes": "explicit-source-index-only",
     "network": false,
     "models": false,
     "previewOnly": true
   },
-  "dataPaths": [],
+  "dataPaths": [
+    ".local/source-index/index.v1.sqlite"
+  ],
   "experimental": true,
   "notes": [
-    "Runs one bounded local subprocess per Phase 1 graph request.",
+    "Runs one bounded local subprocess per graph or source-index request.",
     "Requires a verified native binary and never compiles Rust or falls back to a cloud service.",
-    "Returns provider-neutral structural metadata without source bodies or absolute paths.",
+    "Returns provider-neutral structural metadata without source bodies or absolute paths. Source-index writers require explicit local intent, and repair requires a matching doctor fingerprint.",
     "The JavaScript and TypeScript source graph remains the public default during compatibility measurement."
   ]
 }

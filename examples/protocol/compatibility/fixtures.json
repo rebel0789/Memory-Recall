@@ -1184,6 +1184,12 @@
       "expectedValid": true
     },
     {
+      "id": "code-intelligence-index-repair-request-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
+      "instance": "examples/protocol/code-intelligence-index-repair-request.json",
+      "expectedValid": true
+    },
+    {
       "id": "code-intelligence-index-status-request-current-valid",
       "schema": "packages/protocol/schemas/code-intelligence-index-request.schema.json",
       "instance": "examples/protocol/code-intelligence-index-status-request.json",

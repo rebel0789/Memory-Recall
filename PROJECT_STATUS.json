@@ -1099,11 +1099,11 @@
       ],
       "limitations": [
         "The public default remains bounded JavaScript and TypeScript static analysis.",
-        "The Rust engine is available only through explicit graph CLI preview modes after a local build; npm does not ship its binary, and MCP and web do not select it.",
+        "The Rust engine is available through explicit graph CLI and MCP native-preview modes after a local build; npm does not ship its binary, the MCP preview reads only a prebuilt index, and web and public defaults do not select it.",
         "Phase 2 covers 14 fixtures and all 42 pinned Tier 1 repositories; 46 capability rows meet the sampled floor, while 108 rows remain unmeasured or not applicable and every language remains overall unmeasured.",
         "Six bounded repository scopes report explicit node or edge omissions; their available evidence is partial and no scale claim is made.",
         "GitNexus and Codebase Memory MCP remain unmeasured on the pinned corpus.",
-        "Phase 2 does not promote the runtime default, bundle a native binary, move MCP or web, or make a parity or leadership claim."
+        "Phase 3 adds the isolated SQLite lifecycle, incremental refresh, watcher coordination, doctor/repair, CLI, provider, and explicit read-only MCP preview; it does not promote the runtime default, bundle a native binary, move web, or make a parity or leadership claim."
       ]
     }
   ],
@@ -1142,8 +1142,8 @@
       "node scripts/code-intelligence-batch-e.mjs --check",
       "node scripts/code-intelligence-phase2-tier1.mjs --check"
     ],
-    "testsExpected": 758,
-    "protocolFixturesExpected": 207,
+    "testsExpected": 762,
+    "protocolFixturesExpected": 208,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

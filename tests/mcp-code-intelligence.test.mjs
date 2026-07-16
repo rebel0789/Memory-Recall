@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -143,6 +143,67 @@ test('MCP structural tools reuse a persistent index without mutating it', () => 
   assert.equal(payload(3).data.source.kind, 'persistent-index');
   assert(payload(3).data.results.some((item) => item.label === 'persistedEntry'));
   assert.equal(statSync(indexPath).mtimeMs, before);
+});
+
+test('explicit native-preview MCP reads the prebuilt SQLite index without rebuilding or mutating it', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-native-index-'));
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  mkdirSync(path.join(root, '.local'), { recursive: true });
+  writeFileSync(path.join(root, 'src', 'index.ts'), [
+    'export function main(){ return helper(); }',
+    'export function helper(){ return 1; }'
+  ].join('\n'));
+  writeFileSync(path.join(root, 'src', 'worker.py'), 'def worker():\n    return 1\n');
+  const memoryPath = path.join(root, '.local', 'memory.sqlite');
+  writeFileSync(memoryPath, 'governed-memory-sentinel');
+  const env = {
+    ...process.env,
+    MEMORY_RECALL_NATIVE_BINARY: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    OAF_FIXED_NOW: '2026-07-16T08:00:00.000Z'
+  };
+  const built = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'graph', 'index', '--write', '--engine', 'native-preview',
+    '--languages', 'typescript,python', '--root', root, '--format', 'json'
+  ], { encoding: 'utf8', env });
+  assert.equal(built.status, 0, built.stderr);
+  const indexPath = path.join(root, '.local', 'source-index', 'index.v1.sqlite');
+  const indexBefore = readFileSync(indexPath);
+  const indexMtimeBefore = statSync(indexPath).mtimeMs;
+  const memoryBefore = readFileSync(memoryPath);
+  const requests = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 20 } } },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'repo.index_status', arguments: {} } },
+    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 10 } } },
+    { jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', limit: 10 } } },
+    { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'code.trace', arguments: { symbol: 'main', direction: 'outbound', depth: 2, limit: 10 } } },
+    { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'code.dependencies', arguments: { query: 'src/index.ts', direction: 'outbound', depth: 2, limit: 10 } } },
+    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'code.routes', arguments: { limit: 10 } } },
+    { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'repo.map', arguments: { query: 'main', changed: ['src/index.ts'], limit: 10 } } },
+    { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['src/index.ts'], depth: 2, limit: 10 } } }
+  ];
+  const result = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
+  ], { encoding: 'utf8', env, input: requests.map((request) => JSON.stringify(request)).join('\n') });
+  assert.equal(result.status, 0, result.stderr);
+  const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
+  assert.deepEqual(responses.find((entry) => entry.id === 2).result.tools.map((tool) => tool.name).sort(), EXPECTED_TOOLS);
+  for (let id = 3; id <= 11; id += 1) {
+    const response = responses.find((entry) => entry.id === id);
+    assert.equal(response.error, undefined, JSON.stringify(response.error));
+    const payload = JSON.parse(response.result.content[0].text);
+    assert.equal(payload.safeguards.readOnly, true);
+    assert.equal(payload.safeguards.localFilesWritten, 0);
+    assert.equal(payload.safeguards.rawSourceBodiesIncluded, false);
+    const source = payload.data.source ?? payload.data.sourceIndex?.source;
+    assert.equal(source.kind, 'native-persistent-index-preview');
+  }
+  assert(JSON.parse(responses.find((entry) => entry.id === 5).result.content[0].text).data.results.some((item) => item.label === 'main'));
+  assert.deepEqual(readFileSync(indexPath), indexBefore);
+  assert.equal(statSync(indexPath).mtimeMs, indexMtimeBefore);
+  assert.deepEqual(readFileSync(memoryPath), memoryBefore);
+  assert.equal(result.stdout.includes(root), false);
 });
 
 test('MCP keeps the JS compatibility engine and never starts native preview implicitly', () => {

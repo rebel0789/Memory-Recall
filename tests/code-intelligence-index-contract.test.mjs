@@ -16,6 +16,7 @@ test('source index lifecycle request and response contracts are closed and bound
   const requests = await Promise.all([
     'build',
     'refresh',
+    'repair',
     'status',
     'doctor',
     'query'
@@ -28,6 +29,7 @@ test('source index lifecycle request and response contracts are closed and bound
   assert.deepEqual(CODE_INTELLIGENCE_INDEX_OPERATIONS, [
     'index.build',
     'index.refresh',
+    'index.repair',
     'index.status',
     'index.doctor',
     'index.query'
@@ -35,6 +37,7 @@ test('source index lifecycle request and response contracts are closed and bound
   assert.deepEqual(CODE_INTELLIGENCE_INDEX_QUERY_KINDS, [
     'summary',
     'exact',
+    'search',
     'neighborhood',
     'dependencies',
     'trace',

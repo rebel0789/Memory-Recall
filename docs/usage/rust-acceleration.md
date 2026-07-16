@@ -19,6 +19,8 @@ Use this wording publicly:
 - MCP and benchmark entrypoints for Rust quality gates.
 - a versioned JSON Lines code-intelligence engine used by explicit Node graph
   previews.
+- an isolated SQLite source index with generation commits, incremental refresh,
+  bounded queries, diagnosis, and confirm-gated repair.
 
 ## What Node.js Does
 
@@ -59,9 +61,36 @@ MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
 
 Use `--engine compatibility` to receive the native graph plus bounded
 file/symbol/import/call/route comparisons against the existing JS/TS graph.
-Both modes are read-only. A missing or invalid binary fails clearly; there is no
-silent fallback. Commands without `--engine` and all MCP graph tools continue
-to use the JS engine.
+Both graph-read modes are read-only. A missing or invalid binary fails clearly;
+there is no silent fallback. Commands without `--engine` continue to use the JS
+engine.
+
+## Build and query the native preview index
+
+Writer operations stay explicit:
+
+```bash
+MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
+  npm run recall -- graph index --write --engine native-preview --root . --format summary
+
+MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
+  npm run recall -- graph index --query main --kind exact --engine native-preview --root . --format json
+
+MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
+  npm run recall -- graph index --doctor --engine native-preview --root . --format summary
+```
+
+If doctor returns a repair plan, review it and pass its fingerprint to
+`--repair --confirm <fingerprint>`. Native MCP is also opt-in and reads only a
+prebuilt index:
+
+```bash
+MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
+  npm run recall -- mcp server --read-only --engine native-preview --root . --stdio
+```
+
+The native MCP preview never builds, refreshes, repairs, or writes governed
+memory. Normal MCP startup remains on the JS engine.
 
 ## Verify from a source checkout
 

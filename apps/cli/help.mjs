@@ -73,6 +73,9 @@ Usage:
   oaf graph index --status --root . --format summary
   oaf graph index --write --root . --format json
   oaf graph index --refresh --watch --root . --format summary
+  oaf graph index --write --engine native-preview --root . --format summary
+  oaf graph index --query main --engine native-preview --root . --format json
+  oaf graph index --doctor --engine native-preview --root . --format summary
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --root . --plan loop-plan.json --execute-commands --format json
   oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
@@ -123,6 +126,7 @@ Usage:
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf mcp server --read-only --root . --stdio
+  oaf mcp server --read-only --engine native-preview --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp install --client claude-code --dry-run --format json
   oaf harness setup status --client codex --dry-run --format json
@@ -249,6 +253,11 @@ Usage:
   oaf graph index --write --root . --format json
   oaf graph index --refresh --root . --format json
   oaf graph index --refresh --watch --root . --format summary
+  oaf graph index --write --engine native-preview --root . --format summary
+  oaf graph index --refresh --engine native-preview --root . --format summary
+  oaf graph index --query main --kind exact --engine native-preview --root . --format json
+  oaf graph index --doctor --engine native-preview --root . --format summary
+  oaf graph index --repair --confirm <repairPlanFingerprint> --engine native-preview --root . --format summary
 
 Options for read commands:
   --engine <js|native-preview|compatibility>  Keep JS as the default, run strict native preview, or measure both.
@@ -257,9 +266,10 @@ Graph read commands return bounded locator-only stats, search, trace, or
 changed-file impact reports. The JS/TS engine remains the default. Native
 preview is explicit and fails clearly when its verified binary is unavailable;
 compatibility mode runs both engines and does not claim parity. Index writes are explicit.
-The index stores structural metadata under .local/source-graph by default and
-never stores raw source bodies. MCP reads the index but never builds or refreshes it.
-raw source bodies are not included. No graph command makes model or network calls.`],
+The default JS index stores structural metadata under .local/source-graph. The
+explicit native preview stores its versioned SQLite index under .local/source-index and
+  raw source bodies are not included. MCP reads the index but never builds or refreshes it.
+No graph command makes model or network calls.`],
     ['context handoff', `Memory Recall CLI: context handoff
 
 Usage:
@@ -384,6 +394,7 @@ Usage:
   oaf mcp resources --read-only --memory-refine --uri oaf://workspace/ws_local/memory/refine --format summary
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp server --read-only --root . --stdio
+  oaf mcp server --read-only --engine native-preview --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp install --client claude-code --dry-run --format json
@@ -392,7 +403,8 @@ MCP commands inspect or expose local read-only resources, run the stdio bridge,
 preview install plans, or report delivery stats. Resource summaries require
 --uri and do not dump full resource bodies. Resource/server paths require
 --read-only; install remains dry-run unless explicitly confirmed by the install
-flow.`],
+flow. The MCP server keeps the JS engine by default. Native preview reads only a
+prebuilt .local/source-index database and never builds or refreshes it.`],
     ['memory refine', `Memory Recall CLI: memory refine
 
 Usage:

@@ -36,12 +36,14 @@ rows, and full claims without both evidence classes.
 ## Current boundary
 
 The production-facing Node.js path remains bounded JavaScript and TypeScript
-static analysis. Phase 1 adds an explicit `native-preview` engine to graph CLI
-reads. It requires a locally built Rust binary supplied through
-`MEMORY_RECALL_NATIVE_BINARY`; npm does not ship that binary. MCP tools, the web
-workbench, and graph commands without `--engine` continue to use the Node path.
-Other languages remain experimental or specified and are not public graph
-support.
+static analysis. The explicit `native-preview` engine supports graph reads and
+the isolated source-index lifecycle. It requires a locally built Rust binary
+supplied through `MEMORY_RECALL_NATIVE_BINARY`; npm does not ship that binary.
+Graph commands without `--engine`, the web workbench, and normal MCP startup
+continue to use the Node path. An MCP server started with both `--read-only` and
+`--engine native-preview` may query a prebuilt SQLite index; it never builds,
+refreshes, or repairs one. Other languages remain experimental and are not
+promoted as public graph support.
 
 This boundary changes only when implementation, fixtures, pinned repository
 results, package verification, and public documentation land together.
@@ -97,6 +99,20 @@ node scripts/code-intelligence-phase2-tier1.mjs --check
 Phase 2 does not bundle a native binary, change the JS public default, move MCP
 or web to Rust, prove multi-repository or million-node behavior, compare a
 competitor, or justify parity or leadership language.
+
+## Phase 3 source-index evidence
+
+The native preview stores derived structure in
+`.local/source-index/index.v1.sqlite`. Builds and refreshes are explicit writer
+operations. Status, doctor, bounded queries, and the explicit MCP preview are
+read-only. Repair requires the fingerprint returned by doctor. Immediate no-op
+refresh is covered across reviewed fixtures for all fourteen Tier 1 languages:
+it parses and writes zero files, preserves the active generation, and leaves the
+database bytes and modification time unchanged.
+
+This evidence proves the local lifecycle and language integration boundary. It
+does not prove full language support, packaged native distribution,
+multi-repository indexing, million-node scale, or competitor parity.
 
 ## Phase 1 evidence
 

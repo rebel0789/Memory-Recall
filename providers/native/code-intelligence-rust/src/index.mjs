@@ -8,11 +8,19 @@ import { assertJsonSchema } from '../../../../packages/protocol/src/schema-valid
 import requestSchema from '../../../../packages/protocol/schemas/code-intelligence-engine-request.schema.json' with { type: 'json' };
 import responseSchema from '../../../../packages/protocol/schemas/code-intelligence-engine-response.schema.json' with { type: 'json' };
 import graphSchema from '../../../../packages/protocol/schemas/code-intelligence-graph.schema.json' with { type: 'json' };
+import indexRequestSchema from '../../../../packages/protocol/schemas/code-intelligence-index-request.schema.json' with { type: 'json' };
+import indexResponseSchema from '../../../../packages/protocol/schemas/code-intelligence-index-response.schema.json' with { type: 'json' };
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 const DEFAULT_BINARY = path.join(PACKAGE_ROOT, 'rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
 const CAPABILITIES = Object.freeze([
   'code-intelligence.graph.build',
+  'code-intelligence.index.build',
+  'code-intelligence.index.refresh',
+  'code-intelligence.index.repair',
+  'code-intelligence.index.status',
+  'code-intelligence.index.doctor',
+  'code-intelligence.index.query',
   'code-intelligence.local-read-only',
   'code-intelligence.native-preview'
 ]);
@@ -94,6 +102,7 @@ export class RustCodeIntelligenceProvider {
       binary,
       workspace,
       request,
+      commandArgs: ['code-intelligence', 'serve', '--stdio'],
       timeoutMs: this.timeoutMs,
       maxStdoutBytes: this.maxStdoutBytes,
       maxStderrBytes: this.maxStderrBytes,
@@ -127,6 +136,89 @@ export class RustCodeIntelligenceProvider {
     return deepFreeze(frame.result.graph);
   }
 
+  async buildIndex(options = {}) {
+    return this.#indexOperation('index.build', options, writerArguments(options));
+  }
+
+  async refreshIndex(options = {}) {
+    return this.#indexOperation('index.refresh', options, writerArguments(options));
+  }
+
+  async repairIndex(options = {}) {
+    const confirmRepairPlan = options.confirmRepairPlan;
+    return this.#indexOperation('index.repair', options, {
+      ...writerArguments(options),
+      confirmRepairPlan
+    });
+  }
+
+  async indexStatus(options = {}) {
+    return this.#indexOperation('index.status', options, {});
+  }
+
+  async doctorIndex(options = {}) {
+    return this.#indexOperation('index.doctor', options, {});
+  }
+
+  async queryIndex(options = {}) {
+    const { kind, query, locator, direction, depth, limit = 25, cursor } = options;
+    return this.#indexOperation('index.query', options, {
+      kind,
+      limit,
+      ...(query === undefined ? {} : { query }),
+      ...(locator === undefined ? {} : { locator }),
+      ...(direction === undefined ? {} : { direction }),
+      ...(depth === undefined ? {} : { depth }),
+      ...(cursor === undefined ? {} : { cursor })
+    });
+  }
+
+  async #indexOperation(operation, options, argumentsValue) {
+    const workspace = await resolveWorkspace(options.root);
+    const binary = await this.#resolveBinary();
+    const requestId = `ciidxreq_${randomBytes(16).toString('hex')}`;
+    const request = {
+      protocolVersion: '1.0.0',
+      requestId,
+      workspaceId: options.workspaceId ?? 'ws_local',
+      operation,
+      root: '.',
+      indexLocator: 'workspace://.local/source-index/index.v1.sqlite',
+      deadlineMs: this.timeoutMs,
+      cancellationToken: `cancel_${randomBytes(16).toString('hex')}`,
+      responseSchemaVersion: '1.0.0',
+      arguments: argumentsValue
+    };
+    try {
+      assertJsonSchema(indexRequestSchema, request, 'native source index request');
+    } catch {
+      throw new NativeCodeIntelligenceError('native_index_request_invalid');
+    }
+    if (options.signal?.aborted) throw new NativeCodeIntelligenceError('native_engine_cancelled');
+    const stdout = await runNativeProcess({
+      binary,
+      workspace,
+      request,
+      commandArgs: ['code-intelligence', 'index', '--stdio'],
+      timeoutMs: this.timeoutMs,
+      maxStdoutBytes: this.maxStdoutBytes,
+      maxStderrBytes: this.maxStderrBytes,
+      signal: options.signal
+    });
+    const frame = parseFrame(stdout, indexResponseSchema, requestId, 'native_index_response_invalid');
+    if (!frame.ok) {
+      throw new NativeCodeIntelligenceError(frame.error.code, {
+        retryable: frame.error.retryable,
+        details: frame.error.details
+      });
+    }
+    const serialized = JSON.stringify(frame.result);
+    if (serialized.includes(workspace) || PRIVATE_PATH.test(serialized)) {
+      throw new NativeCodeIntelligenceError('native_index_response_unsafe');
+    }
+    return deepFreeze(frame.result);
+  }
+
   async #resolveBinary() {
     try {
       const resolved = await realpath(this.binaryPath);
@@ -153,13 +245,13 @@ async function resolveWorkspace(root) {
   }
 }
 
-function runNativeProcess({ binary, workspace, request, timeoutMs, maxStdoutBytes, maxStderrBytes, signal }) {
+function runNativeProcess({ binary, workspace, request, commandArgs, timeoutMs, maxStdoutBytes, maxStderrBytes, signal }) {
   return new Promise((resolve, reject) => {
     let settled = false;
     let stdoutBytes = 0;
     let stderrBytes = 0;
     const stdout = [];
-    const child = spawn(binary, ['code-intelligence', 'serve', '--stdio'], {
+    const child = spawn(binary, commandArgs, {
       cwd: workspace,
       env: Object.freeze({
         PATH: process.env.PATH ?? '',
@@ -213,6 +305,37 @@ function runNativeProcess({ binary, workspace, request, timeoutMs, maxStdoutByte
     child.stdin.once('error', () => fail(new NativeCodeIntelligenceError('native_engine_process_failed')));
     child.stdin.end(`${JSON.stringify(request)}\n`);
   });
+}
+
+function writerArguments({
+  maxFiles = 1000,
+  maxFileBytes = 512 * 1024,
+  maxNodes = 5000,
+  maxEdges = 10000,
+  languages
+} = {}) {
+  return {
+    write: true,
+    maxFiles,
+    maxFileBytes,
+    maxNodes,
+    maxEdges,
+    ...(languages === undefined ? {} : { languages })
+  };
+}
+
+function parseFrame(stdout, schema, requestId, invalidCode) {
+  const lines = stdout.trim().split(/\r?\n/u).filter(Boolean);
+  if (lines.length !== 1) throw new NativeCodeIntelligenceError(invalidCode);
+  let frame;
+  try {
+    frame = JSON.parse(lines[0]);
+    assertJsonSchema(schema, frame, 'native process response');
+  } catch {
+    throw new NativeCodeIntelligenceError(invalidCode);
+  }
+  if (frame.requestId !== requestId) throw new NativeCodeIntelligenceError('native_engine_response_mismatch');
+  return frame;
 }
 
 function boundedInteger(value, minimum, maximum, code) {

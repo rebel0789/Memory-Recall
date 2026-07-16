@@ -227,9 +227,11 @@ claim parity or leadership and do not change the public JavaScript engine.
 
 `code-intelligence-index-request.schema.json` and
 `code-intelligence-index-response.schema.json` define the Phase 3 SQLite source
-index boundary. Lifecycle operations are closed to build, refresh, status,
-doctor, and bounded query. Build and refresh carry explicit writer intent;
-status, doctor, and query cannot carry write or repair authority. The index
+index boundary. Lifecycle operations are closed to build, refresh, explicit
+repair, status, doctor, and bounded query. Build and refresh carry explicit
+writer intent. Repair additionally requires the exact fingerprint emitted by a
+prior read-only doctor report. Status, doctor, and query cannot carry write or
+repair authority. The index
 locator is the fixed workspace-relative
 `workspace://.local/source-index/index.v1.sqlite` value, never a local path.
 

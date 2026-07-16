@@ -5,6 +5,7 @@
   "oneOf": [
     { "$ref": "#/$defs/build" },
     { "$ref": "#/$defs/refresh" },
+    { "$ref": "#/$defs/repair" },
     { "$ref": "#/$defs/status" },
     { "$ref": "#/$defs/doctor" },
     { "$ref": "#/$defs/query" }
@@ -45,12 +46,32 @@
       "additionalProperties": false,
       "maxProperties": 0
     },
+    "repairArguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["write", "confirmRepairPlan", "maxFiles", "maxFileBytes", "maxNodes", "maxEdges"],
+      "properties": {
+        "write": { "const": true },
+        "confirmRepairPlan": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "maxFiles": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "maxFileBytes": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+        "maxNodes": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "maxEdges": { "type": "integer", "minimum": 1, "maximum": 5000000 },
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 22,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/language" }
+        }
+      }
+    },
     "queryArguments": {
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "limit"],
       "properties": {
-        "kind": { "enum": ["summary", "exact", "neighborhood", "dependencies", "trace", "impact", "routes"] },
+        "kind": { "enum": ["summary", "exact", "search", "neighborhood", "dependencies", "trace", "impact", "routes"] },
         "query": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Za-z0-9_.$:/#@ -]+$" },
         "locator": { "type": "string", "pattern": "^workspace://[A-Za-z0-9._/@+-]+(?:/[A-Za-z0-9._@+-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$", "maxLength": 512 },
         "direction": { "enum": ["inbound", "outbound", "both"] },
@@ -91,6 +112,23 @@
         "cancellationToken": { "$ref": "#/$defs/cancellationToken" },
         "responseSchemaVersion": { "const": "1.0.0" },
         "arguments": { "$ref": "#/$defs/writerArguments" }
+      }
+    },
+    "repair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "indexLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "index.repair" },
+        "root": { "const": "." },
+        "indexLocator": { "$ref": "#/$defs/indexLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 300000 },
+        "cancellationToken": { "$ref": "#/$defs/cancellationToken" },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/repairArguments" }
       }
     },
     "status": {

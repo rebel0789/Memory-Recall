@@ -18,12 +18,19 @@ test('candidate source port uses descriptor health query shape', () => {
   }, CandidateSourcePort));
 });
 
-test('code intelligence port keeps native process details behind one graph method', () => {
+test('code intelligence port keeps native process details behind bounded graph and index methods', () => {
   assert.deepEqual(CodeIntelligencePort.requiredMethods, ['health', 'capabilities', 'buildGraph']);
+  assert.deepEqual(CodeIntelligencePort.optionalMethods, ['buildIndex', 'refreshIndex', 'repairIndex', 'indexStatus', 'doctorIndex', 'queryIndex']);
   assert.doesNotThrow(() => assertPortImplementation({
     health() {},
     capabilities() {},
-    buildGraph() {}
+    buildGraph() {},
+    buildIndex() {},
+    refreshIndex() {},
+    repairIndex() {},
+    indexStatus() {},
+    doctorIndex() {},
+    queryIndex() {}
   }, CodeIntelligencePort));
 });
 

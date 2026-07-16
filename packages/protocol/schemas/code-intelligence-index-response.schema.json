@@ -33,7 +33,10 @@
         "status": { "enum": ["absent", "ready", "stale", "partial", "migration-required", "interrupted", "corrupt", "wrong-repository", "unsupported-schema"] },
         "reasonCodes": { "type": "array", "maxItems": 16, "uniqueItems": true, "items": { "$ref": "#/$defs/safeCode" } },
         "lastSuccessfulRefreshAt": { "$ref": "#/$defs/timestamp" },
-        "repairRequired": { "type": "boolean" }
+        "repairRequired": { "type": "boolean" },
+        "lastValidGenerationReadable": { "type": "boolean" },
+        "repairPlanFingerprint": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+        "repairBackupFileName": { "type": ["string", "null"], "pattern": "^\\.memory-recall-source-index-[a-f0-9]{16}\\.bak$" }
       }
     },
     "measurements": {
@@ -83,7 +86,7 @@
         "modelCalls": { "const": 0 },
         "rawSourceBodiesIncluded": { "const": false },
         "absolutePathsIncluded": { "const": false },
-        "repairPerformed": { "const": false }
+        "repairPerformed": { "type": "boolean" }
       }
     },
     "readerSafeguards": {
@@ -115,7 +118,7 @@
           "required": ["responseSchemaVersion", "operation", "repositoryIdentityHash", "indexLocator", "storageSchemaVersion", "engineVersion", "state", "activeGeneration", "freshness", "health", "summary", "measurements", "results", "nextCursor", "diagnostics", "safeguards"],
           "properties": {
             "responseSchemaVersion": { "const": "1.0.0" },
-            "operation": { "enum": ["index.build", "index.refresh"] },
+            "operation": { "enum": ["index.build", "index.refresh", "index.repair"] },
             "repositoryIdentityHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
             "indexLocator": { "const": "workspace://.local/source-index/index.v1.sqlite" },
             "storageSchemaVersion": { "const": "1" },

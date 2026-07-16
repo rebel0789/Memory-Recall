@@ -181,6 +181,10 @@ cross-product benchmark leaderboard.
 - Read-only `recall mcp server` exposing twelve local tools for governed memory,
   compact context, repository maps, architecture, code search, symbol context,
   call traces, dependencies, routes, changed-file impact, and index status.
+- Explicit `--engine native-preview` source-index lifecycle with a local SQLite
+  generation store, incremental refresh, doctor/confirm-gated repair, bounded
+  queries, and read-only MCP access to a prebuilt index. It requires a locally
+  built Rust binary and never changes the JS public default.
 - Explicit persistent JS/TS source index with atomic writes, per-file structural
   shards, incremental refresh, stale detection, and watch mode. MCP can read a
   current index but never creates or refreshes one.
@@ -242,6 +246,10 @@ recall graph trace --root . --symbol runAuthWorkflow --format summary
 recall graph index --status --root . --format summary
 recall graph index --write --root . --format json
 recall graph index --refresh --watch --root . --format summary
+recall graph index --write --engine native-preview --root . --format summary
+recall graph index --query main --kind exact --engine native-preview --root . --format json
+recall graph index --doctor --engine native-preview --root . --format summary
+recall mcp server --read-only --engine native-preview --root . --stdio
 recall context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --format summary
 recall handoff
 ```

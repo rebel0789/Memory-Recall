@@ -5,10 +5,11 @@
 ### Added
 
 - Approved the Rust/Node production-engine boundary, added provider-neutral graph and language-evidence contracts, pinned a 42-repository Tier 1 benchmark corpus, and recorded a clean Phase 0 baseline. The baseline makes no competitor-parity claim.
-- Added explicit `native-preview` and `compatibility` modes to graph read commands through a versioned, bounded Rust provider. The JS engine remains the default, and MCP remains on that default.
+- Added explicit `native-preview` and `compatibility` modes to graph read commands through a versioned, bounded Rust provider. The JS engine remains the default; MCP uses it unless the server is started with the explicit read-only native preview.
 - Added isolated packed-package proof and a reproducible Phase 1 compatibility receipt across JS/TS fixtures and two exact-commit repositories. The receipt records current import and call gaps and makes no accuracy, parity, or leadership claim.
 - Added PHP and Ruby native-preview structure, namespaces, traits and mixins, typed calls, imports, and framework-route evidence, completing the five planned Tier 1 language batches.
 - Added a deterministic Phase 2 aggregate over 14 fixtures and all 42 pinned Tier 1 repositories, with per-capability worst-case status, response bytes, resource measurements, and explicit node and edge budget diagnostics.
+- Added an isolated SQLite native source index with generation commits, incremental refresh, bounded queries, doctor/confirm-gated repair, and a no-write MCP preview. A reviewed integration fixture proves build, query, and exact no-op refresh behavior for all 14 Tier 1 languages.
 
 ### Fixed
 
