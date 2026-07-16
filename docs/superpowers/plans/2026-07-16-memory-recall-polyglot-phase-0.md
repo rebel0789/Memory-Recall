@@ -373,10 +373,13 @@ rust: dtolnay/itoa, tokio-rs/axum, serde-rs/json
 php: laravel/framework, symfony/symfony, slimphp/Slim
 ruby: rails/rails, sinatra/sinatra, ruby/rake
 swift: vapor/vapor, Alamofire/Alamofire, apple/swift-nio
-c: antirez/kilo, redis/redis, curl/curl
+c: antirez/kilo, libuv/libuv, curl/curl
 cpp: fmtlib/fmt, catchorg/Catch2, nlohmann/json
 dart: dart-lang/http, dart-lang/shelf, flutter/samples
 ```
+
+The C corpus uses libuv instead of Redis so all three benchmark inputs have
+straightforward permissive licenses for benchmark use and derived metadata.
 
 Each candidate includes repository ID, HTTPS Git URL, primary language, size class, role, SPDX license expression, and an authoritative license URL. Candidate entries contain no commit field.
 

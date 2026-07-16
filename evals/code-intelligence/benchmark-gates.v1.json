@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "gateVersion": "memory-recall-code-intelligence-gates-1",
+  "languageFull": {
+    "symbolRecallMinimum": 0.95,
+    "resolvedCallPrecisionMinimum": 0.9,
+    "duplicateCanonicalSymbolMaximum": 0,
+    "deterministicStructuralFingerprintRequired": true,
+    "malformedFileRepositoryFailureMaximum": 0,
+    "explicitPartialAndUnsupportedDiagnosticsRequired": true,
+    "realRepositoryGatesRequired": true
+  },
+  "claims": {
+    "parityRequiresAllTier1Languages": true,
+    "leadershipRequiresRelevantCompetitorWin": true,
+    "parserAvailabilityIsProductSupport": false,
+    "fixtureOnlyEvidenceMayMeetFloor": false
+  }
+}
