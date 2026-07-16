@@ -74,6 +74,12 @@
       "purpose": "Dependency-free JS/TS source graph locator candidate source"
     },
     {
+      "id": "provider:native:code-intelligence:rust",
+      "path": "providers/native/code-intelligence-rust",
+      "enabledByDefault": false,
+      "purpose": "Preview-only bounded Rust code-intelligence graph provider"
+    },
+    {
       "id": "provider:native:context-manifest:local",
       "path": "providers/native/context-manifest-local",
       "enabledByDefault": true,

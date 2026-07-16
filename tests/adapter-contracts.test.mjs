@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CandidateSourcePort, ContractViolation, MemoryBackendPort, ModelGatewayPort, assertCanonicalEnvelope, assertPortImplementation, createProviderEnvelope, normalizeCapabilities, normalizeHealthResult } from '../packages/adapter-contracts/src/index.mjs';
+import { CandidateSourcePort, CodeIntelligencePort, ContractViolation, MemoryBackendPort, ModelGatewayPort, assertCanonicalEnvelope, assertPortImplementation, createProviderEnvelope, normalizeCapabilities, normalizeHealthResult } from '../packages/adapter-contracts/src/index.mjs';
 
 test('port implementation check reports exact missing methods', () => {
   assert.throws(
@@ -16,6 +16,15 @@ test('candidate source port uses descriptor health query shape', () => {
     health() {},
     query() {}
   }, CandidateSourcePort));
+});
+
+test('code intelligence port keeps native process details behind one graph method', () => {
+  assert.deepEqual(CodeIntelligencePort.requiredMethods, ['health', 'capabilities', 'buildGraph']);
+  assert.doesNotThrow(() => assertPortImplementation({
+    health() {},
+    capabilities() {},
+    buildGraph() {}
+  }, CodeIntelligencePort));
 });
 
 test('model gateway port exposes provider profile before generation', () => {

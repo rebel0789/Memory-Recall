@@ -83,19 +83,19 @@ Commit: `feat: add bounded rust code intelligence engine`
 - Modify: `packages/protocol/src/index.mjs` as needed for shared validation exports
 - Create: `tests/native-code-intelligence-provider.test.mjs`
 
-- [ ] **Step 1: Add failing provider-boundary tests**
+- [x] **Step 1: Add failing provider-boundary tests**
 
 Cover binary discovery, explicit override, request/response validation, workspace containment, timeout, abort signal, stdin closure, stdout/stderr byte caps, nonzero exit, malformed frames, duplicate terminal frames, request-ID mismatch, schema-invalid graph, missing binary, and child cleanup.
 
-- [ ] **Step 2: Implement the dependency-free subprocess wrapper**
+- [x] **Step 2: Implement the dependency-free subprocess wrapper**
 
 Spawn one request per child for Phase 1. Set the child working directory to the verified workspace, pass only an allowlisted environment, close stdin after one JSON Line, validate the terminal frame and graph, terminate on timeout/cancel/overflow, and expose stable provider-neutral errors.
 
-- [ ] **Step 3: Register the provider without changing defaults**
+- [x] **Step 3: Register the provider without changing defaults**
 
 Document it as local, read-only, preview-only, no-network, no-model, no-write, and dependent on a verified native binary. Do not silently compile Rust or silently choose a weaker engine when `native-preview` is explicitly requested.
 
-- [ ] **Step 4: Verify and commit the provider**
+- [x] **Step 4: Verify and commit the provider**
 
 Run: `node --test tests/native-code-intelligence-provider.test.mjs tests/adapter-contracts.test.mjs tests/protocol-schema-validator.test.mjs && git diff --check`
 

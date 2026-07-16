@@ -206,6 +206,15 @@ export class RepositoryGraphPort {
   async export() { return notImplemented(RepositoryGraphPort.contract, 'export'); }
 }
 
+export class CodeIntelligencePort {
+  static contract = 'CodeIntelligencePort';
+  static version = '1.0.0';
+  static requiredMethods = ['health', 'capabilities', 'buildGraph'];
+  async health() { return notImplemented(CodeIntelligencePort.contract, 'health'); }
+  async capabilities() { return notImplemented(CodeIntelligencePort.contract, 'capabilities'); }
+  async buildGraph() { return notImplemented(CodeIntelligencePort.contract, 'buildGraph'); }
+}
+
 export class ResearchSourcePort {
   static contract = 'ResearchSourcePort';
   static requiredMethods = ['health', 'capabilities', 'collect'];
