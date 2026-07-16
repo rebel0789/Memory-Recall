@@ -139,15 +139,15 @@ Commit: `feat: bridge native intelligence to source graph`
 - Modify: `tests/mcp-code-intelligence.test.mjs`
 - Create or modify focused CLI tests for engine selection
 
-- [ ] **Step 1: Add failing CLI and MCP tests**
+- [x] **Step 1: Add failing CLI and MCP tests**
 
 Require `--engine js|native-preview|compatibility` on graph read commands with `js` as default. Prove explicit native preview works with a local verified binary, missing native binary fails clearly, invalid engine values return exit code 2, and MCP reads never build an index or mutate workspace state.
 
-- [ ] **Step 2: Wire the preview through the provider port**
+- [x] **Step 2: Wire the preview through the provider port**
 
 Pass engine selection only to read-only graph preview/intelligence calls. Surface engine, compatibility status, coverage, and safe diagnostics in JSON. Keep summary output short and do not claim parity from one fixture.
 
-- [ ] **Step 3: Verify and commit the preview**
+- [x] **Step 3: Verify and commit the preview**
 
 Run: `node --test tests/cli-graph-index.test.mjs tests/mcp-code-intelligence.test.mjs tests/cli.test.mjs && git diff --check`
 

@@ -66,6 +66,7 @@ export async function buildSourceGraphPreview({
   sampleLimit = 12,
   maxFiles = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   maxFileBytes = DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+  sourceGraph = null,
   snapshotService = null,
   refresh = false,
   clock = () => new Date().toISOString()
@@ -89,7 +90,18 @@ export async function buildSourceGraphPreview({
   let publicGraph;
   let snapshot;
   try {
-    snapshot = snapshotService
+    snapshot = sourceGraph
+      ? {
+          graph: sourceGraph,
+          status: 'fresh',
+          reuse: 'cold',
+          reason: null,
+          generation: 0,
+          validationMode: 'none',
+          buildDurationMs: null,
+          builtAt: sourceGraph.builtAt
+        }
+      : snapshotService
       ? await snapshotService.getSnapshot({
           root,
           workspaceId: safeWorkspaceId,

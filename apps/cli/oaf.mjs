@@ -3272,7 +3272,28 @@ async function graphPreviewBackedCommand(values, {
   }
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const engine = option(values, '--engine') ?? 'js';
+  if (!['js', 'native-preview', 'compatibility'].includes(engine)) {
+    console.error('graph --engine must be js, native-preview, or compatibility');
+    process.exitCode = 2;
+    return;
+  }
   try {
+    const maxFiles = strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES);
+    const maxFileBytes = strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES);
+    let intelligence = null;
+    if (engine !== 'js') {
+      const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
+      intelligence = await buildSourceGraphIntelligence({
+        root,
+        workspaceId,
+        maxFiles,
+        maxFileBytes,
+        engine,
+        codeIntelligenceProvider: new RustCodeIntelligenceProvider(),
+        clock: fixedNow
+      });
+    }
     const preview = await buildSourceGraphPreview({
       root,
       workspaceId,
@@ -3288,8 +3309,9 @@ async function graphPreviewBackedCommand(values, {
       offset: strictIntegerOption(values, '--offset', 0),
       depth: strictIntegerOption(values, '--depth', 2),
       sampleLimit: strictIntegerOption(values, '--sample-limit', 3),
-      maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
-      maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
+      maxFiles,
+      maxFileBytes,
+      sourceGraph: intelligence?.graph ?? null,
       clock: fixedNow
     });
     const baseReport = {
@@ -3297,6 +3319,13 @@ async function graphPreviewBackedCommand(values, {
       command: commandName,
       generatedAt: preview.generatedAt,
       workspaceId: preview.workspaceId,
+      engine: {
+        selection: engine,
+        implementation: engine === 'js' ? 'javascript-typescript-compatibility' : 'memory-recall-native',
+        previewOnly: engine !== 'js',
+        publicDefaultChanged: false
+      },
+      ...(intelligence?.compatibility ? { compatibility: intelligence.compatibility } : {}),
       graph: compactGraphCommandGraph(preview.graph),
       ...pick(preview),
       safeguards: preview.safeguards
@@ -3347,6 +3376,7 @@ function renderGraphStatsSummary(report) {
   const entryPoints = summary.entryPoints ?? [];
   return [
     '# Graph Stats',
+    `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
     `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
@@ -3376,6 +3406,7 @@ function renderGraphSearchSummary(report) {
   const results = report.search?.results ?? [];
   return [
     '# Graph Search',
+    `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
     `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
@@ -3423,6 +3454,7 @@ function renderGraphTraceSummary(report) {
   const paths = report.trace?.paths ?? [];
   return [
     '# Graph Trace',
+    `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
     `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,
@@ -3450,6 +3482,7 @@ function renderGraphImpactSummary(report) {
   const edgeKindSummary = Object.entries(impact.impactedEdgeKindCounts ?? {}).sort((a, b) => a[0].localeCompare(b[0])).map(([kind, count]) => `${kind} ${count}`).join(', ') || 'none';
   return [
     '# Graph Impact',
+    `Engine: ${report.engine?.selection ?? 'js'}`,
     `Files: ${summary.fileCount ?? 0}`,
     `Symbols: ${summary.symbolCount ?? 0}`,
     `Qualified symbols: ${summary.qualifiedSymbolCount ?? 0}`,

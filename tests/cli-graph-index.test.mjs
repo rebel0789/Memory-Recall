@@ -6,6 +6,58 @@ import os from 'node:os';
 import path from 'node:path';
 
 const cli = path.resolve('apps/cli/oaf.mjs');
+const rustBinary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+
+test('graph read commands expose strict native preview and compatibility modes', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-native-preview-'));
+  mkdirSync(path.join(root, 'src'), { recursive: true });
+  writeFileSync(path.join(root, 'src', 'index.ts'), 'export function main(){ return helper(); }\nexport function helper(){ return 1; }\n');
+  const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary, OAF_FIXED_NOW: '2026-07-16T00:00:00.000Z' };
+  const run = (engine) => spawnSync(process.execPath, [
+    cli,
+    'graph',
+    'search',
+    '--root', root,
+    '--query', 'main',
+    '--engine', engine,
+    '--format', 'json'
+  ], { encoding: 'utf8', env });
+
+  const native = run('native-preview');
+  assert.equal(native.status, 0, native.stderr);
+  const nativeReport = JSON.parse(native.stdout);
+  assert.equal(nativeReport.engine.selection, 'native-preview');
+  assert.equal(nativeReport.engine.previewOnly, true);
+  assert(nativeReport.search.results.some((item) => item.label === 'main'));
+  assert.equal(JSON.stringify(nativeReport).includes(root), false);
+
+  const compatibility = run('compatibility');
+  assert.equal(compatibility.status, 0, compatibility.stderr);
+  const compatibilityReport = JSON.parse(compatibility.stdout);
+  assert.equal(compatibilityReport.engine.selection, 'compatibility');
+  assert.equal(compatibilityReport.compatibility.parityClaimed, false);
+  assert.deepEqual(compatibilityReport.compatibility.dimensions.map((item) => item.name), ['files', 'symbols', 'imports', 'calls', 'routes']);
+
+  const invalid = run('unknown');
+  assert.equal(invalid.status, 2);
+  assert.match(invalid.stderr, /graph --engine must be js, native-preview, or compatibility/u);
+
+  const missing = spawnSync(process.execPath, [
+    cli, 'graph', 'stats', '--root', root, '--engine', 'native-preview', '--format', 'json'
+  ], { encoding: 'utf8', env: { ...env, MEMORY_RECALL_NATIVE_BINARY: path.join(root, 'missing-native') } });
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /native_engine_unavailable/u);
+});
+
+test('graph read commands keep the JS engine as the public default', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-js-default-'));
+  writeFileSync(path.join(root, 'index.ts'), 'export function currentDefault(){ return true; }\n');
+  const result = spawnSync(process.execPath, [cli, 'graph', 'stats', '--root', root, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.engine.selection, 'js');
+  assert.equal(report.engine.publicDefaultChanged, false);
+});
 
 test('graph index CLI builds, reports, and incrementally refreshes a local persistent index', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-index-'));
@@ -68,6 +120,7 @@ test('graph help documents the explicit persistent index lifecycle', () => {
   assert.match(result.stdout, /graph index --refresh/u);
   assert.match(result.stdout, /--watch/u);
   assert.match(result.stdout, /MCP reads the index but never builds or refreshes it/u);
+  assert.match(result.stdout, /--engine <js\|native-preview\|compatibility>/u);
 });
 
 test('graph index watch refreshes after a source file changes and exits cleanly', async () => {

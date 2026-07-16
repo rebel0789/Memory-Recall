@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -143,4 +143,24 @@ test('MCP structural tools reuse a persistent index without mutating it', () => 
   assert.equal(payload(3).data.source.kind, 'persistent-index');
   assert(payload(3).data.results.some((item) => item.label === 'persistedEntry'));
   assert.equal(statSync(indexPath).mtimeMs, before);
+});
+
+test('MCP keeps the JS compatibility engine and never starts native preview implicitly', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-native-off-'));
+  const marker = path.join(root, 'native-started');
+  const spy = path.join(root, 'native-spy.mjs');
+  writeFileSync(path.join(root, 'index.ts'), 'export function mcpDefault(){ return true; }\n');
+  writeFileSync(spy, `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'started');\n`);
+  chmodSync(spy, 0o755);
+  const input = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'mcpDefault' } } }
+  ].map((message) => JSON.stringify(message)).join('\n');
+  const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], {
+    encoding: 'utf8',
+    input,
+    env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: spy }
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(marker), false);
 });

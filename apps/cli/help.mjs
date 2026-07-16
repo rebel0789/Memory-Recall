@@ -65,6 +65,8 @@ Usage:
   oaf context registry status --read-only --format json
   oaf context graph preview --root . --query "approve token reset" --trace runAuthWorkflow --changed src/auth.ts --changed-from-git --dry-run --format summary
   oaf graph stats --root . --format summary
+  oaf graph stats --root . --engine native-preview --format summary
+  oaf graph search --root . --query "main" --engine compatibility --format json
   oaf graph search --root . --query "route registration hooks" --format summary
   oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
   oaf graph impact --root . --changed src/auth.ts --format summary
@@ -248,8 +250,13 @@ Usage:
   oaf graph index --refresh --root . --format json
   oaf graph index --refresh --watch --root . --format summary
 
-Graph commands build a bounded local JS/TS source graph and return locator-only
-stats, search, trace, or changed-file impact reports. Index writes are explicit.
+Options for read commands:
+  --engine <js|native-preview|compatibility>  Keep JS as the default, run strict native preview, or measure both.
+
+Graph read commands return bounded locator-only stats, search, trace, or
+changed-file impact reports. The JS/TS engine remains the default. Native
+preview is explicit and fails clearly when its verified binary is unavailable;
+compatibility mode runs both engines and does not claim parity. Index writes are explicit.
 The index stores structural metadata under .local/source-graph by default and
 never stores raw source bodies. MCP reads the index but never builds or refreshes it.
 raw source bodies are not included. No graph command makes model or network calls.`],
