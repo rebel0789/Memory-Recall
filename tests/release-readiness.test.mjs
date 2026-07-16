@@ -102,6 +102,9 @@ test('repository manifest generator ignores Cargo target build output directorie
   const manifest = JSON.parse(readFileSync(path.join(root, 'REPOSITORY_MANIFEST.json'), 'utf8'));
   const paths = manifest.files.map((file) => file.path);
   assert.equal(paths.includes('README.md'), true);
+  assert.equal(paths.includes('BOOTSTRAP_REPORT.md'), false);
+  assert.equal(paths.includes('CLEANUP_REPORT.md'), false);
+  assert.equal(paths.includes('REPOSITORY_MAP.md'), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('rust/target/')), false);
 });
 
