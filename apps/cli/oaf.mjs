@@ -5871,9 +5871,10 @@ async function mcpCommand(values) {
     if (subcommand === 'resources') return await mcpResourcesCommand(rest);
     if (subcommand === 'server') return await mcpServerCommand(rest);
     if (subcommand === 'install') return await mcpInstallCommand(rest);
+    if (subcommand === 'uninstall') return await mcpUninstallCommand(rest);
     if (subcommand === 'stats') return await mcpStatsCommand(rest);
     if (subcommand === 'smoke') return await mcpSmokeCommand(rest);
-    console.error('mcp requires inspect, resources, server, install, stats, or smoke');
+    console.error('mcp requires inspect, resources, server, install, uninstall, stats, or smoke');
     process.exitCode = 2;
   } catch (error) {
     console.error(error.message);
@@ -8385,38 +8386,12 @@ function mcpToolTextResult(text) {
 }
 
 async function mcpInstallCommand(values) {
-  if (values.includes('--write')) {
-    console.error('mcp install uses --apply with --confirm; --write is not supported');
-    process.exitCode = 2;
-    return;
-  }
-  const format = option(values, '--format') ?? 'json';
-  if (format !== 'json') {
-    console.error('mcp install only supports --format json');
-    process.exitCode = 2;
-    return;
-  }
-  const client = normalizeMcpInstallClient(option(values, '--client'));
-  const apply = values.includes('--apply');
-  if (apply && values.includes('--dry-run')) {
-    console.error('mcp install accepts either dry-run/default or --apply, not both');
-    process.exitCode = 2;
-    return;
-  }
-  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--stats', '--format', '--dry-run', '--apply', '--confirm']);
-  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--root', '--sqlite', '--stats', '--format', '--confirm']);
-  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
-  if (unsupported.length) {
-    console.error(`mcp install unsupported option: ${unsupported[0]}`);
-    process.exitCode = 2;
-    return;
-  }
+  const { client, apply, home, configPath } = parseMcpConfigMutationOptions(values, 'install');
   const root = path.resolve(option(values, '--root') ?? process.cwd());
   const rootStat = await stat(root).catch(() => null);
   if (!rootStat?.isDirectory()) throw new Error('mcp install --root must point at a local workspace directory');
   const sqlitePath = await resolveWorkspaceSqlitePath(root, option(values, '--sqlite') ?? '.local/memory.sqlite', 'mcp install', { mustExist: false });
   const statsPath = await resolveWorkspaceStatsPath(root, option(values, '--stats') ?? '.local/mcp-stats.jsonl', 'mcp install', { mustExist: false });
-  const home = option(values, '--home') ?? process.env.HOME ?? process.cwd();
   const setup = await buildHarnessSetupReport({
     action: 'plan',
     client: client.id,
@@ -8426,20 +8401,114 @@ async function mcpInstallCommand(values) {
     bridgeMode: 'token-saver',
     generatedAt: fixedNow()
   });
-  const installPlan = await buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, statsPath, home, configPath: option(values, '--config') ?? client.configPath });
+  const installPlan = await buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, statsPath, home, configPath });
   const preview = buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied: false, localFilesWritten: 0 });
   const confirm = option(values, '--confirm');
+  if (apply && installPlan.status.server === 'drifted') {
+    console.error('mcp install refuses to replace a drifted server entry; remove or rename that entry manually after reviewing it');
+    process.exitCode = 2;
+    return;
+  }
   if (apply && confirm !== preview.planFingerprint) {
     console.error('mcp install --apply requires --confirm <planFingerprint> from a dry-run preview');
     process.exitCode = 2;
     return;
   }
   if (apply) {
-    await applyMcpInstallConfig({ home, client, configPath: option(values, '--config') ?? client.configPath, server: setup.server, desiredServer: installPlan.desiredServer });
-    console.log(JSON.stringify(buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied: true, localFilesWritten: 1 }), null, 2));
+    const result = await applyMcpInstallConfig({
+      home,
+      client,
+      configPath,
+      server: setup.server,
+      desiredServer: installPlan.desiredServer,
+      expectedPreimageFingerprint: installPlan.configPreimageFingerprint,
+      generatedAt: setup.generatedAt
+    });
+    console.log(JSON.stringify(buildMcpInstallReport({
+      setup,
+      installPlan,
+      client,
+      root,
+      sqlitePath,
+      statsPath,
+      apply,
+      applied: result.changed,
+      localFilesWritten: result.localFilesWritten,
+      backupRef: result.backupRef
+    }), null, 2));
     return;
   }
   console.log(JSON.stringify(preview, null, 2));
+}
+
+async function mcpUninstallCommand(values) {
+  const { client, apply, home, configPath } = parseMcpConfigMutationOptions(values, 'uninstall');
+  const setup = await buildHarnessSetupReport({
+    action: 'plan',
+    client: client.id,
+    server: option(values, '--server') ?? 'oaf',
+    home,
+    configPath: option(values, '--config'),
+    bridgeMode: 'token-saver',
+    generatedAt: fixedNow()
+  });
+  const uninstallPlan = await buildPortableMcpUninstallPlan({ setup, client, home, configPath });
+  const preview = buildMcpUninstallReport({ setup, uninstallPlan, client, apply, applied: false, localFilesWritten: 0 });
+  if (apply && uninstallPlan.status.server === 'drifted') {
+    console.error('mcp uninstall refuses to remove a drifted or unowned server entry');
+    process.exitCode = 2;
+    return;
+  }
+  if (apply && uninstallPlan.status.server === 'absent') {
+    console.error('mcp uninstall found no exact owned server entry to remove');
+    process.exitCode = 2;
+    return;
+  }
+  if (apply && option(values, '--confirm') !== preview.planFingerprint) {
+    console.error('mcp uninstall --apply requires --confirm <planFingerprint> from a dry-run preview');
+    process.exitCode = 2;
+    return;
+  }
+  if (apply) {
+    const result = await removeMcpInstallConfig({
+      home,
+      client,
+      configPath,
+      server: setup.server,
+      expectedPreimageFingerprint: uninstallPlan.configPreimageFingerprint,
+      generatedAt: setup.generatedAt
+    });
+    console.log(JSON.stringify(buildMcpUninstallReport({
+      setup,
+      uninstallPlan,
+      client,
+      apply,
+      applied: result.changed,
+      localFilesWritten: result.localFilesWritten,
+      backupRef: result.backupRef
+    }), null, 2));
+    return;
+  }
+  console.log(JSON.stringify(preview, null, 2));
+}
+
+function parseMcpConfigMutationOptions(values, action) {
+  if (values.includes('--write')) throw new Error(`mcp ${action} uses --apply with --confirm; --write is not supported`);
+  if ((option(values, '--format') ?? 'json') !== 'json') throw new Error(`mcp ${action} only supports --format json`);
+  const apply = values.includes('--apply');
+  if (apply && values.includes('--dry-run')) throw new Error(`mcp ${action} accepts either dry-run/default or --apply, not both`);
+  const installOnly = action === 'install' ? ['--root', '--sqlite', '--stats'] : [];
+  const allowedFlags = new Set(['--client', '--server', '--home', '--config', '--format', '--dry-run', '--apply', '--confirm', ...installOnly]);
+  const valueFlags = new Set(['--client', '--server', '--home', '--config', '--format', '--confirm', ...installOnly]);
+  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
+  if (unsupported.length) throw new Error(`mcp ${action} unsupported option: ${unsupported[0]}`);
+  const client = normalizeMcpInstallClient(option(values, '--client'));
+  return {
+    client,
+    apply,
+    home: option(values, '--home') ?? process.env.HOME ?? process.cwd(),
+    configPath: option(values, '--config') ?? client.configPath
+  };
 }
 
 function normalizeMcpInstallClient(value) {
@@ -8474,20 +8543,24 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
     externalWrites: false
   };
   const serverConfig = { command: desiredServer.command, args: desiredServer.args };
-  const status = await classifyMcpInstallServer({ home, client, configPath, server: setup.server, desiredServer }).catch(() => setup.status.server);
+  const configState = await readMcpInstallConfigState({ home, client, configPath, server: setup.server });
+  const status = classifyMcpInstallServer({ configState, desiredServer });
   const diffOperations = status === 'installed'
     ? []
     : [{
-        op: status === 'absent' ? 'add' : 'replace',
+        op: status === 'absent' ? 'add' : 'conflict',
         target: client.format === 'toml' ? `mcp_servers.${setup.server}` : `mcpServers.${setup.server}`,
         before: status,
         after: 'read-only-oaf-mcp-stdio',
-        summary: `${status === 'absent' ? 'add' : 'replace'} ${setup.server} with read-only OAF MCP stdio token-saver server`
+        summary: status === 'absent'
+          ? `add ${setup.server} as read-only OAF MCP stdio token-saver server`
+          : `refuse to replace drifted ${setup.server} server entry`
       }];
   return {
     desiredServer,
     workspaceRoot: realRoot,
     sqlitePath,
+    configPreimageFingerprint: fingerprintMcpConfigPreimage(configState),
     status: {
       ...setup.status,
       server: status
@@ -8504,6 +8577,42 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
       serverConfig
     })
   };
+}
+
+async function buildPortableMcpUninstallPlan({ setup, client, home, configPath }) {
+  const configState = await readMcpInstallConfigState({ home, client, configPath, server: setup.server });
+  const status = !configState.serverConfig
+    ? 'absent'
+    : isOwnedMcpInstallServer(configState.serverConfig) ? 'installed' : 'drifted';
+  const target = client.format === 'toml' ? `mcp_servers.${setup.server}` : `mcpServers.${setup.server}`;
+  const operations = status === 'installed'
+    ? [{ op: 'remove', target, before: 'installed', after: 'absent', summary: `remove exact Memory Recall-owned ${setup.server} server entry` }]
+    : status === 'drifted'
+      ? [{ op: 'conflict', target, before: 'drifted', after: 'unchanged', summary: `refuse to remove drifted or unowned ${setup.server} server entry` }]
+      : [];
+  return {
+    workspaceRoot: null,
+    desiredServer: null,
+    configPreimageFingerprint: fingerprintMcpConfigPreimage(configState),
+    status: { ...setup.status, server: status },
+    diff: {
+      ...setup.diff,
+      operations,
+      preview: operations.map((operation) => operation.summary)
+    }
+  };
+}
+
+function isOwnedMcpInstallServer(serverConfig) {
+  if (serverConfig?.command !== process.execPath || !Array.isArray(serverConfig.args)) return false;
+  const args = serverConfig.args;
+  return args.length === 11 &&
+    args[0] === CLI_PATH &&
+    arraysEqual(args.slice(1, 5), ['mcp', 'server', '--read-only', '--root']) &&
+    path.isAbsolute(args[5]) &&
+    args[6] === '--sqlite' && path.isAbsolute(args[7]) &&
+    args[8] === '--stats' && path.isAbsolute(args[9]) &&
+    args[10] === '--stdio';
 }
 
 function buildMcpInstallManualConfigSnippet({ client, server, configRef, serverConfig }) {
@@ -8523,31 +8632,28 @@ function buildMcpInstallManualConfigSnippet({ client, server, configRef, serverC
   };
 }
 
-async function classifyMcpInstallServer({ home, client, configPath, server, desiredServer }) {
-  const existing = await readMcpInstallServerConfig({ home, client, configPath, server });
+function classifyMcpInstallServer({ configState, desiredServer }) {
+  const existing = configState.serverConfig;
   if (!existing) return 'absent';
   if (existing.command === desiredServer.command && arraysEqual(existing.args, desiredServer.args)) return 'installed';
   return 'drifted';
 }
 
-async function readMcpInstallServerConfig({ home, client, configPath, server }) {
-  const realHome = await realpath(home);
-  if (path.isAbsolute(configPath) || configPath.includes('..')) throw new Error('mcp install config path must stay inside --home');
-  const target = path.resolve(realHome, configPath);
-  if (!isInside(realHome, target)) throw new Error('mcp install config path escapes --home');
-  const text = await readFile(target, 'utf8').catch((error) => {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  });
-  if (text === null) return null;
+async function readMcpInstallConfigState({ home, client, configPath, server }) {
+  const current = await readHomeFile(home, configPath);
+  const text = current.text;
+  let serverConfig = null;
   if (client.format === 'json') {
     const parsed = JSON.parse(text || '{}');
     const existing = parsed?.mcpServers?.[server];
-    if (existing && typeof existing === 'object' && !Array.isArray(existing)) return existing;
-    return null;
+    if (existing && typeof existing === 'object' && !Array.isArray(existing)) serverConfig = existing;
   }
-  if (client.format === 'toml') return readMcpInstallTomlServerConfig(text, server);
-  return null;
+  if (client.format === 'toml') serverConfig = readMcpInstallTomlServerConfig(text, server);
+  return { exists: current.exists, text, serverConfig };
+}
+
+function fingerprintMcpConfigPreimage(configState) {
+  return fingerprintJson({ exists: configState.exists, text: configState.text });
 }
 
 function readMcpInstallTomlServerConfig(text, server) {
@@ -8574,7 +8680,7 @@ function arraysEqual(left, right) {
   return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
-function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied, localFilesWritten }) {
+function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, statsPath, apply, applied, localFilesWritten, backupRef = null }) {
   const reportBase = {
     schemaVersion: '1.0.0',
     command: 'mcp install',
@@ -8583,7 +8689,8 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
     apply: {
       requested: apply,
       confirmed: apply,
-      applied
+      applied,
+      backupRef
     },
     client: setup.client,
     clientLabel: setup.clientLabel,
@@ -8604,6 +8711,7 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
     config: setup.config,
     status: installPlan.status,
     desiredServer: installPlan.desiredServer,
+    configPreimageFingerprint: installPlan.configPreimageFingerprint,
     manualConfigSnippet: installPlan.manualConfigSnippet,
     reversal: {
       mode: 'manual',
@@ -8622,12 +8730,54 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
   return {
     ...reportBase,
     planFingerprint,
-    nextCommand: apply || applied
+    nextCommand: apply || applied || installPlan.status.server === 'drifted' || installPlan.status.server === 'installed'
       ? null
-      : `npm run oaf -- mcp install --client ${client.id} --root ${JSON.stringify(root)} --apply --confirm ${planFingerprint} --format json`,
+      : `recall mcp install --client ${client.id} --root ${JSON.stringify(root)} --apply --confirm ${planFingerprint} --format json`,
     warnings: [
       'Dry-run is the default; OAF writes home config only with --apply and matching --confirm.',
       'Review the config before applying. The MCP server is local stdio and read-only.'
+    ]
+  };
+}
+
+function buildMcpUninstallReport({ setup, uninstallPlan, client, apply, applied, localFilesWritten, backupRef = null }) {
+  const reportBase = {
+    schemaVersion: '1.0.0',
+    command: 'mcp uninstall',
+    generatedAt: setup.generatedAt,
+    dryRun: !apply,
+    apply: {
+      requested: apply,
+      confirmed: apply,
+      applied,
+      backupRef
+    },
+    client: setup.client,
+    clientLabel: setup.clientLabel,
+    server: setup.server,
+    bridgeMode: setup.bridgeMode,
+    config: setup.config,
+    configPreimageFingerprint: uninstallPlan.configPreimageFingerprint,
+    status: uninstallPlan.status,
+    desiredServer: uninstallPlan.desiredServer,
+    diff: uninstallPlan.diff,
+    safeguards: {
+      ...setup.safeguards,
+      localFilesWritten,
+      homeConfigMutated: applied,
+      workspaceStateMutated: false
+    }
+  };
+  const planFingerprint = fingerprintMcpInstallPlan(reportBase);
+  return {
+    ...reportBase,
+    planFingerprint,
+    nextCommand: apply || applied || uninstallPlan.status.server !== 'installed'
+      ? null
+      : `recall mcp uninstall --client ${client.id} --apply --confirm ${planFingerprint} --format json`,
+    warnings: [
+      'Dry-run is the default; Memory Recall removes only an exact owned server entry after matching confirmation.',
+      'Workspace .local data is never removed by this command.'
     ]
   };
 }
@@ -8640,27 +8790,40 @@ function fingerprintMcpInstallPlan(report) {
     bridgeMode: report.bridgeMode,
     workspaceRootRef: report.workspaceRootRef,
     config: report.config,
+    configPreimageFingerprint: report.configPreimageFingerprint,
     status: report.status,
     desiredServer: report.desiredServer,
     diff: report.diff
   });
 }
 
-async function applyMcpInstallConfig({ home, client, configPath, server, desiredServer }) {
-  const realHome = await realpath(home);
-  if (path.isAbsolute(configPath) || configPath.includes('..')) throw new Error('mcp install config path must stay inside --home');
-  const target = path.resolve(realHome, configPath);
-  if (!isInside(realHome, target)) throw new Error('mcp install config path escapes --home');
-  await mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
-  const current = await readFile(target, 'utf8').catch((error) => {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  });
+async function applyMcpInstallConfig({ home, client, configPath, server, desiredServer, expectedPreimageFingerprint, generatedAt }) {
+  const current = await readMcpInstallConfigState({ home, client, configPath, server });
+  if (fingerprintMcpConfigPreimage(current) !== expectedPreimageFingerprint) throw new Error('mcp install config changed after preview; run a new dry-run');
   const serverConfig = { command: desiredServer.command, args: desiredServer.args };
   const next = client.format === 'toml'
-    ? mergeMcpInstallToml(current ?? '', server, serverConfig)
-    : mergeMcpInstallJson(current ?? '{}', server, serverConfig);
-  await writeFile(target, next, { mode: 0o600 });
+    ? mergeMcpInstallToml(current.text, server, serverConfig)
+    : mergeMcpInstallJson(current.text || '{}', server, serverConfig);
+  return writeMcpInstallConfig({ home, configPath, current, next, generatedAt });
+}
+
+async function removeMcpInstallConfig({ home, client, configPath, server, expectedPreimageFingerprint, generatedAt }) {
+  const current = await readMcpInstallConfigState({ home, client, configPath, server });
+  if (fingerprintMcpConfigPreimage(current) !== expectedPreimageFingerprint) throw new Error('mcp uninstall config changed after preview; run a new dry-run');
+  const next = client.format === 'toml'
+    ? removeMcpInstallToml(current.text, server)
+    : removeMcpInstallJson(current.text, server);
+  return writeMcpInstallConfig({ home, configPath, current, next, generatedAt });
+}
+
+async function writeMcpInstallConfig({ home, configPath, current, next, generatedAt }) {
+  if (next === current.text) return { changed: false, localFilesWritten: 0, backupRef: null };
+  const { root, absolute } = await resolveHomePath(home, configPath);
+  await assertNoSymlinkAncestors(root, configPath);
+  await mkdir(path.dirname(absolute), { recursive: true, mode: 0o700 });
+  const backupRef = current.exists ? await writeHomeBackup({ home, relativePath: configPath, text: current.text, generatedAt }) : null;
+  await writePrivateFileAtomic(absolute, next);
+  return { changed: true, localFilesWritten: backupRef ? 2 : 1, backupRef };
 }
 
 function mergeMcpInstallJson(text, server, serverConfig) {
@@ -8680,6 +8843,22 @@ function mergeMcpInstallToml(text, server, serverConfig) {
   const section = `[mcp_servers.${server}]\ncommand = ${tomlString(serverConfig.command)}\nargs = [${args}]\n`;
   const prefix = withoutExisting.trimEnd();
   return `${prefix ? `${prefix}\n\n` : ''}${section}`;
+}
+
+function removeMcpInstallJson(text, server) {
+  const parsed = JSON.parse(text || '{}');
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('mcp uninstall JSON config must be an object');
+  const mcpServers = parsed.mcpServers && typeof parsed.mcpServers === 'object' && !Array.isArray(parsed.mcpServers)
+    ? { ...parsed.mcpServers }
+    : {};
+  delete mcpServers[server];
+  return `${JSON.stringify({ ...parsed, mcpServers }, null, 2)}\n`;
+}
+
+function removeMcpInstallToml(text, server) {
+  const escaped = server.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sectionPattern = new RegExp(`(?:^|\\n)\\[mcp_servers\\.${escaped}\\]\\n(?:[^\\[]|\\[(?!mcp_servers\\.))*`, 'u');
+  return text.replace(sectionPattern, (match) => match.startsWith('\n') ? '\n' : '').replace(/^\n+|\n+$/gu, '').concat('\n');
 }
 
 async function mcpSmokeCommand(values) {
@@ -11450,13 +11629,29 @@ async function writeHomeFileIfChanged({ home, relativePath, current, nextText, g
 }
 
 async function writeHomeBackup({ home, relativePath, text, generatedAt }) {
-  const suffix = `${generatedAt.replace(/[^0-9A-Za-z_-]/gu, '-')}-${createHash('sha256').update(text).digest('hex').slice(0, 8)}`;
+  const suffix = `${generatedAt.replace(/[^0-9A-Za-z_-]/gu, '-')}-${createHash('sha256').update(text).digest('hex').slice(0, 8)}-${randomUUID().slice(0, 8)}`;
   const backupRelative = `${relativePath}.oaf-backup-${suffix}`;
   const { root, absolute } = await resolveHomePath(home, backupRelative);
   await assertNoSymlinkAncestors(root, backupRelative);
-  await mkdir(path.dirname(absolute), { recursive: true });
-  await writeFile(absolute, text, 'utf8');
+  await mkdir(path.dirname(absolute), { recursive: true, mode: 0o700 });
+  await writePrivateFileAtomic(absolute, text);
   return `home://${toPosix(backupRelative)}`;
+}
+
+async function writePrivateFileAtomic(target, text) {
+  const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}.${randomUUID()}.tmp`);
+  let handle;
+  try {
+    handle = await open(temporary, 'wx', 0o600);
+    await handle.writeFile(text, 'utf8');
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await renameFile(temporary, target);
+  } finally {
+    await handle?.close().catch(() => {});
+    await rm(temporary, { force: true }).catch(() => {});
+  }
 }
 
 async function resolveHomePath(home, relativePath) {

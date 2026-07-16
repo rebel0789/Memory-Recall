@@ -23,14 +23,17 @@ recall disconnect codex --dry-run --format json
 # Tool-server install preview (Codex, Claude Code, or Cursor).
 recall mcp install --client codex --dry-run --format json
 
+# Tool-server removal preview (Codex, Claude Code, or Cursor).
+recall mcp uninstall --client codex --dry-run --format json
+
 # Manual-only previews; these do not remove anything.
 recall harness setup uninstall --client codex --server oaf --dry-run --format json
 recall hook uninstall --agent codex --dry-run --format json
 ```
 
 Replace `codex` with `claude-code` where appropriate. Use `cursor` only with
-the tool-server preview. The last two commands are reports for manual removal,
-not uninstall writers.
+the tool-server commands. Harness and hook uninstall commands are reports for
+manual removal, not uninstall writers.
 
 ## 2. Remove a connect-owned resource bridge
 
@@ -48,16 +51,18 @@ does not remove a tool-server entry installed by `recall mcp install`.
 
 ## 3. Remove a tool-server install
 
-`recall mcp install --apply` has no automatic uninstall command and does not
-create a backup. Review a fresh dry-run report, then remove only its named
-server entry from the displayed config:
+Preview removal, then run the exact confirmed command printed by the preview:
 
-- Codex: remove `[mcp_servers.oaf]` from `$HOME/.codex/config.toml`.
-- Claude Code and Cursor: remove `mcpServers.oaf` from the displayed JSON
-  config only.
+```bash
+recall mcp uninstall --client codex --dry-run --format json
+recall mcp uninstall --client codex --apply --confirm sha256:<plan-fingerprint> --format json
+```
 
-Do not remove neighboring MCP servers, and do not use `recall disconnect` for
-this path: the tool server is intentionally different from the resource bridge.
+The confirmation is bound to the exact config bytes reviewed. Memory Recall
+removes only an exact entry installed by this package, preserves neighboring
+servers and `.local`, and writes a private `*.oaf-backup-*` before changing an
+existing config. Drifted or unowned entries are never replaced or removed.
+Use `recall disconnect` only for the separate resource-bridge path.
 
 ## 4. Remove the package
 

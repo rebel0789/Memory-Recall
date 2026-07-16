@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 const CLI_PATH=path.resolve('apps/cli/oaf.mjs');
 test('CLI compatibility entrypoint identifies the product as Memory Recall',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/Memory Recall CLI/);assert.match(result.stdout,/project:memory-recall/);assert.match(result.stdout,/Memory Recall release status/);assert.doesNotMatch(result.stdout,/Open Agent Fabric CLI|project:oaf|OAF release status/);});
 test('CLI help documents MCP token-saver server',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp server --read-only --root \. --stdio/)});
-test('CLI help documents MCP token-saver install',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp install --client claude-code --dry-run --format json/)});
+test('CLI help documents MCP token-saver install and uninstall',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf mcp install --client claude-code --dry-run --format json/);assert.match(result.stdout,/oaf mcp uninstall --client claude-code --dry-run --format json/)});
 test('CLI help is local and documents core commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/Usage:\n  oaf status\n  oaf setup/);assert.match(result.stdout,/oaf task <OAF-ID>/);assert.match(result.stdout,/Start with oaf status; if it says Next task: none, run the First safe handoff command it prints/);assert.match(result.stdout,/Run oaf task only when npm run status names a next task/);assert.match(result.stdout,/oaf setup creates only local state in the current repository/);assert.match(result.stdout,/Use oaf map for the first explicit read-only scan/);assert.match(result.stdout,/oaf demo memory-loop --root \. --format json/);assert.match(result.stdout,/oaf map --root \. --sqlite \.local\/memory\.sqlite --format summary/);assert.match(result.stdout,/oaf handoff/);assert.match(result.stdout,/oaf token-saver/);assert.match(result.stdout,/oaf context scan --from codex --root \. --dry-run/);assert.match(result.stdout,/oaf context preview --from codex --root \. --objective/);assert.match(result.stdout,/oaf context pack .*--changed src\/auth\.ts .*--changed-from-git/);assert.match(result.stdout,/oaf context handoff --read-only --from codex --root \./);assert.match(result.stdout,/--memory-config oaf\.memory\.json/);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format json/);assert.match(result.stdout,/oaf context receive --read-only --root \. --target codex --format summary/);assert.match(result.stdout,/oaf context registry status --read-only --format json/);assert.match(result.stdout,/oaf context graph preview --root \. --query/);assert.match(result.stdout,/oaf graph stats --root \./);assert.match(result.stdout,/oaf graph search --root \. --query/);assert.match(result.stdout,/oaf graph trace --root \. --symbol/);assert.match(result.stdout,/oaf graph impact --root \. --changed/);assert.match(result.stdout,/oaf loop plan --read-only --root \./);assert.match(result.stdout,/oaf loop observe --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf loop verify --root \. --plan .*--execute-commands/);assert.match(result.stdout,/oaf measure savings --read-only --root \./);assert.match(result.stdout,/oaf measure context-pack --read-only --root \./);assert.match(result.stdout,/impact brief/);assert.match(result.stdout,/--format summary/);assert.match(result.stdout,/oaf benchmark truth-floor --suite benchmark-truth-floor --dataset evals\/benchmark-truth-floor\/cases.v1.json --format json/);assert.match(result.stdout,/oaf bench sufficiency --read-only --root \. --format json/);assert.match(result.stdout,/oaf bench temporal --read-only --root \. --format json/);assert.match(result.stdout,/oaf bench session --read-only --root \. --format json/);assert.match(result.stdout,/oaf bench realqa --read-only --root \. --format json/);assert.match(result.stdout,/oaf bench locomo --read-only --root \. --dataset evals\/locomo\/smoke\.v1\.json --format json/);assert.match(result.stdout,/oaf memory ingest --root \. --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory review approve --root \. --sqlite \.local\/memory\.sqlite --proposal mpq_status/);assert.match(result.stdout,/oaf memory sgrep "context manifest"/);assert.match(result.stdout,/oaf memory fact add --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact get --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf memory fact history --sqlite \.local\/memory\.sqlite/);assert.match(result.stdout,/oaf skill load-plan --read-only --root \. --id skill:oaf-memory --format json/);assert.match(result.stdout,/oaf mcp inspect --read-only --root \. --format json/);assert.match(result.stdout,/oaf mcp resources --read-only/);assert.match(result.stdout,/oaf:\/\/workspace\/ws_local\/skills\/catalog/);assert.match(result.stdout,/oaf mcp smoke context-pack/);assert.match(result.stdout,/oaf harness setup status --client codex --dry-run --format json/);assert.match(result.stdout,/oaf harness setup plan --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/oaf harness setup uninstall --client cursor --server oaf --dry-run --format json/);assert.match(result.stdout,/no external writes/i)});
 test('CLI help documents memory governance commands',()=>{const result=spawnSync(process.execPath,['apps/cli/oaf.mjs','help'],{encoding:'utf8'});assert.equal(result.status,0);assert.match(result.stdout,/oaf memory remember --batch facts\.json/);assert.match(result.stdout,/oaf memory approve mpq_status/);assert.match(result.stdout,/oaf memory approve --all-from workspace:\/\/PROJECT_STATUS\.json/);assert.match(result.stdout,/oaf memory approve --all/);assert.match(result.stdout,/oaf memory reject mpq_status/);assert.match(result.stdout,/oaf memory refine --read-only --root \. --sqlite \.local\/memory\.sqlite --target-active-facts 200/)});
 test('CLI topic help treats valid help requests as read-only success',()=>{for(const [args,patterns] of [
@@ -1862,6 +1862,137 @@ test('mcp install apply requires matching confirmation before writing config', (
   const afterReport = JSON.parse(after.stdout);
   assert.equal(afterReport.status.server, 'installed');
   assert.deepEqual(afterReport.desiredServer.args, expectedArgs);
+});
+
+test('mcp install refuses to replace a drifted server entry', () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-conflict-'));
+  const configPath = path.join(home, '.cursor', 'mcp.json');
+  mkdirSync(path.dirname(configPath), { recursive: true });
+  const original = `${JSON.stringify({ mcpServers: { neighbor: { command: 'neighbor' }, oaf: { command: 'other-owner', args: ['serve'] } } }, null, 2)}\n`;
+  writeFileSync(configPath, original);
+
+  const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(preview.status, 0, preview.stderr);
+  const report = JSON.parse(preview.stdout);
+  assert.equal(report.status.server, 'drifted');
+  assert.equal(report.diff.operations[0].op, 'conflict');
+  assert.equal(report.nextCommand, null);
+
+  const apply = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--confirm', report.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(apply.status, 2);
+  assert.match(apply.stderr, /refuses to replace a drifted server entry/);
+  assert.equal(readFileSync(configPath, 'utf8'), original);
+});
+
+test('mcp install confirmation is bound to the exact config preimage', () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-stale-'));
+  const configPath = path.join(home, '.cursor', 'mcp.json');
+  mkdirSync(path.dirname(configPath), { recursive: true });
+  writeFileSync(configPath, `${JSON.stringify({ mcpServers: { neighbor: { command: 'before' } } }, null, 2)}\n`);
+  const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(preview.status, 0, preview.stderr);
+  const report = JSON.parse(preview.stdout);
+  assert.match(report.configPreimageFingerprint, /^sha256:[a-f0-9]{64}$/);
+
+  const changed = `${JSON.stringify({ mcpServers: { neighbor: { command: 'after' } } }, null, 2)}\n`;
+  writeFileSync(configPath, changed);
+  const apply = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--confirm', report.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(apply.status, 2);
+  assert.match(apply.stderr, /requires --confirm <planFingerprint>/);
+  assert.equal(readFileSync(configPath, 'utf8'), changed);
+});
+
+test('mcp uninstall removes only an exact owned entry with a private backup', () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-uninstall-'));
+  const configPath = path.join(home, '.cursor', 'mcp.json');
+  mkdirSync(path.dirname(configPath), { recursive: true });
+  const original = `${JSON.stringify({ theme: 'quiet', mcpServers: { neighbor: { command: 'neighbor', args: ['serve'] } } }, null, 2)}\n`;
+  writeFileSync(configPath, original, { mode: 0o644 });
+  const installPreview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(installPreview.status, 0, installPreview.stderr);
+  const installReport = JSON.parse(installPreview.stdout);
+  const install = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--confirm', installReport.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(install.status, 0, install.stderr);
+  const installedReport = JSON.parse(install.stdout);
+  assert.match(installedReport.apply.backupRef, /^home:\/\/.+\.oaf-backup-/);
+  assert.equal(statSync(path.join(home, installedReport.apply.backupRef.slice('home://'.length))).mode & 0o777, 0o600);
+  assert.equal(statSync(configPath).mode & 0o777, 0o600);
+
+  const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(preview.status, 0, preview.stderr);
+  const report = JSON.parse(preview.stdout);
+  assert.equal(report.command, 'mcp uninstall');
+  assert.equal(report.status.server, 'installed');
+  assert.equal(report.diff.operations[0].op, 'remove');
+  assert.match(report.nextCommand, /mcp uninstall --client cursor .*--apply --confirm sha256:/);
+
+  const missingConfirm = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--apply', '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(missingConfirm.status, 2);
+  assert.match(missingConfirm.stderr, /requires --confirm <planFingerprint>/);
+  assert.equal(readFileSync(configPath, 'utf8').includes('"oaf"'), true);
+
+  const wrongConfirm = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--apply', '--confirm', `sha256:${'a'.repeat(64)}`, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(wrongConfirm.status, 2);
+  assert.match(wrongConfirm.stderr, /requires --confirm <planFingerprint>/);
+  assert.equal(readFileSync(configPath, 'utf8').includes('"oaf"'), true);
+
+  const uninstall = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--apply', '--confirm', report.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(uninstall.status, 0, uninstall.stderr);
+  const removedReport = JSON.parse(uninstall.stdout);
+  assert.equal(removedReport.apply.applied, true);
+  assert.match(removedReport.apply.backupRef, /^home:\/\/.+\.oaf-backup-/);
+  assert.equal(statSync(path.join(home, removedReport.apply.backupRef.slice('home://'.length))).mode & 0o777, 0o600);
+  const written = JSON.parse(readFileSync(configPath, 'utf8'));
+  assert.equal(written.theme, 'quiet');
+  assert.deepEqual(written.mcpServers.neighbor, { command: 'neighbor', args: ['serve'] });
+  assert.equal(written.mcpServers.oaf, undefined);
+
+  const after = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(after.status, 0, after.stderr);
+  const afterReport = JSON.parse(after.stdout);
+  assert.equal(afterReport.status.server, 'absent');
+  assert.equal(afterReport.diff.operations.length, 0);
+  assert.equal(afterReport.nextCommand, null);
+});
+
+test('mcp uninstall binds TOML preimages and refuses unowned entries', () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-uninstall-toml-'));
+  const configPath = path.join(home, '.codex', 'config.toml');
+  const installPreview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'codex', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(installPreview.status, 0, installPreview.stderr);
+  const install = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'codex', '--home', home, '--apply', '--confirm', JSON.parse(installPreview.stdout).planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(install.status, 0, install.stderr);
+
+  const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'codex', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(preview.status, 0, preview.stderr);
+  const previewReport = JSON.parse(preview.stdout);
+  const changed = `${readFileSync(configPath, 'utf8').trimEnd()}\n\n[mcp_servers.neighbor]\ncommand = "neighbor"\nargs = ["serve"]\n`;
+  writeFileSync(configPath, changed);
+  const stale = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'codex', '--home', home, '--apply', '--confirm', previewReport.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(stale.status, 2);
+  assert.match(stale.stderr, /requires --confirm <planFingerprint>/);
+  assert.equal(readFileSync(configPath, 'utf8'), changed);
+
+  const fresh = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'codex', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(fresh.status, 0, fresh.stderr);
+  const removed = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'codex', '--home', home, '--apply', '--confirm', JSON.parse(fresh.stdout).planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(removed.status, 0, removed.stderr);
+  const after = readFileSync(configPath, 'utf8');
+  assert.doesNotMatch(after, /\[mcp_servers\.oaf\]/);
+  assert.match(after, /\[mcp_servers\.neighbor\]/);
+
+  const foreign = `[mcp_servers.oaf]\ncommand = "foreign"\nargs = ["serve"]\n\n${after}`;
+  writeFileSync(configPath, foreign);
+  const conflict = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'codex', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(conflict.status, 0, conflict.stderr);
+  const conflictReport = JSON.parse(conflict.stdout);
+  assert.equal(conflictReport.status.server, 'drifted');
+  assert.equal(conflictReport.diff.operations[0].op, 'conflict');
+  assert.equal(conflictReport.nextCommand, null);
+  const refused = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'uninstall', '--client', 'codex', '--home', home, '--apply', '--confirm', conflictReport.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(refused.status, 2);
+  assert.match(refused.stderr, /refuses to remove a drifted or unowned server entry/);
+  assert.equal(readFileSync(configPath, 'utf8'), foreign);
 });
 
 test('mcp install codex TOML escapes backslash paths', () => {

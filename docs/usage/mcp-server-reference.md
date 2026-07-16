@@ -137,6 +137,14 @@ Apply only after reviewing the dry-run fingerprint:
 recall mcp install --client claude-code --apply --confirm sha256:<plan-fingerprint> --format json
 ```
 
+Remove only an exact package-owned entry with the same preview and confirmation
+boundary:
+
+```bash
+recall mcp uninstall --client claude-code --dry-run --format json
+recall mcp uninstall --client claude-code --apply --confirm sha256:<plan-fingerprint> --format json
+```
+
 ## Safety Boundaries
 
 - Local stdio only.
@@ -148,6 +156,7 @@ recall mcp install --client claude-code --apply --confirm sha256:<plan-fingerpri
 - No implicit source-index build or refresh.
 - No hidden harness-history import.
 - No config write without dry-run review and confirmation.
+- No replacement or removal of drifted or unowned MCP entries.
 
 The MCP server entry may be named `oaf` internally for compatibility. The public
 package and CLI are `memory-recall` and `recall`.

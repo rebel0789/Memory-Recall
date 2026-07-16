@@ -130,6 +130,7 @@ Usage:
   oaf mcp server --read-only --engine native-preview --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp install --client claude-code --dry-run --format json
+  oaf mcp uninstall --client claude-code --dry-run --format json
   oaf harness setup status --client codex --dry-run --format json
   oaf harness setup plan --client cursor --server oaf --dry-run --format json
   oaf harness setup uninstall --client cursor --server oaf --dry-run --format json
@@ -401,12 +402,14 @@ Usage:
   oaf mcp stats --read-only --root . --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp install --client claude-code --dry-run --format json
+  oaf mcp uninstall --client claude-code --dry-run --format json
 
 MCP commands inspect or expose local read-only resources, run the stdio bridge,
 preview install plans, or report delivery stats. Resource summaries require
 --uri and do not dump full resource bodies. Resource/server paths require
---read-only; install remains dry-run unless explicitly confirmed by the install
-flow. The MCP server keeps the JS engine by default. Explicit auto mode uses a
+--read-only; install and uninstall remain dry-run unless explicitly confirmed.
+Uninstall removes only an exact Memory Recall-owned entry and preserves .local.
+The MCP server keeps the JS engine by default. Explicit auto mode uses a
 current, healthy native index and otherwise labels a bounded JS fallback. Native
 preview reads only a prebuilt .local/source-index database and never builds or
 refreshes it.`],

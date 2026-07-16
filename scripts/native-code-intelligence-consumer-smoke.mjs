@@ -34,6 +34,9 @@ const governedMemory = path.join(workspace, '.local', 'memory.sqlite');
 try {
   must((await stat(nativeBinary)).isFile(), 'build the local release native engine before running this smoke');
   await mkdir(home, { recursive: true });
+  const mcpConfig = path.join(home, '.cursor', 'mcp.json');
+  await mkdir(path.dirname(mcpConfig), { recursive: true });
+  await writeFile(mcpConfig, `${JSON.stringify({ mcpServers: { neighbor: { command: 'neighbor', args: ['serve'] } } }, null, 2)}\n`);
   await mkdir(npmCache, { recursive: true });
   await mkdir(packDirectory, { recursive: true });
   await mkdir(runtimeBin, { recursive: true });
@@ -217,6 +220,33 @@ try {
   must(await treeFingerprint(packageRoot) === initialPackage, 'native preview leaves the installed package unchanged');
   must(await treeFingerprint(platformPackageRoot) === initialPlatformPackage, 'native preview leaves the platform package unchanged');
 
+  const mcpInstallPreview = runJson(process.execPath, [installedCli,
+    'mcp', 'install', '--client', 'cursor', '--home', home, '--root', cliWorkspace, '--format', 'json'
+  ], { cwd: temp, env: isolatedEnvironment });
+  must(mcpInstallPreview.status?.server === 'absent', 'packed CLI previews an absent MCP server entry');
+  const mcpInstall = runJson(process.execPath, [installedCli,
+    'mcp', 'install', '--client', 'cursor', '--home', home, '--root', cliWorkspace,
+    '--apply', '--confirm', mcpInstallPreview.planFingerprint, '--format', 'json'
+  ], { cwd: temp, env: isolatedEnvironment });
+  must(mcpInstall.apply?.applied === true && mcpInstall.apply?.backupRef?.startsWith('home://'), 'packed CLI installs with a private config backup');
+  const installedMcpConfig = JSON.parse(await readFile(mcpConfig, 'utf8'));
+  must(installedMcpConfig.mcpServers?.neighbor?.command === 'neighbor', 'MCP install preserves neighboring servers');
+  must(installedMcpConfig.mcpServers?.oaf?.args?.includes('--read-only'), 'MCP install writes the read-only server entry');
+
+  const mcpUninstallPreview = runJson(process.execPath, [installedCli,
+    'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--format', 'json'
+  ], { cwd: temp, env: isolatedEnvironment });
+  must(mcpUninstallPreview.status?.server === 'installed', 'packed CLI recognizes its exact owned MCP entry');
+  const mcpUninstall = runJson(process.execPath, [installedCli,
+    'mcp', 'uninstall', '--client', 'cursor', '--home', home,
+    '--apply', '--confirm', mcpUninstallPreview.planFingerprint, '--format', 'json'
+  ], { cwd: temp, env: isolatedEnvironment });
+  must(mcpUninstall.apply?.applied === true && mcpUninstall.apply?.backupRef?.startsWith('home://'), 'packed CLI removes its owned entry with a private backup');
+  const removedMcpConfig = JSON.parse(await readFile(mcpConfig, 'utf8'));
+  must(removedMcpConfig.mcpServers?.neighbor?.command === 'neighbor', 'MCP uninstall preserves neighboring servers');
+  must(removedMcpConfig.mcpServers?.oaf === undefined, 'MCP uninstall removes only its owned server entry');
+  const homeAfterMcpRemoval = await treeFingerprint(home);
+
   const indexBeforeUninstall = await fileBundleSnapshot(indexPath);
   run('npm', [
     'uninstall', '-g', '--prefix', prefix, 'memory-recall', `@memory-recall/native-${target}`,
@@ -228,7 +258,7 @@ try {
   must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'package uninstall preserves consumer source');
   must((await readFile(governedMemory)).equals(initialMemory), 'package uninstall preserves governed memory');
   must(sameFileBundleSnapshot(await fileBundleSnapshot(indexPath), indexBeforeUninstall), 'package uninstall preserves SQLite, WAL, and SHM state');
-  must(await treeFingerprint(home) === initialHome, 'package uninstall preserves home configuration');
+  must(await treeFingerprint(home) === homeAfterMcpRemoval, 'package uninstall preserves home configuration and backups');
 
   run('npm', [
     'install', '-g', '--prefix', reinstallPrefix, tarball, nativePackage.tarball,
@@ -279,7 +309,7 @@ try {
   must(sameFileBundleSnapshot(await fileBundleSnapshot(indexPath), indexBeforeUninstall), 'reinstall status and queries preserve SQLite, WAL, and SHM state');
   must((await readFile(governedMemory)).equals(initialMemory), 'reinstall preserves governed memory');
   must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'reinstall preserves consumer source');
-  must(await treeFingerprint(home) === initialHome, 'reinstall preserves home configuration');
+  must(await treeFingerprint(home) === homeAfterMcpRemoval, 'reinstall preserves home configuration and backups');
 
   console.log(`PASS installed verified native platform package ${target}`);
   console.log('PASS compiler-free 14-language graph and SQLite lifecycle');
@@ -287,6 +317,7 @@ try {
   console.log('PASS invalid explicit native override fails closed');
   console.log('PASS no source, governed-memory, config, or package mutation');
   console.log('PASS JavaScript remains the public default');
+  console.log('PASS packed MCP install and uninstall preserve neighboring config');
   console.log('PASS uninstall removes packages and preserves workspace-local state');
   console.log('PASS same-version reinstall reopens the existing index without rebuilding');
 } finally {

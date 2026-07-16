@@ -30,6 +30,9 @@ test('uninstall guide reserves a dry-run boundary before any future local-state 
   const guide = await readFile('docs/usage/uninstall.md', 'utf8');
   assert.match(guide, /recall uninstall --dry-run/);
   assert.match(guide, /does not exist today|not available today/i);
+  assert.match(guide, /recall mcp uninstall --client codex --dry-run --format json/);
+  assert.match(guide, /removes only an exact entry installed by this package/);
+  assert.match(guide, /Drifted or unowned entries are never replaced or removed/);
 });
 
 test('release readiness artifacts are generated and checked in without drift', async () => {

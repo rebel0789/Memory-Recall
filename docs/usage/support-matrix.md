@@ -30,9 +30,9 @@ reversal path.
 
 | Client or surface | Install mode | Config write behavior | Hook behavior | Graph coverage | Status |
 | --- | --- | --- | --- | --- | --- |
-| Codex tool server | `recall mcp install --client codex --dry-run --format json`, then the printed `--apply --confirm` command | Writes only `$HOME/.codex/config.toml` (or an explicit safe `--home`/`--config`) after the matching confirmation fingerprint | None from this install | Twelve read-only memory, context, and bounded JS/TS structural tools | Implemented |
-| Claude Code tool server | `recall mcp install --client claude-code --dry-run --format json`, then confirmed apply | Writes only `$HOME/.claude/mcp.json` after matching confirmation | None from this install | Same bounded JS/TS graph tools | Implemented |
-| Cursor tool server | `recall mcp install --client cursor --dry-run --format json`, then confirmed apply | Writes only `$HOME/.cursor/mcp.json` after matching confirmation | No hook writer | Same bounded JS/TS graph tools | Implemented |
+| Codex tool server | `recall mcp install --client codex --dry-run --format json`, then the printed `--apply --confirm` command; reverse with `mcp uninstall` | Writes or removes only the exact entry in `$HOME/.codex/config.toml` after matching confirmation; backs up existing config | None from this install | Twelve read-only memory, context, and bounded JS/TS structural tools | Implemented |
+| Claude Code tool server | `recall mcp install --client claude-code --dry-run --format json`, then confirmed apply; reverse with `mcp uninstall` | Same exact-entry confirmation and backup boundary for `$HOME/.claude/mcp.json` | None from this install | Same bounded JS/TS graph tools | Implemented |
+| Cursor tool server | `recall mcp install --client cursor --dry-run --format json`, then confirmed apply; reverse with `mcp uninstall` | Same exact-entry confirmation and backup boundary for `$HOME/.cursor/mcp.json` | No hook writer | Same bounded JS/TS graph tools | Implemented |
 | Codex resource bridge | `recall connect codex --dry-run --format json`, then `--yes` | `connect --yes` writes only matching resource-bridge entries and creates backups when it changes existing home config | Connect-owned `SessionStart`, `UserPromptSubmit`, and `PreCompact` hook entries | Resources only; no MCP graph tools | Implemented |
 | Claude Code resource bridge | `recall connect claude-code --dry-run --format json`, then `--yes` | Same narrow connect-owned writer and backup behavior | Same three connect-owned hook events | Resources only; no MCP graph tools | Implemented |
 | OpenCode, OpenClaw, Gemini CLI, Zed, Aider, Goose, VS Code, Cline, Roo, Windsurf, Generic MCP | `recall harness setup plan --client <client> --server oaf --dry-run --format json`, then copy the shown snippet yourself | Preview and manual snippet only; `harness setup` never writes config | No writer; use the read-only MCP server manually if the client supports it | No installer-backed graph-tool proof for each client | Experimental |
@@ -67,7 +67,9 @@ changes the public default or creates an installer-backed polyglot promise.
 ## Config and data boundary
 
 `mcp install` is dry-run by default and requires `--apply --confirm
-sha256:<plan-fingerprint>` before it changes a home config file. `harness
+sha256:<plan-fingerprint>` before it changes a home config file. `mcp uninstall`
+uses the same exact-preimage confirmation, backs up the config, and removes only
+an exact Memory Recall-owned entry. Drifted entries are left unchanged. `harness
 setup` and `hook install` are previews/manual snippets only. Normal
 `memory.recall` and `context.profile` calls can persist local cursor and
 delivery telemetry; structural map, search, trace, route, dependency, impact,

@@ -115,7 +115,10 @@ approval.
 Manual MCP install flow: run the `mcp install --client claude-code --dry-run --format json`
 preview, review it, then run the printed `--apply --confirm <fingerprint>`
 command only when the fingerprint matches. That path installs the twelve-tool
-read-only MCP server. `recall connect` is separate: it installs a resource
+read-only MCP server. Reverse it with `recall mcp uninstall --client
+claude-code --dry-run --format json`, then the printed confirmed command. It
+removes only the exact package-owned entry and preserves neighboring servers.
+`recall connect` is separate: it installs a resource
 bridge plus hooks for Codex or Claude Code, and its MCP `tools/list` is empty.
 The support matrix names the difference and reversal path.
 
