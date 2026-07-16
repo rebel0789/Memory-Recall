@@ -163,6 +163,13 @@ trusted-publisher ownership for the scoped packages, public installation, or a
 native public default. The explicit JS fallback therefore remains frozen and
 the current registry instructions remain unchanged.
 
+The Rust CI workflow defines native-runner packaging lanes for those five
+targets. Each lane checks the runner architecture, builds the locked release
+binary, packages and structurally verifies one unsigned tarball, then passes
+that exact tarball into the installed root-plus-native consumer gate. The
+workflow definition is not cross-platform proof by itself: the four non-local
+lanes remain pending until their hosted runs complete successfully.
+
 ## Phase 1 evidence
 
 The reproducible receipt is

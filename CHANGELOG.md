@@ -11,7 +11,7 @@
 - Added a deterministic Phase 2 aggregate over 14 fixtures and all 42 pinned Tier 1 repositories, with per-capability worst-case status, response bytes, resource measurements, and explicit node and edge budget diagnostics.
 - Added an isolated SQLite native source index with generation commits, incremental refresh, bounded queries, doctor/confirm-gated repair, and a no-write MCP preview. A reviewed integration fixture proves build, query, and exact no-op refresh behavior for all 14 Tier 1 languages.
 - Added deterministic bounded communities and evidence-backed entry-to-sink processes to the existing native `repo.architecture` MCP result, plus a reproducible Phase 4 correctness and query-deadline receipt. The MCP surface remains twelve read-only tools and no parity claim is made.
-- Added five optional native-platform package templates, exact npm/Cargo/binary version alignment, a verified platform-binary resolver, and an offline macOS arm64 installed-package gate covering all fourteen Tier 1 parsers and the SQLite lifecycle without a compiler. No platform package was published or signed, and JS remains the public default.
+- Added five optional native-platform package templates, exact npm/Cargo/binary version alignment, a verified platform-binary resolver, and an offline macOS arm64 installed-package gate covering all fourteen Tier 1 parsers and the SQLite lifecycle without a compiler. A five-runner CI matrix now defines the same exact-tarball gate for the remaining targets, but those hosted runs, signing, and publication remain unproven; JS remains the public default.
 
 ### Fixed
 

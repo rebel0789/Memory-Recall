@@ -179,6 +179,11 @@ preservation, and unchanged installed package bytes. It is a current-platform
 consumer gate, not cross-platform, signing, publication, parity, or leadership
 evidence.
 
+The five-target Rust CI matrix reuses this installed-consumer gate with the
+exact unsigned tarball produced by each native runner. Only the macOS arm64 lane
+has been reproduced locally; the workflow configuration does not count as a
+passing result for the other four targets.
+
 ## Dataset
 
 | Claim | Dataset |

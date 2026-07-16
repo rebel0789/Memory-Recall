@@ -1090,6 +1090,7 @@
         "evals/code-intelligence/results/phase2-tier1-summary.json",
         "evals/code-intelligence/results/phase3-source-index.json",
         "evals/code-intelligence/results/phase4-intelligence.json",
+        ".github/workflows/rust.yml",
         "providers/native/code-intelligence-rust/src/index.mjs",
         "providers/native/code-intelligence-rust/src/binary-resolver.mjs",
         "scripts/package-native-platform.mjs",
@@ -1112,13 +1113,13 @@
       ],
       "limitations": [
         "The public default remains bounded JavaScript and TypeScript static analysis.",
-        "The current registry release does not ship a Rust binary. This source checkout has exact-version optional package templates and a verified resolver; the macOS arm64 root-plus-platform packed install passes without Cargo or rustc, but the other four targets, signing, publication, MCP first-run indexing, web migration, and public-default promotion remain unproven.",
+        "The current registry release does not ship a Rust binary. This source checkout has exact-version optional package templates, a verified resolver, and a five-native-runner unsigned packaging gate; the macOS arm64 root-plus-platform packed install passes without Cargo or rustc, but the four hosted target runs, signing, publication, MCP first-run indexing, web migration, and public-default promotion remain unproven.",
         "Phase 2 covers 14 fixtures and all 42 pinned Tier 1 repositories; 46 capability rows meet the sampled floor, while 108 rows remain unmeasured or not applicable and every language remains overall unmeasured.",
         "Six bounded repository scopes report explicit node or edge omissions; their available evidence is partial and no scale claim is made.",
         "GitNexus and Codebase Memory MCP remain unmeasured on the pinned corpus.",
         "Phase 3 adds the isolated SQLite lifecycle, bounded invalidation refresh, watcher coordination, doctor/repair, CLI, provider, explicit read-only MCP preview, and a clean four-case performance receipt over 781 files; it does not promote the runtime default, bundle a native binary, move web, prove multi-repository or million-node scale, or make a parity or leadership claim.",
         "Phase 4 adds deterministic bounded communities and evidence-backed entry-to-sink processes through the existing native repo.architecture MCP result. Its local fixture proves deterministic output, evidence integrity, read-only behavior, and the two-second query deadline; it does not prove per-language process support, competitor parity, leadership, multi-repository behavior, or million-node scale.",
-        "The local Phase 6 distribution gate proves current-platform package discovery, target/path/checksum/version validation, compiler-free 14-language parsing, and installed SQLite build/status/query behavior on macOS arm64. It does not prove signed or published packages, the four other initial targets, automatic native public defaults, rollback/uninstall, or cross-platform release readiness."
+        "The local Phase 6 distribution gate proves current-platform package discovery, target/path/checksum/version validation, compiler-free 14-language parsing, and installed SQLite build/status/query behavior on macOS arm64. CI now defines exact-tarball native-runner gates for all five initial targets, but the four non-local lanes have not run here; signed or published packages, automatic native public defaults, rollback/uninstall, and cross-platform release readiness remain unproven."
       ]
     }
   ],
@@ -1159,7 +1160,7 @@
       "node scripts/code-intelligence-phase3-index.mjs --check",
       "node scripts/code-intelligence-phase4-intelligence.mjs --check"
     ],
-    "testsExpected": 770,
+    "testsExpected": 771,
     "protocolFixturesExpected": 208,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
