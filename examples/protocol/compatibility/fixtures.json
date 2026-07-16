@@ -872,6 +872,30 @@
       "expectedValid": false
     },
     {
+      "id": "code-intelligence-language-truth-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-language-truth.schema.json",
+      "instance": "examples/protocol/code-intelligence-language-truth.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-language-report-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-language-report.schema.json",
+      "instance": "examples/protocol/code-intelligence-language-report.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-language-truth-raw-body-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-language-truth.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-language-truth-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-language-truth-absolute-path-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-language-truth.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-language-truth-absolute-path.json",
+      "expectedValid": false
+    },
+    {
       "id": "code-intelligence-capability-matrix-current-valid",
       "schema": "packages/protocol/schemas/code-intelligence-capability-matrix.schema.json",
       "instance": "evals/code-intelligence/capability-matrix.v1.json",

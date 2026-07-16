@@ -60,19 +60,19 @@ Recall and precision require reviewed truth records. Compatibility against the N
 - Create: `tests/code-intelligence-language-evaluation.test.mjs`
 - Create: `evals/code-intelligence/truth/README.md`
 
-- [ ] **Step 1: Write failing protocol and evaluator tests**
+- [x] **Step 1: Write failing protocol and evaluator tests**
 
 Require closed schemas for a fixture or real-repository truth manifest and its sanitized result. Truth items identify language, capability, repository ref or fixture ref, locator, stable semantic key, expected presence/absence, relationship resolution, and review provenance. They never contain source text. Reject absolute paths, repository escapes, duplicate IDs/semantic keys, raw bodies, missing locators, and `full` claims without fixture plus real-repository evidence.
 
-- [ ] **Step 2: Implement deterministic metric evaluation**
+- [x] **Step 2: Implement deterministic metric evaluation**
 
 Evaluate declaration recall, relationship recall, resolved-call precision, duplicate canonical symbols, parse failures, deterministic fingerprints, and explicit partial states. Separate applicable, non-applicable, unsupported, and unmeasured cells. Produce per-case, per-language, and per-capability results with numerator/denominator counts so no percentage can hide a zero-sized sample.
 
-- [ ] **Step 3: Add evidence review rules**
+- [x] **Step 3: Add evidence review rules**
 
 Document how truth records are selected and reviewed: all fixture facts, plus stable sampled declarations/imports/heritage/calls/routes from each pinned repository. Record exact commit and bounded scope. A generator may propose samples, but a checked-in truth record requires source-locator review and must not be generated from the engine being evaluated.
 
-- [ ] **Step 4: Verify and commit the evaluation foundation**
+- [x] **Step 4: Verify and commit the evaluation foundation**
 
 Run:
 

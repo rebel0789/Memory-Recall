@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_typescript_duplicate_id",
+  "language": "typescript",
+  "source": {
+    "class": "fixture",
+    "ref": "fixture://sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "exhaustive",
+    "relationships": "not-applicable",
+    "calls": "not-applicable"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "unmeasured",
+    "exports": "unmeasured",
+    "heritage": "unmeasured",
+    "types": "unmeasured",
+    "calls": "unmeasured",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_duplicate_function",
+      "semanticKey": "node:function:src/index.ts:first",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "first",
+      "locator": "workspace://src/index.ts#L1-L1"
+    },
+    {
+      "id": "cititem_duplicate_function",
+      "semanticKey": "node:function:src/index.ts:second",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "second",
+      "locator": "workspace://src/index.ts#L2-L2"
+    }
+  ],
+  "truthFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+}

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_typescript_protocol_fixture",
+  "language": "typescript",
+  "source": {
+    "class": "fixture",
+    "ref": "fixture://sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "exhaustive",
+    "relationships": "exhaustive",
+    "calls": "not-applicable"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "unmeasured",
+    "exports": "unmeasured",
+    "heritage": "unmeasured",
+    "types": "unmeasured",
+    "calls": "unmeasured",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_build_index_function",
+      "semanticKey": "node:function:src/index.ts:buildIndex",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "buildIndex",
+      "qualifiedName": "src/index.ts::buildIndex",
+      "locator": "workspace://src/index.ts#L1-L3"
+    },
+    {
+      "id": "cititem_file_defines_build_index",
+      "semanticKey": "edge:defines:src/index.ts:buildIndex",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "defines",
+      "from": {
+        "kind": "file",
+        "name": "index.ts",
+        "qualifiedName": "src/index.ts",
+        "locator": "workspace://src/index.ts#L1-L3"
+      },
+      "to": {
+        "kind": "function",
+        "name": "buildIndex",
+        "qualifiedName": "src/index.ts::buildIndex",
+        "locator": "workspace://src/index.ts#L1-L3"
+      },
+      "locator": "workspace://src/index.ts#L1-L3",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:507bece7a21fa7a7c07b4594e954e5a0a32267435960174c297f452a8bfeffbe"
+}

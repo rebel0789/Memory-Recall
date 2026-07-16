@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/code-intelligence-language-report.schema.json",
+  "title": "Memory Recall Code Intelligence Language Evaluation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reportVersion", "truthId", "language", "sourceRef", "graphFingerprints", "reviewCoverage", "metrics", "capabilities", "failures", "gateDecision", "claims", "safeguards", "reportFingerprint"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "reportVersion": { "const": "memory-recall-code-intelligence-language-report-1" },
+    "truthId": { "type": "string", "pattern": "^citruth_[a-z0-9_]{3,120}$" },
+    "language": { "$ref": "#/$defs/language" },
+    "sourceRef": { "type": "string", "pattern": "^(?:fixture://sha256:[a-f0-9]{64}|corpus://cirepo_[a-z0-9_]{3,120}@[a-f0-9]{40}#[A-Za-z0-9._/-]{1,240})$" },
+    "graphFingerprints": { "type": "array", "minItems": 2, "maxItems": 10, "items": { "$ref": "#/$defs/fingerprint" } },
+    "reviewCoverage": { "$ref": "#/$defs/reviewCoverage" },
+    "metrics": { "$ref": "#/$defs/metrics" },
+    "capabilities": { "type": "array", "minItems": 11, "maxItems": 11, "items": { "$ref": "#/$defs/capabilityResult" } },
+    "failures": { "type": "array", "maxItems": 10000, "items": { "$ref": "#/$defs/failure" } },
+    "gateDecision": { "enum": ["pass", "fail"] },
+    "claims": { "$ref": "#/$defs/claims" },
+    "safeguards": { "$ref": "#/$defs/safeguards" },
+    "reportFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "language": { "enum": ["typescript", "javascript", "python", "java", "kotlin", "csharp", "go", "rust", "php", "ruby", "swift", "c", "cpp", "dart"] },
+    "capability": { "enum": ["parse", "structure", "imports", "exports", "heritage", "types", "calls", "config", "frameworks", "impact", "processes"] },
+    "reviewExtent": { "enum": ["exhaustive", "sampled", "not-applicable"] },
+    "ratio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numerator", "denominator", "value"],
+      "properties": {
+        "numerator": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "denominator": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "value": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+      }
+    },
+    "reviewCoverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declarations", "relationships", "calls"],
+      "properties": {
+        "declarations": { "$ref": "#/$defs/reviewExtent" },
+        "relationships": { "$ref": "#/$defs/reviewExtent" },
+        "calls": { "$ref": "#/$defs/reviewExtent" }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declarationRecall", "relationshipRecall", "reviewedCallPrecision", "duplicateCanonicalSymbolCount", "parseFailureCount", "deterministicGraphFingerprint", "truthItemCount", "matchedTruthItemCount"],
+      "properties": {
+        "declarationRecall": { "$ref": "#/$defs/ratio" },
+        "relationshipRecall": { "$ref": "#/$defs/ratio" },
+        "reviewedCallPrecision": { "$ref": "#/$defs/ratio" },
+        "duplicateCanonicalSymbolCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "parseFailureCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "deterministicGraphFingerprint": { "type": "boolean" },
+        "truthItemCount": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "matchedTruthItemCount": { "type": "integer", "minimum": 0, "maximum": 10000 }
+      }
+    },
+    "capabilityResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "claim", "benchmarkStatus", "itemCount", "matchedItemCount"],
+      "properties": {
+        "id": { "$ref": "#/$defs/capability" },
+        "claim": { "enum": ["full", "partial", "parse-only", "unsupported", "unmeasured"] },
+        "benchmarkStatus": { "enum": ["not-applicable", "unmeasured", "does-not-meet-floor", "meets-floor"] },
+        "itemCount": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "matchedItemCount": { "type": "integer", "minimum": 0, "maximum": 10000 }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,63}$" },
+        "itemId": { "type": "string", "pattern": "^cititem_[a-z0-9_]{3,120}$" },
+        "capability": { "$ref": "#/$defs/capability" }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accuracyFloorMet", "parity", "leadership"],
+      "properties": {
+        "accuracyFloorMet": { "type": "boolean" },
+        "parity": { "const": false },
+        "leadership": { "const": false }
+      }
+    },
+    "safeguards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rawSourceStored", "absolutePathsStored", "environmentVariablesStored", "networkCalls", "modelCalls", "canonicalMemoryWrites", "workspaceWrites"],
+      "properties": {
+        "rawSourceStored": { "const": false },
+        "absolutePathsStored": { "const": false },
+        "environmentVariablesStored": { "const": false },
+        "networkCalls": { "const": 0 },
+        "modelCalls": { "const": 0 },
+        "canonicalMemoryWrites": { "const": 0 },
+        "workspaceWrites": { "const": 0 }
+      }
+    }
+  }
+}

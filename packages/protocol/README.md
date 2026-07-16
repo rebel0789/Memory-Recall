@@ -207,6 +207,24 @@ canonical-memory operation. Unknown major versions and additional fields fail
 closed. This boundary is additive within protocol v1; it does not switch the
 public source-graph provider by itself.
 
+`code-intelligence-language-truth.schema.json` and
+`code-intelligence-language-report.schema.json` define the reviewed evidence
+used to measure one language on one fixture or pinned repository scope. Truth
+records contain stable semantic keys, safe workspace locators, expected
+presence or absence, review coverage, and provenance. They do not contain raw
+source, absolute paths, repository contents, environment values, or engine
+output copied back as truth.
+
+The language evaluator reports exact numerators and denominators for declaration
+recall, relationship recall, and reviewed call precision. It also records
+duplicate canonical symbols, repository parse failures, graph-fingerprint
+determinism, per-capability item coverage, and explicit unmeasured or
+not-applicable states. Schema validation is followed by semantic auditing for
+duplicate truth IDs and semantic keys, source-class mismatches, unsupported
+`full` claims, and fingerprint drift. A zero-sized sample remains `null`; it is
+never presented as a passing percentage. Individual language reports cannot
+claim parity or leadership and do not change the public JavaScript engine.
+
 ## Recall Map report schema
 
 `recall-map.schema.json` is the additive internal contract for the read-only

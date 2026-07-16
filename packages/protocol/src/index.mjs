@@ -52,3 +52,8 @@ export {
   CODE_INTELLIGENCE_TIER_2_LANGUAGES,
   auditCodeIntelligenceCapabilityMatrix
 } from './code-intelligence-contract.mjs';
+export {
+  auditCodeIntelligenceLanguageTruth,
+  evaluateCodeIntelligenceLanguage,
+  truthFingerprint
+} from './code-intelligence-evaluation.mjs';
