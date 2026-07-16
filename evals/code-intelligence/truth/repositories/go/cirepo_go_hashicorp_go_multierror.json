@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_go_hashicorp_go_multierror",
+  "language": "go",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#."
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "unmeasured",
+    "exports": "unmeasured",
+    "heritage": "unmeasured",
+    "types": "unmeasured",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_multierror_error",
+      "semanticKey": "node:struct:multierror.go:Error",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "struct",
+      "name": "Error",
+      "qualifiedName": "multierror.go::Error",
+      "locator": "workspace://multierror.go#L13-L16"
+    },
+    {
+      "id": "cititem_multierror_error_method",
+      "semanticKey": "node:method:multierror.go:Error:Error",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "Error",
+      "qualifiedName": "multierror.go::Error::Error",
+      "locator": "workspace://multierror.go#L18-L25"
+    },
+    {
+      "id": "cititem_multierror_error_or_nil",
+      "semanticKey": "node:method:multierror.go:Error:ErrorOrNil",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "ErrorOrNil",
+      "qualifiedName": "multierror.go::Error::ErrorOrNil",
+      "locator": "workspace://multierror.go#L31-L40"
+    },
+    {
+      "id": "cititem_multierror_append",
+      "semanticKey": "node:function:append.go:Append",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "Append",
+      "qualifiedName": "append.go::Append",
+      "locator": "workspace://append.go#L14-L46"
+    },
+    {
+      "id": "cititem_multierror_recursive_append",
+      "semanticKey": "edge:calls:append.go:Append:Append",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "function", "name": "Append", "qualifiedName": "append.go::Append", "locator": "workspace://append.go#L14-L46" },
+      "to": { "kind": "function", "name": "Append", "qualifiedName": "append.go::Append", "locator": "workspace://append.go#L14-L46" },
+      "locator": "workspace://append.go#L44-L44",
+      "resolution": "inferred"
+    }
+  ],
+  "truthFingerprint": "sha256:201cd18fde7e6b29dab223e0ece8a003ddc9fd5801e1cd812622eff83c3ce367"
+}

@@ -144,6 +144,7 @@ pub struct RecoveredFile {
 #[derive(Debug, Clone)]
 struct ParsedRepo {
     facts: BTreeSet<FactKey>,
+    deferred_definitions: Vec<DeferredDefinitionRef>,
     calls: Vec<CallRef>,
     constructs: Vec<ConstructRef>,
     imports: Vec<ImportRef>,
@@ -163,6 +164,7 @@ impl ParsedRepo {
     fn new() -> Self {
         Self {
             facts: BTreeSet::new(),
+            deferred_definitions: Vec::new(),
             calls: Vec::new(),
             constructs: Vec::new(),
             imports: Vec::new(),
@@ -207,6 +209,26 @@ impl ParsedRepo {
             note,
             span,
         );
+    }
+
+    fn add_deferred_definition_at(
+        &mut self,
+        owner_name: &str,
+        fallback_owner: &str,
+        symbol: &str,
+        source: &str,
+        note: &'static str,
+        span: CodeSpan,
+    ) {
+        self.definition_count += 1;
+        self.deferred_definitions.push(DeferredDefinitionRef {
+            owner_name: owner_name.to_string(),
+            fallback_owner: fallback_owner.to_string(),
+            symbol: symbol.to_string(),
+            source: source.to_string(),
+            note,
+            span,
+        });
     }
 
     fn add_import(&mut self, owner: &str, target: ImportTarget, source: &str, span: CodeSpan) {
@@ -285,6 +307,21 @@ impl ParsedRepo {
     }
 
     fn finish(mut self) -> (Vec<BatchFact>, Vec<CodeFactRecord>) {
+        let deferred_definitions = std::mem::take(&mut self.deferred_definitions);
+        for definition in deferred_definitions {
+            let owner = self
+                .resolve_type_symbol_name_in_source(&definition.owner_name, &definition.source)
+                .or_else(|| self.resolve_type_symbol_name(&definition.owner_name))
+                .unwrap_or(definition.fallback_owner);
+            self.add_fact_at(
+                owner,
+                "DEFINES",
+                definition.symbol,
+                &definition.source,
+                definition.note,
+                definition.span,
+            );
+        }
         let imports = std::mem::take(&mut self.imports);
         for import in imports {
             let resolved = self.resolve_import_target(&import);
@@ -415,7 +452,9 @@ impl ParsedRepo {
         }
         let constructs = std::mem::take(&mut self.constructs);
         for construct in constructs {
-            let resolved = self.resolve_exact_symbol_name(&construct.type_name);
+            let resolved = self
+                .resolve_type_symbol_name_in_source(&construct.type_name, &construct.source)
+                .or_else(|| self.resolve_type_symbol_name(&construct.type_name));
             let target = resolved
                 .clone()
                 .unwrap_or_else(|| format!("external_class:{}", construct.type_name));
@@ -443,7 +482,15 @@ impl ParsedRepo {
         }
         let heritage = std::mem::take(&mut self.heritage);
         for relation in heritage {
-            let resolved = self.resolve_exact_symbol_name(&relation.target_name);
+            let subject = if relation.subject.contains(':') {
+                relation.subject
+            } else {
+                self.resolve_type_symbol_name_in_source(&relation.subject, &relation.source)
+                    .unwrap_or_else(|| format!("external_struct:{}", relation.subject))
+            };
+            let resolved = self
+                .resolve_type_symbol_name_in_source(&relation.target_name, &relation.source)
+                .or_else(|| self.resolve_type_symbol_name(&relation.target_name));
             let target = resolved.clone().unwrap_or_else(|| {
                 format!(
                     "external_{}:{}",
@@ -469,7 +516,7 @@ impl ParsedRepo {
                 );
             }
             self.add_fact_at(
-                relation.subject,
+                subject,
                 relation.predicate,
                 target,
                 &relation.source,
@@ -538,9 +585,65 @@ impl ParsedRepo {
             .source
             .strip_prefix("workspace://")
             .unwrap_or(&import.source);
-        resolve_relative_import(source_rel, &import.raw)
-            .or_else(|| resolve_package_import(&self.package_entries, &import.raw))
-            .map(|stem| format!("module:{}", module_token(&stem)))
+        let mut candidates = Vec::new();
+        if let Some(stem) = resolve_relative_import(source_rel, &import.raw) {
+            candidates.push(stem);
+        }
+        if let Some(stem) = resolve_package_import(&self.package_entries, &import.raw) {
+            candidates.push(stem);
+        }
+        candidates.extend(self.local_language_import_stems(import));
+        candidates.sort();
+        candidates.dedup();
+        candidates
+            .iter()
+            .find_map(|stem| self.resolve_existing_module_subject(stem))
+    }
+
+    fn local_language_import_stems(&self, import: &ImportRef) -> Vec<String> {
+        if !import.source.ends_with(".rs") || !import.raw.starts_with("crate::") {
+            return Vec::new();
+        }
+        let tail = import.raw.trim_start_matches("crate::").replace("::", "/");
+        self.package_entries
+            .values()
+            .filter_map(|entry| {
+                let root = entry
+                    .strip_suffix("/lib")
+                    .or_else(|| entry.strip_suffix("lib"))?;
+                Some(format!("{}/{tail}", root.trim_end_matches('/')))
+            })
+            .collect()
+    }
+
+    fn resolve_existing_module_subject(&self, stem: &str) -> Option<String> {
+        let normalized = strip_known_extension(stem.trim().trim_start_matches("./"));
+        let mut candidate = normalized.to_string();
+        loop {
+            let subject = format!("module:{}", module_token(&candidate));
+            if self.has_entity_subject(&subject) {
+                return Some(subject);
+            }
+            let Some((parent, _)) = candidate.rsplit_once('/') else {
+                break;
+            };
+            candidate = parent.to_string();
+        }
+
+        let directory = normalized.trim_matches('/');
+        let prefix = format!("workspace://{directory}/");
+        let modules = self
+            .facts
+            .iter()
+            .filter(|fact| {
+                fact.predicate == "IS_A"
+                    && fact.object == "Module"
+                    && fact.source.starts_with(&prefix)
+                    && fact.source[prefix.len()..].split('/').count() == 1
+            })
+            .map(|fact| fact.subject.clone())
+            .collect::<BTreeSet<_>>();
+        (modules.len() == 1).then(|| modules.iter().next().unwrap().clone())
     }
 
     fn resolve_route_handler(&self, route: &RouteRef) -> Option<String> {
@@ -555,9 +658,15 @@ impl ParsedRepo {
 
     fn resolve_call(&self, call: &CallRef) -> (String, &'static str) {
         if let Some(hint) = call.typed_target.as_ref() {
-            if let Some(target) = self.resolve_exact_symbol_name(&hint.target_name) {
+            if let Some(target) = self
+                .resolve_exact_symbol_name_in_source(&hint.target_name, &call.source)
+                .or_else(|| self.resolve_exact_symbol_name(&hint.target_name))
+            {
                 return (target, hint.note);
             }
+        }
+        if let Some(target) = self.resolve_scoped_call_target(call) {
+            return (target, "oaf.ingest:resolved-scoped-call");
         }
         match call
             .allow_name_resolution
@@ -575,6 +684,24 @@ impl ParsedRepo {
         }
     }
 
+    fn resolve_scoped_call_target(&self, call: &CallRef) -> Option<String> {
+        let name = sanitize_symbol(&call.callee_name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let local = subjects
+            .iter()
+            .filter(|candidate| {
+                self.facts.iter().any(|fact| {
+                    fact.predicate == "DEFINES"
+                        && fact.subject == call.caller
+                        && fact.object == candidate.as_str()
+                        && fact.source == call.source
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        (local.len() == 1).then(|| local[0].clone())
+    }
+
     fn resolve_exact_symbol_name(&self, name: &str) -> Option<String> {
         let name = sanitize_symbol(name)?;
         let subjects = self.definitions_by_name.get(&name)?;
@@ -585,6 +712,52 @@ impl ParsedRepo {
             .iter()
             .find(|subject| subject.starts_with("method:"))
             .cloned()
+    }
+
+    fn resolve_exact_symbol_name_in_source(&self, name: &str, source: &str) -> Option<String> {
+        let name = sanitize_symbol(name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let local = subjects
+            .iter()
+            .filter(|subject| {
+                self.facts.iter().any(|fact| {
+                    fact.predicate == "IS_A"
+                        && fact.subject == subject.as_str()
+                        && fact.source == source
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        (local.len() == 1).then(|| local[0].clone())
+    }
+
+    fn resolve_type_symbol_name(&self, name: &str) -> Option<String> {
+        let name = sanitize_symbol(name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let types = subjects
+            .iter()
+            .filter(|subject| is_type_subject(subject))
+            .cloned()
+            .collect::<Vec<_>>();
+        (types.len() == 1).then(|| types[0].clone())
+    }
+
+    fn resolve_type_symbol_name_in_source(&self, name: &str, source: &str) -> Option<String> {
+        let name = sanitize_symbol(name)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let local = subjects
+            .iter()
+            .filter(|subject| {
+                is_type_subject(subject)
+                    && self.facts.iter().any(|fact| {
+                        fact.predicate == "IS_A"
+                            && fact.subject == subject.as_str()
+                            && fact.source == source
+                    })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        (local.len() == 1).then(|| local[0].clone())
     }
 
     fn resolve_known_call_target(&self, callee_name: &str) -> Option<String> {
@@ -614,6 +787,7 @@ impl ParsedRepo {
 
     fn merge(&mut self, other: ParsedRepo) {
         self.facts.extend(other.facts);
+        self.deferred_definitions.extend(other.deferred_definitions);
         self.calls.extend(other.calls);
         self.constructs.extend(other.constructs);
         self.imports.extend(other.imports);
@@ -655,6 +829,16 @@ struct ExportRef {
     owner: String,
     target: String,
     source: String,
+    span: CodeSpan,
+}
+
+#[derive(Debug, Clone)]
+struct DeferredDefinitionRef {
+    owner_name: String,
+    fallback_owner: String,
+    symbol: String,
+    source: String,
+    note: &'static str,
     span: CodeSpan,
 }
 
@@ -842,6 +1026,7 @@ struct WalkContext {
     impl_name: Option<String>,
     caller: Option<String>,
     type_bindings: BTreeMap<String, String>,
+    suppress_calls: bool,
 }
 
 pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
@@ -1922,7 +2107,7 @@ fn parse_go_mod_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, 
     else {
         return;
     };
-    let dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or("");
+    let dir = rel.rsplit_once('/').map(|(dir, _)| dir).unwrap_or(".");
     insert_package_entry(
         entries,
         module_path.split_whitespace().next().unwrap_or(""),
@@ -2091,6 +2276,7 @@ fn parse_file_job(job: FileJob) -> Result<FileParse> {
         impl_name: None,
         caller: None,
         type_bindings: BTreeMap::new(),
+        suppress_calls: false,
     };
     walk_node(tree.root_node(), &bytes, &context, &mut parsed);
     Ok(FileParse {
@@ -2123,6 +2309,7 @@ fn extract_file_fingerprints(job: FileJob) -> Result<Vec<CodeFingerprint>> {
         impl_name: None,
         caller: None,
         type_bindings: BTreeMap::new(),
+        suppress_calls: false,
     };
     let mut out = Vec::new();
     walk_fingerprint_nodes(tree.root_node(), &bytes, &context, &mut out);
@@ -2263,6 +2450,21 @@ fn read_cgroup_limit(path: &str) -> Option<u64> {
 }
 
 fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut ParsedRepo) {
+    let mut suppress_child_calls = false;
+    if context.lang == LangKind::Go && node.kind() == "composite_literal" {
+        if let (Some(caller), Some(type_name)) = (
+            context.caller.as_deref(),
+            node.child_by_field_name("type")
+                .and_then(|type_node| heritage_target_name(type_node, source)),
+        ) {
+            parsed.constructs.push(ConstructRef {
+                caller: caller.to_string(),
+                type_name,
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+        }
+    }
     if node.kind() == "new_expression" {
         if let Some(caller) = context.caller.as_deref() {
             if let Some(type_name) = constructor_callee(node, source) {
@@ -2310,27 +2512,50 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         if let Some(framework) = node_http_server(node, source, context) {
             parsed.frameworks.push(framework);
         }
-        if let Some(route) = route_registration(node, source, context) {
+        let route = route_registration(node, source, context);
+        let is_route_registration = route.is_some();
+        if let Some(route) = route {
             parsed.routes.push(route);
+            suppress_child_calls = true;
         }
-        if let Some(caller) = context.caller.as_deref() {
-            if let Some(callee) = callee_name(node, source) {
-                if !is_declaration_signature_call(node, context.lang, caller, &callee) {
-                    let typed_target = typed_call_target(node, source, context);
-                    let member_access = node
-                        .child_by_field_name("function")
-                        .or_else(|| node.named_child(0))
-                        .is_some_and(|function| {
-                            receiver_method(node_text(function, source)).is_some()
-                        });
-                    parsed.add_call_with_hint(
-                        caller,
-                        &callee,
-                        typed_target,
-                        !member_access,
-                        &context.source,
-                        CodeSpan::from_node(node),
-                    );
+        if !is_route_registration && !context.suppress_calls {
+            if let Some(caller) = context.caller.as_deref() {
+                if let Some(callee) = callee_name(node, source) {
+                    if !is_declaration_signature_call(node, context.lang, caller, &callee) {
+                        if let Some(type_name) = rust_associated_constructor(node, source, context)
+                        {
+                            parsed.constructs.push(ConstructRef {
+                                caller: caller.to_string(),
+                                type_name,
+                                source: context.source.clone(),
+                                span: CodeSpan::from_node(node),
+                            });
+                        } else if context.lang == LangKind::Python && looks_like_type_name(&callee)
+                        {
+                            parsed.constructs.push(ConstructRef {
+                                caller: caller.to_string(),
+                                type_name: callee,
+                                source: context.source.clone(),
+                                span: CodeSpan::from_node(node),
+                            });
+                        } else {
+                            let typed_target = typed_call_target(node, source, context);
+                            let member_access = node
+                                .child_by_field_name("function")
+                                .or_else(|| node.named_child(0))
+                                .is_some_and(|function| {
+                                    receiver_method(node_text(function, source)).is_some()
+                                });
+                            parsed.add_call_with_hint(
+                                caller,
+                                &callee,
+                                typed_target,
+                                !member_access,
+                                &context.source,
+                                CodeSpan::from_node(node),
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -2372,6 +2597,9 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
     }
 
     let mut next = context.clone();
+    if suppress_child_calls {
+        next.suppress_calls = true;
+    }
     if let Some((type_name, type_id, type_kind, establishes_owner)) =
         type_declaration(node, source, context.lang)
     {
@@ -2423,10 +2651,27 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
 
     if context.lang == LangKind::Rust && node.kind() == "impl_item" {
         next.impl_name = rust_impl_name(node, source);
+        if let (Some(type_node), Some(trait_node)) = (
+            node.child_by_field_name("type"),
+            node.child_by_field_name("trait"),
+        ) {
+            if let (Some(type_name), Some(trait_name)) = (
+                heritage_target_name(type_node, source),
+                heritage_target_name(trait_node, source),
+            ) {
+                parsed.heritage.push(HeritageRef {
+                    subject: type_name,
+                    predicate: "IMPLEMENTS",
+                    target_name: trait_name,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
+        }
     }
 
     if let Some((name, subject, kind)) = callable_definition(node, source, context) {
-        let definition_owner = context
+        let fallback_owner = context
             .caller
             .as_deref()
             .or(context.owner_subject.as_deref())
@@ -2438,21 +2683,42 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             "oaf.ingest:callable",
             CodeSpan::from_node(node),
         );
-        parsed.add_definition_at(
-            definition_owner,
-            &subject,
-            &context.source,
-            "oaf.ingest:define-callable",
-            CodeSpan::from_node(node),
-        );
+        let receiver_owner = if context.lang == LangKind::Go && subject.starts_with("method:") {
+            go_receiver_name(node_text(node, source))
+        } else if context.lang == LangKind::Rust && subject.starts_with("method:") {
+            context.impl_name.clone()
+        } else {
+            None
+        };
+        if let Some(owner_name) = receiver_owner {
+            parsed.add_deferred_definition_at(
+                &owner_name,
+                fallback_owner,
+                &subject,
+                &context.source,
+                "oaf.ingest:define-callable",
+                CodeSpan::from_node(node),
+            );
+        } else {
+            parsed.add_definition_at(
+                fallback_owner,
+                &subject,
+                &context.source,
+                "oaf.ingest:define-callable",
+                CodeSpan::from_node(node),
+            );
+        }
         parsed.add_symbol_name(&name, &subject);
-        if subject.starts_with("method:") {
-            if let Some((_, bare)) = name.rsplit_once('_') {
-                parsed.add_symbol_name(bare, &subject);
+        if let Some(bare) =
+            callable_node_name(node, source, context).and_then(|value| sanitize_symbol(&value))
+        {
+            if bare != name {
+                parsed.add_symbol_name(&bare, &subject);
             }
         }
         next.caller = Some(subject);
         next.type_bindings = local_type_bindings(node, source, context);
+        next.suppress_calls = false;
         if let Some(route) = callable_route(node, source, context, &next.caller.clone().unwrap()) {
             parsed.routes.push(route);
         }
@@ -2476,6 +2742,13 @@ fn is_declaration_signature_call(
         && caller.strip_prefix("function:") == Some(callee)
 }
 
+fn is_type_subject(subject: &str) -> bool {
+    matches!(
+        subject.split_once(':').map(|(kind, _)| kind),
+        Some("class" | "interface" | "struct" | "enum" | "trait" | "protocol" | "type_alias")
+    )
+}
+
 fn callable_definition(
     node: Node<'_>,
     source: &[u8],
@@ -2493,6 +2766,15 @@ fn callable_definition(
         | "method" => {
             let name = callable_node_name(node, source, context)?;
             let sanitized = sanitize_symbol(&name)?;
+            if let Some(caller) = context.caller.as_deref() {
+                let owner = caller.split_once(':').map_or(caller, |(_, value)| value);
+                let nested_name = format!("{owner}_{sanitized}");
+                return Some((
+                    nested_name.clone(),
+                    format!("function:{nested_name}"),
+                    "Function",
+                ));
+            }
             if context.lang == LangKind::Rust && context.impl_name.is_some() {
                 let impl_name = context.impl_name.as_deref().unwrap();
                 let method_name = format!("{impl_name}_{sanitized}");
@@ -2605,13 +2887,15 @@ fn type_declaration(
         }
         "class_specifier" if lang == LangKind::Cpp => ("class", "Class", true),
         "type_spec" if lang == LangKind::Go => {
-            let text = node_text(node, source);
-            if text.contains("struct") {
-                ("struct", "Struct", true)
-            } else if text.contains("interface") {
-                ("interface", "Interface", true)
-            } else {
-                return None;
+            let declared_type = node.child_by_field_name("type").or_else(|| {
+                (0..node.named_child_count())
+                    .filter_map(|index| node.named_child(index))
+                    .find(|child| matches!(child.kind(), "struct_type" | "interface_type"))
+            })?;
+            match declared_type.kind() {
+                "struct_type" => ("struct", "Struct", true),
+                "interface_type" => ("interface", "Interface", true),
+                _ => return None,
             }
         }
         _ => return None,
@@ -2662,6 +2946,22 @@ fn exported_subjects(node: Node<'_>, source: &[u8], context: &WalkContext) -> Ve
 }
 
 fn heritage_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<(&'static str, String)> {
+    if lang == LangKind::Python {
+        let Some(superclasses) = node.child_by_field_name("superclasses") else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        for index in 0..superclasses.named_child_count() {
+            if let Some(base) = superclasses.named_child(index) {
+                if let Some(name) = heritage_target_name(base, source) {
+                    out.push(("EXTENDS", name));
+                }
+            }
+        }
+        out.sort();
+        out.dedup();
+        return out;
+    }
     if matches!(
         lang,
         LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
@@ -2718,7 +3018,12 @@ fn heritage_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<(&'sta
 
 fn heritage_target_name(node: Node<'_>, source: &[u8]) -> Option<String> {
     let target = if node.kind() == "generic_type" {
-        node.child_by_field_name("name").unwrap_or(node)
+        node.child_by_field_name("type")
+            .or_else(|| node.child_by_field_name("name"))
+            .or_else(|| node.named_child(0))
+            .unwrap_or(node)
+    } else if node.kind() == "subscript" {
+        node.child_by_field_name("value").unwrap_or(node)
     } else if node.kind() == "call_expression" {
         node.child_by_field_name("function").unwrap_or(node)
     } else {
@@ -2879,6 +3184,29 @@ fn constructor_callee(node: Node<'_>, source: &[u8]) -> Option<String> {
         .and_then(|name| sanitize_symbol(&name))
 }
 
+fn rust_associated_constructor(
+    node: Node<'_>,
+    source: &[u8],
+    context: &WalkContext,
+) -> Option<String> {
+    if context.lang != LangKind::Rust {
+        return None;
+    }
+    let function = node
+        .child_by_field_name("function")
+        .or_else(|| node.named_child(0))?;
+    let (receiver, method) = node_text(function, source).rsplit_once("::")?;
+    if method.trim() != "new" {
+        return None;
+    }
+    let receiver = last_identifier(receiver).and_then(|name| sanitize_symbol(&name))?;
+    if receiver == "Self" {
+        context.impl_name.clone()
+    } else {
+        Some(receiver)
+    }
+}
+
 fn typed_call_target(
     node: Node<'_>,
     source: &[u8],
@@ -2918,6 +3246,8 @@ fn typed_call_target(
 fn typed_call_note(lang: LangKind) -> Option<&'static str> {
     match lang {
         LangKind::Python => Some("oaf.ingest:typed-call-python"),
+        LangKind::Go => Some("oaf.ingest:typed-call-go"),
+        LangKind::Rust => Some("oaf.ingest:typed-call-rust"),
         LangKind::Java => Some("oaf.ingest:typed-call-java"),
         LangKind::CSharp => Some("oaf.ingest:typed-call-csharp"),
         LangKind::Swift => Some("oaf.ingest:typed-call-swift"),
@@ -2941,6 +3271,17 @@ fn local_type_bindings(
         }
         return bindings;
     }
+    if context.lang == LangKind::Go {
+        bindings.extend(go_type_bindings(node_text(node, source)));
+        return bindings;
+    }
+    if context.lang == LangKind::Rust {
+        bindings.extend(rust_type_bindings(node_text(node, source)));
+        if let Some(type_name) = context.impl_name.as_deref() {
+            bindings.insert("self".to_string(), type_name.to_string());
+        }
+        return bindings;
+    }
     if matches!(
         context.lang,
         LangKind::JavaScript
@@ -2954,6 +3295,74 @@ fn local_type_bindings(
         bindings.extend(constructor_type_bindings(node_text(node, source)));
     }
     bindings
+}
+
+fn go_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let header = text.split('{').next().unwrap_or(text);
+    let mut bindings = BTreeMap::new();
+    for parameters in parenthesized_segments(header) {
+        for parameter in parameters.split(',') {
+            let parts = parameter.split_whitespace().collect::<Vec<_>>();
+            if parts.len() < 2 {
+                continue;
+            }
+            let Some(type_name) =
+                last_identifier(parts.last().unwrap()).and_then(|name| sanitize_symbol(&name))
+            else {
+                continue;
+            };
+            for name in &parts[..parts.len() - 1] {
+                if let Some(name) = sanitize_symbol(name.trim_matches(['(', ')', '*', '&'])) {
+                    bindings.insert(name, type_name.clone());
+                }
+            }
+        }
+    }
+    bindings
+}
+
+fn rust_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let header = text.split('{').next().unwrap_or(text);
+    let mut bindings = BTreeMap::new();
+    let Some(parameters) = parenthesized_segments(header).into_iter().next() else {
+        return bindings;
+    };
+    for parameter in parameters.split(',') {
+        let Some((name, type_name)) = parameter.split_once(':') else {
+            continue;
+        };
+        let Some(name) = sanitize_symbol(name.trim()) else {
+            continue;
+        };
+        let Some(type_name) = last_identifier(type_name).and_then(|value| sanitize_symbol(&value))
+        else {
+            continue;
+        };
+        bindings.insert(name, type_name);
+    }
+    bindings
+}
+
+fn parenthesized_segments(text: &str) -> Vec<&str> {
+    let mut out = Vec::new();
+    let mut depth = 0usize;
+    let mut start = None;
+    for (index, ch) in text.char_indices() {
+        if ch == '(' {
+            if depth == 0 {
+                start = Some(index + ch.len_utf8());
+            }
+            depth += 1;
+        } else if ch == ')' && depth > 0 {
+            depth -= 1;
+            if depth == 0 {
+                if let Some(start) = start.take() {
+                    out.push(&text[start..index]);
+                }
+            }
+        }
+    }
+    out
 }
 
 fn constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
@@ -3006,36 +3415,109 @@ fn receiver_method(value: &str) -> Option<(String, String)> {
 }
 
 fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<RouteRef> {
-    if !matches!(
-        context.lang,
-        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
-    ) {
-        return None;
+    let text = node_text(node, source);
+    if context.lang == LangKind::Python {
+        let callee = callee_name(node, source)?;
+        if matches!(callee.as_str(), "path" | "re_path") {
+            return Some(RouteRef {
+                method: "ANY".to_string(),
+                path: first_quoted_route_path(text)?,
+                handler_subject: None,
+                handler_name: Some(route_handler_name(text)?),
+                source: context.source.clone(),
+                note: "oaf.ingest:route-django",
+                span: CodeSpan::from_node(node),
+            });
+        }
     }
     let function = node
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
     let (receiver, method) = receiver_method(node_text(function, source))?;
-    if !matches!(receiver.as_str(), "app" | "router" | "fastify" | "server") {
-        return None;
-    }
-    let method = http_method(&method)?;
-    let text = node_text(node, source);
+    let (method, handler_name, note) = match context.lang {
+        LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx => {
+            if !matches!(receiver.as_str(), "app" | "router" | "fastify" | "server") {
+                return None;
+            }
+            (
+                http_method(&method)?,
+                route_handler_name(text)?,
+                if receiver == "fastify" {
+                    "oaf.ingest:route-fastify"
+                } else {
+                    "oaf.ingest:route-javascript"
+                },
+            )
+        }
+        LangKind::Go => {
+            if receiver == "http" && method == "HandleFunc" {
+                let (method, path) = go_http_route_pattern(text)?;
+                return Some(RouteRef {
+                    method,
+                    path,
+                    handler_subject: None,
+                    handler_name: Some(route_handler_name(text)?),
+                    source: context.source.clone(),
+                    note: "oaf.ingest:route-go-net-http",
+                    span: CodeSpan::from_node(node),
+                });
+            }
+            if !matches!(
+                receiver.as_str(),
+                "router" | "r" | "engine" | "group" | "e" | "g" | "mux"
+            ) {
+                return None;
+            }
+            (
+                http_method(&method)?,
+                route_handler_name(text)?,
+                "oaf.ingest:route-go",
+            )
+        }
+        LangKind::Rust if method == "route" => {
+            let (method, handler) = rust_route_handler(text)?;
+            (method, handler, "oaf.ingest:route-rust")
+        }
+        _ => return None,
+    };
     let path = first_quoted_route_path(text)?;
-    let handler_name = route_handler_name(text)?;
     Some(RouteRef {
         method,
         path,
         handler_subject: None,
         handler_name: Some(handler_name),
         source: context.source.clone(),
-        note: if receiver == "fastify" {
-            "oaf.ingest:route-fastify"
-        } else {
-            "oaf.ingest:route-javascript"
-        },
+        note,
         span: CodeSpan::from_node(node),
     })
+}
+
+fn rust_route_handler(text: &str) -> Option<(String, String)> {
+    for method in ["get", "post", "put", "patch", "delete", "options", "head"] {
+        let marker = format!("{method}(");
+        let Some((_, tail)) = text.split_once(&marker) else {
+            continue;
+        };
+        let handler = tail
+            .split_once(".to(")
+            .map(|(_, value)| value)
+            .unwrap_or(tail);
+        let handler = handler
+            .split_once(')')
+            .map(|(value, _)| value)
+            .unwrap_or(handler);
+        let handler = last_identifier(handler).and_then(|name| sanitize_symbol(&name))?;
+        return Some((method.to_ascii_uppercase(), handler));
+    }
+    None
+}
+
+fn go_http_route_pattern(text: &str) -> Option<(String, String)> {
+    let pattern = quoted_literals(text).into_iter().next()?;
+    if let Some((method, path)) = pattern.split_once(' ') {
+        return Some((http_method(method)?, canon_route_path(path)));
+    }
+    Some(("ANY".to_string(), canon_route_path(&pattern)))
 }
 
 fn node_http_server(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<FrameworkRef> {
@@ -3095,6 +3577,19 @@ fn callable_route(
             span: decorator_aware_span(node, source),
         });
     }
+    if context.lang == LangKind::Rust {
+        let attribute = preceding_rust_attribute(node, source)?;
+        let name = attribute.trim_start_matches("#[").split_once('(')?.0;
+        return Some(RouteRef {
+            method: http_method(name)?,
+            path: first_quoted_route_path(attribute)?,
+            handler_subject: Some(handler_subject.to_string()),
+            handler_name: None,
+            source: context.source.clone(),
+            note: "oaf.ingest:route-rocket",
+            span: preceding_line_span(node),
+        });
+    }
     if context.lang != LangKind::Python {
         return None;
     }
@@ -3120,6 +3615,25 @@ fn callable_route(
         }
     }
     None
+}
+
+fn preceding_rust_attribute<'a>(node: Node<'_>, source: &'a [u8]) -> Option<&'a str> {
+    let prefix = std::str::from_utf8(source.get(..node.start_byte())?).ok()?;
+    prefix
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .map(str::trim)
+        .filter(|line| line.starts_with("#["))
+}
+
+fn preceding_line_span(node: Node<'_>) -> CodeSpan {
+    let mut span = CodeSpan::from_node(node);
+    if span.start_line > 1 {
+        span.start_line -= 1;
+        span.start_column = 0;
+    }
+    span
 }
 
 fn nest_controller_prefix(text: &str) -> Option<String> {
@@ -3328,6 +3842,12 @@ fn is_import_node(kind: &str) -> bool {
 }
 
 fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTarget> {
+    if lang == LangKind::Go
+        && node.kind() == "import_declaration"
+        && descendant_has_kind(node, "import_spec")
+    {
+        return Vec::new();
+    }
     let text = node_text(node, source);
     let mut out = Vec::new();
     for quoted in quoted_literals(text) {
@@ -3395,6 +3915,18 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
     });
     out.dedup_by(|left, right| left.raw == right.raw && left.fallback == right.fallback);
     out
+}
+
+fn descendant_has_kind(node: Node<'_>, expected: &str) -> bool {
+    for index in 0..node.named_child_count() {
+        let Some(child) = node.named_child(index) else {
+            continue;
+        };
+        if child.kind() == expected || descendant_has_kind(child, expected) {
+            return true;
+        }
+    }
+    false
 }
 
 fn import_target_from_raw(value: &str) -> Option<ImportTarget> {
@@ -3500,6 +4032,12 @@ fn resolve_package_prefix(
         let Some(stem) = entries.get(prefix) else {
             continue;
         };
+        if stem == "." {
+            let suffix = raw[index + separator.len_utf8()..]
+                .replace("::", "/")
+                .replace('.', "/");
+            return (!suffix.is_empty()).then_some(suffix);
+        }
         if separator == '.' {
             let suffix = raw[index + 1..].replace('.', "/");
             if !suffix.is_empty() && !stem.ends_with("src/lib") && !stem.ends_with("src/index") {
@@ -3546,7 +4084,7 @@ fn quoted_literals(value: &str) -> Vec<String> {
 
 fn rust_impl_name(node: Node<'_>, source: &[u8]) -> Option<String> {
     if let Some(child) = node.child_by_field_name("type") {
-        return sanitize_symbol(node_text(child, source));
+        return heritage_target_name(child, source);
     }
     let text = node_text(node, source);
     let before_body = text.split('{').next().unwrap_or(text);
@@ -3753,356 +4291,4 @@ fn stable_hash64(parts: &[&str]) -> u64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn resolves_calls_to_functions_not_modules() {
-        let mut parsed = ParsedRepo::new();
-        parsed.add_symbol_name("runServer", "function:runServer");
-        assert_eq!(
-            parsed.resolve_known_call_target("runServer").as_deref(),
-            Some("function:runServer")
-        );
-        assert_eq!(parsed.resolve_known_call_target("missingModule"), None);
-    }
-
-    #[test]
-    fn resolves_python_receiver_calls_with_constructor_type_bindings() {
-        let root =
-            std::env::temp_dir().join(format!("oaf-ingest-python-types-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("src")).unwrap();
-        fs::write(
-            root.join("src/typed.py"),
-            [
-                "class Counter:",
-                "    def inc(self):",
-                "        return 1",
-                "class Gauge:",
-                "    def inc(self):",
-                "        return 2",
-                "def run():",
-                "    counter = Counter()",
-                "    gauge = Gauge()",
-                "    counter.inc()",
-                "    gauge.inc()",
-            ]
-            .join("\n"),
-        )
-        .unwrap();
-
-        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
-        let calls = report
-            .facts
-            .iter()
-            .filter(|fact| fact.predicate == "CALLS")
-            .map(|fact| {
-                (
-                    fact.subject.as_str(),
-                    fact.object.as_str(),
-                    fact.notes.as_deref(),
-                )
-            })
-            .collect::<BTreeSet<_>>();
-
-        assert!(calls.contains(&(
-            "function:run",
-            "method:Counter_inc",
-            Some("oaf.ingest:typed-call-python")
-        )));
-        assert!(calls.contains(&(
-            "function:run",
-            "method:Gauge_inc",
-            Some("oaf.ingest:typed-call-python")
-        )));
-        assert!(!calls.contains(&("function:run", "function:inc", Some("oaf.ingest:call"))));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn emits_routes_and_resolved_imports() {
-        let root = std::env::temp_dir().join(format!("oaf-ingest-routes-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("src/demo_app")).unwrap();
-        fs::write(
-            root.join("package.json"),
-            r#"{"name":"@acme/web","main":"src/index.js"}"#,
-        )
-        .unwrap();
-        fs::write(
-            root.join("pyproject.toml"),
-            "[project]\nname = \"demo-app\"\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/index.js"),
-            [
-                "import { helper } from './helper.js';",
-                "function listUsers(req, res) {",
-                "  return helper();",
-                "}",
-                "app.get('/api/accounts/:id', listUsers);",
-            ]
-            .join("\n"),
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/helper.js"),
-            "export function helper() { return 1; }\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/demo_app/app.py"),
-            [
-                "from flask import Flask",
-                "app = Flask(__name__)",
-                "@app.route('/items/<int:item_id>', methods=['POST'])",
-                "def create_item():",
-                "    return 'ok'",
-            ]
-            .join("\n"),
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/demo_app/client.py"),
-            "from demo_app.app import create_item\n",
-        )
-        .unwrap();
-
-        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
-        let facts = report
-            .facts
-            .iter()
-            .map(|fact| {
-                (
-                    fact.subject.as_str(),
-                    fact.predicate.as_str(),
-                    fact.object.as_str(),
-                )
-            })
-            .collect::<BTreeSet<_>>();
-
-        assert!(facts.contains(&("route:GET_api_accounts_param", "IS_A", "Route")));
-        assert!(facts.contains(&(
-            "route:GET_api_accounts_param",
-            "HAS_PATH",
-            "path=/api/accounts/:param"
-        )));
-        assert!(facts.contains(&(
-            "function:listUsers",
-            "HANDLES",
-            "route:GET_api_accounts_param"
-        )));
-        assert!(facts.contains(&("route:POST_items_param", "IS_A", "Route")));
-        assert!(facts.contains(&("function:create_item", "HANDLES", "route:POST_items_param")));
-        assert!(facts.contains(&("module:src_index", "IMPORTS", "module:src_helper")));
-        assert!(facts.contains(&(
-            "module:src_demo_app_client",
-            "IMPORTS",
-            "module:src_demo_app_app"
-        )));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn emits_exact_retirement_facts() {
-        let active = vec![ActiveFactSnapshot {
-            subject: "function:OldName".to_string(),
-            predicate: "IS_A".to_string(),
-            object: "Function".to_string(),
-            source: "workspace://src/a.ts".to_string(),
-        }];
-        let retirements = retirement_facts(&active, &[]);
-        assert_eq!(retirements.len(), 1);
-        assert_eq!(retirements[0].subject, "function:OldName");
-        assert_eq!(
-            retirements[0]
-                .supersedes
-                .as_ref()
-                .and_then(|item| item.object.as_deref()),
-            Some("Function")
-        );
-    }
-
-    #[test]
-    fn parallel_extract_matches_sequential_fact_set() {
-        let root = std::env::temp_dir().join(format!("oaf-ingest-parallel-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("src")).unwrap();
-        fs::write(
-            root.join("src/a.js"),
-            "export function alpha(){ return beta(); }\nfunction beta(){ return 1; }\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/b.py"),
-            "def gamma():\n    return delta()\ndef delta():\n    return 1\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("src/c.rs"),
-            "fn epsilon(){ zeta(); }\nfn zeta() {}\n",
-        )
-        .unwrap();
-
-        let mut sequential = IngestOptions::new(&root);
-        sequential.workers = 1;
-        let mut parallel = IngestOptions::new(&root);
-        parallel.workers = 4;
-
-        let sequential = extract_repo(&sequential).unwrap();
-        let parallel = extract_repo(&parallel).unwrap();
-        assert_eq!(sequential.facts, parallel.facts);
-        assert_eq!(sequential.scanned_file_count, parallel.scanned_file_count);
-        assert_eq!(sequential.parsed_file_count, parallel.parsed_file_count);
-        assert!(parallel.effective_worker_count >= 1);
-        assert!(parallel.effective_worker_count <= 4);
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn recovers_useful_facts_from_partially_parsed_typescript() {
-        let root = std::env::temp_dir().join(format!(
-            "oaf-ingest-typescript-recovery-{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(&root).unwrap();
-        fs::write(
-            root.join("recover.ts"),
-            "const incomplete = ;\nexport function stillWorks() { return 1; }\n",
-        )
-        .unwrap();
-
-        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
-        assert_eq!(report.parsed_file_count, 1);
-        assert_eq!(report.skipped_file_count, 0);
-        assert_eq!(report.recovered_files.len(), 1);
-        assert!(report.facts.iter().any(|fact| {
-            fact.subject == "function:stillWorks"
-                && fact.predicate == "IS_A"
-                && fact.object == "Function"
-        }));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn typescript_exports_and_generic_heritage_use_structural_fields() {
-        let root = std::env::temp_dir().join(format!(
-            "oaf-ingest-typescript-structural-fields-{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(&root).unwrap();
-        fs::write(
-            root.join("module.ts"),
-            [
-                "export class RouteModule<T> {}",
-                "export type Userland = { userland: string };",
-                "export interface Options extends Omit<RouteModule<Userland>, 'userland'> {}",
-                "export class AppRoute extends RouteModule<Userland> {",
-                "  /** Loaded from the 'userland' module. */",
-                "  message = \"from source\";",
-                "}",
-            ]
-            .join("\n"),
-        )
-        .unwrap();
-
-        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
-        let facts = report
-            .facts
-            .iter()
-            .map(|fact| {
-                (
-                    fact.subject.as_str(),
-                    fact.predicate.as_str(),
-                    fact.object.as_str(),
-                )
-            })
-            .collect::<BTreeSet<_>>();
-
-        assert!(facts.contains(&("class:AppRoute", "EXTENDS", "class:RouteModule")));
-        assert!(facts.contains(&("interface:Options", "EXTENDS", "external_class:Omit")));
-        assert!(!facts.iter().any(|(_, predicate, object)| {
-            *predicate == "RE_EXPORTS"
-                || (*predicate == "EXTENDS"
-                    && matches!(*object, "type_alias:Userland" | "method:userland"))
-        }));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn javascript_keeps_private_methods_and_member_call_resolution_scoped() {
-        let root = std::env::temp_dir().join(format!(
-            "oaf-ingest-javascript-member-calls-{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(&root).unwrap();
-        fs::write(
-            root.join("client.js"),
-            [
-                "class Helper { static run() { return 1; } }",
-                "class Client {",
-                "  request() { return this._request(); }",
-                "  _request() { return Helper.run(); }",
-                "}",
-                "function resolve() { return 'local'; }",
-                "function build() { return path.resolve('out'); }",
-            ]
-            .join("\n"),
-        )
-        .unwrap();
-
-        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
-        let facts = report
-            .facts
-            .iter()
-            .map(|fact| {
-                (
-                    fact.subject.as_str(),
-                    fact.predicate.as_str(),
-                    fact.object.as_str(),
-                    fact.notes.as_deref(),
-                )
-            })
-            .collect::<BTreeSet<_>>();
-
-        assert!(facts.contains(&(
-            "class:Client",
-            "DEFINES",
-            "method:Client__request",
-            Some("oaf.ingest:define-callable")
-        )));
-        assert!(
-            facts.contains(&(
-                "method:Client_request",
-                "CALLS",
-                "method:Client__request",
-                Some("oaf.ingest:typed-call-javascript")
-            )),
-            "{facts:#?}"
-        );
-        assert!(facts.contains(&(
-            "method:Client__request",
-            "CALLS",
-            "method:Helper_run",
-            Some("oaf.ingest:typed-call-javascript")
-        )));
-        assert!(facts.contains(&(
-            "function:build",
-            "CALLS",
-            "external_function:resolve",
-            Some("oaf.ingest:unresolved-call")
-        )));
-
-        fs::remove_dir_all(root).unwrap();
-    }
-}
+include!("../test-support/lib_unit.rs");

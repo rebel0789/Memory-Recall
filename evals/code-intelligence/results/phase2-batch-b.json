@@ -1,0 +1,2160 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-code-intelligence-phase2-batch-b-1",
+  "phase": 2,
+  "batch": "B",
+  "generatedAt": "2026-07-16T11:37:08.937Z",
+  "inputs": {
+    "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
+    "bounds": {
+      "maxFiles": 5000,
+      "maxFileBytes": 524288,
+      "maxNodes": 5000,
+      "maxEdges": 10000
+    },
+    "fixtureTruth": [
+      "evals/code-intelligence/truth/fixtures/python.json",
+      "evals/code-intelligence/truth/fixtures/go.json",
+      "evals/code-intelligence/truth/fixtures/rust.json"
+    ],
+    "repositoryTruth": [
+      "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json",
+      "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json",
+      "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json",
+      "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json",
+      "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json",
+      "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json",
+      "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json",
+      "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json",
+      "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json"
+    ],
+    "repositoryRefs": [
+      "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#fastapi",
+      "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#src/flask",
+      "corpus://cirepo_python_psf_requests@f361ead047be5cb873174218582f7d8b9fcd9f49#src/requests",
+      "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#.",
+      "corpus://cirepo_go_go_chi_chi@8b258c7bb28f97a5f2a856ff7ef962578fec9215#.",
+      "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#.",
+      "corpus://cirepo_rust_dtolnay_itoa@1577ed901354d0d7448ac162328f9dbf5183124c#src",
+      "corpus://cirepo_rust_serde_rs_json@827a315bf2198558f0325b07bcc1e2cd973aba2f#src",
+      "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src"
+    ]
+  },
+  "thresholds": {
+    "symbolRecallMinimum": 0.95,
+    "resolvedCallPrecisionMinimum": 0.9,
+    "duplicateCanonicalSymbolMaximum": 0,
+    "deterministicStructuralFingerprintRequired": true,
+    "malformedFileRepositoryFailureMaximum": 0,
+    "explicitPartialAndUnsupportedDiagnosticsRequired": true,
+    "realRepositoryGatesRequired": true
+  },
+  "cases": [
+    {
+      "id": "fixture_python_batch_b",
+      "language": "python",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:3c2fd27dc9aa8a7dababe1825cda8eea3e1d38c6d60a1af6dae05b01348f3b48",
+      "truthPath": "evals/code-intelligence/truth/fixtures/python.json",
+      "graph": {
+        "fingerprint": "sha256:826ccad9ff8b7da674dec839763a092321fc459f32b30e1a7749908914a1b156",
+        "nodeCount": 15,
+        "edgeCount": 17,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 3,
+            "indexedFileCount": 3,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 10.804,
+        "secondElapsedMs": 9.272,
+        "evaluatorMaxRssKb": 57360,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_python_batch_b_fixture",
+        "language": "python",
+        "sourceRef": "fixture://sha256:3c2fd27dc9aa8a7dababe1825cda8eea3e1d38c6d60a1af6dae05b01348f3b48",
+        "graphFingerprints": [
+          "sha256:826ccad9ff8b7da674dec839763a092321fc459f32b30e1a7749908914a1b156",
+          "sha256:826ccad9ff8b7da674dec839763a092321fc459f32b30e1a7749908914a1b156"
+        ],
+        "reviewCoverage": {
+          "declarations": "exhaustive",
+          "relationships": "exhaustive",
+          "calls": "exhaustive"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 6,
+            "denominator": 6,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 6,
+            "denominator": 6,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 14,
+          "matchedTruthItemCount": 14
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 6,
+            "matchedItemCount": 6
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:7c020e7fa65ed1c6f6204b93282aff5f0c4b1232f2ab0b8e32564f3f66c0b62d"
+      }
+    },
+    {
+      "id": "fixture_go_batch_b",
+      "language": "go",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:d2b84b0659b26439d7eb09c4a3a6ec5a5eb975bb87fd5f12086289355f7f532b",
+      "truthPath": "evals/code-intelligence/truth/fixtures/go.json",
+      "graph": {
+        "fingerprint": "sha256:c6f75b16783c45ad2a6fa96230d73efc65feb6ffc44dac2a3b4f5dfcbda4479c",
+        "nodeCount": 14,
+        "edgeCount": 15,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "go",
+            "support": "partial",
+            "discoveredFileCount": 2,
+            "indexedFileCount": 2,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 9.176,
+        "secondElapsedMs": 10.425,
+        "evaluatorMaxRssKb": 62992,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_go_batch_b_fixture",
+        "language": "go",
+        "sourceRef": "fixture://sha256:d2b84b0659b26439d7eb09c4a3a6ec5a5eb975bb87fd5f12086289355f7f532b",
+        "graphFingerprints": [
+          "sha256:c6f75b16783c45ad2a6fa96230d73efc65feb6ffc44dac2a3b4f5dfcbda4479c",
+          "sha256:c6f75b16783c45ad2a6fa96230d73efc65feb6ffc44dac2a3b4f5dfcbda4479c"
+        ],
+        "reviewCoverage": {
+          "declarations": "exhaustive",
+          "relationships": "exhaustive",
+          "calls": "exhaustive"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 7,
+            "denominator": 7,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 13,
+          "matchedTruthItemCount": 13
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 7,
+            "matchedItemCount": 7
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:333037a9cf1d5e20cbdb6e81e9295c2a9abbc274d4c58cd567c96c0d2af04568"
+      }
+    },
+    {
+      "id": "fixture_rust_batch_b",
+      "language": "rust",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:1d75880dd0dbf80f9af36f5463184ef1b6a7bf2be1f3bcc5ffa24c5f971f3d9c",
+      "truthPath": "evals/code-intelligence/truth/fixtures/rust.json",
+      "graph": {
+        "fingerprint": "sha256:ccd88f2fb16374d33e1b2388c9a6803f276310f487fcde07eed93ae73c877052",
+        "nodeCount": 18,
+        "edgeCount": 20,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "rust",
+            "support": "partial",
+            "discoveredFileCount": 2,
+            "indexedFileCount": 2,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 11.07,
+        "secondElapsedMs": 10.679,
+        "evaluatorMaxRssKb": 63328,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_rust_batch_b_fixture",
+        "language": "rust",
+        "sourceRef": "fixture://sha256:1d75880dd0dbf80f9af36f5463184ef1b6a7bf2be1f3bcc5ffa24c5f971f3d9c",
+        "graphFingerprints": [
+          "sha256:ccd88f2fb16374d33e1b2388c9a6803f276310f487fcde07eed93ae73c877052",
+          "sha256:ccd88f2fb16374d33e1b2388c9a6803f276310f487fcde07eed93ae73c877052"
+        ],
+        "reviewCoverage": {
+          "declarations": "exhaustive",
+          "relationships": "exhaustive",
+          "calls": "exhaustive"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 11,
+            "denominator": 11,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 6,
+            "denominator": 6,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 19,
+          "matchedTruthItemCount": 19
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 11,
+            "matchedItemCount": 11
+          },
+          {
+            "id": "imports",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "config",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 3,
+            "matchedItemCount": 3
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:835a83e7419537377dfaa712c4f415c113b8ed2628726bfc71ecb9174d68547d"
+      }
+    },
+    {
+      "id": "cirepo_python_fastapi_fastapi",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#fastapi",
+      "commit": "9b8410bdc9fa1fd679ea7e65b926535c7045ab87",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json",
+      "graph": {
+        "fingerprint": "sha256:154b30880426466ebf7379245686b37a8efbc92ac206b6bfdb130a732e4dc93f",
+        "nodeCount": 1068,
+        "edgeCount": 3478,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 48,
+            "indexedFileCount": 48,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 215.453,
+        "secondElapsedMs": 219.115,
+        "evaluatorMaxRssKb": 101664,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_python_fastapi_fastapi",
+        "language": "python",
+        "sourceRef": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#fastapi",
+        "graphFingerprints": [
+          "sha256:154b30880426466ebf7379245686b37a8efbc92ac206b6bfdb130a732e4dc93f",
+          "sha256:154b30880426466ebf7379245686b37a8efbc92ac206b6bfdb130a732e4dc93f"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 5,
+          "matchedTruthItemCount": 5
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 3,
+            "matchedItemCount": 3
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:922ec7c55a6545de93059f0e219acf959ef0320cff7b65ae120f233c548b7a3f"
+      }
+    },
+    {
+      "id": "cirepo_python_pallets_flask",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#src/flask",
+      "commit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json",
+      "graph": {
+        "fingerprint": "sha256:c158723276d873cea4df1951baf0dc3978da21aa92fcecc7b576655269753a36",
+        "nodeCount": 1044,
+        "edgeCount": 1959,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 24,
+            "indexedFileCount": 24,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 133.242,
+        "secondElapsedMs": 128.044,
+        "evaluatorMaxRssKb": 115888,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_python_pallets_flask",
+        "language": "python",
+        "sourceRef": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#src/flask",
+        "graphFingerprints": [
+          "sha256:c158723276d873cea4df1951baf0dc3978da21aa92fcecc7b576655269753a36",
+          "sha256:c158723276d873cea4df1951baf0dc3978da21aa92fcecc7b576655269753a36"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 3,
+            "denominator": 3,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 5,
+          "matchedTruthItemCount": 5
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 3,
+            "matchedItemCount": 3
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:ce5d2dffa65008320a28aef72185e54a0e1fc3b1a5a0c5e7c0fb31a16c34c6d3"
+      }
+    },
+    {
+      "id": "cirepo_python_psf_requests",
+      "language": "python",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_python_psf_requests@f361ead047be5cb873174218582f7d8b9fcd9f49#src/requests",
+      "commit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
+      "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json",
+      "graph": {
+        "fingerprint": "sha256:12cf23fc55b02702f8b381f96657473e25062f7d2685869df6a544c66210c8b5",
+        "nodeCount": 703,
+        "edgeCount": 1513,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "python",
+            "support": "partial",
+            "discoveredFileCount": 19,
+            "indexedFileCount": 19,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 98.468,
+        "secondElapsedMs": 97.492,
+        "evaluatorMaxRssKb": 118720,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_python_psf_requests",
+        "language": "python",
+        "sourceRef": "corpus://cirepo_python_psf_requests@f361ead047be5cb873174218582f7d8b9fcd9f49#src/requests",
+        "graphFingerprints": [
+          "sha256:12cf23fc55b02702f8b381f96657473e25062f7d2685869df6a544c66210c8b5",
+          "sha256:12cf23fc55b02702f8b381f96657473e25062f7d2685869df6a544c66210c8b5"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:8e8f4dec32f16185204340434d0b4f827ab4e18aef4327a88a8369b2022a9f3d"
+      }
+    },
+    {
+      "id": "cirepo_go_gin_gonic_gin",
+      "language": "go",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#.",
+      "commit": "34dac209ffb6ef85cc78c5d217bbb7ad001d68fd",
+      "truthPath": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json",
+      "graph": {
+        "fingerprint": "sha256:c1604da18c64f48f2202229139bf1dc3450fae4f30eeda76fabfb8ad8d4a5e19",
+        "nodeCount": 3518,
+        "edgeCount": 10000,
+        "diagnosticCount": 1,
+        "coverage": [
+          {
+            "language": "go",
+            "support": "partial",
+            "discoveredFileCount": 99,
+            "indexedFileCount": 99,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 1025.875,
+        "secondElapsedMs": 1036.741,
+        "evaluatorMaxRssKb": 159664,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_go_gin_gonic_gin",
+        "language": "go",
+        "sourceRef": "corpus://cirepo_go_gin_gonic_gin@34dac209ffb6ef85cc78c5d217bbb7ad001d68fd#.",
+        "graphFingerprints": [
+          "sha256:c1604da18c64f48f2202229139bf1dc3450fae4f30eeda76fabfb8ad8d4a5e19",
+          "sha256:c1604da18c64f48f2202229139bf1dc3450fae4f30eeda76fabfb8ad8d4a5e19"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 5,
+          "matchedTruthItemCount": 5
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:97bb65c34d53b262f67d5d174af625faf64614c940b68c22212022b5098a8704"
+      }
+    },
+    {
+      "id": "cirepo_go_go_chi_chi",
+      "language": "go",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_go_go_chi_chi@8b258c7bb28f97a5f2a856ff7ef962578fec9215#.",
+      "commit": "8b258c7bb28f97a5f2a856ff7ef962578fec9215",
+      "truthPath": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json",
+      "graph": {
+        "fingerprint": "sha256:c55ca7b05c5efd61ded76af32f5ddf474a960daf4746324102c18094a65da405",
+        "nodeCount": 1608,
+        "edgeCount": 4290,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "go",
+            "support": "partial",
+            "discoveredFileCount": 78,
+            "indexedFileCount": 78,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 275.391,
+        "secondElapsedMs": 278.1,
+        "evaluatorMaxRssKb": 159664,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_go_go_chi_chi",
+        "language": "go",
+        "sourceRef": "corpus://cirepo_go_go_chi_chi@8b258c7bb28f97a5f2a856ff7ef962578fec9215#.",
+        "graphFingerprints": [
+          "sha256:c55ca7b05c5efd61ded76af32f5ddf474a960daf4746324102c18094a65da405",
+          "sha256:c55ca7b05c5efd61ded76af32f5ddf474a960daf4746324102c18094a65da405"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:1d48a35313a55e1d98dfafd233d94eee7d0206033f563190bdede19aa93de7f4"
+      }
+    },
+    {
+      "id": "cirepo_go_hashicorp_go_multierror",
+      "language": "go",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#.",
+      "commit": "6d4d48630db25c3c83fa83ecd41dd8438b82963c",
+      "truthPath": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json",
+      "graph": {
+        "fingerprint": "sha256:2177dea1baa7f1a1e39ea8e50d63bcb8ccea5bab8ee86a2d18dc3c877ee51a56",
+        "nodeCount": 151,
+        "edgeCount": 365,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "go",
+            "support": "partial",
+            "discoveredFileCount": 14,
+            "indexedFileCount": 14,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 26.28,
+        "secondElapsedMs": 25.992,
+        "evaluatorMaxRssKb": 159664,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_go_hashicorp_go_multierror",
+        "language": "go",
+        "sourceRef": "corpus://cirepo_go_hashicorp_go_multierror@6d4d48630db25c3c83fa83ecd41dd8438b82963c#.",
+        "graphFingerprints": [
+          "sha256:2177dea1baa7f1a1e39ea8e50d63bcb8ccea5bab8ee86a2d18dc3c877ee51a56",
+          "sha256:2177dea1baa7f1a1e39ea8e50d63bcb8ccea5bab8ee86a2d18dc3c877ee51a56"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 5,
+          "matchedTruthItemCount": 5
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:61f7f25e3150ff03349964fdb842f5e6b08fef02fc2c14cf20e967528714e0a2"
+      }
+    },
+    {
+      "id": "cirepo_rust_dtolnay_itoa",
+      "language": "rust",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_rust_dtolnay_itoa@1577ed901354d0d7448ac162328f9dbf5183124c#src",
+      "commit": "1577ed901354d0d7448ac162328f9dbf5183124c",
+      "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json",
+      "graph": {
+        "fingerprint": "sha256:8cf0edabe38700f1c18999b23b9069a39f0f8e1986360df012a3f4f54402c92b",
+        "nodeCount": 36,
+        "edgeCount": 80,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "rust",
+            "support": "partial",
+            "discoveredFileCount": 2,
+            "indexedFileCount": 2,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 13.711,
+        "secondElapsedMs": 13.122,
+        "evaluatorMaxRssKb": 159664,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_rust_dtolnay_itoa",
+        "language": "rust",
+        "sourceRef": "corpus://cirepo_rust_dtolnay_itoa@1577ed901354d0d7448ac162328f9dbf5183124c#src",
+        "graphFingerprints": [
+          "sha256:8cf0edabe38700f1c18999b23b9069a39f0f8e1986360df012a3f4f54402c92b",
+          "sha256:8cf0edabe38700f1c18999b23b9069a39f0f8e1986360df012a3f4f54402c92b"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 7,
+          "matchedTruthItemCount": 7
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:1cbd87d38fe11ed1f09fb1f37aec4f095252f631e4d6386054d7338258f9861e"
+      }
+    },
+    {
+      "id": "cirepo_rust_serde_rs_json",
+      "language": "rust",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_rust_serde_rs_json@827a315bf2198558f0325b07bcc1e2cd973aba2f#src",
+      "commit": "827a315bf2198558f0325b07bcc1e2cd973aba2f",
+      "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json",
+      "graph": {
+        "fingerprint": "sha256:9e2db158f5c5792bfbcefa419b06e3f31f32dde657d4e71a681b7b95e437b38c",
+        "nodeCount": 1848,
+        "edgeCount": 4350,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "rust",
+            "support": "partial",
+            "discoveredFileCount": 37,
+            "indexedFileCount": 37,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 322.394,
+        "secondElapsedMs": 340.183,
+        "evaluatorMaxRssKb": 159664,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_rust_serde_rs_json",
+        "language": "rust",
+        "sourceRef": "corpus://cirepo_rust_serde_rs_json@827a315bf2198558f0325b07bcc1e2cd973aba2f#src",
+        "graphFingerprints": [
+          "sha256:9e2db158f5c5792bfbcefa419b06e3f31f32dde657d4e71a681b7b95e437b38c",
+          "sha256:9e2db158f5c5792bfbcefa419b06e3f31f32dde657d4e71a681b7b95e437b38c"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:fdc6338a726d9672ba06883dc589320033888088e8cae9d9799705ec26bf471e"
+      }
+    },
+    {
+      "id": "cirepo_rust_tokio_rs_axum",
+      "language": "rust",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src",
+      "commit": "98aea470f9190fad1915897166ac0f149522011a",
+      "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json",
+      "graph": {
+        "fingerprint": "sha256:f0c03f993b4dfa72b78ac54a1d9b17d55c56388eb1d78ccf6a3c0c74d56f7bed",
+        "nodeCount": 2693,
+        "edgeCount": 6024,
+        "diagnosticCount": 0,
+        "coverage": [
+          {
+            "language": "rust",
+            "support": "partial",
+            "discoveredFileCount": 58,
+            "indexedFileCount": 58,
+            "failedFileCount": 0,
+            "omittedFileCount": 0,
+            "reasonCodes": [
+              "native_preview"
+            ]
+          }
+        ]
+      },
+      "measurements": {
+        "firstElapsedMs": 572.4,
+        "secondElapsedMs": 583.02,
+        "evaluatorMaxRssKb": 161312,
+        "workspaceFingerprintUnchanged": true
+      },
+      "report": {
+        "schemaVersion": "1.0.0",
+        "reportVersion": "memory-recall-code-intelligence-language-report-1",
+        "truthId": "citruth_rust_tokio_rs_axum",
+        "language": "rust",
+        "sourceRef": "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src",
+        "graphFingerprints": [
+          "sha256:f0c03f993b4dfa72b78ac54a1d9b17d55c56388eb1d78ccf6a3c0c74d56f7bed",
+          "sha256:f0c03f993b4dfa72b78ac54a1d9b17d55c56388eb1d78ccf6a3c0c74d56f7bed"
+        ],
+        "reviewCoverage": {
+          "declarations": "sampled",
+          "relationships": "sampled",
+          "calls": "sampled"
+        },
+        "metrics": {
+          "declarationRecall": {
+            "numerator": 4,
+            "denominator": 4,
+            "value": 1
+          },
+          "relationshipRecall": {
+            "numerator": 2,
+            "denominator": 2,
+            "value": 1
+          },
+          "reviewedCallPrecision": {
+            "numerator": 1,
+            "denominator": 1,
+            "value": 1
+          },
+          "duplicateCanonicalSymbolCount": 0,
+          "parseFailureCount": 0,
+          "deterministicGraphFingerprint": true,
+          "truthItemCount": 7,
+          "matchedTruthItemCount": 7
+        },
+        "capabilities": [
+          {
+            "id": "parse",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "structure",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 4,
+            "matchedItemCount": 4
+          },
+          {
+            "id": "imports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "exports",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "heritage",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "types",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 2,
+            "matchedItemCount": 2
+          },
+          {
+            "id": "calls",
+            "claim": "partial",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 1,
+            "matchedItemCount": 1
+          },
+          {
+            "id": "config",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "frameworks",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "impact",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          },
+          {
+            "id": "processes",
+            "claim": "unmeasured",
+            "benchmarkStatus": "unmeasured",
+            "itemCount": 0,
+            "matchedItemCount": 0
+          }
+        ],
+        "failures": [],
+        "gateDecision": "pass",
+        "claims": {
+          "accuracyFloorMet": false,
+          "parity": false,
+          "leadership": false
+        },
+        "safeguards": {
+          "rawSourceStored": false,
+          "absolutePathsStored": false,
+          "environmentVariablesStored": false,
+          "networkCalls": 0,
+          "modelCalls": 0,
+          "canonicalMemoryWrites": 0,
+          "workspaceWrites": 0
+        },
+        "reportFingerprint": "sha256:3dda541d986d71f8bd0d9a793dbfaeb307f51d6ab7bcdf30bba80d0ee20e0c33"
+      }
+    }
+  ],
+  "languages": [
+    {
+      "language": "python",
+      "caseCount": 4,
+      "fixtureCount": 1,
+      "repositoryCount": 3,
+      "metrics": {
+        "declarationRecall": {
+          "numerator": 16,
+          "denominator": 16,
+          "value": 1
+        },
+        "relationshipRecall": {
+          "numerator": 9,
+          "denominator": 9,
+          "value": 1
+        },
+        "reviewedCallPrecision": {
+          "numerator": 4,
+          "denominator": 4,
+          "value": 1
+        },
+        "duplicateCanonicalSymbolCount": 0,
+        "parseFailureCount": 0,
+        "deterministicGraphFingerprint": true
+      },
+      "gateDecision": "pass"
+    },
+    {
+      "language": "go",
+      "caseCount": 4,
+      "fixtureCount": 1,
+      "repositoryCount": 3,
+      "metrics": {
+        "declarationRecall": {
+          "numerator": 19,
+          "denominator": 19,
+          "value": 1
+        },
+        "relationshipRecall": {
+          "numerator": 5,
+          "denominator": 5,
+          "value": 1
+        },
+        "reviewedCallPrecision": {
+          "numerator": 4,
+          "denominator": 4,
+          "value": 1
+        },
+        "duplicateCanonicalSymbolCount": 0,
+        "parseFailureCount": 0,
+        "deterministicGraphFingerprint": true
+      },
+      "gateDecision": "pass"
+    },
+    {
+      "language": "rust",
+      "caseCount": 4,
+      "fixtureCount": 1,
+      "repositoryCount": 3,
+      "metrics": {
+        "declarationRecall": {
+          "numerator": 23,
+          "denominator": 23,
+          "value": 1
+        },
+        "relationshipRecall": {
+          "numerator": 11,
+          "denominator": 11,
+          "value": 1
+        },
+        "reviewedCallPrecision": {
+          "numerator": 4,
+          "denominator": 4,
+          "value": 1
+        },
+        "duplicateCanonicalSymbolCount": 0,
+        "parseFailureCount": 0,
+        "deterministicGraphFingerprint": true
+      },
+      "gateDecision": "pass"
+    }
+  ],
+  "failures": [],
+  "gateDecision": "pass",
+  "publicDefault": {
+    "engine": "js",
+    "changed": false
+  },
+  "claims": {
+    "accuracyFloorMet": true,
+    "parity": false,
+    "leadership": false,
+    "reason": "Batch B measures reviewed Python, Go, and Rust truth. It does not change the public engine or claim competitor parity."
+  },
+  "safeguards": {
+    "rawSourceStored": false,
+    "absoluteCheckoutPathsStored": false,
+    "environmentVariablesStored": false,
+    "engineNetworkCalls": 0,
+    "engineModelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "workspaceWrites": 0
+  },
+  "reportFingerprint": "sha256:0e14365e2ba920bbc7ff151b2bf1cad31201d848354870f2e2e688c82185ee88"
+}

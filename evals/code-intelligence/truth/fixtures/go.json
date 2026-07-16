@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_go_batch_b_fixture",
+  "language": "go",
+  "source": {
+    "class": "fixture",
+    "ref": "fixture://sha256:d2b84b0659b26439d7eb09c4a3a6ec5a5eb975bb87fd5f12086289355f7f532b"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "exhaustive",
+    "relationships": "exhaustive",
+    "calls": "exhaustive"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "partial",
+    "exports": "unmeasured",
+    "heritage": "unmeasured",
+    "types": "partial",
+    "calls": "partial",
+    "config": "partial",
+    "frameworks": "partial",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_go_runner",
+      "semanticKey": "node:interface:service/service.go:Runner",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "interface",
+      "name": "Runner",
+      "qualifiedName": "service/service.go::Runner",
+      "locator": "workspace://service/service.go#L3-L5"
+    },
+    {
+      "id": "cititem_go_service",
+      "semanticKey": "node:struct:service/service.go:Service",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "struct",
+      "name": "Service",
+      "qualifiedName": "service/service.go::Service",
+      "locator": "workspace://service/service.go#L7-L7"
+    },
+    {
+      "id": "cititem_go_service_run",
+      "semanticKey": "node:method:service/service.go:Service:Run",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "Run",
+      "qualifiedName": "service/service.go::Service::Run",
+      "locator": "workspace://service/service.go#L9-L11"
+    },
+    {
+      "id": "cititem_go_use",
+      "semanticKey": "node:function:service/service.go:Use",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "Use",
+      "qualifiedName": "service/service.go::Use",
+      "locator": "workspace://service/service.go#L13-L15"
+    },
+    {
+      "id": "cititem_go_item",
+      "semanticKey": "node:function:api/routes.go:Item",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "Item",
+      "qualifiedName": "api/routes.go::Item",
+      "locator": "workspace://api/routes.go#L9-L9"
+    },
+    {
+      "id": "cititem_go_register",
+      "semanticKey": "node:function:api/routes.go:Register",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "Register",
+      "qualifiedName": "api/routes.go::Register",
+      "locator": "workspace://api/routes.go#L11-L14"
+    },
+    {
+      "id": "cititem_go_build",
+      "semanticKey": "node:function:api/routes.go:Build",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "Build",
+      "qualifiedName": "api/routes.go::Build",
+      "locator": "workspace://api/routes.go#L16-L18"
+    },
+    {
+      "id": "cititem_go_import_service",
+      "semanticKey": "edge:imports:api/routes.go:service/service.go",
+      "capability": "imports",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "imports",
+      "from": { "kind": "module", "name": "api_routes", "qualifiedName": "api/routes.go::api_routes", "locator": "workspace://api/routes.go#L1-L19" },
+      "to": { "kind": "module", "name": "service_service", "qualifiedName": "service/service.go::service_service", "locator": "workspace://service/service.go#L1-L16" },
+      "locator": "workspace://api/routes.go#L6-L6",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_go_construct_service",
+      "semanticKey": "edge:constructs:api/routes.go:Build:Service",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "function", "name": "Build", "qualifiedName": "api/routes.go::Build", "locator": "workspace://api/routes.go#L16-L18" },
+      "to": { "kind": "struct", "name": "Service", "qualifiedName": "service/service.go::Service", "locator": "workspace://service/service.go#L7-L7" },
+      "locator": "workspace://api/routes.go#L17-L17",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_go_call_service_run",
+      "semanticKey": "edge:calls:service/service.go:Use:Service.Run",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "function", "name": "Use", "qualifiedName": "service/service.go::Use", "locator": "workspace://service/service.go#L13-L15" },
+      "to": { "kind": "method", "name": "Run", "qualifiedName": "service/service.go::Service::Run", "locator": "workspace://service/service.go#L9-L11" },
+      "locator": "workspace://service/service.go#L14-L14",
+      "resolution": "typed"
+    },
+    {
+      "id": "cititem_go_route_method_not_call",
+      "semanticKey": "edge:calls:api/routes.go:Register:GET:absent",
+      "capability": "calls",
+      "expectation": "absent",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "function", "name": "Register", "qualifiedName": "api/routes.go::Register", "locator": "workspace://api/routes.go#L11-L14" },
+      "to": { "kind": "function", "name": "Item", "qualifiedName": "api/routes.go::Item", "locator": "workspace://api/routes.go#L9-L9" },
+      "locator": "workspace://api/routes.go#L12-L12"
+    },
+    {
+      "id": "cititem_go_gin_route",
+      "semanticKey": "edge:handles_route:api/routes.go:Item:GET_items_param",
+      "capability": "frameworks",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "handles_route",
+      "from": { "kind": "function", "name": "Item", "qualifiedName": "api/routes.go::Item", "locator": "workspace://api/routes.go#L9-L9" },
+      "to": { "kind": "route", "name": "GET_items_param", "qualifiedName": "api/routes.go::GET_items_param", "locator": "workspace://api/routes.go#L12-L12" },
+      "locator": "workspace://api/routes.go#L12-L12",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_go_net_http_route",
+      "semanticKey": "edge:handles_route:api/routes.go:Item:POST_legacy_param",
+      "capability": "frameworks",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "handles_route",
+      "from": { "kind": "function", "name": "Item", "qualifiedName": "api/routes.go::Item", "locator": "workspace://api/routes.go#L9-L9" },
+      "to": { "kind": "route", "name": "POST_legacy_param", "qualifiedName": "api/routes.go::POST_legacy_param", "locator": "workspace://api/routes.go#L13-L13" },
+      "locator": "workspace://api/routes.go#L13-L13",
+      "resolution": "exact"
+    }
+  ],
+  "truthFingerprint": "sha256:745e1de66c45ff80570e5abf47dff8b6fa9f05ef19bf57983f785544e08ee07f"
+}

@@ -1,0 +1,671 @@
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn valid_request() -> Value {
+        json!({
+            "protocolVersion": "1.0.0",
+            "requestId": "cireq_0123456789abcdef0123456789abcdef",
+            "workspaceId": "ws_local",
+            "operation": "graph.build",
+            "root": ".",
+            "deadlineMs": 30000,
+            "responseSchemaVersion": "1.0.0",
+            "arguments": {
+                "maxFiles": 1000,
+                "maxFileBytes": 524288,
+                "maxNodes": 5000,
+                "maxEdges": 10000,
+                "languages": ["javascript", "typescript"]
+            }
+        })
+    }
+
+    #[test]
+    fn request_parser_accepts_only_the_closed_relative_contract() {
+        assert!(parse_request(&valid_request()).is_ok());
+        let mut absolute = valid_request();
+        absolute["root"] = Value::String("/private/tmp/repository".to_string());
+        assert_eq!(
+            parse_request(&absolute).unwrap_err().code,
+            "engine_invalid_request"
+        );
+        let mut unknown = valid_request();
+        unknown["sourceBody"] = Value::String("private".to_string());
+        assert_eq!(
+            parse_request(&unknown).unwrap_err().code,
+            "engine_invalid_request"
+        );
+    }
+
+    #[test]
+    fn request_parser_separates_version_and_operation_errors() {
+        let mut version = valid_request();
+        version["protocolVersion"] = Value::String("2.0.0".to_string());
+        assert_eq!(
+            parse_request(&version).unwrap_err().code,
+            "engine_unsupported_version"
+        );
+        let mut operation = valid_request();
+        operation["operation"] = Value::String("workspace.write".to_string());
+        assert_eq!(
+            parse_request(&operation).unwrap_err().code,
+            "engine_unsupported_operation"
+        );
+    }
+
+    #[test]
+    fn unresolved_notes_never_match_resolved_edge_mappings() {
+        let fact = |predicate: &str, note: &str| CodeFactRecord {
+            subject: "function:caller".to_string(),
+            predicate: predicate.to_string(),
+            object: "function:target".to_string(),
+            source: "workspace://sample.ts".to_string(),
+            note: note.to_string(),
+            span: CodeSpan {
+                start_line: 1,
+                start_column: 0,
+                end_line: 1,
+                end_column: 1,
+            },
+        };
+
+        assert_eq!(
+            edge_mapping(&fact("IMPORTS", "oaf.ingest:unresolved-import"))
+                .unwrap()
+                .4,
+            "unresolved"
+        );
+        assert_eq!(
+            edge_mapping(&fact("RE_EXPORTS", "oaf.ingest:unresolved-re-export"))
+                .unwrap()
+                .4,
+            "unresolved"
+        );
+        assert_eq!(
+            edge_mapping(&fact("CONSTRUCTS", "oaf.ingest:unresolved-construct"))
+                .unwrap()
+                .4,
+            "unresolved"
+        );
+        assert_eq!(
+            edge_mapping(&fact("EXTENDS", "oaf.ingest:unresolved-heritage"))
+                .unwrap()
+                .4,
+            "unresolved"
+        );
+    }
+
+    #[test]
+    fn javascript_typescript_graph_preserves_structure_resolution_and_spans() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-batch-a-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/util.ts"),
+            [
+                "export interface Service { run(): string }",
+                "export class Greeter implements Service {",
+                "  run(): string { return this.greet(); }",
+                "  greet(): string { return 'hello'; }",
+                "}",
+                "export function helper(): string {",
+                "  return 'ok';",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/index.ts"),
+            [
+                "import { Greeter, helper } from './util';",
+                "export function outer(): string {",
+                "  const greeter = new Greeter();",
+                "  function inner(): string {",
+                "    return greeter.greet();",
+                "  }",
+                "  return helper() + inner();",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/server.cjs"),
+            [
+                "const express = require('express');",
+                "const app = express();",
+                "function listUsers(req, res) { return res.json([]); }",
+                "app.get('/users/:id', listUsers);",
+                "http.createServer(listUsers);",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = parse_request(&valid_request()).unwrap();
+        let build = build_graph_at_root(&request, "test", &root, Instant::now());
+        let graph = build.unwrap().graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+        let helper = nodes
+            .iter()
+            .find(|node| node["name"] == "helper")
+            .expect("helper function node");
+        assert_eq!(helper["qualifiedName"], "src/util.ts::helper");
+        assert_eq!(helper["locator"], "workspace://src/util.ts#L6-L8");
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "interface" && node["qualifiedName"] == "src/util.ts::Service"
+        }));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "function" && node["qualifiedName"] == "src/index.ts::outer::inner"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "imports"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L1-L1"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "constructs"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L3-L3"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "calls"
+                && edge["resolution"] == "typed"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L5-L5"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "imports"
+                && edge["evidence"]["locator"] == "workspace://src/server.cjs#L1-L1"
+        }));
+        assert!(edges.iter().any(|edge| edge["kind"] == "handles_route"));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "framework_component" && node["name"] == "node_http_server"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "listens"
+                && edge["evidence"]["locator"] == "workspace://src/server.cjs#L5-L5"
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn javascript_typescript_graph_covers_aliases_exports_heritage_and_server_routes() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-batch-a-frameworks-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src/lib")).unwrap();
+        fs::create_dir_all(root.join("app/api/users/[id]")).unwrap();
+        fs::write(
+            root.join("tsconfig.json"),
+            r#"{"compilerOptions":{"baseUrl":".","paths":{"@lib/*":["src/lib/*"]}}}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/base.ts"),
+            [
+                "export interface Runnable { run(): string }",
+                "export class BaseTask { run(): string { return 'base'; } }",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/lib/task.ts"),
+            [
+                "import { Runnable, BaseTask } from '../base';",
+                "export type TaskId = string;",
+                "export class Task extends BaseTask implements Runnable {",
+                "  run(): string { return 'task'; }",
+                "}",
+                "export function execute(): string { return new Task().run(); }",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/index.ts"),
+            [
+                "import { execute } from '@lib/task';",
+                "export { execute } from '@lib/task';",
+                "fastify.get('/tasks/:id', execute);",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("app/api/users/[id]/route.ts"),
+            "export async function GET() { return Response.json({ ok: true }); }\n",
+        )
+        .unwrap();
+
+        let request = parse_request(&valid_request()).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "type_alias" && node["qualifiedName"] == "src/lib/task.ts::TaskId"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "imports"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L1-L1"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "re_exports"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/index.ts#L2-L2"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "exports"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://src/lib/task.ts#L2-L2"
+        }));
+        assert!(edges
+            .iter()
+            .any(|edge| edge["kind"] == "extends" && edge["resolution"] == "exact"));
+        assert!(edges
+            .iter()
+            .any(|edge| edge["kind"] == "implements" && edge["resolution"] == "exact"));
+        assert!(nodes
+            .iter()
+            .any(|node| node["kind"] == "route" && node["name"] == "GET_tasks_param"));
+        assert!(nodes
+            .iter()
+            .any(|node| node["kind"] == "route" && node["name"] == "GET_api_users_param"));
+        assert!(
+            edges
+                .iter()
+                .filter(|edge| edge["kind"] == "handles_route")
+                .count()
+                >= 2
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn typescript_graph_extracts_nestjs_controller_routes() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-batch-a-nestjs-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/cats.controller.ts"),
+            [
+                "@Controller('/cats')",
+                "export class CatsController {",
+                "  @Get('/:id')",
+                "  findOne(): string { return externalLookup(); }",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let request = parse_request(&valid_request()).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+
+        assert!(nodes
+            .iter()
+            .any(|node| { node["kind"] == "route" && node["name"] == "GET_cats_param" }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "handles_route"
+                && edge["evidence"]["locator"] == "workspace://src/cats.controller.ts#L3-L4"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "calls"
+                && edge["resolution"] == "unresolved"
+                && edge["evidence"]["locator"] == "workspace://src/cats.controller.ts#L4-L4"
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn python_go_rust_graph_preserves_owners_routes_and_exact_resolution() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-batch-b-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("app.py"),
+            [
+                "class BaseService:",
+                "    pass",
+                "class Service(BaseService):",
+                "    def run(self):",
+                "        return 1",
+                "@app.get('/python/{item_id}')",
+                "def python_item():",
+                "    service = Service()",
+                "    return service.run()",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("server.go"),
+            [
+                "package demo",
+                "type GoService struct{}",
+                "func (s *GoService) Run() {}",
+                "func goItem() {}",
+                "func Register(router *Router) {",
+                "  router.GET(\"/go/:item_id\", goItem)",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("server.rs"),
+            [
+                "trait Runner { fn run(&self); }",
+                "struct RustService;",
+                "impl Runner for RustService { fn run(&self) {} }",
+                "fn rust_item() {}",
+                "fn router() { Router::new().route(\"/rust/:item_id\", get(rust_item)); }",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["python", "go", "rust"]);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+
+        assert!(
+            nodes.iter().any(|node| {
+                node["kind"] == "method" && node["qualifiedName"] == "app.py::Service::run"
+            }),
+            "{nodes:#?}"
+        );
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "method" && node["qualifiedName"] == "server.go::GoService::Run"
+        }));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "method" && node["qualifiedName"] == "server.rs::RustService::run"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "constructs"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://app.py#L8-L8"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "calls"
+                && edge["resolution"] == "typed"
+                && edge["evidence"]["locator"] == "workspace://app.py#L9-L9"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "extends"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://app.py#L3-L5"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "implements"
+                && edge["resolution"] == "exact"
+                && edge["evidence"]["locator"] == "workspace://server.rs#L3-L3"
+        }));
+        for locator in [
+            "workspace://app.py#L6-L9",
+            "workspace://server.go#L6-L6",
+            "workspace://server.rs#L5-L5",
+        ] {
+            assert!(edges.iter().any(|edge| {
+                edge["kind"] == "handles_route" && edge["evidence"]["locator"] == locator
+            }));
+        }
+        assert!(!edges.iter().any(|edge| {
+            edge["kind"] == "calls"
+                && matches!(
+                    edge["evidence"]["locator"].as_str(),
+                    Some("workspace://server.go#L6-L6" | "workspace://server.rs#L5-L5")
+                )
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn nested_python_callables_keep_owner_qualified_identities() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-python-nested-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("nested.py"),
+            [
+                "class Service:",
+                "    def first(self):",
+                "        def helper():",
+                "            return 1",
+                "        return helper()",
+                "    def second(self):",
+                "        def helper():",
+                "            return 2",
+                "        return helper()",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["python"]);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "function"
+                && node["qualifiedName"] == "nested.py::Service::first::helper"
+                && node["locator"] == "workspace://nested.py#L3-L4"
+        }));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "function"
+                && node["qualifiedName"] == "nested.py::Service::second::helper"
+                && node["locator"] == "workspace://nested.py#L7-L8"
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn go_type_and_same_named_method_keep_distinct_graph_identities() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-go-same-name-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("error.go"),
+            [
+                "package sample",
+                "type Error struct{}",
+                "type Route struct{}",
+                "type Routes interface { // structure is traversable",
+                "    Routes() []Route",
+                "}",
+                "func New() *Error { return &Error{} }",
+                "func (err *Error) Error() string { return \"\" }",
+                "func (err *Error) ErrorOrNil() error { return err }",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["go"]);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+        let error_id = nodes
+            .iter()
+            .find(|node| node["kind"] == "struct" && node["qualifiedName"] == "error.go::Error")
+            .and_then(|node| node["id"].as_str())
+            .unwrap();
+        let new_id = nodes
+            .iter()
+            .find(|node| node["kind"] == "function" && node["qualifiedName"] == "error.go::New")
+            .and_then(|node| node["id"].as_str())
+            .unwrap();
+
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "interface" && node["qualifiedName"] == "error.go::Routes"
+        }));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "method" && node["qualifiedName"] == "error.go::Error::Error"
+        }));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "method" && node["qualifiedName"] == "error.go::Error::ErrorOrNil"
+        }));
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "constructs"
+                && edge["fromNodeId"] == new_id
+                && edge["toNodeId"] == error_id
+                && edge["resolution"] == "exact"
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn rust_generic_impl_methods_use_the_declared_type_qualified_name() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-rust-generic-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("map.rs"),
+            [
+                "struct Map<K, V> { entries: Vec<(K, V)> }",
+                "impl<K, V> Map<K, V> {",
+                "    fn new() -> Self { Self { entries: Vec::new() } }",
+                "    fn clear(&mut self) { self.entries.clear(); }",
+                "}",
+                "impl<K, V> Default for Map<K, V> {",
+                "    fn default() -> Self { Self::new() }",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["rust"]);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "method" && node["qualifiedName"] == "map.rs::Map::new"
+        }));
+        assert!(nodes.iter().any(|node| {
+            node["kind"] == "method" && node["qualifiedName"] == "map.rs::Map::clear"
+        }));
+        assert!(!nodes.iter().any(|node| {
+            node["kind"] == "method"
+                && node["qualifiedName"]
+                    .as_str()
+                    .is_some_and(|name| name.contains("MapKV"))
+        }));
+        let map_id = nodes
+            .iter()
+            .find(|node| node["kind"] == "struct" && node["qualifiedName"] == "map.rs::Map")
+            .and_then(|node| node["id"].as_str())
+            .unwrap();
+        let default_id = nodes
+            .iter()
+            .find(|node| {
+                node["kind"] == "method" && node["qualifiedName"] == "map.rs::Map::default"
+            })
+            .and_then(|node| node["id"].as_str())
+            .unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "constructs"
+                && edge["fromNodeId"] == default_id
+                && edge["toNodeId"] == map_id
+                && edge["resolution"] == "exact"
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn graph_reports_recovered_syntax_without_failing_the_file() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-recovery-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("recover.ts"),
+            "const incomplete = ;\nexport function stillWorks() { return 1; }\n",
+        )
+        .unwrap();
+
+        let request = parse_request(&valid_request()).unwrap();
+        let graph = build_graph_at_root(&request, "test", &root, Instant::now())
+            .unwrap()
+            .graph;
+
+        let typescript_coverage = graph["coverage"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["language"] == "typescript")
+            .unwrap();
+        assert_eq!(typescript_coverage["failedFileCount"], 0);
+        assert!(graph["diagnostics"].as_array().unwrap().iter().any(|item| {
+            item["code"] == "parse_recovered"
+                && item["locator"] == "workspace://recover.ts"
+                && item["severity"] == "warning"
+        }));
+        assert!(!graph["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["code"] == "parse_failed"));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+}

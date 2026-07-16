@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-a-1",
   "phase": 2,
   "batch": "A",
-  "generatedAt": "2026-07-16T10:29:44.384Z",
+  "generatedAt": "2026-07-16T11:38:03.803Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -69,9 +69,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12.552,
-        "secondElapsedMs": 10.428,
-        "evaluatorMaxRssKb": 57840,
+        "firstElapsedMs": 9.261,
+        "secondElapsedMs": 7.355,
+        "evaluatorMaxRssKb": 57536,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -235,9 +235,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.492,
-        "secondElapsedMs": 9.071,
-        "evaluatorMaxRssKb": 59200,
+        "firstElapsedMs": 6.835,
+        "secondElapsedMs": 6.364,
+        "evaluatorMaxRssKb": 58880,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -383,8 +383,8 @@
       "commit": "637d5746b70257028fb95aad32ddec6b26ab0a14",
       "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json",
       "graph": {
-        "fingerprint": "sha256:49021888c46abed597d439fc66925b769d3de85ee3ec27544f05d49a8df8323c",
-        "nodeCount": 3823,
+        "fingerprint": "sha256:5040b235d077eeb13361b63c6927c113090210195b7fb7e1ced2debaf0c3e1e1",
+        "nodeCount": 3826,
         "edgeCount": 10000,
         "diagnosticCount": 2,
         "coverage": [
@@ -402,9 +402,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 731.417,
-        "secondElapsedMs": 706.985,
-        "evaluatorMaxRssKb": 165328,
+        "firstElapsedMs": 814.267,
+        "secondElapsedMs": 799.449,
+        "evaluatorMaxRssKb": 168192,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -414,8 +414,8 @@
         "language": "typescript",
         "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
         "graphFingerprints": [
-          "sha256:49021888c46abed597d439fc66925b769d3de85ee3ec27544f05d49a8df8323c",
-          "sha256:49021888c46abed597d439fc66925b769d3de85ee3ec27544f05d49a8df8323c"
+          "sha256:5040b235d077eeb13361b63c6927c113090210195b7fb7e1ced2debaf0c3e1e1",
+          "sha256:5040b235d077eeb13361b63c6927c113090210195b7fb7e1ced2debaf0c3e1e1"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -539,7 +539,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:92db91070b1166efb397e468f2abbb9158aa216e7fce73f321862224f506e8a2"
+        "reportFingerprint": "sha256:fd99c9261bbacb5929f065797501050a154083f16efe63b0ef5a8232a3cfd810"
       }
     },
     {
@@ -550,7 +550,7 @@
       "commit": "53e335d0387969ba6b6bd68f2481be89252089ca",
       "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json",
       "graph": {
-        "fingerprint": "sha256:ea7fb304270eb0b80f920b9b5f74a9daedef9665b45cddf8775c1b6f9abd11c6",
+        "fingerprint": "sha256:6e406c3c8b4bc414e933e7758680b2a8736c22576eb8d72fa322abdb14598f3d",
         "nodeCount": 5000,
         "edgeCount": 10000,
         "diagnosticCount": 2,
@@ -569,9 +569,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 826.795,
-        "secondElapsedMs": 788.655,
-        "evaluatorMaxRssKb": 216576,
+        "firstElapsedMs": 1464.862,
+        "secondElapsedMs": 1464.145,
+        "evaluatorMaxRssKb": 220432,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -581,8 +581,8 @@
         "language": "typescript",
         "sourceRef": "corpus://cirepo_typescript_microsoft_vscode@53e335d0387969ba6b6bd68f2481be89252089ca#src/vs/base/common",
         "graphFingerprints": [
-          "sha256:ea7fb304270eb0b80f920b9b5f74a9daedef9665b45cddf8775c1b6f9abd11c6",
-          "sha256:ea7fb304270eb0b80f920b9b5f74a9daedef9665b45cddf8775c1b6f9abd11c6"
+          "sha256:6e406c3c8b4bc414e933e7758680b2a8736c22576eb8d72fa322abdb14598f3d",
+          "sha256:6e406c3c8b4bc414e933e7758680b2a8736c22576eb8d72fa322abdb14598f3d"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -706,7 +706,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:6210d29030e2348f5c704dbb0059763d0b9a5813ee22ca90b21252e18e0add1f"
+        "reportFingerprint": "sha256:92ccb1ab29a343a3adae3e56dad86682cae97f0cb7711f50726ebcdeb018ac7c"
       }
     },
     {
@@ -736,9 +736,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 29.826,
-        "secondElapsedMs": 29.249,
-        "evaluatorMaxRssKb": 216576,
+        "firstElapsedMs": 27.386,
+        "secondElapsedMs": 26.232,
+        "evaluatorMaxRssKb": 220432,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -884,7 +884,7 @@
       "commit": "3041b8fd1daf17404d1bad1f9d94026ea5ab400b",
       "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json",
       "graph": {
-        "fingerprint": "sha256:5b21ac7e36aad2fc33006ed4848413cf3628278edcbe24183877d05167f5f322",
+        "fingerprint": "sha256:cdf701c5137e2e8bb2f4b87bddcf7335a9ebae9a3a7a9798b3ef46a9639b0cd8",
         "nodeCount": 230,
         "edgeCount": 437,
         "diagnosticCount": 0,
@@ -903,9 +903,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 34.596,
-        "secondElapsedMs": 33.645,
-        "evaluatorMaxRssKb": 216576,
+        "firstElapsedMs": 32.147,
+        "secondElapsedMs": 31.241,
+        "evaluatorMaxRssKb": 220432,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -915,8 +915,8 @@
         "language": "javascript",
         "sourceRef": "corpus://cirepo_javascript_axios_axios@3041b8fd1daf17404d1bad1f9d94026ea5ab400b#lib/core",
         "graphFingerprints": [
-          "sha256:5b21ac7e36aad2fc33006ed4848413cf3628278edcbe24183877d05167f5f322",
-          "sha256:5b21ac7e36aad2fc33006ed4848413cf3628278edcbe24183877d05167f5f322"
+          "sha256:cdf701c5137e2e8bb2f4b87bddcf7335a9ebae9a3a7a9798b3ef46a9639b0cd8",
+          "sha256:cdf701c5137e2e8bb2f4b87bddcf7335a9ebae9a3a7a9798b3ef46a9639b0cd8"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1040,7 +1040,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:ddbaee16c927e2ce821b919bd1c76aac4915093f80015595412a053e6eb9187e"
+        "reportFingerprint": "sha256:ffb0b1add387d7a0c825ef1449a53817507292eb66f4ca75b0d716cde854cd23"
       }
     },
     {
@@ -1051,7 +1051,7 @@
       "commit": "ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4",
       "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json",
       "graph": {
-        "fingerprint": "sha256:6b237f15297ac6216fc81d1fc9e52672f59e85e568357e8132df8c5655850add",
+        "fingerprint": "sha256:159ac8c88b0845d872a9d62869b732377311648122da39d3a60698e74340d14c",
         "nodeCount": 94,
         "edgeCount": 141,
         "diagnosticCount": 0,
@@ -1070,9 +1070,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 23.705,
-        "secondElapsedMs": 21.07,
-        "evaluatorMaxRssKb": 216576,
+        "firstElapsedMs": 19.394,
+        "secondElapsedMs": 18.967,
+        "evaluatorMaxRssKb": 220432,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1082,8 +1082,8 @@
         "language": "javascript",
         "sourceRef": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#lib",
         "graphFingerprints": [
-          "sha256:6b237f15297ac6216fc81d1fc9e52672f59e85e568357e8132df8c5655850add",
-          "sha256:6b237f15297ac6216fc81d1fc9e52672f59e85e568357e8132df8c5655850add"
+          "sha256:159ac8c88b0845d872a9d62869b732377311648122da39d3a60698e74340d14c",
+          "sha256:159ac8c88b0845d872a9d62869b732377311648122da39d3a60698e74340d14c"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1207,7 +1207,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:e68c8759f36e2c54cbe248c1553f7df1f7bb506c476dd90fdb70669d88dacb3a"
+        "reportFingerprint": "sha256:e079133370edfa3fbb2f22d22f7d527322f0b6e80c9ca4f5673244c750ca2a1d"
       }
     },
     {
@@ -1218,9 +1218,9 @@
       "commit": "a666ba591064c8011988275790ad7d625279f09c",
       "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json",
       "graph": {
-        "fingerprint": "sha256:ea6d2ea5da682c5e7c12138515bbfc7fb79a346a365fbea7496a391efdd8d81a",
-        "nodeCount": 370,
-        "edgeCount": 572,
+        "fingerprint": "sha256:86f1628de6411d1d2432285caa284bb52c8b686758779825a75a67a25c974bf0",
+        "nodeCount": 372,
+        "edgeCount": 573,
         "diagnosticCount": 0,
         "coverage": [
           {
@@ -1237,9 +1237,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 138.104,
-        "secondElapsedMs": 137.794,
-        "evaluatorMaxRssKb": 216576,
+        "firstElapsedMs": 134.818,
+        "secondElapsedMs": 135.151,
+        "evaluatorMaxRssKb": 220432,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1249,8 +1249,8 @@
         "language": "javascript",
         "sourceRef": "corpus://cirepo_javascript_lodash_lodash@a666ba591064c8011988275790ad7d625279f09c#.",
         "graphFingerprints": [
-          "sha256:ea6d2ea5da682c5e7c12138515bbfc7fb79a346a365fbea7496a391efdd8d81a",
-          "sha256:ea6d2ea5da682c5e7c12138515bbfc7fb79a346a365fbea7496a391efdd8d81a"
+          "sha256:86f1628de6411d1d2432285caa284bb52c8b686758779825a75a67a25c974bf0",
+          "sha256:86f1628de6411d1d2432285caa284bb52c8b686758779825a75a67a25c974bf0"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1374,7 +1374,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:8e91b3198c371711464e1ebd4a16efa474adf9e473ef6a1abff9fa8e8b1a7e2b"
+        "reportFingerprint": "sha256:021ce62d6a58ce0455e5cb67bf8630f2e23ce86fdeed9495c688087fc55b91fb"
       }
     }
   ],
@@ -1455,5 +1455,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:aa30039a57676aaf8460323e41bb7e746a01e8477e8070ced46adb6f252183a9"
+  "reportFingerprint": "sha256:e525e118e2e8978d852187ff2484cbaabec9f3b5c28d0e31144f04b5b17e5b56"
 }

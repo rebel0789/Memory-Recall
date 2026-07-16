@@ -134,7 +134,7 @@ Commit: `feat: close native javascript typescript gaps`
 - Create: `evals/code-intelligence/results/phase2-batch-b.json`
 - Add focused Rust and Node contract tests
 
-- [ ] **Step 1: Add failing language fixtures**
+- [x] **Step 1: Add failing language fixtures**
 
 Python: packages/modules, relative imports, aliases, classes, inheritance, decorators, type annotations, constructor receiver calls, Flask/FastAPI/Django routes.
 
@@ -142,19 +142,21 @@ Go: packages/modules, imports/aliases, functions, methods and receivers, structs
 
 Rust: crates/modules/use paths, functions/impl methods, structs/enums/traits, trait implementations, typed receiver calls, Axum/Actix/Rocket routes.
 
-- [ ] **Step 2: Implement package/module and heritage models**
+- [x] **Step 2: Implement package/module and heritage models**
 
 Extend manifest/config inputs for `pyproject.toml`, package markers, `go.mod`, Cargo workspaces/features, and language-specific module paths. Add `inherits`, `implements`, `extends`, `constructs`, and typed-call facts with evidence. Unsupported dynamic edges remain unresolved.
 
-- [ ] **Step 3: Implement initial framework routes**
+- [x] **Step 3: Implement initial framework routes**
 
 Routes require syntax/config evidence for method, normalized path, handler, and owning module. String literals alone are candidates, not exact route edges.
 
-- [ ] **Step 4: Run all nine pinned repositories and update exact matrix cells**
+- [x] **Step 4: Run all nine pinned repositories and record exact truth capability cells**
+
+The public aggregate capability matrix remains unchanged until Task 7 can apply the worst-case rule across all fourteen Tier 1 languages.
 
 No language-level pass is allowed unless all three repositories and fixtures run deterministically. Capabilities that miss floors remain partial or `does-not-meet-floor` with the failure counts retained.
 
-- [ ] **Step 5: Verify and commit Batch B**
+- [x] **Step 5: Verify and commit Batch B**
 
 Commit: `feat: add python go rust intelligence batch`
 

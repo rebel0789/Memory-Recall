@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_python_pallets_flask",
+  "language": "python",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#src/flask"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "unmeasured",
+    "exports": "unmeasured",
+    "heritage": "partial",
+    "types": "unmeasured",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_flask_view",
+      "semanticKey": "node:class:views.py:View",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "View",
+      "qualifiedName": "views.py::View",
+      "locator": "workspace://views.py#L16-L135"
+    },
+    {
+      "id": "cititem_flask_method_view",
+      "semanticKey": "node:class:views.py:MethodView",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "class",
+      "name": "MethodView",
+      "qualifiedName": "views.py::MethodView",
+      "locator": "workspace://views.py#L138-L191"
+    },
+    {
+      "id": "cititem_flask_dispatch_request",
+      "semanticKey": "node:method:views.py:MethodView:dispatch_request",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "dispatch_request",
+      "qualifiedName": "views.py::MethodView::dispatch_request",
+      "locator": "workspace://views.py#L182-L191"
+    },
+    {
+      "id": "cititem_flask_method_view_extends_view",
+      "semanticKey": "edge:extends:views.py:MethodView:View",
+      "capability": "heritage",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "extends",
+      "from": { "kind": "class", "name": "MethodView", "qualifiedName": "views.py::MethodView", "locator": "workspace://views.py#L138-L191" },
+      "to": { "kind": "class", "name": "View", "qualifiedName": "views.py::View", "locator": "workspace://views.py#L16-L135" },
+      "locator": "workspace://views.py#L138-L191",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_flask_call_ensure_sync",
+      "semanticKey": "edge:calls:views.py:MethodView.dispatch_request:ensure_sync",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "dispatch_request", "qualifiedName": "views.py::MethodView::dispatch_request", "locator": "workspace://views.py#L182-L191" },
+      "to": { "kind": "function", "name": "ensure_sync", "qualifiedName": "views.py::ensure_sync", "locator": "workspace://views.py#L110-L110" },
+      "locator": "workspace://views.py#L191-L191",
+      "resolution": "unresolved"
+    }
+  ],
+  "truthFingerprint": "sha256:47bee39df289542e2aacedd76bfbc8dc6762c1d280bd4063806fafcbb57b04f1"
+}

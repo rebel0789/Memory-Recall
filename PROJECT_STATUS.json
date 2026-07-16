@@ -1127,8 +1127,8 @@
       "node scripts/native-code-intelligence-consumer-smoke.mjs",
       "node scripts/code-intelligence-phase1-compatibility.mjs --check"
     ],
-    "testsExpected": 748,
-    "protocolFixturesExpected": 191,
+    "testsExpected": 753,
+    "protocolFixturesExpected": 195,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

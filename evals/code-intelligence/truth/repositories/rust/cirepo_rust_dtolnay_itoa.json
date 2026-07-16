@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_rust_dtolnay_itoa",
+  "language": "rust",
+  "source": {
+    "class": "real-repo",
+    "ref": "corpus://cirepo_rust_dtolnay_itoa@1577ed901354d0d7448ac162328f9dbf5183124c#src"
+  },
+  "review": {
+    "status": "reviewed",
+    "method": "source-locator",
+    "reviewedBy": "memory-recall-maintainer",
+    "reviewedAt": "2026-07-16T00:00:00.000Z"
+  },
+  "reviewCoverage": {
+    "declarations": "sampled",
+    "relationships": "sampled",
+    "calls": "sampled"
+  },
+  "capabilityClaims": {
+    "parse": "partial",
+    "structure": "partial",
+    "imports": "unmeasured",
+    "exports": "unmeasured",
+    "heritage": "partial",
+    "types": "partial",
+    "calls": "partial",
+    "config": "unmeasured",
+    "frameworks": "unmeasured",
+    "impact": "unmeasured",
+    "processes": "unmeasured"
+  },
+  "items": [
+    {
+      "id": "cititem_itoa_buffer",
+      "semanticKey": "node:struct:lib.rs:Buffer",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "struct",
+      "name": "Buffer",
+      "qualifiedName": "lib.rs::Buffer",
+      "locator": "workspace://lib.rs#L72-L74"
+    },
+    {
+      "id": "cititem_itoa_integer",
+      "semanticKey": "node:trait:lib.rs:Integer",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "trait",
+      "name": "Integer",
+      "qualifiedName": "lib.rs::Integer",
+      "locator": "workspace://lib.rs#L119-L123"
+    },
+    {
+      "id": "cititem_itoa_default",
+      "semanticKey": "node:method:lib.rs:Buffer:default",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "default",
+      "qualifiedName": "lib.rs::Buffer::default",
+      "locator": "workspace://lib.rs#L78-L80"
+    },
+    {
+      "id": "cititem_itoa_format",
+      "semanticKey": "node:method:lib.rs:Buffer:format",
+      "capability": "structure",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "method",
+      "name": "format",
+      "qualifiedName": "lib.rs::Buffer::format",
+      "locator": "workspace://lib.rs#L106-L113"
+    },
+    {
+      "id": "cititem_itoa_implements_default",
+      "semanticKey": "edge:implements:lib.rs:Buffer:Default",
+      "capability": "heritage",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "implements",
+      "from": { "kind": "struct", "name": "Buffer", "qualifiedName": "lib.rs::Buffer", "locator": "workspace://lib.rs#L72-L74" },
+      "to": { "kind": "interface", "name": "Default", "qualifiedName": "lib.rs::Default", "locator": "workspace://lib.rs#L76-L81" },
+      "locator": "workspace://lib.rs#L76-L81",
+      "resolution": "unresolved"
+    },
+    {
+      "id": "cititem_itoa_construct_buffer",
+      "semanticKey": "edge:constructs:lib.rs:Buffer.default:Buffer",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": { "kind": "method", "name": "default", "qualifiedName": "lib.rs::Buffer::default", "locator": "workspace://lib.rs#L78-L80" },
+      "to": { "kind": "struct", "name": "Buffer", "qualifiedName": "lib.rs::Buffer", "locator": "workspace://lib.rs#L72-L74" },
+      "locator": "workspace://lib.rs#L79-L79",
+      "resolution": "exact"
+    },
+    {
+      "id": "cititem_itoa_call_write",
+      "semanticKey": "edge:calls:lib.rs:Buffer.format:write",
+      "capability": "calls",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": { "kind": "method", "name": "format", "qualifiedName": "lib.rs::Buffer::format", "locator": "workspace://lib.rs#L106-L113" },
+      "to": { "kind": "function", "name": "write", "qualifiedName": "lib.rs::write", "locator": "workspace://lib.rs#L108-L108" },
+      "locator": "workspace://lib.rs#L108-L108",
+      "resolution": "unresolved"
+    }
+  ],
+  "truthFingerprint": "sha256:05eb58a137427b4a5d68054baf084efcd6a352f4c9676e5b4eb8982e69d71223"
+}
