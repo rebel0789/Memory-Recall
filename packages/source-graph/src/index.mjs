@@ -16,6 +16,7 @@ import {
 import { buildSourceGraphFocus, buildSourceGraphOrientation } from './orientation.mjs';
 
 export { buildSourceGraphFocus, buildSourceGraphOrientation };
+export { compareSourceGraphCompatibility, translateCodeIntelligenceGraph } from './native-compatibility.mjs';
 export { createSourceGraphSnapshotService } from './snapshot-service.mjs';
 export {
   DEFAULT_SOURCE_GRAPH_INDEX_PATH,

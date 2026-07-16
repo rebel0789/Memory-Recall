@@ -10,6 +10,7 @@ import {
   readPersistentSourceGraphIndexStatus
 } from './index-store.mjs';
 import { buildSourceGraphOrientation } from './orientation.mjs';
+import { compareSourceGraphCompatibility, translateCodeIntelligenceGraph } from './native-compatibility.mjs';
 
 const RELATIONSHIP_KINDS = new Set(['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
 const HTTP_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']);
@@ -19,8 +20,39 @@ export async function buildSourceGraphIntelligence({
   workspaceId = 'ws_local',
   maxFiles = 1000,
   maxFileBytes = 512 * 1024,
+  engine = 'js',
+  codeIntelligenceProvider = null,
   clock = () => new Date().toISOString()
 } = {}) {
+  if (!['js', 'native-preview', 'compatibility'].includes(engine)) throw new Error('source_graph_engine_invalid');
+  if (engine !== 'js') {
+    if (!codeIntelligenceProvider || typeof codeIntelligenceProvider.buildGraph !== 'function') {
+      throw new Error('source_graph_native_provider_required');
+    }
+    const nativeGraph = await codeIntelligenceProvider.buildGraph({
+      root,
+      workspaceId,
+      maxFiles,
+      maxFileBytes,
+      maxNodes: 5000,
+      maxEdges: 10000,
+      languages: ['javascript', 'typescript']
+    });
+    const graph = translateCodeIntelligenceGraph(nativeGraph);
+    const source = Object.freeze({
+      kind: 'native-preview',
+      freshness: nativeGraph.generation.freshness,
+      persisted: false,
+      reason: 'explicit_native_preview'
+    });
+    if (engine === 'native-preview') return Object.freeze({ graph, source });
+    const baseline = await buildJsTsSourceGraph({ root, workspaceId, maxFiles, maxFileBytes, clock });
+    return Object.freeze({
+      graph,
+      source,
+      compatibility: compareSourceGraphCompatibility(baseline, graph)
+    });
+  }
   let fallbackReason = 'index_not_built';
   try {
     const persisted = await loadPersistentSourceGraphIndex({ root, workspaceId, maxFiles, maxFileBytes, clock });

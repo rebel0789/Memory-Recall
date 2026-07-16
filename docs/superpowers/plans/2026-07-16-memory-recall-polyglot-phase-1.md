@@ -110,19 +110,19 @@ Commit: `feat: add native code intelligence provider port`
 - Modify: `packages/source-graph/src/intelligence.mjs`
 - Create: `tests/source-graph-native-compatibility.test.mjs`
 
-- [ ] **Step 1: Add failing translation and parity tests**
+- [x] **Step 1: Add failing translation and parity tests**
 
 Use representative JS, TS, TSX, imports, exports, classes, methods, calls, routes, and malformed files. Compare stable developer-facing facts rather than provider-specific IDs: represented file locators, declared symbol names and locators, resolved import relationships, call relationships, route handlers, diagnostics, and coverage.
 
-- [ ] **Step 2: Implement the pure compatibility translator**
+- [x] **Step 2: Implement the pure compatibility translator**
 
 Convert the provider-neutral graph to the closed `source-graph.schema.json` shape. Preserve locators and evidence, derive compatibility IDs and summary fields deterministically, map only supported kinds and edges, report omitted native constructs explicitly, and validate the translated graph before returning it.
 
-- [ ] **Step 3: Add engine selection behind the source-graph port**
+- [x] **Step 3: Add engine selection behind the source-graph port**
 
 Support `js` as the unchanged default, `native-preview` as strict native execution, and `compatibility` as a test/evidence mode that runs both and returns the native graph plus an evidence-bearing comparison. Never silently fall back when strict native preview is selected.
 
-- [ ] **Step 4: Verify and commit compatibility**
+- [x] **Step 4: Verify and commit compatibility**
 
 Run: `node --test tests/source-graph-native-compatibility.test.mjs tests/source-graph-preview.test.mjs tests/source-graph-index-store.test.mjs && git diff --check`
 
