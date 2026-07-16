@@ -6725,10 +6725,13 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const input = mcpMapArguments(args, ['limit'], 'repo.architecture');
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
         if (sourceIndexEngine === 'native-preview') {
-          const result = await nativeQuery('search', { query: 'workspace://', limit });
+          const [communities, processes] = await Promise.all([
+            nativeQuery('communities', { limit }),
+            nativeQuery('processes', { depth: 4, limit })
+          ]);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'repo.architecture', workspaceId, generatedAt: fixedNow(),
-            data: nativeArchitectureData(result)
+            data: nativeArchitectureData(communities, processes, limit)
           }));
         }
         const intelligence = await loadIntelligence();
@@ -7982,25 +7985,82 @@ function nativeIndexStatusData(result) {
   };
 }
 
-function nativeArchitectureData(result) {
-  const nodes = result.results.map(nativeStructuralNode);
-  const groups = new Map();
-  for (const node of nodes) {
-    const relative = node.locator.replace(/^workspace:\/\//u, '').split('#')[0];
-    const group = relative.includes('/') ? relative.split('/')[0] : '(root)';
-    groups.set(group, (groups.get(group) ?? 0) + 1);
+function nativeArchitectureData(communityResult, processResult, limit) {
+  const processNodes = processResult.results.map(nativeStructuralNode);
+  const communityNodes = communityResult.results.map(nativeStructuralNode);
+  const nodes = uniqueById([...processNodes, ...communityNodes], 100);
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const processRelationships = processResult.relationships.map(nativeStructuralRelationship);
+  const communityRelationships = communityResult.relationships.map(nativeStructuralRelationship);
+  const relationships = uniqueById([...processRelationships, ...communityRelationships], 100);
+  const groups = communityResult.communities.slice(0, limit).map((community) => ({
+    id: community.id,
+    label: community.label,
+    pathPrefix: community.pathPrefix,
+    nodeCount: community.representedNodeCount,
+    relationshipCount: community.representedRelationshipCount,
+    sampleNodeIds: community.nodeIds.filter((id) => nodeById.has(id)).slice(0, 3),
+    algorithmVersion: community.algorithmVersion,
+    truncated: community.truncated
+  }));
+  const processes = processResult.processes.slice(0, limit).map((process) => ({
+    id: process.id,
+    label: process.label,
+    entryNodeId: process.entryNodeId,
+    entryRelationshipId: process.entryRelationshipId,
+    sinkNodeId: process.sinkNodeId,
+    sinkKind: process.sinkKind,
+    nodeIds: process.nodeIds,
+    relationshipIds: process.relationshipIds,
+    confidence: process.confidence,
+    algorithmVersion: process.algorithmVersion,
+    truncated: process.truncated
+  }));
+  const entryPoints = uniqueById(
+    processes.map((process) => nodeById.get(process.entryNodeId)).filter(Boolean),
+    limit
+  );
+  const degree = new Map();
+  for (const relationship of communityRelationships) {
+    degree.set(relationship.fromNodeId, (degree.get(relationship.fromNodeId) ?? 0) + 1);
+    degree.set(relationship.toNodeId, (degree.get(relationship.toNodeId) ?? 0) + 1);
   }
+  const hotspots = communityNodes
+    .filter((node) => (degree.get(node.id) ?? 0) > 0)
+    .sort((left, right) => (degree.get(right.id) ?? 0) - (degree.get(left.id) ?? 0) || left.id.localeCompare(right.id))
+    .slice(0, limit)
+    .map((node) => ({ ...node, relationshipCount: degree.get(node.id) }));
   return {
+    schemaVersion: '1.0.0',
+    retrievalMethod: 'native_index_architecture',
     summary: {
       representedNodeCount: nodes.length,
-      totalNodeCount: result.summary.nodeCount,
-      fileCount: result.summary.fileCount,
-      edgeCount: result.summary.edgeCount
+      representedRelationshipCount: relationships.length,
+      totalNodeCount: communityResult.summary.nodeCount,
+      fileCount: communityResult.summary.fileCount,
+      edgeCount: communityResult.summary.edgeCount,
+      communityCount: groups.length,
+      processCount: processes.length
     },
-    groups: [...groups].map(([label, nodeCount]) => ({ label, nodeCount })),
-    entryPoints: nodes.filter((node) => ['function', 'method', 'route'].includes(node.kind)).slice(0, 20),
-    source: nativeIndexSource(result)
+    groups,
+    entryPoints,
+    hotspots,
+    processes,
+    nodes,
+    relationships,
+    truncated: groups.some((group) => group.truncated) || processes.some((process) => process.truncated),
+    source: nativeIndexSource(communityResult)
   };
+}
+
+function uniqueById(items, limit) {
+  const unique = new Map();
+  for (const item of items) {
+    if (!item || unique.has(item.id)) continue;
+    unique.set(item.id, item);
+    if (unique.size >= limit) break;
+  }
+  return [...unique.values()];
 }
 
 async function createMcpStatsRecorder({ values, root, workspaceId, generatedAt }) {

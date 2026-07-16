@@ -186,7 +186,8 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'code.dependencies', arguments: { query: 'src/index.ts', direction: 'outbound', depth: 2, limit: 10 } } },
     { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'code.routes', arguments: { limit: 10 } } },
     { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'repo.map', arguments: { query: 'main', changed: ['src/index.ts'], limit: 10 } } },
-    { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['src/index.ts'], depth: 2, limit: 10 } } }
+    { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['src/index.ts'], depth: 2, limit: 10 } } },
+    { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 20 } } }
   ];
   const result = spawnSync(process.execPath, [
     'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
@@ -194,7 +195,7 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   assert.equal(result.status, 0, result.stderr);
   const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
   assert.deepEqual(responses.find((entry) => entry.id === 2).result.tools.map((tool) => tool.name).sort(), EXPECTED_TOOLS);
-  for (let id = 3; id <= 11; id += 1) {
+  for (let id = 3; id <= 12; id += 1) {
     const response = responses.find((entry) => entry.id === id);
     assert.equal(response.error, undefined, `tool response ${id}: ${JSON.stringify(response.error)}`);
     const payload = JSON.parse(response.result.content[0].text);
@@ -204,6 +205,30 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     const source = payload.data.source ?? payload.data.sourceIndex?.source;
     assert.equal(source.kind, 'native-persistent-index-preview');
   }
+  const architecture = JSON.parse(responses.find((entry) => entry.id === 3).result.content[0].text).data;
+  const repeatedArchitecture = JSON.parse(responses.find((entry) => entry.id === 12).result.content[0].text).data;
+  assert.equal(architecture.retrievalMethod, 'native_index_architecture');
+  assert.match(architecture.groups[0].id, /^cicommunity_[a-f0-9]{32}$/u);
+  assert.equal(architecture.groups[0].algorithmVersion, 'label-propagation-v1');
+  assert(architecture.processes.some((item) => item.algorithmVersion === 'entry-path-v1'));
+  assert(architecture.entryPoints.some((item) => item.label === 'GET'));
+  assert(architecture.hotspots.length > 0);
+  assert.deepEqual(
+    repeatedArchitecture.groups.map((item) => item.id),
+    architecture.groups.map((item) => item.id)
+  );
+  assert.deepEqual(
+    repeatedArchitecture.processes.map((item) => item.id),
+    architecture.processes.map((item) => item.id)
+  );
+  const architectureNodeIds = new Set(architecture.nodes.map((item) => item.id));
+  const architectureRelationshipIds = new Set(architecture.relationships.map((item) => item.id));
+  for (const process of architecture.processes) {
+    assert(process.nodeIds.every((id) => architectureNodeIds.has(id)));
+    assert(process.relationshipIds.every((id) => architectureRelationshipIds.has(id)));
+    assert(architectureRelationshipIds.has(process.entryRelationshipId));
+  }
+  assert(architecture.relationships.some((item) => item.kind === 'handles_route' && item.confidence > 0));
   assert(JSON.parse(responses.find((entry) => entry.id === 5).result.content[0].text).data.results.some((item) => item.label === 'main'));
   assert(JSON.parse(responses.find((entry) => entry.id === 6).result.content[0].text).data.relationships.some((item) => item.kind === 'calls' && item.confidence > 0));
   const routes = JSON.parse(responses.find((entry) => entry.id === 9).result.content[0].text).data;
