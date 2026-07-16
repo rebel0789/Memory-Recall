@@ -493,6 +493,8 @@ fn native_node(
     let kind = match fact.object.as_str() {
         "File" => "file",
         "Module" => "module",
+        "Package" => "package",
+        "Namespace" => "namespace",
         "Function" => "function",
         "Method" => "method",
         "Class" => "class",
@@ -552,7 +554,7 @@ fn display_symbol_name(raw_name: &str, parent: Option<&str>) -> String {
     };
     raw_name
         .strip_prefix(parent_name)
-        .and_then(|value| value.strip_prefix('_'))
+        .and_then(|value| value.strip_prefix(['_', '.']))
         .unwrap_or(raw_name)
         .to_string()
 }
@@ -1107,7 +1109,7 @@ fn language_kind(kind: &str) -> &str {
 fn node_priority(kind: &str) -> usize {
     match kind {
         "file" => 0,
-        "module" => 1,
+        "module" | "package" | "namespace" => 1,
         "class" | "interface" | "struct" | "enum" | "trait" | "protocol" => 2,
         "function" | "method" => 3,
         "route" => 4,

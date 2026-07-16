@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_kotlin_coroutines_internal_heap", "language": "kotlin",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_kotlin_kotlin_kotlinx_coroutines@165c6cb5859b5365dec193abc75dee9f49ce1389#kotlinx-coroutines-core/common/src/internal" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "partial", "exports": "unmeasured", "heritage": "partial", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_coroutines_heap", "semanticKey": "node:class:ThreadSafeHeap", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "class", "name": "ThreadSafeHeap", "qualifiedName": "ThreadSafeHeap.kt::kotlinx.coroutines.internal::ThreadSafeHeap", "locator": "workspace://ThreadSafeHeap.kt#L19-L158" },
+    { "id": "cititem_coroutines_remove_first", "semanticKey": "node:method:ThreadSafeHeap:removeFirstOrNull", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "removeFirstOrNull()", "qualifiedName": "ThreadSafeHeap.kt::kotlinx.coroutines.internal::ThreadSafeHeap::removeFirstOrNull()", "locator": "workspace://ThreadSafeHeap.kt#L43-L49" },
+    { "id": "cititem_coroutines_remove_at", "semanticKey": "node:method:ThreadSafeHeap:removeAtImpl", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "removeAtImpl(Int)", "qualifiedName": "ThreadSafeHeap.kt::kotlinx.coroutines.internal::ThreadSafeHeap::removeAtImpl(Int)", "locator": "workspace://ThreadSafeHeap.kt#L86-L107" },
+    { "id": "cititem_coroutines_defines_remove", "semanticKey": "edge:defines:ThreadSafeHeap:removeFirstOrNull", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "class", "name": "ThreadSafeHeap", "locator": "workspace://ThreadSafeHeap.kt#L19-L158" }, "to": { "kind": "method", "name": "removeFirstOrNull()", "locator": "workspace://ThreadSafeHeap.kt#L43-L49" }, "locator": "workspace://ThreadSafeHeap.kt#L43-L49", "resolution": "exact" },
+    { "id": "cititem_coroutines_remove_call", "semanticKey": "edge:calls:removeFirstOrNull:removeAtImpl", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "method", "name": "removeFirstOrNull()", "locator": "workspace://ThreadSafeHeap.kt#L43-L49" }, "to": { "kind": "method", "name": "removeAtImpl(Int)", "locator": "workspace://ThreadSafeHeap.kt#L86-L107" }, "locator": "workspace://ThreadSafeHeap.kt#L45-L45", "resolution": "typed" }
+  ],
+  "truthFingerprint": "sha256:1c7012db42a10959b95c419b2482e876e8f24bbf7897e8e827749a0661bec76d"
+}

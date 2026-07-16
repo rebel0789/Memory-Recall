@@ -120,6 +120,7 @@ test('npm package contains the runtime contract without checkout-only test weigh
   assert.equal(paths.includes('README.md'), true);
   assert.equal(paths.includes('apps/cli/oaf.mjs'), true);
   assert.equal(paths.includes('scripts/verify-handoff.mjs'), true);
+  assert.equal(paths.includes('scripts/rust-ingest-quality.mjs'), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('tests/')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), true);

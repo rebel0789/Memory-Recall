@@ -588,6 +588,147 @@ mod tests {
     }
 
     #[test]
+    fn batch_c_fixtures_preserve_containers_overloads_typed_calls_and_routes() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-c")
+            .canonicalize()
+            .unwrap();
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let facts = report
+            .facts
+            .iter()
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.predicate.as_str(),
+                    fact.object.as_str(),
+                    fact.notes.as_deref(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert!(facts.contains(&(
+            "package:com.acme.service",
+            "DEFINES",
+            "class:com.acme.service.ItemService",
+            Some("oaf.ingest:define-type")
+        )));
+        assert!(facts.contains(&(
+            "namespace:Demo.Services",
+            "DEFINES",
+            "class:Demo.Services.ItemService",
+            Some("oaf.ingest:define-type")
+        )));
+        assert!(facts.contains(&(
+            "class:com.acme.service.ItemService",
+            "IMPLEMENTS",
+            "interface:com.acme.service.ItemLoader",
+            Some("oaf.ingest:resolved-heritage")
+        )));
+        assert!(facts.contains(&(
+            "class:Demo.Services.ItemService",
+            "IMPLEMENTS",
+            "interface:Demo.Services.IItemLoader",
+            Some("oaf.ingest:resolved-heritage")
+        )));
+        assert!(facts.iter().any(|(subject, predicate, object, _)| {
+            *predicate == "DEFINES"
+                && *subject == "class:com.acme.service.ItemService"
+                && *object == "method:com.acme.service.ItemService.load(String)"
+        }));
+        assert!(facts.iter().any(|(subject, predicate, object, _)| {
+            *predicate == "DEFINES"
+                && *subject == "class:com.acme.service.ItemService"
+                && *object == "method:com.acme.service.ItemService.load(long)"
+        }));
+        assert!(facts.contains(&(
+            "method:com.acme.api.ItemController.get(String)",
+            "CALLS",
+            "method:com.acme.service.ItemService.find(String)",
+            Some("oaf.ingest:typed-call-java")
+        )));
+        assert!(facts.contains(&(
+            "method:Demo.Api.ItemsController.Get(string)",
+            "CALLS",
+            "method:Demo.Services.ItemService.Find(string)",
+            Some("oaf.ingest:typed-call-csharp")
+        )));
+        assert!(facts.contains(&(
+            "method:com.acme.api.ItemController.ambiguous(String)",
+            "CALLS",
+            "external_function:load",
+            Some("oaf.ingest:unresolved-call")
+        )));
+        assert!(facts.contains(&(
+            "method:Demo.Api.ItemsController.Ambiguous(string)",
+            "CALLS",
+            "external_function:Load",
+            Some("oaf.ingest:unresolved-call")
+        )));
+        assert!(!facts.iter().any(|(subject, predicate, object, _)| {
+            *predicate == "CALLS"
+                && (*subject == "method:com.acme.api.ItemController.ambiguous(String)"
+                    || *subject == "method:Demo.Api.ItemsController.Ambiguous(string)")
+                && (object.ends_with("load(String)")
+                    || object.ends_with("load(long)")
+                    || object.ends_with("Load(string)")
+                    || object.ends_with("Load(long)"))
+        }));
+        assert!(facts.contains(&(
+            "method:com.acme.api.ItemController.get(String)",
+            "HANDLES",
+            "route:GET_items_param",
+            Some("oaf.ingest:route-spring")
+        )));
+        assert!(facts.iter().any(|(subject, predicate, object, note)| {
+            *predicate == "HANDLES"
+                && *subject == "function:com.acme.api.itemRoutes(ItemService)"
+                && *object == "route:GET_items_param"
+                && *note == Some("oaf.ingest:route-ktor")
+        }));
+        assert!(facts.contains(&(
+            "method:Demo.Api.ItemsController.Get(string)",
+            "HANDLES",
+            "route:GET_items_param",
+            Some("oaf.ingest:route-aspnet-controller")
+        )));
+        assert!(facts.contains(&(
+            "method:Demo.Api.Routes.Health()",
+            "HANDLES",
+            "route:GET_health",
+            Some("oaf.ingest:route-aspnet-minimal")
+        )));
+    }
+
+    #[test]
+    fn batch_c_extension_calls_resolve_from_typed_receivers() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-c")
+            .canonicalize()
+            .unwrap();
+
+        let kotlin = extract_repo(&IngestOptions::new(root.join("kotlin"))).unwrap();
+        assert!(kotlin.facts.iter().any(|fact| {
+            fact.subject == "function:com.acme.service.describe(Item)"
+                && fact.predicate == "CALLS"
+                && fact.object == "function:com.acme.service.summary()"
+                && fact.notes.as_deref() == Some("oaf.ingest:typed-call-kotlin")
+        }));
+        assert!(!kotlin.facts.iter().any(|fact| {
+            fact.predicate == "CALLS"
+                && matches!(fact.object.as_str(), "external_function:id" | "external_function:routing")
+        }));
+
+        let csharp = extract_repo(&IngestOptions::new(root.join("csharp"))).unwrap();
+        assert!(csharp.facts.iter().any(|fact| {
+            fact.subject == "method:Demo.Api.ItemsController.Describe(Item)"
+                && fact.predicate == "CALLS"
+                && fact.object == "method:Demo.Services.ItemExtensions.Summary(Item)"
+                && fact.notes.as_deref() == Some("oaf.ingest:typed-call-csharp")
+        }));
+    }
+
+    #[test]
     fn batch_b_framework_routes_require_syntax_bound_handlers() {
         let root = std::env::temp_dir().join(format!(
             "oaf-ingest-batch-b-framework-routes-{}",

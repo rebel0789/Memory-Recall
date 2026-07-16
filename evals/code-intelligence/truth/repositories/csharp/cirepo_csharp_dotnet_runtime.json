@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_csharp_dotnet_runtime_json_nodes", "language": "csharp",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_csharp_dotnet_runtime@e487c08fc5e689918da3e7fbb2747ca8b02c260d#src/libraries/System.Text.Json/src/System/Text/Json/Nodes" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "partial", "exports": "unmeasured", "heritage": "partial", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_runtime_json_node", "semanticKey": "node:class:JsonNode", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "class", "name": "JsonNode", "qualifiedName": "JsonNode.cs::System.Text.Json.Nodes::JsonNode", "locator": "workspace://JsonNode.cs#L17-L394" },
+    { "id": "cititem_runtime_deep_equals", "semanticKey": "node:method:JsonNode:DeepEquals", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "DeepEquals(JsonNode,JsonNode)", "qualifiedName": "JsonNode.cs::System.Text.Json.Nodes::JsonNode::DeepEquals(JsonNode,JsonNode)", "locator": "workspace://JsonNode.cs#L307-L319" },
+    { "id": "cititem_runtime_deep_equals_core", "semanticKey": "node:method:JsonNode:DeepEqualsCore", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "DeepEqualsCore(JsonNode)", "qualifiedName": "JsonNode.cs::System.Text.Json.Nodes::JsonNode::DeepEqualsCore(JsonNode)", "locator": "workspace://JsonNode.cs#L321-L321" },
+    { "id": "cititem_runtime_defines_deep_equals", "semanticKey": "edge:defines:JsonNode:DeepEquals", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "class", "name": "JsonNode", "locator": "workspace://JsonNode.cs#L17-L394" }, "to": { "kind": "method", "name": "DeepEquals(JsonNode,JsonNode)", "locator": "workspace://JsonNode.cs#L307-L319" }, "locator": "workspace://JsonNode.cs#L307-L319", "resolution": "exact" },
+    { "id": "cititem_runtime_deep_equals_call", "semanticKey": "edge:calls:DeepEquals:DeepEqualsCore", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "method", "name": "DeepEquals(JsonNode,JsonNode)", "locator": "workspace://JsonNode.cs#L307-L319" }, "to": { "kind": "method", "name": "DeepEqualsCore(JsonNode)", "locator": "workspace://JsonNode.cs#L321-L321" }, "locator": "workspace://JsonNode.cs#L318-L318", "resolution": "typed" }
+  ],
+  "truthFingerprint": "sha256:de9d1bb8113df8761a38cde74d01ee9ec94985ac1424c7efedb4ba066f40e91a"
+}

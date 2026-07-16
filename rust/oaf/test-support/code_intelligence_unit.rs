@@ -500,6 +500,142 @@ mod tests {
     }
 
     #[test]
+    fn batch_c_native_graph_preserves_packages_overloads_typed_calls_and_routes() {
+        let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-c")
+            .canonicalize()
+            .unwrap();
+
+        for (language, relative_root) in [
+            ("java", "java"),
+            ("kotlin", "kotlin"),
+            ("csharp", "csharp"),
+        ] {
+            let mut request_value = valid_request();
+            request_value["arguments"]["languages"] = json!([language]);
+            let request = parse_request(&request_value).unwrap();
+            let graph = build_graph_at_root(
+                &request,
+                "test",
+                &fixture_root.join(relative_root),
+                Instant::now(),
+            )
+            .unwrap()
+            .graph;
+            let nodes = graph["nodes"].as_array().unwrap();
+            let edges = graph["edges"].as_array().unwrap();
+
+            let expected_container = match language {
+                "csharp" => ("namespace", "Demo.Services"),
+                _ => ("package", "com.acme.service"),
+            };
+            assert!(nodes.iter().any(|node| {
+                node["kind"] == expected_container.0 && node["name"] == expected_container.1
+            }));
+
+            let (service_suffix, method_name, typed_locator, route_locator) = match language {
+                "java" => (
+                    "::com.acme.service::ItemService",
+                    "find(String)",
+                    "workspace://src/main/java/com/acme/api/ItemController.java#L20-L20",
+                    "workspace://src/main/java/com/acme/api/ItemController.java#L18-L21",
+                ),
+                "kotlin" => (
+                    "::com.acme.service::ItemService",
+                    "find(String)",
+                    "workspace://src/main/kotlin/com/acme/api/Routes.kt#L12-L12",
+                    "workspace://src/main/kotlin/com/acme/api/Routes.kt#L11-L11",
+                ),
+                "csharp" => (
+                    "::Demo.Services::ItemService",
+                    "Find(string)",
+                    "workspace://src/Demo/Api.cs#L19-L19",
+                    "workspace://src/Demo/Api.cs#L18-L19",
+                ),
+                _ => unreachable!(),
+            };
+            let service_id = nodes
+                .iter()
+                .find(|node| {
+                    node["kind"] == "class"
+                        && node["qualifiedName"]
+                            .as_str()
+                            .is_some_and(|name| name.ends_with(service_suffix))
+                })
+                .and_then(|node| node["id"].as_str())
+                .unwrap();
+            let method_id = nodes
+                .iter()
+                .find(|node| {
+                    node["kind"] == "method"
+                        && node["name"] == method_name
+                        && node["qualifiedName"]
+                            .as_str()
+                            .is_some_and(|name| name.contains("::ItemService::"))
+                })
+                .and_then(|node| node["id"].as_str())
+                .unwrap();
+
+            assert!(edges.iter().any(|edge| {
+                edge["kind"] == "defines"
+                    && edge["fromNodeId"] == service_id
+                    && edge["toNodeId"] == method_id
+            }), "{language}: service method definition edge missing");
+            assert!(edges.iter().any(|edge| {
+                edge["kind"] == "implements"
+                    && edge["fromNodeId"] == service_id
+                    && edge["resolution"] == "exact"
+            }));
+            assert!(edges.iter().any(|edge| {
+                edge["kind"] == "calls"
+                    && edge["toNodeId"] == method_id
+                    && edge["resolution"] == "typed"
+                    && edge["evidence"]["locator"] == typed_locator
+            }), "{language}: expected typed target={method_id} locator={typed_locator}; calls={:#?}", edges.iter().filter(|edge| edge["kind"] == "calls").collect::<Vec<_>>());
+            assert!(edges.iter().any(|edge| {
+                edge["kind"] == "handles_route"
+                    && edge["evidence"]["locator"] == route_locator
+            }), "{language}: expected route locator {route_locator}; routes={:#?}", edges.iter().filter(|edge| edge["kind"] == "handles_route").collect::<Vec<_>>());
+
+            let overload_names = match language {
+                "java" => ["load(String)", "load(long)"],
+                "kotlin" => ["load(String)", "load(Long)"],
+                "csharp" => ["Load(string)", "Load(long)"],
+                _ => unreachable!(),
+            };
+            for overload_name in overload_names {
+                assert!(nodes.iter().any(|node| {
+                    node["kind"] == "method"
+                        && node["name"] == overload_name
+                        && node["qualifiedName"]
+                            .as_str()
+                            .is_some_and(|name| name.contains("::ItemService::"))
+                }));
+            }
+
+            if language != "java" {
+                let (extension_kind, extension_name) = match language {
+                    "kotlin" => ("function", "summary()"),
+                    "csharp" => ("method", "Summary(Item)"),
+                    _ => unreachable!(),
+                };
+                let extension_id = nodes
+                    .iter()
+                    .find(|node| {
+                        node["kind"] == extension_kind && node["name"] == extension_name
+                    })
+                    .and_then(|node| node["id"].as_str())
+                    .unwrap();
+                assert!(edges.iter().any(|edge| {
+                    edge["kind"] == "calls"
+                        && edge["toNodeId"] == extension_id
+                        && edge["resolution"] == "typed"
+                }));
+            }
+        }
+    }
+
+    #[test]
     fn go_type_and_same_named_method_keep_distinct_graph_identities() {
         let root = std::env::temp_dir().join(format!(
             "memory-recall-code-intelligence-go-same-name-{}",

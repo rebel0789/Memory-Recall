@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0", "truthVersion": "memory-recall-code-intelligence-truth-1", "id": "citruth_csharp_newtonsoft_jsonpath", "language": "csharp",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_csharp_jamesnk_newtonsoft_json@4f73e74372445108d2c1bda37b36e6f5e43402e0#Src/Newtonsoft.Json/Linq/JsonPath" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "partial", "exports": "unmeasured", "heritage": "partial", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_newtonsoft_jpath", "semanticKey": "node:class:JPath", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "class", "name": "JPath", "qualifiedName": "JPath.cs::Newtonsoft.Json.Linq.JsonPath::JPath", "locator": "workspace://JPath.cs#L34-L892" },
+    { "id": "cititem_newtonsoft_parse_expression", "semanticKey": "node:method:JPath:ParseExpression", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "ParseExpression()", "qualifiedName": "JPath.cs::Newtonsoft.Json.Linq.JsonPath::JPath::ParseExpression()", "locator": "workspace://JPath.cs#L488-L573" },
+    { "id": "cititem_newtonsoft_match", "semanticKey": "node:method:JPath:Match", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "Match(string)", "qualifiedName": "JPath.cs::Newtonsoft.Json.Linq.JsonPath::JPath::Match(string)", "locator": "workspace://JPath.cs#L753-L770" },
+    { "id": "cititem_newtonsoft_defines_parse", "semanticKey": "edge:defines:JPath:ParseExpression", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "class", "name": "JPath", "locator": "workspace://JPath.cs#L34-L892" }, "to": { "kind": "method", "name": "ParseExpression()", "locator": "workspace://JPath.cs#L488-L573" }, "locator": "workspace://JPath.cs#L488-L573", "resolution": "exact" },
+    { "id": "cititem_newtonsoft_parse_match", "semanticKey": "edge:calls:ParseExpression:Match", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "method", "name": "ParseExpression()", "locator": "workspace://JPath.cs#L488-L573" }, "to": { "kind": "method", "name": "Match(string)", "locator": "workspace://JPath.cs#L753-L770" }, "locator": "workspace://JPath.cs#L526-L526", "resolution": "typed" }
+  ],
+  "truthFingerprint": "sha256:cc02b92d5217a80c390bebd0796022bc1a7a9d691a65a93b1f23d71181d080af"
+}
