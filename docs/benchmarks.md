@@ -4,8 +4,9 @@ This page is the source of truth for Memory Recall's public measurements. The
 artifact shape is stated for each benchmark below: most CLI benches emit JSON
 with a `reportFingerprint`, while the Context Recall script emits JSON without
 that field and the product-proof commands deliberately render summaries. The
-Phase 0 code-intelligence baseline is the only committed versioned result
-artifact. Save other output yourself if you need to retain a run.
+Phase 0 baseline and Phase 1 JS/TS compatibility receipt are the committed
+versioned code-intelligence results. Save other output yourself if you need to
+retain a run.
 
 All token figures are local delivery estimates using `ceil(chars/4)`. They are
 not provider-billed tokens, production-cost estimates, or production-latency
@@ -44,9 +45,34 @@ and incremental quality harnesses. The Rust engine remains experimental and is
 not selected by the public npm CLI, MCP server, or web workbench.
 
 The pinned 42-repository corpus and accuracy floors are inputs for later
-language and head-to-head work. Phase 0 does not run GitNexus or Codebase Memory
-MCP, does not establish fourteen-language accuracy, and makes no parity or
-leadership claim. Both competitor records are explicitly `unmeasured`.
+language and head-to-head work. Phase 0 does not run a competitor, does not
+establish fourteen-language accuracy, and makes no parity or leadership claim.
+Competitor records are explicitly `unmeasured`.
+
+## Code-intelligence Phase 1 compatibility
+
+The committed receipt is
+`evals/code-intelligence/results/phase1-js-ts-compatibility.json`. Check it from
+a source checkout after building the release Rust binary:
+
+```bash
+node scripts/code-intelligence-phase1-compatibility.mjs --check
+```
+
+The runner fetches the exact pinned TypeScript and Express commits, uses a
+bounded compiler-transformer scope for the large TypeScript repository, and
+runs both engines twice on those repositories plus two local fixtures. Both
+engines receive the same 1,000-file, 512 KiB-per-file, 5,000-node, and
+10,000-edge request limits. The receipt stores commit references, platform and
+engine versions, graph fingerprints, counts, and compatibility dimensions. It
+does not store source bodies, command output, checkout paths, or environment
+variables.
+
+The Phase 1 gate covers boundary behavior and reproducibility. It passes four
+completed deterministic cases with two pinned real repositories and no engine
+network, model, memory, or workspace writes. It is not an accuracy gate. The
+real-repository dimensions expose native import and call gaps, so the JS engine
+remains the public default and no parity or leadership claim is made.
 
 ## Dataset
 

@@ -1067,25 +1067,34 @@
     {
       "id": "code-intelligence.polyglot-production-engine",
       "name": "Polyglot production code-intelligence engine contract",
-      "status": "specified",
+      "status": "experimental",
       "evidence": [
         "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md",
         "docs/adr/0023-production-rust-code-intelligence-engine.md",
         "packages/protocol/schemas/code-intelligence-graph.schema.json",
         "packages/protocol/schemas/code-intelligence-capability-matrix.schema.json",
         "packages/protocol/schemas/code-intelligence-benchmark-manifest.schema.json",
+        "packages/protocol/schemas/code-intelligence-engine-request.schema.json",
+        "packages/protocol/schemas/code-intelligence-engine-response.schema.json",
         "packages/protocol/src/code-intelligence-contract.mjs",
         "evals/code-intelligence/capability-matrix.v1.json",
         "evals/code-intelligence/corpus.v1.json",
         "evals/code-intelligence/benchmark-gates.v1.json",
         "evals/code-intelligence/results/phase0-baseline.json",
-        "tests/code-intelligence-contract.test.mjs"
+        "evals/code-intelligence/results/phase1-js-ts-compatibility.json",
+        "providers/native/code-intelligence-rust/src/index.mjs",
+        "packages/source-graph/src/native-compatibility.mjs",
+        "scripts/code-intelligence-phase1-compatibility.mjs",
+        "tests/code-intelligence-contract.test.mjs",
+        "tests/native-code-intelligence-provider.test.mjs",
+        "tests/source-graph-native-compatibility.test.mjs"
       ],
       "limitations": [
-        "The public code-intelligence runtime remains bounded JavaScript and TypeScript static analysis.",
-        "The broader Rust Tree-sitter engine remains experimental and is not selected by the public npm CLI, MCP server, or web workbench.",
+        "The public default remains bounded JavaScript and TypeScript static analysis.",
+        "The Rust engine is available only through explicit graph CLI preview modes after a local build; npm does not ship its binary, and MCP and web do not select it.",
+        "Pinned JS/TS compatibility evidence records unresolved native import and call gaps, so the published accuracy floor remains unmeasured.",
         "GitNexus and Codebase Memory MCP remain unmeasured on the pinned corpus.",
-        "Phase 0 establishes contracts and a current-state baseline only; it makes no parity or leadership claim."
+        "Phase 1 proves the provider boundary, failure isolation, package contract, and deterministic compatibility measurement only; it makes no parity or leadership claim."
       ]
     }
   ],
@@ -1113,10 +1122,13 @@
       "npm run consumer:browser-smoke",
       "node --test tests/code-intelligence-contract.test.mjs",
       "node scripts/pin-code-intelligence-corpus.mjs --check",
-      "node scripts/code-intelligence-phase0-baseline.mjs --out evals/code-intelligence/results/phase0-baseline.json"
+      "node scripts/code-intelligence-phase0-baseline.mjs --out evals/code-intelligence/results/phase0-baseline.json",
+      "node scripts/rust-code-intelligence-protocol-quality.mjs",
+      "node scripts/native-code-intelligence-consumer-smoke.mjs",
+      "node scripts/code-intelligence-phase1-compatibility.mjs --check"
     ],
-    "testsExpected": 729,
-    "protocolFixturesExpected": 187,
+    "testsExpected": 748,
+    "protocolFixturesExpected": 191,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

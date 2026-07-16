@@ -51,6 +51,11 @@ function provider(binaryPath, overrides = {}) {
   });
 }
 
+test('native provider default stdout bound can carry the maximum declared graph envelope', () => {
+  const instance = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });
+  assert.equal(instance.maxStdoutBytes, 8_000_000);
+});
+
 test('native provider builds and validates one local read-only graph', async (t) => {
   const root = await workspace(t);
   const instance = provider(RUST_BINARY);

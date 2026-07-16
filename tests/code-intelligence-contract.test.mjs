@@ -141,3 +141,23 @@ test('Phase 0 baseline separates public, experimental, and unmeasured evidence',
   assert.equal(report.safeguards.rawCommandOutputStored, false);
   assert.equal(report.safeguards.absoluteRepositoryRootStored, false);
 });
+
+test('Phase 1 compatibility evidence is reproducible and does not claim parity', async () => {
+  const report = await readJson('evals/code-intelligence/results/phase1-js-ts-compatibility.json');
+
+  assert.equal(report.phase, 1);
+  assert.equal(report.gateDecision, 'pass');
+  assert.equal(report.cases.length, 4);
+  assert.equal(report.cases.filter((item) => item.sourceClass === 'real-repo').length, 2);
+  assert.equal(report.cases.every((item) => item.deterministic === true), true);
+  assert.equal(report.cases.every((item) => item.compatibility.parityClaimed === false), true);
+  assert.equal(report.failures.length, 0);
+  assert.equal(report.claims.parity, false);
+  assert.equal(report.claims.leadership, false);
+  assert.equal(report.publicDefault.engine, 'js');
+  assert.equal(report.publicDefault.changed, false);
+  assert.equal(report.safeguards.rawSourceStored, false);
+  assert.equal(report.safeguards.absoluteCheckoutPathsStored, false);
+  assert.equal(report.safeguards.environmentVariablesStored, false);
+  assert.doesNotMatch(JSON.stringify(report), /\/Users\/|\/private\/|\/var\/folders\//u);
+});

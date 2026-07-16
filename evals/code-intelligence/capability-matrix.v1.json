@@ -29,10 +29,14 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "The public Node path is implemented. Phase 1 measures native-preview structure compatibility, but not ground-truth accuracy."
           ]
         },
         "imports": {
@@ -42,10 +46,14 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "The public Node path is implemented. Phase 1 records native-preview import gaps, so the accuracy floor remains unmeasured."
           ]
         },
         "exports": {
@@ -94,10 +102,14 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "The public Node path is implemented. Phase 1 records native-preview call gaps, so the accuracy floor remains unmeasured."
           ]
         },
         "config": {
@@ -154,7 +166,7 @@
         }
       },
       "limitations": [
-        "Only the bounded Node.js path is production-facing in Phase 0."
+        "The bounded Node.js path remains the public default; the native engine is explicit preview-only and has not passed the published accuracy floor."
       ]
     },
     {
@@ -183,10 +195,14 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "The public Node path is implemented. Phase 1 measures native-preview structure compatibility, but not ground-truth accuracy."
           ]
         },
         "imports": {
@@ -196,10 +212,14 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "The public Node path is implemented. Phase 1 records native-preview import gaps, so the accuracy floor remains unmeasured."
           ]
         },
         "exports": {
@@ -248,10 +268,14 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "The public Node path is implemented. Phase 1 records native-preview call gaps, so the accuracy floor remains unmeasured."
           ]
         },
         "config": {
@@ -308,7 +332,7 @@
         }
       },
       "limitations": [
-        "Only the bounded Node.js path is production-facing in Phase 0."
+        "The bounded Node.js path remains the public default; the native engine is explicit preview-only and has not passed the published accuracy floor."
       ]
     },
     {

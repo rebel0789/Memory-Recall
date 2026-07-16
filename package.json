@@ -103,6 +103,7 @@
     "rust/oaf/src/",
     "scripts/",
     "!scripts/code-intelligence-phase0-baseline.mjs",
+    "!scripts/code-intelligence-phase1-compatibility.mjs",
     "!scripts/native-code-intelligence-consumer-smoke.mjs",
     "!scripts/pin-code-intelligence-corpus.mjs",
     "services/",

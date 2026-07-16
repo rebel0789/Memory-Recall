@@ -358,6 +358,13 @@
       "contract": "ArtifactStorePort"
     },
     {
+      "id": "provider:native:code-intelligence:rust",
+      "category": "code-intelligence",
+      "locality": "loopback-process",
+      "enabledByDefault": false,
+      "contract": "CodeIntelligencePort"
+    },
+    {
       "id": "provider:native:context-candidate:ast-code",
       "category": "context-candidate",
       "locality": "in-process",

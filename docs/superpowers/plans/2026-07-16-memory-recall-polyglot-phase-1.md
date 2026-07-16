@@ -193,15 +193,15 @@ Commit: `test: prove packed native intelligence preview`
 - Modify: `REPOSITORY_MANIFEST.json`
 - Modify: this plan
 
-- [ ] **Step 1: Add the reproducible compatibility evidence runner**
+- [x] **Step 1: Add the reproducible compatibility evidence runner**
 
 Run both engines on deterministic local fixtures and at least two pinned real JS/TS repositories from the Phase 0 corpus. Record exact commit, platform, engine versions, graph fingerprints, bounded capability counts, compatibility dimensions, failures, and thresholds. Do not store raw source, checkout paths, environment values, or competitor claims.
 
-- [ ] **Step 2: Update claims only from passing evidence**
+- [x] **Step 2: Update claims only from passing evidence**
 
 Mark only the JS/TS native-preview capabilities actually demonstrated. Keep the JS/TS public default unchanged, every other language experimental or unmeasured as appropriate, and parity/leadership false until later gates prove them.
 
-- [ ] **Step 3: Run the complete Phase 1 gate**
+- [x] **Step 3: Run the complete Phase 1 gate**
 
 Run:
 
@@ -221,7 +221,7 @@ git diff --check
 
 Expected: every command passes with the native engine still preview-only and the JS/TS engine still the public default.
 
-- [ ] **Step 4: Commit Phase 1 closure and verify a clean boundary**
+- [x] **Step 4: Commit Phase 1 closure and verify a clean boundary**
 
 Commit: `docs: close polyglot phase one`
 

@@ -32,7 +32,7 @@ export class RustCodeIntelligenceProvider {
   constructor({
     binaryPath = process.env.MEMORY_RECALL_NATIVE_BINARY ?? DEFAULT_BINARY,
     timeoutMs = 30_000,
-    maxStdoutBytes = 2_000_000,
+    maxStdoutBytes = 8_000_000,
     maxStderrBytes = 64 * 1024
   } = {}) {
     this.binaryPath = path.resolve(binaryPath);

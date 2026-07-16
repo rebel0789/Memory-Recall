@@ -4,12 +4,15 @@
 
 ### Added
 
-- Approved the Rust/Node production-engine boundary, added provider-neutral graph and language-evidence contracts, pinned a 42-repository Tier 1 benchmark corpus, and recorded a clean Phase 0 baseline. The baseline does not claim GitNexus or Codebase Memory MCP parity.
+- Approved the Rust/Node production-engine boundary, added provider-neutral graph and language-evidence contracts, pinned a 42-repository Tier 1 benchmark corpus, and recorded a clean Phase 0 baseline. The baseline makes no competitor-parity claim.
+- Added explicit `native-preview` and `compatibility` modes to graph read commands through a versioned, bounded Rust provider. The JS engine remains the default, and MCP remains on that default.
+- Added isolated packed-package proof and a reproducible Phase 1 compatibility receipt across JS/TS fixtures and two exact-commit repositories. The receipt records current import and call gaps and makes no accuracy, parity, or leadership claim.
 
 ### Fixed
 
 - Default packaged benchmarks now use bundled fixtures unless the caller explicitly supplies `--dataset`, preventing same-named repository files from changing the package benchmark.
 - `recall serve` now forwards interrupt and termination signals to the Control API child process.
+- Raised the native provider output ceiling within its existing 10 MB hard maximum so valid 5,000-node engine responses do not fail on medium repositories.
 
 ### Changed
 

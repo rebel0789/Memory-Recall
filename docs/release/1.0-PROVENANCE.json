@@ -21,13 +21,13 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:4a8abbcb0259d9fc95baf72b922d36d93c92616829b1b5c08cb6451081fe8ce3",
+    "package.json": "sha256:45eed950b3c05a6716b040663a0d7bae1db737cad0ae6f748f6226493a8c4d94",
     "package-lock.json": "sha256:e7af858186750dbd7386fce41dd5e37303dca712915d31bc41fd22f7ecb0a368",
-    "PROJECT_STATUS.json": "sha256:866f957ce392148b644dfeec04931e7c3b4b4e89aeac36569dd8a04f99d4bb61",
+    "PROJECT_STATUS.json": "sha256:1ea0b9b39b00c9c353954c5906e742ce8a81b93dd81d740832668c2fe5a0731f",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
-    "docs/usage/support-matrix.md": "sha256:c43ef424137ceeabdb2d3b090da6be9e18923892c25d1fee501f2335bcde1c7a",
-    "docs/benchmarks.md": "sha256:c05e4233e6bbbdf5e97a2b622e09e355e2b189179c47808b075ebbf63cf7a300",
+    "docs/usage/support-matrix.md": "sha256:7f69081563c392d7348138e305d3ecae9ef515a59a325c55a72cbc3e41dd9f58",
+    "docs/benchmarks.md": "sha256:c60eccb9119f6aa3250439e83d87ffddf0fdbe4fc996e382fcaad0c468eba37b",
     "THIRD_PARTY.md": "sha256:adbbffba498346ac25ff8f064db76ae93543d3c1990d37f1137d9122f0742dd7",
     "SECURITY.md": "sha256:af8c910a7f2092f3adc8a9be30f79618d040101c6eda0fda705fdd8f9327b472",
     "GOVERNANCE.md": "sha256:479e1fe15e56b58bd33b41cab67244de87b6f62b491bea0761337a5b87cd7e52"
@@ -35,11 +35,11 @@
   "publicEvidence": [
     {
       "path": "docs/usage/support-matrix.md",
-      "sha256": "sha256:c43ef424137ceeabdb2d3b090da6be9e18923892c25d1fee501f2335bcde1c7a"
+      "sha256": "sha256:7f69081563c392d7348138e305d3ecae9ef515a59a325c55a72cbc3e41dd9f58"
     },
     {
       "path": "docs/benchmarks.md",
-      "sha256": "sha256:c05e4233e6bbbdf5e97a2b622e09e355e2b189179c47808b075ebbf63cf7a300"
+      "sha256": "sha256:c60eccb9119f6aa3250439e83d87ffddf0fdbe4fc996e382fcaad0c468eba37b"
     }
   ],
   "generatedFiles": [

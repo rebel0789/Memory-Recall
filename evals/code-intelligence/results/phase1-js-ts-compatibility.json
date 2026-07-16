@@ -1,0 +1,413 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-code-intelligence-phase1-compatibility-1",
+  "phase": 1,
+  "generatedAt": "2026-07-16T09:10:54.298Z",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v22.22.3"
+  },
+  "checkout": {
+    "commit": "28a5cbae9fe802c75d970f1c58693724b15c880c",
+    "dirtyBeforeRun": true
+  },
+  "inputs": {
+    "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
+    "repositoryRefs": [
+      "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+      "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#."
+    ],
+    "fixtureIds": [
+      "fixture_typescript_import_call",
+      "fixture_javascript_import_call"
+    ],
+    "bounds": {
+      "maxFiles": 1000,
+      "maxFileBytes": 524288,
+      "maxNodes": 5000,
+      "maxEdges": 10000
+    }
+  },
+  "engines": {
+    "baseline": {
+      "name": "node-bounded-static",
+      "providerVersion": "1.0.0",
+      "parserVersion": "oaf-js-ts-static-1.0.0",
+      "languageIds": [
+        "javascript",
+        "typescript"
+      ]
+    },
+    "native": {
+      "name": "memory-recall-native",
+      "version": "1.1.1",
+      "protocolVersion": "1.0.0",
+      "status": "preview",
+      "binaryBundledByNpm": false
+    }
+  },
+  "thresholds": {
+    "operational": {
+      "minimumCaseCount": 4,
+      "minimumRealRepositoryCount": 2,
+      "maximumFailureCount": 0,
+      "deterministicGraphFingerprintsRequired": true
+    },
+    "publishedLanguageFullAccuracy": {
+      "symbolRecallMinimum": 0.95,
+      "resolvedCallPrecisionMinimum": 0.9,
+      "duplicateCanonicalSymbolMaximum": 0,
+      "deterministicStructuralFingerprintRequired": true,
+      "malformedFileRepositoryFailureMaximum": 0,
+      "explicitPartialAndUnsupportedDiagnosticsRequired": true,
+      "realRepositoryGatesRequired": true
+    },
+    "accuracyGateApplied": false,
+    "accuracyGateReason": "Compatibility against the existing JS/TS graph is not ground-truth accuracy evidence."
+  },
+  "cases": [
+    {
+      "id": "fixture_typescript_import_call",
+      "language": "typescript",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:f2992ddcf7fba78474ac2f8e1c005290dd6bd513273fd106f7807279f09cce4b",
+      "deterministic": true,
+      "engines": {
+        "baseline": {
+          "graphFingerprint": "sha256:19f2c88ec5adc9ef41087a116ccadf31cddd1d308b95f4deef09da68f84c090a",
+          "fileCount": 2,
+          "symbolCount": 3,
+          "edgeCount": 17,
+          "diagnosticCount": 0
+        },
+        "native": {
+          "version": "1.1.1",
+          "providerGraphFingerprint": "sha256:b104a5f5610a026a572350e247ab97687ee5a62e8e23ad4e017f910214fb1125",
+          "compatibilityGraphFingerprint": "sha256:ec44c3ff9d6d1c45b028d711b16abeeba4de99945c8f4e71a2fa1fdb72852162",
+          "fileCount": 2,
+          "symbolCount": 2,
+          "edgeCount": 9,
+          "diagnosticCount": 0,
+          "coverage": [
+            {
+              "language": "typescript",
+              "support": "partial",
+              "discoveredFileCount": 2,
+              "indexedFileCount": 2,
+              "failedFileCount": 0,
+              "omittedFileCount": 0
+            }
+          ]
+        }
+      },
+      "compatibility": {
+        "comparisonVersion": "memory-recall-js-ts-native-preview-1",
+        "comparisonFingerprint": "sha256:f81c0c3d6ec5ddf47a523a7195409b213ad11d4cb7de04c4d7b3dfbdea0c1ea7",
+        "dimensions": [
+          {
+            "name": "files",
+            "baselineCount": 2,
+            "nativeCount": 2,
+            "matchedCount": 2,
+            "recall": 1
+          },
+          {
+            "name": "symbols",
+            "baselineCount": 3,
+            "nativeCount": 2,
+            "matchedCount": 2,
+            "recall": 0.6667
+          },
+          {
+            "name": "imports",
+            "baselineCount": 1,
+            "nativeCount": 1,
+            "matchedCount": 1,
+            "recall": 1
+          },
+          {
+            "name": "calls",
+            "baselineCount": 1,
+            "nativeCount": 1,
+            "matchedCount": 1,
+            "recall": 1
+          },
+          {
+            "name": "routes",
+            "baselineCount": 0,
+            "nativeCount": 0,
+            "matchedCount": 0,
+            "recall": 1
+          }
+        ],
+        "parityClaimed": false,
+        "publicDefaultChanged": false
+      }
+    },
+    {
+      "id": "fixture_javascript_import_call",
+      "language": "javascript",
+      "sourceClass": "fixture",
+      "sourceRef": "fixture://sha256:1b50b0e6528f5495afff53ce1dd819b6201f81d7d0558f8dce6baa8f9c928e02",
+      "deterministic": true,
+      "engines": {
+        "baseline": {
+          "graphFingerprint": "sha256:d5afad5dbe942b559231a35a467550eb59f60092c046f2796e1cab0f53f0cf6f",
+          "fileCount": 2,
+          "symbolCount": 2,
+          "edgeCount": 12,
+          "diagnosticCount": 0
+        },
+        "native": {
+          "version": "1.1.1",
+          "providerGraphFingerprint": "sha256:8dc583d5044e0c1c369736fb362eca7a609fc1a7fa3a10f79facc9c9ecac0940",
+          "compatibilityGraphFingerprint": "sha256:544e0c1da3c98ba5ee9d1055021ab8c48c2cde2bc8f9cbc9d64e8a5a0b94b33e",
+          "fileCount": 2,
+          "symbolCount": 2,
+          "edgeCount": 7,
+          "diagnosticCount": 0,
+          "coverage": [
+            {
+              "language": "javascript",
+              "support": "partial",
+              "discoveredFileCount": 2,
+              "indexedFileCount": 2,
+              "failedFileCount": 0,
+              "omittedFileCount": 0
+            }
+          ]
+        }
+      },
+      "compatibility": {
+        "comparisonVersion": "memory-recall-js-ts-native-preview-1",
+        "comparisonFingerprint": "sha256:1f30f061a8a06ab55759c71e309765b9539f121ee1fa60a243cfcd415adbe4ae",
+        "dimensions": [
+          {
+            "name": "files",
+            "baselineCount": 2,
+            "nativeCount": 2,
+            "matchedCount": 2,
+            "recall": 1
+          },
+          {
+            "name": "symbols",
+            "baselineCount": 2,
+            "nativeCount": 2,
+            "matchedCount": 2,
+            "recall": 1
+          },
+          {
+            "name": "imports",
+            "baselineCount": 1,
+            "nativeCount": 1,
+            "matchedCount": 1,
+            "recall": 1
+          },
+          {
+            "name": "calls",
+            "baselineCount": 1,
+            "nativeCount": 1,
+            "matchedCount": 1,
+            "recall": 1
+          },
+          {
+            "name": "routes",
+            "baselineCount": 0,
+            "nativeCount": 0,
+            "matchedCount": 0,
+            "recall": 1
+          }
+        ],
+        "parityClaimed": false,
+        "publicDefaultChanged": false
+      }
+    },
+    {
+      "id": "cirepo_typescript_microsoft_typescript",
+      "language": "typescript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_typescript_microsoft_typescript@637d5746b70257028fb95aad32ddec6b26ab0a14#src/compiler/transformers",
+      "commit": "637d5746b70257028fb95aad32ddec6b26ab0a14",
+      "deterministic": true,
+      "engines": {
+        "baseline": {
+          "graphFingerprint": "sha256:105cbe6d732c9b0dca3299b5fe40654cd8535ac07b9f6a9f242f52390fcdef09",
+          "fileCount": 26,
+          "symbolCount": 1354,
+          "edgeCount": 10000,
+          "diagnosticCount": 0
+        },
+        "native": {
+          "version": "1.1.1",
+          "providerGraphFingerprint": "sha256:89c41da50f2479d8df17b63f8870b185ea353f2d4eec3a5f31f0de65636345f3",
+          "compatibilityGraphFingerprint": "sha256:f5a92085a3f5fb3ae7f14548c38707d6d147de3383b527896806f3b02b564508",
+          "fileCount": 25,
+          "symbolCount": 3609,
+          "edgeCount": 10962,
+          "diagnosticCount": 1,
+          "coverage": [
+            {
+              "language": "typescript",
+              "support": "partial",
+              "discoveredFileCount": 26,
+              "indexedFileCount": 25,
+              "failedFileCount": 1,
+              "omittedFileCount": 0
+            }
+          ]
+        }
+      },
+      "compatibility": {
+        "comparisonVersion": "memory-recall-js-ts-native-preview-1",
+        "comparisonFingerprint": "sha256:7c93044340c685dc843e55c1cfa500f6d421619d6ad7c54d1cf6df838049cb8c",
+        "dimensions": [
+          {
+            "name": "files",
+            "baselineCount": 26,
+            "nativeCount": 25,
+            "matchedCount": 25,
+            "recall": 0.9615
+          },
+          {
+            "name": "symbols",
+            "baselineCount": 1317,
+            "nativeCount": 3609,
+            "matchedCount": 1194,
+            "recall": 0.9066
+          },
+          {
+            "name": "imports",
+            "baselineCount": 27,
+            "nativeCount": 25,
+            "matchedCount": 0,
+            "recall": 0
+          },
+          {
+            "name": "calls",
+            "baselineCount": 2673,
+            "nativeCount": 7278,
+            "matchedCount": 1729,
+            "recall": 0.6468
+          },
+          {
+            "name": "routes",
+            "baselineCount": 0,
+            "nativeCount": 0,
+            "matchedCount": 0,
+            "recall": 1
+          }
+        ],
+        "parityClaimed": false,
+        "publicDefaultChanged": false
+      }
+    },
+    {
+      "id": "cirepo_javascript_expressjs_express",
+      "language": "javascript",
+      "sourceClass": "real-repo",
+      "sourceRef": "corpus://cirepo_javascript_expressjs_express@ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4#.",
+      "commit": "ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4",
+      "deterministic": true,
+      "engines": {
+        "baseline": {
+          "graphFingerprint": "sha256:4e888a3e3224360a9f066b7e3953be230cc9b38915d279fbc8d9907905489204",
+          "fileCount": 141,
+          "symbolCount": 1945,
+          "edgeCount": 10000,
+          "diagnosticCount": 4
+        },
+        "native": {
+          "version": "1.1.1",
+          "providerGraphFingerprint": "sha256:0d2f9db34cf01d99234683098c5a08f424f46454ae05938c06c6dddea71f75fe",
+          "compatibilityGraphFingerprint": "sha256:fafea6a1d286eac8a41466ab50828f67b48369e9bc8d08d0205b0ac9f766bb35",
+          "fileCount": 141,
+          "symbolCount": 350,
+          "edgeCount": 685,
+          "diagnosticCount": 0,
+          "coverage": [
+            {
+              "language": "javascript",
+              "support": "partial",
+              "discoveredFileCount": 141,
+              "indexedFileCount": 141,
+              "failedFileCount": 0,
+              "omittedFileCount": 0
+            }
+          ]
+        }
+      },
+      "compatibility": {
+        "comparisonVersion": "memory-recall-js-ts-native-preview-1",
+        "comparisonFingerprint": "sha256:fec1d3c0cae4fca834ced375e2f219cd3d0860cdfcd07907a2aa625c8a01641e",
+        "dimensions": [
+          {
+            "name": "files",
+            "baselineCount": 141,
+            "nativeCount": 141,
+            "matchedCount": 141,
+            "recall": 1
+          },
+          {
+            "name": "symbols",
+            "baselineCount": 387,
+            "nativeCount": 286,
+            "matchedCount": 92,
+            "recall": 0.2377
+          },
+          {
+            "name": "imports",
+            "baselineCount": 334,
+            "nativeCount": 0,
+            "matchedCount": 0,
+            "recall": 0
+          },
+          {
+            "name": "calls",
+            "baselineCount": 451,
+            "nativeCount": 194,
+            "matchedCount": 3,
+            "recall": 0.0067
+          },
+          {
+            "name": "routes",
+            "baselineCount": 0,
+            "nativeCount": 0,
+            "matchedCount": 0,
+            "recall": 1
+          }
+        ],
+        "parityClaimed": false,
+        "publicDefaultChanged": false
+      }
+    }
+  ],
+  "failures": [],
+  "gateScope": "phase1-boundary-and-reproducibility",
+  "gateDecision": "pass",
+  "publicDefault": {
+    "engine": "js",
+    "changed": false
+  },
+  "competitors": {
+    "status": "unmeasured",
+    "reason": "Phase 1 contains no identical-commit competitor run."
+  },
+  "claims": {
+    "parity": false,
+    "leadership": false,
+    "accuracyFloorMet": false,
+    "reason": "Phase 1 proves the native preview boundary and reproducible JS/TS compatibility measurements, not ground-truth accuracy or competitor parity."
+  },
+  "safeguards": {
+    "rawSourceStored": false,
+    "rawCommandOutputStored": false,
+    "absoluteCheckoutPathsStored": false,
+    "environmentVariablesStored": false,
+    "engineNetworkCalls": 0,
+    "engineModelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "workspaceWrites": 0
+  },
+  "reportFingerprint": "sha256:4a0c10bbde700317affffbef044571767eada58fcd72184a52693b4b64a334cf"
+}

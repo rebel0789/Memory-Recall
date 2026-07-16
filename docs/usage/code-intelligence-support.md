@@ -24,7 +24,7 @@ Product status and benchmark status answer different questions:
 - `experimental`: behavior exists only on an unbundled or manual path;
 - `specified`: the target contract exists, but qualifying behavior does not;
 - `unsupported`: no implementation is present;
-- `unmeasured`: the Phase 0 benchmark has not evaluated the claim;
+- `unmeasured`: the published accuracy benchmark has not evaluated the claim;
 - `does-not-meet-floor`: measured evidence missed at least one required floor;
 - `meets-floor`: measured evidence passed every required floor.
 
@@ -36,24 +36,43 @@ rows, and full claims without both evidence classes.
 ## Current boundary
 
 The production-facing Node.js path remains bounded JavaScript and TypeScript
-static analysis. It is the only code-intelligence path marked implemented in
-Phase 0. The repository also contains a Rust Tree-sitter engine with broader
-parsing and structural behavior, but npm does not yet ship its binary and the
-public CLI, MCP tools, and web workbench do not use it. Those rows are
-experimental or specified, and every benchmark status starts as unmeasured.
+static analysis. Phase 1 adds an explicit `native-preview` engine to graph CLI
+reads. It requires a locally built Rust binary supplied through
+`MEMORY_RECALL_NATIVE_BINARY`; npm does not ship that binary. MCP tools, the web
+workbench, and graph commands without `--engine` continue to use the Node path.
+Other languages remain experimental or specified and are not public graph
+support.
 
 This boundary changes only when implementation, fixtures, pinned repository
 results, package verification, and public documentation land together.
 
-## Phase 0 evidence and next phase
+## Phase 1 evidence
+
+The reproducible receipt is
+[`phase1-js-ts-compatibility.json`](../../evals/code-intelligence/results/phase1-js-ts-compatibility.json).
+It covers TypeScript and JavaScript fixtures, a bounded scope from the pinned
+TypeScript compiler commit, and the full pinned Express commit. Both engines
+run twice per case under the same file, byte, node, and edge limits.
+
+The boundary gate passes: all four cases complete, fingerprints are stable, the
+two real repositories match their pinned commits, and no engine network, model,
+memory, or workspace write is reported. The compatibility measurements do not
+pass the published accuracy floor. The real-repository results show unresolved
+native import and call gaps. Therefore `native-preview` remains explicit and
+non-default, benchmark status remains `unmeasured`, and no parity claim is made.
+
+Reproduce the stored evidence from a source checkout with a local release
+binary:
+
+```bash
+node scripts/code-intelligence-phase1-compatibility.mjs --check
+```
+
+## Earlier baseline
 
 The clean current-state receipt is
 [`phase0-baseline.json`](../../evals/code-intelligence/results/phase0-baseline.json).
 It records successful public JS/TS tests, the Rust build and test suite, and the
 existing Rust ingest, typed-call, and incremental harnesses. It stores command
-hashes and measurements, not raw command output. GitNexus and Codebase Memory
-MCP are `unmeasured`, so the receipt proves neither parity nor leadership.
-
-Phase 1 connects Node.js to the Rust engine through the versioned JSON Lines
-boundary, adds compatibility and failure-isolation tests, and keeps the current
-JS/TS path available until the native path passes equivalent public gates.
+hashes and measurements, not raw command output. Competitor performance remains
+unmeasured, so neither receipt proves parity or leadership.
