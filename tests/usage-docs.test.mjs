@@ -121,8 +121,8 @@ test('public usage docs avoid stale task and missing context-file examples while
   assert.match(docs, /not provider\s+billing claims/);
   assert.match(contract, /# Memory Recall: Developer-First Product Contract/);
   assert.match(contract, /Implemented: local JS\/TS static graph, optional persistent incremental index,\s+reviewed SQLite memory, and twelve read-only MCP tools\./);
-  assert.match(contract, /Experimental: Rust acceleration paths require a local build before explicit invocation\./);
-  assert.match(contract, /Unsupported: automatic transcript capture, write-capable MCP, hosted sync,\s+non-JS\/TS source graph analysis, cross-repository analysis, and million-node indexes\./);
+  assert.match(contract, /Experimental: Rust acceleration paths require a local build before explicit invocation\. The bounded cross-repository path currently covers exact Go module resolution/);
+  assert.match(contract, /Unsupported: automatic transcript capture, write-capable MCP, hosted sync,\s+production-default non-JS\/TS source graph analysis, general cross-repository\s+analysis beyond that exact Go path, and million-node indexes\./);
   assert.match(readme, /npm install -g memory-recall@latest\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
   assert.match(readme, /Source patch candidate: \*\*1\.1\.1\*\*\. Registry version: verify with `npm view memory-recall version`\./);
   assert.match(readme, /`recall setup` creates only local state\. `recall map` is the explicit first\s+read-only repository scan; it does not run silently during setup\./);

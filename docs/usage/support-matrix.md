@@ -39,7 +39,7 @@ reversal path.
 | Other clients or marketplaces | None | No installer or runtime proof | None | None | Unsupported |
 | Local Rust graph preview | Build locally, set `MEMORY_RECALL_NATIVE_BINARY`, then add `--engine native-preview` to a graph read command | No client config writer | None | Explicit bounded preview for the 14 Tier 1 languages; 46 capability rows meet the sampled Phase 2 floor, while every language retains applicable unmeasured rows; npm ships source, not a binary; JS remains the default | Experimental |
 | Local Rust persistent index preview | Build locally, set `MEMORY_RECALL_NATIVE_BINARY`, then use `graph index` with `--engine native-preview`; writer modes remain explicit | Writes only `.local/source-index/index.v1.sqlite` for explicit build, refresh, or confirm-gated repair | None | SQLite generations, bounded invalidation refresh, doctor, repair, bounded query, exact no-op refresh across 14 reviewed fixtures, and a clean 781-file Phase 3 receipt | Experimental |
-| Local Rust MCP preview | Start `recall mcp server --read-only --engine native-preview` after building the index | No client config writer and no index or memory writes | None | Twelve-tool server; structural tools read the prebuilt native index, while governed memory tools keep their existing read-only behavior | Experimental |
+| Local Rust MCP preview | Start `recall mcp server --read-only --engine native-preview` after building the indexes and registering repositories explicitly | No client config writer and no index or memory writes | None | Twelve-tool server; structural tools read prebuilt native indexes and expose bounded repository listing/search plus exact two-repository Go dependencies, trace, and reverse impact; governed memory tools keep their existing read-only behavior | Experimental |
 | Tier 2 and other source graph analysis | None | None | None | Lua, Bash, SQL, Objective-C, Scala, R, Julia, Zig, and languages outside Tier 1 have no promoted static graph support | Unsupported |
 | Automatic transcript capture, write-capable MCP, hosted sync | None | None | None | None | Unsupported |
 
@@ -67,6 +67,13 @@ fixture and three pinned repositories per language, but it promotes only the 46
 capability rows with qualifying evidence. Every language still has applicable
 unmeasured rows. These modes are read-only and explicit; neither changes the
 public default or creates an installer-backed polyglot promise.
+
+The experimental repository registry is explicit. Build each repository index,
+then use `recall graph repositories register --write` from their shared fleet
+root. `list` and `search` require `--read-only`. The existing MCP tools expose
+repository discovery and bounded search; `code.dependencies`, `code.trace`, and
+`code.impact` accept an exact two-repository Go selector. This does not claim
+general cross-repository or cross-language resolution.
 
 ## Config and data boundary
 

@@ -186,7 +186,7 @@ test('repository provider passes register, list, and search frames through one n
   });
 });
 
-test('repository provider cancels before spawn and while the native transport is active', async (t) => {
+test('repository provider cancels active work and enforces the repository search deadline', async (t) => {
   const root = await workspace(t);
   const capturePath = path.join(root, 'requests.jsonl');
   const binary = await mockBinary(t, capturePath, null, 1000);
@@ -206,6 +206,18 @@ test('repository provider cancels before spawn and while the native transport is
   await assert.rejects(
     pending,
     (error) => error instanceof NativeCodeIntelligenceError && error.code === 'native_engine_cancelled'
+  );
+
+  const timeoutCapturePath = path.join(root, 'timeout-requests.jsonl');
+  const slowBinary = await mockBinary(t, timeoutCapturePath, null, 2500);
+  await assert.rejects(
+    provider(slowBinary).searchRepositories({
+      root,
+      workspaceId: 'ws_local',
+      query: 'main',
+      repositoryIds: [REPOSITORY_ID]
+    }),
+    (error) => error instanceof NativeCodeIntelligenceError && error.code === 'native_engine_timeout'
   );
 });
 

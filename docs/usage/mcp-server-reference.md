@@ -23,13 +23,13 @@ npm run recall -- mcp server --read-only --root . --sqlite .local/memory.sqlite 
 | `context.pack` | Return a safe locator handoff for the current task. | No |
 | `repo.map` | Return a bounded Recall Map of local source coverage, governed memory, and handoff readiness. | No |
 | `repo.architecture` | Return bounded architecture groups, entry points, processes, structural hotspots, and evidence. | No |
-| `repo.index_status` | Report whether the optional persistent source index is missing, ready, stale, or invalid. | No |
-| `code.search` | Search symbols, files, modules, and relationships. | No |
+| `repo.index_status` | Report local index status or list explicitly registered repositories. | No |
+| `code.search` | Search local metadata or selected registered repository indexes. | No |
 | `code.context` | Return one symbol with bounded incoming and outgoing relationships. | No |
-| `code.trace` | Trace bounded inbound or outbound call paths from a symbol. | No |
-| `code.dependencies` | Walk a bounded dependency neighborhood for a file, module, or symbol. | No |
+| `code.trace` | Trace bounded local call paths or one exact Go path across two repositories. | No |
+| `code.dependencies` | Walk local dependencies or resolve one exact Go module boundary across two repositories. | No |
 | `code.routes` | Discover HTTP method exports in route-like JS/TS files. | No |
-| `code.impact` | Return bounded locator-safe impact for changed local source files. | No |
+| `code.impact` | Return local changed-file impact or reverse impact for one exact Go repository boundary. | No |
 
 The server does not expose memory approval, config mutation, shell, or external
 write tools.
@@ -53,6 +53,26 @@ incoming and outgoing relationships. `code.trace` follows call edges.
 `code.dependencies` walks imports and related structural edges. `code.routes`
 uses static HTTP-method exports in route-like paths; it does not execute a
 framework or claim runtime route coverage.
+
+### Registered repository mode
+
+Registered repository reads require the Rust engine and prebuilt indexes. Use
+`repo.index_status` with `scope: "repositories"` to list repository IDs, and
+pass `repositoryIds` to `code.search`. For `code.dependencies`, `code.trace`,
+or `code.impact`, pass `crossRepository` with ordered client and service
+repository IDs plus the selected client-entry and service-target native node
+IDs. Local and cross-repository selectors cannot be mixed. Trace and impact are
+capped at 25 results and the native request and subprocess share a two-second
+deadline. This path currently supports exact Go module evidence only.
+
+Register repositories from their shared fleet root after building each native
+index:
+
+```bash
+recall graph repositories register --write --root . --repository repositories/client --name Client --format json
+recall graph repositories list --read-only --root . --limit 10 --format json
+recall graph repositories search --read-only --root . --query Service --repository-ids <client-id,service-id> --per-repository-limit 10 --limit 20 --format json
+```
 
 ## Persistent Source Index
 

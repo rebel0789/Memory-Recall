@@ -146,6 +146,23 @@ still requires applicable deterministic and pinned real-repository evidence.
 It also does not change the JS default or prove packaged binaries, competitors,
 multi-repository behavior, or million-node scale.
 
+## Bounded cross-repository Go evidence
+
+The experimental Rust registry can read up to eight explicitly registered
+repository indexes for search. Its stronger relationship path is intentionally
+narrow: two ordered repositories, an exact Go module requirement and import,
+one selected client entry, and one selected service target. It returns the
+import plus call or construction evidence, one bounded trace path, and reverse
+impact to the client entry. A same-name service in a wrong Go module is rejected.
+
+The existing twelve-tool MCP server exposes repository listing through
+`repo.index_status`, selected-repository search through `code.search`, and the
+exact Go operations through `code.dependencies`, `code.trace`, and
+`code.impact`. The server remains read-only, returns workspace locators rather
+than source bodies or absolute paths, and does not fall back to JS after a
+cross-repository request starts. This is not general multi-repository,
+cross-language, semantic, cross-service, or million-node support.
+
 ## Native source-freshness gate
 
 Native `index.status` is now a real source check, not only a SQLite integrity

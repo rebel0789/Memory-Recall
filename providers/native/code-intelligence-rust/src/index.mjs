@@ -298,6 +298,9 @@ export class RustCodeIntelligenceProvider {
     const workspace = await resolveWorkspace(options.root);
     const { path: binary } = await this.#resolveBinary();
     const requestId = `cireporeq_${randomBytes(16).toString('hex')}`;
+    const timeoutMs = operation === 'repository.search' || operation.startsWith('repository.go.')
+      ? Math.min(this.timeoutMs, 2000)
+      : this.timeoutMs;
     const request = {
       protocolVersion: '1.0.0',
       requestId,
@@ -305,9 +308,7 @@ export class RustCodeIntelligenceProvider {
       operation,
       root: '.',
       registryLocator: 'workspace://.local/source-index/registry.v1.sqlite',
-      deadlineMs: operation === 'repository.search' || operation.startsWith('repository.go.')
-        ? Math.min(this.timeoutMs, 2000)
-        : this.timeoutMs,
+      deadlineMs: timeoutMs,
       responseSchemaVersion: '1.0.0',
       arguments: argumentsValue
     };
@@ -321,7 +322,7 @@ export class RustCodeIntelligenceProvider {
       workspace,
       request,
       commandArgs: ['code-intelligence', 'repositories', '--stdio'],
-      timeoutMs: this.timeoutMs,
+      timeoutMs,
       maxStdoutBytes: this.maxStdoutBytes,
       maxStderrBytes: this.maxStderrBytes,
       signal: options.signal

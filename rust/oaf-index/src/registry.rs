@@ -460,6 +460,9 @@ impl RepositoryRegistry {
         let service_target = service_index
             .node(query.service_target_native_id)?
             .context("repository_go_target_not_found")?;
+        if !valid_result_locator(&service_target.locator) {
+            bail!("repository_go_target_not_found");
+        }
         let expected_import = go_import_coordinate(&service_manifest.module, &service_target)?;
         drop(service_index);
 
@@ -482,6 +485,9 @@ impl RepositoryRegistry {
         let client_entry = client_index
             .node(query.client_entry_native_id)?
             .context("repository_go_entry_not_found")?;
+        if !valid_result_locator(&client_entry.locator) {
+            bail!("repository_go_entry_not_found");
+        }
         let query_bounds = QueryBounds {
             limit: REPOSITORY_SEARCH_MAX_PER_REPOSITORY,
             max_depth: 1,
@@ -507,6 +513,8 @@ impl RepositoryRegistry {
                         && edge.resolution_class == "unresolved"
                         && !edge.stale
                         && locator_file(&edge.locator) == client_file
+                        && valid_result_locator(&edge.locator)
+                        && valid_prefixed_hex(&edge.canonical_id, "ciedge_")
                 });
             if import_edge.is_some() {
                 break;
@@ -527,6 +535,8 @@ impl RepositoryRegistry {
                     || edge.resolution_class != "unresolved"
                     || edge.stale
                     || locator_file(&edge.locator) != client_file
+                    || !valid_result_locator(&edge.locator)
+                    || !valid_prefixed_hex(&edge.canonical_id, "ciedge_")
                 {
                     return false;
                 }
@@ -1094,12 +1104,37 @@ fn valid_prefixed_hex(value: &str, prefix: &str) -> bool {
 }
 
 fn valid_result_locator(value: &str) -> bool {
-    value.starts_with("workspace://")
-        && value.len() <= 512
-        && !value.contains("..")
-        && value
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || b"_.$:/#@+-".contains(&byte))
+    let Some(relative) = value.strip_prefix("workspace://") else {
+        return false;
+    };
+    let (file, fragment) = relative
+        .split_once('#')
+        .map_or((relative, None), |(file, fragment)| (file, Some(fragment)));
+    value.len() <= 512
+        && !file.is_empty()
+        && file
+            .split('/')
+            .all(|part| !part.is_empty() && part != ".." && part.bytes().all(valid_locator_byte))
+        && fragment.is_none_or(valid_line_fragment)
+}
+
+fn valid_locator_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric() || b"_.@+-".contains(&byte)
+}
+
+fn valid_line_fragment(value: &str) -> bool {
+    let mut lines = value.split("-L");
+    let valid_line = |line: &str| {
+        (1..=9).contains(&line.len())
+            && !line.starts_with('0')
+            && line.bytes().all(|byte| byte.is_ascii_digit())
+    };
+    lines
+        .next()
+        .and_then(|line| line.strip_prefix('L'))
+        .is_some_and(valid_line)
+        && lines.next().is_none_or(valid_line)
+        && lines.next().is_none()
 }
 
 fn safe_result_code(value: &str) -> String {

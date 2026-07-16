@@ -2890,8 +2890,124 @@ async function graphCommand(values) {
   if (subcommand === 'trace') return graphTraceCommand(rest);
   if (subcommand === 'impact') return graphImpactCommand(rest);
   if (subcommand === 'index') return graphIndexCommand(rest);
-  console.error('graph requires stats, search, trace, impact, or index');
+  if (subcommand === 'repositories') return graphRepositoriesCommand(rest);
+  console.error('graph requires stats, search, trace, impact, index, or repositories');
   process.exitCode = 2;
+}
+
+async function graphRepositoriesCommand(values) {
+  const action = values[0];
+  const args = values.slice(1);
+  const actionOptions = {
+    register: {
+      allowed: new Set(['--write', '--root', '--repository', '--name', '--workspace', '--format']),
+      valued: new Set(['--root', '--repository', '--name', '--workspace', '--format'])
+    },
+    list: {
+      allowed: new Set(['--read-only', '--root', '--workspace', '--format', '--limit']),
+      valued: new Set(['--root', '--workspace', '--format', '--limit'])
+    },
+    search: {
+      allowed: new Set(['--read-only', '--root', '--workspace', '--format', '--query', '--repository-ids', '--per-repository-limit', '--limit']),
+      valued: new Set(['--root', '--workspace', '--format', '--query', '--repository-ids', '--per-repository-limit', '--limit'])
+    }
+  }[action];
+  if (!actionOptions) {
+    console.error('graph repositories requires register, list, or search');
+    process.exitCode = 2;
+    return;
+  }
+  if (
+    unsupportedFlags(args, actionOptions.allowed, actionOptions.valued).length
+    || firstPositional(args, actionOptions.valued)
+    || [...actionOptions.valued].some((name) => args.includes(name) && missingOptionValue(args, name))
+  ) {
+    console.error(`graph repositories ${action} options are invalid`);
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(args, '--root');
+  if (!root || root.startsWith('--')) {
+    console.error(`graph repositories ${action} requires --root <fleet>`);
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(args, '--format') ?? 'summary';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('graph repositories only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const workspaceId = option(args, '--workspace') ?? 'ws_local';
+  if (!/^[a-z][a-z0-9_-]{0,127}$/u.test(workspaceId)) {
+    console.error('graph repositories workspace is invalid');
+    process.exitCode = 2;
+    return;
+  }
+  if (action === 'register' ? !args.includes('--write') : !args.includes('--read-only')) {
+    console.error(`graph repositories ${action} requires ${action === 'register' ? '--write' : '--read-only'}`);
+    process.exitCode = 2;
+    return;
+  }
+  try {
+    const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
+    const provider = new RustCodeIntelligenceProvider();
+    let result;
+    if (action === 'register') {
+      const repository = option(args, '--repository');
+      const displayName = option(args, '--name');
+      const segments = repository?.split('/') ?? [];
+      if (
+        !repository
+        || path.isAbsolute(repository)
+        || repository.includes('\\')
+        || segments.some((segment) => !segment || segment === '.' || segment === '..' || !/^[A-Za-z0-9._@+-]+$/u.test(segment))
+      ) {
+        throw new Error('graph repositories register repository is invalid');
+      }
+      if (!displayName || !/^[A-Za-z0-9][A-Za-z0-9._ -]{0,79}$/u.test(displayName)) {
+        throw new Error('graph repositories register name is invalid');
+      }
+      result = await provider.registerRepository({
+        root,
+        workspaceId,
+        displayName,
+        rootLocator: `workspace://${repository}`
+      });
+    } else if (action === 'list') {
+      if (option(args, '--limit') === null) throw new Error('graph repositories list requires --limit');
+      const limit = strictIntegerOption(args, '--limit', 64);
+      if (limit < 1 || limit > 64) throw new Error('graph repositories list limit must be between 1 and 64');
+      result = await provider.listRepositories({ root, workspaceId, limit });
+    } else {
+      const query = option(args, '--query');
+      const repositoryIds = (option(args, '--repository-ids') ?? '').split(',').map((value) => value.trim()).filter(Boolean);
+      if (option(args, '--per-repository-limit') === null || option(args, '--limit') === null) {
+        throw new Error('graph repositories search requires --per-repository-limit and --limit');
+      }
+      const perRepositoryLimit = strictIntegerOption(args, '--per-repository-limit', 25);
+      const limit = strictIntegerOption(args, '--limit', 50);
+      if (!query || !/^[A-Za-z0-9_.$:/#@ -]{1,160}$/u.test(query)) throw new Error('graph repositories search query is invalid');
+      if (
+        repositoryIds.length < 1
+        || repositoryIds.length > 8
+        || new Set(repositoryIds).size !== repositoryIds.length
+        || repositoryIds.some((repositoryId) => !/^repo_[a-f0-9]{32}$/u.test(repositoryId))
+      ) {
+        throw new Error('graph repositories search repository ids are invalid');
+      }
+      if (perRepositoryLimit < 1 || perRepositoryLimit > 25) {
+        throw new Error('graph repositories search per-repository limit must be between 1 and 25');
+      }
+      if (limit < 1 || limit > 50) throw new Error('graph repositories search limit must be between 1 and 50');
+      result = await provider.searchRepositories({ root, workspaceId, query, repositoryIds, perRepositoryLimit, limit });
+    }
+    const report = compactNativeGraphRepositoriesReport(result);
+    console.log(format === 'json' ? JSON.stringify(report, null, 2) : renderGraphRepositoriesSummary(report));
+  } catch (error) {
+    console.error(error?.code ?? error.message);
+    process.exitCode = 2;
+  }
 }
 
 async function graphIndexCommand(values) {
@@ -3074,6 +3190,40 @@ function compactNativeGraphIndexReport(result) {
     diagnostics: result.diagnostics,
     safeguards: result.safeguards
   };
+}
+
+function compactNativeGraphRepositoriesReport(result) {
+  return {
+    schemaVersion: result.responseSchemaVersion,
+    command: `graph repositories ${result.operation.slice('repository.'.length)}`,
+    engine: { selection: 'native-preview', implementation: 'memory-recall-native', previewOnly: true, publicDefaultChanged: false },
+    status: result.state,
+    registryLocator: result.registryLocator,
+    repositories: result.repositories,
+    results: result.results,
+    perRepository: result.perRepository,
+    partial: result.partial,
+    truncated: result.truncated,
+    measurements: result.measurements,
+    safeguards: result.safeguards
+  };
+}
+
+function renderGraphRepositoriesSummary(report) {
+  return [
+    '# Graph Repositories',
+    `Command: ${report.command}`,
+    `Status: ${report.status}`,
+    `Repositories: ${report.repositories.length}`,
+    `Results: ${report.results.length}`,
+    ...report.repositories.map((repository) => `- ${repository.displayName}: ${repository.repositoryId} (${repository.rootLocator})`),
+    ...report.results.map((result) => `- ${result.repositoryId}: ${result.label} (${result.locator})`),
+    '',
+    'Safeguards',
+    `Read-only: ${report.safeguards.readOnly ? 'yes' : 'no'}`,
+    `Local files written: ${report.safeguards.localFilesWritten}`,
+    `Raw source bodies included: ${report.safeguards.rawSourceBodiesIncluded ? 'yes' : 'no'}`
+  ].join('\n');
 }
 
 function compactGraphIndexReport(result) {
@@ -6699,6 +6849,22 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     return nativeProviderPromise;
   };
   const nativeStatus = async () => (await loadNativeProvider()).indexStatus({ root, workspaceId });
+  let nativeRepositoryProviderPromise = null;
+  const requireNativeRepositoryProvider = () => {
+    if (!['native-preview', 'auto'].includes(sourceIndexEngine)) {
+      throw new Error('cross-repository access requires --engine native-preview or --engine auto');
+    }
+    nativeRepositoryProviderPromise ??= loadNativeProvider()
+      .then(async (provider) => {
+        const health = await provider.health();
+        if (health.status !== 'healthy') throw new Error('unhealthy');
+        return provider;
+      })
+      .catch(() => {
+        throw new Error('cross-repository native engine is unavailable');
+      });
+    return nativeRepositoryProviderPromise;
+  };
   const selectStructuralEngine = async () => {
     if (sourceIndexEngine !== 'auto') return { selection: sourceIndexEngine, status: null, reasonCode: null };
     try {
@@ -6764,12 +6930,31 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     },
     {
       name: 'repo.index_status',
-      description: 'Report whether the local persistent source index exists; this tool never builds or refreshes it.',
+      description: 'Report local persistent-index status or list registered repositories; this tool never builds or refreshes indexes.',
       operation: 'repo.index_status',
       sideEffectClass: 'read-only',
-      inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          scope: { type: 'string', enum: ['local', 'repositories'] },
+          limit: { type: 'integer', minimum: 1, maximum: 64 }
+        }
+      },
       handler: async ({ arguments: args }) => {
-        mcpMapArguments(args, [], 'repo.index_status');
+        const input = mcpMapArguments(args, ['scope', 'limit'], 'repo.index_status');
+        const scope = input.scope ?? 'local';
+        if (!['local', 'repositories'].includes(scope)) throw new Error('repo.index_status scope is invalid');
+        if (scope === 'repositories') {
+          const limit = mcpStrictBoundedInteger(input.limit, 64, { min: 1, max: 64, name: 'limit' });
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.listRepositories({ root, workspaceId, limit });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'repo.index_status', workspaceId, generatedAt: fixedNow(),
+            data: nativeRepositoryListData(result)
+          }));
+        }
+        if (input.limit !== undefined) throw new Error('repo.index_status limit requires repository scope');
         const selected = await selectStructuralEngine();
         if (selected.selection === 'native-preview') {
           const result = selected.status ?? await nativeStatus();
@@ -6793,7 +6978,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     },
     {
       name: 'code.search',
-      description: 'Search bounded symbols, files, modules, and relationships using local structural metadata.',
+      description: 'Search bounded symbols, files, modules, and relationships in the local or selected registered repositories.',
       operation: 'code.search',
       sideEffectClass: 'read-only',
       inputSchema: {
@@ -6802,6 +6987,13 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         required: ['query'],
         properties: {
           query: { type: 'string', minLength: 1, maxLength: 512 },
+          repositoryIds: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 8,
+            uniqueItems: true,
+            items: { type: 'string', pattern: '^repo_[a-f0-9]{32}$' }
+          },
           nodeKinds: { type: 'array', maxItems: 4, items: { type: 'string', enum: ['file', 'chunk', 'symbol', 'module'] } },
           edgeKinds: { type: 'array', maxItems: 6, items: { type: 'string', enum: ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls'] } },
           locatorPrefix: { type: 'string', minLength: 1, maxLength: 512 },
@@ -6810,13 +7002,33 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         }
       },
       handler: async ({ arguments: args }) => {
-        const input = mcpMapArguments(args, ['query', 'nodeKinds', 'edgeKinds', 'locatorPrefix', 'limit', 'offset'], 'code.search');
+        const input = mcpMapArguments(args, ['query', 'repositoryIds', 'nodeKinds', 'edgeKinds', 'locatorPrefix', 'limit', 'offset'], 'code.search');
         const query = mcpStructuralString(input.query, 'code.search query', { required: true, max: 512 });
+        const repositoryIds = mcpRepositoryIds(input.repositoryIds, { min: 1, max: 8 });
         const nodeKinds = mcpStructuralKinds(input.nodeKinds, ['file', 'chunk', 'symbol', 'module']);
         const edgeKinds = mcpStructuralKinds(input.edgeKinds, ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
         const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
-        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: repositoryIds ? 25 : 50, name: 'limit' });
         const offset = mcpStrictBoundedInteger(input.offset, 0, { min: 0, max: 10000, name: 'offset' });
+        if (repositoryIds) {
+          if (query.length > 160) throw new Error('native repository query exceeds 160 characters');
+          if (nodeKinds?.length || edgeKinds?.length || locatorPrefix || offset !== 0) {
+            throw new Error('code.search repository mode does not support local filters or offset');
+          }
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.searchRepositories({
+            root,
+            workspaceId,
+            query,
+            repositoryIds,
+            perRepositoryLimit: limit,
+            limit
+          });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'code.search', workspaceId, generatedAt: fixedNow(),
+            data: nativeRepositorySearchData(result, query, repositoryIds)
+          }));
+        }
         const selected = await selectStructuralEngine();
         if (selected.selection === 'native-preview') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
@@ -6889,28 +7101,39 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     },
     {
       name: 'code.trace',
-      description: 'Trace bounded inbound or outbound call paths from a local symbol.',
+      description: 'Trace bounded local call paths or one evidence-backed Go path across two registered repositories.',
       operation: 'code.trace',
       sideEffectClass: 'read-only',
       inputSchema: {
         type: 'object',
         additionalProperties: false,
-        required: ['symbol'],
+        oneOf: [{ required: ['symbol'] }, { required: ['crossRepository'] }],
         properties: {
           symbol: { type: 'string', minLength: 1, maxLength: 240 },
-          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'], default: 'outbound' },
-          depth: { type: 'integer', enum: [1, 2, 3], default: 2 },
-          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+          crossRepository: mcpCrossRepositoryInputSchema(),
+          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'] },
+          depth: { type: 'integer', enum: [1, 2, 3] },
+          limit: { type: 'integer', minimum: 1, maximum: 50 },
           locatorPrefix: { type: 'string', minLength: 1, maxLength: 512 }
         }
       },
       handler: async ({ arguments: args }) => {
-        const input = mcpMapArguments(args, ['symbol', 'direction', 'depth', 'limit', 'locatorPrefix'], 'code.trace');
-        const symbol = mcpStructuralString(input.symbol, 'code.trace symbol', { required: true, max: 240 });
+        const input = mcpMapArguments(args, ['symbol', 'crossRepository', 'direction', 'depth', 'limit', 'locatorPrefix'], 'code.trace');
+        const crossRepository = mcpCrossRepository(input.crossRepository);
+        mcpRejectMixedCrossRepositoryArguments(input, crossRepository, ['symbol', 'direction', 'depth', 'locatorPrefix'], 'code.trace');
+        const symbol = mcpStructuralString(input.symbol, 'code.trace symbol', { required: !crossRepository, max: 240 });
         const direction = mcpStructuralDirection(input.direction);
         const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
-        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: crossRepository ? 25 : 50, name: 'limit' });
         const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
+        if (crossRepository) {
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.traceGoRepositories({ root, workspaceId, ...crossRepository, limit });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'code.trace', workspaceId, generatedAt: fixedNow(),
+            data: nativeCrossRepositoryData(result, crossRepository)
+          }));
+        }
         const selected = await selectStructuralEngine();
         if (selected.selection === 'native-preview') {
           if (symbol.length > 160) throw new Error('native index query exceeds 160 characters');
@@ -6929,26 +7152,37 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     },
     {
       name: 'code.dependencies',
-      description: 'Walk a bounded local dependency neighborhood for a file, module, or symbol.',
+      description: 'Walk a bounded local dependency neighborhood or resolve one exact Go module boundary across repositories.',
       operation: 'code.dependencies',
       sideEffectClass: 'read-only',
       inputSchema: {
         type: 'object',
         additionalProperties: false,
-        required: ['query'],
+        oneOf: [{ required: ['query'] }, { required: ['crossRepository'] }],
         properties: {
           query: { type: 'string', minLength: 1, maxLength: 512 },
-          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'], default: 'outbound' },
-          depth: { type: 'integer', enum: [1, 2, 3], default: 2 },
-          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+          crossRepository: mcpCrossRepositoryInputSchema(),
+          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'] },
+          depth: { type: 'integer', enum: [1, 2, 3] },
+          limit: { type: 'integer', minimum: 1, maximum: 50 }
         }
       },
       handler: async ({ arguments: args }) => {
-        const input = mcpMapArguments(args, ['query', 'direction', 'depth', 'limit'], 'code.dependencies');
-        const query = mcpStructuralString(input.query, 'code.dependencies query', { required: true, max: 512 });
+        const input = mcpMapArguments(args, ['query', 'crossRepository', 'direction', 'depth', 'limit'], 'code.dependencies');
+        const crossRepository = mcpCrossRepository(input.crossRepository);
+        mcpRejectMixedCrossRepositoryArguments(input, crossRepository, ['query', 'direction', 'depth', 'limit'], 'code.dependencies');
+        const query = mcpStructuralString(input.query, 'code.dependencies query', { required: !crossRepository, max: 512 });
         const direction = mcpStructuralDirection(input.direction);
         const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
-        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: crossRepository ? 25 : 50, name: 'limit' });
+        if (crossRepository) {
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.resolveGoRepositories({ root, workspaceId, ...crossRepository });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
+            data: nativeCrossRepositoryData(result, crossRepository)
+          }));
+        }
         const selected = await selectStructuralEngine();
         if (selected.selection === 'native-preview') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
@@ -7055,23 +7289,35 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     },
     {
       name: 'code.impact',
-      description: 'Return bounded locator-safe impact for changed local source files.',
+      description: 'Return bounded impact for changed local files or one evidence-backed Go boundary across repositories.',
       operation: 'code.impact',
       sideEffectClass: 'read-only',
       inputSchema: {
         type: 'object',
         additionalProperties: false,
-        required: ['changed'],
+        oneOf: [{ required: ['changed'] }, { required: ['crossRepository'] }],
         properties: {
           changed: { type: 'array', minItems: 1, maxItems: 16, items: { type: 'string', minLength: 1, maxLength: 512 } },
-          depth: { type: 'integer', enum: [1, 2, 3], default: 2 },
-          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+          crossRepository: mcpCrossRepositoryInputSchema(),
+          depth: { type: 'integer', enum: [1, 2, 3] },
+          limit: { type: 'integer', minimum: 1, maximum: 50 }
         }
       },
       handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['changed', 'crossRepository', 'depth', 'limit'], 'code.impact');
+        const crossRepository = mcpCrossRepository(input.crossRepository);
+        mcpRejectMixedCrossRepositoryArguments(input, crossRepository, ['changed', 'depth'], 'code.impact');
+        if (crossRepository) {
+          const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 25, name: 'limit' });
+          const provider = await requireNativeRepositoryProvider();
+          const result = await provider.impactGoRepositories({ root, workspaceId, ...crossRepository, limit });
+          return mcpToolJsonResult(mcpStructuralPayload({
+            command: 'code.impact', workspaceId, generatedAt: fixedNow(),
+            data: nativeCrossRepositoryData(result, crossRepository)
+          }));
+        }
         const selected = await selectStructuralEngine();
         if (selected.selection === 'native-preview') {
-          const input = mcpMapArguments(args, ['changed', 'depth', 'limit'], 'code.impact');
           const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
           const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
           const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
@@ -7354,6 +7600,88 @@ function mcpStructuralLocatorPrefix(value) {
     return normalizeSourceGraphWorkspaceLocator(value, { stripFragment: true });
   } catch {
     throw new Error('mcp locator prefix is invalid');
+  }
+}
+
+function mcpCrossRepositoryInputSchema() {
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: [
+      'repositoryIds',
+      'clientRepositoryId',
+      'serviceRepositoryId',
+      'clientEntryNativeId',
+      'serviceTargetNativeId'
+    ],
+    properties: {
+      repositoryIds: {
+        type: 'array',
+        minItems: 2,
+        maxItems: 2,
+        uniqueItems: true,
+        items: { type: 'string', pattern: '^repo_[a-f0-9]{32}$' }
+      },
+      clientRepositoryId: { type: 'string', pattern: '^repo_[a-f0-9]{32}$' },
+      serviceRepositoryId: { type: 'string', pattern: '^repo_[a-f0-9]{32}$' },
+      clientEntryNativeId: { type: 'string', pattern: '^cinode_[a-f0-9]{32}$' },
+      serviceTargetNativeId: { type: 'string', pattern: '^cinode_[a-f0-9]{32}$' }
+    }
+  };
+}
+
+function mcpRepositoryIds(value, { min, max }) {
+  if (value === undefined || value === null) return null;
+  if (
+    !Array.isArray(value)
+    || value.length < min
+    || value.length > max
+    || new Set(value).size !== value.length
+    || value.some((item) => typeof item !== 'string' || !/^repo_[a-f0-9]{32}$/u.test(item))
+  ) {
+    throw new Error('mcp repository ids are invalid');
+  }
+  return [...value];
+}
+
+function mcpCrossRepository(value) {
+  if (value === undefined || value === null) return null;
+  const expectedKeys = [
+    'repositoryIds',
+    'clientRepositoryId',
+    'serviceRepositoryId',
+    'clientEntryNativeId',
+    'serviceTargetNativeId'
+  ];
+  if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some((key) => !expectedKeys.includes(key))) {
+    throw new Error('mcp cross-repository selector is invalid');
+  }
+  if (expectedKeys.some((key) => value[key] === undefined)) throw new Error('mcp cross-repository selector is invalid');
+  const repositoryIds = mcpRepositoryIds(value.repositoryIds, { min: 2, max: 2 });
+  const repositoryIdPattern = /^repo_[a-f0-9]{32}$/u;
+  const nativeIdPattern = /^cinode_[a-f0-9]{32}$/u;
+  if (
+    !repositoryIdPattern.test(value.clientRepositoryId)
+    || !repositoryIdPattern.test(value.serviceRepositoryId)
+    || !nativeIdPattern.test(value.clientEntryNativeId)
+    || !nativeIdPattern.test(value.serviceTargetNativeId)
+    || repositoryIds[0] !== value.clientRepositoryId
+    || repositoryIds[1] !== value.serviceRepositoryId
+  ) {
+    throw new Error('mcp cross-repository selector is invalid');
+  }
+  return {
+    repositoryIds,
+    clientRepositoryId: value.clientRepositoryId,
+    serviceRepositoryId: value.serviceRepositoryId,
+    clientEntryNativeId: value.clientEntryNativeId,
+    serviceTargetNativeId: value.serviceTargetNativeId
+  };
+}
+
+function mcpRejectMixedCrossRepositoryArguments(input, crossRepository, localKeys, toolName) {
+  if (crossRepository && localKeys.some((key) => input[key] !== undefined)) {
+    throw new Error(`${toolName} cannot mix local and cross-repository selectors`);
   }
 }
 
@@ -7968,6 +8296,57 @@ function nativeIndexSource(result) {
     freshness: result.freshness,
     previewOnly: true,
     publicDefaultChanged: false
+  };
+}
+
+function nativeRepositorySource(result) {
+  return {
+    kind: 'native-persistent-repository-index',
+    engine: 'memory-recall-native',
+    registryLocator: result.registryLocator,
+    operation: result.operation
+  };
+}
+
+function nativeRepositorySearchData(result, query, repositoryIds) {
+  return {
+    query,
+    repositoryIds,
+    repositories: result.repositories,
+    results: result.results,
+    resultCount: result.results.length,
+    perRepository: result.perRepository,
+    partial: result.partial,
+    truncated: result.truncated,
+    measurements: result.measurements,
+    source: nativeRepositorySource(result)
+  };
+}
+
+function nativeRepositoryListData(result) {
+  return {
+    scope: 'repositories',
+    repositories: result.repositories,
+    repositoryCount: result.repositories.length,
+    partial: result.partial,
+    truncated: result.truncated,
+    measurements: result.measurements,
+    source: nativeRepositorySource(result)
+  };
+}
+
+function nativeCrossRepositoryData(result, crossRepository) {
+  return {
+    crossRepository,
+    repositories: result.repositories,
+    modules: result.goModules,
+    relationships: result.goRelationships,
+    paths: result.paths,
+    impactedNodes: result.impactedNodes,
+    partial: result.partial,
+    truncated: result.truncated,
+    measurements: result.measurements,
+    source: nativeRepositorySource(result)
   };
 }
 

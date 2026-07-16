@@ -65,7 +65,7 @@ fn create_repository(fleet_root: &Path, name: &str) {
 
 fn go_generation(role: &str) -> GenerationInput {
     let (nodes, edges) = match role {
-        "client" => (
+        "client" | "unsafe-client" => (
             vec![
                 NodeRecord {
                     canonical_id: CLIENT_ENTRY_ID.into(),
@@ -188,7 +188,7 @@ fn go_generation(role: &str) -> GenerationInput {
         ),
         _ => unreachable!(),
     };
-    let file = if role == "client" {
+    let file = if matches!(role, "client" | "unsafe-client") {
         "workspace://main.go"
     } else {
         "workspace://service/service.go"
@@ -215,7 +215,7 @@ fn go_generation(role: &str) -> GenerationInput {
         coverage: Vec::new(),
         diagnostics: Vec::new(),
     };
-    if role == "client" {
+    if matches!(role, "client" | "unsafe-client") {
         input.files.push(FileRecord {
             locator: "workspace://other.go".into(),
             content_hash: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
@@ -227,6 +227,24 @@ fn go_generation(role: &str) -> GenerationInput {
             owner_identity: "file_client_other".into(),
         });
     }
+    if role == "unsafe-client" {
+        input.files.push(FileRecord {
+            locator: "workspace://main:bad.go".into(),
+            content_hash: "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                .into(),
+            byte_size: 32,
+            language: "go".into(),
+            parse_state: "parsed".into(),
+            diagnostic_count: 0,
+            owner_identity: "file_unsafe_client".into(),
+        });
+        input
+            .nodes
+            .iter_mut()
+            .find(|node| node.canonical_id == CLIENT_ENTRY_ID)
+            .unwrap()
+            .locator = "workspace://main:bad.go#L3-L3".into();
+    }
     input.structural_fingerprint = normalized_generation_fingerprint(&input).unwrap();
     input
 }
@@ -236,7 +254,7 @@ fn create_go_repository(fleet_root: &Path, name: &str, module: &str, role: &str)
     fs::create_dir_all(root.join("service")).unwrap();
     fs::write(
         root.join("go.mod"),
-        if role == "client" {
+        if matches!(role, "client" | "unsafe-client") {
             format!("module {module}\n\nrequire example.com/demo v1.0.0\n")
         } else {
             format!("module {module}\n")
@@ -378,11 +396,20 @@ fn rejects_invalid_bounds_and_roots_outside_the_fleet() {
 fn resolves_traces_and_reverses_go_impact_only_with_exact_module_evidence() {
     let fleet = tempdir().unwrap();
     create_go_repository(fleet.path(), "client", "example.com/client", "client");
+    create_go_repository(
+        fleet.path(),
+        "unsafe-client",
+        "example.com/client",
+        "unsafe-client",
+    );
     create_go_repository(fleet.path(), "service", "example.com/demo", "service");
     create_go_repository(fleet.path(), "decoy", "example.com/wrong", "decoy");
     let mut registry =
         RepositoryRegistry::open(fleet.path(), WORKSPACE_ID, ENGINE_VERSION).unwrap();
     let client = registry.register("Client", "workspace://client").unwrap();
+    let unsafe_client = registry
+        .register("Unsafe Client", "workspace://unsafe-client")
+        .unwrap();
     let service = registry.register("Service", "workspace://service").unwrap();
     let decoy = registry.register("Decoy", "workspace://decoy").unwrap();
     drop(registry);
@@ -460,6 +487,22 @@ fn resolves_traces_and_reverses_go_impact_only_with_exact_module_evidence() {
     };
     let decoy_error = registry.resolve_go(&decoy_query).unwrap_err();
     assert!(format!("{decoy_error:#}").contains("repository_go_module_mismatch"));
+    let unsafe_ids = vec![
+        unsafe_client.repository_id.clone(),
+        service.repository_id.clone(),
+    ];
+    let unsafe_query = GoRepositoryQuery {
+        repository_ids: &unsafe_ids,
+        client_repository_id: &unsafe_client.repository_id,
+        service_repository_id: &service.repository_id,
+        client_entry_native_id: CLIENT_ENTRY_ID,
+        service_target_native_id: SERVICE_TARGET_ID,
+        deadline_ms: 2_000,
+    };
+    assert!(
+        format!("{:#}", registry.resolve_go(&unsafe_query).unwrap_err())
+            .contains("repository_go_entry_not_found")
+    );
     assert!(registry.trace_go(&query, 26).is_err());
 
     let after = [

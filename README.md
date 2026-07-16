@@ -61,6 +61,7 @@ for preserved legacy names and URIs.
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
 | Fast local code intelligence | Implemented JS/TS static graph; experimental Rust native preview has sampled evidence across 14 Tier 1 languages but still requires a local build, and every language retains unmeasured capability rows. |
 | Larger JS/TS repositories | Explicit local index with incremental refresh and watch mode; MCP reads it without writing. |
+| Two-repository Go calls | Experimental Rust path resolves an exact Go module import, traces one entry-to-service call, and reports reverse impact with source evidence. |
 | First look at a repository | Recall Map shows bounded source coverage, entry points, changed impact, and separate memory status without writing. |
 | Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
 | Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
@@ -234,8 +235,9 @@ for the deeper boundary rules.
 Production PostgreSQL repositories, production authentication, hosted embeddings,
 vector databases, hosted memory sync, write-capable MCP tools, automatic harness
 history import, real social connectors, hardened sandboxes, signed Agent Pack
-distribution, production-default non-JS/TS static analysis, cross-repository
-analysis, and million-node index support are not claimed.
+distribution, production-default non-JS/TS static analysis, general
+cross-repository analysis beyond the bounded exact Go two-repository path, and
+million-node index support are not claimed.
 
 `PROJECT_STATUS.json` is the machine-readable source for current capability
 status and limitations.
@@ -261,6 +263,8 @@ recall graph index --refresh --watch --root . --format summary
 recall graph index --write --engine native-preview --root . --format summary
 recall graph index --query main --kind exact --engine native-preview --root . --format json
 recall graph index --doctor --engine native-preview --root . --format summary
+recall graph repositories register --write --root . --repository repositories/client --name Client --format json
+recall graph repositories list --read-only --root . --limit 10 --format summary
 recall mcp server --read-only --engine native-preview --root . --stdio
 recall context handoff --read-only --from codex --root . --objective "Prepare handoff" --step "select next agent context" --target codex --format summary
 recall handoff
