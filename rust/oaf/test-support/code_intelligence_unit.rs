@@ -98,6 +98,32 @@ mod tests {
     }
 
     #[test]
+    fn canonical_names_disambiguate_same_line_symbols() {
+        let node = |subject: &str, start_column: u32, end_column: u32| NativeNode {
+            subject: subject.to_string(),
+            source: "workspace://minified.js".to_string(),
+            id: format!("node_{subject}"),
+            kind: "function",
+            language: "javascript".to_string(),
+            name: "t".to_string(),
+            qualified_name: "minified.js::t".to_string(),
+            content_hash: None,
+            span: CodeSpan {
+                start_line: 1,
+                start_column,
+                end_line: 1,
+                end_column,
+            },
+        };
+        let mut nodes = vec![node("function:t_first", 10, 20), node("function:t_second", 30, 40)];
+
+        disambiguate_qualified_names(&mut nodes);
+
+        assert_eq!(nodes[0].qualified_name, "minified.js::t@L1C10");
+        assert_eq!(nodes[1].qualified_name, "minified.js::t@L1C30");
+    }
+
+    #[test]
     fn javascript_typescript_graph_preserves_structure_resolution_and_spans() {
         let root = std::env::temp_dir().join(format!(
             "memory-recall-code-intelligence-batch-a-{}",
@@ -726,6 +752,63 @@ mod tests {
                     assert!(edges.iter().any(|edge| edge["kind"] == "handles_route"));
                 }
                 _ => unreachable!(),
+            }
+        }
+    }
+
+    #[test]
+    fn batch_e_native_graph_preserves_dynamic_language_structure_and_confidence() {
+        let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-e")
+            .canonicalize()
+            .unwrap();
+
+        for language in ["php", "ruby"] {
+            let mut request_value = valid_request();
+            request_value["arguments"]["languages"] = json!([language]);
+            request_value["arguments"]["maxNodes"] = json!(1_000);
+            request_value["arguments"]["maxEdges"] = json!(2_000);
+            let request = parse_request(&request_value).unwrap();
+            let graph = build_graph_at_root(
+                &request,
+                "test",
+                &fixture_root.join(language),
+                Instant::now(),
+            )
+            .unwrap()
+            .graph;
+            let nodes = graph["nodes"].as_array().unwrap();
+            let edges = graph["edges"].as_array().unwrap();
+
+            assert!(nodes.iter().any(|node| {
+                node["kind"] == "namespace" && node["name"] == if language == "php" { "App" } else { "Demo" }
+            }));
+            let service = nodes
+                .iter()
+                .find(|node| node["kind"] == "class" && node["name"] == "ItemService")
+                .and_then(|node| node["id"].as_str())
+                .unwrap();
+            let summary = nodes
+                .iter()
+                .find(|node| node["kind"] == "method" && node["name"] == "summary")
+                .and_then(|node| node["id"].as_str())
+                .unwrap();
+            assert!(edges.iter().any(|edge| {
+                edge["kind"] == "calls"
+                    && edge["toNodeId"] == summary
+                    && edge["resolution"] == "typed"
+            }));
+            assert!(edges.iter().any(|edge| {
+                edge["kind"] == "mixes_in" && edge["fromNodeId"] == service
+            }));
+            assert!(edges.iter().filter(|edge| edge["kind"] == "handles_route").count() >= 2);
+
+            if language == "php" {
+                assert!(nodes.iter().any(|node| node["kind"] == "trait" && node["name"] == "LogsItems"));
+                assert!(edges.iter().any(|edge| edge["kind"] == "implements" && edge["fromNodeId"] == service));
+            } else {
+                assert!(edges.iter().any(|edge| edge["kind"] == "imports" && edge["resolution"] == "exact"));
+                assert!(edges.iter().any(|edge| edge["kind"] == "extends" && edge["fromNodeId"] == service));
             }
         }
     }

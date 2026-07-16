@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_ruby_ruby_rake",
+  "language": "ruby",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_ruby_ruby_rake@162f9f80cad8121c6427d3031a2a85e62e2d570d#lib/rake" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "partial", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_rake_task", "semanticKey": "node:class:task.rb:Task", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "class", "name": "Task", "qualifiedName": "task.rb::Rake::Task", "locator": "workspace://task.rb#L15-L433" },
+    { "id": "cititem_rake_enhance", "semanticKey": "node:method:task.rb:Task:enhance", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "enhance", "qualifiedName": "task.rb::Rake::Task::enhance", "locator": "workspace://task.rb#L115-L119" },
+    { "id": "cititem_rake_invoke", "semanticKey": "node:method:task.rb:Task:invoke", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "invoke", "qualifiedName": "task.rb::Rake::Task::invoke", "locator": "workspace://task.rb#L186-L189" },
+    { "id": "cititem_rake_invoke_chain", "semanticKey": "node:method:task.rb:Task:invoke_with_call_chain", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "invoke_with_call_chain", "qualifiedName": "task.rb::Rake::Task::invoke_with_call_chain", "locator": "workspace://task.rb#L197-L226" },
+    { "id": "cititem_rake_defines_invoke", "semanticKey": "edge:defines:Task:invoke", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "class", "name": "Task", "qualifiedName": "task.rb::Rake::Task", "locator": "workspace://task.rb#L15-L433" }, "to": { "kind": "method", "name": "invoke", "qualifiedName": "task.rb::Rake::Task::invoke", "locator": "workspace://task.rb#L186-L189" }, "locator": "workspace://task.rb#L186-L189", "resolution": "exact" },
+    { "id": "cititem_rake_construct_arguments", "semanticKey": "edge:constructs:Task.invoke:TaskArguments", "capability": "types", "expectation": "present", "recordKind": "edge", "kind": "constructs", "from": { "kind": "method", "name": "invoke", "qualifiedName": "task.rb::Rake::Task::invoke", "locator": "workspace://task.rb#L186-L189" }, "to": { "kind": "class", "name": "TaskArguments", "qualifiedName": "task_arguments.rb::Rake::TaskArguments", "locator": "workspace://task_arguments.rb#L7-L110" }, "locator": "workspace://task.rb#L187-L187", "resolution": "exact" },
+    { "id": "cititem_rake_call_invoke_chain", "semanticKey": "edge:calls:Task.invoke:invoke_with_call_chain", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "method", "name": "invoke", "qualifiedName": "task.rb::Rake::Task::invoke", "locator": "workspace://task.rb#L186-L189" }, "to": { "kind": "method", "name": "invoke_with_call_chain", "qualifiedName": "task.rb::Rake::Task::invoke_with_call_chain", "locator": "workspace://task.rb#L197-L226" }, "locator": "workspace://task.rb#L188-L188", "resolution": "typed" }
+  ],
+  "truthFingerprint": "sha256:54991d6bcc86a695d39d47f976cd497fba1a9df23e83a27af9ccd97019649d58"
+}

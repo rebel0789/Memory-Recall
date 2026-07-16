@@ -2,14 +2,14 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase1-compatibility-1",
   "phase": 1,
-  "generatedAt": "2026-07-16T09:10:54.298Z",
+  "generatedAt": "2026-07-16T14:52:49.319Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
     "nodeVersion": "v22.22.3"
   },
   "checkout": {
-    "commit": "28a5cbae9fe802c75d970f1c58693724b15c880c",
+    "commit": "32060e41bd0e0f59c63a1868fa9e3e92e9d8be3f",
     "dirtyBeforeRun": true
   },
   "inputs": {
@@ -83,11 +83,11 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:b104a5f5610a026a572350e247ab97687ee5a62e8e23ad4e017f910214fb1125",
-          "compatibilityGraphFingerprint": "sha256:ec44c3ff9d6d1c45b028d711b16abeeba4de99945c8f4e71a2fa1fdb72852162",
+          "providerGraphFingerprint": "sha256:c2de0d2dca58187eeeeb1efd71e47239dd68aa3c24ec752a2b7d20b26832124d",
+          "compatibilityGraphFingerprint": "sha256:40d94b7d8eea79000e1f6d1c158253ffbe3f30a9c3c9138534c5973730109653",
           "fileCount": 2,
-          "symbolCount": 2,
-          "edgeCount": 9,
+          "symbolCount": 3,
+          "edgeCount": 10,
           "diagnosticCount": 0,
           "coverage": [
             {
@@ -103,7 +103,7 @@
       },
       "compatibility": {
         "comparisonVersion": "memory-recall-js-ts-native-preview-1",
-        "comparisonFingerprint": "sha256:f81c0c3d6ec5ddf47a523a7195409b213ad11d4cb7de04c4d7b3dfbdea0c1ea7",
+        "comparisonFingerprint": "sha256:d5ce53b39dfafa7f4c349de6ec02e6ee9c3307a0ee756de83aea07f045c9954e",
         "dimensions": [
           {
             "name": "files",
@@ -115,9 +115,9 @@
           {
             "name": "symbols",
             "baselineCount": 3,
-            "nativeCount": 2,
-            "matchedCount": 2,
-            "recall": 0.6667
+            "nativeCount": 3,
+            "matchedCount": 3,
+            "recall": 1
           },
           {
             "name": "imports",
@@ -161,11 +161,11 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:8dc583d5044e0c1c369736fb362eca7a609fc1a7fa3a10f79facc9c9ecac0940",
-          "compatibilityGraphFingerprint": "sha256:544e0c1da3c98ba5ee9d1055021ab8c48c2cde2bc8f9cbc9d64e8a5a0b94b33e",
+          "providerGraphFingerprint": "sha256:7eefda6efa6b588e720564fd881e44a92af7e12b5366e39350a786a238af4694",
+          "compatibilityGraphFingerprint": "sha256:49211ec54d5dfcc191b24ae9b4f4cc1c63f19eea157e48f146177cf7085b9ee5",
           "fileCount": 2,
           "symbolCount": 2,
-          "edgeCount": 7,
+          "edgeCount": 8,
           "diagnosticCount": 0,
           "coverage": [
             {
@@ -181,7 +181,7 @@
       },
       "compatibility": {
         "comparisonVersion": "memory-recall-js-ts-native-preview-1",
-        "comparisonFingerprint": "sha256:1f30f061a8a06ab55759c71e309765b9539f121ee1fa60a243cfcd415adbe4ae",
+        "comparisonFingerprint": "sha256:c2780350b66de3058b20a0ec53d3aa4ef82e93017246208488ed4ce0f7c7ee2e",
         "dimensions": [
           {
             "name": "files",
@@ -240,19 +240,19 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:89c41da50f2479d8df17b63f8870b185ea353f2d4eec3a5f31f0de65636345f3",
-          "compatibilityGraphFingerprint": "sha256:f5a92085a3f5fb3ae7f14548c38707d6d147de3383b527896806f3b02b564508",
-          "fileCount": 25,
-          "symbolCount": 3609,
-          "edgeCount": 10962,
-          "diagnosticCount": 1,
+          "providerGraphFingerprint": "sha256:56010279813f7af9c5c03c045a10ae765d32e1646dc73e288e25434a86a181f3",
+          "compatibilityGraphFingerprint": "sha256:e4ade3da9ba89f6627b2c7e3f2d68a4d09d1fab811ec2993205844682b7363a4",
+          "fileCount": 26,
+          "symbolCount": 4125,
+          "edgeCount": 11030,
+          "diagnosticCount": 2,
           "coverage": [
             {
               "language": "typescript",
               "support": "partial",
               "discoveredFileCount": 26,
-              "indexedFileCount": 25,
-              "failedFileCount": 1,
+              "indexedFileCount": 26,
+              "failedFileCount": 0,
               "omittedFileCount": 0
             }
           ]
@@ -260,35 +260,35 @@
       },
       "compatibility": {
         "comparisonVersion": "memory-recall-js-ts-native-preview-1",
-        "comparisonFingerprint": "sha256:7c93044340c685dc843e55c1cfa500f6d421619d6ad7c54d1cf6df838049cb8c",
+        "comparisonFingerprint": "sha256:c63824967ce4abbd7e288f38a6964ed639efad8c97620e3f3cb548a173c82bb1",
         "dimensions": [
           {
             "name": "files",
             "baselineCount": 26,
-            "nativeCount": 25,
-            "matchedCount": 25,
-            "recall": 0.9615
+            "nativeCount": 26,
+            "matchedCount": 26,
+            "recall": 1
           },
           {
             "name": "symbols",
             "baselineCount": 1317,
-            "nativeCount": 3609,
-            "matchedCount": 1194,
-            "recall": 0.9066
+            "nativeCount": 3761,
+            "matchedCount": 1316,
+            "recall": 0.9992
           },
           {
             "name": "imports",
             "baselineCount": 27,
-            "nativeCount": 25,
+            "nativeCount": 26,
             "matchedCount": 0,
             "recall": 0
           },
           {
             "name": "calls",
             "baselineCount": 2673,
-            "nativeCount": 7278,
-            "matchedCount": 1729,
-            "recall": 0.6468
+            "nativeCount": 6771,
+            "matchedCount": 1799,
+            "recall": 0.673
           },
           {
             "name": "routes",
@@ -319,11 +319,11 @@
         },
         "native": {
           "version": "1.1.1",
-          "providerGraphFingerprint": "sha256:0d2f9db34cf01d99234683098c5a08f424f46454ae05938c06c6dddea71f75fe",
-          "compatibilityGraphFingerprint": "sha256:fafea6a1d286eac8a41466ab50828f67b48369e9bc8d08d0205b0ac9f766bb35",
+          "providerGraphFingerprint": "sha256:dcbc5fd39cc87ebf36632daab45190069b996122dbf9e3e58ae733e2977c374f",
+          "compatibilityGraphFingerprint": "sha256:cee15be8d1f0f66731a455633249a11e7fb7c601d84aae9b98d2637b8605466a",
           "fileCount": 141,
-          "symbolCount": 350,
-          "edgeCount": 685,
+          "symbolCount": 354,
+          "edgeCount": 988,
           "diagnosticCount": 0,
           "coverage": [
             {
@@ -339,7 +339,7 @@
       },
       "compatibility": {
         "comparisonVersion": "memory-recall-js-ts-native-preview-1",
-        "comparisonFingerprint": "sha256:fec1d3c0cae4fca834ced375e2f219cd3d0860cdfcd07907a2aa625c8a01641e",
+        "comparisonFingerprint": "sha256:e2f946886a78993a978dbd74a449c504ab5cd30917038057d4bf56c235ae81ca",
         "dimensions": [
           {
             "name": "files",
@@ -351,21 +351,21 @@
           {
             "name": "symbols",
             "baselineCount": 387,
-            "nativeCount": 286,
-            "matchedCount": 92,
-            "recall": 0.2377
+            "nativeCount": 289,
+            "matchedCount": 93,
+            "recall": 0.2403
           },
           {
             "name": "imports",
             "baselineCount": 334,
-            "nativeCount": 0,
-            "matchedCount": 0,
-            "recall": 0
+            "nativeCount": 262,
+            "matchedCount": 134,
+            "recall": 0.4012
           },
           {
             "name": "calls",
             "baselineCount": 451,
-            "nativeCount": 194,
+            "nativeCount": 185,
             "matchedCount": 3,
             "recall": 0.0067
           },
@@ -409,5 +409,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:4a0c10bbde700317affffbef044571767eada58fcd72184a52693b4b64a334cf"
+  "reportFingerprint": "sha256:9bb20cf9c3e72a59221da6549da59495d672affe957c2ad9805cee0609ca6da0"
 }

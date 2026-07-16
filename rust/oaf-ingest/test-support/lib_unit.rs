@@ -56,7 +56,7 @@ mod tests {
             "function:run",
             "method:Counter_inc",
             Some("oaf.ingest:typed-call-python")
-        )));
+        )), "{calls:#?}");
         assert!(calls.contains(&(
             "function:run",
             "method:Gauge_inc",
@@ -437,7 +437,10 @@ mod tests {
             facts.contains(&("struct:Service", "IMPLEMENTS", "trait:Runner")),
             "{facts:#?}"
         );
-        assert!(facts.contains(&("function:rust_item", "HANDLES", "route:GET_items_param")));
+        assert!(
+            facts.contains(&("function:rust_item", "HANDLES", "route:GET_items_param")),
+            "{facts:#?}"
+        );
 
         fs::remove_dir_all(root).unwrap();
     }
@@ -787,7 +790,10 @@ mod tests {
         assert!(facts.contains(&("function:django_item", "HANDLES", "route:ANY_django_param")));
         assert!(facts.contains(&("function:netItem", "HANDLES", "route:GET_net_param")));
         assert!(facts.contains(&("function:rocket_item", "HANDLES", "route:GET_rocket_param")));
-        assert!(facts.contains(&("function:actix_item", "HANDLES", "route:GET_actix_param")));
+        assert!(
+            facts.contains(&("function:actix_item", "HANDLES", "route:GET_actix_param")),
+            "{facts:#?}"
+        );
         assert!(!facts.contains(&("function:not_a_route", "HANDLES", "route:GET_rocket_param")));
 
         fs::remove_dir_all(root).unwrap();
@@ -970,6 +976,194 @@ mod tests {
                 && fact.predicate == "ENTRY_POINT"
                 && fact.object == "framework:flutter_application"
         }));
+    }
+
+    #[test]
+    fn batch_e_preserves_php_ruby_namespaces_mixins_typed_calls_and_routes() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-e")
+            .canonicalize()
+            .unwrap();
+
+        let php = extract_repo(&IngestOptions::new(root.join("php"))).unwrap();
+        assert!(php.facts.iter().any(|fact| {
+            fact.subject == "namespace:App"
+                && fact.predicate == "DEFINES"
+                && fact.object == "class:App.ItemService"
+        }));
+        assert!(php.facts.iter().any(|fact| {
+            fact.subject == "class:App.ItemService"
+                && fact.predicate == "IMPLEMENTS"
+                && fact.object == "interface:App.Contracts.ItemLoader"
+        }), "{:#?}", php.facts.iter().filter(|fact| fact.predicate == "IMPLEMENTS").collect::<Vec<_>>());
+        assert!(php.facts.iter().any(|fact| {
+            fact.subject == "class:App.ItemService"
+                && fact.predicate == "MIXES_IN"
+                && fact.object == "trait:App.Support.LogsItems"
+        }));
+        assert!(php.facts.iter().any(|fact| {
+            fact.subject == "function:App.describe"
+                && fact.predicate == "CALLS"
+                && fact.object == "method:App.ItemService_summary"
+                && fact.notes.as_deref() == Some("oaf.ingest:typed-call-php")
+        }), "{:#?}", php.facts.iter().filter(|fact| fact.predicate == "CALLS").collect::<Vec<_>>());
+        assert!(php.facts.iter().any(|fact| {
+            fact.subject == "method:App.Controller.ItemController_store"
+                && fact.predicate == "HANDLES"
+                && fact.object == "route:POST_items"
+                && fact.notes.as_deref() == Some("oaf.ingest:route-laravel")
+        }));
+        assert!(php.facts.iter().any(|fact| {
+            fact.subject == "method:App.Controller.ItemController_show"
+                && fact.predicate == "HANDLES"
+                && fact.object == "route:GET_items_param"
+                && fact.notes.as_deref() == Some("oaf.ingest:route-symfony")
+        }), "{:#?}", php.facts.iter().filter(|fact| fact.predicate == "HANDLES").collect::<Vec<_>>());
+
+        let ruby = extract_repo(&IngestOptions::new(root.join("ruby"))).unwrap();
+        assert!(ruby.facts.iter().any(|fact| {
+            fact.subject == "namespace:Demo"
+                && fact.predicate == "DEFINES"
+                && fact.object == "class:Demo.ItemService"
+        }));
+        assert!(ruby.facts.iter().any(|fact| {
+            fact.subject == "class:Demo.ItemService"
+                && fact.predicate == "EXTENDS"
+                && fact.object == "class:Demo.BaseService"
+        }));
+        assert!(ruby.facts.iter().any(|fact| {
+            fact.subject == "class:Demo.ItemService"
+                && fact.predicate == "MIXES_IN"
+                && fact.object == "namespace:Demo.Logging"
+        }));
+        assert!(ruby.facts.iter().any(|fact| {
+            fact.subject == "module:lib_demo_item_service"
+                && fact.predicate == "IMPORTS"
+                && fact.object == "module:lib_demo_item"
+        }), "{:#?}", ruby.facts.iter().filter(|fact| fact.predicate == "IMPORTS").collect::<Vec<_>>());
+        assert!(ruby.facts.iter().any(|fact| {
+            fact.predicate == "CALLS"
+                && fact.object == "method:Demo.ItemService_summary"
+                && fact.notes.as_deref() == Some("oaf.ingest:typed-call-ruby")
+        }), "{:#?}", ruby.facts.iter().filter(|fact| fact.predicate == "CALLS").collect::<Vec<_>>());
+        for note in ["oaf.ingest:route-rails", "oaf.ingest:route-sinatra"] {
+            assert!(ruby.facts.iter().any(|fact| {
+                fact.predicate == "HANDLES" && fact.notes.as_deref() == Some(note)
+            }), "missing {note}: {:#?}", ruby.facts.iter().filter(|fact| fact.predicate == "HANDLES").collect::<Vec<_>>());
+        }
+    }
+
+    #[test]
+    fn php_import_aliases_are_scoped_to_the_declaring_file() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-php-file-aliases-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(
+            root.join("src/First.php"),
+            [
+                "<?php",
+                "namespace Demo\\First;",
+                "use Vendor\\One\\Contract as SharedContract;",
+                "trait LocalTrait { public function execute() {} }",
+                "class FirstService implements SharedContract {",
+                "  use LocalTrait { execute as run; }",
+                "  public function dispatch() { return $this->helper(); }",
+                "  private function helper() { return true; }",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/Second.php"),
+            [
+                "<?php",
+                "namespace Demo\\Second;",
+                "use Vendor\\Two\\Contract as SharedContract;",
+                "class SecondService implements SharedContract {}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/VendorOne.php"),
+            "<?php\nnamespace Vendor\\One;\ninterface Contract {}\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("src/VendorTwo.php"),
+            "<?php\nnamespace Vendor\\Two;\ninterface Contract {}\n",
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "class:Demo.First.FirstService"
+                && fact.predicate == "IMPLEMENTS"
+                && fact.object == "interface:Vendor.One.Contract"
+        }), "{:#?}", report.facts.iter().filter(|fact| fact.predicate == "IMPLEMENTS").collect::<Vec<_>>());
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "class:Demo.Second.SecondService"
+                && fact.predicate == "IMPLEMENTS"
+                && fact.object == "interface:Vendor.Two.Contract"
+        }), "{:#?}", report.facts.iter().filter(|fact| fact.predicate == "IMPLEMENTS").collect::<Vec<_>>());
+        let first_mixins = report
+            .facts
+            .iter()
+            .filter(|fact| {
+                fact.subject == "class:Demo.First.FirstService" && fact.predicate == "MIXES_IN"
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(first_mixins.len(), 1, "{first_mixins:#?}");
+        assert_eq!(first_mixins[0].object, "trait:Demo.First.LocalTrait");
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "method:Demo.First.FirstService_dispatch"
+                && fact.predicate == "CALLS"
+                && fact.object == "method:Demo.First.FirstService_helper"
+                && fact.notes.as_deref() == Some("oaf.ingest:typed-call-php")
+        }), "{:#?}", report.facts.iter().filter(|fact| fact.predicate == "CALLS").collect::<Vec<_>>());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ruby_include_predicates_are_not_reported_as_mixins() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-ruby-include-predicate-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("sample.rb"),
+            [
+                "module SharedBehavior",
+                "end",
+                "class Example",
+                "  include SharedBehavior",
+                "  def contains?(values)",
+                "    values.include?(:item)",
+                "  end",
+                "end",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let mixins = report
+            .facts
+            .iter()
+            .filter(|fact| fact.predicate == "MIXES_IN")
+            .collect::<Vec<_>>();
+        assert_eq!(mixins.len(), 1, "{mixins:#?}");
+        assert_eq!(mixins[0].subject, "class:Example");
+        assert_eq!(mixins[0].object, "namespace:SharedBehavior");
+
+        fs::remove_dir_all(root).unwrap();
     }
 
 }

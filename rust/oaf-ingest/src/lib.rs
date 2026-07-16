@@ -157,6 +157,7 @@ struct ParsedRepo {
     heritage: Vec<HeritageRef>,
     frameworks: Vec<FrameworkRef>,
     definitions_by_name: BTreeMap<String, BTreeSet<String>>,
+    symbol_aliases: BTreeMap<(String, String), String>,
     package_entries: BTreeMap<String, String>,
     generated_call_count: usize,
     import_count: usize,
@@ -178,6 +179,7 @@ impl ParsedRepo {
             heritage: Vec::new(),
             frameworks: Vec::new(),
             definitions_by_name: BTreeMap::new(),
+            symbol_aliases: BTreeMap::new(),
             package_entries: BTreeMap::new(),
             generated_call_count: 0,
             import_count: 0,
@@ -290,6 +292,15 @@ impl ParsedRepo {
             .entry(name.to_string())
             .or_default()
             .insert(subject.to_string());
+    }
+
+    fn add_symbol_alias(&mut self, source: &str, alias: &str, target: &str) {
+        if let (Some(alias), Some(target)) =
+            (sanitize_symbol(alias), normalize_symbol_lookup_name(target))
+        {
+            self.symbol_aliases
+                .insert((source.to_string(), alias), target);
+        }
     }
 
     fn add_call_with_hint(
@@ -526,11 +537,16 @@ impl ParsedRepo {
                 self.resolve_type_symbol_name_in_source(&relation.subject, &relation.source)
                     .unwrap_or_else(|| format!("external_struct:{}", relation.subject))
             };
-            let resolved = if relation.predicate == "EXTENDS_TYPE" {
-                self.resolve_extended_type(&relation.target_name, &relation.source)
-            } else {
-                self.resolve_type_symbol_name_in_source(&relation.target_name, &relation.source)
-                    .or_else(|| self.resolve_type_symbol_name(&relation.target_name))
+            let resolved = match relation.predicate {
+                "EXTENDS_TYPE" => {
+                    self.resolve_extended_type(&relation.target_name, &relation.source)
+                }
+                "MIXES_IN" => {
+                    self.resolve_mixin_symbol_name(&relation.target_name, &relation.source)
+                }
+                _ => self
+                    .resolve_type_symbol_name_in_source(&relation.target_name, &relation.source)
+                    .or_else(|| self.resolve_type_symbol_name(&relation.target_name)),
             };
             let predicate = if relation.predicate == "INHERITS" {
                 if subject.starts_with("interface:") {
@@ -770,7 +786,7 @@ impl ParsedRepo {
     }
 
     fn resolve_exact_symbol_name(&self, name: &str) -> Option<String> {
-        let name = sanitize_symbol(name)?;
+        let name = self.lookup_symbol_name(name)?;
         let subjects = self.definitions_by_name.get(&name)?;
         if subjects.len() == 1 {
             return subjects.iter().next().cloned();
@@ -782,7 +798,7 @@ impl ParsedRepo {
     }
 
     fn resolve_unambiguous_symbol_name(&self, name: &str) -> Option<String> {
-        let name = sanitize_symbol(name)?;
+        let name = self.lookup_symbol_name(name)?;
         let subjects = self.definitions_by_name.get(&name)?;
         (subjects.len() == 1).then(|| subjects.iter().next().unwrap().clone())
     }
@@ -792,7 +808,7 @@ impl ParsedRepo {
         name: &str,
         source: &str,
     ) -> Option<String> {
-        let name = sanitize_symbol(name)?;
+        let name = self.lookup_symbol_name_in_source(name, source)?;
         let subjects = self.definitions_by_name.get(&name)?;
         let local = subjects
             .iter()
@@ -805,11 +821,14 @@ impl ParsedRepo {
             })
             .cloned()
             .collect::<Vec<_>>();
-        (local.len() == 1).then(|| local[0].clone())
+        if local.len() == 1 {
+            return Some(local[0].clone());
+        }
+        (subjects.len() == 1).then(|| subjects.iter().next().unwrap().clone())
     }
 
     fn resolve_type_symbol_name(&self, name: &str) -> Option<String> {
-        let name = sanitize_symbol(name)?;
+        let name = self.lookup_symbol_name(name)?;
         let subjects = self.definitions_by_name.get(&name)?;
         let types = subjects
             .iter()
@@ -820,7 +839,7 @@ impl ParsedRepo {
     }
 
     fn resolve_type_symbol_name_in_source(&self, name: &str, source: &str) -> Option<String> {
-        let name = sanitize_symbol(name)?;
+        let name = self.lookup_symbol_name_in_source(name, source)?;
         let subjects = self.definitions_by_name.get(&name)?;
         let local = subjects
             .iter()
@@ -834,11 +853,19 @@ impl ParsedRepo {
             })
             .cloned()
             .collect::<Vec<_>>();
-        (local.len() == 1).then(|| local[0].clone())
+        if local.len() == 1 {
+            return Some(local[0].clone());
+        }
+        let types = subjects
+            .iter()
+            .filter(|subject| is_type_subject(subject))
+            .cloned()
+            .collect::<Vec<_>>();
+        (types.len() == 1).then(|| types[0].clone())
     }
 
     fn resolve_extended_type(&self, name: &str, source: &str) -> Option<String> {
-        let name = sanitize_symbol(name)?;
+        let name = self.lookup_symbol_name_in_source(name, source)?;
         let subjects = self.definitions_by_name.get(&name)?;
         let candidates = subjects
             .iter()
@@ -862,8 +889,31 @@ impl ParsedRepo {
         (candidates.len() == 1).then(|| candidates[0].clone())
     }
 
+    fn resolve_mixin_symbol_name(&self, name: &str, source: &str) -> Option<String> {
+        let name = self.lookup_symbol_name_in_source(name, source)?;
+        let subjects = self.definitions_by_name.get(&name)?;
+        let candidates = subjects
+            .iter()
+            .filter(|subject| is_type_subject(subject) || subject.starts_with("namespace:"))
+            .cloned()
+            .collect::<Vec<_>>();
+        (candidates.len() == 1).then(|| candidates[0].clone())
+    }
+
+    fn lookup_symbol_name(&self, name: &str) -> Option<String> {
+        sanitize_symbol(name)
+    }
+
+    fn lookup_symbol_name_in_source(&self, name: &str, source: &str) -> Option<String> {
+        let alias = sanitize_symbol(name)?;
+        self.symbol_aliases
+            .get(&(source.to_string(), alias))
+            .cloned()
+            .or_else(|| sanitize_symbol(name))
+    }
+
     fn resolve_known_call_target(&self, callee_name: &str) -> Option<String> {
-        let name = sanitize_symbol(callee_name)?;
+        let name = self.lookup_symbol_name(callee_name)?;
         match self.definitions_by_name.get(&name) {
             Some(subjects) if subjects.len() == 1 => subjects.iter().next().cloned(),
             Some(subjects) => {
@@ -908,6 +958,7 @@ impl ParsedRepo {
                 .or_default()
                 .extend(subjects);
         }
+        self.symbol_aliases.extend(other.symbol_aliases);
         self.package_entries.extend(other.package_entries);
         self.generated_call_count += other.generated_call_count;
         self.import_count += other.import_count;
@@ -1149,6 +1200,7 @@ fn declared_container(root: Node<'_>, source: &[u8], lang: LangKind) -> Option<D
         LangKind::Java => &["package_declaration"][..],
         LangKind::Kotlin => &["package_header"][..],
         LangKind::CSharp => &["namespace_declaration", "file_scoped_namespace_declaration"][..],
+        LangKind::Php => &["namespace_definition"][..],
         LangKind::Dart => &["library_name"][..],
         _ => return None,
     };
@@ -1173,7 +1225,7 @@ fn declared_container(root: Node<'_>, source: &[u8], lang: LangKind) -> Option<D
         })?;
     let name = normalize_container_name(raw_name)?;
     let (prefix, kind) = match lang {
-        LangKind::CSharp => ("namespace", "Namespace"),
+        LangKind::CSharp | LangKind::Php => ("namespace", "Namespace"),
         LangKind::Dart => ("library", "Library"),
         _ => ("package", "Package"),
     };
@@ -1215,7 +1267,8 @@ fn first_ancestor_matching<'tree>(
 }
 
 fn normalize_container_name(value: &str) -> Option<String> {
-    let name = value
+    let normalized = value.replace('\\', ".");
+    let name = normalized
         .trim()
         .trim_start_matches("package ")
         .trim_start_matches("namespace ")
@@ -2835,6 +2888,20 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             }
         }
     }
+    if context.lang == LangKind::Ruby && node.kind() == "call" {
+        if let (Some(caller), Some(type_name)) = (
+            context.caller.as_deref(),
+            ruby_constructor_type(node, source),
+        ) {
+            parsed.constructs.push(ConstructRef {
+                caller: caller.to_string(),
+                type_name,
+                source: context.source.clone(),
+                span: CodeSpan::from_node(node),
+            });
+            suppress_child_calls = true;
+        }
+    }
 
     if matches!(
         node.kind(),
@@ -2858,6 +2925,27 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         ) && callee_name(node, source).as_deref() == Some("require")
         {
             for raw in quoted_literals(node_text(node, source)) {
+                if let Some(target) = import_target_from_raw(&raw) {
+                    parsed.add_import(
+                        &context.module,
+                        target,
+                        &context.source,
+                        CodeSpan::from_node(node),
+                    );
+                }
+            }
+        }
+        let ruby_import = (context.lang == LangKind::Ruby)
+            .then(|| callee_name(node, source))
+            .flatten()
+            .filter(|name| matches!(name.as_str(), "require" | "require_relative"));
+        if let Some(import_call) = ruby_import {
+            for raw in quoted_literals(node_text(node, source)) {
+                let raw = if import_call == "require_relative" {
+                    format!("./{raw}")
+                } else {
+                    raw
+                };
                 if let Some(target) = import_target_from_raw(&raw) {
                     parsed.add_import(
                         &context.module,
@@ -2899,7 +2987,27 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             parsed.routes.push(route);
             suppress_child_calls = true;
         }
-        if !is_route_registration && !is_flutter_entry && !context.suppress_calls {
+        let ruby_mixin_target = (context.lang == LangKind::Ruby && context.class_name.is_some())
+            .then(|| ruby_mixin_target(node_text(node, source)))
+            .flatten();
+        let ruby_mixin = ruby_mixin_target.is_some();
+        if let Some(target_name) = ruby_mixin_target {
+            if let Some(subject) = context.owner_subject.as_deref() {
+                parsed.heritage.push(HeritageRef {
+                    subject: subject.to_string(),
+                    predicate: "MIXES_IN",
+                    target_name,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
+        }
+        if !suppress_child_calls
+            && !is_route_registration
+            && !is_flutter_entry
+            && !ruby_mixin
+            && !context.suppress_calls
+        {
             if let Some(caller) = context.caller.as_deref() {
                 if let Some(callee) = callee_name(node, source) {
                     if !is_declaration_signature_call(node, context.lang, caller, &callee) {
@@ -2951,7 +3059,16 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
         }
     }
 
-    if is_import_node(node.kind()) {
+    if is_import_node(node.kind())
+        && !(context.lang == LangKind::Php
+            && node.kind() == "use_declaration"
+            && context.class_name.is_some())
+    {
+        if context.lang == LangKind::Php {
+            if let Some((alias, target)) = php_use_alias(node_text(node, source)) {
+                parsed.add_symbol_alias(&context.source, &alias, &target);
+            }
+        }
         for target in import_targets(node, source, context.lang) {
             let owner = if context.lang == LangKind::Dart {
                 context.owner_subject.as_deref().unwrap_or(&context.module)
@@ -2959,6 +3076,23 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
                 &context.module
             };
             parsed.add_import(owner, target, &context.source, CodeSpan::from_node(node));
+        }
+    }
+
+    if context.lang == LangKind::Php
+        && node.kind() == "use_declaration"
+        && context.class_name.is_some()
+    {
+        if let Some(subject) = context.owner_subject.as_deref() {
+            for target_name in php_trait_use_targets(node_text(node, source)) {
+                parsed.heritage.push(HeritageRef {
+                    subject: subject.to_string(),
+                    predicate: "MIXES_IN",
+                    target_name,
+                    source: context.source.clone(),
+                    span: CodeSpan::from_node(node),
+                });
+            }
         }
     }
 
@@ -3151,6 +3285,12 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             if bare != name {
                 parsed.add_symbol_name(&bare, &subject);
             }
+            if subject.starts_with("method:") {
+                if let Some(owner) = context.class_name.as_deref() {
+                    let simple_owner = owner.rsplit('.').next().unwrap_or(owner);
+                    parsed.add_symbol_name(&format!("{simple_owner}_{bare}"), &subject);
+                }
+            }
         }
         for alias in batch_c_callable_aliases(&subject) {
             parsed.add_symbol_name(&alias, &subject);
@@ -3184,7 +3324,11 @@ fn apply_scoped_namespace(
     next: &mut WalkContext,
     mut parsed: Option<&mut ParsedRepo>,
 ) {
-    if context.lang != LangKind::Cpp || node.kind() != "namespace_definition" {
+    let scoped_namespace = matches!(
+        (context.lang, node.kind()),
+        (LangKind::Cpp, "namespace_definition") | (LangKind::Ruby, "module")
+    );
+    if !scoped_namespace {
         return;
     }
     let Some(simple_name) = node
@@ -3217,6 +3361,9 @@ fn apply_scoped_namespace(
             CodeSpan::from_node(node),
         );
         parsed.add_symbol_name(&name, &subject);
+        if let Some(simple) = name.rsplit('.').next() {
+            parsed.add_symbol_name(simple, &subject);
+        }
     }
     next.container_name = Some(name);
     next.owner_subject = Some(subject);
@@ -3265,7 +3412,11 @@ fn callable_definition(
         | "function_item"
         | "create_function"
         | "method"
+        | "singleton_method"
         | "field_declaration" => {
+            if context.lang == LangKind::Ruby && kind == "method" && node.named_child_count() == 0 {
+                return None;
+            }
             if kind == "field_declaration"
                 && (context.lang != LangKind::Cpp
                     || !descendant_has_kind(node, "function_declarator"))
@@ -3334,6 +3485,7 @@ fn callable_definition(
                     context.lang,
                     LangKind::Python
                         | LangKind::Cpp
+                        | LangKind::Php
                         | LangKind::Ruby
                         | LangKind::Swift
                         | LangKind::Kotlin
@@ -3349,6 +3501,16 @@ fn callable_definition(
                     format!("method:{method_name}"),
                     "Method",
                 ));
+            }
+            if matches!(context.lang, LangKind::Php | LangKind::Ruby) {
+                if let Some(container) = context.container_name.as_deref() {
+                    let qualified = format!("{container}.{sanitized}");
+                    return Some((
+                        qualified.clone(),
+                        format!("function:{qualified}"),
+                        "Function",
+                    ));
+                }
             }
             Some((
                 sanitized.clone(),
@@ -3459,6 +3621,9 @@ fn collect_parameter_types(node: Node<'_>, source: &[u8], lang: LangKind, out: &
             | "receiver_parameter"
             | "parameter"
             | "parameter_declaration"
+            | "simple_parameter"
+            | "variadic_parameter"
+            | "property_promotion_parameter"
     ) {
         let type_name = node
             .child_by_field_name("type")
@@ -3584,6 +3749,7 @@ fn type_declaration(
 ) -> Option<(String, String, &'static str, bool)> {
     let (prefix, kind, establishes_owner) = match node.kind() {
         "interface_declaration" | "interface_definition" => ("interface", "Interface", true),
+        "trait_declaration" => ("trait", "Trait", true),
         "type_alias_declaration" => ("type_alias", "TypeAlias", false),
         "mixin_declaration" => ("mixin", "Mixin", true),
         "extension_declaration" => ("extension", "Extension", true),
@@ -3682,7 +3848,13 @@ fn qualified_type_identity(
 ) -> (String, String) {
     if !matches!(
         context.lang,
-        LangKind::Java | LangKind::Kotlin | LangKind::CSharp | LangKind::Cpp | LangKind::Dart
+        LangKind::Java
+            | LangKind::Kotlin
+            | LangKind::CSharp
+            | LangKind::Cpp
+            | LangKind::Php
+            | LangKind::Ruby
+            | LangKind::Dart
     ) {
         return (name, subject);
     }
@@ -3750,6 +3922,9 @@ fn heritage_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<(&'sta
     if matches!(lang, LangKind::Cpp | LangKind::Swift | LangKind::Dart) {
         return batch_d_heritage_targets(node, source, lang);
     }
+    if matches!(lang, LangKind::Php | LangKind::Ruby) {
+        return batch_e_heritage_targets(node, source, lang);
+    }
     if matches!(
         lang,
         LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
@@ -3802,6 +3977,24 @@ fn heritage_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<(&'sta
     }
 
     heritage_targets_from_text(node_text(node, source))
+}
+
+fn batch_e_heritage_targets(
+    node: Node<'_>,
+    source: &[u8],
+    lang: LangKind,
+) -> Vec<(&'static str, String)> {
+    if lang == LangKind::Php {
+        return heritage_targets_from_text(node_text(node, source));
+    }
+    let header = node_text(node, source).lines().next().unwrap_or("");
+    let Some((_, superclass)) = header.split_once('<') else {
+        return Vec::new();
+    };
+    last_identifier(superclass)
+        .and_then(|name| sanitize_symbol(&name))
+        .map(|name| vec![("EXTENDS", name)])
+        .unwrap_or_default()
 }
 
 fn batch_d_heritage_targets(
@@ -4095,7 +4288,21 @@ fn callee_name(node: Node<'_>, source: &[u8]) -> Option<String> {
             | "scoped_call_expression"
             | "message_expression"
     ) {
+        if let Some(name) = node
+            .child_by_field_name("name")
+            .or_else(|| node.child_by_field_name("method"))
+        {
+            return sanitize_symbol(node_text(name, source));
+        }
         return last_identifier(node_text(node, source)).and_then(|name| sanitize_symbol(&name));
+    }
+    if node.kind() == "call" {
+        if let Some(method) = node
+            .child_by_field_name("method")
+            .or_else(|| node.child_by_field_name("name"))
+        {
+            return sanitize_symbol(node_text(method, source));
+        }
     }
     let function = node
         .child_by_field_name("function")
@@ -4124,6 +4331,19 @@ fn constructor_callee(node: Node<'_>, source: &[u8]) -> Option<String> {
         .map(|child| node_text(child, source))
         .and_then(last_identifier)
         .and_then(|name| sanitize_symbol(&name))
+}
+
+fn ruby_constructor_type(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let receiver = node.child_by_field_name("receiver")?;
+    let method = node
+        .child_by_field_name("method")
+        .or_else(|| node.child_by_field_name("name"))?;
+    if node_text(method, source) != "new" {
+        return None;
+    }
+    let type_name =
+        last_identifier(node_text(receiver, source)).and_then(|name| sanitize_symbol(&name))?;
+    looks_like_type_name(&type_name).then_some(type_name)
 }
 
 fn rust_associated_constructor(
@@ -4158,7 +4378,22 @@ fn typed_call_target(
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
     let function_text = node_text(function, source);
-    let receiver_and_method = if node.kind() == "method_invocation" {
+    let receiver_and_method = if node.kind() == "call" && context.lang == LangKind::Ruby {
+        node.child_by_field_name("receiver")
+            .zip(
+                node.child_by_field_name("method")
+                    .or_else(|| node.child_by_field_name("name")),
+            )
+            .and_then(|(receiver, method)| {
+                Some((
+                    sanitize_symbol(node_text(receiver, source))?,
+                    sanitize_symbol(node_text(method, source))?,
+                ))
+            })
+    } else if matches!(
+        node.kind(),
+        "method_invocation" | "member_call_expression" | "nullsafe_member_call_expression"
+    ) {
         node.child_by_field_name("object")
             .zip(node.child_by_field_name("name"))
             .and_then(|(receiver, method)| {
@@ -4171,12 +4406,17 @@ fn typed_call_target(
         receiver_method(function_text)
     };
     let (receiver_type, method) = if let Some((receiver, method)) = receiver_and_method {
-        let receiver_type = if matches!(receiver.as_str(), "this" | "self") {
+        let receiver_key = receiver.trim_start_matches('$');
+        let receiver_type = if matches!(receiver_key, "this" | "self") {
             context.class_name.clone()?
-        } else if let Some(bound) = context.type_bindings.get(&receiver) {
+        } else if let Some(bound) = context
+            .type_bindings
+            .get(&receiver)
+            .or_else(|| context.type_bindings.get(receiver_key))
+        {
             bound.clone()
-        } else if looks_like_type_name(&receiver) {
-            receiver
+        } else if looks_like_type_name(receiver_key) {
+            receiver_key.to_string()
         } else {
             return None;
         };
@@ -4205,6 +4445,8 @@ fn typed_call_note(lang: LangKind) -> Option<&'static str> {
         LangKind::Swift => Some("oaf.ingest:typed-call-swift"),
         LangKind::Kotlin => Some("oaf.ingest:typed-call-kotlin"),
         LangKind::Dart => Some("oaf.ingest:typed-call-dart"),
+        LangKind::Php => Some("oaf.ingest:typed-call-php"),
+        LangKind::Ruby => Some("oaf.ingest:typed-call-ruby"),
         LangKind::JavaScript => Some("oaf.ingest:typed-call-javascript"),
         LangKind::TypeScript | LangKind::Tsx => Some("oaf.ingest:typed-call-typescript"),
         _ => None,
@@ -4243,11 +4485,22 @@ fn local_type_bindings(
             | LangKind::Cpp
             | LangKind::Swift
             | LangKind::Dart
+            | LangKind::Php
     ) {
         bindings.extend(batch_c_type_bindings(node, source, context.lang));
+        if context.lang == LangKind::Php {
+            bindings.extend(php_type_bindings(node_text(node, source)));
+        }
         bindings.extend(constructor_type_bindings(node_text(node, source)));
         if let Some(type_name) = context.class_name.as_deref() {
             bindings.insert("this".to_string(), type_name.to_string());
+            bindings.insert("self".to_string(), type_name.to_string());
+        }
+        return bindings;
+    }
+    if context.lang == LangKind::Ruby {
+        bindings.extend(ruby_constructor_type_bindings(node_text(node, source)));
+        if let Some(type_name) = context.class_name.as_deref() {
             bindings.insert("self".to_string(), type_name.to_string());
         }
         return bindings;
@@ -4290,6 +4543,9 @@ fn collect_batch_c_type_bindings(
             | "receiver_parameter"
             | "parameter"
             | "parameter_declaration"
+            | "simple_parameter"
+            | "variadic_parameter"
+            | "property_promotion_parameter"
     ) {
         let text = node_text(node, source);
         let name = node
@@ -4388,6 +4644,29 @@ fn rust_type_bindings(text: &str) -> BTreeMap<String, String> {
     bindings
 }
 
+fn php_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    let Some(parameters) = parenthesized_segments(text).into_iter().next() else {
+        return bindings;
+    };
+    for parameter in parameters.split(',') {
+        let parts = parameter.split_whitespace().collect::<Vec<_>>();
+        if parts.len() < 2 {
+            continue;
+        }
+        let Some(name) = sanitize_symbol(parts.last().unwrap()) else {
+            continue;
+        };
+        let Some(type_name) =
+            last_identifier(parts[parts.len() - 2]).and_then(|value| sanitize_symbol(&value))
+        else {
+            continue;
+        };
+        bindings.insert(name, type_name);
+    }
+    bindings
+}
+
 fn parenthesized_segments(text: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut depth = 0usize;
@@ -4437,6 +4716,29 @@ fn constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
     bindings
 }
 
+fn ruby_constructor_type_bindings(text: &str) -> BTreeMap<String, String> {
+    let mut bindings = BTreeMap::new();
+    for line in text.lines() {
+        let Some((lhs, rhs)) = line.split_once('=') else {
+            continue;
+        };
+        let Some(variable) = last_identifier(lhs).and_then(|name| sanitize_symbol(&name)) else {
+            continue;
+        };
+        let Some((receiver, _)) = rhs.trim().split_once(".new") else {
+            continue;
+        };
+        let Some(type_name) = last_identifier(receiver).and_then(|name| sanitize_symbol(&name))
+        else {
+            continue;
+        };
+        if looks_like_type_name(&type_name) {
+            bindings.insert(variable, type_name);
+        }
+    }
+    bindings
+}
+
 fn starts_with_binding_keyword(lhs: &str) -> bool {
     lhs.split_whitespace()
         .next()
@@ -4453,7 +4755,13 @@ fn looks_like_type_name(name: &str) -> bool {
 }
 
 fn receiver_method(value: &str) -> Option<(String, String)> {
-    let (receiver, method) = value.trim().rsplit_once('.')?;
+    let value = value.trim();
+    let (index, separator) = ["->", "::", "."]
+        .into_iter()
+        .filter_map(|separator| value.rfind(separator).map(|index| (index, separator)))
+        .max_by_key(|(index, _)| *index)?;
+    let receiver = &value[..index];
+    let method = &value[index + separator.len()..];
     let receiver = sanitize_symbol(receiver)?;
     let method = sanitize_symbol(method)?;
     Some((receiver, method))
@@ -4461,6 +4769,40 @@ fn receiver_method(value: &str) -> Option<(String, String)> {
 
 fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> Option<RouteRef> {
     let text = node_text(node, source);
+    if context.lang == LangKind::Ruby {
+        let method = callee_name(node, source).and_then(|name| http_method(&name))?;
+        let path = first_quoted_route_path(text)?;
+        let rails = context.source.ends_with("config/routes.rb") || text.contains("to:");
+        return Some(RouteRef {
+            method,
+            path,
+            handler_subject: (!rails).then(|| context.module.clone()),
+            handler_name: rails.then(|| ruby_rails_handler_name(text)).flatten(),
+            source: context.source.clone(),
+            note: if rails {
+                "oaf.ingest:route-rails"
+            } else {
+                "oaf.ingest:route-sinatra"
+            },
+            span: CodeSpan::from_node(node),
+        });
+    }
+    if context.lang == LangKind::Php && node.kind() == "scoped_call_expression" {
+        let function = text.split_once('(').map_or(text, |(head, _)| head);
+        let (receiver, method) = receiver_method(function)?;
+        if receiver != "Route" {
+            return None;
+        }
+        return Some(RouteRef {
+            method: http_method(&method)?,
+            path: first_quoted_route_path(text)?,
+            handler_subject: None,
+            handler_name: Some(php_route_handler_name(text)?),
+            source: context.source.clone(),
+            note: "oaf.ingest:route-laravel",
+            span: CodeSpan::from_node(node),
+        });
+    }
     if context.lang == LangKind::Python {
         let callee = callee_name(node, source)?;
         if matches!(callee.as_str(), "path" | "re_path") {
@@ -4729,6 +5071,23 @@ fn callable_route(
             span: preceding_line_span(node),
         });
     }
+    if context.lang == LangKind::Php {
+        let attribute = php_route_attribute(node, source)?;
+        let path = first_quoted_route_path(&attribute)?;
+        let method = quoted_literals(&attribute)
+            .into_iter()
+            .skip(1)
+            .find_map(|value| http_method(&value))?;
+        return Some(RouteRef {
+            method,
+            path,
+            handler_subject: Some(handler_subject.to_string()),
+            handler_name: None,
+            source: context.source.clone(),
+            note: "oaf.ingest:route-symfony",
+            span: CodeSpan::from_node(node),
+        });
+    }
     if context.lang != LangKind::Python {
         return None;
     }
@@ -4754,6 +5113,54 @@ fn callable_route(
         }
     }
     None
+}
+
+fn php_route_handler_name(text: &str) -> Option<String> {
+    let (controller, _) = text.split_once("::class")?;
+    let controller = last_identifier(controller).and_then(|name| sanitize_symbol(&name))?;
+    let method = quoted_literals(text).into_iter().last()?;
+    let method = sanitize_symbol(&method)?;
+    Some(format!("{controller}_{method}"))
+}
+
+fn ruby_rails_handler_name(text: &str) -> Option<String> {
+    let target = quoted_literals(text)
+        .into_iter()
+        .find(|value| value.contains('#'))?;
+    let (controller, action) = target.split_once('#')?;
+    let controller = controller
+        .split('/')
+        .map(|segment| {
+            let mut chars = segment.chars();
+            chars
+                .next()
+                .map(|first| format!("{}{}", first.to_ascii_uppercase(), chars.as_str()))
+                .unwrap_or_default()
+        })
+        .collect::<String>();
+    let controller = format!("{controller}Controller");
+    Some(format!("{controller}_{}", sanitize_symbol(action)?))
+}
+
+fn php_route_attribute(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if let Some(attribute) = first_descendant_matching(node, &|child| {
+        matches!(child.kind(), "attribute_list" | "attribute_group")
+    }) {
+        return Some(node_text(attribute, source).to_string());
+    }
+    if let Some(attribute) = node
+        .prev_named_sibling()
+        .filter(|sibling| matches!(sibling.kind(), "attribute_list" | "attribute_group"))
+    {
+        return Some(node_text(attribute, source).to_string());
+    }
+    let prefix = std::str::from_utf8(source.get(..node.start_byte())?).ok()?;
+    prefix
+        .lines()
+        .rev()
+        .find(|line| !line.trim().is_empty())
+        .filter(|line| line.trim_start().starts_with("#[Route("))
+        .map(|line| line.trim().to_string())
 }
 
 fn controller_route_prefix(text: &str, lang: LangKind) -> Option<String> {
@@ -5009,6 +5416,7 @@ fn is_import_node(kind: &str) -> bool {
             | "import"
             | "library_import"
             | "use_declaration"
+            | "namespace_use_declaration"
             | "preproc_include"
             | "include_expression"
             | "include_once_expression"
@@ -5075,9 +5483,17 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
                     out.push(raw);
                 }
             }
+            LangKind::Php => {
+                let cleaned = text.trim();
+                let raw = cleaned
+                    .strip_prefix("use ")
+                    .or_else(|| cleaned.strip_prefix("include "));
+                if let Some(raw) = raw.and_then(import_target_from_raw) {
+                    out.push(raw);
+                }
+            }
             LangKind::Kotlin
             | LangKind::Swift
-            | LangKind::Php
             | LangKind::Scala
             | LangKind::Dart
             | LangKind::Julia => {
@@ -5100,6 +5516,70 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
     });
     out.dedup_by(|left, right| left.raw == right.raw && left.fallback == right.fallback);
     out
+}
+
+fn php_use_alias(text: &str) -> Option<(String, String)> {
+    let declaration = text
+        .trim()
+        .strip_prefix("use ")?
+        .trim_end_matches(';')
+        .trim();
+    let declaration = declaration
+        .strip_prefix("function ")
+        .or_else(|| declaration.strip_prefix("const "))
+        .unwrap_or(declaration)
+        .trim();
+    if declaration.contains(['{', '}', ',']) {
+        return None;
+    }
+    let lower = declaration.to_ascii_lowercase();
+    let (target, alias) = if let Some(index) = lower.find(" as ") {
+        (&declaration[..index], declaration[index + 4..].to_string())
+    } else {
+        (declaration, last_identifier(declaration)?)
+    };
+    let target = normalize_container_name(target.trim().trim_start_matches('\\'))?;
+    let alias = sanitize_symbol(&alias)?;
+    Some((alias, target))
+}
+
+fn php_trait_use_targets(text: &str) -> Vec<String> {
+    let Some(declaration) = text.trim().strip_prefix("use ") else {
+        return Vec::new();
+    };
+    let declaration = declaration
+        .split_once('{')
+        .map(|(head, _)| head)
+        .unwrap_or(declaration)
+        .trim_end_matches(';')
+        .trim();
+    declaration
+        .split(',')
+        .filter_map(|target| last_identifier(target).and_then(|name| sanitize_symbol(&name)))
+        .collect()
+}
+
+fn ruby_mixin_target(text: &str) -> Option<String> {
+    let trimmed = text.trim();
+    let remainder = trimmed
+        .strip_prefix("include ")
+        .or_else(|| trimmed.strip_prefix("include("))?
+        .trim();
+    let candidate = remainder.trim_end_matches(')').split(',').next()?.trim();
+    if candidate.is_empty()
+        || !candidate.split("::").all(|segment| {
+            segment
+                .chars()
+                .next()
+                .is_some_and(|first| first.is_ascii_uppercase())
+                && segment
+                    .chars()
+                    .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+        })
+    {
+        return None;
+    }
+    last_identifier(candidate).and_then(|name| sanitize_symbol(&name))
 }
 
 fn descendant_has_kind(node: Node<'_>, expected: &str) -> bool {
@@ -5407,6 +5887,11 @@ fn sanitize_symbol(value: &str) -> Option<String> {
         out.truncate(96);
     }
     Some(out)
+}
+
+fn normalize_symbol_lookup_name(value: &str) -> Option<String> {
+    normalize_container_name(value.trim().trim_start_matches('\\'))
+        .or_else(|| sanitize_symbol(value))
 }
 
 fn path_token(rel: &str) -> String {

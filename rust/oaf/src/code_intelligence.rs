@@ -465,6 +465,7 @@ fn build_nodes(
     candidates.dedup_by(|left, right| left.subject == right.subject && left.source == right.source);
     let candidate_count = candidates.len();
     candidates.truncate(max_nodes);
+    disambiguate_qualified_names(&mut candidates);
     let mut node_lookup = BTreeMap::new();
     let mut subject_lookup: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     let nodes = candidates
@@ -494,6 +495,34 @@ fn build_nodes(
         })
         .collect();
     (nodes, node_lookup, subject_lookup, candidate_count)
+}
+
+fn disambiguate_qualified_names(nodes: &mut [NativeNode]) {
+    let mut collisions = BTreeMap::<(String, &'static str, String, String), Vec<usize>>::new();
+    for (index, node) in nodes.iter().enumerate() {
+        collisions
+            .entry((
+                node.language.clone(),
+                node.kind,
+                node.qualified_name.clone(),
+                with_span(&node.source, node.span),
+            ))
+            .or_default()
+            .push(index);
+    }
+    for indices in collisions.into_values().filter(|indices| indices.len() > 1) {
+        let mut suffix_counts = BTreeMap::<String, usize>::new();
+        for index in indices {
+            let node = &mut nodes[index];
+            let suffix = format!("@L{}C{}", node.span.start_line, node.span.start_column);
+            let count = suffix_counts.entry(suffix.clone()).or_default();
+            *count += 1;
+            node.qualified_name.push_str(&suffix);
+            if *count > 1 {
+                node.qualified_name.push_str(&format!("~{}", *count));
+            }
+        }
+    }
 }
 
 fn native_node(

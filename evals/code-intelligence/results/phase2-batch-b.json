@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-b-1",
   "phase": 2,
   "batch": "B",
-  "generatedAt": "2026-07-16T13:41:18.616Z",
+  "generatedAt": "2026-07-16T14:36:02.453Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -76,9 +76,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.795,
-        "secondElapsedMs": 8.917,
-        "evaluatorMaxRssKb": 59232,
+        "firstElapsedMs": 10.219,
+        "secondElapsedMs": 8.594,
+        "evaluatorMaxRssKb": 58656,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -242,9 +242,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 8.251,
-        "secondElapsedMs": 9.013,
-        "evaluatorMaxRssKb": 64864,
+        "firstElapsedMs": 8.557,
+        "secondElapsedMs": 8.729,
+        "evaluatorMaxRssKb": 64352,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -408,9 +408,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 8.888,
-        "secondElapsedMs": 8.798,
-        "evaluatorMaxRssKb": 65584,
+        "firstElapsedMs": 8.204,
+        "secondElapsedMs": 8.564,
+        "evaluatorMaxRssKb": 64736,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -575,9 +575,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 228.944,
-        "secondElapsedMs": 228.705,
-        "evaluatorMaxRssKb": 124016,
+        "firstElapsedMs": 232.462,
+        "secondElapsedMs": 222.977,
+        "evaluatorMaxRssKb": 104192,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -742,9 +742,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 140.412,
-        "secondElapsedMs": 135.82,
-        "evaluatorMaxRssKb": 135264,
+        "firstElapsedMs": 136.652,
+        "secondElapsedMs": 133.927,
+        "evaluatorMaxRssKb": 129504,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -909,9 +909,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 101.091,
-        "secondElapsedMs": 100.674,
-        "evaluatorMaxRssKb": 142144,
+        "firstElapsedMs": 102.251,
+        "secondElapsedMs": 98.963,
+        "evaluatorMaxRssKb": 132832,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1076,9 +1076,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1047.37,
-        "secondElapsedMs": 1053.083,
-        "evaluatorMaxRssKb": 185680,
+        "firstElapsedMs": 1063.799,
+        "secondElapsedMs": 1059.268,
+        "evaluatorMaxRssKb": 160816,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1243,9 +1243,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 286.187,
-        "secondElapsedMs": 287.493,
-        "evaluatorMaxRssKb": 185680,
+        "firstElapsedMs": 294.799,
+        "secondElapsedMs": 295.576,
+        "evaluatorMaxRssKb": 160816,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1410,9 +1410,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 27.473,
-        "secondElapsedMs": 27.075,
-        "evaluatorMaxRssKb": 185680,
+        "firstElapsedMs": 28.197,
+        "secondElapsedMs": 28.748,
+        "evaluatorMaxRssKb": 160816,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1558,8 +1558,8 @@
       "commit": "1577ed901354d0d7448ac162328f9dbf5183124c",
       "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json",
       "graph": {
-        "fingerprint": "sha256:42265127db1b1e4103eb86ac3cf0ddc420923aeb4ff9bfa8a6d4ea428755d735",
-        "nodeCount": 36,
+        "fingerprint": "sha256:877b78fed28fa5cd6731acb89eeb65ad6ee6cdacfd491fd92d31bb6bdecbfefa",
+        "nodeCount": 37,
         "edgeCount": 80,
         "diagnosticCount": 0,
         "coverage": [
@@ -1577,9 +1577,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.789,
-        "secondElapsedMs": 12.358,
-        "evaluatorMaxRssKb": 185680,
+        "firstElapsedMs": 12.703,
+        "secondElapsedMs": 13.503,
+        "evaluatorMaxRssKb": 160816,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1589,8 +1589,8 @@
         "language": "rust",
         "sourceRef": "corpus://cirepo_rust_dtolnay_itoa@1577ed901354d0d7448ac162328f9dbf5183124c#src",
         "graphFingerprints": [
-          "sha256:42265127db1b1e4103eb86ac3cf0ddc420923aeb4ff9bfa8a6d4ea428755d735",
-          "sha256:42265127db1b1e4103eb86ac3cf0ddc420923aeb4ff9bfa8a6d4ea428755d735"
+          "sha256:877b78fed28fa5cd6731acb89eeb65ad6ee6cdacfd491fd92d31bb6bdecbfefa",
+          "sha256:877b78fed28fa5cd6731acb89eeb65ad6ee6cdacfd491fd92d31bb6bdecbfefa"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1714,7 +1714,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:7af46922625bbeb315a314596ff393c2b4063d3fec47f85a33e79928cc6d49b1"
+        "reportFingerprint": "sha256:5f23e661083b31ced33e163167610e6da9aa119b770201ea32698f3319fd5712"
       }
     },
     {
@@ -1725,9 +1725,9 @@
       "commit": "827a315bf2198558f0325b07bcc1e2cd973aba2f",
       "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json",
       "graph": {
-        "fingerprint": "sha256:6ee97816d4fb9cc202e03e9031c254b42330f122bf7fa85d70a425ded2a9d314",
-        "nodeCount": 1876,
-        "edgeCount": 4350,
+        "fingerprint": "sha256:6576ebf35ef525319799d2de1050e3d3bc677f105122f5cc21645d251d7d3b17",
+        "nodeCount": 1906,
+        "edgeCount": 4384,
         "diagnosticCount": 0,
         "coverage": [
           {
@@ -1744,9 +1744,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 331.217,
-        "secondElapsedMs": 334.309,
-        "evaluatorMaxRssKb": 185680,
+        "firstElapsedMs": 337.417,
+        "secondElapsedMs": 339.887,
+        "evaluatorMaxRssKb": 162480,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1756,8 +1756,8 @@
         "language": "rust",
         "sourceRef": "corpus://cirepo_rust_serde_rs_json@827a315bf2198558f0325b07bcc1e2cd973aba2f#src",
         "graphFingerprints": [
-          "sha256:6ee97816d4fb9cc202e03e9031c254b42330f122bf7fa85d70a425ded2a9d314",
-          "sha256:6ee97816d4fb9cc202e03e9031c254b42330f122bf7fa85d70a425ded2a9d314"
+          "sha256:6576ebf35ef525319799d2de1050e3d3bc677f105122f5cc21645d251d7d3b17",
+          "sha256:6576ebf35ef525319799d2de1050e3d3bc677f105122f5cc21645d251d7d3b17"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1881,7 +1881,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:f6b82b45684f95d0c6a9af4fe1932f85be54db3d8779c94958e4d5f52d8ce5dc"
+        "reportFingerprint": "sha256:67672d75411cd07ca8b9a1d8884885bdc9ef6ad5cb0bf78ccca14c8d682b7b13"
       }
     },
     {
@@ -1892,9 +1892,9 @@
       "commit": "98aea470f9190fad1915897166ac0f149522011a",
       "truthPath": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json",
       "graph": {
-        "fingerprint": "sha256:660ad381c1ad380dd11d578de43286b4fbe45b425da564d2ebdefa884ebabf44",
-        "nodeCount": 2723,
-        "edgeCount": 6024,
+        "fingerprint": "sha256:2c39d10ab94ea2084c72952dbe9054625cded72067df72ca52d12733b6f757c2",
+        "nodeCount": 2771,
+        "edgeCount": 6026,
         "diagnosticCount": 0,
         "coverage": [
           {
@@ -1911,9 +1911,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 588.927,
-        "secondElapsedMs": 595.097,
-        "evaluatorMaxRssKb": 185680,
+        "firstElapsedMs": 606.453,
+        "secondElapsedMs": 603.292,
+        "evaluatorMaxRssKb": 164880,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1923,8 +1923,8 @@
         "language": "rust",
         "sourceRef": "corpus://cirepo_rust_tokio_rs_axum@98aea470f9190fad1915897166ac0f149522011a#axum/src",
         "graphFingerprints": [
-          "sha256:660ad381c1ad380dd11d578de43286b4fbe45b425da564d2ebdefa884ebabf44",
-          "sha256:660ad381c1ad380dd11d578de43286b4fbe45b425da564d2ebdefa884ebabf44"
+          "sha256:2c39d10ab94ea2084c72952dbe9054625cded72067df72ca52d12733b6f757c2",
+          "sha256:2c39d10ab94ea2084c72952dbe9054625cded72067df72ca52d12733b6f757c2"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -2048,7 +2048,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:750831f5ee664ef9aebfca33be070e08223a5b4e0156f28eb64fc4a2a943c46f"
+        "reportFingerprint": "sha256:de16dd6be60d8e733a5039c321b068757c1ad05a086e09c414a83b730ff8ab39"
       }
     }
   ],
@@ -2156,5 +2156,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:4541e1a37fdf93da336a670babdfe5f077b3bcab3661a4f473f27cb974326794"
+  "reportFingerprint": "sha256:4957797d51c0a8f25ed39ce2fd8a53bbfe7396854d3864da062e2bee9f888a23"
 }

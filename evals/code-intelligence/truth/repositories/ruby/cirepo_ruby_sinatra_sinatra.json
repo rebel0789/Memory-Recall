@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_ruby_sinatra_sinatra",
+  "language": "ruby",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_ruby_sinatra_sinatra@0c88089be7668326ec5ed52671732f8565a16353#lib/sinatra" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "partial", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_sinatra_base", "semanticKey": "node:class:base.rb:Base", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "class", "name": "Base", "qualifiedName": "base.rb::Sinatra::Base", "locator": "workspace://base.rb#L971-L2076" },
+    { "id": "cititem_sinatra_application", "semanticKey": "node:class:base.rb:Application", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "class", "name": "Application", "qualifiedName": "base.rb::Sinatra::Application", "locator": "workspace://base.rb#L2085-L2096" },
+    { "id": "cititem_sinatra_dispatch", "semanticKey": "node:method:base.rb:Base:dispatch", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "dispatch", "qualifiedName": "base.rb::Sinatra::Base::dispatch", "locator": "workspace://base.rb#L1181-L1205" },
+    { "id": "cititem_sinatra_route", "semanticKey": "node:method:base.rb:Base:route", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "route", "qualifiedName": "base.rb::Sinatra::Base::route", "locator": "workspace://base.rb#L1064-L1086" },
+    { "id": "cititem_sinatra_defines_dispatch", "semanticKey": "edge:defines:Base:dispatch", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "class", "name": "Base", "qualifiedName": "base.rb::Sinatra::Base", "locator": "workspace://base.rb#L971-L2076" }, "to": { "kind": "method", "name": "dispatch", "qualifiedName": "base.rb::Sinatra::Base::dispatch", "locator": "workspace://base.rb#L1181-L1205" }, "locator": "workspace://base.rb#L1181-L1205", "resolution": "exact" },
+    { "id": "cititem_sinatra_application_extends_base", "semanticKey": "edge:extends:Application:Base", "capability": "heritage", "expectation": "present", "recordKind": "edge", "kind": "extends", "from": { "kind": "class", "name": "Application", "qualifiedName": "base.rb::Sinatra::Application", "locator": "workspace://base.rb#L2085-L2096" }, "to": { "kind": "class", "name": "Base", "qualifiedName": "base.rb::Sinatra::Base", "locator": "workspace://base.rb#L971-L2076" }, "locator": "workspace://base.rb#L2085-L2096", "resolution": "exact" },
+    { "id": "cititem_sinatra_call_route", "semanticKey": "edge:calls:Base.dispatch:Base.route", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "method", "name": "dispatch", "qualifiedName": "base.rb::Sinatra::Base::dispatch", "locator": "workspace://base.rb#L1181-L1205" }, "to": { "kind": "method", "name": "route", "qualifiedName": "base.rb::Sinatra::Base::route", "locator": "workspace://base.rb#L1064-L1086" }, "locator": "workspace://base.rb#L1195-L1195", "resolution": "typed" }
+  ],
+  "truthFingerprint": "sha256:6a06bb4490d9163a1e2f5bcfa7bf3184bf368c24e72bdcadf985f075f86f434c"
+}

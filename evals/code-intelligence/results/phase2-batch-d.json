@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-d-1",
   "phase": 2,
   "batch": "D",
-  "generatedAt": "2026-07-16T13:39:49.414Z",
+  "generatedAt": "2026-07-16T14:39:14.637Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -83,9 +83,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.258,
-        "secondElapsedMs": 8.377,
-        "evaluatorMaxRssKb": 58096,
+        "firstElapsedMs": 9.867,
+        "secondElapsedMs": 8.298,
+        "evaluatorMaxRssKb": 58384,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -249,9 +249,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.649,
-        "secondElapsedMs": 10.404,
-        "evaluatorMaxRssKb": 64896,
+        "firstElapsedMs": 9.819,
+        "secondElapsedMs": 9.794,
+        "evaluatorMaxRssKb": 65296,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -415,9 +415,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.125,
-        "secondElapsedMs": 9.471,
-        "evaluatorMaxRssKb": 65200,
+        "firstElapsedMs": 8.962,
+        "secondElapsedMs": 9.087,
+        "evaluatorMaxRssKb": 65648,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -581,9 +581,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.555,
-        "secondElapsedMs": 9.204,
-        "evaluatorMaxRssKb": 65408,
+        "firstElapsedMs": 9.215,
+        "secondElapsedMs": 8.754,
+        "evaluatorMaxRssKb": 65936,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -748,9 +748,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 21.644,
-        "secondElapsedMs": 21.121,
-        "evaluatorMaxRssKb": 70592,
+        "firstElapsedMs": 21.878,
+        "secondElapsedMs": 20.154,
+        "evaluatorMaxRssKb": 71136,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -896,7 +896,7 @@
       "commit": "4176aba5e4871a2f1c7c120dd76568f80f5d5ddc",
       "truthPath": "evals/code-intelligence/truth/repositories/c/cirepo_c_curl_curl.json",
       "graph": {
-        "fingerprint": "sha256:ee648c4e09e47328ec705e153322e87c3a6395289f3e0dc85150f4de0997e2aa",
+        "fingerprint": "sha256:0eb909644f744fe111f08f69ee09265223bd6f3b123bb875cdc9d1184413d5e0",
         "nodeCount": 5000,
         "edgeCount": 10000,
         "diagnosticCount": 115,
@@ -915,9 +915,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 5679.117,
-        "secondElapsedMs": 5573.878,
-        "evaluatorMaxRssKb": 169008,
+        "firstElapsedMs": 5421.167,
+        "secondElapsedMs": 5579.585,
+        "evaluatorMaxRssKb": 174416,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -927,8 +927,8 @@
         "language": "c",
         "sourceRef": "corpus://cirepo_c_curl_curl@4176aba5e4871a2f1c7c120dd76568f80f5d5ddc#lib",
         "graphFingerprints": [
-          "sha256:ee648c4e09e47328ec705e153322e87c3a6395289f3e0dc85150f4de0997e2aa",
-          "sha256:ee648c4e09e47328ec705e153322e87c3a6395289f3e0dc85150f4de0997e2aa"
+          "sha256:0eb909644f744fe111f08f69ee09265223bd6f3b123bb875cdc9d1184413d5e0",
+          "sha256:0eb909644f744fe111f08f69ee09265223bd6f3b123bb875cdc9d1184413d5e0"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1052,7 +1052,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:a0f74fff284b152413acc8e12b59077c8aa51763b3469725f4521a8e2c71d9ce"
+        "reportFingerprint": "sha256:0b390409fa5ea81b5a5048d57add695b79ecfd38bdee810ccd901158ff7bf2c1"
       }
     },
     {
@@ -1063,8 +1063,8 @@
       "commit": "2cadaa40167050baf7c6905ac897e6fb57afb2c6",
       "truthPath": "evals/code-intelligence/truth/repositories/c/cirepo_c_libuv_libuv.json",
       "graph": {
-        "fingerprint": "sha256:5c46f201cbc01e04505ce2df79511fbb1024ab7d48905061c762f580db6eabd8",
-        "nodeCount": 3829,
+        "fingerprint": "sha256:b506f7ea959e8d94546ecc8ddae1ceead6b5fd27f4db5444b27f8cc87e8c8712",
+        "nodeCount": 3833,
         "edgeCount": 10000,
         "diagnosticCount": 45,
         "coverage": [
@@ -1082,9 +1082,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 744.64,
-        "secondElapsedMs": 743.316,
-        "evaluatorMaxRssKb": 171776,
+        "firstElapsedMs": 728.643,
+        "secondElapsedMs": 716.799,
+        "evaluatorMaxRssKb": 174416,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1094,8 +1094,8 @@
         "language": "c",
         "sourceRef": "corpus://cirepo_c_libuv_libuv@2cadaa40167050baf7c6905ac897e6fb57afb2c6#src",
         "graphFingerprints": [
-          "sha256:5c46f201cbc01e04505ce2df79511fbb1024ab7d48905061c762f580db6eabd8",
-          "sha256:5c46f201cbc01e04505ce2df79511fbb1024ab7d48905061c762f580db6eabd8"
+          "sha256:b506f7ea959e8d94546ecc8ddae1ceead6b5fd27f4db5444b27f8cc87e8c8712",
+          "sha256:b506f7ea959e8d94546ecc8ddae1ceead6b5fd27f4db5444b27f8cc87e8c8712"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1219,7 +1219,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:e9b1488ecbbf85c04b03037eb9ba2eb5e3cde0d43fd48305d2fbbca6bb44fad1"
+        "reportFingerprint": "sha256:70aae2bbb3e88a5c9b3795c8c0f9ae9fe358d9e3acbea5c96728abf14bfed2fd"
       }
     },
     {
@@ -1230,9 +1230,9 @@
       "commit": "ae5d271da2c88b859d6365281ac075112115d4b1",
       "truthPath": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_catchorg_catch2.json",
       "graph": {
-        "fingerprint": "sha256:82da4bf51ed3a380c7420ba2b993fb5767b871ff4be6cc1598b216cd3ef00b76",
+        "fingerprint": "sha256:3d27903757a02fc240d0444f3e504c0f3a6ca3ecb3e2303fbf9f46afcd64ed78",
         "nodeCount": 5000,
-        "edgeCount": 7926,
+        "edgeCount": 7822,
         "diagnosticCount": 44,
         "coverage": [
           {
@@ -1249,9 +1249,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 976.247,
-        "secondElapsedMs": 972.952,
-        "evaluatorMaxRssKb": 173552,
+        "firstElapsedMs": 938.971,
+        "secondElapsedMs": 931.874,
+        "evaluatorMaxRssKb": 175200,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1261,8 +1261,8 @@
         "language": "cpp",
         "sourceRef": "corpus://cirepo_cpp_catchorg_catch2@ae5d271da2c88b859d6365281ac075112115d4b1#src/Catch2",
         "graphFingerprints": [
-          "sha256:82da4bf51ed3a380c7420ba2b993fb5767b871ff4be6cc1598b216cd3ef00b76",
-          "sha256:82da4bf51ed3a380c7420ba2b993fb5767b871ff4be6cc1598b216cd3ef00b76"
+          "sha256:3d27903757a02fc240d0444f3e504c0f3a6ca3ecb3e2303fbf9f46afcd64ed78",
+          "sha256:3d27903757a02fc240d0444f3e504c0f3a6ca3ecb3e2303fbf9f46afcd64ed78"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1386,7 +1386,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:c081bf165a340369f31513e65bb96f0f8cff52cf39f2aafdd6bbf5e78866459e"
+        "reportFingerprint": "sha256:8001eaf0c8f3d62f7e9b938f406269917d3e856d3de9702fed8b0628f5eaa109"
       }
     },
     {
@@ -1397,8 +1397,8 @@
       "commit": "a79df4504cd4e42ed004b1113fb82171e62ed822",
       "truthPath": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_fmtlib_fmt.json",
       "graph": {
-        "fingerprint": "sha256:6f0aed9135a3300a33cf20abf14634360895264769ae05f1b2f17fabc8523b9b",
-        "nodeCount": 108,
+        "fingerprint": "sha256:49fdb51ca01115305c31147f63738daec938b8880937ca1862e4a589102221f5",
+        "nodeCount": 109,
         "edgeCount": 231,
         "diagnosticCount": 4,
         "coverage": [
@@ -1416,9 +1416,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 23.004,
-        "secondElapsedMs": 21.984,
-        "evaluatorMaxRssKb": 173552,
+        "firstElapsedMs": 22.051,
+        "secondElapsedMs": 20.351,
+        "evaluatorMaxRssKb": 175200,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1428,8 +1428,8 @@
         "language": "cpp",
         "sourceRef": "corpus://cirepo_cpp_fmtlib_fmt@a79df4504cd4e42ed004b1113fb82171e62ed822#src",
         "graphFingerprints": [
-          "sha256:6f0aed9135a3300a33cf20abf14634360895264769ae05f1b2f17fabc8523b9b",
-          "sha256:6f0aed9135a3300a33cf20abf14634360895264769ae05f1b2f17fabc8523b9b"
+          "sha256:49fdb51ca01115305c31147f63738daec938b8880937ca1862e4a589102221f5",
+          "sha256:49fdb51ca01115305c31147f63738daec938b8880937ca1862e4a589102221f5"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1553,7 +1553,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:4615e01056fa6d546a08735a8a5a437a137aa4f3330c0da255d0d7977d332272"
+        "reportFingerprint": "sha256:4ba7afae87428b7abd3ff31a680c290797ef8001de152132e98e891f6a124c20"
       }
     },
     {
@@ -1564,9 +1564,9 @@
       "commit": "722c03495f9978eb727f480b6ea0742f652e06a9",
       "truthPath": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_nlohmann_json.json",
       "graph": {
-        "fingerprint": "sha256:f0a735c5e27da95af1d6b3da9a2a71cf72b18bd63395e68ee8f70dc22407f81b",
-        "nodeCount": 1185,
-        "edgeCount": 4662,
+        "fingerprint": "sha256:0c6a7589e445f2035f6a0dba8ae5fb732c44dc594d739153eb4755ebede9dc9c",
+        "nodeCount": 1220,
+        "edgeCount": 4661,
         "diagnosticCount": 39,
         "coverage": [
           {
@@ -1583,9 +1583,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 390.628,
-        "secondElapsedMs": 393.967,
-        "evaluatorMaxRssKb": 173552,
+        "firstElapsedMs": 375.077,
+        "secondElapsedMs": 376.564,
+        "evaluatorMaxRssKb": 175200,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1595,8 +1595,8 @@
         "language": "cpp",
         "sourceRef": "corpus://cirepo_cpp_nlohmann_json@722c03495f9978eb727f480b6ea0742f652e06a9#include/nlohmann/detail",
         "graphFingerprints": [
-          "sha256:f0a735c5e27da95af1d6b3da9a2a71cf72b18bd63395e68ee8f70dc22407f81b",
-          "sha256:f0a735c5e27da95af1d6b3da9a2a71cf72b18bd63395e68ee8f70dc22407f81b"
+          "sha256:0c6a7589e445f2035f6a0dba8ae5fb732c44dc594d739153eb4755ebede9dc9c",
+          "sha256:0c6a7589e445f2035f6a0dba8ae5fb732c44dc594d739153eb4755ebede9dc9c"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -1720,7 +1720,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:39aefc8a8c267dc31c9b70ea5560fd860dfb0205906204ea9ed8243538e37cb3"
+        "reportFingerprint": "sha256:d353290dbfa0b64ff7b5cd4956ea1ce75693eca258ce16fa2b93f372a989c61f"
       }
     },
     {
@@ -1750,9 +1750,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 186.344,
-        "secondElapsedMs": 185.781,
-        "evaluatorMaxRssKb": 173552,
+        "firstElapsedMs": 176.875,
+        "secondElapsedMs": 177.337,
+        "evaluatorMaxRssKb": 175200,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1917,9 +1917,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 741.403,
-        "secondElapsedMs": 751.676,
-        "evaluatorMaxRssKb": 175632,
+        "firstElapsedMs": 716.36,
+        "secondElapsedMs": 736.697,
+        "evaluatorMaxRssKb": 176112,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2084,9 +2084,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 24.086,
-        "secondElapsedMs": 24.094,
-        "evaluatorMaxRssKb": 175632,
+        "firstElapsedMs": 23.607,
+        "secondElapsedMs": 21.863,
+        "evaluatorMaxRssKb": 176752,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2251,9 +2251,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 50.202,
-        "secondElapsedMs": 50.205,
-        "evaluatorMaxRssKb": 175632,
+        "firstElapsedMs": 47.237,
+        "secondElapsedMs": 50.92,
+        "evaluatorMaxRssKb": 177648,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2418,9 +2418,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 19.541,
-        "secondElapsedMs": 18.655,
-        "evaluatorMaxRssKb": 175632,
+        "firstElapsedMs": 19.037,
+        "secondElapsedMs": 17.38,
+        "evaluatorMaxRssKb": 177648,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2585,9 +2585,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 34.526,
-        "secondElapsedMs": 33.458,
-        "evaluatorMaxRssKb": 175632,
+        "firstElapsedMs": 32.373,
+        "secondElapsedMs": 32.016,
+        "evaluatorMaxRssKb": 178144,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2857,5 +2857,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:8fa7beb6b5e5d10379b3cdc7bf547661768e6e5715f99ba7a485d0b8424b7b9e"
+  "reportFingerprint": "sha256:a29aa804839ce506897b2d4a16f7b08ec08f94662cc28dbfa0885225d22757d6"
 }

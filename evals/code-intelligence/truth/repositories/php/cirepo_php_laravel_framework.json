@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_php_laravel_framework",
+  "language": "php",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_php_laravel_framework@ee0296f03a02b8f890c6323f18bdf4669468c0c2#src/Illuminate/Routing" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "partial", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_laravel_router", "semanticKey": "node:class:Router.php:Router", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "class", "name": "Router", "qualifiedName": "Router.php::Illuminate.Routing::Router", "locator": "workspace://Router.php#L38-L1517" },
+    { "id": "cititem_laravel_dispatch", "semanticKey": "node:method:Router.php:Router:dispatch", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "dispatch", "qualifiedName": "Router.php::Illuminate.Routing::Router::dispatch", "locator": "workspace://Router.php#L749-L754" },
+    { "id": "cititem_laravel_dispatch_to_route", "semanticKey": "node:method:Router.php:Router:dispatchToRoute", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "dispatchToRoute", "qualifiedName": "Router.php::Illuminate.Routing::Router::dispatchToRoute", "locator": "workspace://Router.php#L762-L765" },
+    { "id": "cititem_laravel_run_route", "semanticKey": "node:method:Router.php:Router:runRoute", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "runRoute", "qualifiedName": "Router.php::Illuminate.Routing::Router::runRoute", "locator": "workspace://Router.php#L793-L802" },
+    { "id": "cititem_laravel_defines_dispatch", "semanticKey": "edge:defines:Router:dispatch", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "class", "name": "Router", "qualifiedName": "Router.php::Illuminate.Routing::Router", "locator": "workspace://Router.php#L38-L1517" }, "to": { "kind": "method", "name": "dispatch", "qualifiedName": "Router.php::Illuminate.Routing::Router::dispatch", "locator": "workspace://Router.php#L749-L754" }, "locator": "workspace://Router.php#L749-L754", "resolution": "exact" },
+    { "id": "cititem_laravel_implements_registrar", "semanticKey": "edge:implements:Router:RegistrarContract", "capability": "heritage", "expectation": "present", "recordKind": "edge", "kind": "implements", "from": { "kind": "class", "name": "Router", "qualifiedName": "Router.php::Illuminate.Routing::Router", "locator": "workspace://Router.php#L38-L1517" }, "to": { "kind": "interface", "name": "RegistrarContract", "qualifiedName": "Router.php::RegistrarContract", "locator": "workspace://Router.php#L38-L1517" }, "locator": "workspace://Router.php#L38-L1517", "resolution": "unresolved" },
+    { "id": "cititem_laravel_call_dispatch_to_route", "semanticKey": "edge:calls:Router.dispatch:Router.dispatchToRoute", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "method", "name": "dispatch", "qualifiedName": "Router.php::Illuminate.Routing::Router::dispatch", "locator": "workspace://Router.php#L749-L754" }, "to": { "kind": "method", "name": "dispatchToRoute", "qualifiedName": "Router.php::Illuminate.Routing::Router::dispatchToRoute", "locator": "workspace://Router.php#L762-L765" }, "locator": "workspace://Router.php#L753-L753", "resolution": "typed" }
+  ],
+  "truthFingerprint": "sha256:91a7179ccfe88766cb46491a9a366542a1731e8fc4e35126caf6b3599bcd5975"
+}

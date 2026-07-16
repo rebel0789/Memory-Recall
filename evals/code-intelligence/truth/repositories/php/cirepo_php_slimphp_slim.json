@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "truthVersion": "memory-recall-code-intelligence-truth-1",
+  "id": "citruth_php_slimphp_slim",
+  "language": "php",
+  "source": { "class": "real-repo", "ref": "corpus://cirepo_php_slimphp_slim@80900fb39cafce3ae53b18a2c4f642a122f03095#Slim" },
+  "review": { "status": "reviewed", "method": "source-locator", "reviewedBy": "memory-recall-maintainer", "reviewedAt": "2026-07-16T00:00:00.000Z" },
+  "reviewCoverage": { "declarations": "sampled", "relationships": "sampled", "calls": "sampled" },
+  "capabilityClaims": { "parse": "partial", "structure": "partial", "imports": "unmeasured", "exports": "unmeasured", "heritage": "partial", "types": "partial", "calls": "partial", "config": "unmeasured", "frameworks": "unmeasured", "impact": "unmeasured", "processes": "unmeasured" },
+  "items": [
+    { "id": "cititem_slim_route", "semanticKey": "node:class:Routing/Route.php:Route", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "class", "name": "Route", "qualifiedName": "Routing/Route.php::Slim.Routing::Route", "locator": "workspace://Routing/Route.php#L40-L364" },
+    { "id": "cititem_slim_prepare", "semanticKey": "node:method:Routing/Route.php:Route:prepare", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "prepare", "qualifiedName": "Routing/Route.php::Slim.Routing::Route::prepare", "locator": "workspace://Routing/Route.php#L293-L297" },
+    { "id": "cititem_slim_run", "semanticKey": "node:method:Routing/Route.php:Route:run", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "run", "qualifiedName": "Routing/Route.php::Slim.Routing::Route::run", "locator": "workspace://Routing/Route.php#L315-L322" },
+    { "id": "cititem_slim_handle", "semanticKey": "node:method:Routing/Route.php:Route:handle", "capability": "structure", "expectation": "present", "recordKind": "node", "kind": "method", "name": "handle", "qualifiedName": "Routing/Route.php::Slim.Routing::Route::handle", "locator": "workspace://Routing/Route.php#L342-L363" },
+    { "id": "cititem_slim_defines_run", "semanticKey": "edge:defines:Route:run", "capability": "structure", "expectation": "present", "recordKind": "edge", "kind": "defines", "from": { "kind": "class", "name": "Route", "qualifiedName": "Routing/Route.php::Slim.Routing::Route", "locator": "workspace://Routing/Route.php#L40-L364" }, "to": { "kind": "method", "name": "run", "qualifiedName": "Routing/Route.php::Slim.Routing::Route::run", "locator": "workspace://Routing/Route.php#L315-L322" }, "locator": "workspace://Routing/Route.php#L315-L322", "resolution": "exact" },
+    { "id": "cititem_slim_implements_route_interface", "semanticKey": "edge:implements:Route:RouteInterface", "capability": "heritage", "expectation": "present", "recordKind": "edge", "kind": "implements", "from": { "kind": "class", "name": "Route", "qualifiedName": "Routing/Route.php::Slim.Routing::Route", "locator": "workspace://Routing/Route.php#L40-L364" }, "to": { "kind": "interface", "name": "RouteInterface", "qualifiedName": "Interfaces/RouteInterface.php::Slim.Interfaces::RouteInterface", "locator": "workspace://Interfaces/RouteInterface.php#L18-L128" }, "locator": "workspace://Routing/Route.php#L40-L364", "resolution": "exact" },
+    { "id": "cititem_slim_call_append_group", "semanticKey": "edge:calls:Route.run:appendGroupMiddlewareToRoute", "capability": "calls", "expectation": "present", "recordKind": "edge", "kind": "calls", "from": { "kind": "method", "name": "run", "qualifiedName": "Routing/Route.php::Slim.Routing::Route::run", "locator": "workspace://Routing/Route.php#L315-L322" }, "to": { "kind": "method", "name": "appendGroupMiddlewareToRoute", "qualifiedName": "Routing/Route.php::Slim.Routing::Route::appendGroupMiddlewareToRoute", "locator": "workspace://Routing/Route.php#L327-L337" }, "locator": "workspace://Routing/Route.php#L318-L318", "resolution": "typed" }
+  ],
+  "truthFingerprint": "sha256:701a4425fee1466853cedf3a600b998d01ed5e11701e7c86c2db06367f064c25"
+}
