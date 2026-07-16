@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "project": "memory-recall",
-  "generatedAt": "2026-07-16T08:14:00.876Z",
+  "generatedAt": "2026-07-16T08:15:48.717Z",
   "fileCount": 965,
   "totalBytes": 6914415,
   "exclusions": [
@@ -2473,7 +2473,7 @@
     {
       "path": "HANDOFF_VERIFICATION.json",
       "bytes": 967,
-      "sha256": "8f6ee74b118ec1f33ad43434d0917aa2c45232b9366ad4c8ebc0344c889fc5ab"
+      "sha256": "e971ab301861eda312a12b329b81555e4f19f438ef1746da7502ec26a4291b76"
     },
     {
       "path": "LICENSE",

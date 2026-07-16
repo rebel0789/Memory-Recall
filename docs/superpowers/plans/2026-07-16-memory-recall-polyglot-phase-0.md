@@ -527,14 +527,14 @@ git status --short
 
 Expected: every command passes. `git status --short` lists only the intended Phase 0 status, changelog, support-page, and checked-plan changes before the final commit.
 
-- [ ] **Step 5: Commit Phase 0 closure**
+- [x] **Step 5: Commit Phase 0 closure**
 
 ```bash
 git add PROJECT_STATUS.json CHANGELOG.md docs/usage/code-intelligence-support.md docs/superpowers/plans/2026-07-16-memory-recall-polyglot-phase-0.md HANDOFF_VERIFICATION.json REPOSITORY_MANIFEST.json docs/release
 git commit -m "docs: close polyglot phase zero"
 ```
 
-- [ ] **Step 6: Verify the clean milestone boundary**
+- [x] **Step 6: Verify the clean milestone boundary**
 
 Run: `git status --short --branch && git log -6 --oneline`
 
