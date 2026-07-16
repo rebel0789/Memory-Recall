@@ -83,19 +83,19 @@ Commit: `feat: define sqlite source index contract`
 - Modify: `rust/Cargo.lock`
 - Add focused crate tests
 
-- [ ] **Step 1: Write failing creation, identity, and migration tests**
+- [x] **Step 1: Write failing creation, identity, and migration tests**
 
 Prove secure parent/file permissions where supported, WAL and foreign-key settings, workspace identity binding, migration checksums, current/previous schema handling, and refusal of unknown newer schemas.
 
-- [ ] **Step 2: Implement the schema and transactional migration runner**
+- [x] **Step 2: Implement the schema and transactional migration runner**
 
 Use bundled `rusqlite`. Apply ordered checksum-pinned migrations inside an exclusive transaction. Opening read-only never migrates or creates files.
 
-- [ ] **Step 3: Implement health and integrity inspection**
+- [x] **Step 3: Implement health and integrity inspection**
 
 Return stable health codes for absent, ready, stale, migration-required, interrupted, corrupt, wrong-repository, and unsupported-newer-schema states. Sanitize SQLite details.
 
-- [ ] **Step 4: Prove interruption and corruption behavior**
+- [x] **Step 4: Prove interruption and corruption behavior**
 
 Kill a writer before commit, corrupt a copy, and inject a partial generation. The active generation must remain valid or doctor must fail closed without deleting anything.
 

@@ -121,6 +121,8 @@
     "rust/oaf-ingest/src/",
     "rust/oaf-store/Cargo.toml",
     "rust/oaf-store/src/",
+    "rust/oaf-index/Cargo.toml",
+    "rust/oaf-index/src/",
     "rust/oaf/Cargo.toml",
     "rust/oaf/src/",
     "scripts/",

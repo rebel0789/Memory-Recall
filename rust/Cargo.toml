@@ -1,5 +1,5 @@
 [workspace]
-members = ["oaf-store", "oaf-ingest", "oaf"]
+members = ["oaf-store", "oaf-ingest", "oaf-index", "oaf"]
 resolver = "2"
 
 [workspace.package]

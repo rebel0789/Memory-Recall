@@ -623,6 +623,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "oaf-index"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hex",
+ "rusqlite",
+ "sha2",
+ "tempfile",
+]
+
+[[package]]
 name = "oaf-ingest"
 version = "0.1.0"
 dependencies = [
