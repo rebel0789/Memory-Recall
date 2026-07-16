@@ -153,16 +153,29 @@ async function runCase(definition, provider, lower) {
       nodeCount: first.nodes.length,
       edgeCount: first.edges.length,
       diagnosticCount: first.diagnostics.length,
+      diagnostics: summarizeDiagnostics(first.diagnostics),
       coverage: first.coverage
     },
     measurements: {
       firstElapsedMs: round(firstElapsedMs),
       secondElapsedMs: round(secondElapsedMs),
       evaluatorMaxRssKb: Math.max(rssBefore, process.resourceUsage().maxRSS),
+      graphResponseBytes: Buffer.byteLength(JSON.stringify(first)),
       workspaceFingerprintUnchanged: true
     },
     report: evaluation
   };
+}
+
+function summarizeDiagnostics(diagnostics) {
+  const counts = new Map();
+  for (const diagnostic of diagnostics) {
+    const count = Number.isInteger(diagnostic.count) && diagnostic.count > 0 ? diagnostic.count : 1;
+    counts.set(diagnostic.code, (counts.get(diagnostic.code) ?? 0) + count);
+  }
+  return [...counts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([code, count]) => ({ code, count }));
 }
 
 function aggregateLanguage(language, cases, gates) {

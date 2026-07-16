@@ -7,6 +7,8 @@
 - Approved the Rust/Node production-engine boundary, added provider-neutral graph and language-evidence contracts, pinned a 42-repository Tier 1 benchmark corpus, and recorded a clean Phase 0 baseline. The baseline makes no competitor-parity claim.
 - Added explicit `native-preview` and `compatibility` modes to graph read commands through a versioned, bounded Rust provider. The JS engine remains the default, and MCP remains on that default.
 - Added isolated packed-package proof and a reproducible Phase 1 compatibility receipt across JS/TS fixtures and two exact-commit repositories. The receipt records current import and call gaps and makes no accuracy, parity, or leadership claim.
+- Added PHP and Ruby native-preview structure, namespaces, traits and mixins, typed calls, imports, and framework-route evidence, completing the five planned Tier 1 language batches.
+- Added a deterministic Phase 2 aggregate over 14 fixtures and all 42 pinned Tier 1 repositories, with per-capability worst-case status, response bytes, resource measurements, and explicit node and edge budget diagnostics.
 
 ### Fixed
 
@@ -17,6 +19,8 @@
 ### Changed
 
 - Token Saver and handoff measurement reuse the already-built context pack for their real MCP stdio readback, avoiding a second repository scan while preserving fingerprint verification.
+- Tier 1 documentation now names the 46 capability rows that meet the sampled Phase 2 floor and the 108 rows that remain unmeasured or not applicable. Every language remains overall unmeasured, the JS engine remains the public default, and no competitor, parity, leadership, multi-repository, or scale claim is made.
+- The npm package excludes checkout-only Tier 1 audit scripts and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
 
 ## [1.1.0] — 2026-07-15
 

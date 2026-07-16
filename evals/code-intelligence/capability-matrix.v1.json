@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-16T00:00:00.000Z",
+  "generatedAt": "2026-07-16T15:05:05.023Z",
   "languages": [
     {
       "id": "typescript",
@@ -11,20 +11,7 @@
       "capabilities": {
         "parse": {
           "productStatus": "implemented",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "implementation",
-              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
-            }
-          ],
-          "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
-          ]
-        },
-        "structure": {
-          "productStatus": "implemented",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -32,11 +19,60 @@
             },
             {
               "class": "benchmark",
-              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json"
             }
           ],
           "limitations": [
-            "The public Node path is implemented. Phase 1 measures native-preview structure compatibility, but not ground-truth accuracy."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+          ]
+        },
+        "structure": {
+          "productStatus": "implemented",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json"
+            }
+          ],
+          "limitations": [
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -49,11 +85,19 @@
             },
             {
               "class": "benchmark",
-              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json"
             }
           ],
           "limitations": [
-            "The public Node path is implemented. Phase 1 records native-preview import gaps, so the accuracy floor remains unmeasured."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -63,10 +107,22 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "heritage": {
@@ -79,7 +135,7 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "types": {
@@ -89,15 +145,31 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "calls": {
           "productStatus": "implemented",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -105,11 +177,27 @@
             },
             {
               "class": "benchmark",
-              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json"
             }
           ],
           "limitations": [
-            "The public Node path is implemented. Phase 1 records native-preview call gaps, so the accuracy floor remains unmeasured."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -122,7 +210,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "frameworks": {
@@ -135,7 +223,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "impact": {
@@ -148,7 +236,7 @@
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -161,12 +249,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "The bounded Node.js path remains the public default; the native engine is explicit preview-only and has not passed the published accuracy floor."
+        "Phase 2 native-preview evidence meets 3 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -177,20 +265,40 @@
       "capabilities": {
         "parse": {
           "productStatus": "implemented",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/javascript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "implemented",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -198,16 +306,32 @@
             },
             {
               "class": "benchmark",
-              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/javascript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json"
             }
           ],
           "limitations": [
-            "The public Node path is implemented. Phase 1 measures native-preview structure compatibility, but not ground-truth accuracy."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
           "productStatus": "implemented",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -215,11 +339,27 @@
             },
             {
               "class": "benchmark",
-              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/javascript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json"
             }
           ],
           "limitations": [
-            "The public Node path is implemented. Phase 1 records native-preview import gaps, so the accuracy floor remains unmeasured."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "exports": {
@@ -229,10 +369,22 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/javascript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "heritage": {
@@ -245,7 +397,7 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "types": {
@@ -255,15 +407,19 @@
             {
               "class": "implementation",
               "path": "providers/native/context-candidate-ast-code/src/index.mjs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "calls": {
           "productStatus": "implemented",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
@@ -271,11 +427,27 @@
             },
             {
               "class": "benchmark",
-              "path": "evals/code-intelligence/results/phase1-js-ts-compatibility.json"
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/javascript.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json"
             }
           ],
           "limitations": [
-            "The public Node path is implemented. Phase 1 records native-preview call gaps, so the accuracy floor remains unmeasured."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -288,7 +460,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "frameworks": {
@@ -301,7 +473,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "impact": {
@@ -314,7 +486,7 @@
             }
           ],
           "limitations": [
-            "Public behavior is bounded and remains unmeasured against the Phase 0 accuracy floors."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -327,12 +499,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "The bounded Node.js path remains the public default; the native engine is explicit preview-only and has not passed the published accuracy floor."
+        "Phase 2 native-preview evidence meets 4 capability floors; 2 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -343,28 +515,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/python.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/python.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -374,10 +586,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/python.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -390,20 +610,36 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/python.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -413,36 +649,72 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/python.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "calls": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/python.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "frameworks": {
@@ -452,10 +724,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/python.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -468,7 +748,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -481,12 +761,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 3 capability floors; 5 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -497,28 +777,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/java.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/java.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -528,10 +848,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/java.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -544,20 +872,28 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/java.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -567,23 +903,51 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/java.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "calls": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/java.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_gson.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_google_guava.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -596,20 +960,32 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/java.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/java/cirepo_java_spring_projects_spring_petclinic.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -622,7 +998,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -635,12 +1011,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -651,28 +1027,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/kotlin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/kotlin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -682,10 +1098,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/kotlin.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -698,20 +1122,28 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/kotlin.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -721,10 +1153,22 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/kotlin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_android_nowinandroid.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "calls": {
@@ -734,10 +1178,26 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/kotlin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_kotlin_kotlinx_coroutines.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/kotlin/cirepo_kotlin_ktorio_ktor.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "config": {
@@ -750,20 +1210,28 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/kotlin.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -776,7 +1244,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -789,12 +1257,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 2 capability floors; 5 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -805,28 +1273,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/csharp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/csharp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -836,10 +1344,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/csharp.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -852,20 +1368,28 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/csharp.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "types": {
@@ -875,23 +1399,47 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "calls": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/csharp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_aspnetcore.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_dotnet_runtime.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/csharp/cirepo_csharp_jamesnk_newtonsoft_json.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -904,20 +1452,28 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/csharp.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -930,7 +1486,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -943,12 +1499,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -959,28 +1515,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/go.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/go.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -990,10 +1586,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/go.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1006,7 +1610,7 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
@@ -1019,59 +1623,103 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "types": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "calls": {
           "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
-              "class": "implementation",
-              "path": "rust/oaf-ingest/src/lib.rs"
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/go.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/go.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_gin_gonic_gin.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_hashicorp_go_multierror.json"
+            }
+          ],
+          "limitations": [
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/go.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/go/cirepo_go_go_chi_chi.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1084,7 +1732,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -1097,12 +1745,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1113,28 +1761,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/rust.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/rust.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1144,10 +1832,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/rust.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1160,72 +1856,136 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "types": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "calls": {
           "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
-              "class": "implementation",
-              "path": "rust/oaf-ingest/src/lib.rs"
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/rust.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+          ]
+        },
+        "types": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/rust.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json"
+            }
+          ],
+          "limitations": [
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/rust.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_dtolnay_itoa.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_serde_rs_json.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/rust/cirepo_rust_tokio_rs_axum.json"
+            }
+          ],
+          "limitations": [
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/rust.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1238,7 +1998,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -1251,12 +2011,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 4 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1267,28 +2027,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/php.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_laravel_framework.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_slimphp_slim.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_symfony_symfony.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/php.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_laravel_framework.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_slimphp_slim.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_symfony_symfony.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1298,10 +2098,14 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1314,46 +2118,94 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/php.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_laravel_framework.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_slimphp_slim.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_symfony_symfony.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "types": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "calls": {
           "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
-              "class": "implementation",
-              "path": "rust/oaf-ingest/src/lib.rs"
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/php.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/php.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_laravel_framework.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_slimphp_slim.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/php/cirepo_php_symfony_symfony.json"
+            }
+          ],
+          "limitations": [
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -1366,20 +2218,28 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/php.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1392,7 +2252,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -1405,12 +2265,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 4 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1421,28 +2281,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/ruby.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_rails_rails.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_ruby_rake.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_sinatra_sinatra.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/ruby.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_rails_rails.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_ruby_rake.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_sinatra_sinatra.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1452,10 +2352,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/ruby.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1468,46 +2376,90 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "types": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "calls": {
           "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
-              "class": "implementation",
-              "path": "rust/oaf-ingest/src/lib.rs"
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/ruby.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_sinatra_sinatra.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+          ]
+        },
+        "types": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/ruby.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_ruby_rake.json"
+            }
+          ],
+          "limitations": [
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/ruby.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_rails_rails.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_ruby_rake.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/ruby/cirepo_ruby_sinatra_sinatra.json"
+            }
+          ],
+          "limitations": [
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
@@ -1520,20 +2472,28 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/ruby.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1546,7 +2506,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -1559,12 +2519,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1575,28 +2535,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/swift.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_apple_swift_nio.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_vapor_vapor.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/swift.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_apple_swift_nio.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_vapor_vapor.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1606,10 +2606,26 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/swift.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_vapor_vapor.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1622,33 +2638,73 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/swift.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_apple_swift_nio.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_vapor_vapor.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "types": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/swift.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_alamofire_alamofire.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_apple_swift_nio.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/swift/cirepo_swift_vapor_vapor.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "calls": {
@@ -1658,10 +2714,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/swift.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "config": {
@@ -1674,20 +2738,28 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/swift.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -1700,7 +2772,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -1713,12 +2785,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 4 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1729,28 +2801,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/c.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_antirez_kilo.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_curl_curl.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_libuv_libuv.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/c.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_antirez_kilo.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_curl_curl.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_libuv_libuv.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1760,10 +2872,18 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/c.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1776,7 +2896,7 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
@@ -1789,46 +2909,82 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "types": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "calls": {
           "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
-              "class": "implementation",
-              "path": "rust/oaf-ingest/src/lib.rs"
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_libuv_libuv.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/c.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_antirez_kilo.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_curl_curl.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/c/cirepo_c_libuv_libuv.json"
+            }
+          ],
+          "limitations": [
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/c.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "frameworks": {
@@ -1841,7 +2997,7 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "impact": {
@@ -1854,7 +3010,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -1867,12 +3023,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 3 capability floors; 3 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -1883,28 +3039,68 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/cpp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_catchorg_catch2.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_fmtlib_fmt.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_nlohmann_json.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/cpp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_catchorg_catch2.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_fmtlib_fmt.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_nlohmann_json.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
@@ -1914,10 +3110,22 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/cpp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_fmtlib_fmt.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "exports": {
@@ -1930,59 +3138,111 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "types": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
-          "evidence": [
-            {
-              "class": "documentation",
-              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
-            }
-          ],
-          "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
-          ]
-        },
-        "calls": {
           "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
-              "class": "implementation",
-              "path": "rust/oaf-ingest/src/lib.rs"
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/cpp.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
-        "config": {
-          "productStatus": "specified",
+        "types": {
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/cpp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_catchorg_catch2.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_nlohmann_json.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+          ]
+        },
+        "calls": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
+          "evidence": [
+            {
+              "class": "implementation",
+              "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/cpp.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_catchorg_catch2.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_fmtlib_fmt.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/cpp/cirepo_cpp_nlohmann_json.json"
+            }
+          ],
+          "limitations": [
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
+          ]
+        },
+        "config": {
+          "productStatus": "experimental",
+          "benchmarkStatus": "unmeasured",
+          "evidence": [
+            {
+              "class": "documentation",
+              "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/cpp.json"
+            }
+          ],
+          "limitations": [
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "frameworks": {
@@ -1995,7 +3255,7 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "impact": {
@@ -2008,7 +3268,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -2021,12 +3281,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 3 capability floors; 4 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {
@@ -2037,80 +3297,180 @@
       "capabilities": {
         "parse": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "structure": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "imports": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "exports": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "heritage": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "types": {
-          "productStatus": "specified",
-          "benchmarkStatus": "unmeasured",
+          "productStatus": "experimental",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "calls": {
@@ -2120,36 +3480,72 @@
             {
               "class": "implementation",
               "path": "rust/oaf-ingest/src/lib.rs"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_http.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_dart_lang_shelf.json"
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "config": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "frameworks": {
-          "productStatus": "specified",
+          "productStatus": "experimental",
           "benchmarkStatus": "unmeasured",
           "evidence": [
             {
               "class": "documentation",
               "path": "docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md"
+            },
+            {
+              "class": "benchmark",
+              "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/dart.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/dart/cirepo_dart_flutter_samples.json"
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
           ]
         },
         "impact": {
@@ -2162,7 +3558,7 @@
             }
           ],
           "limitations": [
-            "Behavior exists only on the unbundled Rust path and is not a public package promise."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         },
         "processes": {
@@ -2175,12 +3571,12 @@
             }
           ],
           "limitations": [
-            "The target contract is written, but no qualifying production implementation is claimed."
+            "Phase 2 did not measure this capability; no accuracy claim is made."
           ]
         }
       },
       "limitations": [
-        "Current code intelligence is Rust-only, unbundled, and unmeasured."
+        "Phase 2 native-preview evidence meets 4 capability floors; 5 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {

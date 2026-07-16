@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-e-1",
   "phase": 2,
   "batch": "E",
-  "generatedAt": "2026-07-16T14:35:00.011Z",
+  "generatedAt": "2026-07-16T15:01:06.305Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -54,6 +54,7 @@
         "nodeCount": 42,
         "edgeCount": 42,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "php",
@@ -69,9 +70,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.329,
-        "secondElapsedMs": 11.211,
-        "evaluatorMaxRssKb": 61888,
+        "firstElapsedMs": 12.688,
+        "secondElapsedMs": 10.867,
+        "evaluatorMaxRssKb": 60752,
+        "graphResponseBytes": 39731,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -220,6 +222,7 @@
         "nodeCount": 28,
         "edgeCount": 30,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "ruby",
@@ -235,9 +238,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.224,
-        "secondElapsedMs": 9.548,
-        "evaluatorMaxRssKb": 65344,
+        "firstElapsedMs": 10.096,
+        "secondElapsedMs": 9.536,
+        "evaluatorMaxRssKb": 64688,
+        "graphResponseBytes": 27582,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -387,6 +391,7 @@
         "nodeCount": 1659,
         "edgeCount": 2811,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "php",
@@ -402,9 +407,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 224.632,
-        "secondElapsedMs": 220.971,
-        "evaluatorMaxRssKb": 101008,
+        "firstElapsedMs": 219.098,
+        "secondElapsedMs": 222.75,
+        "evaluatorMaxRssKb": 97456,
+        "graphResponseBytes": 2153316,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -554,6 +560,7 @@
         "nodeCount": 954,
         "edgeCount": 1498,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "php",
@@ -569,9 +576,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 115.152,
-        "secondElapsedMs": 117.807,
-        "evaluatorMaxRssKb": 122352,
+        "firstElapsedMs": 116.385,
+        "secondElapsedMs": 117.011,
+        "evaluatorMaxRssKb": 119152,
+        "graphResponseBytes": 1209103,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -721,6 +729,7 @@
         "nodeCount": 2961,
         "edgeCount": 8888,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "php",
@@ -736,9 +745,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 888.64,
-        "secondElapsedMs": 848.307,
-        "evaluatorMaxRssKb": 174208,
+        "firstElapsedMs": 853.325,
+        "secondElapsedMs": 853.263,
+        "evaluatorMaxRssKb": 168592,
+        "graphResponseBytes": 6195118,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -888,6 +898,7 @@
         "nodeCount": 791,
         "edgeCount": 1798,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "ruby",
@@ -903,9 +914,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 115.318,
-        "secondElapsedMs": 129.905,
-        "evaluatorMaxRssKb": 174208,
+        "firstElapsedMs": 116.619,
+        "secondElapsedMs": 117.958,
+        "evaluatorMaxRssKb": 168592,
+        "graphResponseBytes": 1250384,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1055,6 +1067,7 @@
         "nodeCount": 894,
         "edgeCount": 1558,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "ruby",
@@ -1070,9 +1083,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 103.823,
-        "secondElapsedMs": 101.947,
-        "evaluatorMaxRssKb": 174208,
+        "firstElapsedMs": 111.047,
+        "secondElapsedMs": 109.962,
+        "evaluatorMaxRssKb": 168592,
+        "graphResponseBytes": 1142095,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1222,6 +1236,7 @@
         "nodeCount": 477,
         "edgeCount": 1172,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "ruby",
@@ -1237,9 +1252,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 71.543,
-        "secondElapsedMs": 70.828,
-        "evaluatorMaxRssKb": 174208,
+        "firstElapsedMs": 75.872,
+        "secondElapsedMs": 72.178,
+        "evaluatorMaxRssKb": 168592,
+        "graphResponseBytes": 779558,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1455,5 +1471,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:725ce459ba96fa0868a23f9fbfbc3f9a97c3101f1adcf406c7b1be7a16fb3f5d"
+  "reportFingerprint": "sha256:0501459b646b62a1788f2bdd072b16c484d5f4e3976513aecda98ddd7ec45a00"
 }

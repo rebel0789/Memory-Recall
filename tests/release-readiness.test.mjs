@@ -125,6 +125,7 @@ test('npm package contains the runtime contract without checkout-only test weigh
   assert.equal(paths.includes('scripts/code-intelligence-batch-d.mjs'), false);
   assert.equal(paths.includes('scripts/code-intelligence-batch-e.mjs'), false);
   assert.equal(paths.includes('scripts/code-intelligence-language-batch.mjs'), false);
+  assert.equal(paths.includes('scripts/code-intelligence-phase2-tier1.mjs'), false);
   assert.equal(paths.includes('evals/code-intelligence/capability-matrix.v1.json'), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('tests/')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);

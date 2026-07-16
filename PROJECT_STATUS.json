@@ -1082,19 +1082,28 @@
         "evals/code-intelligence/benchmark-gates.v1.json",
         "evals/code-intelligence/results/phase0-baseline.json",
         "evals/code-intelligence/results/phase1-js-ts-compatibility.json",
+        "evals/code-intelligence/results/phase2-batch-a.json",
+        "evals/code-intelligence/results/phase2-batch-b.json",
+        "evals/code-intelligence/results/phase2-batch-c.json",
+        "evals/code-intelligence/results/phase2-batch-d.json",
+        "evals/code-intelligence/results/phase2-batch-e.json",
+        "evals/code-intelligence/results/phase2-tier1-summary.json",
         "providers/native/code-intelligence-rust/src/index.mjs",
         "packages/source-graph/src/native-compatibility.mjs",
         "scripts/code-intelligence-phase1-compatibility.mjs",
+        "scripts/code-intelligence-phase2-tier1.mjs",
         "tests/code-intelligence-contract.test.mjs",
+        "tests/code-intelligence-tier1.test.mjs",
         "tests/native-code-intelligence-provider.test.mjs",
         "tests/source-graph-native-compatibility.test.mjs"
       ],
       "limitations": [
         "The public default remains bounded JavaScript and TypeScript static analysis.",
         "The Rust engine is available only through explicit graph CLI preview modes after a local build; npm does not ship its binary, and MCP and web do not select it.",
-        "Pinned JS/TS compatibility evidence records unresolved native import and call gaps, so the published accuracy floor remains unmeasured.",
+        "Phase 2 covers 14 fixtures and all 42 pinned Tier 1 repositories; 46 capability rows meet the sampled floor, while 108 rows remain unmeasured or not applicable and every language remains overall unmeasured.",
+        "Six bounded repository scopes report explicit node or edge omissions; their available evidence is partial and no scale claim is made.",
         "GitNexus and Codebase Memory MCP remain unmeasured on the pinned corpus.",
-        "Phase 1 proves the provider boundary, failure isolation, package contract, and deterministic compatibility measurement only; it makes no parity or leadership claim."
+        "Phase 2 does not promote the runtime default, bundle a native binary, move MCP or web, or make a parity or leadership claim."
       ]
     }
   ],
@@ -1125,9 +1134,15 @@
       "node scripts/code-intelligence-phase0-baseline.mjs --out evals/code-intelligence/results/phase0-baseline.json",
       "node scripts/rust-code-intelligence-protocol-quality.mjs",
       "node scripts/native-code-intelligence-consumer-smoke.mjs",
-      "node scripts/code-intelligence-phase1-compatibility.mjs --check"
+      "node scripts/code-intelligence-phase1-compatibility.mjs --check",
+      "node scripts/code-intelligence-batch-a.mjs --check",
+      "node scripts/code-intelligence-batch-b.mjs --check",
+      "node scripts/code-intelligence-batch-c.mjs --check",
+      "node scripts/code-intelligence-batch-d.mjs --check",
+      "node scripts/code-intelligence-batch-e.mjs --check",
+      "node scripts/code-intelligence-phase2-tier1.mjs --check"
     ],
-    "testsExpected": 753,
+    "testsExpected": 755,
     "protocolFixturesExpected": 195,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

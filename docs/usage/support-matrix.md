@@ -37,8 +37,8 @@ reversal path.
 | Claude Code resource bridge | `recall connect claude-code --dry-run --format json`, then `--yes` | Same narrow connect-owned writer and backup behavior | Same three connect-owned hook events | Resources only; no MCP graph tools | Implemented |
 | OpenCode, OpenClaw, Gemini CLI, Zed, Aider, Goose, VS Code, Cline, Roo, Windsurf, Generic MCP | `recall harness setup plan --client <client> --server oaf --dry-run --format json`, then copy the shown snippet yourself | Preview and manual snippet only; `harness setup` never writes config | No writer; use the read-only MCP server manually if the client supports it | No installer-backed graph-tool proof for each client | Experimental |
 | Other clients or marketplaces | None | No installer or runtime proof | None | None | Unsupported |
-| Local Rust graph preview | Build locally, set `MEMORY_RECALL_NATIVE_BINARY`, then add `--engine native-preview` to a graph read command | No client config writer | None | Explicit JS/TS native preview; npm ships source, not a binary; JS remains the default | Experimental |
-| Non-JS/TS source graph analysis | None | None | None | No static graph coverage beyond `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, and `.tsx` | Unsupported |
+| Local Rust graph preview | Build locally, set `MEMORY_RECALL_NATIVE_BINARY`, then add `--engine native-preview` to a graph read command | No client config writer | None | Explicit bounded preview for the 14 Tier 1 languages; 46 capability rows meet the sampled Phase 2 floor, while every language retains applicable unmeasured rows; npm ships source, not a binary; JS remains the default | Experimental |
+| Tier 2 and other source graph analysis | None | None | None | Lua, Bash, SQL, Objective-C, Scala, R, Julia, Zig, and languages outside Tier 1 have no promoted static graph support | Unsupported |
 | Automatic transcript capture, write-capable MCP, hosted sync | None | None | None | None | Unsupported |
 
 ## Graph boundary
@@ -56,9 +56,11 @@ current index and falls back to a fresh bounded scan when it is stale.
 
 `recall graph stats`, `search`, `trace`, `dependencies`, `routes`, and `impact`
 also accept `--engine native-preview` or `--engine compatibility` after a local
-Rust build. These modes are read-only and explicit. Current pinned-repository
-evidence records native import and call gaps, so neither mode changes the
-public default or expands the supported language list.
+Rust build. Native preview can parse the 14 Tier 1 languages. The Phase 2 audit
+covers one fixture and three pinned repositories per language, but it promotes
+only the 46 capability rows with qualifying evidence. Every language still has
+applicable unmeasured rows. These modes are read-only and explicit; neither
+changes the public default or creates an installer-backed polyglot promise.
 
 ## Config and data boundary
 

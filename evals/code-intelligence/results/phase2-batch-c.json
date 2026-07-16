@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-c-1",
   "phase": 2,
   "batch": "C",
-  "generatedAt": "2026-07-16T13:41:13.113Z",
+  "generatedAt": "2026-07-16T15:00:42.899Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -61,6 +61,7 @@
         "nodeCount": 24,
         "edgeCount": 31,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "java",
@@ -76,9 +77,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 12.945,
-        "secondElapsedMs": 11.111,
-        "evaluatorMaxRssKb": 60480,
+        "firstElapsedMs": 12.163,
+        "secondElapsedMs": 10.782,
+        "evaluatorMaxRssKb": 60352,
+        "graphResponseBytes": 28741,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -227,6 +229,7 @@
         "nodeCount": 22,
         "edgeCount": 30,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "kotlin",
@@ -242,9 +245,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.886,
-        "secondElapsedMs": 10.528,
-        "evaluatorMaxRssKb": 65456,
+        "firstElapsedMs": 10.683,
+        "secondElapsedMs": 10.151,
+        "evaluatorMaxRssKb": 64992,
+        "graphResponseBytes": 27219,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -393,6 +397,7 @@
         "nodeCount": 32,
         "edgeCount": 37,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "csharp",
@@ -408,9 +413,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.737,
-        "secondElapsedMs": 9.776,
-        "evaluatorMaxRssKb": 67232,
+        "firstElapsedMs": 10.081,
+        "secondElapsedMs": 9.423,
+        "evaluatorMaxRssKb": 65440,
+        "graphResponseBytes": 32743,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -560,6 +566,7 @@
         "nodeCount": 66,
         "edgeCount": 149,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "java",
@@ -575,9 +582,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 17.157,
-        "secondElapsedMs": 16.954,
-        "evaluatorMaxRssKb": 72160,
+        "firstElapsedMs": 16.89,
+        "secondElapsedMs": 16.305,
+        "evaluatorMaxRssKb": 70304,
+        "graphResponseBytes": 104361,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -727,6 +735,7 @@
         "nodeCount": 37,
         "edgeCount": 53,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "java",
@@ -742,9 +751,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.764,
-        "secondElapsedMs": 11.198,
-        "evaluatorMaxRssKb": 72288,
+        "firstElapsedMs": 10.986,
+        "secondElapsedMs": 9.998,
+        "evaluatorMaxRssKb": 70464,
+        "graphResponseBytes": 42684,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -894,6 +904,7 @@
         "nodeCount": 213,
         "edgeCount": 391,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "java",
@@ -909,9 +920,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 32.617,
-        "secondElapsedMs": 32.985,
-        "evaluatorMaxRssKb": 74784,
+        "firstElapsedMs": 30.572,
+        "secondElapsedMs": 30.797,
+        "evaluatorMaxRssKb": 73008,
+        "graphResponseBytes": 291682,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1061,6 +1073,7 @@
         "nodeCount": 40,
         "edgeCount": 35,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "kotlin",
@@ -1076,9 +1089,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.568,
-        "secondElapsedMs": 11.606,
-        "evaluatorMaxRssKb": 74784,
+        "firstElapsedMs": 11.894,
+        "secondElapsedMs": 10.447,
+        "evaluatorMaxRssKb": 73024,
+        "graphResponseBytes": 43265,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1228,6 +1242,7 @@
         "nodeCount": 394,
         "edgeCount": 573,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "kotlin",
@@ -1243,9 +1258,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 53.422,
-        "secondElapsedMs": 52.616,
-        "evaluatorMaxRssKb": 84752,
+        "firstElapsedMs": 50.495,
+        "secondElapsedMs": 49.903,
+        "evaluatorMaxRssKb": 82224,
+        "graphResponseBytes": 468229,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1395,6 +1411,7 @@
         "nodeCount": 484,
         "edgeCount": 846,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "kotlin",
@@ -1410,9 +1427,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 70.803,
-        "secondElapsedMs": 69.677,
-        "evaluatorMaxRssKb": 87088,
+        "firstElapsedMs": 67.437,
+        "secondElapsedMs": 66.872,
+        "evaluatorMaxRssKb": 86128,
+        "graphResponseBytes": 642279,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1562,6 +1580,12 @@
         "nodeCount": 291,
         "edgeCount": 644,
         "diagnosticCount": 11,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 11
+          }
+        ],
         "coverage": [
           {
             "language": "csharp",
@@ -1577,9 +1601,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 71.583,
-        "secondElapsedMs": 72.257,
-        "evaluatorMaxRssKb": 106032,
+        "firstElapsedMs": 67.29,
+        "secondElapsedMs": 67.853,
+        "evaluatorMaxRssKb": 99488,
+        "graphResponseBytes": 476144,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1729,6 +1754,12 @@
         "nodeCount": 461,
         "edgeCount": 746,
         "diagnosticCount": 4,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 4
+          }
+        ],
         "coverage": [
           {
             "language": "csharp",
@@ -1744,9 +1775,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 81.103,
-        "secondElapsedMs": 80.963,
-        "evaluatorMaxRssKb": 110944,
+        "firstElapsedMs": 78.046,
+        "secondElapsedMs": 77.653,
+        "evaluatorMaxRssKb": 104096,
+        "graphResponseBytes": 583466,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1896,6 +1928,12 @@
         "nodeCount": 172,
         "edgeCount": 387,
         "diagnosticCount": 2,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 2
+          }
+        ],
         "coverage": [
           {
             "language": "csharp",
@@ -1911,9 +1949,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 39.967,
-        "secondElapsedMs": 40.611,
-        "evaluatorMaxRssKb": 110944,
+        "firstElapsedMs": 38.113,
+        "secondElapsedMs": 40.904,
+        "evaluatorMaxRssKb": 104720,
+        "graphResponseBytes": 273419,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2156,5 +2195,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:ac52c67ef8d539c27e7f9fb6d69e1db328c63e30ce1771af46913385a07dd89e"
+  "reportFingerprint": "sha256:f760ad40dabef7af7e4c80a65fd4b188bb612b5ad36726b8f05d5b820573e7a2"
 }

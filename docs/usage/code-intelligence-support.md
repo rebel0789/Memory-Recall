@@ -46,6 +46,58 @@ support.
 This boundary changes only when implementation, fixtures, pinned repository
 results, package verification, and public documentation land together.
 
+## Phase 2 Tier 1 evidence
+
+The Phase 2 receipt is
+[`phase2-tier1-summary.json`](../../evals/code-intelligence/results/phase2-tier1-summary.json).
+It aggregates 14 deterministic fixtures and all 42 pinned repositories. Every
+case passes its reviewed truth, determinism, duplicate-symbol, parse-failure,
+and safety gates. The summary does not average failures away: any failed case
+would block the affected capability row.
+
+The ratios below are reviewed samples, not whole-repository recall. A
+capability moves to `meets-floor` only when the fixture and all three pinned
+repositories contain qualifying reviewed evidence. An applicable capability
+with narrower evidence stays `unmeasured`, even when every sampled item passes.
+
+| Language | Declarations | Relationships | Reviewed calls | Capability rows at floor | Applicable rows still unmeasured | Overall |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| TypeScript | 6/6 | 6/6 | 4/4 | parse, structure, calls | imports, exports, types | unmeasured |
+| JavaScript | 5/5 | 6/6 | 4/4 | parse, structure, imports, calls | exports, types | unmeasured |
+| Python | 16/16 | 9/9 | 4/4 | parse, structure, calls | imports, heritage, types, config, frameworks | unmeasured |
+| Java | 21/21 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
+| Kotlin | 20/20 | 8/8 | 4/4 | parse, structure | imports, heritage, types, calls, frameworks | unmeasured |
+| C# | 23/23 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
+| Go | 19/19 | 5/5 | 4/4 | parse, structure, calls | imports, types, config, frameworks | unmeasured |
+| Rust | 23/23 | 11/11 | 4/4 | parse, structure, types, calls | imports, heritage, config, frameworks | unmeasured |
+| PHP | 18/18 | 12/12 | 4/4 | parse, structure, heritage, calls | imports, types, frameworks | unmeasured |
+| Ruby | 17/17 | 11/11 | 4/4 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
+| Swift | 16/16 | 10/10 | 1/1 | parse, structure, heritage, types | imports, calls, frameworks | unmeasured |
+| C | 14/14 | 6/6 | 4/4 | parse, structure, calls | imports, types, config | unmeasured |
+| C++ | 15/15 | 6/6 | 4/4 | parse, structure, calls | imports, heritage, types, config | unmeasured |
+| Dart | 17/17 | 15/15 | 3/3 | parse, structure, imports, types | exports, heritage, calls, config, frameworks | unmeasured |
+
+Across the 154 Tier 1 capability cells, 46 meet the Phase 2 floor, none has a
+recorded floor failure, and 108 remain unmeasured or not applicable. Six
+repository scopes hit the configured node or edge budget and report the exact
+omitted counts; their available reviewed evidence remains usable and partial.
+
+Reproduce the stored batch receipts and aggregate from a source checkout with a
+local release binary:
+
+```bash
+node scripts/code-intelligence-batch-a.mjs --check
+node scripts/code-intelligence-batch-b.mjs --check
+node scripts/code-intelligence-batch-c.mjs --check
+node scripts/code-intelligence-batch-d.mjs --check
+node scripts/code-intelligence-batch-e.mjs --check
+node scripts/code-intelligence-phase2-tier1.mjs --check
+```
+
+Phase 2 does not bundle a native binary, change the JS public default, move MCP
+or web to Rust, prove multi-repository or million-node behavior, compare a
+competitor, or justify parity or leadership language.
+
 ## Phase 1 evidence
 
 The reproducible receipt is

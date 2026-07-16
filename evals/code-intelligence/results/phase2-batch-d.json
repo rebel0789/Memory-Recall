@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-d-1",
   "phase": 2,
   "batch": "D",
-  "generatedAt": "2026-07-16T14:39:14.637Z",
+  "generatedAt": "2026-07-16T15:01:02.069Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -68,6 +68,7 @@
         "nodeCount": 10,
         "edgeCount": 12,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "c",
@@ -83,9 +84,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.867,
-        "secondElapsedMs": 8.298,
-        "evaluatorMaxRssKb": 58384,
+        "firstElapsedMs": 9.494,
+        "secondElapsedMs": 7.779,
+        "evaluatorMaxRssKb": 58192,
+        "graphResponseBytes": 10617,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -234,6 +236,7 @@
         "nodeCount": 27,
         "edgeCount": 30,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "cpp",
@@ -249,9 +252,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.819,
-        "secondElapsedMs": 9.794,
-        "evaluatorMaxRssKb": 65296,
+        "firstElapsedMs": 9.34,
+        "secondElapsedMs": 9.66,
+        "evaluatorMaxRssKb": 65088,
+        "graphResponseBytes": 26990,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -400,6 +404,7 @@
         "nodeCount": 19,
         "edgeCount": 19,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "swift",
@@ -415,9 +420,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 8.962,
-        "secondElapsedMs": 9.087,
-        "evaluatorMaxRssKb": 65648,
+        "firstElapsedMs": 9.076,
+        "secondElapsedMs": 9.093,
+        "evaluatorMaxRssKb": 65488,
+        "graphResponseBytes": 18525,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -566,6 +572,7 @@
         "nodeCount": 26,
         "edgeCount": 34,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "dart",
@@ -581,9 +588,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 9.215,
-        "secondElapsedMs": 8.754,
-        "evaluatorMaxRssKb": 65936,
+        "firstElapsedMs": 9.652,
+        "secondElapsedMs": 9.291,
+        "evaluatorMaxRssKb": 65744,
+        "graphResponseBytes": 28352,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -733,6 +741,7 @@
         "nodeCount": 82,
         "edgeCount": 223,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "c",
@@ -748,9 +757,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 21.878,
-        "secondElapsedMs": 20.154,
-        "evaluatorMaxRssKb": 71136,
+        "firstElapsedMs": 21.464,
+        "secondElapsedMs": 20.401,
+        "evaluatorMaxRssKb": 71008,
+        "graphResponseBytes": 143223,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -900,6 +910,20 @@
         "nodeCount": 5000,
         "edgeCount": 10000,
         "diagnosticCount": 115,
+        "diagnostics": [
+          {
+            "code": "edge_budget_reached",
+            "count": 8727
+          },
+          {
+            "code": "node_budget_reached",
+            "count": 5237
+          },
+          {
+            "code": "parse_recovered",
+            "count": 113
+          }
+        ],
         "coverage": [
           {
             "language": "c",
@@ -915,9 +939,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 5421.167,
-        "secondElapsedMs": 5579.585,
-        "evaluatorMaxRssKb": 174416,
+        "firstElapsedMs": 5381.192,
+        "secondElapsedMs": 5414.431,
+        "evaluatorMaxRssKb": 174592,
+        "graphResponseBytes": 7020930,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1067,6 +1092,16 @@
         "nodeCount": 3833,
         "edgeCount": 10000,
         "diagnosticCount": 45,
+        "diagnostics": [
+          {
+            "code": "edge_budget_reached",
+            "count": 590
+          },
+          {
+            "code": "parse_recovered",
+            "count": 44
+          }
+        ],
         "coverage": [
           {
             "language": "c",
@@ -1082,9 +1117,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 728.643,
-        "secondElapsedMs": 716.799,
-        "evaluatorMaxRssKb": 174416,
+        "firstElapsedMs": 720.451,
+        "secondElapsedMs": 735.857,
+        "evaluatorMaxRssKb": 176224,
+        "graphResponseBytes": 6585947,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1234,6 +1270,16 @@
         "nodeCount": 5000,
         "edgeCount": 7822,
         "diagnosticCount": 44,
+        "diagnostics": [
+          {
+            "code": "node_budget_reached",
+            "count": 254
+          },
+          {
+            "code": "parse_recovered",
+            "count": 43
+          }
+        ],
         "coverage": [
           {
             "language": "cpp",
@@ -1249,9 +1295,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 938.971,
-        "secondElapsedMs": 931.874,
-        "evaluatorMaxRssKb": 175200,
+        "firstElapsedMs": 934.377,
+        "secondElapsedMs": 944.162,
+        "evaluatorMaxRssKb": 176224,
+        "graphResponseBytes": 6365250,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1401,6 +1448,12 @@
         "nodeCount": 109,
         "edgeCount": 231,
         "diagnosticCount": 4,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 4
+          }
+        ],
         "coverage": [
           {
             "language": "cpp",
@@ -1416,9 +1469,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 22.051,
-        "secondElapsedMs": 20.351,
-        "evaluatorMaxRssKb": 175200,
+        "firstElapsedMs": 22.062,
+        "secondElapsedMs": 21.274,
+        "evaluatorMaxRssKb": 176224,
+        "graphResponseBytes": 158535,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1568,6 +1622,12 @@
         "nodeCount": 1220,
         "edgeCount": 4661,
         "diagnosticCount": 39,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 39
+          }
+        ],
         "coverage": [
           {
             "language": "cpp",
@@ -1583,9 +1643,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 375.077,
-        "secondElapsedMs": 376.564,
-        "evaluatorMaxRssKb": 175200,
+        "firstElapsedMs": 378.9,
+        "secondElapsedMs": 384.888,
+        "evaluatorMaxRssKb": 176224,
+        "graphResponseBytes": 2952182,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1735,6 +1796,12 @@
         "nodeCount": 837,
         "edgeCount": 1754,
         "diagnosticCount": 4,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 4
+          }
+        ],
         "coverage": [
           {
             "language": "swift",
@@ -1750,9 +1817,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 176.875,
-        "secondElapsedMs": 177.337,
-        "evaluatorMaxRssKb": 175200,
+        "firstElapsedMs": 177.983,
+        "secondElapsedMs": 176.984,
+        "evaluatorMaxRssKb": 176224,
+        "graphResponseBytes": 1264956,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -1902,6 +1970,12 @@
         "nodeCount": 2611,
         "edgeCount": 6654,
         "diagnosticCount": 24,
+        "diagnostics": [
+          {
+            "code": "parse_recovered",
+            "count": 24
+          }
+        ],
         "coverage": [
           {
             "language": "swift",
@@ -1917,9 +1991,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 716.36,
-        "secondElapsedMs": 736.697,
-        "evaluatorMaxRssKb": 176112,
+        "firstElapsedMs": 720.619,
+        "secondElapsedMs": 750.133,
+        "evaluatorMaxRssKb": 176768,
+        "graphResponseBytes": 4654548,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2069,6 +2144,7 @@
         "nodeCount": 125,
         "edgeCount": 200,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "swift",
@@ -2084,9 +2160,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 23.607,
-        "secondElapsedMs": 21.863,
-        "evaluatorMaxRssKb": 176752,
+        "firstElapsedMs": 23.666,
+        "secondElapsedMs": 22.116,
+        "evaluatorMaxRssKb": 181600,
+        "graphResponseBytes": 157592,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2236,6 +2313,7 @@
         "nodeCount": 291,
         "edgeCount": 528,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "dart",
@@ -2251,9 +2329,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 47.237,
-        "secondElapsedMs": 50.92,
-        "evaluatorMaxRssKb": 177648,
+        "firstElapsedMs": 47.221,
+        "secondElapsedMs": 47.493,
+        "evaluatorMaxRssKb": 181600,
+        "graphResponseBytes": 388253,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2403,6 +2482,7 @@
         "nodeCount": 88,
         "edgeCount": 133,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "dart",
@@ -2418,9 +2498,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 19.037,
-        "secondElapsedMs": 17.38,
-        "evaluatorMaxRssKb": 177648,
+        "firstElapsedMs": 18.3,
+        "secondElapsedMs": 17.274,
+        "evaluatorMaxRssKb": 181600,
+        "graphResponseBytes": 103869,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2570,6 +2651,7 @@
         "nodeCount": 180,
         "edgeCount": 354,
         "diagnosticCount": 0,
+        "diagnostics": [],
         "coverage": [
           {
             "language": "dart",
@@ -2585,9 +2667,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 32.373,
-        "secondElapsedMs": 32.016,
-        "evaluatorMaxRssKb": 178144,
+        "firstElapsedMs": 32.061,
+        "secondElapsedMs": 32.291,
+        "evaluatorMaxRssKb": 181600,
+        "graphResponseBytes": 258717,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -2857,5 +2940,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:a29aa804839ce506897b2d4a16f7b08ec08f94662cc28dbfa0885225d22757d6"
+  "reportFingerprint": "sha256:7e2b4a78a1b0960b96c45328b4e4f0162942202cab0c1e48319da4d5079009dd"
 }

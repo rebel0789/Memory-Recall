@@ -4,9 +4,9 @@ This page is the source of truth for Memory Recall's public measurements. The
 artifact shape is stated for each benchmark below: most CLI benches emit JSON
 with a `reportFingerprint`, while the Context Recall script emits JSON without
 that field and the product-proof commands deliberately render summaries. The
-Phase 0 baseline and Phase 1 JS/TS compatibility receipt are the committed
-versioned code-intelligence results. Save other output yourself if you need to
-retain a run.
+Phase 0 baseline, Phase 1 JS/TS compatibility receipt, and Phase 2 Tier 1 audit
+are the committed versioned code-intelligence results. Save other output
+yourself if you need to retain a run.
 
 All token figures are local delivery estimates using `ceil(chars/4)`. They are
 not provider-billed tokens, production-cost estimates, or production-latency
@@ -73,6 +73,39 @@ completed deterministic cases with two pinned real repositories and no engine
 network, model, memory, or workspace writes. It is not an accuracy gate. The
 real-repository dimensions expose native import and call gaps, so the JS engine
 remains the public default and no parity or leadership claim is made.
+
+## Code-intelligence Phase 2 Tier 1 audit
+
+The committed aggregate is
+`evals/code-intelligence/results/phase2-tier1-summary.json`. Reproduce it after
+building the local release Rust binary:
+
+```bash
+node scripts/code-intelligence-phase2-tier1.mjs --check
+```
+
+The aggregate binds five batch receipts covering 14 fixtures and all 42 pinned
+repositories at their exact commits and bounded scopes. Each graph is built
+twice with a 5,000-file, 512 KiB-per-file, 5,000-node, and 10,000-edge limit.
+The stored audit records 52,388 nodes, 117,989 edges, 82,862,298 serialized
+graph bytes, 15,665.420 ms summed first-run wall time, 15,750.958 ms summed
+second-run wall time, and 208,800 KiB peak evaluator RSS on the recorded macOS
+arm64 run. These machine-specific resource values are evidence receipts, not
+performance promises.
+
+All 56 cases are deterministic and pass their reviewed truth: 0 duplicate
+canonical symbols, 0 repository parse failures, 0 network calls, 0 model calls,
+0 canonical-memory writes, and 0 workspace writes. Six repository scopes hit a
+node or edge budget and store only safe reason/count diagnostics. The audit
+does not hide those omissions.
+
+Across 154 Tier 1 capability cells, 46 meet the Phase 2 evidence floor, none has
+a recorded floor failure, and 108 remain unmeasured or not applicable. A row
+requires reviewed evidence from its fixture and all three repositories before
+it can say `meets-floor`. Consequently every language remains overall
+`unmeasured`. The native engine stays an unbundled preview; the npm, MCP, and
+web defaults remain JS. Competitors remain unmeasured, and the receipt makes no
+parity, leadership, multi-repository, or scale claim.
 
 ## Dataset
 

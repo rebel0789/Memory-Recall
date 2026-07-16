@@ -59,7 +59,7 @@ for preserved legacy names and URIs.
 | --- | --- |
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
-| Fast local code intelligence | Implemented JS/TS static graph; experimental Rust ingest and graph/search require a local build. |
+| Fast local code intelligence | Implemented JS/TS static graph; experimental Rust native preview has sampled evidence across 14 Tier 1 languages but still requires a local build, and every language retains unmeasured capability rows. |
 | Larger JS/TS repositories | Explicit local index with incremental refresh and watch mode; MCP reads it without writing. |
 | First look at a repository | Recall Map shows bounded source coverage, entry points, changed impact, and separate memory status without writing. |
 | Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
