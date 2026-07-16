@@ -160,6 +160,25 @@ This is a deterministic local correctness and deadline gate, not a competitor
 benchmark or a general latency promise. It makes no parity, leadership,
 multi-repository, packaged-binary, or million-node claim.
 
+## Native package consumer gate
+
+Run the checkout-only installed-product gate after a release build:
+
+```bash
+cargo build --release -p oaf --manifest-path rust/Cargo.toml --locked
+node scripts/native-code-intelligence-consumer-smoke.mjs
+```
+
+On the reviewed macOS arm64 run, the platform tarball contained exactly one
+verified native binary and installed beside the root tarball without registry
+access or install scripts. With Cargo and rustc unavailable at runtime, the
+installed provider returned parser-produced graph evidence for all fourteen
+Tier 1 languages and completed SQLite build, status, and query operations. The
+gate also checks checksum/version selection, source and governed-memory
+preservation, and unchanged installed package bytes. It is a current-platform
+consumer gate, not cross-platform, signing, publication, parity, or leadership
+evidence.
+
 ## Dataset
 
 | Claim | Dataset |

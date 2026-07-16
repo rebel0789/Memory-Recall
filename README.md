@@ -201,6 +201,12 @@ cross-product benchmark leaderboard.
   wiki, MCP, and static analysis when explicitly invoked. They require a local
   `cargo build --release` before use; Rust source ships in the npm package, but
   build output stays out of the tarball.
+- Release-candidate native packaging now has five target-specific optional
+  package manifests and a checksum-, version-, target-, and path-verified
+  resolver. A local macOS arm64 packed-install gate passes without Cargo or
+  Rust and covers all fourteen Tier 1 parsers plus the SQLite lifecycle. These
+  platform packages are not published or signed yet, and the JS path remains
+  the public default.
 - Deterministic local benches for temporal correctness, session delta delivery,
   and checkout-derived structured-ingest sufficiency.
 

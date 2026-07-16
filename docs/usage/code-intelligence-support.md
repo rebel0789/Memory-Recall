@@ -37,8 +37,13 @@ rows, and full claims without both evidence classes.
 
 The production-facing Node.js path remains bounded JavaScript and TypeScript
 static analysis. The explicit `native-preview` engine supports graph reads and
-the isolated source-index lifecycle. It requires a locally built Rust binary
-supplied through `MEMORY_RECALL_NATIVE_BINARY`; npm does not ship that binary.
+the isolated source-index lifecycle. The current registry package does not ship
+that binary. This source checkout now contains five optional platform-package
+templates and a resolver that verifies package identity, target, path
+containment, SHA-256, executable availability, and exact binary version before
+use. The macOS arm64 package path passes an isolated local packed-install gate;
+the other targets, signing, release publication, and public-default promotion
+remain unproven.
 Graph commands without `--engine`, the web workbench, and normal MCP startup
 continue to use the Node path. An MCP server started with both `--read-only` and
 `--engine native-preview` may query a prebuilt SQLite index; it never builds,
@@ -138,6 +143,25 @@ It does not promote any language's process capability to `meets-floor`: that
 still requires applicable deterministic and pinned real-repository evidence.
 It also does not change the JS default or prove packaged binaries, competitors,
 multi-repository behavior, or million-node scale.
+
+## Phase 6 local distribution gate
+
+The checkout-only `scripts/native-code-intelligence-consumer-smoke.mjs` builds
+the current release binary, produces the matching optional platform tarball,
+packs the root package, and installs both into an isolated prefix with install
+scripts disabled and no registry access. The installed provider discovers the
+platform package without `MEMORY_RECALL_NATIVE_BINARY`, validates its manifest,
+checksum, target, contained path, executable, and version, then parses all
+fourteen Tier 1 fixture languages. It also builds, reads, and queries the
+workspace-local SQLite source index while preserving source files, governed
+memory, home configuration, and installed package bytes. Cargo and rustc are
+absent from the runtime path.
+
+The recorded local pass is macOS arm64 only. It does not prove macOS x64,
+Linux GNU arm64/x64, or Windows x64 artifacts, signing/notarization,
+trusted-publisher ownership for the scoped packages, public installation, or a
+native public default. The explicit JS fallback therefore remains frozen and
+the current registry instructions remain unchanged.
 
 ## Phase 1 evidence
 
