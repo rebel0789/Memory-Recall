@@ -1,12 +1,13 @@
 use crate::code_intelligence::{
-    build_index_generation_at_root, index_source_language, IndexGenerationBuild,
+    build_index_generation_at_root, build_index_generation_for_sources_at_root,
+    index_source_language, IndexGenerationBuild,
 };
 use anyhow::{bail, Context, Result};
 use oaf_index::{
     doctor_index, inspect_index, logical_database_bytes, normalized_generation_fingerprint,
     repair_index, select_generation_files, CoverageRecord, DiscoveredFile, EdgeDirection,
     GenerationInput, HealthStatus, IndexDoctorReport, IndexHealth, NodeRecord, QueryBounds,
-    SourceIndex, SourceIndexOptions,
+    RefreshPlan, SourceIndex, SourceIndexOptions,
 };
 use oaf_ingest::{discover_file_hashes, IngestOptions};
 use serde::Deserialize;
@@ -443,11 +444,11 @@ fn refresh_index(
     let languages = arguments.languages.iter().cloned().collect::<BTreeSet<_>>();
     let current = discover_files(root, &languages, arguments)?;
     let reader = SourceIndex::open_read_only(path, options)?;
+    let active = reader
+        .load_active_generation()?
+        .context("source_index_active_generation_missing")?;
     let plan = reader.plan_refresh(&current, None, &oaf_index::RefreshBounds::default())?;
     if plan.no_change {
-        let active = reader
-            .load_active_generation()?
-            .context("source_index_active_generation_missing")?;
         let omitted_count = persisted_omitted_count(&active.input);
         let summary = active.summary;
         let health = inspect_index(path, options);
@@ -475,8 +476,19 @@ fn refresh_index(
             Vec::new(),
         ));
     }
+    let partial_refresh =
+        plan.added_files.is_empty() && plan.renamed_files.is_empty() && !plan.ignore_rules_changed;
+    let parse_sources =
+        partial_refresh.then(|| refresh_parse_sources(&active.input, &plan, &current));
     drop(reader);
-    let build = build_generation(root, request, arguments, engine_version)?;
+    let mut build = if let Some(selected) = parse_sources.as_ref() {
+        build_generation_for_sources(root, request, arguments, engine_version, selected)?
+    } else {
+        build_generation(root, request, arguments, engine_version)?
+    };
+    if partial_refresh {
+        build.generation.coverage = active.input.coverage.clone();
+    }
     let mut writer = SourceIndex::open(path, options)?;
     let invalidated = plan
         .invalidated_files
@@ -616,6 +628,77 @@ fn build_generation(
     Ok(build)
 }
 
+fn build_generation_for_sources(
+    root: &Path,
+    request: &ParsedRequest,
+    arguments: &WriterArguments,
+    engine_version: &str,
+    only_sources: &BTreeSet<String>,
+) -> Result<IndexGenerationBuild> {
+    build_index_generation_for_sources_at_root(
+        root,
+        &request.workspace_id,
+        arguments.max_files,
+        arguments.max_file_bytes,
+        arguments.max_nodes,
+        arguments.max_edges,
+        arguments.languages.iter().cloned().collect(),
+        request.deadline_ms,
+        engine_version,
+        only_sources,
+    )
+}
+
+fn refresh_parse_sources(
+    active: &GenerationInput,
+    plan: &RefreshPlan,
+    current: &[DiscoveredFile],
+) -> BTreeSet<String> {
+    let current_locators = current
+        .iter()
+        .map(|file| file.locator.as_str())
+        .collect::<BTreeSet<_>>();
+    let file_by_node = active
+        .nodes
+        .iter()
+        .map(|node| (node.canonical_id.as_str(), locator_file(&node.locator)))
+        .collect::<BTreeMap<_, _>>();
+    let mut context_seeds = plan
+        .invalidated_files
+        .iter()
+        .chain(plan.deleted_files.iter())
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    context_seeds.extend(
+        plan.renamed_files
+            .iter()
+            .map(|rename| rename.from_locator.as_str()),
+    );
+    let mut selected = plan
+        .invalidated_files
+        .iter()
+        .filter(|locator| current_locators.contains(locator.as_str()))
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    for edge in &active.edges {
+        let source_file = file_by_node.get(edge.source_id.as_str()).copied();
+        let target_file = file_by_node.get(edge.target_id.as_str()).copied();
+        if source_file.is_some_and(|locator| context_seeds.contains(locator)) {
+            if let Some(locator) = target_file.filter(|locator| current_locators.contains(locator))
+            {
+                selected.insert(locator.to_string());
+            }
+        }
+        if target_file.is_some_and(|locator| context_seeds.contains(locator)) {
+            if let Some(locator) = source_file.filter(|locator| current_locators.contains(locator))
+            {
+                selected.insert(locator.to_string());
+            }
+        }
+    }
+    selected
+}
+
 fn record_omissions(build: &mut IndexGenerationBuild) -> Result<()> {
     let counts = [
         (
@@ -658,6 +741,10 @@ fn persisted_omitted_count(input: &GenerationInput) -> u64 {
         })
         .map(|record| u64::try_from(record.omitted_count).unwrap_or(0))
         .sum()
+}
+
+fn locator_file(locator: &str) -> &str {
+    locator.split_once('#').map_or(locator, |(file, _)| file)
 }
 
 fn discover_files(

@@ -321,6 +321,16 @@ fn build_graph_at_root(
     root: &std::path::Path,
     started: Instant,
 ) -> std::result::Result<GraphBuild, EngineFailure> {
+    build_graph_at_root_with_sources(request, engine_version, root, started, None)
+}
+
+fn build_graph_at_root_with_sources(
+    request: &EngineRequest,
+    engine_version: &str,
+    root: &std::path::Path,
+    started: Instant,
+    only_sources: Option<&BTreeSet<String>>,
+) -> std::result::Result<GraphBuild, EngineFailure> {
     check_deadline(request, started)?;
     let root = root.canonicalize().map_err(|_| internal_failure())?;
     let mut discovery_options = IngestOptions::new(&root);
@@ -333,9 +343,16 @@ fn build_graph_at_root(
         })
     });
     hashes.sort_by(|left, right| left.source.cmp(&right.source));
-    let discovered_file_count = hashes.len();
-    let omitted_file_count = discovered_file_count.saturating_sub(request.max_files);
+    let all_discovered_file_count = hashes.len();
+    let omitted_file_count = only_sources
+        .is_none()
+        .then(|| all_discovered_file_count.saturating_sub(request.max_files))
+        .unwrap_or(0);
     hashes.truncate(request.max_files);
+    if let Some(selected) = only_sources {
+        hashes.retain(|item| selected.contains(&item.source));
+    }
+    let discovered_file_count = only_sources.map_or(all_discovered_file_count, |_| hashes.len());
     let selected_sources = hashes
         .iter()
         .map(|item| item.source.clone())
@@ -465,6 +482,54 @@ pub(crate) fn build_index_generation_at_root(
         &request.languages,
         request.max_files,
         request.max_file_bytes,
+        None,
+    )?;
+    Ok(IndexGenerationBuild {
+        generation,
+        scanned_file_count: build.scanned_file_count,
+        indexed_file_count: build.indexed_file_count,
+        omitted_node_count: build.omitted_node_count,
+        omitted_edge_count: build.omitted_edge_count,
+    })
+}
+
+pub(crate) fn build_index_generation_for_sources_at_root(
+    root: &std::path::Path,
+    workspace_id: &str,
+    max_files: usize,
+    max_file_bytes: u64,
+    max_nodes: usize,
+    max_edges: usize,
+    languages: BTreeSet<String>,
+    deadline_ms: u64,
+    engine_version: &str,
+    only_sources: &BTreeSet<String>,
+) -> Result<IndexGenerationBuild> {
+    let request = EngineRequest {
+        request_id: FALLBACK_REQUEST_ID.to_string(),
+        workspace_id: workspace_id.to_string(),
+        deadline_ms,
+        max_files,
+        max_file_bytes,
+        max_nodes,
+        max_edges,
+        languages,
+    };
+    let build = build_graph_at_root_with_sources(
+        &request,
+        engine_version,
+        root,
+        Instant::now(),
+        Some(only_sources),
+    )
+    .map_err(|failure| anyhow::anyhow!(failure.code))?;
+    let generation = index_generation_from_graph_with_options(
+        &build.graph,
+        root,
+        &request.languages,
+        request.max_files,
+        request.max_file_bytes,
+        Some(only_sources),
     )?;
     Ok(IndexGenerationBuild {
         generation,
@@ -477,7 +542,14 @@ pub(crate) fn build_index_generation_at_root(
 
 #[cfg(test)]
 fn index_generation_from_graph(graph: &Value, root: &std::path::Path) -> Result<GenerationInput> {
-    index_generation_from_graph_with_options(graph, root, &BTreeSet::new(), usize::MAX, 10_485_760)
+    index_generation_from_graph_with_options(
+        graph,
+        root,
+        &BTreeSet::new(),
+        usize::MAX,
+        10_485_760,
+        None,
+    )
 }
 
 fn index_generation_from_graph_with_options(
@@ -486,6 +558,7 @@ fn index_generation_from_graph_with_options(
     requested_languages: &BTreeSet<String>,
     max_files: usize,
     max_file_bytes: u64,
+    only_sources: Option<&BTreeSet<String>>,
 ) -> Result<GenerationInput> {
     let root = root
         .canonicalize()
@@ -497,6 +570,9 @@ fn index_generation_from_graph_with_options(
     hashes.retain(|item| index_source_language(&item.source, requested_languages).is_some());
     hashes.sort_by(|left, right| left.source.cmp(&right.source));
     hashes.truncate(max_files);
+    if let Some(selected) = only_sources {
+        hashes.retain(|item| selected.contains(&item.source));
+    }
     let graph_nodes = graph["nodes"]
         .as_array()
         .context("code intelligence graph nodes missing")?;

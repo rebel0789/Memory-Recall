@@ -161,7 +161,10 @@ test('graph index native preview exposes the full bounded SQLite lifecycle expli
   writeFileSync(path.join(root, 'src', 'worker.py'), 'def worker():\n    return 2\n');
   const refreshed = run('--refresh', '--languages', 'typescript,python');
   assert.equal(refreshed.status, 0, refreshed.stderr);
-  assert.equal(JSON.parse(refreshed.stdout).measurements.changedFileCount, 1);
+  const refreshedReport = JSON.parse(refreshed.stdout);
+  assert.equal(refreshedReport.measurements.changedFileCount, 1);
+  assert.equal(refreshedReport.measurements.parsedFileCount, 1);
+  assert.equal(refreshedReport.measurements.reusedFileCount, 1);
 
   writeFileSync(indexPath, 'not a sqlite database');
   const diagnosed = run('--doctor');
