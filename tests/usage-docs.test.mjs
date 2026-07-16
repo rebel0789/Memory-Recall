@@ -6,6 +6,19 @@ function read(path) {
   return readFileSync(path, 'utf8');
 }
 
+test('polyglot leadership contract is approved and owns the native engine boundary', () => {
+  const design = read('docs/superpowers/specs/2026-07-16-memory-recall-polyglot-leadership-design.md');
+  const adr = read('docs/adr/0023-production-rust-code-intelligence-engine.md');
+
+  assert.match(design, /\*\*Status:\*\* Approved for implementation/);
+  assert.match(adr, /## Status\s+Accepted/);
+  assert.match(adr, /Rust.*production code-intelligence engine/s);
+  assert.match(adr, /Node\.js.*CLI.*Control API.*memory.*MCP.*web/s);
+  assert.match(adr, /JSON Lines/);
+  assert.match(adr, /derived local state/);
+  assert.match(adr, /no local Rust toolchain/i);
+});
+
 test('README and status keep the patch candidate honest across the registry handoff', () => {
   const readme = read('README.md');
   const status = JSON.parse(read('PROJECT_STATUS.json'));

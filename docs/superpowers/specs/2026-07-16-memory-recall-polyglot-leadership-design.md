@@ -1,7 +1,7 @@
 # Memory Recall Polyglot Code Intelligence Design
 
 **Date:** 2026-07-16  
-**Status:** Proposed for written-spec review  
+**Status:** Approved for implementation
 **Goal:** Match or beat GitNexus on its documented developer workflows while preserving Memory Recall's governed temporal memory, source evidence, compact delivery, and verified handoffs.
 
 ## Decision
