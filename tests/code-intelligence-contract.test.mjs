@@ -70,3 +70,16 @@ test('benchmark gates preserve the approved accuracy floors', async () => {
   assert.equal(gates.claims.parityRequiresAllTier1Languages, true);
   assert.equal(gates.claims.leadershipRequiresRelevantCompetitorWin, true);
 });
+
+test('Phase 0 baseline separates public, experimental, and unmeasured evidence', async () => {
+  const report = await readJson('evals/code-intelligence/results/phase0-baseline.json');
+
+  assert.equal(report.phase, 0);
+  assert.equal(report.publicEngine.languageIds.join(','), 'javascript,typescript');
+  assert.equal(report.experimentalEngine.languageIds.includes('python'), true);
+  assert.equal(report.competitors.gitnexus.status, 'unmeasured');
+  assert.equal(report.competitors.codebaseMemoryMcp.status, 'unmeasured');
+  assert.equal(report.claims.parity, false);
+  assert.equal(report.claims.leadership, false);
+  assert.equal(report.commands.every((item) => item.exitCode === 0), true);
+});
