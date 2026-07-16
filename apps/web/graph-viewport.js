@@ -38,6 +38,7 @@ export function createGraphViewport(canvas, outline, inspector, {
     }
     positions = data.positions ?? {};
     bounds = data.bounds ?? null;
+    canvas.dataset.layoutReady = 'true';
     reset();
   }, { signal });
   worker.addEventListener('error', () => onError('graph_layout_worker_failed'), { signal });
@@ -194,8 +195,17 @@ export function createGraphViewport(canvas, outline, inspector, {
       context.arc(point.x, point.y, selected ? 6 : 4, 0, Math.PI * 2);
       context.fill();
       if (selected || nodes.length <= 60) {
+        const label = String(node.label ?? '').slice(0, 32);
+        const placement = graphLabelPlacement({
+          pointX: point.x,
+          labelWidth: context.measureText(label).width,
+          scale,
+          panX,
+          viewportWidth: width
+        });
         context.fillStyle = palette.ink;
-        context.fillText(String(node.label ?? '').slice(0, 32), point.x + 10, point.y);
+        context.textAlign = placement.align;
+        context.fillText(label, point.x + placement.offset, point.y);
       }
     }
     context.restore();
@@ -234,6 +244,17 @@ export function createGraphViewport(canvas, outline, inspector, {
       worker.terminate();
     }
   };
+}
+
+export function graphLabelPlacement({ pointX = 0, labelWidth = 0, scale = 1, panX = 0, viewportWidth = 0 } = {}) {
+  const resolvedScale = Math.max(0.01, Number(scale) || 1);
+  const screenX = Number(panX) + Number(pointX) * resolvedScale;
+  const scaledLabelWidth = Math.max(0, Number(labelWidth) || 0) * resolvedScale;
+  const rightEdge = screenX + (10 * resolvedScale) + scaledLabelWidth;
+  const leftEdge = screenX - (10 * resolvedScale) - scaledLabelWidth;
+  return rightEdge > Number(viewportWidth) - 8 && leftEdge >= 8
+    ? { align: 'right', offset: -10 }
+    : { align: 'left', offset: 10 };
 }
 
 function graphPalette(canvas) {

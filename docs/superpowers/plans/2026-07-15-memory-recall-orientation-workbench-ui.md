@@ -574,7 +574,7 @@ node --test tests/web-orientation.test.mjs tests/web-shell.test.mjs
 
 Expected: all Overview and shell tests pass with no retired markup.
 
-- [ ] **Step 8: Commit the Overview workbench**
+- [x] **Step 8: Commit the Overview workbench**
 
 ```bash
 git add apps/web/orientation-view.js apps/web/index.html apps/web/app.js apps/web/styles.css tests/web-orientation.test.mjs tests/web-shell.test.mjs
@@ -708,7 +708,7 @@ node --test tests/web-source-map.test.mjs tests/web-shell.test.mjs tests/control
 
 Expected: Map state tests, existing shell tests, and Control API tests pass.
 
-- [ ] **Step 7: Commit deterministic Map state**
+- [x] **Step 7: Commit deterministic Map state**
 
 ```bash
 git add apps/web/source-map-view.js apps/web/app.js apps/web/styles.css tests/web-source-map.test.mjs tests/web-shell.test.mjs
@@ -840,7 +840,7 @@ node --test tests/web-source-map.test.mjs tests/web-shell.test.mjs
 
 Expected: worker, viewport contract, outline parity, and shell tests pass.
 
-- [ ] **Step 7: Commit focused graph interaction**
+- [x] **Step 7: Commit focused graph interaction**
 
 ```bash
 git add apps/web/graph-viewport.js apps/web/graph-layout-worker.js apps/web/source-map-view.js apps/web/app.js apps/web/styles.css tests/web-source-map.test.mjs
@@ -958,7 +958,7 @@ node --test tests/web-memory-graph.test.mjs tests/web-shell.test.mjs tests/memor
 
 Expected: empty/populated graph tests, shell tests, and memory integrity tests pass.
 
-- [ ] **Step 7: Commit the governed-memory graph**
+- [x] **Step 7: Commit the governed-memory graph**
 
 ```bash
 git add apps/web/memory-graph-view.js apps/web/app.js apps/web/styles.css tests/web-memory-graph.test.mjs tests/web-shell.test.mjs
@@ -1044,7 +1044,7 @@ node --test tests/web-orientation.test.mjs tests/web-source-map.test.mjs tests/w
 
 Expected: all tests pass and the prohibited-copy scan is clean except allowlisted technical IDs/settings.
 
-- [ ] **Step 6: Commit the anti-slop sweep**
+- [x] **Step 6: Commit the anti-slop sweep**
 
 ```bash
 git add apps/web/index.html apps/web/app.js apps/web/orientation-view.js apps/web/source-map-view.js apps/web/memory-graph-view.js apps/web/styles.css tests/web-shell.test.mjs
@@ -1063,11 +1063,11 @@ git commit -m "refactor: remove AI-style copy and dashboard chrome"
 - Produces inspected screenshots under `.scratch/ui-redesign/` without committing generated files.
 - Produces browser-smoke assertions for Overview, Map, populated memory graph, and empty memory graph.
 
-- [ ] **Step 1: Update the browser fixture for six real groups**
+- [x] **Step 1: Update the browser fixture for six real groups**
 
 Create realistic fixture directories under `apps`, `packages`, `services`, `providers`, `scripts`, and `tests`; include imports between them, three ranked entry points, represented and unrepresented changes, active/pending/stale memory, and a verified handoff. Do not use Lorem Ipsum, fake customers, or invented metrics.
 
-- [ ] **Step 2: Assert the first-ten-seconds contract at 1440 × 900**
+- [x] **Step 2: Assert the first-ten-seconds contract at 1440 × 900**
 
 After login, assert repository name, branch, coverage, 6 to 12 groups, exactly three start items, current impact, and trusted context are visible. Use bounding boxes to prove each required region ends above 900 px:
 
@@ -1090,19 +1090,19 @@ for (const width of [320, 375, 414, 768, 1440]) {
 must(await page.locator('[role="status"]').count() > 0, 'missing screen-reader status');
 ```
 
-- [ ] **Step 3: Exercise Overview group selection and Map deep link**
+- [x] **Step 3: Exercise Overview group selection and Map deep link**
 
 Select a group by keyboard, verify the inspector changes, activate `Open in Map`, and assert the encoded `group` remains in the URL and form. Submit a query, trigger a mocked recoverable failure, reload, go back, and go forward; the exact query/group/scope must survive every transition.
 
-- [ ] **Step 4: Exercise detailed graph controls and outline parity**
+- [x] **Step 4: Exercise detailed graph controls and outline parity**
 
 Assert focus nodes are bounded, then use `Fit selection`, wheel zoom, reset, canvas selection, and outline selection. Verify both selection paths produce the same inspector node ID. Emulate reduced motion and ensure no transition/animation exceeds 1 ms.
 
-- [ ] **Step 5: Exercise populated and empty memory graph states**
+- [x] **Step 5: Exercise populated and empty memory graph states**
 
 For populated memory, assert canvas, outline, current/superseded labels, and provenance. For an intercepted empty response, assert `No governed memory yet`, checked workspace/provider state, and absence of `<canvas>` and `.metric-strip`.
 
-- [ ] **Step 6: Capture and inspect desktop/mobile/light/dark screenshots**
+- [x] **Step 6: Capture and inspect desktop/mobile/light/dark screenshots**
 
 Capture:
 
@@ -1118,7 +1118,7 @@ memory-graph-empty-1440.png
 
 Inspect each screenshot for clipped text, excessive gaps, wrong font weight, nested cards, broken borders, inconsistent radii, horizontal overflow, poor focus treatment, and AI-style copy. Compare the same viewport/state before and after when assessing visible improvement.
 
-- [ ] **Step 7: Run browser smoke**
+- [x] **Step 7: Run browser smoke**
 
 ```bash
 npm run consumer:browser-smoke
@@ -1126,7 +1126,7 @@ npm run consumer:browser-smoke
 
 Expected: the script exits 0 with no browser console/page errors and all screenshots are present.
 
-- [ ] **Step 8: Commit browser proof**
+- [x] **Step 8: Commit browser proof**
 
 ```bash
 git add scripts/consumer-browser-smoke.mjs tests/web-shell.test.mjs

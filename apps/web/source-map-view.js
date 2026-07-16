@@ -72,7 +72,7 @@ export function renderSourceMap({ state: value = {}, report = null, error = null
         : statePanel('empty', 'Map not loaded', 'Run the map to inspect bounded repository structure.');
 
   return `<div class="tool-workspace source-map-workspace">
-    <header class="tool-page-heading map-page-heading"><div><p class="eyebrow">Repository structure</p><h1>Map</h1><p>Find an entry point, trace a symbol, or inspect a changed file.</p></div><span>Read-only / bounded metadata</span></header>
+    <header class="tool-page-heading map-page-heading"><div><h1>Map</h1><p>Find an entry point, trace a symbol, or inspect a changed file.</p></div><span>Read-only / bounded metadata</span></header>
     ${renderMapForm(state)}
     ${result}
   </div>`;
@@ -136,7 +136,7 @@ function renderMapForm(state) {
         <label class="field field-compact"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="${state.limit}"></label>
       </div>
     </details>
-    <div class="map-query-actions"><button class="button primary" type="submit">Run map</button><button class="button secondary" type="button" data-action="refresh-source-map">Refresh scan</button><span>No model, network, or external writes</span></div>
+    <div class="map-query-actions"><button class="button primary" type="submit">Run map</button><button class="button quiet" type="button" data-action="refresh-source-map">Refresh scan</button><span>No model, network, or external writes</span></div>
   </form></section>`;
 }
 
@@ -173,7 +173,7 @@ function renderGroups(groups, relations) {
 
 function renderFocus(nodes, edges, focus = {}) {
   if (!nodes.length) return statePanel('empty', 'No focused records', 'The submitted scope produced no bounded nodes. Broaden the query or remove a group filter.');
-  return `<div class="map-graph-toolbar"><div class="map-focus-summary"><strong>${number(nodes.length)} nodes</strong><span>${number(edges.length)} relationships</span>${number(focus.omittedNodes ?? focus.omittedNodeCount) ? `<span>${number(focus.omittedNodes ?? focus.omittedNodeCount)} nodes omitted</span>` : ''}${number(focus.omittedEdges ?? focus.omittedEdgeCount) ? `<span>${number(focus.omittedEdges ?? focus.omittedEdgeCount)} relationships omitted</span>` : ''}</div><div><button class="button secondary" type="button" data-graph-action="fit">Fit selection</button><button class="button secondary" type="button" data-graph-action="reset">Reset view</button></div></div><p class="map-graph-error" data-graph-error hidden></p><div class="source-map-canvas-wrap"><canvas id="source-map-canvas" width="960" height="560" role="img" aria-label="Interactive focused source graph"></canvas></div>`;
+  return `<div class="map-graph-toolbar"><div class="map-focus-summary"><strong>${number(nodes.length)} nodes</strong><span>${number(edges.length)} relationships</span>${number(focus.omittedNodes ?? focus.omittedNodeCount) ? `<span>${number(focus.omittedNodes ?? focus.omittedNodeCount)} nodes omitted</span>` : ''}${number(focus.omittedEdges ?? focus.omittedEdgeCount) ? `<span>${number(focus.omittedEdges ?? focus.omittedEdgeCount)} relationships omitted</span>` : ''}</div><div><button class="button secondary" type="button" data-graph-action="fit">Fit selection</button><button class="button quiet" type="button" data-graph-action="reset">Reset view</button></div></div><p class="map-graph-error" data-graph-error hidden></p><div class="source-map-canvas-wrap"><canvas id="source-map-canvas" width="960" height="560" role="img" aria-label="Interactive focused source graph"></canvas></div>`;
 }
 
 function renderMapOutline(items, focused) {

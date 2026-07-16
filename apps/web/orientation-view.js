@@ -71,7 +71,7 @@ function renderStartHere(items = []) {
   const content = items.length
     ? `<ol>${items.map((item) => `<li class="start-item"><a href="/map?query=${encodeURIComponent(item.label)}" data-route="source-graph"><strong>${escapeHtml(item.label)}</strong><code>${escapeHtml(item.locator)}</code><span>${escapeHtml(item.reason)}</span></a></li>`).join('')}</ol>`
     : '<p>No ranked entry points in the current bounds.</p>';
-  return `<section><header><h2>Start here</h2><span>${items.length} ranked</span></header>${content}</section>`;
+  return `<section class="start-here"><header><h2>Start here</h2><span>${items.length} ranked</span></header>${content}</section>`;
 }
 
 function renderImpact(impact = {}) {
@@ -79,14 +79,14 @@ function renderImpact(impact = {}) {
   const detail = impact.status === 'clean'
     ? '<p>No local changes detected.</p>'
     : `<p>${escapeHtml(impact.label ?? 'Change state unavailable')}</p>${affected.length ? `<ol>${affected.slice(0, 3).map((item) => `<li><strong>${escapeHtml(item.label)}</strong><code>${escapeHtml(item.locator)}</code></li>`).join('')}</ol>` : ''}${impact.unrepresentedChangedCount ? `<small>${Number(impact.unrepresentedChangedCount)} changed file${impact.unrepresentedChangedCount === 1 ? '' : 's'} outside the represented graph.</small>` : ''}`;
-  return `<section><header><h2>Current impact</h2><span>${Number(impact.affectedCount ?? 0)} affected</span></header>${detail}</section>`;
+  return `<section class="current-impact"><header><h2>Current impact</h2><span>${Number(impact.affectedCount ?? 0)} affected</span></header>${detail}</section>`;
 }
 
 function renderTrust(trust = {}) {
   const memory = trust.memory ?? {};
   const handoff = trust.handoff ?? {};
   const source = trust.source ?? {};
-  return `<section><header><h2>Trusted context</h2></header><dl class="trust-list"><div><dt>Source map</dt><dd>${escapeHtml(source.status ?? 'not scanned')}</dd></div><div><dt>Memory</dt><dd>${escapeHtml(memory.status ?? 'unavailable')}${memory.pendingCount ? `, ${Number(memory.pendingCount)} pending` : ''}</dd></div><div><dt>Handoff</dt><dd>${escapeHtml(handoff.status ?? 'not pinned')}</dd></div>${trust.deliveryReduction ? `<div><dt>Measured delivery</dt><dd>${Number(trust.deliveryReduction.percent)}% fewer tokens</dd></div>` : ''}</dl></section>`;
+  return `<section class="trusted-context"><header><h2>Trusted context</h2></header><dl class="trust-list"><div><dt>Source map</dt><dd>${escapeHtml(source.status ?? 'not scanned')}</dd></div><div><dt>Memory</dt><dd>${escapeHtml(memory.status ?? 'unavailable')}${memory.pendingCount ? `, ${Number(memory.pendingCount)} pending` : ''}</dd></div><div><dt>Handoff</dt><dd>${escapeHtml(handoff.status ?? 'not pinned')}</dd></div>${trust.deliveryReduction ? `<div><dt>Measured delivery</dt><dd>${Number(trust.deliveryReduction.percent)}% fewer tokens</dd></div>` : ''}</dl></section>`;
 }
 
 function coverageText(coverage = {}) {

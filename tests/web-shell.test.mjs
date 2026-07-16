@@ -171,7 +171,8 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.match(css, /--space-md:24px/);
   assert.doesNotMatch(css, /#56e0c4|gradient|glow/i);
   assert.equal(shared.color.canvas, 'oklch(97.8% 0.006 80)');
-  assert.equal(shared.color.accent, 'oklch(52% 0.19 258)');
+  assert.equal(shared.color.accent, 'oklch(50% 0.12 258)');
+  assert.equal(shared.color.dark.accent, 'oklch(70% 0.1 258)');
   assert.equal(shared.color.dark.canvas, 'oklch(17% 0.008 255)');
   assert.match(shared.font.sans, /^ui-sans-serif/);
   assert.match(shared.font.mono, /^ui-monospace/);
@@ -190,6 +191,8 @@ test('web tokens use the approved restrained workbench system', async () => {
   assert.match(shellCss, /\.button:hover:not\(:disabled\)/);
   assert.match(shellCss, /\.button:active:not\(:disabled\)/);
   assert.match(shellCss, /\.field input,.field select,.field textarea\{[^}]*outline:2px solid transparent[^}]*outline-offset:1px/);
+  assert.match(shellCss, /\.field span\{[^}]*font-weight:650[^}]*color:var\(--slate\)\}/);
+  assert.doesNotMatch(shellCss, /\.field span\{[^}]*text-transform:uppercase/);
   assert.match(shellCss, /\.field input:disabled,.field select:disabled,.field textarea:disabled\{[^}]*opacity:\.55[^}]*cursor:not-allowed/);
   assert.match(shellCss, /h1\{[^}]*overflow-wrap:anywhere[^}]*min-width:0/);
   assert.match(shellCss, /code,pre\{font-family:var\(--font-mono\)\}/);

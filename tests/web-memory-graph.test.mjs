@@ -21,6 +21,26 @@ test('populated governed memory has graph and equivalent outline', () => {
   assert.doesNotMatch(html, /Community colors/);
 });
 
+test('governed memory heading and graph actions avoid template-like chrome', () => {
+  const model = buildMemoryGraphViewModel(memoryGraphFixture(), { history: true });
+  const html = renderMemoryGraphView(model);
+  assert.doesNotMatch(html, /class="eyebrow"/);
+  assert.match(html, /data-memory-graph-action="fit">Fit selection/);
+  assert.match(html, /class="button quiet" type="button" data-memory-graph-action="reset">Reset view/);
+});
+
+test('history and provider truth stay outside the graph inspector', () => {
+  const model = buildMemoryGraphViewModel(memoryGraphFixture(), { history: true });
+  const html = renderMemoryGraphView(model);
+  const inspectorStart = html.indexOf('<aside class="memory-graph-inspector">');
+  const inspectorEnd = html.indexOf('</aside>', inspectorStart);
+  assert.ok(inspectorStart >= 0 && inspectorEnd > inspectorStart);
+  const inspector = html.slice(inspectorStart, inspectorEnd);
+  assert.doesNotMatch(inspector, /Fact history|Provider check/);
+  assert.match(html.slice(inspectorEnd), /class="memory-graph-history"/);
+  assert.match(html.slice(inspectorEnd), /class="memory-graph-boundary"/);
+});
+
 test('memory graph query preserves controls and filters visible nodes', () => {
   const model = buildMemoryGraphViewModel(memoryGraphFixture(), { history: false, query: 'provider' });
   assert.equal(model.nodes.length, 2);

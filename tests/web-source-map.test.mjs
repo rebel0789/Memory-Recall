@@ -8,6 +8,7 @@ import {
   serializeMapUrl
 } from '../apps/web/source-map-view.js';
 import { layoutFocusedGraph } from '../apps/web/graph-layout-worker.js';
+import { graphLabelPlacement } from '../apps/web/graph-viewport.js';
 
 test('Map query state round-trips through the URL', () => {
   const state = parseMapUrl('http://127.0.0.1:4318/map?query=copytrading&group=apps%2Fterminal&start=execute&changed=src%2Ftrade.ts&depth=3&limit=24');
@@ -55,6 +56,15 @@ test('Map renders architecture before focus and keeps an accessible outline', ()
   assert.doesNotMatch(html, /<canvas/);
 });
 
+test('Map heading and actions avoid template-like chrome', () => {
+  const html = renderSourceMap({ state: parseMapUrl('/map?query=router'), report: mapPreviewFixture() });
+  assert.doesNotMatch(html, /class="eyebrow"/);
+  assert.match(html, /class="button primary" type="submit">Run map/);
+  assert.match(html, /class="button quiet" type="button" data-action="refresh-source-map">Refresh scan/);
+  assert.match(html, /data-graph-action="fit">Fit selection/);
+  assert.match(html, /class="button quiet" type="button" data-graph-action="reset">Reset view/);
+});
+
 test('focused graph uses a worker and keeps outline selection canonical', async () => {
   const source = await readFile(new URL('../apps/web/source-map-view.js', import.meta.url), 'utf8');
   const viewport = await readFile(new URL('../apps/web/graph-viewport.js', import.meta.url), 'utf8');
@@ -74,6 +84,11 @@ test('focused layout is deterministic and enforces display bounds', () => {
   assert.deepEqual(first, layoutFocusedGraph(structuredClone(nodes), structuredClone(edges), 640, 400));
   assert.deepEqual(Object.keys(first.positions).sort(), ['a', 'b', 'c']);
   assert.throws(() => layoutFocusedGraph(Array.from({ length: 201 }, (_, index) => ({ id: String(index) })), []), /graph_layout_bounds_exceeded/);
+});
+
+test('graph labels stay inside the visible canvas edge', () => {
+  assert.deepEqual(graphLabelPlacement({ pointX: 600, labelWidth: 80, scale: 1, panX: 0, viewportWidth: 640 }), { align: 'right', offset: -10 });
+  assert.deepEqual(graphLabelPlacement({ pointX: 80, labelWidth: 80, scale: 1, panX: 0, viewportWidth: 640 }), { align: 'left', offset: 10 });
 });
 
 test('focused Map renders a real canvas with outline parity', () => {

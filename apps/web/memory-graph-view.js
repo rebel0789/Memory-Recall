@@ -74,16 +74,18 @@ export function renderMemoryGraphView(model) {
     ${controls}
     <section class="memory-graph-layout" aria-labelledby="governed-graph-title">
       <div class="memory-graph-stage">
-        <header class="memory-graph-stage-heading"><div><h2 id="governed-graph-title">Governed facts</h2><p>${model.nodes.length} visible records / ${model.edges.length} visible relationships${model.omittedNodeCount || model.omittedEdgeCount ? ` / ${model.omittedNodeCount} records and ${model.omittedEdgeCount} relationships omitted by display bounds` : ''}</p></div><div><button class="button secondary" type="button" data-memory-graph-action="fit">Fit selection</button><button class="button secondary" type="button" data-memory-graph-action="reset">Reset view</button></div></header>
+        <header class="memory-graph-stage-heading"><div><h2 id="governed-graph-title">Governed facts</h2><p>${model.nodes.length} visible records / ${model.edges.length} visible relationships${model.omittedNodeCount || model.omittedEdgeCount ? ` / ${model.omittedNodeCount} records and ${model.omittedEdgeCount} relationships omitted by display bounds` : ''}</p></div><div><button class="button secondary" type="button" data-memory-graph-action="fit">Fit selection</button><button class="button quiet" type="button" data-memory-graph-action="reset">Reset view</button></div></header>
         <p class="map-graph-error" data-memory-graph-error hidden></p>
         <div class="memory-graph-canvas-wrap"><canvas id="memory-graph-canvas" width="960" height="560" role="img" aria-label="Interactive governed memory graph"></canvas></div>
       </div>
       <aside class="memory-graph-inspector">
         <h2>Selection</h2><div id="memory-graph-selection">${memoryNodeSelection(first)}</div>
         <hr><h2>Governed memory outline</h2>${memoryGraphOutline(model.nodes, model.groupRelated)}
-        <hr><h2>Fact history</h2>${memoryEdgeList(model.edges)}
-        <hr>${memoryGraphBoundary(model)}
       </aside>
+    </section>
+    <section class="memory-graph-meta">
+      <section class="memory-graph-history" aria-labelledby="memory-history-title"><h2 id="memory-history-title">Fact history</h2>${memoryEdgeList(model.edges)}</section>
+      ${memoryGraphBoundary(model)}
     </section>
   </div>`;
 }
@@ -140,7 +142,7 @@ export function bindMemoryGraph(root, {
 }
 
 function memoryGraphHeading() {
-  return '<header class="tool-page-heading"><div><p class="eyebrow">Governed repository memory</p><h1>Graph</h1><p>Inspect current and historical temporal facts from the local memory store.</p></div><span>Read-only / local SQLite</span></header>';
+  return '<header class="tool-page-heading"><div><h1>Graph</h1><p>Inspect current and historical temporal facts from the local memory store.</p></div><span>Read-only / local SQLite</span></header>';
 }
 
 function renderMemoryGraphControls(model) {

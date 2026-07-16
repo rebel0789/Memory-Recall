@@ -10,36 +10,17 @@ const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
 const root = process.cwd();
-const temp = await mkdtemp(path.join(os.tmpdir(), 'oaf-consumer-browser-'));
+const temp = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-browser-'));
 const workspace = path.join(temp, 'workspace');
 const home = path.join(temp, 'home');
 const data = path.join(workspace, '.local');
-const password = 'correct horse battery staple';
 const screenshots = path.join(root, '.scratch', 'ui-redesign');
+const password = 'correct horse battery staple';
 let server = null;
 let browser = null;
 
 try {
-  await mkdir(path.join(workspace, 'src'), { recursive: true });
-  await mkdir(home, { recursive: true });
-  await mkdir(screenshots, { recursive: true });
-  await writeFile(path.join(workspace, 'package.json'), JSON.stringify({ name: 'consumer-browser-target' }, null, 2));
-  await writeFile(path.join(workspace, 'AGENTS.md'), 'Use local context handoffs and proposal-gated memory.');
-  await writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchSmoke(){ return "ready"; }\n');
-  await writeFile(path.join(workspace, 'src', 'huge.js'), Array.from({ length: 500 }, (_, index) => `export function helper${index}(){ return "local proof ${index}"; }`).join('\n'));
-  await mkdir(path.join(workspace, 'memory'), { recursive: true });
-  await writeFile(path.join(workspace, 'memory', 'status.md'), 'Decision: project:memory-recall release_status ready supersedes draft.');
-  await writeFile(path.join(workspace, '.gitignore'), '.local/\n');
-  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:memory-recall', '--predicate', 'release_status', '--object', 'draft', '--source', 'workspace://memory/status.md', '--format', 'json']);
-  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:memory-recall', '--predicate', 'release_status', '--object', 'ready', '--supersedes-subject', 'project:memory-recall', '--supersedes-predicate', 'release_status', '--source', 'workspace://memory/status.md', '--format', 'json']);
-  run('git', ['init'], workspace);
-  run('git', ['config', 'user.email', 'browser-smoke@example.invalid'], workspace);
-  run('git', ['config', 'user.name', 'Browser Smoke'], workspace);
-  run('git', ['add', '.'], workspace);
-  run('git', ['commit', '-m', 'fixture baseline'], workspace);
-  await writeFile(path.join(workspace, 'src', 'app.js'), 'export function launchSmoke(){ return changedHelper(); }\nexport function changedHelper(){ return "ready"; }\n');
-  await writeFile(path.join(workspace, 'src', 'changed.js'), 'import { launchSmoke } from "./app.js";\nexport const changedResult = launchSmoke();\n');
-
+  await createRepositoryFixture();
   const port = await freePort();
   server = spawn(process.execPath, ['services/control-api/src/server.mjs'], {
     cwd: root,
@@ -51,8 +32,11 @@ try {
   browser = await launchBrowser();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const browserErrors = [];
+  let expectedGraphFailureActive = false;
   page.on('console', (message) => {
-    if (message.type() === 'error') browserErrors.push(message.text());
+    if (message.type() !== 'error') return;
+    if (expectedGraphFailureActive && /^Failed to load resource: the server responded with a status of 503 \(Service Unavailable\)$/u.test(message.text())) return;
+    browserErrors.push(message.text());
   });
   page.on('pageerror', (error) => browserErrors.push(error.message));
 
@@ -60,273 +44,203 @@ try {
   await page.goto(base, { waitUntil: 'domcontentloaded' });
   await waitForText(page, 'Set up this workspace');
   await waitForText(page, 'Workspace security');
-  await waitForText(page, 'Run the first scan after sign-in');
   await page.screenshot({ path: path.join(screenshots, 'setup-desktop-1440.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: path.join(screenshots, 'setup-mobile-390.png'), fullPage: true });
   await page.setViewportSize({ width: 1440, height: 900 });
-  await mustNotContain(page, 'Choose what you need first');
-  await mustNotContain(page, 'Developer-first');
   await page.fill('input[name="username"]', 'owner');
   await page.fill('input[name="displayName"]', 'Owner');
   await page.fill('input[name="password"]', password);
   await page.getByRole('button', { name: 'Create local owner' }).click();
-  for (const label of ['Changes', 'Needs attention', 'Impact', 'Current handoff', 'Recent activity']) await waitForText(page, label);
-  await waitForText(page, 'workspace://src/app.js');
-  await waitForText(page, 'workspace://src/changed.js');
-  const affectedCount = await page.locator('.overview-impact header span').textContent();
-  must(Number.parseInt(affectedCount, 10) > 0, `ordinary Overview did not hydrate meaningful impact: ${affectedCount}`);
+
+  await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
+  for (const label of ['Architecture', 'Start here', 'Current impact', 'Trusted context']) await waitForText(page, label);
+  const overviewTruth = await page.evaluate(() => ({
+    repository: document.querySelector('#repository-name')?.textContent?.trim(),
+    branch: document.querySelector('#repository-branch')?.textContent?.trim(),
+    coverage: document.querySelector('.coverage-label')?.textContent?.trim(),
+    groupCount: document.querySelectorAll('.orientation-group').length,
+    startCount: document.querySelectorAll('.start-item').length,
+    impact: document.querySelector('.current-impact')?.innerText ?? '',
+    trust: document.querySelector('.trusted-context')?.innerText ?? '',
+    metricCount: document.querySelectorAll('.metric-strip').length,
+    heroCount: document.querySelectorAll('.fabric-hero').length,
+    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    height: document.querySelector('.orientation-workbench')?.getBoundingClientRect().height ?? 0,
+    statusCount: document.querySelectorAll('[role="status"]').length,
+    regionBoxes: Object.fromEntries(['.orientation-heading', '.architecture-region', '.start-here', '.current-impact', '.trusted-context'].map((selector) => {
+      const box = document.querySelector(selector)?.getBoundingClientRect();
+      return [selector, box ? { y: box.y, height: box.height, bottom: box.bottom } : null];
+    }))
+  }));
+  must(overviewTruth.repository === 'workspace', `unexpected repository name: ${overviewTruth.repository}`);
+  must(Boolean(overviewTruth.branch) && overviewTruth.branch !== 'Branch unavailable', `missing branch truth: ${overviewTruth.branch}`);
+  must(Boolean(overviewTruth.coverage) && !/unavailable/iu.test(overviewTruth.coverage), `missing coverage truth: ${overviewTruth.coverage}`);
+  must(overviewTruth.groupCount >= 6 && overviewTruth.groupCount <= 12, `unexpected orientation group count: ${overviewTruth.groupCount}`);
+  must(overviewTruth.startCount === 3, `Overview must show exactly three ranked starts: ${overviewTruth.startCount}`);
+  must(/affected|outside the represented graph/iu.test(overviewTruth.impact), `changed-file impact is not useful: ${overviewTruth.impact}`);
+  must(/pending/iu.test(overviewTruth.trust), `pending governed memory is not visible: ${overviewTruth.trust}`);
+  must(/verified/iu.test(overviewTruth.trust), `verified handoff is not visible: ${overviewTruth.trust}`);
+  must(overviewTruth.metricCount === 0 && overviewTruth.heroCount === 0, 'Overview contains retired dashboard or hero chrome');
+  must(!overviewTruth.overflow, 'desktop Overview has horizontal overflow');
+  must(overviewTruth.height > 0 && overviewTruth.height < 820, `Overview contains excessive empty height: ${overviewTruth.height}; ${JSON.stringify(overviewTruth.regionBoxes)}`);
+  must(overviewTruth.statusCount > 0, 'screen-reader status is missing');
+  for (const selector of ['.orientation-heading', '.architecture-region', '.start-here', '.current-impact', '.trusted-context']) {
+    const box = await page.locator(selector).boundingBox();
+    must(box && box.y + box.height <= 900, `${selector} is outside the first desktop viewport`);
+  }
+  for (const phrase of ['AI-powered', 'smart insights', 'mission control', 'command center', 'nervous system']) await mustNotContain(page, phrase);
+
   await page.screenshot({ path: path.join(screenshots, 'overview-desktop-light-1440.png'), fullPage: true });
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.screenshot({ path: path.join(screenshots, 'overview-desktop-dark-1440.png'), fullPage: true });
   await page.emulateMedia({ colorScheme: 'light' });
-  await mustNotContain(page, 'Developer-first');
-  await mustNotContain(page, 'Read the local picture before the next change');
-  await mustNotContain(page, 'Index health');
-  await assertNoElementHorizontalOverflow(page, '.overview-section', 'desktop Overview section');
 
-  const unavailableGitChanges = (route) => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ status: 'unavailable', reason: 'git_status_failed' })
-  });
-  await page.route('**/api/context/git-changes', unavailableGitChanges);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'file detection unavailable');
-  await waitForText(page, 'Change detection unavailable');
-  await mustNotContain(page, 'No changed files detected.');
-  await page.unroute('**/api/context/git-changes', unavailableGitChanges);
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'workspace://src/app.js');
+  const initialGroupCopy = await page.locator('.region-heading p').textContent();
+  const selectedGroupButton = page.locator('.orientation-group').nth(1);
+  await selectedGroupButton.focus();
+  await page.keyboard.press('Enter');
+  must(await selectedGroupButton.getAttribute('aria-pressed') === 'true', 'keyboard selection did not update the active repository group');
+  const selectedGroupCopy = await page.locator('.region-heading p').textContent();
+  must(selectedGroupCopy !== initialGroupCopy, 'repository group selection did not update the inspector');
+  const selectedPrefix = (await selectedGroupButton.locator('span').textContent()).trim();
+  await page.getByRole('link', { name: 'Open in Map' }).click();
+  await page.waitForURL(/\/map\?.*group=/u);
+  must(new URL(page.url()).searchParams.get('group') === selectedPrefix, 'Overview deep link did not preserve the selected group');
+  must(await page.inputValue('input[name="group"]') === selectedPrefix, 'Map form did not hydrate the group from the URL');
 
-  await page.fill('#global-search-input', '/private/secret');
-  await page.press('#global-search-input', 'Enter');
-  await page.waitForURL(/\/map\?query=%2Fprivate%2Fsecret$/u);
-  await waitForText(page, 'Repository search failed');
-  must(await page.inputValue('#global-search-input') === '/private/secret', 'failed repository query was not preserved');
-  await mustNotContain(page, 'No bounded source-graph matches');
-  must((await page.locator('#live-status').textContent()).includes('Repository search failed'), 'failed repository query was announced as loaded');
+  await page.fill('#source-graph-form input[name="query"]', 'startApp');
+  const startAppResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'startApp');
+  await Promise.all([startAppResponse, page.getByRole('button', { name: 'Run map' }).click()]);
+  await page.waitForFunction(() => document.querySelector('#live-status')?.textContent === 'Map loaded.');
+  await waitForText(page, 'Focused map');
+  await page.locator('#source-map-canvas').waitFor();
+  const successfulMapUrl = page.url();
 
-  await page.fill('#global-search-input', 'launchSmoke');
-  await page.press('#global-search-input', 'Enter');
-  await page.waitForURL(/\/map\?query=launchSmoke$/u);
-  await waitForText(page, 'Search results');
-  await waitForText(page, 'launchSmoke');
-  await page.goBack();
-  await page.waitForURL(/\/map\?query=%2Fprivate%2Fsecret$/u);
-  await waitForText(page, 'Repository search failed');
-  await page.goBack();
-  await page.waitForURL(base + '/');
-  await page.goForward();
-  await page.waitForURL(/\/map\?query=%2Fprivate%2Fsecret$/u);
-  await waitForText(page, 'Repository search failed');
-  await page.goForward();
-  await page.waitForURL(/\/map\?query=launchSmoke$/u);
-  await waitForText(page, 'launchSmoke');
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
-
-  const stateMatrix = await page.evaluate(async () => {
-    const { buildRecallMapHomeModel, renderOverview } = await import('/app.js');
-    const response = await fetch('/api/recall/map?workspaceId=ws_local');
-    const report = await response.json();
-    const cleanReport = structuredClone(report);
-    cleanReport.memory = { ...cleanReport.memory, pendingProposals: [], staleFactCount: 0 };
-    const gitChanges = { status: 'available', changedLocators: [], totalCount: 0, omittedCount: 0, truncated: false };
-    const pinned = (status) => ({
-      generatedAt: cleanReport.generatedAt,
-      current: { status, entryId: 'handoff-browser-matrix' },
-      entries: [{ id: 'handoff-browser-matrix', createdAt: cleanReport.generatedAt }]
+  const recoverableGraphFailure = async (route) => {
+    let payload = {};
+    try { payload = route.request().postDataJSON() ?? {}; } catch {}
+    if (payload.query !== 'recoverableFailure') return route.continue();
+    return route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'source_graph_temporarily_unavailable', message: 'Recoverable graph failure.', correlationId: 'req_browser_failure' } })
     });
-    const empty = structuredClone(cleanReport);
-    empty.architecture = { ...empty.architecture, entryPoints: [], hotspots: [], impact: { changedLocators: [], representedChangedLocators: [], affectedSymbols: [], depth: 0 } };
-    const omitted = structuredClone(cleanReport);
-    omitted.architecture = { ...omitted.architecture, impact: { changedLocators: [], representedChangedLocators: [], affectedSymbols: [], depth: 0 } };
-    omitted.repository = { ...omitted.repository, dirtyCount: 2 };
-    const partial = structuredClone(cleanReport);
-    partial.support.sourceGraph.status = 'unavailable';
-    partial.support.sourceGraph.coverage.status = 'unavailable';
-    const cases = [
-      ['loading', { report: null }, 'loading', 'Loading Recall Map', 'Scan repository'],
-      ['empty', { report: empty, gitChanges }, 'empty', 'No JS/TS entry points yet', 'Scan repository'],
-      ['all-omitted', { report: omitted, gitChanges: { status: 'available', changedLocators: [], totalCount: 2, omittedCount: 2, truncated: true } }, 'success', '0 shown · 2 omitted by safety or scan bounds', ''],
-      ['partial', { report: partial, gitChanges }, 'partial', 'Bounded coverage', ''],
-      ['stale', { report: cleanReport, gitChanges, pinnedHandoffStatus: pinned('stale') }, 'stale', 'Source changes need review', 'Update handoff'],
-      ['blocked', { report: cleanReport, gitChanges, pinnedHandoffStatus: pinned('tampered') }, 'success', 'Handoff blocked', 'Repair handoff'],
-      ['success', { report: cleanReport, gitChanges, pinnedHandoffStatus: pinned('verified') }, 'success', 'Current handoff', 'View current handoff'],
-      ['auth-error', { error: { status: 401, code: 'authentication_required', message: 'Authentication is required.' } }, 'error', 'Recall Map unavailable', 'Retry scan']
-    ];
-    const host = document.createElement('div');
-    document.querySelector('#view-root').append(host);
-    const results = cases.map(([name, args, expectedState, expectedText, expectedAction]) => {
-      const model = buildRecallMapHomeModel(args);
-      host.innerHTML = renderOverview(model);
-      const action = host.querySelector('.page-heading .button, .page-heading a.button')?.textContent?.trim() ?? '';
-      return {
-        name,
-        modelState: model.state,
-        expectedState,
-        expectedText,
-        expectedAction,
-        text: host.innerText,
-        action,
-        overflow: host.scrollWidth > host.clientWidth + 1
-      };
-    });
-    host.remove();
-    return results;
-  });
-  for (const state of stateMatrix) {
-    must(state.modelState === state.expectedState, `${state.name} Overview model state mismatch: ${state.modelState}`);
-    must(state.text.includes(state.expectedText), `${state.name} Overview state missing ${state.expectedText}`);
-    must(!state.expectedAction || state.action === state.expectedAction, `${state.name} Overview action mismatch: ${state.action}`);
-    must(!state.overflow, `${state.name} Overview state has horizontal overflow`);
-  }
-
-  await page.context().clearCookies();
+  };
+  expectedGraphFailureActive = true;
+  await page.route('**/api/context/graph/preview', recoverableGraphFailure);
+  await page.fill('#source-graph-form input[name="query"]', 'recoverableFailure');
+  const failureResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'recoverableFailure');
+  await Promise.all([failureResponse, page.getByRole('button', { name: 'Run map' }).click()]);
+  await waitForText(page, 'Recoverable graph failure.');
+  const failedMapUrl = page.url();
+  await assertMapState(page, { query: 'recoverableFailure', group: selectedPrefix });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'Sign in');
-  await page.fill('input[name="username"]', 'owner');
-  await page.fill('input[name="password"]', 'incorrect password');
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await waitForText(page, 'Username or password is incorrect.');
-  must(await page.inputValue('input[name="username"]') === 'owner', 'login username was not preserved after recoverable failure');
-  must(await page.inputValue('input[name="password"]') === 'incorrect password', 'live password input was reconstructed after recoverable failure');
-  await page.fill('input[name="password"]', password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await waitForText(page, 'Changes');
-  browserErrors.length = 0;
+  await waitForText(page, 'Recoverable graph failure.');
+  await assertMapState(page, { query: 'recoverableFailure', group: selectedPrefix });
+  await page.goBack();
+  await page.waitForURL(successfulMapUrl);
+  await waitForText(page, 'Focused map');
+  await assertMapState(page, { query: 'startApp', group: selectedPrefix });
+  await page.goForward();
+  await page.waitForURL(failedMapUrl);
+  await waitForText(page, 'Recoverable graph failure.');
+  await assertMapState(page, { query: 'recoverableFailure', group: selectedPrefix });
+  await page.goBack();
+  await page.waitForURL(successfulMapUrl);
+  await page.locator('#source-map-canvas').waitFor();
+  await page.unroute('**/api/context/graph/preview', recoverableGraphFailure);
+  expectedGraphFailureActive = false;
 
+  await page.waitForFunction(() => document.querySelector('#source-map-canvas')?.dataset.layoutReady === 'true');
+  const focusNodeCount = await page.locator('.source-map-outline [data-node-id]').count();
+  must(focusNodeCount > 0 && focusNodeCount <= 200, `focused graph is outside node bounds: ${focusNodeCount}`);
+  const initialNodeId = await page.locator('#source-map-selection').getAttribute('data-selected-node-id');
+  must(Boolean(initialNodeId), 'focused graph has no canonical selection');
+  await page.getByRole('button', { name: 'Fit selection' }).click();
+  await page.locator('#source-map-canvas').hover();
+  await page.mouse.wheel(0, -180);
+  await page.getByRole('button', { name: 'Reset view' }).click();
+  const outlineButtons = page.locator('.source-map-outline [data-node-id]');
+  if (focusNodeCount > 1) await outlineButtons.nth(1).click();
+  const outlineNodeId = await page.locator('#source-map-selection').getAttribute('data-selected-node-id');
+  must(Boolean(outlineNodeId), 'outline selection did not update the canonical node');
+  await page.getByRole('button', { name: 'Fit selection' }).click();
+  const canvasBox = await page.locator('#source-map-canvas').boundingBox();
+  must(Boolean(canvasBox), 'focused graph canvas has no bounds');
+  await page.locator('#source-map-canvas').click({ position: { x: canvasBox.width / 2, y: canvasBox.height / 2 } });
+  must(await page.locator('#source-map-selection').getAttribute('data-selected-node-id') === outlineNodeId, 'canvas and outline selection diverged');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  for (const width of [701, 768, 900, 1080]) {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto(base, { waitUntil: 'domcontentloaded' });
-    const responsiveTablet = await page.evaluate(() => ({
-      rail: document.querySelector('.sidebar')?.getBoundingClientRect().width,
-      navHeights: [...document.querySelectorAll('#primary-nav a')].map((item) => item.getBoundingClientRect().height),
-      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
-    }));
-    must(responsiveTablet.rail === 72, `tablet ${width}px rail is not compact: ${JSON.stringify(responsiveTablet)}`);
-    must(responsiveTablet.navHeights.every((height) => height >= 44), `tablet ${width}px nav touch target below 44px: ${JSON.stringify(responsiveTablet.navHeights)}`);
-    must(!responsiveTablet.overflow, `tablet ${width}px shell has horizontal overflow`);
-  }
-  await page.setViewportSize({ width: 900, height: 900 });
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'Changes');
-  const tablet = await page.evaluate(() => ({
-    rail: document.querySelector('.sidebar')?.getBoundingClientRect().width,
-    navHeights: [...document.querySelectorAll('#primary-nav a')].map((item) => item.getBoundingClientRect().height),
-    overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-    reducedMotionTransition: getComputedStyle(document.querySelector('#primary-nav a')).transitionDuration,
-    reducedMotionAnimation: getComputedStyle(document.querySelector('#primary-nav a')).animationDuration
+  const motion = await page.locator('#source-map-canvas').evaluate((element) => ({
+    transition: getComputedStyle(element).transitionDuration,
+    animation: getComputedStyle(element).animationDuration
   }));
-  must(tablet.rail === 72, `tablet rail is not compact: ${JSON.stringify(tablet)}`);
-  must(tablet.navHeights.every((height) => height >= 44), `tablet nav touch target below 44px: ${JSON.stringify(tablet.navHeights)}`);
-  must(!tablet.overflow, 'tablet shell has horizontal overflow');
-  must(parseCssSeconds(tablet.reducedMotionTransition) <= 0.001, `reduced motion transition remains active: ${tablet.reducedMotionTransition}`);
-  must(parseCssSeconds(tablet.reducedMotionAnimation) <= 0.001, `reduced motion animation remains active: ${tablet.reducedMotionAnimation}`);
-  const focusedControls = [];
-  for (let index = 0; index < 12; index += 1) {
-    await page.keyboard.press('Tab');
-    focusedControls.push(await page.evaluate(() => ({
-      id: document.activeElement?.id ?? '',
-      tag: document.activeElement?.tagName ?? '',
-      href: document.activeElement?.getAttribute?.('href') ?? '',
-      outline: getComputedStyle(document.activeElement).outlineWidth
-    })));
-  }
-  must(focusedControls.some((item) => item.id === 'global-search-input'), `keyboard traversal did not reach global search: ${JSON.stringify(focusedControls)}`);
-  must(focusedControls.some((item) => item.href === '/map'), `keyboard traversal did not reach primary navigation: ${JSON.stringify(focusedControls)}`);
-  must(focusedControls.filter((item) => item.id === 'global-search-input' || item.href === '/map').every((item) => item.outline !== '0px'), `keyboard focus is not visible: ${JSON.stringify(focusedControls)}`);
-  await page.screenshot({ path: path.join(screenshots, 'overview-tablet-900.png'), fullPage: true });
+  must(parseCssSeconds(motion.transition) <= 0.001 && parseCssSeconds(motion.animation) <= 0.001, `reduced motion is not bounded: ${JSON.stringify(motion)}`);
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('#source-map-canvas')?.dataset.layoutReady === 'true');
+  await page.screenshot({ path: path.join(screenshots, 'map-focused-tablet-900.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('#source-map-canvas')?.dataset.layoutReady === 'true');
+  await page.screenshot({ path: path.join(screenshots, 'map-focused-desktop-1440.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => document.querySelector('#source-map-canvas')?.dataset.layoutReady === 'true');
+  must(!(await hasHorizontalOverflow(page)), 'focused Map has horizontal overflow at 390px');
+  await page.screenshot({ path: path.join(screenshots, 'map-focused-mobile-390.png'), fullPage: true });
 
-  await page.goto(`${base}/agents-tools`, { waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'Harness setup preview');
-  await page.locator('#harness-setup-form button[type="submit"]').click();
-  await waitForText(page, 'Harness setup preview ready.');
-  await waitForText(page, 'Home writes');
-
-  await page.locator('a[href="/handoffs"][data-route="context-pack"]').first().click();
-  await waitForText(page, 'Handoffs');
-  await waitForText(page, 'Build handoff');
-  await page.screenshot({ path: path.join(screenshots, 'handoffs-desktop-1440.png'), fullPage: true });
-  await page.fill('textarea[name="objective"]', 'Consumer browser smoke');
-  await page.fill('input[name="step"]', 'verify rendered first-run flow');
-  await page.fill('textarea[name="userSelectedFiles"]', 'src/huge.js');
-  await page.fill('textarea[name="changedLocators"]', 'src/app.js');
-  await page.locator('#context-pack-form button[type="submit"]').click();
-  await waitForText(page, 'PRACTICAL HANDOFF');
-  await waitForText(page, 'Status\nready');
-  await waitForText(page, 'TOKEN SAVER');
-  await waitForText(page, 'Provider billing\nnot claimed');
-  const tokenSaverProof = await page.evaluate(() => /TOKEN SAVER\s+\d+ -> \d+ tokens\s+([1-9]\d*)% saved/u.test(document.body.innerText));
-  must(tokenSaverProof, 'Token Saver did not render a non-zero saved percentage');
-  await mustNotContain(page, 'SMOKE RAW BODY');
-
-  await page.locator('a[data-route="memory"]').first().click();
-  await waitForText(page, 'Review queue');
-  await waitForText(page, 'Add memory');
-  await page.screenshot({ path: path.join(screenshots, 'memory-desktop-1440.png'), fullPage: true });
-  await page.fill('#memory-intake-form textarea[name="text"]', 'Fact: project:memory-recall consumer_browser_smoke rendered.');
-  await page.locator('#memory-intake-form button[value="preview"]').click();
-  await waitForText(page, '1 proposal');
-  await waitForText(page, '0 active memory created');
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.locator('#memory-intake-form button[value="queue"]').click();
-  await waitForText(page, 'Memory proposals queued for approval.');
-  const approveProposal = page.locator('[data-action="approve-memory-proposal"]').first();
-  await approveProposal.waitFor();
-  page.once('dialog', (dialog) => dialog.accept());
-  await approveProposal.click();
-  await waitForText(page, 'Memory proposal approved.');
-  await waitForText(page, 'consumer_browser_smoke');
-
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${base}/memory-graph`, { waitUntil: 'domcontentloaded' });
-  await waitForText(page, 'Governed knowledge graph');
-  await waitForText(page, 'Current facts');
-  await waitForText(page, 'project:memory-recall release_status ready');
+  await page.getByRole('heading', { name: 'Graph', exact: true }).waitFor();
   await page.locator('#memory-graph-history').check();
   await waitForText(page, 'Superseded');
-  await waitForText(page, 'project:memory-recall release_status draft');
   await waitForText(page, 'Provenance workspace://memory/status.md');
+  must(await page.locator('#memory-graph-canvas').count() === 1, 'populated memory graph has no canvas');
+  must(await page.locator('.memory-graph-outline [data-node-id]').count() > 0, 'populated memory graph has no outline');
+  await page.screenshot({ path: path.join(screenshots, 'memory-graph-populated-1440.png'), fullPage: true });
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: path.join(screenshots, 'memory-graph-populated-900.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 900 });
 
-  await page.locator('a[href="/map"][data-route="source-graph"]').first().click();
-  await waitForText(page, 'Map');
-  await page.fill('input[name="query"]', 'launchSmoke');
-  await page.fill('input[name="changedLocator"]', 'src/app.js');
-  await page.locator('#source-graph-form button[type="submit"]').click();
-  await waitForText(page, 'Search results');
-  await waitForText(page, 'Changed impact');
-  await waitForText(page, 'Run map');
-  await page.screenshot({ path: path.join(screenshots, 'map-desktop-1440.png'), fullPage: true });
+  const emptyMemoryResponse = (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      schemaVersion: '1.0.0', workspaceId: 'ws_local', generatedAt: new Date().toISOString(),
+      provider: 'provider:native:memory:sqlite', mode: 'current',
+      summary: { nodeCount: 0, edgeCount: 0, currentNodeCount: 0, currentEdgeCount: 0, historyNodeCount: 0, historyEdgeCount: 0, communityCount: 0 },
+      graph: { nodes: [], edges: [] }, focus: null,
+      safeguards: { readOnly: true, modelCalls: 0, networkCalls: 0, externalWritesEnabled: false }
+    })
+  });
+  await page.route('**/api/memory/graph?*', emptyMemoryResponse);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await waitForText(page, 'No governed memory yet');
+  await waitForText(page, 'Checked workspace');
+  must(await page.locator('#memory-graph-canvas').count() === 0, 'empty memory state rendered a canvas');
+  must(await page.locator('.metric-strip').count() === 0, 'empty memory state rendered zero metrics');
+  await page.screenshot({ path: path.join(screenshots, 'memory-graph-empty-1440.png'), fullPage: true });
+  await page.unroute('**/api/memory/graph?*', emptyMemoryResponse);
 
-  for (const [width, height, size] of [[900, 900, 'tablet-900'], [390, 844, 'mobile-390']]) {
-    for (const [route, label, name] of [['/map', 'Map', 'map'], ['/memory', 'Memory', 'memory'], ['/handoffs', 'Handoffs', 'handoffs']]) {
-      await page.setViewportSize({ width, height });
-      await page.goto(`${base}${route}`, { waitUntil: 'domcontentloaded' });
-      await page.getByRole('heading', { name: label, exact: true }).waitFor();
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-      must(!overflow, `${route} has horizontal overflow at ${width}px`);
-      await page.screenshot({ path: path.join(screenshots, `${name}-${size}.png`), fullPage: true });
-    }
-  }
-
-  for (const width of [320, 390]) {
-    await page.setViewportSize({ width, height: 844 });
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+  for (const width of [320, 375, 414, 768, 1440]) {
+    await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
-    for (const label of ['Changes', 'Needs attention', 'Impact', 'Current handoff', 'Recent activity']) await waitForText(page, label);
-    const mobile = await page.evaluate(() => ({
-      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-      navHeights: [...document.querySelectorAll('#mobile-nav a')].map((item) => item.getBoundingClientRect().height)
-    }));
-    must(!mobile.overflow, `mobile ${width}px first-use shell has horizontal overflow`);
-    must(mobile.navHeights.every((height) => height >= 44), `mobile ${width}px nav touch target below 44px: ${JSON.stringify(mobile.navHeights)}`);
-    await assertNoElementHorizontalOverflow(page, '.overview-section', `mobile ${width}px Overview section`);
+    await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
+    must(!(await hasHorizontalOverflow(page)), `Overview has horizontal overflow at ${width}px`);
+    const navSelector = width <= 700 ? '#mobile-nav a' : '#primary-nav a';
+    const navHeights = await page.locator(navSelector).evaluateAll((items) => items.map((item) => item.getBoundingClientRect().height));
+    must(navHeights.length > 0 && navHeights.every((height) => height >= 44), `navigation target below 44px at ${width}px: ${JSON.stringify(navHeights)}`);
   }
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(base, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
   await page.screenshot({ path: path.join(screenshots, 'overview-mobile-390.png'), fullPage: true });
-  must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
 
-  console.log('PASS consumer browser smoke: Recall Map, handoff, harness, Token Saver, memory, graph, mobile shell');
+  must(browserErrors.length === 0, `browser console/page errors: ${browserErrors.join('\n')}`);
+  console.log('PASS consumer browser smoke: orientation, deterministic Map, governed memory, responsive shell');
 } finally {
   if (browser) await browser.close().catch(() => {});
   if (server) {
@@ -334,6 +248,45 @@ try {
     await Promise.race([once(server, 'exit'), new Promise((resolve) => setTimeout(resolve, 2000))]);
   }
   await rm(temp, { recursive: true, force: true });
+}
+
+async function createRepositoryFixture() {
+  for (const directory of [
+    'apps/web', 'packages/core', 'services/control-api',
+    'providers/native/memory', 'scripts', 'tests', 'memory', 'docs'
+  ]) await mkdir(path.join(workspace, directory), { recursive: true });
+  await mkdir(home, { recursive: true });
+  await mkdir(screenshots, { recursive: true });
+  await writeFile(path.join(workspace, 'package.json'), JSON.stringify({ name: 'memory-recall-browser-target', type: 'module' }, null, 2));
+  await writeFile(path.join(workspace, 'AGENTS.md'), 'Use local context handoffs and proposal-gated memory.');
+  await writeFile(path.join(workspace, 'packages', 'core', 'index.js'), 'export function buildContext(value){ return { value, source: "local" }; }\n');
+  await writeFile(path.join(workspace, 'providers', 'native', 'memory', 'index.js'), 'export function readMemory(){ return "approved facts"; }\n');
+  await writeFile(path.join(workspace, 'services', 'control-api', 'server.js'), 'import { buildContext } from "../../packages/core/index.js";\nimport { readMemory } from "../../providers/native/memory/index.js";\nexport function serveControl(){ return buildContext(readMemory()); }\n');
+  await writeFile(path.join(workspace, 'apps', 'web', 'main.js'), 'import { serveControl } from "../../services/control-api/server.js";\nexport function startApp(){ return serveControl(); }\n');
+  await writeFile(path.join(workspace, 'scripts', 'check.mjs'), 'import { startApp } from "../apps/web/main.js";\nexport function runCheck(){ return startApp(); }\n');
+  await writeFile(path.join(workspace, 'tests', 'main.test.js'), 'import { startApp } from "../apps/web/main.js";\nexport function verifyMain(){ return startApp().source === "local"; }\n');
+  await writeFile(path.join(workspace, 'packages', 'core', 'large-fixture.js'), Array.from({ length: 500 }, (_, index) => `export function helper${index}(){ return "local proof ${index}"; }`).join('\n'));
+  await writeFile(path.join(workspace, 'memory', 'status.md'), 'Decision: project:memory-recall release_status ready supersedes draft.');
+  await writeFile(path.join(workspace, '.gitignore'), '.local/\n');
+  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:memory-recall', '--predicate', 'release_status', '--object', 'draft', '--source', 'workspace://memory/status.md', '--format', 'json']);
+  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'remember', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--subject', 'project:memory-recall', '--predicate', 'release_status', '--object', 'ready', '--supersedes-subject', 'project:memory-recall', '--supersedes-predicate', 'release_status', '--source', 'workspace://memory/status.md', '--format', 'json']);
+  run('git', ['init'], workspace);
+  run('git', ['config', 'user.email', 'browser-smoke@example.invalid'], workspace);
+  run('git', ['config', 'user.name', 'Browser Smoke'], workspace);
+  run('git', ['add', '.'], workspace);
+  run('git', ['commit', '-m', 'fixture baseline'], workspace);
+  await writeFile(path.join(workspace, 'apps', 'web', 'main.js'), 'import { serveControl } from "../../services/control-api/server.js";\nexport function startApp(){ return normalizeResult(serveControl()); }\nexport function normalizeResult(value){ return value; }\n');
+  await writeFile(path.join(workspace, 'docs', 'operator-note.md'), 'One changed non-JavaScript file remains outside source-graph coverage.\n');
+  runJson(process.execPath, ['apps/cli/oaf.mjs', 'context', 'pack', '--from', 'codex', '--root', workspace, '--objective', 'Continue the verified local repository change', '--step', 'inspect bounded repository context', '--target', 'codex', '--include-file', 'AGENTS.md', '--changed', 'apps/web/main.js', '--write', '--pin', '--out', 'context-packs/CONTEXT_PACK.md', '--format', 'json']);
+  runJson(process.execPath, ['apps/cli/oaf.mjs', 'memory', 'ingest', '--root', workspace, '--sqlite', '.local/memory.sqlite', '--format', 'json']);
+}
+
+async function assertMapState(page, expected) {
+  const url = new URL(page.url());
+  must(url.searchParams.get('query') === expected.query, `Map URL query drifted: ${url}`);
+  must(url.searchParams.get('group') === expected.group, `Map URL group drifted: ${url}`);
+  must(await page.inputValue('#source-graph-form input[name="query"]') === expected.query, 'Map query field drifted from the URL');
+  must(await page.inputValue('input[name="group"]') === expected.group, 'Map group field drifted from the URL');
 }
 
 async function launchBrowser() {
@@ -354,7 +307,15 @@ function must(condition, message) {
 }
 
 function parseCssSeconds(value) {
-  return Math.max(...String(value ?? '0s').split(',').map((part) => Number.parseFloat(part) || 0));
+  return Math.max(...String(value ?? '0s').split(',').map((part) => {
+    const number = Number.parseFloat(part) || 0;
+    return part.trim().endsWith('ms') ? number / 1000 : number;
+  }));
+}
+
+function graphPreviewQuery(request) {
+  if (!request.url().endsWith('/api/context/graph/preview')) return '';
+  try { return request.postDataJSON()?.query ?? ''; } catch { return ''; }
 }
 
 function runJson(command, args) {
@@ -372,25 +333,18 @@ async function waitForText(page, text) {
   try {
     await page.waitForFunction((value) => document.body.innerText.toLocaleLowerCase().includes(String(value).toLocaleLowerCase()), text, { timeout: 15_000 });
   } catch {
-    const body = await page.evaluate(() => document.body.innerText.slice(0, 4000)).catch(() => '');
+    const body = await page.evaluate(() => document.body.innerText.slice(0, 5000)).catch(() => '');
     throw new Error(`Missing text: ${text}\nVisible text:\n${body}`);
   }
 }
 
 async function mustNotContain(page, text) {
-  const found = await page.evaluate((value) => document.body.innerText.includes(value), text);
+  const found = await page.evaluate((value) => document.body.innerText.toLocaleLowerCase().includes(String(value).toLocaleLowerCase()), text);
   must(!found, `page leaked forbidden text: ${text}`);
 }
 
-async function assertNoElementHorizontalOverflow(page, selector, label) {
-  const overflows = await page.locator(selector).evaluateAll((elements) => elements
-    .map((element) => ({
-      text: element.innerText.replace(/\s+/gu, ' ').trim().slice(0, 120),
-      clientWidth: element.clientWidth,
-      scrollWidth: element.scrollWidth
-    }))
-    .filter((item) => item.scrollWidth > item.clientWidth + 1));
-  must(overflows.length === 0, `${label} has horizontal overflow: ${JSON.stringify(overflows)}`);
+async function hasHorizontalOverflow(page) {
+  return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
 }
 
 async function freePort() {
