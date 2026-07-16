@@ -1142,8 +1142,8 @@
       "node scripts/code-intelligence-batch-e.mjs --check",
       "node scripts/code-intelligence-phase2-tier1.mjs --check"
     ],
-    "testsExpected": 755,
-    "protocolFixturesExpected": 195,
+    "testsExpected": 758,
+    "protocolFixturesExpected": 207,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."
   }

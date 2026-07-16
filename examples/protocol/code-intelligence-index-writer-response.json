@@ -1,0 +1,51 @@
+{
+  "protocolVersion": "1.0.0",
+  "requestId": "ciidxreq_00000000000000000000000000000001",
+  "ok": true,
+  "result": {
+    "responseSchemaVersion": "1.0.0",
+    "operation": "index.build",
+    "repositoryIdentityHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "indexLocator": "workspace://.local/source-index/index.v1.sqlite",
+    "storageSchemaVersion": "1",
+    "engineVersion": "1.1.1",
+    "state": "ready",
+    "activeGeneration": 1,
+    "freshness": "current",
+    "health": {
+      "status": "ready",
+      "reasonCodes": [],
+      "lastSuccessfulRefreshAt": "2026-07-16T15:30:00.000Z",
+      "repairRequired": false
+    },
+    "summary": {
+      "fileCount": 144,
+      "nodeCount": 1280,
+      "edgeCount": 2310,
+      "unresolvedCount": 41,
+      "omittedCount": 0,
+      "databaseBytes": 1048576
+    },
+    "measurements": {
+      "durationMs": 842,
+      "parsedFileCount": 144,
+      "reusedFileCount": 0,
+      "changedFileCount": 144,
+      "deletedFileCount": 0,
+      "localFilesWritten": 1
+    },
+    "results": [],
+    "nextCursor": null,
+    "diagnostics": [],
+    "safeguards": {
+      "readOnly": false,
+      "localFilesWritten": 1,
+      "canonicalMemoryWrites": 0,
+      "networkCalls": 0,
+      "modelCalls": 0,
+      "rawSourceBodiesIncluded": false,
+      "absolutePathsIncluded": false,
+      "repairPerformed": false
+    }
+  }
+}

@@ -55,19 +55,19 @@ Historical generation retention is bounded. The active generation and one previo
 - Modify: `packages/protocol/README.md`
 - Create: `tests/code-intelligence-index-contract.test.mjs`
 
-- [ ] **Step 1: Write failing closed-schema tests**
+- [x] **Step 1: Write failing closed-schema tests**
 
 Cover `index.build`, `index.refresh`, `index.status`, `index.doctor`, and bounded `index.query`. Reject absolute paths, source bodies, SQL text, unknown fields, unbounded limits, writer flags on read operations, and repair/delete authority in doctor requests.
 
-- [ ] **Step 2: Define safe lifecycle and query responses**
+- [x] **Step 2: Define safe lifecycle and query responses**
 
 Responses expose repository identity hash, index locator, schema/engine versions, active generation, freshness, health, counts, timing, page cursor, bounded results, diagnostics, and safeguard counters. They never expose the local database path or raw SQLite errors.
 
-- [ ] **Step 3: Record the storage ADR and rollback boundary**
+- [x] **Step 3: Record the storage ADR and rollback boundary**
 
 Document why source intelligence is not stored in `oaf-store`, why SQLite is owned by Rust, how the JSON compatibility index is retired later, and how a failed Phase 3 commit leaves JS public behavior intact.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run focused protocol tests, full protocol validation, repository checks, and diff checks.
 

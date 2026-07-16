@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://memory-recall.dev/schemas/code-intelligence-index-request.schema.json",
+  "title": "Code Intelligence Index Request",
+  "oneOf": [
+    { "$ref": "#/$defs/build" },
+    { "$ref": "#/$defs/refresh" },
+    { "$ref": "#/$defs/status" },
+    { "$ref": "#/$defs/doctor" },
+    { "$ref": "#/$defs/query" }
+  ],
+  "$defs": {
+    "requestId": { "type": "string", "pattern": "^ciidxreq_[a-f0-9]{32}$" },
+    "workspaceId": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,127}$" },
+    "cancellationToken": { "type": "string", "pattern": "^cancel_[a-f0-9]{32}$" },
+    "indexLocator": { "const": "workspace://.local/source-index/index.v1.sqlite" },
+    "language": {
+      "enum": [
+        "typescript", "javascript", "python", "java", "kotlin", "csharp", "go", "rust",
+        "php", "ruby", "swift", "c", "cpp", "dart", "lua", "bash", "sql", "objective-c",
+        "scala", "r", "julia", "zig"
+      ]
+    },
+    "writerArguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["write", "maxFiles", "maxFileBytes", "maxNodes", "maxEdges"],
+      "properties": {
+        "write": { "const": true },
+        "maxFiles": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "maxFileBytes": { "type": "integer", "minimum": 1, "maximum": 10485760 },
+        "maxNodes": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+        "maxEdges": { "type": "integer", "minimum": 1, "maximum": 5000000 },
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 22,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/language" }
+        }
+      }
+    },
+    "emptyArguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 0
+    },
+    "queryArguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "limit"],
+      "properties": {
+        "kind": { "enum": ["summary", "exact", "neighborhood", "dependencies", "trace", "impact", "routes"] },
+        "query": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[A-Za-z0-9_.$:/#@ -]+$" },
+        "locator": { "type": "string", "pattern": "^workspace://[A-Za-z0-9._/@+-]+(?:/[A-Za-z0-9._@+-]+)*(?:#L[1-9][0-9]{0,8}(?:-L[1-9][0-9]{0,8})?)?$", "maxLength": 512 },
+        "direction": { "enum": ["inbound", "outbound", "both"] },
+        "depth": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "cursor": { "type": "string", "pattern": "^idxcur_[a-f0-9]{32}$" }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "indexLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "index.build" },
+        "root": { "const": "." },
+        "indexLocator": { "$ref": "#/$defs/indexLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 300000 },
+        "cancellationToken": { "$ref": "#/$defs/cancellationToken" },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/writerArguments" }
+      }
+    },
+    "refresh": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "indexLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "index.refresh" },
+        "root": { "const": "." },
+        "indexLocator": { "$ref": "#/$defs/indexLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 300000 },
+        "cancellationToken": { "$ref": "#/$defs/cancellationToken" },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/writerArguments" }
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "indexLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "index.status" },
+        "root": { "const": "." },
+        "indexLocator": { "$ref": "#/$defs/indexLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 120000 },
+        "cancellationToken": { "$ref": "#/$defs/cancellationToken" },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/emptyArguments" }
+      }
+    },
+    "doctor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "indexLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "index.doctor" },
+        "root": { "const": "." },
+        "indexLocator": { "$ref": "#/$defs/indexLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 120000 },
+        "cancellationToken": { "$ref": "#/$defs/cancellationToken" },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/emptyArguments" }
+      }
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocolVersion", "requestId", "workspaceId", "operation", "root", "indexLocator", "deadlineMs", "responseSchemaVersion", "arguments"],
+      "properties": {
+        "protocolVersion": { "const": "1.0.0" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "operation": { "const": "index.query" },
+        "root": { "const": "." },
+        "indexLocator": { "$ref": "#/$defs/indexLocator" },
+        "deadlineMs": { "type": "integer", "minimum": 1, "maximum": 120000 },
+        "cancellationToken": { "$ref": "#/$defs/cancellationToken" },
+        "responseSchemaVersion": { "const": "1.0.0" },
+        "arguments": { "$ref": "#/$defs/queryArguments" }
+      }
+    }
+  }
+}

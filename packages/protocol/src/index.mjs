@@ -57,3 +57,8 @@ export {
   evaluateCodeIntelligenceLanguage,
   truthFingerprint
 } from './code-intelligence-evaluation.mjs';
+export {
+  CODE_INTELLIGENCE_INDEX_LOCATOR,
+  CODE_INTELLIGENCE_INDEX_OPERATIONS,
+  CODE_INTELLIGENCE_INDEX_QUERY_KINDS
+} from './code-intelligence-index-contract.mjs';

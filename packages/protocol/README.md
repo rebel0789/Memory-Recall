@@ -225,6 +225,21 @@ duplicate truth IDs and semantic keys, source-class mismatches, unsupported
 never presented as a passing percentage. Individual language reports cannot
 claim parity or leadership and do not change the public JavaScript engine.
 
+`code-intelligence-index-request.schema.json` and
+`code-intelligence-index-response.schema.json` define the Phase 3 SQLite source
+index boundary. Lifecycle operations are closed to build, refresh, status,
+doctor, and bounded query. Build and refresh carry explicit writer intent;
+status, doctor, and query cannot carry write or repair authority. The index
+locator is the fixed workspace-relative
+`workspace://.local/source-index/index.v1.sqlite` value, never a local path.
+
+Index responses expose only repository identity hashes, schema and engine
+versions, generation state, bounded counts, safe diagnostics, and locator-only
+query results. Read operations require zero local writes. Writer responses
+still require zero canonical-memory, network, and model writes. Raw source,
+absolute paths, raw SQL, raw database errors, and silent repair are outside the
+contract.
+
 ## Recall Map report schema
 
 `recall-map.schema.json` is the additive internal contract for the read-only
