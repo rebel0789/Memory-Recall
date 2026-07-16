@@ -90,14 +90,16 @@ export function bindSourceMap(root, { report = null, onSubmit, onRefresh, onSele
   root.querySelector('[data-action="refresh-source-map"]')?.addEventListener('click', (event) => onRefresh?.(event), options);
   const canvas = root.querySelector('#source-map-canvas');
   if (canvas) {
-    const nodes = arrayValue(report?.focus?.nodes);
+    const state = mapStateFromRoot(root);
+    const graph = sourceMapGraphData(report, state);
+    const nodes = graph.nodes;
     viewport = createGraphViewport(
       canvas,
       root.querySelector('.source-map-outline'),
       root.querySelector('#source-map-selection'),
       {
         nodes,
-        edges: arrayValue(report?.focus?.edges),
+        edges: graph.edges,
         onSelect: (node) => {
           const selection = root.querySelector('#source-map-selection');
           if (selection) selection.innerHTML = renderSelection(node);
@@ -136,7 +138,7 @@ function renderMapForm(state) {
         <label class="field field-compact"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="${state.limit}"></label>
       </div>
     </details>
-    <div class="map-query-actions"><button class="button primary" type="submit">Run map</button><button class="button quiet" type="button" data-action="refresh-source-map">Refresh scan</button><span>No model, network, or external writes</span></div>
+    <div class="map-query-actions"><button class="button primary" type="submit">Search code</button><button class="button quiet" type="button" data-action="refresh-source-map">Refresh scan</button><span>No model, network, or external writes</span></div>
   </form></section>`;
 }
 
@@ -147,12 +149,13 @@ function renderMapResult(report, state) {
   const focusEdges = arrayValue(report.focus?.edges);
   const groups = arrayValue(report.orientation?.groups);
   const outlineNodes = hasFocus ? focusNodes : groups;
+  const groupRelations = arrayValue(report.orientation?.relations ?? report.orientation?.groupRelations);
   const content = hasFocus
     ? renderFocus(focusNodes, focusEdges, report.focus)
-    : renderGroups(groups, arrayValue(report.orientation?.relations ?? report.orientation?.groupRelations));
+    : renderArchitecture(groups, groupRelations);
 
   return `<section class="source-map-result" aria-labelledby="map-result-title">
-    <header class="map-result-heading"><div><h2 id="map-result-title">${hasFocus ? 'Focused map' : 'Repository groups'}</h2><p>${escapeHtml(coverage.summary)}</p></div>${snapshotLabel(report.snapshot)}</header>
+    <header class="map-result-heading"><div><h2 id="map-result-title">${hasFocus ? 'Focused map' : 'Repository architecture'}</h2><p>${escapeHtml(coverage.summary)}</p></div>${snapshotLabel(report.snapshot)}</header>
     ${coverage.status === 'partial' ? renderCoverageWarning(coverage) : ''}
     <div class="source-map-layout">
       <section class="source-map-stage" aria-label="${hasFocus ? 'Focused source relationships' : 'Repository group relationships'}">${content}</section>
@@ -161,14 +164,9 @@ function renderMapResult(report, state) {
   </section>`;
 }
 
-function renderGroups(groups, relations) {
+function renderArchitecture(groups, relations) {
   if (!groups.length) return statePanel('empty', 'No supported groups', 'No JavaScript or TypeScript groups were represented inside the current scan bounds.');
-  const byId = new Map(groups.map((group) => [group.id, group]));
-  return `<div class="map-groups">${groups.map((group) => `<article><strong>${escapeHtml(group.prefix ?? group.label)}</strong><span>${number(group.fileCount)} files / ${number(group.symbolCount)} symbols</span>${group.changedFileCount ? `<small>${number(group.changedFileCount)} changed</small>` : ''}</article>`).join('')}</div>${relations.length ? `<ol class="map-relations" aria-label="Group relationships">${relations.map((relation) => {
-    const source = byId.get(relation.sourceGroupId);
-    const target = byId.get(relation.targetGroupId);
-    return source && target ? `<li><strong>${escapeHtml(source.prefix)}</strong><span>to</span><strong>${escapeHtml(target.prefix)}</strong><small>${number(relation.count)} relationships</small></li>` : '';
-  }).join('')}</ol>` : '<p class="muted">No cross-group relationships inside the current bounds.</p>'}`;
+  return `<div class="map-graph-toolbar"><div class="map-focus-summary"><strong>${number(groups.length)} groups</strong><span>${number(relations.length)} connections</span></div><div><button class="button secondary" type="button" data-graph-action="fit">Fit view</button><button class="button quiet" type="button" data-graph-action="reset">Reset view</button></div></div><p class="map-graph-error" data-graph-error hidden></p><div class="source-map-canvas-wrap"><canvas id="source-map-canvas" width="960" height="560" role="img" aria-label="Interactive repository architecture graph"></canvas></div>`;
 }
 
 function renderFocus(nodes, edges, focus = {}) {
@@ -178,7 +176,34 @@ function renderFocus(nodes, edges, focus = {}) {
 
 function renderMapOutline(items, focused) {
   if (!items.length) return '<p>No records in the current outline.</p>';
-  return `<ol class="source-map-outline" aria-label="Source map outline">${items.map((item, index) => `<li><button type="button" data-node-id="${escapeHtml(item.id)}"${index === 0 ? ' aria-current="true"' : ''}><strong>${escapeHtml(focused ? item.label : item.prefix ?? item.label)}</strong><span>${escapeHtml(focused ? item.locator ?? item.kind : `${number(item.fileCount)} files`)}</span></button></li>`).join('')}</ol>`;
+  return `<ol class="source-map-outline" aria-label="Source map outline">${items.map((item, index) => `<li><button type="button" data-node-id="${escapeHtml(item.id)}"${index === 0 ? ' aria-current="true"' : ''}><span class="source-map-outline-copy"><strong class="source-map-outline-label">${escapeHtml(focused ? item.label : item.prefix ?? item.label)}</strong><span class="source-map-outline-locator">${escapeHtml(focused ? item.locator ?? item.kind : `${number(item.fileCount)} files / ${number(item.symbolCount)} symbols`)}</span></span></button></li>`).join('')}</ol>`;
+}
+
+export function sourceMapGraphData(report = {}, state = {}) {
+  const hasFocus = Boolean(state.query || state.group || state.startName || state.changedLocator);
+  if (hasFocus) return {
+    nodes: arrayValue(report.focus?.nodes),
+    edges: arrayValue(report.focus?.edges)
+  };
+  return {
+    nodes: arrayValue(report.orientation?.groups).map((group) => ({
+      ...group,
+      kind: 'repository-group',
+      label: group.prefix ?? group.label
+    })),
+    edges: arrayValue(report.orientation?.relations ?? report.orientation?.groupRelations).map((relation, index) => ({
+      id: relation.id ?? `group_relation_${index}`,
+      kind: 'group-dependency',
+      fromNodeId: relation.sourceGroupId,
+      toNodeId: relation.targetGroupId,
+      count: number(relation.count)
+    }))
+  };
+}
+
+function mapStateFromRoot(root) {
+  const form = root.querySelector('#source-graph-form');
+  return form ? mapStateFromForm(form) : normalizeMapState();
 }
 
 function renderSelection(item) {

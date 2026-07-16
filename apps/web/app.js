@@ -30,7 +30,7 @@ export { buildApiErrorUiModel } from './ui-primitives.js';
 
 export const SHELL_STATES = new Set(['loading','setup','empty','error','denied','stale','partial','success']);
 
-const OAF_CHECKOUT_COMMAND_PREFIX = 'npm --silent run oaf --';
+const OAF_CHECKOUT_COMMAND_PREFIX = 'recall';
 const OAF_COMPATIBILITY_URL = 'https://github.com/rebel0789/Memory-Recall/blob/main/docs/usage/oaf-compatibility.md';
 const OAF_URI_COMPATIBILITY_NOTE = 'Legacy oaf:// URIs remain supported compatibility identifiers; normal commands use recall.';
 
@@ -559,7 +559,8 @@ export function buildMemoryCockpitModel(cockpit = null) {
   };
 }
 
-export function deliveryChangeLabel(percent) {
+export function deliveryChangeLabel(percent, baselineTokens = null) {
+  if (baselineTokens !== null && !(Number(baselineTokens) > 0)) return 'Not measured';
   const value=Math.round(Number(percent) || 0);
   if(value>0)return `${value}% reduction`;
   if(value<0)return `${Math.abs(value)}% overhead`;
@@ -795,8 +796,8 @@ export function buildHarnessSetupUiModel(report = null) {
     serverStatus:safeText(report?.status?.server ?? 'not checked'),
     operation:operation ? safeText(operation.summary) : 'No MCP config change needed',
     operationKind:safeText(operation?.op ?? 'none'),
-    command:report ? `npm run oaf -- harness setup plan --client ${safeText(report.client)} --server oaf --dry-run --format json` : 'npm run oaf -- harness setup plan --client codex --server oaf --dry-run --format json',
-    bridgeCommand:report?.desiredServer ? [report.desiredServer.command,...report.desiredServer.args].join(' ') : oafCommand('mcp resources --read-only --stdio'),
+    command:report ? `recall harness setup plan --client ${safeText(report.client)} --server oaf --dry-run --format json` : 'recall harness setup plan --client codex --server oaf --dry-run --format json',
+    bridgeCommand:report?.desiredServer ? publicRecallCommand([report.desiredServer.command,...report.desiredServer.args].join(' ')) : oafCommand('mcp resources --read-only --stdio'),
     manualConfigSnippet:report?.manualConfigSnippet ? {
       format:safeText(report.manualConfigSnippet.format),
       configRef:safeText(report.manualConfigSnippet.configRef),
@@ -1240,7 +1241,7 @@ export function buildPinnedHandoffStatusModel(report=null,error=null) {
     usePlanFingerprint:currentEntry?.usePlan?.fingerprint ? shortFingerprint(currentEntry.usePlan.fingerprint) : 'unavailable',
     sourceChecks,
     targetLabel:harnessClientLabel(targetHarness),
-    primaryCommand:verified ? {label:'Receive pinned pack',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`} : null,
+    primaryCommand:verified ? {label:'Receive pinned pack',command:`recall context receive --read-only --root . --target ${targetHarness} --format json`} : null,
     commands:pinnedHandoffCommands(targetHarness,verified),
     facts:[
       ['Registry', registryExists ? report.registry.fingerprintStatus : 'missing'],
@@ -1259,13 +1260,13 @@ export function canReceivePinnedHandoff(state) {
 
 function pinnedHandoffCommands(targetHarness='codex',includeUsePlan=false) {
   const commands=[
-    {label:'Receive pinned pack',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format json`},
-    {label:'Receive summary',command:`npm run oaf -- context receive --read-only --root . --target ${targetHarness} --format summary`},
-    {label:'Check registry',command:'npm run oaf -- context registry status --read-only --format json'},
-    {label:'Read registry',command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'}
+    {label:'Receive pinned pack',command:`recall context receive --read-only --root . --target ${targetHarness} --format json`},
+    {label:'Receive summary',command:`recall context receive --read-only --root . --target ${targetHarness} --format summary`},
+    {label:'Check registry',command:'recall context registry status --read-only --format json'},
+    {label:'Read registry',command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'}
   ];
   if(includeUsePlan){
-    commands.splice(2,0,{label:'Read pinned use plan',command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'});
+    commands.splice(2,0,{label:'Read pinned use plan',command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'});
   }
   return commands;
 }
@@ -1935,7 +1936,7 @@ function zeroCount(value) {
 function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
   const packCommands=Array.isArray(pack?.handoff?.commands) ? pack.handoff.commands.filter((command)=>typeof command==='string'&&command.trim()) : [];
   if(packCommands.length){
-    const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command }));
+    const commands=packCommands.map((command)=>({ label:contextPackCommandLabel(command), command:publicRecallCommand(command) }));
     insertContextPackReceiveCommand(commands,pack);
     const generated=[
       {label:'Test local handoff',command:contextPackPreflightCommand(pack,{memoryConfig})},
@@ -1964,18 +1965,18 @@ function contextPackHarnessCommands(pack,usePlan=null,{memoryConfig=null}={}) {
     { label:'Test local handoff', command:contextPackPreflightCommand(pack,{memoryConfig}) },
     { label:'Test handoff summary', command:contextPackPreflightCommand(pack,{memoryConfig,format:'summary'}) },
     { label:'Copy impact command', command:contextPackImpactCommand(pack) },
-    { label:'Rebuild from CLI', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
-    { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
-    { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
+    { label:'Rebuild from CLI', command:`recall context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --dry-run --format markdown` },
+    { label:'Pin locally', command:`recall context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
+    { label:'Verify pin', command:'recall context registry status --read-only --format json' },
     { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
     { label:'Receive summary', command:contextPackReceiveSummaryCommand(pack) },
     { label:'Start MCP bridge', command:oafCommand('mcp resources --read-only --stdio') },
-    { label:'Preview harness setup', command:`npm run oaf -- harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
-    { label:'Read use plan', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
-    { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
-    { label:'Read current context pack', command:`npm run oaf -- mcp resources --read-only --context-pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
-    { label:'Read MCP resources', command:'npm run oaf -- mcp resources --read-only --format json' },
-    { label:'Read latest handoff', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
+    { label:'Preview harness setup', command:`recall harness setup plan --client ${setupClient} --server oaf --dry-run --format json` },
+    { label:'Read use plan', command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json' },
+    { label:'Read registry', command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
+    { label:'Read current context pack', command:`recall mcp resources --read-only --context-pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --uri oaf://workspace/ws_local/context-pack/current --format json` },
+    { label:'Read MCP resources', command:'recall mcp resources --read-only --format json' },
+    { label:'Read latest handoff', command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/handoff/latest --format json' }
   ];
 }
 
@@ -2027,12 +2028,12 @@ function contextPackPreflightCommand(pack,{memoryConfig=null,format='json'}={}) 
 
 function contextPackReceiveCommand(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
-  return `npm run oaf -- context receive --read-only --root . --target ${target} --format json`;
+  return `recall context receive --read-only --root . --target ${target} --format json`;
 }
 
 function contextPackReceiveSummaryCommand(pack) {
   const target=String(pack?.targetHarness ?? 'generic');
-  return `npm run oaf -- context receive --read-only --root . --target ${target} --format summary`;
+  return `recall context receive --read-only --root . --target ${target} --format summary`;
 }
 
 function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
@@ -2047,13 +2048,13 @@ function contextPackGeneratedUsePlanCommands(pack,usePlan=null) {
   const changed=(pack?.sourceGraph?.impact?.changedLocators ?? []).map((locator)=>` --changed ${quoteShell(locator.replace(/^workspace:\/\//u,''))}`).join('');
   const uri=String(usePlan?.resource?.uri ?? 'oaf://workspace/ws_local/context-pack/use-plan/current');
   return [
-    { label:'Pin locally', command:`npm run oaf -- context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
-    { label:'Verify pin', command:'npm run oaf -- context registry status --read-only --format json' },
+    { label:'Pin locally', command:`recall context pack --from ${from} --root . --objective ${objective} --step ${step} --target ${target}${selected}${changed} --write --pin --out context-packs/CONTEXT_PACK.md --format json` },
+    { label:'Verify pin', command:'recall context registry status --read-only --format json' },
     { label:'Receive pinned pack', command:contextPackReceiveCommand(pack) },
     { label:'Receive summary', command:contextPackReceiveSummaryCommand(pack) },
     { label:'Start MCP bridge', command:oafCommand('mcp resources --read-only --stdio') },
-    { label:'Read registry', command:'npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
-    { label:'Read use plan', command:`npm run oaf -- mcp resources --read-only --uri ${uri} --format json` }
+    { label:'Read registry', command:'recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json' },
+    { label:'Read use plan', command:`recall mcp resources --read-only --uri ${uri} --format json` }
   ];
 }
 
@@ -2082,6 +2083,12 @@ function contextPackCommandLabel(command) {
 
 function oafCommand(args) {
   return `${OAF_CHECKOUT_COMMAND_PREFIX} ${args}`;
+}
+
+function publicRecallCommand(command) {
+  return String(command ?? '')
+    .replace(/^npm\s+--silent\s+run\s+oaf\s+--\s+/u, 'recall ')
+    .replace(/^npm\s+run\s+oaf\s+--\s+/u, 'recall ');
 }
 
 function contextPackSetupClient(pack) {
@@ -2418,7 +2425,8 @@ export function renderMemoryCockpit(cockpit = null) {
   const toolStats=model.mcpStats.byTool.length
     ? `<ol class="compact-list locator-list">${model.mcpStats.byTool.map((item)=>`<li><strong>${esc(item.toolName)} · ${item.callCount}</strong><span>${item.deliveredTokens} delivered · ${item.tokensSaved} saved</span></li>`).join('')}</ol>`
     : '<p class="muted">No MCP delivery calls recorded for this workspace yet.</p>';
-  return `<div class="tool-workspace memory-workspace"><header class="tool-page-heading"><div><p class="eyebrow">Governed repository memory</p><h1>Memory</h1><p>Review proposed facts, inspect current truth, and add explicit source-backed memory.</p></div><dl class="tool-summary"><div><dt>Pending</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Active</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Delivery</dt><dd>${deliveryChangeLabel(model.savings.percent)}</dd></div></dl></header><section class="memory-review-grid"><section class="memory-review-queue"><div class="section-heading"><h2>Review queue</h2><span>${model.summary.pendingProposalCount} pending</span></div>${queue}</section><aside class="memory-intake-panel">${intake}</aside></section><section class="memory-ledger"><div class="section-heading"><h2>Active memory</h2><span>${model.facts.length} facts</span></div>${facts}</section><details class="tool-disclosure memory-delivery"><summary>Delivery details · ${deliveryChangeLabel(model.savings.percent)}</summary><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens}</dd></div><div><dt>Memory Recall delivery</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.tokensSaved}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div></dl>${toolStats}${history}<p class="muted">Delivery values are local estimates, not provider billing claims. No model, network, or raw source body is used on this route.</p></details></div>`;
+  const deliveryLabel=deliveryChangeLabel(model.savings.percent,model.savings.beforeDeliveryTokens);
+  return `<div class="tool-workspace memory-workspace"><header class="tool-page-heading"><div><p class="eyebrow">Governed repository memory</p><h1>Memory</h1><p>Review proposed facts, inspect current truth, and add explicit source-backed memory.</p></div><dl class="tool-summary"><div><dt>Pending</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Active</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Delivery</dt><dd>${deliveryLabel}</dd></div></dl></header><section class="memory-review-grid"><section class="memory-review-queue"><div class="section-heading"><h2>Review queue</h2><span>${model.summary.pendingProposalCount} pending</span></div>${queue}</section><aside class="memory-intake-panel">${intake}</aside></section><section class="memory-ledger"><div class="section-heading"><h2>Active memory</h2><span>${model.facts.length} facts</span></div>${facts}</section><details class="tool-disclosure memory-delivery"><summary>Delivery details · ${deliveryLabel}</summary><dl class="facts facts-wide"><div><dt>Active facts</dt><dd>${model.summary.activeFactCount}</dd></div><div><dt>Pending proposals</dt><dd>${model.summary.pendingProposalCount}</dd></div><div><dt>Naive baseline</dt><dd>${model.savings.beforeDeliveryTokens||'Not measured'}</dd></div><div><dt>Memory Recall delivery</dt><dd>${model.savings.afterDeliveryTokens}</dd></div><div><dt>Delivery tokens saved</dt><dd>${model.savings.beforeDeliveryTokens>0?model.savings.tokensSaved:'Not measured'}</dd></div><div><dt>MCP calls</dt><dd>${model.mcpStats.callCount}</dd></div><div><dt>MCP delivered</dt><dd>${model.mcpStats.deliveredTokens}</dd></div><div><dt>MCP saved</dt><dd>${model.mcpStats.tokensSaved}</dd></div><div><dt>Provider billing</dt><dd>${model.savings.providerBillingClaimed||model.mcpStats.providerBillingClaimed?'claimed':'not claimed'}</dd></div><div><dt>Provider</dt><dd>${esc(model.provider)}</dd></div></dl>${toolStats}${history}<p class="muted">${model.savings.beforeDeliveryTokens>0?'Delivery values are local estimates, not provider billing claims.':'Run a context delivery with a comparable baseline to measure reduction.'} No model, network, or raw source body is used on this route.</p></details></div>`;
 }
 
 function renderEvidence() {
@@ -2456,7 +2464,7 @@ function renderHarnessSetupResult(report) {
 }
 
 function renderSettings() {
-  return `<section class="work-grid"><div class="surface surface-primary"><div class="section-heading"><h2>Local system</h2><span>Shared tokens</span></div><div class="token-grid">${[['Ink','--ink'],['Paper','--paper'],['Signal','--signal'],['Proof','--proof'],['Caution','--caution'],['Danger','--danger'],['Success','--success']].map(([name,token])=>`<div class="swatch" style="background:var(${token})"><strong>${name}<code>${token}</code></strong></div>`).join('')}</div></div><aside class="inspector"><h2>Defaults</h2>${localBoundary()}</aside></section>`;
+  return `<div class="tool-workspace settings-workspace"><header class="tool-page-heading"><div><h1>Settings</h1><p>Inspect the local paths, scan bounds, and privacy rules used by this workspace.</p></div><span>Local workspace</span></header><section class="settings-grid"><section><div class="section-heading"><h2>Local storage</h2><span>Derived and governed state</span></div><dl class="facts facts-wide"><div><dt>Memory</dt><dd><code>.local/memory.sqlite</code></dd></div><div><dt>Source graph</dt><dd>In-memory scan; persistent index optional</dd></div><div><dt>Context packs</dt><dd><code>context-packs/</code> when explicitly pinned</dd></div></dl></section><section><div class="section-heading"><h2>Scan limits</h2><span>Bounded by default</span></div><dl class="facts facts-wide"><div><dt>Languages</dt><dd>JavaScript and TypeScript</dd></div><div><dt>File size</dt><dd>512 KiB default</dd></div><div><dt>Graph display</dt><dd>200 nodes / 400 relationships</dd></div></dl></section><section><div class="section-heading"><h2>Privacy</h2><span>Offline default</span></div>${localBoundary()}<p class="muted">Map and read-only MCP responses expose bounded locators and metadata, never raw source bodies.</p></section></section></div>`;
 }
 
 function metric(value,label,copy){return `<div class="metric"><strong>${Number(value??0)}</strong><span>${label}</span><small>${copy}</small></div>`}

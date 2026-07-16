@@ -1,8 +1,8 @@
 export const PRIMARY_NAV = Object.freeze([
-  { id: 'overview', routeId: 'home', path: '/', label: 'Overview' },
-  { id: 'map', routeId: 'source-graph', path: '/map', label: 'Map' },
-  { id: 'memory', routeId: 'memory', path: '/memory', label: 'Memory' },
-  { id: 'handoffs', routeId: 'context-pack', path: '/handoffs', label: 'Handoffs' },
+  { id: 'overview', routeId: 'home', path: '/', label: 'Start' },
+  { id: 'map', routeId: 'source-graph', path: '/map', label: 'Explore code' },
+  { id: 'memory', routeId: 'memory', path: '/memory', label: 'Review memory' },
+  { id: 'handoffs', routeId: 'context-pack', path: '/handoffs', label: 'Prepare handoff' },
   { id: 'settings', routeId: 'settings', path: '/settings', label: 'Settings' }
 ]);
 

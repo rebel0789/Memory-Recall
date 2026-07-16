@@ -152,9 +152,9 @@ test('repository search distinguishes a bounded failure from valid zero results'
 });
 
 test('workbench navigation has five desktop and four mobile destinations', () => {
-  assert.deepEqual(PRIMARY_NAV.map((item) => item.label), ['Overview', 'Map', 'Memory', 'Handoffs', 'Settings']);
+  assert.deepEqual(PRIMARY_NAV.map((item) => item.label), ['Start', 'Explore code', 'Review memory', 'Prepare handoff', 'Settings']);
   assert.deepEqual(PRIMARY_NAV.map((item) => item.path), ['/', '/map', '/memory', '/handoffs', '/settings']);
-  assert.deepEqual(MOBILE_NAV.map((item) => item.label), ['Overview', 'Map', 'Memory', 'Handoffs']);
+  assert.deepEqual(MOBILE_NAV.map((item) => item.label), ['Start', 'Explore code', 'Review memory', 'Prepare handoff']);
   assert.equal(navigationItemsFor('rail'), PRIMARY_NAV);
   assert.equal(navigationItemsFor('bottom'), MOBILE_NAV);
 });
@@ -483,6 +483,7 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.equal(deliveryChangeLabel(42),'42% reduction');
   assert.equal(deliveryChangeLabel(0),'No reduction');
   assert.equal(deliveryChangeLabel(-363),'363% overhead');
+  assert.equal(deliveryChangeLabel(100,0),'Not measured');
   const provider = new SQLiteMemoryProvider({ filename: ':memory:', clock: () => '2026-06-26T10:00:00.000Z' });
   t.after(() => provider.close());
   await provider.put({
@@ -622,6 +623,28 @@ test('memory route renders real temporal fact fields and computed token number',
   assert.match(html, /Jun 26, 2026/);
   assert.match(html, /mpq_web_memory/);
   assert.match(html, new RegExp(`<dd>${profile.contextBudget.estimatedDeliveryTokens}</dd>`));
+});
+
+test('memory route never reports savings when the baseline is absent', () => {
+  const html = renderMemoryCockpit({
+    workspaceId:'ws_local',
+    summary:{activeFactCount:0,pendingProposalCount:0},
+    facts:[], proposalQueue:[],
+    savings:{beforeDeliveryTokens:0,afterDeliveryTokens:0,tokensSaved:0,percent:100},
+    mcpStats:{available:true,callCount:0,deliveredTokens:0,baselineTokens:0,tokensSaved:0,byTool:[]}
+  });
+  assert.match(html,/Not measured/);
+  assert.doesNotMatch(html,/100% reduction/);
+});
+
+test('Settings presents real local controls and boundaries instead of design swatches', async () => {
+  const app = await readFile(new URL('../apps/web/app.js', import.meta.url), 'utf8');
+  const settings = app.match(/function renderSettings\(\) \{([\s\S]*?)\n\}/)?.[1] ?? '';
+  assert.match(settings, /<h1>Settings<\/h1>/);
+  assert.match(settings, /Local storage/);
+  assert.match(settings, /Scan limits/);
+  assert.match(settings, /Privacy/);
+  assert.doesNotMatch(settings, /token-grid|class="swatch"|--signal/);
 });
 
 test('memory graph route renders governed graph canvas controls', async () => {
@@ -911,7 +934,7 @@ test('context pack user flow exposes artifact actions and safe harness commands'
     selectedFiles:['workspace://AGENTS.md'],
     requiredReadFiles:['workspace://AGENTS.md','workspace://apps/web/app.js'],
     excludedFiles:['workspace://.cursor/rules/fabric.mdc'],
-    command:"npm --silent run oaf -- measure context-pack --read-only --root . --from 'codex,cursor' --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --format json"
+    command:"recall measure context-pack --read-only --root . --from 'codex,cursor' --objective 'Ship user'\"'\"'s change safely' --step 'select useful context' --target codex --changed 'apps/web/app.js' --format json"
   });
   const tokenSaverHtml=renderContextPackTokenSaverSummary(model);
   assert.match(tokenSaverHtml,/Token Saver/);
@@ -1049,29 +1072,29 @@ test('context pack user flow exposes artifact actions and safe harness commands'
   assert.equal(summaryIndex,receiveIndex+1);
   assert.match(model.commands[verifyIndex].command,/context registry status --read-only --format json/);
   const receiveCommand=model.commands[receiveIndex].command;
-  assert.equal(receiveCommand,'npm run oaf -- context receive --read-only --root . --target codex --format json');
+  assert.equal(receiveCommand,'recall context receive --read-only --root . --target codex --format json');
   assert.doesNotMatch(receiveCommand,/--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
   const summaryCommand=model.commands[summaryIndex].command;
-  assert.equal(summaryCommand,'npm run oaf -- context receive --read-only --root . --target codex --format summary');
+  assert.equal(summaryCommand,'recall context receive --read-only --root . --target codex --format summary');
   assert.doesNotMatch(summaryCommand,/--objective|--step|--write|--pin|--out|--home|--config|--stdio/);
-  assert.equal(model.commands.some((item)=>item.command==='npm --silent run oaf -- mcp resources --read-only --stdio'),true);
+  assert.equal(model.commands.some((item)=>item.command==='recall mcp resources --read-only --stdio'),true);
   const preflightCommand=model.commands.find((item)=>item.label==='Test local handoff')?.command ?? '';
-  assert.match(preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(preflightCommand,/^recall context handoff --read-only /);
   assert.match(preflightCommand,/--from 'codex,cursor'/);
   assert.match(preflightCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format json/);
   assert.doesNotMatch(preflightCommand,/--write|--pin|--out|install/);
   const preflightSummaryCommand=model.commands.find((item)=>item.label==='Test handoff summary')?.command ?? '';
-  assert.match(preflightSummaryCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(preflightSummaryCommand,/^recall context handoff --read-only /);
   assert.match(preflightSummaryCommand,/--from 'codex,cursor'/);
   assert.match(preflightSummaryCommand,/--target codex --changed 'apps\/web\/app\.js' --memory-config oaf\.memory\.json --format summary/);
   assert.doesNotMatch(preflightSummaryCommand,/--write|--pin|--out|install/);
   const impactCommand=model.commands.find((item)=>item.label==='Copy impact command')?.command ?? '';
-  assert.match(impactCommand,/^npm --silent run oaf -- measure context-pack --read-only /);
+  assert.match(impactCommand,/^recall measure context-pack --read-only /);
   assert.match(impactCommand,/--from 'codex,cursor'/);
   assert.match(impactCommand,/--target codex --changed 'apps\/web\/app\.js' --format json/);
   assert.doesNotMatch(impactCommand,/--write|--pin|--out|install/);
-  assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'),true);
-  assert.equal(model.commands.some((item)=>item.command==='npm run oaf -- mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'),true);
+  assert.equal(model.commands.some((item)=>item.command==='recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/registry/current --format json'),true);
+  assert.equal(model.commands.some((item)=>item.command==='recall mcp resources --read-only --uri oaf://workspace/ws_local/context-pack/use-plan/current --format json'),true);
   assert.equal(model.commands.some((item)=>/harness setup plan --client codex --server oaf --dry-run --format json/.test(item.command)),true);
   assert.equal(model.commands.some((item)=>item.command.includes('mcp resources --read-only')),true);
   assert.equal(model.commands.some((item)=>item.command.includes('context-pack/registry/current')),true);
@@ -1196,10 +1219,10 @@ test('pinned handoff status model gates receive commands by registry verificatio
   assert.equal(ready.statusLabel,'verified');
   assert.equal(ready.targetLabel,'Codex');
   assert.equal(ready.primaryCommand.label,'Receive pinned pack');
-  assert.equal(ready.primaryCommand.command,'npm run oaf -- context receive --read-only --root . --target codex --format json');
+  assert.equal(ready.primaryCommand.command,'recall context receive --read-only --root . --target codex --format json');
   assert.equal(canReceivePinnedHandoff(ready.state),true);
   assert.equal(ready.commands.some((item)=>item.label==='Receive pinned pack'),true);
-  assert.equal(ready.commands.find((item)=>item.label==='Receive summary')?.command,'npm run oaf -- context receive --read-only --root . --target codex --format summary');
+  assert.equal(ready.commands.find((item)=>item.label==='Receive summary')?.command,'recall context receive --read-only --root . --target codex --format summary');
   assert.equal(ready.commands.some((item)=>item.label==='Read pinned use plan'),true);
   assert.equal(ready.facts.some(([key,value])=>key==='Use plan'&&value==='available'),true);
 
@@ -1302,10 +1325,10 @@ test('first-use readiness proves local handoff gates before recommending use',()
   assert.equal(handoffStatus.safeguards.configWrites,false);
   assert.equal(handoffStatus.safeguards.externalWritesEnabled,false);
   assert.equal(handoffStatus.safeguards.externalAdaptersEnabled,0);
-  assert.match(handoffStatus.preflightCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(handoffStatus.preflightCommand,/^recall context handoff --read-only /);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--memory-config/);
   assert.doesNotMatch(handoffStatus.preflightCommand,/--write|--pin|--out|install/);
-  assert.match(handoffStatus.preflightSummaryCommand,/^npm --silent run oaf -- context handoff --read-only /);
+  assert.match(handoffStatus.preflightSummaryCommand,/^recall context handoff --read-only /);
   assert.match(handoffStatus.preflightSummaryCommand,/--format summary/);
   assert.doesNotMatch(handoffStatus.preflightSummaryCommand,/--memory-config/);
   assert.doesNotMatch(handoffStatus.preflightSummaryCommand,/--write|--pin|--out|install/);
@@ -1452,8 +1475,8 @@ test('agents tools exposes dry-run harness setup planning without install afford
   assert.equal(model.client,'Cursor');
   assert.equal(model.configRef,'home://.cursor/mcp.json');
   assert.equal(model.operation,'add oaf with read-only OAF MCP stdio resource bridge');
-  assert.equal(model.command,'npm run oaf -- harness setup plan --client cursor --server oaf --dry-run --format json');
-  assert.equal(model.bridgeCommand,'npm --silent run oaf -- mcp resources --read-only --stdio');
+  assert.equal(model.command,'recall harness setup plan --client cursor --server oaf --dry-run --format json');
+  assert.equal(model.bridgeCommand,'recall mcp resources --read-only --stdio');
   assert.equal(model.manualConfigSnippet.configRef,'home://.cursor/mcp.json');
   assert.match(model.manualConfigSnippet.content,/mcpServers/);
   assert.deepEqual(model.safeguards.find(([label])=>label==='External writes'),['External writes','disabled']);

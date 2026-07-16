@@ -23,6 +23,7 @@ export function createGraphViewport(canvas, outline, inspector, {
   let panX = 0;
   let panY = 0;
   let pointer = null;
+  let hoveredNodeId = null;
 
   const resizeObserver = typeof ResizeObserver === 'function'
     ? new ResizeObserver(() => requestLayout())
@@ -53,7 +54,15 @@ export function createGraphViewport(canvas, outline, inspector, {
     canvas.setPointerCapture?.(event.pointerId);
   }, { signal });
   canvas.addEventListener('pointermove', (event) => {
-    if (!pointer || pointer.id !== event.pointerId) return;
+    if (!pointer || pointer.id !== event.pointerId) {
+      const nextHoveredNodeId = hitTest(event);
+      if (nextHoveredNodeId !== hoveredNodeId) {
+        hoveredNodeId = nextHoveredNodeId;
+        canvas.style.cursor = hoveredNodeId ? 'pointer' : 'grab';
+        draw();
+      }
+      return;
+    }
     const dx = event.clientX - pointer.x;
     const dy = event.clientY - pointer.y;
     if (Math.abs(dx) + Math.abs(dy) > 2) pointer.moved = true;
@@ -73,6 +82,13 @@ export function createGraphViewport(canvas, outline, inspector, {
     canvas.releasePointerCapture?.(event.pointerId);
   }, { signal });
   canvas.addEventListener('pointercancel', () => { pointer = null; }, { signal });
+  canvas.addEventListener('pointerleave', () => {
+    if (!pointer && hoveredNodeId) {
+      hoveredNodeId = null;
+      canvas.style.cursor = 'grab';
+      draw();
+    }
+  }, { signal });
   canvas.addEventListener('wheel', (event) => {
     event.preventDefault();
     const rect = canvas.getBoundingClientRect();
@@ -186,6 +202,14 @@ export function createGraphViewport(canvas, outline, inspector, {
     }
     context.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
     context.textBaseline = 'middle';
+    const visibleLabelIds = visibleGraphLabelIds({
+      nodes,
+      edges,
+      selectedNodeId,
+      hoveredNodeId,
+      scale,
+      budget: scale < 0.75 ? 5 : scale < 1.35 ? 8 : 14
+    });
     for (const node of nodes) {
       const point = positions[node.id];
       if (!point) continue;
@@ -194,19 +218,38 @@ export function createGraphViewport(canvas, outline, inspector, {
       context.beginPath();
       context.arc(point.x, point.y, selected ? 6 : 4, 0, Math.PI * 2);
       context.fill();
-      if (selected || nodes.length <= 60) {
-        const label = String(node.label ?? '').slice(0, 32);
-        const placement = graphLabelPlacement({
-          pointX: point.x,
-          labelWidth: context.measureText(label).width,
-          scale,
-          panX,
-          viewportWidth: width
-        });
-        context.fillStyle = palette.ink;
-        context.textAlign = placement.align;
-        context.fillText(label, point.x + placement.offset, point.y);
-      }
+    }
+    const placedLabelBoxes = [];
+    const labelNodes = nodes
+      .filter((node) => visibleLabelIds.has(node.id) && positions[node.id])
+      .sort((left, right) => labelPriority(right.id, selectedNodeId, hoveredNodeId) - labelPriority(left.id, selectedNodeId, hoveredNodeId));
+    for (const node of labelNodes) {
+      const point = positions[node.id];
+      const label = String(node.label ?? '').slice(0, 32);
+      const labelWidth = context.measureText(label).width;
+      const placement = graphLabelPlacement({
+        pointX: point.x,
+        labelWidth,
+        scale,
+        panX,
+        viewportWidth: width
+      });
+      const anchorX = point.x + placement.offset;
+      const screenAnchorX = panX + anchorX * scale;
+      const screenY = panY + point.y * scale;
+      const scaledWidth = labelWidth * scale;
+      const box = {
+        left: placement.align === 'right' ? screenAnchorX - scaledWidth : screenAnchorX,
+        right: placement.align === 'right' ? screenAnchorX : screenAnchorX + scaledWidth,
+        top: screenY - 7,
+        bottom: screenY + 7
+      };
+      const forced = node.id === selectedNodeId || node.id === hoveredNodeId;
+      if (!forced && graphLabelBoxesOverlap(box, placedLabelBoxes)) continue;
+      placedLabelBoxes.push(box);
+      context.fillStyle = palette.ink;
+      context.textAlign = placement.align;
+      context.fillText(label, anchorX, point.y);
     }
     context.restore();
   }
@@ -244,6 +287,42 @@ export function createGraphViewport(canvas, outline, inspector, {
       worker.terminate();
     }
   };
+}
+
+export function visibleGraphLabelIds({ nodes = [], edges = [], selectedNodeId = null, hoveredNodeId = null, scale = 1, budget = 8 } = {}) {
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const limit = Math.max(1, Math.min(nodes.length, Math.round(Number(budget) || 8) + (Number(scale) >= 1.75 ? 4 : 0)));
+  const visible = new Set();
+  const add = (nodeId) => {
+    if (visible.size < limit && nodeIds.has(nodeId)) visible.add(nodeId);
+  };
+  add(selectedNodeId);
+  add(hoveredNodeId);
+  for (const anchor of [selectedNodeId, hoveredNodeId]) {
+    if (!anchor) continue;
+    for (const edge of edges) {
+      if (edge.fromNodeId === anchor) add(edge.toNodeId);
+      if (edge.toNodeId === anchor) add(edge.fromNodeId);
+    }
+  }
+  for (const node of nodes) add(node.id);
+  return visible;
+}
+
+export function graphLabelBoxesOverlap(box, placedBoxes = [], gap = 4) {
+  const padding = Math.max(0, Number(gap) || 0);
+  return placedBoxes.some((placed) => !(
+    box.right + padding < placed.left
+    || box.left - padding > placed.right
+    || box.bottom + padding < placed.top
+    || box.top - padding > placed.bottom
+  ));
+}
+
+function labelPriority(nodeId, selectedNodeId, hoveredNodeId) {
+  if (nodeId === selectedNodeId) return 2;
+  if (nodeId === hoveredNodeId) return 1;
+  return 0;
 }
 
 export function graphLabelPlacement({ pointX = 0, labelWidth = 0, scale = 1, panX = 0, viewportWidth = 0 } = {}) {

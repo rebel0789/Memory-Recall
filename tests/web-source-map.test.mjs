@@ -8,7 +8,7 @@ import {
   serializeMapUrl
 } from '../apps/web/source-map-view.js';
 import { layoutFocusedGraph } from '../apps/web/graph-layout-worker.js';
-import { graphLabelPlacement } from '../apps/web/graph-viewport.js';
+import { graphLabelBoxesOverlap, graphLabelPlacement, visibleGraphLabelIds } from '../apps/web/graph-viewport.js';
 
 test('Map query state round-trips through the URL', () => {
   const state = parseMapUrl('http://127.0.0.1:4318/map?query=copytrading&group=apps%2Fterminal&start=execute&changed=src%2Ftrade.ts&depth=3&limit=24');
@@ -49,17 +49,18 @@ test('Map partial state keeps useful results and names omitted coverage', () => 
   assert.doesNotMatch(html, /preview ready/iu);
 });
 
-test('Map renders architecture before focus and keeps an accessible outline', () => {
+test('Map renders architecture graph before focus and keeps an accessible outline', () => {
   const html = renderSourceMap({ state: parseMapUrl('/map'), report: mapPreviewFixture() });
-  assert.match(html, /Repository groups/);
+  assert.match(html, /Repository architecture/);
+  assert.match(html, /id="source-map-canvas"/);
+  assert.match(html, /Interactive repository architecture graph/);
   assert.match(html, /aria-label="Source map outline"/);
-  assert.doesNotMatch(html, /<canvas/);
 });
 
 test('Map heading and actions avoid template-like chrome', () => {
   const html = renderSourceMap({ state: parseMapUrl('/map?query=router'), report: mapPreviewFixture() });
   assert.doesNotMatch(html, /class="eyebrow"/);
-  assert.match(html, /class="button primary" type="submit">Run map/);
+  assert.match(html, /class="button primary" type="submit">Search code/);
   assert.match(html, /class="button quiet" type="button" data-action="refresh-source-map">Refresh scan/);
   assert.match(html, /data-graph-action="fit">Fit selection/);
   assert.match(html, /class="button quiet" type="button" data-graph-action="reset">Reset view/);
@@ -91,6 +92,34 @@ test('graph labels stay inside the visible canvas edge', () => {
   assert.deepEqual(graphLabelPlacement({ pointX: 80, labelWidth: 80, scale: 1, panX: 0, viewportWidth: 640 }), { align: 'left', offset: 10 });
 });
 
+test('graph label collision check preserves breathing room', () => {
+  const placed = [{ left: 20, right: 120, top: 40, bottom: 54 }];
+  assert.equal(graphLabelBoxesOverlap({ left: 80, right: 160, top: 46, bottom: 60 }, placed), true);
+  assert.equal(graphLabelBoxesOverlap({ left: 80, right: 160, top: 70, bottom: 84 }, placed), false);
+});
+
+test('graph labels use a bounded progressive disclosure policy', () => {
+  const nodes = Array.from({ length: 70 }, (_, index) => ({ id: `node_${index}`, label: `node ${index}` }));
+  const edges = [
+    { fromNodeId: 'node_0', toNodeId: 'node_1' },
+    { fromNodeId: 'node_2', toNodeId: 'node_0' },
+    { fromNodeId: 'node_3', toNodeId: 'node_4' }
+  ];
+  const visible = visibleGraphLabelIds({ nodes, edges, selectedNodeId: 'node_0', hoveredNodeId: 'node_3', scale: 1, budget: 8 });
+  assert.deepEqual([...visible].sort(), ['node_0', 'node_1', 'node_2', 'node_3', 'node_4', 'node_5', 'node_6', 'node_7'].sort());
+  assert.equal(visible.size, 8);
+});
+
+test('source map outline separates labels from locators for readable overflow', async () => {
+  const html = renderSourceMap({ state: parseMapUrl('/map?query=router'), report: mapPreviewFixture() });
+  const css = await readFile(new URL('../apps/web/styles.css', import.meta.url), 'utf8');
+  assert.match(html, /class="source-map-outline-copy"/);
+  assert.match(html, /class="source-map-outline-label"/);
+  assert.match(html, /class="source-map-outline-locator"/);
+  assert.match(css, /\.source-map-outline-copy\{[^}]*min-width:0/);
+  assert.match(css, /\.source-map-outline-locator\{[^}]*overflow:hidden[^}]*text-overflow:ellipsis/);
+});
+
 test('focused Map renders a real canvas with outline parity', () => {
   const report = mapPreviewFixture();
   const html = renderSourceMap({ state: parseMapUrl('/map?query=router'), report });
@@ -118,8 +147,11 @@ function mapPreviewFixture({ coverage } = {}) {
     },
     coverage: resolvedCoverage,
     orientation: {
-      groups: [{ id: 'group_apps_web', label: 'web', prefix: 'apps/web', fileCount: 1, symbolCount: 1, changedFileCount: 0, coverageStatus: resolvedCoverage.status, entryPoints: [node] }],
-      groupRelations: [],
+      groups: [
+        { id: 'group_apps_web', label: 'web', prefix: 'apps/web', fileCount: 1, symbolCount: 1, changedFileCount: 0, coverageStatus: resolvedCoverage.status, entryPoints: [node] },
+        { id: 'group_packages_core', label: 'core', prefix: 'packages/core', fileCount: 2, symbolCount: 4, changedFileCount: 0, coverageStatus: resolvedCoverage.status, entryPoints: [] }
+      ],
+      groupRelations: [{ sourceGroupId: 'group_apps_web', targetGroupId: 'group_packages_core', count: 2 }],
       omittedGroupCount: 0,
       omittedRelationCount: 0
     },
