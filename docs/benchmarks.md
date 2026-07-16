@@ -139,6 +139,27 @@ harness made three network fetches to obtain the pinned repositories. It does
 not measure a packaged native binary, competitors, multi-repository behavior, or
 million-node scale, so it makes no parity or leadership claim.
 
+## Code-intelligence Phase 4 intelligence
+
+The committed receipt is
+`evals/code-intelligence/results/phase4-intelligence.json`. Verify its
+fingerprint, pass decision, evidence integrity, and claim boundary with:
+
+```bash
+node scripts/code-intelligence-phase4-intelligence.mjs --check
+```
+
+The local fixture builds four disconnected TypeScript areas plus one Next.js
+route-to-handler call chain. Five repeated reads produced four deterministic
+communities and one evidence-backed process. On the recorded macOS arm64 run,
+community-query p95 was 8.364 ms and process-query p95 was 11.660 ms. Both were
+below the bounded two-second query deadline, and every read preserved the exact
+SQLite bytes and modification time.
+
+This is a deterministic local correctness and deadline gate, not a competitor
+benchmark or a general latency promise. It makes no parity, leadership,
+multi-repository, packaged-binary, or million-node claim.
+
 ## Dataset
 
 | Claim | Dataset |

@@ -184,8 +184,10 @@ cross-product benchmark leaderboard.
   call traces, dependencies, routes, changed-file impact, and index status.
 - Explicit `--engine native-preview` source-index lifecycle with a local SQLite
   generation store, incremental refresh, doctor/confirm-gated repair, bounded
-  queries, and read-only MCP access to a prebuilt index. It requires a locally
-  built Rust binary and never changes the JS public default.
+  queries, and read-only MCP access to a prebuilt index. Native
+  `repo.architecture` returns deterministic communities, bounded entry-to-sink
+  processes, and their source relationships. It requires a locally built Rust
+  binary and never changes the JS public default.
 - Explicit persistent JS/TS source index with atomic writes, per-file structural
   shards, incremental refresh, stale detection, and watch mode. MCP can read a
   current index but never creates or refreshes one.
@@ -223,8 +225,8 @@ for the deeper boundary rules.
 Production PostgreSQL repositories, production authentication, hosted embeddings,
 vector databases, hosted memory sync, write-capable MCP tools, automatic harness
 history import, real social connectors, hardened sandboxes, signed Agent Pack
-distribution, non-JS/TS static analysis, cross-repository analysis, and
-million-node index support are not claimed.
+distribution, production-default non-JS/TS static analysis, cross-repository
+analysis, and million-node index support are not claimed.
 
 `PROJECT_STATUS.json` is the machine-readable source for current capability
 status and limitations.

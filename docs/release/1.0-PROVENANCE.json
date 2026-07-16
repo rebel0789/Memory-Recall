@@ -21,13 +21,13 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:c899c76b2bdc6bf2f708d653729cb327e70e056893bb9eca4bfd93d0485dac1e",
+    "package.json": "sha256:65dd0944a695a7e8fbaa1613285551a2488a13f7b962cbf08722bfe5c62a3a1e",
     "package-lock.json": "sha256:e7af858186750dbd7386fce41dd5e37303dca712915d31bc41fd22f7ecb0a368",
-    "PROJECT_STATUS.json": "sha256:24afa8cb90902274316745e06403c81b559421f2e17ee73cfa6048865a7f242e",
+    "PROJECT_STATUS.json": "sha256:95ad6455235250b3de39a04d003593b128913f745f708861ec3f2ad687c9079b",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
     "docs/usage/support-matrix.md": "sha256:9969a96464558de4db6ee291f57ab8c84815d44fd2e25a005a1b396c0b1e3fc2",
-    "docs/benchmarks.md": "sha256:5e99cf40c7444993e6950315e43d70a5eb523ab790a84ddf1d9f5bb1d5b3e5dc",
+    "docs/benchmarks.md": "sha256:aea49b1caea0780100903bb2ecf4f29545ece01e2cb34ed1e3aade6290eb69bf",
     "THIRD_PARTY.md": "sha256:adbbffba498346ac25ff8f064db76ae93543d3c1990d37f1137d9122f0742dd7",
     "SECURITY.md": "sha256:af8c910a7f2092f3adc8a9be30f79618d040101c6eda0fda705fdd8f9327b472",
     "GOVERNANCE.md": "sha256:479e1fe15e56b58bd33b41cab67244de87b6f62b491bea0761337a5b87cd7e52"
@@ -39,7 +39,7 @@
     },
     {
       "path": "docs/benchmarks.md",
-      "sha256": "sha256:5e99cf40c7444993e6950315e43d70a5eb523ab790a84ddf1d9f5bb1d5b3e5dc"
+      "sha256": "sha256:aea49b1caea0780100903bb2ecf4f29545ece01e2cb34ed1e3aade6290eb69bf"
     }
   ],
   "generatedFiles": [

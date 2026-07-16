@@ -122,6 +122,23 @@ This evidence proves the local lifecycle and language integration boundary. It
 does not prove full language support, packaged native distribution,
 multi-repository indexing, million-node scale, or competitor parity.
 
+## Phase 4 structural-intelligence evidence
+
+The explicit native preview now derives deterministic bounded communities and
+entry-to-sink processes from the persistent index. Process results retain the
+entry relationship and every traversed source relationship. They exclude stale,
+unresolved, and sub-0.75-confidence steps. `repo.architecture` exposes these
+projections through the existing twelve read-only MCP tools.
+
+The local Phase 4 receipt is
+[`phase4-intelligence.json`](../../evals/code-intelligence/results/phase4-intelligence.json).
+It proves deterministic output, complete returned evidence, unchanged SQLite
+bytes and modification time, and the two-second query deadline on its fixture.
+It does not promote any language's process capability to `meets-floor`: that
+still requires applicable deterministic and pinned real-repository evidence.
+It also does not change the JS default or prove packaged binaries, competitors,
+multi-repository behavior, or million-node scale.
+
 ## Phase 1 evidence
 
 The reproducible receipt is

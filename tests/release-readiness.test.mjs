@@ -134,8 +134,8 @@ test('npm package contains the runtime contract without checkout-only test weigh
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/README.md')), false);
   assert.equal(paths.some((filePath) => filePath.startsWith('adapters/') && filePath.endsWith('/UPSTREAM.lock')), true);
   assert.ok(pack.entryCount <= 853, `npm package has ${pack.entryCount} files; expected at most 853`);
-  assert.ok(pack.size <= 1_280_000, `npm package is ${pack.size} compressed bytes; expected at most 1,280,000`);
-  assert.ok(pack.unpackedSize <= 5_650_000, `npm package is ${pack.unpackedSize} unpacked bytes; expected at most 5,650,000`);
+  assert.ok(pack.size <= 1_290_000, `npm package is ${pack.size} compressed bytes; expected at most 1,290,000`);
+  assert.ok(pack.unpackedSize <= 5_700_000, `npm package is ${pack.unpackedSize} unpacked bytes; expected at most 5,700,000`);
 });
 
 test('installed npm package setup does not re-pack generated local state', () => {

@@ -10,6 +10,7 @@
 - Added PHP and Ruby native-preview structure, namespaces, traits and mixins, typed calls, imports, and framework-route evidence, completing the five planned Tier 1 language batches.
 - Added a deterministic Phase 2 aggregate over 14 fixtures and all 42 pinned Tier 1 repositories, with per-capability worst-case status, response bytes, resource measurements, and explicit node and edge budget diagnostics.
 - Added an isolated SQLite native source index with generation commits, incremental refresh, bounded queries, doctor/confirm-gated repair, and a no-write MCP preview. A reviewed integration fixture proves build, query, and exact no-op refresh behavior for all 14 Tier 1 languages.
+- Added deterministic bounded communities and evidence-backed entry-to-sink processes to the existing native `repo.architecture` MCP result, plus a reproducible Phase 4 correctness and query-deadline receipt. The MCP surface remains twelve read-only tools and no parity claim is made.
 
 ### Fixed
 

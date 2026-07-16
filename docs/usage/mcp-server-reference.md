@@ -22,7 +22,7 @@ npm run recall -- mcp server --read-only --root . --sqlite .local/memory.sqlite 
 | `context.profile` | Return a compact profile selected under a context budget. | No |
 | `context.pack` | Return a safe locator handoff for the current task. | No |
 | `repo.map` | Return a bounded Recall Map of local source coverage, governed memory, and handoff readiness. | No |
-| `repo.architecture` | Return bounded architecture groups, entry points, and structural hotspots. | No |
+| `repo.architecture` | Return bounded architecture groups, entry points, processes, structural hotspots, and evidence. | No |
 | `repo.index_status` | Report whether the optional persistent source index is missing, ready, stale, or invalid. | No |
 | `code.search` | Search symbols, files, modules, and relationships. | No |
 | `code.context` | Return one symbol with bounded incoming and outgoing relationships. | No |
@@ -91,6 +91,13 @@ Its fixed path is `.local/source-index/index.v1.sqlite`. The native MCP preview
 queries that prebuilt index and fails clearly if it is unavailable; it never
 builds, refreshes, repairs, or falls back to the JS engine. Normal MCP startup
 continues to use the JS index behavior above.
+
+In native preview, `repo.architecture` derives groups with
+`label-propagation-v1` and entry-to-sink paths with `entry-path-v1`. Each
+process references returned node and relationship IDs. Reads remain capped,
+report truncation, and preserve the index bytes and modification time. These
+projections are available through the existing twelve-tool MCP surface; no new
+write or query-execution tool is exposed.
 
 ## Resource Catalog
 
