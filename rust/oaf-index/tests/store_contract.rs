@@ -40,6 +40,7 @@ fn creates_separate_secure_index_with_current_migration() {
         "index_edges",
         "index_unresolved",
         "index_coverage",
+        "index_diagnostics",
         "index_health",
     ] {
         let exists: i64 = connection

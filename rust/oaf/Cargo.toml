@@ -14,3 +14,6 @@ hex = "0.4.3"
 chrono = { version = "0.4.38", default-features = false, features = ["clock"] }
 regex = "1.10.5"
 getrandom = "0.2"
+
+[dev-dependencies]
+oaf-index = { path = "../oaf-index" }

@@ -110,19 +110,19 @@ Commit: `feat: add isolated source index store`
 - Modify: `rust/oaf/Cargo.toml`
 - Add Rust integration tests
 
-- [ ] **Step 1: Write round-trip tests for every normalized record class**
+- [x] **Step 1: Write round-trip tests for every normalized record class**
 
 Persist repository, file, declaration, node, resolved edge, unresolved relationship, evidence, coverage, diagnostic, and generation metadata. Reloading must reproduce the same structural fingerprint without source bodies.
 
-- [ ] **Step 2: Implement atomic generation commits**
+- [x] **Step 2: Implement atomic generation commits**
 
 Write a staging generation, validate counts/references/duplicates, mark it committed, then switch `active_generation` in the same transaction. Keep one previous committed generation.
 
-- [ ] **Step 3: Add bounded read-only queries**
+- [x] **Step 3: Add bounded read-only queries**
 
 Implement status, exact symbol/path lookup, neighborhood, dependency direction, trace, impact seed, route listing, and bounded graph summary. Enforce stable ordering, cursor validation, row/time/output limits, and read-only SQLite flags.
 
-- [ ] **Step 4: Run all fourteen fixture graphs through SQLite**
+- [x] **Step 4: Run all fourteen fixture graphs through SQLite**
 
 The stored/reloaded graph fingerprint and exact sampled truth must match the in-memory Phase 2 graph for every language fixture.
 

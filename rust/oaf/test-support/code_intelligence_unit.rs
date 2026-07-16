@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::*;
+    use oaf_index::{SourceIndex, SourceIndexOptions};
     use std::fs;
 
     fn valid_request() -> Value {
@@ -1077,5 +1078,117 @@ mod tests {
             .any(|item| item["code"] == "parse_failed"));
 
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn all_fourteen_language_fixtures_round_trip_through_sqlite() {
+        let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures")
+            .canonicalize()
+            .unwrap();
+        let scratch = std::env::temp_dir().join(format!(
+            "memory-recall-code-intelligence-sqlite-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&scratch);
+        fs::create_dir_all(scratch.join("javascript")).unwrap();
+        fs::create_dir_all(scratch.join("typescript")).unwrap();
+        fs::write(
+            scratch.join("javascript/index.js"),
+            "export function target() { return 1; }\nexport function caller() { return target(); }\n",
+        )
+        .unwrap();
+        fs::write(
+            scratch.join("typescript/index.ts"),
+            "export function target(): number { return 1; }\nexport function caller(): number { return target(); }\n",
+        )
+        .unwrap();
+
+        let fixtures = [
+            ("javascript", scratch.join("javascript")),
+            ("typescript", scratch.join("typescript")),
+            ("python", fixture_root.join("batch-b/python")),
+            ("go", fixture_root.join("batch-b/go")),
+            ("rust", fixture_root.join("batch-b/rust")),
+            ("java", fixture_root.join("batch-c/java")),
+            ("kotlin", fixture_root.join("batch-c/kotlin")),
+            ("csharp", fixture_root.join("batch-c/csharp")),
+            ("c", fixture_root.join("batch-d/c")),
+            ("cpp", fixture_root.join("batch-d/cpp")),
+            ("swift", fixture_root.join("batch-d/swift")),
+            ("dart", fixture_root.join("batch-d/dart")),
+            ("php", fixture_root.join("batch-e/php")),
+            ("ruby", fixture_root.join("batch-e/ruby")),
+        ];
+        let options = SourceIndexOptions::new(
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "1.1.1",
+        );
+        for (language, root) in fixtures {
+            let mut request_value = valid_request();
+            request_value["arguments"]["languages"] = json!([language]);
+            let request = parse_request(&request_value).unwrap();
+            let graph = build_graph_at_root(&request, "1.1.1", &root, Instant::now())
+                .unwrap()
+                .graph;
+            let input = index_generation_from_graph(&graph, &root).unwrap();
+            assert_eq!(
+                input.structural_fingerprint,
+                graph["graphFingerprint"].as_str().unwrap(),
+                "{language}"
+            );
+            assert!(!input.nodes.is_empty(), "{language}: nodes");
+            assert!(!input.edges.is_empty(), "{language}: edges");
+            let stored_files = input
+                .files
+                .iter()
+                .map(|file| file.locator.as_str())
+                .collect::<BTreeSet<_>>();
+            for node in &input.nodes {
+                assert!(
+                    stored_files.contains(locator_file(&node.locator)),
+                    "{language}: missing file for {} at {}; files={stored_files:#?}",
+                    node.canonical_id,
+                    node.locator
+                );
+            }
+
+            let path = scratch.join(format!("indexes/{language}/index.sqlite"));
+            let mut writer = SourceIndex::open(&path, &options).unwrap();
+            let committed = writer
+                .commit_generation(&input)
+                .unwrap_or_else(|error| panic!("{language}: {error:#}"));
+            assert_eq!(committed.structural_fingerprint, input.structural_fingerprint);
+            drop(writer);
+            let reader = SourceIndex::open_read_only(&path, &options).unwrap();
+            let loaded = reader.load_active_generation().unwrap().unwrap();
+            assert_eq!(loaded.input, input, "{language}: normalized graph drift");
+            assert_eq!(
+                loaded.input.nodes.first().map(|node| (
+                    node.canonical_id.as_str(),
+                    node.qualified_name.as_str()
+                )),
+                input.nodes.first().map(|node| (
+                    node.canonical_id.as_str(),
+                    node.qualified_name.as_str()
+                )),
+                "{language}: sampled node truth"
+            );
+            assert_eq!(
+                loaded.input.edges.first().map(|edge| (
+                    edge.source_id.as_str(),
+                    edge.target_id.as_str(),
+                    edge.kind.as_str()
+                )),
+                input.edges.first().map(|edge| (
+                    edge.source_id.as_str(),
+                    edge.target_id.as_str(),
+                    edge.kind.as_str()
+                )),
+                "{language}: sampled edge truth"
+            );
+        }
+
+        fs::remove_dir_all(scratch).unwrap();
     }
 }

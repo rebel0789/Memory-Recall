@@ -1,5 +1,9 @@
 use anyhow::{Context, Result};
 use chrono::{SecondsFormat, Utc};
+#[cfg(test)]
+use oaf_index::{
+    CoverageRecord, DiagnosticRecord, EdgeRecord, FileRecord, GenerationInput, NodeRecord,
+};
 use oaf_ingest::{discover_file_hashes, extract_repo, CodeFactRecord, CodeSpan, IngestOptions};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
@@ -423,6 +427,212 @@ fn build_graph_at_root(
         omitted_node_count,
         omitted_edge_count,
     })
+}
+
+#[cfg(test)]
+fn index_generation_from_graph(graph: &Value, root: &std::path::Path) -> Result<GenerationInput> {
+    let root = root
+        .canonicalize()
+        .context("canonicalize indexed repository")?;
+    let hashes = discover_file_hashes(&IngestOptions::new(&root))?;
+    let graph_nodes = graph["nodes"]
+        .as_array()
+        .context("code intelligence graph nodes missing")?;
+    let graph_edges = graph["edges"]
+        .as_array()
+        .context("code intelligence graph edges missing")?;
+    let file_nodes = graph_nodes
+        .iter()
+        .filter(|node| node["kind"] == "file")
+        .filter_map(|node| {
+            Some((
+                locator_file(node["locator"].as_str()?).to_string(),
+                node["id"].as_str()?.to_string(),
+            ))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let language_by_file = graph_nodes
+        .iter()
+        .filter_map(|node| {
+            Some((
+                locator_file(node["locator"].as_str()?).to_string(),
+                node["language"].as_str()?.to_string(),
+            ))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let diagnostics_by_file = graph["diagnostics"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|item| item["locator"].as_str())
+        .map(locator_file)
+        .fold(BTreeMap::<String, i64>::new(), |mut counts, locator| {
+            *counts.entry(locator.to_string()).or_default() += 1;
+            counts
+        });
+    let mut files = hashes
+        .iter()
+        .filter_map(|item| {
+            let language = source_language(&item.source)
+                .map(str::to_string)
+                .or_else(|| language_by_file.get(&item.source).cloned())?;
+            Some(FileRecord {
+                locator: item.source.clone(),
+                content_hash: format!("sha256:{}", item.sha256),
+                byte_size: i64::try_from(item.bytes).ok()?,
+                language,
+                parse_state: "parsed".to_string(),
+                diagnostic_count: diagnostics_by_file.get(&item.source).copied().unwrap_or(0),
+                owner_identity: file_nodes.get(&item.source).cloned().unwrap_or_else(|| {
+                    let hash = fingerprint(&json!({ "source": item.source }));
+                    format!("file_{}", &hash[7..39])
+                }),
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut represented_files = files
+        .iter()
+        .map(|file| file.locator.clone())
+        .collect::<BTreeSet<_>>();
+    for (locator, language) in &language_by_file {
+        if represented_files.contains(locator) {
+            continue;
+        }
+        let relative = locator
+            .strip_prefix("workspace://")
+            .context("code intelligence locator is not workspace relative")?;
+        let bytes = std::fs::read(root.join(relative))
+            .with_context(|| format!("read indexed metadata file: {relative}"))?;
+        let content_hash = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+        let owner_identity = file_nodes.get(locator).cloned().unwrap_or_else(|| {
+            let hash = fingerprint(&json!({ "source": locator }));
+            format!("file_{}", &hash[7..39])
+        });
+        files.push(FileRecord {
+            locator: locator.clone(),
+            content_hash,
+            byte_size: i64::try_from(bytes.len()).context("indexed metadata file too large")?,
+            language: language.clone(),
+            parse_state: "parsed".to_string(),
+            diagnostic_count: diagnostics_by_file.get(locator).copied().unwrap_or(0),
+            owner_identity,
+        });
+        represented_files.insert(locator.clone());
+    }
+    let nodes = graph_nodes
+        .iter()
+        .map(|node| {
+            Ok(NodeRecord {
+                canonical_id: json_string(node, "id")?,
+                kind: json_string(node, "kind")?,
+                language_kind: json_string(node, "languageKind")?,
+                qualified_name: json_string(node, "qualifiedName")?,
+                locator: json_string(node, "locator")?,
+                start_line: json_i64(&node["span"], "startLine")?,
+                end_line: json_i64(&node["span"], "endLine")?,
+                content_hash: node["contentHash"].as_str().map(str::to_string),
+                visibility: "unknown".to_string(),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let edges = graph_edges
+        .iter()
+        .map(|edge| {
+            Ok(EdgeRecord {
+                canonical_id: json_string(edge, "id")?,
+                source_id: json_string(edge, "fromNodeId")?,
+                target_id: json_string(edge, "toNodeId")?,
+                kind: json_string(edge, "kind")?,
+                locator: json_string(&edge["evidence"], "locator")?,
+                start_line: json_i64(&edge["evidence"]["span"], "startLine")?,
+                end_line: json_i64(&edge["evidence"]["span"], "endLine")?,
+                resolver: json_string(&edge["resolver"], "name")?,
+                resolver_version: json_string(&edge["resolver"], "version")?,
+                confidence: edge["confidence"]
+                    .as_f64()
+                    .context("code intelligence edge confidence missing")?,
+                resolution_class: json_string(edge, "resolution")?,
+                stale: edge["freshness"] == "stale",
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let coverage = graph["coverage"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(|item| {
+            Ok(CoverageRecord {
+                language: json_string(item, "language")?,
+                capability: "files".to_string(),
+                represented_count: json_i64(item, "indexedFileCount")?,
+                omitted_count: json_i64(item, "omittedFileCount")?,
+                failed_count: json_i64(item, "failedFileCount")?,
+                reason_code: item["reasonCodes"]
+                    .as_array()
+                    .and_then(|reasons| reasons.first())
+                    .and_then(Value::as_str)
+                    .map(str::to_string),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let file_locators = files
+        .iter()
+        .map(|file| file.locator.as_str())
+        .collect::<BTreeSet<_>>();
+    let diagnostics = graph["diagnostics"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|item| {
+            item["locator"]
+                .as_str()
+                .is_some_and(|locator| file_locators.contains(locator_file(locator)))
+        })
+        .map(|item| {
+            let locator = json_string(item, "locator")?;
+            let hash = fingerprint(item);
+            Ok(DiagnosticRecord {
+                canonical_id: format!("diagnostic_{}", &hash[7..39]),
+                severity: json_string(item, "severity")?,
+                code: json_string(item, "code")?,
+                locator,
+                start_line: 1,
+                end_line: 1,
+                message_hash: hash,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(GenerationInput {
+        reason: "graph_build".to_string(),
+        created_at: json_string(&graph["generation"], "builtAt")?,
+        structural_fingerprint: json_string(graph, "graphFingerprint")?,
+        files,
+        nodes,
+        edges,
+        unresolved: Vec::new(),
+        coverage,
+        diagnostics,
+    })
+}
+
+#[cfg(test)]
+fn json_string(value: &Value, key: &str) -> Result<String> {
+    value[key]
+        .as_str()
+        .map(str::to_string)
+        .with_context(|| format!("code intelligence field missing: {key}"))
+}
+
+#[cfg(test)]
+fn json_i64(value: &Value, key: &str) -> Result<i64> {
+    value[key]
+        .as_i64()
+        .with_context(|| format!("code intelligence integer missing: {key}"))
+}
+
+#[cfg(test)]
+fn locator_file(locator: &str) -> &str {
+    locator.split_once('#').map_or(locator, |(file, _)| file)
 }
 
 fn build_nodes(

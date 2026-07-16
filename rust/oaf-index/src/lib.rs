@@ -1,8 +1,13 @@
 use anyhow::{bail, Context, Result};
 use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use sha2::{Digest, Sha256};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
+
+mod model;
+pub use model::*;
 
 pub const SCHEMA_VERSION: i64 = 1;
 const MIGRATION_ID: &str = "0001_source_index";
@@ -33,10 +38,12 @@ CREATE TABLE index_generations (
   node_count INTEGER NOT NULL DEFAULT 0,
   edge_count INTEGER NOT NULL DEFAULT 0,
   unresolved_count INTEGER NOT NULL DEFAULT 0,
+  diagnostic_count INTEGER NOT NULL DEFAULT 0,
   structural_fingerprint TEXT
 ) STRICT;
 CREATE TABLE index_files (
   generation_id INTEGER NOT NULL REFERENCES index_generations(id) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
   locator TEXT NOT NULL,
   content_hash TEXT NOT NULL,
   byte_size INTEGER NOT NULL,
@@ -48,6 +55,7 @@ CREATE TABLE index_files (
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE index_nodes (
   generation_id INTEGER NOT NULL REFERENCES index_generations(id) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
   canonical_id TEXT NOT NULL,
   kind TEXT NOT NULL,
   language_kind TEXT NOT NULL,
@@ -61,6 +69,7 @@ CREATE TABLE index_nodes (
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE index_edges (
   generation_id INTEGER NOT NULL REFERENCES index_generations(id) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
   canonical_id TEXT NOT NULL,
   source_id TEXT NOT NULL,
   target_id TEXT NOT NULL,
@@ -77,6 +86,7 @@ CREATE TABLE index_edges (
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE index_unresolved (
   generation_id INTEGER NOT NULL REFERENCES index_generations(id) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
   canonical_id TEXT NOT NULL,
   source_id TEXT NOT NULL,
   relationship_kind TEXT NOT NULL,
@@ -90,6 +100,7 @@ CREATE TABLE index_unresolved (
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE index_coverage (
   generation_id INTEGER NOT NULL REFERENCES index_generations(id) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
   language TEXT NOT NULL,
   capability TEXT NOT NULL,
   represented_count INTEGER NOT NULL,
@@ -97,6 +108,18 @@ CREATE TABLE index_coverage (
   failed_count INTEGER NOT NULL,
   reason_code TEXT,
   PRIMARY KEY (generation_id, language, capability)
+) WITHOUT ROWID, STRICT;
+CREATE TABLE index_diagnostics (
+  generation_id INTEGER NOT NULL REFERENCES index_generations(id) ON DELETE CASCADE,
+  ordinal INTEGER NOT NULL,
+  canonical_id TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  code TEXT NOT NULL,
+  locator TEXT NOT NULL,
+  start_line INTEGER NOT NULL,
+  end_line INTEGER NOT NULL,
+  message_hash TEXT NOT NULL,
+  PRIMARY KEY (generation_id, canonical_id)
 ) WITHOUT ROWID, STRICT;
 CREATE TABLE index_health (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -216,6 +239,758 @@ impl SourceIndex {
             .pragma_query_value(None, "foreign_keys", |row| row.get::<_, i64>(0))
             .is_ok_and(|value| value == 1)
     }
+
+    pub fn commit_generation(&mut self, input: &GenerationInput) -> Result<GenerationSummary> {
+        validate_generation(input)?;
+        let transaction = self.connection.transaction()?;
+        let parent_id = transaction.query_row(
+            "SELECT active_generation FROM index_metadata WHERE singleton = 1",
+            [],
+            |row| row.get::<_, Option<i64>>(0),
+        )?;
+        let generation_id = transaction.query_row(
+            "SELECT COALESCE(MAX(id), 0) + 1 FROM index_generations",
+            [],
+            |row| row.get::<_, i64>(0),
+        )?;
+        transaction.execute(
+            "INSERT INTO index_generations (id, parent_id, state, reason, created_at, structural_fingerprint) VALUES (?1, ?2, 'staging', ?3, ?4, ?5)",
+            params![generation_id, parent_id, input.reason, input.created_at, input.structural_fingerprint],
+        )?;
+        insert_generation_records(&transaction, generation_id, input)?;
+        let committed_at = timestamp_token();
+        let file_count = count_i64(input.files.len())?;
+        let node_count = count_i64(input.nodes.len())?;
+        let edge_count = count_i64(input.edges.len())?;
+        let unresolved_count = count_i64(input.unresolved.len())?;
+        let diagnostic_count = count_i64(input.diagnostics.len())?;
+        transaction.execute(
+            "UPDATE index_generations SET state = 'committed', committed_at = ?2, file_count = ?3, node_count = ?4, edge_count = ?5, unresolved_count = ?6, diagnostic_count = ?7 WHERE id = ?1 AND state = 'staging'",
+            params![generation_id, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count],
+        )?;
+        transaction.execute(
+            "UPDATE index_metadata SET active_generation = ?1, updated_at = ?2 WHERE singleton = 1",
+            params![generation_id, committed_at],
+        )?;
+        transaction.execute(
+            "UPDATE index_health SET integrity_status = 'ready', interrupted_generation = NULL, last_successful_refresh_at = ?1, repair_reason_code = NULL, updated_at = ?1 WHERE singleton = 1",
+            [&committed_at],
+        )?;
+        transaction.execute(
+            "UPDATE index_generations SET parent_id = NULL WHERE state = 'committed' AND id != ?1",
+            [generation_id],
+        )?;
+        transaction.execute(
+            "DELETE FROM index_generations WHERE state = 'committed' AND id NOT IN (SELECT id FROM index_generations WHERE state = 'committed' ORDER BY id DESC LIMIT 2)",
+            [],
+        )?;
+        transaction.commit()?;
+        Ok(GenerationSummary {
+            id: generation_id,
+            parent_id,
+            reason: input.reason.clone(),
+            created_at: input.created_at.clone(),
+            committed_at,
+            file_count,
+            node_count,
+            edge_count,
+            unresolved_count,
+            diagnostic_count,
+            structural_fingerprint: input.structural_fingerprint.clone(),
+        })
+    }
+
+    pub fn generation_summaries(&self, limit: usize) -> Result<Vec<GenerationSummary>> {
+        if !(1..=100).contains(&limit) {
+            bail!("source_index_query_limit_invalid");
+        }
+        let mut statement = self.connection.prepare(
+            "SELECT id, parent_id, reason, created_at, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count, structural_fingerprint FROM index_generations WHERE state = 'committed' ORDER BY id DESC LIMIT ?1",
+        )?;
+        let summaries = statement
+            .query_map([count_i64(limit)?], row_to_summary)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("source_index_generation_summary_failed")?;
+        Ok(summaries)
+    }
+
+    pub fn load_active_generation(&self) -> Result<Option<StoredGeneration>> {
+        self.active_generation()
+            .map(|generation_id| self.load_generation(generation_id))
+            .transpose()
+    }
+
+    pub fn load_generation(&self, generation_id: i64) -> Result<StoredGeneration> {
+        let summary = self.connection.query_row(
+            "SELECT id, parent_id, reason, created_at, committed_at, file_count, node_count, edge_count, unresolved_count, diagnostic_count, structural_fingerprint FROM index_generations WHERE id = ?1 AND state = 'committed'",
+            [generation_id],
+            row_to_summary,
+        ).context("source_index_generation_not_found")?;
+        let input = load_generation_records(&self.connection, &summary)?;
+        Ok(StoredGeneration { summary, input })
+    }
+
+    pub fn find_nodes(&self, query: &str, bounds: &QueryBounds) -> Result<QueryPage<NodeRecord>> {
+        validate_query_bounds(bounds)?;
+        validate_query_text(query)?;
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(QueryPage {
+                items: Vec::new(),
+                next_cursor: None,
+            });
+        };
+        let cursor = bounds.cursor.as_deref().unwrap_or("");
+        let pattern = format!("%{}%", escape_like(query));
+        let mut statement = self.connection.prepare(
+            "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 AND canonical_id > ?2 AND (qualified_name LIKE ?3 ESCAPE '\\' OR locator LIKE ?3 ESCAPE '\\') ORDER BY canonical_id LIMIT ?4",
+        )?;
+        let items = statement
+            .query_map(
+                params![generation_id, cursor, pattern, count_i64(bounds.limit + 1)?],
+                row_to_node,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        bounded_page(items, bounds)
+    }
+
+    pub fn dependency_edges(
+        &self,
+        node_id: &str,
+        direction: EdgeDirection,
+        bounds: &QueryBounds,
+    ) -> Result<QueryPage<EdgeRecord>> {
+        validate_query_bounds(bounds)?;
+        validate_identifier(node_id)?;
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(QueryPage {
+                items: Vec::new(),
+                next_cursor: None,
+            });
+        };
+        let predicate = match direction {
+            EdgeDirection::Incoming => "target_id = ?2",
+            EdgeDirection::Outgoing => "source_id = ?2",
+            EdgeDirection::Both => "(source_id = ?2 OR target_id = ?2)",
+        };
+        let sql = format!(
+            "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND {predicate} AND canonical_id > ?3 ORDER BY canonical_id LIMIT ?4"
+        );
+        let mut statement = self.connection.prepare(&sql)?;
+        let items = statement
+            .query_map(
+                params![
+                    generation_id,
+                    node_id,
+                    bounds.cursor.as_deref().unwrap_or(""),
+                    count_i64(bounds.limit + 1)?
+                ],
+                row_to_edge,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        bounded_page(items, bounds)
+    }
+
+    pub fn impact_edges(
+        &self,
+        node_id: &str,
+        bounds: &QueryBounds,
+    ) -> Result<QueryPage<EdgeRecord>> {
+        self.dependency_edges(node_id, EdgeDirection::Incoming, bounds)
+    }
+
+    pub fn neighborhood(&self, node_id: &str, bounds: &QueryBounds) -> Result<GraphNeighborhood> {
+        validate_query_bounds(bounds)?;
+        validate_identifier(node_id)?;
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(GraphNeighborhood {
+                nodes: Vec::new(),
+                edges: Vec::new(),
+                truncated: false,
+            });
+        };
+        let started = Instant::now();
+        let mut nodes = BTreeMap::new();
+        let Some(seed) = self.node_by_id(generation_id, node_id)? else {
+            return Ok(GraphNeighborhood {
+                nodes: Vec::new(),
+                edges: Vec::new(),
+                truncated: false,
+            });
+        };
+        nodes.insert(seed.canonical_id.clone(), seed);
+        let mut edges = BTreeMap::new();
+        let mut frontier = vec![node_id.to_string()];
+        let mut truncated = false;
+        for _ in 0..bounds.max_depth {
+            let mut next = BTreeSet::new();
+            for current in frontier {
+                ensure_deadline(started, bounds)?;
+                let page = self.dependency_edges(
+                    &current,
+                    EdgeDirection::Both,
+                    &QueryBounds::new(bounds.limit),
+                )?;
+                truncated |= page.next_cursor.is_some();
+                for edge in page.items {
+                    if edges.len() >= bounds.limit {
+                        truncated = true;
+                        break;
+                    }
+                    let other = if edge.source_id == current {
+                        edge.target_id.clone()
+                    } else {
+                        edge.source_id.clone()
+                    };
+                    edges.entry(edge.canonical_id.clone()).or_insert(edge);
+                    if !nodes.contains_key(&other) {
+                        if nodes.len() >= bounds.limit {
+                            truncated = true;
+                            continue;
+                        }
+                        if let Some(node) = self.node_by_id(generation_id, &other)? {
+                            nodes.insert(other.clone(), node);
+                            next.insert(other);
+                        }
+                    }
+                }
+            }
+            if next.is_empty() {
+                break;
+            }
+            frontier = next.into_iter().collect();
+        }
+        let result = GraphNeighborhood {
+            nodes: nodes.into_values().collect(),
+            edges: edges.into_values().collect(),
+            truncated,
+        };
+        enforce_output_bound(&result, bounds)?;
+        Ok(result)
+    }
+
+    pub fn trace_routes(
+        &self,
+        from_node_id: &str,
+        to_node_id: &str,
+        bounds: &QueryBounds,
+    ) -> Result<Vec<GraphRoute>> {
+        validate_query_bounds(bounds)?;
+        validate_identifier(from_node_id)?;
+        validate_identifier(to_node_id)?;
+        let started = Instant::now();
+        let mut queue = VecDeque::from([GraphRoute {
+            node_ids: vec![from_node_id.to_string()],
+            edge_ids: Vec::new(),
+        }]);
+        let max_queue = bounds.limit.saturating_mul(bounds.max_depth.max(1));
+        let mut routes = Vec::new();
+        while let Some(route) = queue.pop_front() {
+            ensure_deadline(started, bounds)?;
+            if route.edge_ids.len() >= bounds.max_depth {
+                continue;
+            }
+            let current = route
+                .node_ids
+                .last()
+                .context("source_index_route_invalid")?;
+            let page = self.dependency_edges(
+                current,
+                EdgeDirection::Outgoing,
+                &QueryBounds::new(bounds.limit),
+            )?;
+            for edge in page.items {
+                if route.node_ids.contains(&edge.target_id) {
+                    continue;
+                }
+                let mut candidate = route.clone();
+                candidate.node_ids.push(edge.target_id.clone());
+                candidate.edge_ids.push(edge.canonical_id);
+                if edge.target_id == to_node_id {
+                    routes.push(candidate);
+                    if routes.len() >= bounds.limit {
+                        enforce_output_bound(&routes, bounds)?;
+                        return Ok(routes);
+                    }
+                } else if queue.len() < max_queue {
+                    queue.push_back(candidate);
+                }
+            }
+        }
+        routes.sort_by(|left, right| {
+            left.edge_ids
+                .len()
+                .cmp(&right.edge_ids.len())
+                .then_with(|| left.edge_ids.cmp(&right.edge_ids))
+        });
+        enforce_output_bound(&routes, bounds)?;
+        Ok(routes)
+    }
+
+    fn node_by_id(&self, generation_id: i64, node_id: &str) -> Result<Option<NodeRecord>> {
+        self.connection
+            .query_row(
+                "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 AND canonical_id = ?2",
+                params![generation_id, node_id],
+                row_to_node,
+            )
+            .optional()
+            .context("source_index_node_query_failed")
+    }
+}
+
+fn insert_generation_records(
+    transaction: &rusqlite::Transaction<'_>,
+    generation_id: i64,
+    input: &GenerationInput,
+) -> Result<()> {
+    for (ordinal, record) in input.files.iter().enumerate() {
+        transaction.execute(
+            "INSERT INTO index_files (generation_id, ordinal, locator, content_hash, byte_size, language, parse_state, diagnostic_count, owner_identity) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![generation_id, count_i64(ordinal)?, record.locator, record.content_hash, record.byte_size, record.language, record.parse_state, record.diagnostic_count, record.owner_identity],
+        )?;
+    }
+    for (ordinal, record) in input.nodes.iter().enumerate() {
+        transaction.execute(
+            "INSERT INTO index_nodes (generation_id, ordinal, canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![generation_id, count_i64(ordinal)?, record.canonical_id, record.kind, record.language_kind, record.qualified_name, record.locator, record.start_line, record.end_line, record.content_hash, record.visibility],
+        )?;
+    }
+    for (ordinal, record) in input.edges.iter().enumerate() {
+        transaction.execute(
+            "INSERT INTO index_edges (generation_id, ordinal, canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![generation_id, count_i64(ordinal)?, record.canonical_id, record.source_id, record.target_id, record.kind, record.locator, record.start_line, record.end_line, record.resolver, record.resolver_version, record.confidence, record.resolution_class, i64::from(record.stale)],
+        )?;
+    }
+    for (ordinal, record) in input.unresolved.iter().enumerate() {
+        transaction.execute(
+            "INSERT INTO index_unresolved (generation_id, ordinal, canonical_id, source_id, relationship_kind, target_text_hash, locator, start_line, end_line, reason_code, confidence_class) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![generation_id, count_i64(ordinal)?, record.canonical_id, record.source_id, record.relationship_kind, record.target_text_hash, record.locator, record.start_line, record.end_line, record.reason_code, record.confidence_class],
+        )?;
+    }
+    for (ordinal, record) in input.coverage.iter().enumerate() {
+        transaction.execute(
+            "INSERT INTO index_coverage (generation_id, ordinal, language, capability, represented_count, omitted_count, failed_count, reason_code) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![generation_id, count_i64(ordinal)?, record.language, record.capability, record.represented_count, record.omitted_count, record.failed_count, record.reason_code],
+        )?;
+    }
+    for (ordinal, record) in input.diagnostics.iter().enumerate() {
+        transaction.execute(
+            "INSERT INTO index_diagnostics (generation_id, ordinal, canonical_id, severity, code, locator, start_line, end_line, message_hash) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![generation_id, count_i64(ordinal)?, record.canonical_id, record.severity, record.code, record.locator, record.start_line, record.end_line, record.message_hash],
+        )?;
+    }
+    Ok(())
+}
+
+fn load_generation_records(
+    connection: &Connection,
+    summary: &GenerationSummary,
+) -> Result<GenerationInput> {
+    let files = collect_rows(
+        connection,
+        "SELECT locator, content_hash, byte_size, language, parse_state, diagnostic_count, owner_identity FROM index_files WHERE generation_id = ?1 ORDER BY ordinal",
+        summary.id,
+        |row| Ok(FileRecord {
+            locator: row.get(0)?,
+            content_hash: row.get(1)?,
+            byte_size: row.get(2)?,
+            language: row.get(3)?,
+            parse_state: row.get(4)?,
+            diagnostic_count: row.get(5)?,
+            owner_identity: row.get(6)?,
+        }),
+    )?;
+    let nodes = collect_rows(
+        connection,
+        "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 ORDER BY ordinal",
+        summary.id,
+        row_to_node,
+    )?;
+    let edges = collect_rows(
+        connection,
+        "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 ORDER BY ordinal",
+        summary.id,
+        row_to_edge,
+    )?;
+    let unresolved = collect_rows(
+        connection,
+        "SELECT canonical_id, source_id, relationship_kind, target_text_hash, locator, start_line, end_line, reason_code, confidence_class FROM index_unresolved WHERE generation_id = ?1 ORDER BY ordinal",
+        summary.id,
+        |row| Ok(UnresolvedRecord {
+            canonical_id: row.get(0)?,
+            source_id: row.get(1)?,
+            relationship_kind: row.get(2)?,
+            target_text_hash: row.get(3)?,
+            locator: row.get(4)?,
+            start_line: row.get(5)?,
+            end_line: row.get(6)?,
+            reason_code: row.get(7)?,
+            confidence_class: row.get(8)?,
+        }),
+    )?;
+    let coverage = collect_rows(
+        connection,
+        "SELECT language, capability, represented_count, omitted_count, failed_count, reason_code FROM index_coverage WHERE generation_id = ?1 ORDER BY ordinal",
+        summary.id,
+        |row| Ok(CoverageRecord {
+            language: row.get(0)?,
+            capability: row.get(1)?,
+            represented_count: row.get(2)?,
+            omitted_count: row.get(3)?,
+            failed_count: row.get(4)?,
+            reason_code: row.get(5)?,
+        }),
+    )?;
+    let diagnostics = collect_rows(
+        connection,
+        "SELECT canonical_id, severity, code, locator, start_line, end_line, message_hash FROM index_diagnostics WHERE generation_id = ?1 ORDER BY ordinal",
+        summary.id,
+        |row| Ok(DiagnosticRecord {
+            canonical_id: row.get(0)?,
+            severity: row.get(1)?,
+            code: row.get(2)?,
+            locator: row.get(3)?,
+            start_line: row.get(4)?,
+            end_line: row.get(5)?,
+            message_hash: row.get(6)?,
+        }),
+    )?;
+    Ok(GenerationInput {
+        reason: summary.reason.clone(),
+        created_at: summary.created_at.clone(),
+        structural_fingerprint: summary.structural_fingerprint.clone(),
+        files,
+        nodes,
+        edges,
+        unresolved,
+        coverage,
+        diagnostics,
+    })
+}
+
+fn collect_rows<T, F>(
+    connection: &Connection,
+    sql: &str,
+    generation_id: i64,
+    mapper: F,
+) -> Result<Vec<T>>
+where
+    F: FnMut(&rusqlite::Row<'_>) -> rusqlite::Result<T>,
+{
+    let mut statement = connection.prepare(sql)?;
+    let records = statement
+        .query_map([generation_id], mapper)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .context("source_index_generation_load_failed")?;
+    Ok(records)
+}
+
+fn row_to_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<GenerationSummary> {
+    Ok(GenerationSummary {
+        id: row.get(0)?,
+        parent_id: row.get(1)?,
+        reason: row.get(2)?,
+        created_at: row.get(3)?,
+        committed_at: row.get(4)?,
+        file_count: row.get(5)?,
+        node_count: row.get(6)?,
+        edge_count: row.get(7)?,
+        unresolved_count: row.get(8)?,
+        diagnostic_count: row.get(9)?,
+        structural_fingerprint: row.get(10)?,
+    })
+}
+
+fn row_to_node(row: &rusqlite::Row<'_>) -> rusqlite::Result<NodeRecord> {
+    Ok(NodeRecord {
+        canonical_id: row.get(0)?,
+        kind: row.get(1)?,
+        language_kind: row.get(2)?,
+        qualified_name: row.get(3)?,
+        locator: row.get(4)?,
+        start_line: row.get(5)?,
+        end_line: row.get(6)?,
+        content_hash: row.get(7)?,
+        visibility: row.get(8)?,
+    })
+}
+
+fn row_to_edge(row: &rusqlite::Row<'_>) -> rusqlite::Result<EdgeRecord> {
+    Ok(EdgeRecord {
+        canonical_id: row.get(0)?,
+        source_id: row.get(1)?,
+        target_id: row.get(2)?,
+        kind: row.get(3)?,
+        locator: row.get(4)?,
+        start_line: row.get(5)?,
+        end_line: row.get(6)?,
+        resolver: row.get(7)?,
+        resolver_version: row.get(8)?,
+        confidence: row.get(9)?,
+        resolution_class: row.get(10)?,
+        stale: row.get::<_, i64>(11)? != 0,
+    })
+}
+
+fn bounded_page<T>(mut items: Vec<T>, bounds: &QueryBounds) -> Result<QueryPage<T>>
+where
+    T: serde::Serialize,
+    T: CursorRecord,
+{
+    let has_more = items.len() > bounds.limit;
+    if has_more {
+        items.pop();
+    }
+    let next_cursor = has_more
+        .then(|| items.last().map(CursorRecord::cursor))
+        .flatten();
+    let page = QueryPage { items, next_cursor };
+    enforce_output_bound(&page, bounds)?;
+    Ok(page)
+}
+
+trait CursorRecord {
+    fn cursor(&self) -> String;
+}
+
+impl CursorRecord for NodeRecord {
+    fn cursor(&self) -> String {
+        self.canonical_id.clone()
+    }
+}
+
+impl CursorRecord for EdgeRecord {
+    fn cursor(&self) -> String {
+        self.canonical_id.clone()
+    }
+}
+
+fn validate_generation(input: &GenerationInput) -> Result<()> {
+    validate_token(&input.reason, "source_index_generation_reason_invalid")?;
+    if input.created_at.is_empty() || input.created_at.len() > 64 {
+        bail!("source_index_generation_timestamp_invalid");
+    }
+    validate_hash(&input.structural_fingerprint)?;
+    let mut files = BTreeSet::new();
+    for record in &input.files {
+        validate_locator(&record.locator)?;
+        validate_hash(&record.content_hash)?;
+        validate_token(&record.language, "source_index_language_invalid")?;
+        validate_token(&record.parse_state, "source_index_parse_state_invalid")?;
+        validate_identifier(&record.owner_identity)?;
+        if record.byte_size < 0
+            || record.diagnostic_count < 0
+            || !files.insert(record.locator.clone())
+        {
+            bail!("source_index_file_record_invalid");
+        }
+    }
+    let mut nodes = BTreeSet::new();
+    for record in &input.nodes {
+        validate_identifier(&record.canonical_id)?;
+        validate_token(&record.kind, "source_index_node_kind_invalid")?;
+        validate_token(&record.language_kind, "source_index_language_kind_invalid")?;
+        validate_token(&record.visibility, "source_index_visibility_invalid")?;
+        validate_locator(&record.locator)?;
+        validate_span(record.start_line, record.end_line)?;
+        if let Some(hash) = &record.content_hash {
+            validate_hash(hash)?;
+        }
+        if record.qualified_name.is_empty()
+            || record.qualified_name.len() > 2_048
+            || !nodes.insert(record.canonical_id.clone())
+            || !files.contains(locator_file(&record.locator))
+        {
+            bail!("source_index_node_record_invalid");
+        }
+    }
+    let mut edges = BTreeSet::new();
+    for record in &input.edges {
+        validate_identifier(&record.canonical_id)?;
+        validate_locator(&record.locator)?;
+        validate_span(record.start_line, record.end_line)?;
+        validate_token(&record.kind, "source_index_edge_kind_invalid")?;
+        validate_token(&record.resolver, "source_index_resolver_invalid")?;
+        validate_token(
+            &record.resolver_version,
+            "source_index_resolver_version_invalid",
+        )?;
+        validate_token(
+            &record.resolution_class,
+            "source_index_resolution_class_invalid",
+        )?;
+        if !record.confidence.is_finite()
+            || !(0.0..=1.0).contains(&record.confidence)
+            || !edges.insert(record.canonical_id.clone())
+            || !nodes.contains(&record.source_id)
+            || !nodes.contains(&record.target_id)
+            || !files.contains(locator_file(&record.locator))
+        {
+            bail!("source_index_edge_record_invalid");
+        }
+    }
+    let mut unresolved = BTreeSet::new();
+    for record in &input.unresolved {
+        validate_identifier(&record.canonical_id)?;
+        validate_hash(&record.target_text_hash)?;
+        validate_locator(&record.locator)?;
+        validate_span(record.start_line, record.end_line)?;
+        validate_token(
+            &record.relationship_kind,
+            "source_index_relationship_kind_invalid",
+        )?;
+        validate_token(&record.reason_code, "source_index_reason_code_invalid")?;
+        validate_token(
+            &record.confidence_class,
+            "source_index_confidence_class_invalid",
+        )?;
+        if !unresolved.insert(record.canonical_id.clone())
+            || !nodes.contains(&record.source_id)
+            || !files.contains(locator_file(&record.locator))
+        {
+            bail!("source_index_unresolved_record_invalid");
+        }
+    }
+    let mut coverage = BTreeSet::new();
+    for record in &input.coverage {
+        validate_token(&record.language, "source_index_language_invalid")?;
+        validate_token(&record.capability, "source_index_capability_invalid")?;
+        if let Some(reason) = &record.reason_code {
+            validate_token(reason, "source_index_reason_code_invalid")?;
+        }
+        if record.represented_count < 0
+            || record.omitted_count < 0
+            || record.failed_count < 0
+            || !coverage.insert((record.language.clone(), record.capability.clone()))
+        {
+            bail!("source_index_coverage_record_invalid");
+        }
+    }
+    let mut diagnostics = BTreeSet::new();
+    for record in &input.diagnostics {
+        validate_identifier(&record.canonical_id)?;
+        validate_locator(&record.locator)?;
+        validate_span(record.start_line, record.end_line)?;
+        validate_hash(&record.message_hash)?;
+        validate_token(&record.severity, "source_index_severity_invalid")?;
+        validate_token(&record.code, "source_index_diagnostic_code_invalid")?;
+        if !diagnostics.insert(record.canonical_id.clone())
+            || !files.contains(locator_file(&record.locator))
+        {
+            bail!("source_index_diagnostic_record_invalid");
+        }
+    }
+    Ok(())
+}
+
+fn validate_query_bounds(bounds: &QueryBounds) -> Result<()> {
+    if !(1..=100).contains(&bounds.limit)
+        || bounds.max_depth > 8
+        || !(1_024..=1_048_576).contains(&bounds.max_output_bytes)
+        || !(1..=2_000).contains(&bounds.timeout_ms)
+    {
+        bail!("source_index_query_bounds_invalid");
+    }
+    if let Some(cursor) = &bounds.cursor {
+        validate_cursor(cursor)?;
+    }
+    Ok(())
+}
+
+fn validate_query_text(value: &str) -> Result<()> {
+    if value.trim().is_empty() || value.len() > 512 || value.chars().any(char::is_control) {
+        bail!("source_index_query_text_invalid");
+    }
+    Ok(())
+}
+
+fn validate_cursor(value: &str) -> Result<()> {
+    if value.is_empty() || value.len() > 512 || value.chars().any(char::is_control) {
+        bail!("source_index_query_cursor_invalid");
+    }
+    Ok(())
+}
+
+fn validate_identifier(value: &str) -> Result<()> {
+    if value.is_empty() || value.len() > 512 || value.chars().any(char::is_control) {
+        bail!("source_index_identifier_invalid");
+    }
+    Ok(())
+}
+
+fn validate_token(value: &str, code: &'static str) -> Result<()> {
+    if value.is_empty()
+        || value.len() > 128
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.' | b':'))
+    {
+        bail!(code);
+    }
+    Ok(())
+}
+
+fn validate_hash(value: &str) -> Result<()> {
+    let bytes = value.as_bytes();
+    if bytes.len() != 71
+        || !value.starts_with("sha256:")
+        || !bytes[7..].iter().all(u8::is_ascii_hexdigit)
+    {
+        bail!("source_index_hash_invalid");
+    }
+    Ok(())
+}
+
+fn validate_locator(value: &str) -> Result<()> {
+    let file = locator_file(value);
+    if !file.starts_with("workspace://")
+        || file.len() > 4_096
+        || file.contains('\0')
+        || file.contains('\\')
+        || file
+            .trim_start_matches("workspace://")
+            .split('/')
+            .any(|part| part == ".." || part.is_empty())
+    {
+        bail!("source_index_locator_invalid");
+    }
+    Ok(())
+}
+
+fn locator_file(value: &str) -> &str {
+    value.split_once('#').map_or(value, |(file, _)| file)
+}
+
+fn validate_span(start_line: i64, end_line: i64) -> Result<()> {
+    if start_line < 1 || end_line < start_line {
+        bail!("source_index_span_invalid");
+    }
+    Ok(())
+}
+
+fn escape_like(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('%', "\\%")
+        .replace('_', "\\_")
+}
+
+fn count_i64(value: usize) -> Result<i64> {
+    i64::try_from(value).context("source_index_count_overflow")
+}
+
+fn ensure_deadline(started: Instant, bounds: &QueryBounds) -> Result<()> {
+    if started.elapsed() > Duration::from_millis(bounds.timeout_ms) {
+        bail!("source_index_query_timeout");
+    }
+    Ok(())
+}
+
+fn enforce_output_bound<T: serde::Serialize>(value: &T, bounds: &QueryBounds) -> Result<()> {
+    if serde_json::to_vec(value)?.len() > bounds.max_output_bytes {
+        bail!("source_index_query_output_limit");
+    }
+    Ok(())
 }
 
 pub fn inspect_index(path: &Path, options: &SourceIndexOptions) -> IndexHealth {
