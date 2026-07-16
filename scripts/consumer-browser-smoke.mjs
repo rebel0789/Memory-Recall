@@ -111,7 +111,7 @@ try {
 
   await page.fill('#source-graph-form input[name="query"]', 'startApp');
   const startAppResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'startApp');
-  await Promise.all([startAppResponse, page.getByRole('button', { name: 'Run map' }).click()]);
+  await Promise.all([startAppResponse, page.getByRole('button', { name: 'Search code' }).click()]);
   await page.waitForFunction(() => document.querySelector('#live-status')?.textContent === 'Map loaded.');
   await waitForText(page, 'Focused map');
   await page.locator('#source-map-canvas').waitFor();
@@ -131,7 +131,7 @@ try {
   await page.route('**/api/context/graph/preview', recoverableGraphFailure);
   await page.fill('#source-graph-form input[name="query"]', 'recoverableFailure');
   const failureResponse = page.waitForResponse((response) => graphPreviewQuery(response.request()) === 'recoverableFailure');
-  await Promise.all([failureResponse, page.getByRole('button', { name: 'Run map' }).click()]);
+  await Promise.all([failureResponse, page.getByRole('button', { name: 'Search code' }).click()]);
   await waitForText(page, 'Recoverable graph failure.');
   const failedMapUrl = page.url();
   await assertMapState(page, { query: 'recoverableFailure', group: selectedPrefix });

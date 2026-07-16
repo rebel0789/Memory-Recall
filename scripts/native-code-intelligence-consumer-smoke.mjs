@@ -14,6 +14,11 @@ const root = process.cwd();
 const temp = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-consumer-'));
 const workspace = path.join(temp, 'workspace');
 const cliWorkspace = path.join(temp, 'cli-workspace');
+const fleet = path.join(temp, 'fleet');
+const fleetWorkspaceId = 'ws_installed_cross_repo';
+const clientRoot = path.join(fleet, 'repositories', 'client');
+const serviceRoot = path.join(fleet, 'repositories', 'service');
+const decoyRoot = path.join(fleet, 'repositories', 'decoy');
 const home = path.join(temp, 'home');
 const npmCache = path.join(temp, 'npm-cache');
 const packDirectory = path.join(temp, 'pack');
@@ -41,6 +46,7 @@ try {
   await mkdir(packDirectory, { recursive: true });
   await mkdir(runtimeBin, { recursive: true });
   await createPolyglotWorkspace();
+  await createCrossRepositoryWorkspace();
   await mkdir(path.join(cliWorkspace, 'src'), { recursive: true });
   await writeFile(
     path.join(cliWorkspace, 'src', 'index.ts'),
@@ -103,6 +109,7 @@ try {
   }).stdout.trim();
   const packageRoot = path.join(installedModules, 'memory-recall');
   const platformPackageRoot = path.join(installedModules, '@memory-recall', `native-${target}`);
+  const installedCli = path.join(packageRoot, 'apps', 'cli', 'oaf.mjs');
   const isolatedEnvironment = {
     ...ambientEnvironment,
     HOME: home,
@@ -177,7 +184,121 @@ try {
   must(!installedReports.includes(workspace), 'installed native reports redact the workspace path');
   must(!installedReports.includes(rawSourceSentinel), 'installed native reports omit raw source bodies');
 
-  const installedCli = path.join(packageRoot, 'apps', 'cli', 'oaf.mjs');
+  const crossNodes = await withProcessEnvironment(isolatedEnvironment, async () => {
+    const provider = new RustCodeIntelligenceProvider({ timeoutMs: 60_000 });
+    for (const repositoryRoot of [clientRoot, serviceRoot, decoyRoot]) {
+      await provider.buildIndex({ root: repositoryRoot, workspaceId: fleetWorkspaceId, languages: ['go'] });
+    }
+    const exact = async (repositoryRoot, queryText) => {
+      const result = await provider.queryIndex({
+        root: repositoryRoot,
+        workspaceId: fleetWorkspaceId,
+        kind: 'exact',
+        query: queryText,
+        limit: 10
+      });
+      must(result.results.length === 1, `installed provider resolves one ${queryText} node`);
+      return result.results[0];
+    };
+    const [clientEntry, serviceTarget, decoyTarget] = await Promise.all([
+      exact(clientRoot, 'Build'),
+      exact(serviceRoot, 'Service'),
+      exact(decoyRoot, 'Service')
+    ]);
+    must(decoyTarget.id === serviceTarget.id, 'installed decoy preserves the same native symbol identity');
+    return { clientEntry, serviceTarget };
+  });
+
+  const repositoryCli = (commandArgs) => runJson(process.execPath, [installedCli, 'graph', 'repositories', ...commandArgs], {
+    cwd: fleet,
+    env: isolatedEnvironment
+  });
+  const clientRegistration = repositoryCli([
+    'register', '--write', '--root', fleet, '--repository', 'repositories/client', '--name', 'Client',
+    '--workspace', fleetWorkspaceId, '--format', 'json'
+  ]);
+  const serviceRegistration = repositoryCli([
+    'register', '--write', '--root', fleet, '--repository', 'repositories/service', '--name', 'Service',
+    '--workspace', fleetWorkspaceId, '--format', 'json'
+  ]);
+  const decoyRegistration = repositoryCli([
+    'register', '--write', '--root', fleet, '--repository', 'repositories/decoy', '--name', 'Decoy',
+    '--workspace', fleetWorkspaceId, '--format', 'json'
+  ]);
+  for (const registration of [clientRegistration, serviceRegistration, decoyRegistration]) {
+    must(registration.engine?.selection === 'native-preview', 'installed repository registration uses native preview');
+    must(registration.safeguards?.readOnly === false && registration.safeguards?.localFilesWritten === 1, 'installed repository registration requires one explicit local write');
+  }
+  const client = clientRegistration.repositories[0];
+  const service = serviceRegistration.repositories[0];
+  const decoy = decoyRegistration.repositories[0];
+  const listedRepositories = repositoryCli([
+    'list', '--read-only', '--root', fleet, '--workspace', fleetWorkspaceId, '--limit', '10', '--format', 'json'
+  ]);
+  must(listedRepositories.safeguards?.readOnly === true && listedRepositories.safeguards?.localFilesWritten === 0, 'installed repository list is read-only');
+  must(new Set(listedRepositories.repositories.map(({ repositoryId }) => repositoryId)).size === 3, 'installed repository list returns all three registered repositories');
+  const searchedRepositories = repositoryCli([
+    'search', '--read-only', '--root', fleet, '--workspace', fleetWorkspaceId, '--query', 'Service',
+    '--repository-ids', `${service.repositoryId},${decoy.repositoryId}`,
+    '--per-repository-limit', '10', '--limit', '20', '--format', 'json'
+  ]);
+  must(searchedRepositories.safeguards?.readOnly === true && searchedRepositories.safeguards?.localFilesWritten === 0, 'installed repository search is read-only');
+  must(
+    new Set(searchedRepositories.results.map(({ repositoryId }) => repositoryId)).size === 2
+      && searchedRepositories.results.some(({ repositoryId }) => repositoryId === service.repositoryId)
+      && searchedRepositories.results.some(({ repositoryId }) => repositoryId === decoy.repositoryId),
+    'installed repository search stays within the two selected repositories'
+  );
+
+  const crossRepository = {
+    repositoryIds: [client.repositoryId, service.repositoryId],
+    clientRepositoryId: client.repositoryId,
+    serviceRepositoryId: service.repositoryId,
+    clientEntryNativeId: crossNodes.clientEntry.id,
+    serviceTargetNativeId: crossNodes.serviceTarget.id
+  };
+  const mcpRequests = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.dependencies', arguments: { crossRepository } } },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'code.trace', arguments: { crossRepository, limit: 10 } } },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'code.impact', arguments: { crossRepository, limit: 10 } } }
+  ];
+  const installedMcp = run(process.execPath, [installedCli,
+    'mcp', 'server', '--read-only', '--engine', 'native-preview', '--workspace', fleetWorkspaceId,
+    '--root', fleet, '--stdio'
+  ], {
+    cwd: fleet,
+    env: isolatedEnvironment,
+    input: mcpRequests.map((request) => JSON.stringify(request)).join('\n'),
+    maxBuffer: 2 * 1024 * 1024,
+    timeout: 30_000
+  });
+  const mcpResponses = installedMcp.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line));
+  const mcpPayload = (id) => {
+    const response = mcpResponses.find((entry) => entry.id === id);
+    must(response && !response.error, `installed cross-repository MCP call ${id} succeeds`);
+    return JSON.parse(response.result.content[0].text);
+  };
+  const dependencies = mcpPayload(2);
+  const trace = mcpPayload(3);
+  const impact = mcpPayload(4);
+  for (const payload of [dependencies, trace, impact]) {
+    must(payload.safeguards?.readOnly === true && payload.safeguards?.localFilesWritten === 0, 'installed cross-repository MCP is read-only');
+    must(payload.data?.source?.kind === 'native-persistent-repository-index', 'installed cross-repository MCP uses the native repository index');
+    must(payload.data?.measurements?.selectedRepositoryCount === 2 && payload.data?.measurements?.openedRepositoryCount === 2, 'installed cross-repository MCP opens only the selected pair');
+    const serialized = JSON.stringify(payload);
+    must(!serialized.includes(decoy.repositoryId), 'installed cross-repository MCP excludes the decoy repository');
+    must(!serialized.includes(rawSourceSentinel), 'installed cross-repository MCP omits raw source bodies');
+    must(!serialized.includes(fleet), 'installed cross-repository MCP redacts the fleet path');
+  }
+  must(dependencies.data.modules.length === 2 && dependencies.data.relationships.length === 2, 'installed MCP resolves the exact Go dependency boundary');
+  must(trace.data.paths.length === 1 && trace.data.relationships.some(({ kind }) => kind === 'constructs'), 'installed MCP returns one evidence-backed Go trace');
+  must(
+    impact.data.paths.length === 1
+      && impact.data.impactedNodes.some(({ repositoryId, nativeId }) => repositoryId === client.repositoryId && nativeId === crossNodes.clientEntry.id),
+    'installed MCP returns the exact reverse-impact client entry'
+  );
+
   const stats = runJson(process.execPath, [installedCli,
     'graph', 'stats', '--root', cliWorkspace, '--engine', 'native-preview', '--format', 'json'
   ], { cwd: cliWorkspace, env: isolatedEnvironment });
@@ -314,6 +435,7 @@ try {
   console.log(`PASS installed verified native platform package ${target}`);
   console.log('PASS compiler-free 14-language graph and SQLite lifecycle');
   console.log('PASS automatic native preview stats and search');
+  console.log('PASS installed repository CLI and cross-repository MCP');
   console.log('PASS invalid explicit native override fails closed');
   console.log('PASS no source, governed-memory, config, or package mutation');
   console.log('PASS JavaScript remains the public default');
@@ -406,6 +528,26 @@ async function createPolyglotWorkspace() {
     path.join(workspace, 'languages', 'typescript', 'helper.ts'),
     'export function typescriptHelper(): number { return 1; }\n'
   );
+}
+
+async function createCrossRepositoryWorkspace() {
+  const [routesSource, serviceSource] = await Promise.all([
+    readFile(path.join(fixtureRoot, 'batch-b', 'go', 'api', 'routes.go'), 'utf8'),
+    readFile(path.join(fixtureRoot, 'batch-b', 'go', 'service', 'service.go'), 'utf8')
+  ]);
+  await Promise.all([
+    mkdir(path.join(clientRoot, 'api'), { recursive: true }),
+    mkdir(path.join(serviceRoot, 'service'), { recursive: true }),
+    mkdir(path.join(decoyRoot, 'service'), { recursive: true })
+  ]);
+  await Promise.all([
+    writeFile(path.join(clientRoot, 'go.mod'), 'module example.com/client\n\ngo 1.22\n\nrequire example.com/demo v0.0.0\n'),
+    writeFile(path.join(clientRoot, 'api', 'routes.go'), `// ${rawSourceSentinel}\n${routesSource}`),
+    writeFile(path.join(serviceRoot, 'go.mod'), 'module example.com/demo\n\ngo 1.22\n'),
+    writeFile(path.join(serviceRoot, 'service', 'service.go'), serviceSource),
+    writeFile(path.join(decoyRoot, 'go.mod'), 'module example.com/wrong\n\ngo 1.22\n'),
+    writeFile(path.join(decoyRoot, 'service', 'service.go'), serviceSource)
+  ]);
 }
 
 function assertCommandUnavailable(command, environment) {
