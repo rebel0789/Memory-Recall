@@ -135,6 +135,7 @@
     "native:smoke": "node scripts/native-smoke.mjs",
     "consumer:smoke": "node scripts/consumer-smoke.mjs",
     "source-graph:large-smoke": "node scripts/source-graph-large-repo-smoke.mjs",
+    "native:code-intelligence:protocol": "node scripts/rust-code-intelligence-protocol-quality.mjs",
     "consumer:browser-smoke": "npm exec --yes --package=playwright -- sh -c 'NODE_PATH=\"$(dirname \"$(dirname \"$(command -v playwright)\")\")\" node scripts/consumer-browser-smoke.mjs'",
     "ops:smoke": "node scripts/operations-smoke.mjs",
     "release:readiness": "node scripts/release-readiness.mjs",

@@ -55,21 +55,21 @@ Commit: `feat: define native code intelligence protocol`
 - Create: `scripts/rust-code-intelligence-protocol-quality.mjs`
 - Modify: `package.json`
 
-- [ ] **Step 1: Add failing Rust and process-level tests**
+- [x] **Step 1: Add failing Rust and process-level tests**
 
 Cover one valid JS/TS workspace, deterministic generation and graph fingerprints, strict request parsing, unsupported operation/version, malformed JSON, bounded files and output, multiple JSON Lines requests, stdout protocol purity, sanitized stderr, and no local writes.
 
-- [ ] **Step 2: Add `code-intelligence serve --stdio`**
+- [x] **Step 2: Add `code-intelligence serve --stdio`**
 
 Translate existing Rust extraction facts into the provider-neutral graph. Emit stable repository, file, symbol, module, route, definition, import, call, and route-handler nodes/edges where evidence exists. Keep IDs content-derived, sort every collection, cap nodes/edges/diagnostics, and compute fingerprints from canonical structural content rather than timestamps.
 
-- [ ] **Step 3: Enforce the native boundary**
+- [x] **Step 3: Enforce the native boundary**
 
 Resolve the workspace from the child process working directory, accept relative root `.` only, reject writes and network-requiring operations, check deadlines before and after extraction, emit stable error frames, and never print raw source, absolute paths, environment values, or parser internals.
 
-- [ ] **Step 4: Verify and commit the engine**
+- [x] **Step 4: Verify and commit the engine**
 
-Run: `cargo fmt --manifest-path rust/Cargo.toml -- --check && cargo test --manifest-path rust/Cargo.toml && cargo build --release --manifest-path rust/Cargo.toml && node scripts/rust-code-intelligence-protocol-quality.mjs && git diff --check`
+Run: `cd rust && cargo fmt --all -- --check && cd .. && cargo test --manifest-path rust/Cargo.toml && cargo build --release --manifest-path rust/Cargo.toml && node scripts/rust-code-intelligence-protocol-quality.mjs && git diff --check`
 
 Commit: `feat: add bounded rust code intelligence engine`
 
