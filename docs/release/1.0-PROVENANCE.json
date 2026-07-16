@@ -21,9 +21,9 @@
     "mergePerformedByThisTask": false
   },
   "sourceHashes": {
-    "package.json": "sha256:d9634d3edbdd11d455b8dc715c075afb2888694565775ceee3a83dcd4eac9050",
+    "package.json": "sha256:6f292a079aaf7bb6a85016b3e35bada3af5b7d424fa1e069b7da3695568e9e00",
     "package-lock.json": "sha256:0bf6240c49921d2c4ccfe40378118874aae6c3e030022016d9d1179de779b06b",
-    "PROJECT_STATUS.json": "sha256:33a64d2957bd70cb320f2a121e3692371091e3bcca68dd51c2c18e3b5850adfb",
+    "PROJECT_STATUS.json": "sha256:c598000c1918ab83d29e774b658e5a13e0bc2104d85e449fbfd37c9ba9da128b",
     "planning/backlog.json": "sha256:a404e5704ba3bf3be635a655d2d73d84eff7eba3ce43ab511b83967cceab6a5f",
     "adapters/catalog.json": "sha256:11c22a150f847a560be3e64c8280c7757368d813b5f70304938ab7915694c283",
     "docs/usage/support-matrix.md": "sha256:49839cb27aec22ab44d05608b523bd650a342c63b584a21a999f3469b90a5469",
