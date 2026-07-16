@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openagentfabric.dev/schemas/code-intelligence-graph.schema.json",
+  "title": "Memory Recall Code Intelligence Graph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "graphVersion",
+    "repository",
+    "engine",
+    "generation",
+    "coverage",
+    "nodes",
+    "edges",
+    "diagnostics",
+    "graphFingerprint"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "graphVersion": { "const": "memory-recall-code-intelligence-1" },
+    "repository": { "$ref": "#/$defs/repository" },
+    "engine": { "$ref": "#/$defs/engine" },
+    "generation": { "$ref": "#/$defs/generation" },
+    "coverage": {
+      "type": "array",
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/coverage" }
+    },
+    "nodes": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "edges": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "diagnostics": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/diagnostic" }
+    },
+    "graphFingerprint": { "$ref": "#/$defs/fingerprint" }
+  },
+  "$defs": {
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,127}$"
+    },
+    "locator": {
+      "type": "string",
+      "pattern": "^workspace://(?!/)(?![^/]*%)(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\.\\.(?:/|$))(?!.*\\/\\.\\.(?:/|$))(?!.*%(?:2[eEfF]|3[aA]|5[cC]|25))[A-Za-z0-9._~!$&'()*+,;=@%/\\[\\]-]{1,512}(?:#L[0-9]+-L[0-9]+)?$"
+    },
+    "language": {
+      "enum": [
+        "typescript",
+        "javascript",
+        "python",
+        "java",
+        "kotlin",
+        "csharp",
+        "go",
+        "rust",
+        "php",
+        "ruby",
+        "swift",
+        "c",
+        "cpp",
+        "dart",
+        "lua",
+        "bash",
+        "sql",
+        "objective-c",
+        "scala",
+        "r",
+        "julia",
+        "zig"
+      ]
+    },
+    "freshness": {
+      "enum": ["current", "stale", "partial", "unavailable"]
+    },
+    "nodeId": {
+      "type": "string",
+      "pattern": "^cinode_[a-f0-9]{32}$"
+    },
+    "edgeId": {
+      "type": "string",
+      "pattern": "^ciedge_[a-f0-9]{32}$"
+    },
+    "generationId": {
+      "type": "string",
+      "pattern": "^cigen_[a-f0-9]{32}$"
+    },
+    "safeName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^[A-Za-z0-9_$@~./*+,:()\\[\\]<># -]+$"
+    },
+    "stableToken": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_.-]*$"
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startLine", "startColumn", "endLine", "endColumn"],
+      "properties": {
+        "startLine": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+        "startColumn": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+        "endLine": { "type": "integer", "minimum": 1, "maximum": 1000000000 },
+        "endColumn": { "type": "integer", "minimum": 0, "maximum": 1000000 }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "workspaceId", "rootIdentityHash"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^repo_[a-f0-9]{32}$"
+        },
+        "workspaceId": { "$ref": "#/$defs/workspaceId" },
+        "rootIdentityHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "protocolVersion"],
+      "properties": {
+        "name": { "const": "memory-recall-native" },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-z0-9.-]+)?$"
+        },
+        "protocolVersion": { "const": "1.0.0" }
+      }
+    },
+    "generation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "builtAt", "freshness"],
+      "properties": {
+        "id": { "$ref": "#/$defs/generationId" },
+        "builtAt": { "type": "string", "format": "date-time" },
+        "freshness": { "$ref": "#/$defs/freshness" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "support", "discoveredFileCount", "indexedFileCount", "failedFileCount"],
+      "properties": {
+        "language": { "$ref": "#/$defs/language" },
+        "support": { "enum": ["full", "partial", "parse-only", "unsupported"] },
+        "discoveredFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "indexedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "failedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "omittedFileCount": { "type": "integer", "minimum": 0, "maximum": 1000000000 },
+        "reasonCodes": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stableToken" }
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "language", "name", "qualifiedName", "locator", "span", "generationId", "freshness"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nodeId" },
+        "kind": {
+          "enum": [
+            "repository",
+            "directory",
+            "file",
+            "package",
+            "module",
+            "namespace",
+            "function",
+            "method",
+            "class",
+            "interface",
+            "struct",
+            "enum",
+            "trait",
+            "protocol",
+            "type_alias",
+            "variable",
+            "constant",
+            "route",
+            "configuration_resource",
+            "framework_component",
+            "execution_process",
+            "community"
+          ]
+        },
+        "language": { "$ref": "#/$defs/language" },
+        "languageKind": { "$ref": "#/$defs/stableToken" },
+        "name": { "$ref": "#/$defs/safeName" },
+        "qualifiedName": { "$ref": "#/$defs/safeName" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "span": { "$ref": "#/$defs/span" },
+        "generationId": { "$ref": "#/$defs/generationId" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "contentHash": { "$ref": "#/$defs/fingerprint" }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "locator", "span"],
+      "properties": {
+        "kind": {
+          "enum": ["declaration", "import", "export", "heritage", "type", "call", "config", "framework", "process", "lexical"]
+        },
+        "locator": { "$ref": "#/$defs/locator" },
+        "span": { "$ref": "#/$defs/span" }
+      }
+    },
+    "resolver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "$ref": "#/$defs/stableToken" },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[a-z0-9.-]+)?$"
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "fromNodeId",
+        "toNodeId",
+        "evidence",
+        "resolver",
+        "confidence",
+        "resolution",
+        "language",
+        "generationId",
+        "freshness"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/edgeId" },
+        "kind": {
+          "enum": [
+            "contains",
+            "defines",
+            "imports",
+            "exports",
+            "re_exports",
+            "references",
+            "calls",
+            "constructs",
+            "inherits",
+            "implements",
+            "extends",
+            "handles_route",
+            "reads",
+            "writes",
+            "emits",
+            "listens",
+            "depends_on",
+            "member_of",
+            "process_step",
+            "cross_repo_depends_on"
+          ]
+        },
+        "fromNodeId": { "$ref": "#/$defs/nodeId" },
+        "toNodeId": { "$ref": "#/$defs/nodeId" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "resolver": { "$ref": "#/$defs/resolver" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "resolution": { "enum": ["exact", "typed", "inferred", "lexical", "unresolved"] },
+        "language": { "$ref": "#/$defs/language" },
+        "generationId": { "$ref": "#/$defs/generationId" },
+        "freshness": { "$ref": "#/$defs/freshness" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity"],
+      "properties": {
+        "code": { "$ref": "#/$defs/stableToken" },
+        "severity": { "enum": ["info", "warning", "error"] },
+        "language": { "$ref": "#/$defs/language" },
+        "locator": { "$ref": "#/$defs/locator" },
+        "count": { "type": "integer", "minimum": 1, "maximum": 1000000000 }
+      }
+    }
+  }
+}

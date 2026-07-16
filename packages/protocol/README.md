@@ -178,6 +178,20 @@ records, and provider configuration. The
 native provider's root-bounded exact-slice helper is for internal reconstruction
 tests only; it is not a protocol output or a candidate-source query result.
 
+## Code-intelligence graph schema
+
+`code-intelligence-graph.schema.json` defines the provider-neutral graph that
+the production native engine will emit. It fixes stable node, edge, language,
+resolution, evidence, generation, and freshness vocabularies while keeping
+responses bounded to 5,000 nodes, 10,000 edges, 64 coverage rows, and 1,000
+diagnostics. Closed records exclude raw source bodies, absolute paths, arbitrary
+metadata, provider identities, and parser-native object IDs.
+
+This contract is additive within protocol v1 and describes derived local state,
+not canonical memory. The existing `source-graph.schema.json` remains the
+JavaScript and TypeScript compatibility contract until the measured native
+migration is complete.
+
 ## Recall Map report schema
 
 `recall-map.schema.json` is the additive internal contract for the read-only

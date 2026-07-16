@@ -62,6 +62,15 @@ edges retained before reference edges. A partial result remains read-only: the
 omission fields describe missing representation and never grant access to
 ignored files, absolute paths, source bodies, or additional operations.
 
+The code-intelligence graph adds a provider-neutral, bounded contract for the
+production native engine. It fixes canonical structural IDs and stable node,
+edge, language, resolution, evidence, generation, and freshness vocabularies.
+Closed records reject raw source bodies, absolute paths, provider identities,
+parser-native IDs, and arbitrary metadata. The graph is derived local state and
+does not become canonical memory or approval authority. This schema is additive
+within v1; `source-graph.schema.json` remains the JavaScript and TypeScript
+compatibility surface until the native migration passes its release gates.
+
 ## Requirements
 
 - canonical IDs are independent of providers;

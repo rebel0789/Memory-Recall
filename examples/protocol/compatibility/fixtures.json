@@ -854,6 +854,24 @@
       "expectedValid": true
     },
     {
+      "id": "code-intelligence-graph-current-valid",
+      "schema": "packages/protocol/schemas/code-intelligence-graph.schema.json",
+      "instance": "examples/protocol/code-intelligence-graph.json",
+      "expectedValid": true
+    },
+    {
+      "id": "code-intelligence-graph-raw-body-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-graph-raw-body.json",
+      "expectedValid": false
+    },
+    {
+      "id": "code-intelligence-graph-absolute-path-invalid",
+      "schema": "packages/protocol/schemas/code-intelligence-graph.schema.json",
+      "instance": "examples/protocol/compatibility/invalid/code-intelligence-graph-absolute-path.json",
+      "expectedValid": false
+    },
+    {
       "id": "source-graph-preview-current-valid",
       "schema": "packages/protocol/schemas/source-graph-preview.schema.json",
       "instance": "examples/protocol/source-graph-preview.json",
