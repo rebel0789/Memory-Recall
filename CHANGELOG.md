@@ -18,6 +18,7 @@
 - Default packaged benchmarks now use bundled fixtures unless the caller explicitly supplies `--dataset`, preventing same-named repository files from changing the package benchmark.
 - `recall serve` now forwards interrupt and termination signals to the Control API child process.
 - Raised the native provider output ceiling within its existing 10 MB hard maximum so valid 5,000-node engine responses do not fail on medium repositories.
+- Native `index.status` now verifies the active SQLite generation against a bounded source snapshot and reports changed, added, deleted, partial, or unverified state without writing the database. Normal queries remain SQLite-only, and stale source state requires refresh rather than repair.
 
 ### Changed
 

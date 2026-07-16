@@ -144,6 +144,24 @@ still requires applicable deterministic and pinned real-repository evidence.
 It also does not change the JS default or prove packaged binaries, competitors,
 multi-repository behavior, or million-node scale.
 
+## Native source-freshness gate
+
+Native `index.status` is now a real source check, not only a SQLite integrity
+check. It walks the persisted language scope, hashes a bounded selected file
+set, compares it with the active generation through the existing refresh
+planner, and reports changed, added, deleted, or unverified state as stale. The
+check is read-only and preserves the SQLite file, WAL, SHM, and active
+generation. Persisted file, node, or edge omissions continue to report partial
+coverage rather than current coverage.
+
+Normal `index.query` calls remain SQLite-only and do not rescan the workspace.
+The future automatic native selector must run one status check before reusing a
+generation. Indexes written before the scan-scope marker was added report
+unverified until rebuilt. A historical custom `maxFileBytes` value is not yet
+persisted, so status uses the protocol's 10 MiB maximum and may conservatively
+report stale for a file that an earlier lower limit excluded. It cannot turn
+that ambiguity into a false current result.
+
 ## Phase 6 local distribution gate
 
 The checkout-only `scripts/native-code-intelligence-consumer-smoke.mjs` builds
