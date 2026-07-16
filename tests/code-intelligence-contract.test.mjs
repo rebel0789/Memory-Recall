@@ -82,4 +82,8 @@ test('Phase 0 baseline separates public, experimental, and unmeasured evidence',
   assert.equal(report.claims.parity, false);
   assert.equal(report.claims.leadership, false);
   assert.equal(report.commands.every((item) => item.exitCode === 0), true);
+  assert.equal(report.checkout.dirtyBeforeBaseline, false);
+  assert.match(report.checkout.commit, /^[a-f0-9]{40}$/);
+  assert.equal(report.safeguards.rawCommandOutputStored, false);
+  assert.equal(report.safeguards.absoluteRepositoryRootStored, false);
 });

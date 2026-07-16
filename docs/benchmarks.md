@@ -3,9 +3,9 @@
 This page is the source of truth for Memory Recall's public measurements. The
 artifact shape is stated for each benchmark below: most CLI benches emit JSON
 with a `reportFingerprint`, while the Context Recall script emits JSON without
-that field and the product-proof commands deliberately render summaries. None
-creates a versioned result artifact in this repository. Save the output yourself
-if you need to retain a run.
+that field and the product-proof commands deliberately render summaries. The
+Phase 0 code-intelligence baseline is the only committed versioned result
+artifact. Save other output yourself if you need to retain a run.
 
 All token figures are local delivery estimates using `ceil(chars/4)`. They are
 not provider-billed tokens, production-cost estimates, or production-latency
@@ -21,6 +21,32 @@ with `npm run recall --`.
 | Session delta | Six-call current-truth fixture: 6/6 correct and 72% lower estimated delivery (816 vs 2,928) | Synthetic cursor-delta fixture |
 | Temporal current truth | 10/10 correct and clean current answers against the included evolving-fact fixture | Synthetic temporal fixture; not a token-saving result |
 | Structured-ingest sufficiency | 12/12 checkout-derived provider/default answers present after structured ingest | In-repo sufficiency check; not real-world QA |
+
+## Code-intelligence Phase 0 baseline
+
+The committed receipt is
+`evals/code-intelligence/results/phase0-baseline.json`. Reproduce it from a
+clean source checkout with:
+
+```bash
+node scripts/code-intelligence-phase0-baseline.mjs --out evals/code-intelligence/results/phase0-baseline.json
+```
+
+The receipt records the checkout commit, clean or dirty state, platform, Node
+and Rust versions, input fingerprints, and six command receipts. Each command
+receipt contains its exit code, duration, byte counts, and SHA-256 hashes of
+standard output and standard error. It does not store command output,
+environment variables, or an absolute repository root.
+
+Phase 0 checks the bounded public JavaScript and TypeScript graph tests, the
+Rust release build and test suite, and the existing Rust ingest, typed-call,
+and incremental quality harnesses. The Rust engine remains experimental and is
+not selected by the public npm CLI, MCP server, or web workbench.
+
+The pinned 42-repository corpus and accuracy floors are inputs for later
+language and head-to-head work. Phase 0 does not run GitNexus or Codebase Memory
+MCP, does not establish fourteen-language accuracy, and makes no parity or
+leadership claim. Both competitor records are explicitly `unmeasured`.
 
 ## Dataset
 
