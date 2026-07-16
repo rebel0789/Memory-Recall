@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-1",
+  "phase": 4,
+  "generatedAt": "2026-07-16T18:36:20.914Z",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v22.22.3"
+  },
+  "inputs": {
+    "fixtureRef": "fixture://sha256:21d5665b4f9f5ad95bdb96fe37897696ff532835496cb738e00545d5afe7e6e1",
+    "implementationFingerprint": "sha256:2689671d2e20eda6ca29dcc32fd00e38e40526d2f9bc4d0e55da0d8671f75a38",
+    "repetitions": 5,
+    "queryLimit": 50,
+    "queryDeadlineMs": 2000
+  },
+  "index": {
+    "fileCount": 4,
+    "nodeCount": 18,
+    "edgeCount": 23,
+    "databaseBytes": 81920
+  },
+  "results": {
+    "communityCount": 4,
+    "processCount": 1,
+    "communityAlgorithm": "label-propagation-v1",
+    "processAlgorithm": "entry-path-v1",
+    "communityQueryWallMs": {
+      "minimum": 7.263,
+      "p50": 7.931,
+      "p95": 8.364,
+      "maximum": 8.364
+    },
+    "processQueryWallMs": {
+      "minimum": 6.834,
+      "p50": 7.627,
+      "p95": 11.66,
+      "maximum": 11.66
+    },
+    "deterministicProjectionFingerprint": "sha256:747642cfd3c6b07c0c1ced68dda8303b929c70ad623831165523a9d98da9617b",
+    "readQueriesPreservedIndex": true,
+    "evidenceComplete": true
+  },
+  "failures": [],
+  "gateDecision": "pass",
+  "claims": {
+    "phase4IntelligenceProven": true,
+    "competitorParity": false,
+    "leadership": false,
+    "millionNodeScale": false,
+    "reason": "This local fixture gate proves deterministic bounded communities, entry-to-sink processes, evidence integrity, read-only behavior, and the two-second query deadline. It does not measure competitors, packaged native binaries, multi-repository behavior, or million-node scale."
+  },
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "rawSourceStoredInReport": false,
+    "absolutePathsStoredInReport": false
+  },
+  "reportFingerprint": "sha256:b1cb43f44630e522464cfa3e6e911743716a8016241ac35f2a4672236295fc1e"
+}

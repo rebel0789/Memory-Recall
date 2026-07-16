@@ -16,6 +16,24 @@ mod watcher;
 pub use watcher::*;
 
 pub const SCHEMA_VERSION: i64 = 1;
+pub const COMMUNITY_ALGORITHM_VERSION: &str = "label-propagation-v1";
+pub const PROCESS_ALGORITHM_VERSION: &str = "entry-path-v1";
+const COMMUNITY_MAX_PASSES: usize = 8;
+const COMMUNITY_SCAN_NODE_LIMIT: usize = 5_000;
+const COMMUNITY_SCAN_EDGE_LIMIT: usize = 20_000;
+const PROCESS_MIN_CONFIDENCE: f64 = 0.75;
+const PROCESS_ENTRY_KINDS: &[&str] = &["entry_point", "handles_route"];
+const PROCESS_STEP_KINDS: &[&str] = &[
+    "calls",
+    "constructs",
+    "depends_on",
+    "emits",
+    "handles_route",
+    "listens",
+    "process_step",
+    "reads",
+    "writes",
+];
 const MIGRATION_ID: &str = "0001_source_index";
 const MIGRATION_SQL: &str = r#"
 CREATE TABLE index_metadata (
@@ -176,6 +194,46 @@ pub struct IndexHealth {
     pub reason_codes: Vec<String>,
     pub active_generation: Option<i64>,
     pub schema_version: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommunityProjection {
+    pub id: String,
+    pub label: String,
+    pub path_prefix: String,
+    pub node_ids: Vec<String>,
+    pub relationship_ids: Vec<String>,
+    pub represented_node_count: usize,
+    pub represented_relationship_count: usize,
+    pub generation: i64,
+    pub algorithm_version: String,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessProjection {
+    pub id: String,
+    pub label: String,
+    pub entry_node_id: String,
+    pub entry_relationship_id: String,
+    pub sink_node_id: String,
+    pub sink_kind: String,
+    pub node_ids: Vec<String>,
+    pub relationship_ids: Vec<String>,
+    pub confidence: f64,
+    pub generation: i64,
+    pub algorithm_version: String,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct GraphProjection<T> {
+    pub items: Vec<T>,
+    pub nodes: Vec<NodeRecord>,
+    pub edges: Vec<EdgeRecord>,
+    pub truncated: bool,
 }
 
 pub struct SourceIndex {
@@ -825,6 +883,492 @@ impl SourceIndex {
         Ok(routes)
     }
 
+    /// Returns a bounded induced graph slice grouped by deterministic label propagation.
+    /// Topology forms communities; paths only supply deterministic display labels.
+    pub fn communities(
+        &self,
+        bounds: &QueryBounds,
+    ) -> Result<GraphProjection<CommunityProjection>> {
+        validate_query_bounds(bounds)?;
+        if bounds.cursor.is_some() {
+            bail!("source_index_projection_cursor_unsupported");
+        }
+        let started = Instant::now();
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(GraphProjection {
+                items: Vec::new(),
+                nodes: Vec::new(),
+                edges: Vec::new(),
+                truncated: false,
+            });
+        };
+        let mut statement = self.connection.prepare(
+            "SELECT canonical_id, kind, language_kind, qualified_name, locator, start_line, end_line, content_hash, visibility FROM index_nodes WHERE generation_id = ?1 ORDER BY ordinal LIMIT ?2",
+        )?;
+        let mut scan_nodes = statement
+            .query_map(
+                params![
+                    generation_id,
+                    count_i64(COMMUNITY_SCAN_NODE_LIMIT.saturating_add(1))?
+                ],
+                row_to_node,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        ensure_deadline(started, bounds)?;
+        let mut scan_truncated = scan_nodes.len() > COMMUNITY_SCAN_NODE_LIMIT;
+        scan_nodes.truncate(COMMUNITY_SCAN_NODE_LIMIT);
+        if scan_nodes.is_empty() {
+            return Ok(GraphProjection {
+                items: Vec::new(),
+                nodes: Vec::new(),
+                edges: Vec::new(),
+                truncated: scan_truncated,
+            });
+        }
+
+        let node_ids = scan_nodes
+            .iter()
+            .map(|node| node.canonical_id.clone())
+            .collect::<BTreeSet<_>>();
+        let mut edge_statement = self.connection.prepare(
+            "WITH bounded_nodes AS (SELECT canonical_id FROM index_nodes WHERE generation_id = ?1 ORDER BY ordinal LIMIT ?2) SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND source_id IN (SELECT canonical_id FROM bounded_nodes) AND target_id IN (SELECT canonical_id FROM bounded_nodes) ORDER BY ordinal LIMIT ?3",
+        )?;
+        let mut scan_edges = edge_statement
+            .query_map(
+                params![
+                    generation_id,
+                    count_i64(COMMUNITY_SCAN_NODE_LIMIT)?,
+                    count_i64(COMMUNITY_SCAN_EDGE_LIMIT.saturating_add(1))?
+                ],
+                row_to_edge,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        ensure_deadline(started, bounds)?;
+        scan_truncated |= scan_edges.len() > COMMUNITY_SCAN_EDGE_LIMIT;
+        scan_edges.truncate(COMMUNITY_SCAN_EDGE_LIMIT);
+
+        let mut labels = scan_nodes
+            .iter()
+            .map(|node| (node.canonical_id.clone(), node.canonical_id.clone()))
+            .collect::<BTreeMap<_, _>>();
+        let mut neighbors = node_ids
+            .iter()
+            .map(|id| (id.clone(), BTreeSet::new()))
+            .collect::<BTreeMap<_, _>>();
+        for edge in &scan_edges {
+            neighbors
+                .entry(edge.source_id.clone())
+                .or_default()
+                .insert(edge.target_id.clone());
+            neighbors
+                .entry(edge.target_id.clone())
+                .or_default()
+                .insert(edge.source_id.clone());
+        }
+        for _ in 0..COMMUNITY_MAX_PASSES {
+            ensure_deadline(started, bounds)?;
+            let mut changed = false;
+            for node_id in &node_ids {
+                let adjacent = neighbors.get(node_id).into_iter().flatten();
+                let mut votes = BTreeMap::<String, usize>::new();
+                for neighbor in adjacent {
+                    if let Some(label) = labels.get(neighbor) {
+                        *votes.entry(label.clone()).or_default() += 1;
+                    }
+                }
+                let next = votes
+                    .into_iter()
+                    .max_by(|left, right| left.1.cmp(&right.1).then_with(|| right.0.cmp(&left.0)))
+                    .map(|(label, _)| label)
+                    .unwrap_or_else(|| labels[node_id].clone());
+                if next != labels[node_id] {
+                    labels.insert(node_id.clone(), next);
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+
+        let mut grouped = BTreeMap::<String, Vec<String>>::new();
+        for (node_id, label) in &labels {
+            grouped
+                .entry(label.clone())
+                .or_default()
+                .push(node_id.clone());
+        }
+        let nodes_by_id = scan_nodes
+            .into_iter()
+            .map(|node| (node.canonical_id.clone(), node))
+            .collect::<BTreeMap<_, _>>();
+        let mut communities = grouped
+            .into_values()
+            .map(|mut members| {
+                members.sort();
+                let mut path_counts = BTreeMap::<String, usize>::new();
+                for node_id in &members {
+                    if let Some(node) = nodes_by_id.get(node_id) {
+                        *path_counts
+                            .entry(community_path(&node.locator))
+                            .or_default() += 1;
+                    }
+                }
+                let path = path_counts
+                    .into_iter()
+                    .max_by(|left, right| left.1.cmp(&right.1).then_with(|| right.0.cmp(&left.0)))
+                    .map(|(path, _)| path)
+                    .unwrap_or_else(|| "workspace://unknown".to_string());
+                (members, path)
+            })
+            .collect::<Vec<_>>();
+        communities.sort_by(|left, right| {
+            right
+                .0
+                .len()
+                .cmp(&left.0.len())
+                .then_with(|| left.0.cmp(&right.0))
+        });
+        let omitted_communities = communities.len() > bounds.limit;
+        communities.truncate(bounds.limit);
+        let community_count = communities.len().max(1);
+        let per_community_node_cap = (100 / community_count).max(1);
+        let mut items = Vec::new();
+        let mut evidence_nodes = BTreeMap::<String, NodeRecord>::new();
+        let mut evidence_edges = BTreeMap::<String, EdgeRecord>::new();
+        for (mut community_nodes, path_prefix) in communities {
+            community_nodes.sort();
+            let community_set = community_nodes.iter().collect::<BTreeSet<_>>();
+            let represented_relationship_count = scan_edges
+                .iter()
+                .filter(|edge| {
+                    community_set.contains(&edge.source_id)
+                        && community_set.contains(&edge.target_id)
+                })
+                .count();
+            let mut internal_degrees = BTreeMap::<String, usize>::new();
+            for edge in &scan_edges {
+                if community_set.contains(&edge.source_id)
+                    && community_set.contains(&edge.target_id)
+                {
+                    *internal_degrees.entry(edge.source_id.clone()).or_default() += 1;
+                    *internal_degrees.entry(edge.target_id.clone()).or_default() += 1;
+                }
+            }
+            let mut evidence_candidates = community_nodes.clone();
+            evidence_candidates.sort_by(|left, right| {
+                internal_degrees
+                    .get(right)
+                    .copied()
+                    .unwrap_or(0)
+                    .cmp(&internal_degrees.get(left).copied().unwrap_or(0))
+                    .then_with(|| left.cmp(right))
+            });
+            let remaining_nodes = 100usize.saturating_sub(evidence_nodes.len());
+            let node_ids = evidence_candidates
+                .iter()
+                .take(per_community_node_cap.min(remaining_nodes))
+                .cloned()
+                .collect::<Vec<_>>();
+            let selected_nodes = node_ids.iter().collect::<BTreeSet<_>>();
+            for node_id in &node_ids {
+                if let Some(node) = nodes_by_id.get(node_id) {
+                    evidence_nodes.insert(node_id.clone(), node.clone());
+                }
+            }
+            let remaining_edges = 100usize.saturating_sub(evidence_edges.len());
+            let relationship_ids = scan_edges
+                .iter()
+                .filter(|edge| {
+                    selected_nodes.contains(&edge.source_id)
+                        && selected_nodes.contains(&edge.target_id)
+                })
+                .take(remaining_edges)
+                .map(|edge| {
+                    evidence_edges.insert(edge.canonical_id.clone(), edge.clone());
+                    edge.canonical_id.clone()
+                })
+                .collect::<Vec<_>>();
+            let item_truncated = scan_truncated
+                || omitted_communities
+                || node_ids.len() < community_nodes.len()
+                || relationship_ids.len() < represented_relationship_count;
+            let id_parts = community_nodes
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>();
+            items.push(CommunityProjection {
+                id: projection_id("cicommunity_", COMMUNITY_ALGORITHM_VERSION, &id_parts),
+                label: path_prefix.trim_start_matches("workspace://").to_string(),
+                path_prefix,
+                represented_node_count: community_nodes.len(),
+                represented_relationship_count,
+                node_ids,
+                relationship_ids,
+                generation: generation_id,
+                algorithm_version: COMMUNITY_ALGORITHM_VERSION.to_string(),
+                truncated: item_truncated,
+            });
+        }
+        let truncated =
+            scan_truncated || omitted_communities || items.iter().any(|item| item.truncated);
+        let result = GraphProjection {
+            items,
+            nodes: evidence_nodes.into_values().collect(),
+            edges: evidence_edges.into_values().collect(),
+            truncated,
+        };
+        enforce_output_bound(&result, bounds)?;
+        Ok(result)
+    }
+
+    /// Returns source-backed, bounded paths beginning at explicit entry-evidence edges.
+    pub fn processes(&self, bounds: &QueryBounds) -> Result<GraphProjection<ProcessProjection>> {
+        validate_query_bounds(bounds)?;
+        if bounds.cursor.is_some() || bounds.max_depth == 0 {
+            bail!("source_index_process_bounds_invalid");
+        }
+        let started = Instant::now();
+        let Some(generation_id) = self.active_generation() else {
+            return Ok(GraphProjection {
+                items: Vec::new(),
+                nodes: Vec::new(),
+                edges: Vec::new(),
+                truncated: false,
+            });
+        };
+        let mut statement = self.connection.prepare(
+            "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND kind IN ('entry_point', 'handles_route') AND stale = 0 AND confidence >= ?2 AND resolution_class != 'unresolved' ORDER BY canonical_id LIMIT ?3",
+        )?;
+        let mut entry_edges = statement
+            .query_map(
+                params![
+                    generation_id,
+                    PROCESS_MIN_CONFIDENCE,
+                    count_i64(bounds.limit.saturating_add(1))?
+                ],
+                row_to_edge,
+            )?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        ensure_deadline(started, bounds)?;
+        let mut globally_truncated = entry_edges.len() > bounds.limit;
+        entry_edges.truncate(bounds.limit);
+
+        let mut items = Vec::new();
+        let mut evidence_nodes = BTreeMap::<String, NodeRecord>::new();
+        let mut evidence_edges = BTreeMap::<String, EdgeRecord>::new();
+        for entry in entry_edges {
+            ensure_deadline(started, bounds)?;
+            let Some(candidate) = self.find_process_path(generation_id, &entry, bounds, started)?
+            else {
+                globally_truncated = true;
+                continue;
+            };
+            let mut evidence_node_ids = vec![entry.source_id.clone(), entry.target_id.clone()];
+            for node_id in candidate.node_ids.iter().skip(1) {
+                if !evidence_node_ids.contains(node_id) {
+                    evidence_node_ids.push(node_id.clone());
+                }
+            }
+            let mut path_edges = vec![entry.clone()];
+            path_edges.extend(candidate.edges.iter().cloned());
+            let mut path_nodes = Vec::new();
+            let mut missing_evidence = false;
+            for node_id in &evidence_node_ids {
+                if let Some(node) = self.node_by_id(generation_id, node_id)? {
+                    path_nodes.push(node);
+                } else {
+                    missing_evidence = true;
+                    break;
+                }
+            }
+            if missing_evidence {
+                globally_truncated = true;
+                continue;
+            }
+            let new_nodes = path_nodes
+                .iter()
+                .filter(|node| !evidence_nodes.contains_key(&node.canonical_id))
+                .count();
+            let new_edges = path_edges
+                .iter()
+                .filter(|edge| !evidence_edges.contains_key(&edge.canonical_id))
+                .count();
+            if evidence_nodes.len().saturating_add(new_nodes) > 100
+                || evidence_edges.len().saturating_add(new_edges) > 100
+                || items.len() >= bounds.limit
+            {
+                globally_truncated = true;
+                break;
+            }
+            for node in path_nodes {
+                evidence_nodes.insert(node.canonical_id.clone(), node);
+            }
+            for edge in &path_edges {
+                evidence_edges.insert(edge.canonical_id.clone(), edge.clone());
+            }
+            let sink_id = if candidate.edges.is_empty() {
+                &entry.target_id
+            } else {
+                candidate
+                    .node_ids
+                    .last()
+                    .context("source_index_process_invalid")?
+            };
+            let sink = evidence_nodes
+                .get(sink_id)
+                .context("source_index_process_evidence_missing")?;
+            let entry_node = evidence_nodes
+                .get(&entry.source_id)
+                .context("source_index_process_evidence_missing")?;
+            let relationship_ids = path_edges
+                .iter()
+                .map(|edge| edge.canonical_id.clone())
+                .collect::<Vec<_>>();
+            let confidence = path_edges
+                .iter()
+                .map(|edge| edge.confidence)
+                .fold(1.0_f64, f64::min);
+            let process_node_ids = if candidate.edges.is_empty() {
+                vec![entry.source_id.clone(), entry.target_id.clone()]
+            } else {
+                candidate.node_ids
+            };
+            let id_parts = relationship_ids
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>();
+            items.push(ProcessProjection {
+                id: projection_id("ciprocess_", PROCESS_ALGORITHM_VERSION, &id_parts),
+                label: format!("{} to {}", concise_name(entry_node), concise_name(sink)),
+                entry_node_id: entry.source_id.clone(),
+                entry_relationship_id: entry.canonical_id.clone(),
+                sink_node_id: sink.canonical_id.clone(),
+                sink_kind: process_sink_kind(sink, candidate.edges.last()),
+                node_ids: process_node_ids,
+                relationship_ids,
+                confidence,
+                generation: generation_id,
+                algorithm_version: PROCESS_ALGORITHM_VERSION.to_string(),
+                truncated: candidate.truncated,
+            });
+        }
+        if globally_truncated {
+            for item in &mut items {
+                item.truncated = true;
+            }
+        }
+        let result = GraphProjection {
+            items,
+            nodes: evidence_nodes.into_values().collect(),
+            edges: evidence_edges.into_values().collect(),
+            truncated: globally_truncated,
+        };
+        enforce_output_bound(&result, bounds)?;
+        Ok(result)
+    }
+
+    fn find_process_path(
+        &self,
+        generation_id: i64,
+        entry: &EdgeRecord,
+        bounds: &QueryBounds,
+        started: Instant,
+    ) -> Result<Option<ProcessPath>> {
+        if !PROCESS_ENTRY_KINDS.contains(&entry.kind.as_str()) {
+            return Ok(None);
+        }
+        let mut queue = VecDeque::from([ProcessPath {
+            node_ids: vec![entry.source_id.clone()],
+            edges: Vec::new(),
+            truncated: false,
+        }]);
+        let mut fallback = Some(queue[0].clone());
+        let max_execution_depth = bounds.max_depth.saturating_sub(1);
+        let max_queue = bounds.limit.saturating_mul(bounds.max_depth.max(1));
+        while let Some(path) = queue.pop_front() {
+            ensure_deadline(started, bounds)?;
+            let current_id = path
+                .node_ids
+                .last()
+                .context("source_index_process_invalid")?;
+            let current = self.node_by_id(generation_id, current_id)?;
+            if !path.edges.is_empty()
+                && current
+                    .as_ref()
+                    .is_some_and(|node| is_process_sink(node, path.edges.last()))
+            {
+                return Ok(Some(path));
+            }
+            let outgoing = self
+                .process_step_edges(generation_id, current_id, bounds.limit)?
+                .into_iter()
+                .filter(|edge| edge.canonical_id != entry.canonical_id)
+                .collect::<Vec<_>>();
+            let has_more = outgoing.len() > bounds.limit;
+            let outgoing = outgoing.into_iter().take(bounds.limit).collect::<Vec<_>>();
+            if outgoing.is_empty() {
+                if !path.edges.is_empty() {
+                    fallback = Some(path);
+                }
+                continue;
+            }
+            if path.edges.len() >= max_execution_depth {
+                let mut bounded = path;
+                bounded.truncated = true;
+                return Ok(Some(bounded));
+            }
+            for edge in outgoing {
+                if path.node_ids.contains(&edge.target_id) {
+                    continue;
+                }
+                if queue.len() >= max_queue {
+                    globally_mark_path(&mut fallback);
+                    break;
+                }
+                let mut candidate = path.clone();
+                candidate.node_ids.push(edge.target_id.clone());
+                candidate.edges.push(edge);
+                candidate.truncated |= has_more;
+                fallback = Some(candidate.clone());
+                queue.push_back(candidate);
+            }
+        }
+        Ok(fallback)
+    }
+
+    fn process_step_edges(
+        &self,
+        generation_id: i64,
+        source_id: &str,
+        limit: usize,
+    ) -> Result<Vec<EdgeRecord>> {
+        let placeholders = (0..PROCESS_STEP_KINDS.len())
+            .map(|index| format!("?{}", index + 4))
+            .collect::<Vec<_>>()
+            .join(",");
+        let limit_parameter = PROCESS_STEP_KINDS.len() + 4;
+        let sql = format!(
+            "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND source_id = ?2 AND stale = 0 AND confidence >= ?3 AND resolution_class != 'unresolved' AND kind IN ({placeholders}) ORDER BY canonical_id LIMIT ?{limit_parameter}"
+        );
+        let mut parameters = Vec::with_capacity(PROCESS_STEP_KINDS.len() + 4);
+        parameters.push(SqlValue::Integer(generation_id));
+        parameters.push(SqlValue::Text(source_id.to_string()));
+        parameters.push(SqlValue::Real(PROCESS_MIN_CONFIDENCE));
+        parameters.extend(
+            PROCESS_STEP_KINDS
+                .iter()
+                .map(|kind| SqlValue::Text((*kind).to_string())),
+        );
+        parameters.push(SqlValue::Integer(count_i64(limit.saturating_add(2))?));
+        let mut statement = self.connection.prepare(&sql)?;
+        let edges = statement
+            .query_map(params_from_iter(parameters.iter()), row_to_edge)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .context("source_index_process_edges_failed")?;
+        Ok(edges)
+    }
+
     fn node_by_id(&self, generation_id: i64, node_id: &str) -> Result<Option<NodeRecord>> {
         self.connection
             .query_row(
@@ -835,6 +1379,75 @@ impl SourceIndex {
             .optional()
             .context("source_index_node_query_failed")
     }
+}
+
+#[derive(Debug, Clone)]
+struct ProcessPath {
+    node_ids: Vec<String>,
+    edges: Vec<EdgeRecord>,
+    truncated: bool,
+}
+
+fn globally_mark_path(path: &mut Option<ProcessPath>) {
+    if let Some(path) = path {
+        path.truncated = true;
+    }
+}
+
+fn community_path(locator: &str) -> String {
+    let relative = locator_file(locator).trim_start_matches("workspace://");
+    let parts = relative.split('/').collect::<Vec<_>>();
+    let depth = if parts.len() >= 2
+        && matches!(
+            parts[0],
+            "apps" | "packages" | "services" | "providers" | "crates" | "modules"
+        ) {
+        2
+    } else {
+        1
+    };
+    format!("workspace://{}", parts[..depth.min(parts.len())].join("/"))
+}
+
+fn projection_id(prefix: &str, algorithm: &str, parts: &[&str]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(algorithm.as_bytes());
+    for part in parts {
+        digest.update([0]);
+        digest.update(part.as_bytes());
+    }
+    format!("{prefix}{}", &hex::encode(digest.finalize())[..32])
+}
+
+fn concise_name(node: &NodeRecord) -> String {
+    node.qualified_name
+        .rsplit("::")
+        .next()
+        .unwrap_or(&node.qualified_name)
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || "_.$:/#@ +()<>, -".contains(character) {
+                character
+            } else {
+                '_'
+            }
+        })
+        .take(72)
+        .collect()
+}
+
+fn is_process_sink(node: &NodeRecord, incoming: Option<&EdgeRecord>) -> bool {
+    matches!(
+        node.kind.as_str(),
+        "route" | "handler" | "storage" | "queue" | "event" | "sink"
+    ) || incoming
+        .is_some_and(|edge| matches!(edge.kind.as_str(), "reads" | "writes" | "emits" | "listens"))
+}
+
+fn process_sink_kind(node: &NodeRecord, incoming: Option<&EdgeRecord>) -> String {
+    incoming
+        .filter(|edge| matches!(edge.kind.as_str(), "reads" | "writes" | "emits" | "listens"))
+        .map_or_else(|| node.kind.clone(), |edge| edge.kind.clone())
 }
 
 fn insert_generation_records(

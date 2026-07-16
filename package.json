@@ -137,6 +137,7 @@
     "!scripts/code-intelligence-language-batch.mjs",
     "!scripts/code-intelligence-phase2-tier1.mjs",
     "!scripts/code-intelligence-phase3-index.mjs",
+    "!scripts/code-intelligence-phase4-intelligence.mjs",
     "!scripts/native-code-intelligence-consumer-smoke.mjs",
     "!scripts/pin-code-intelligence-corpus.mjs",
     "!scripts/rust-ingest-quality.mjs",

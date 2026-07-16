@@ -17,5 +17,7 @@ export const CODE_INTELLIGENCE_INDEX_QUERY_KINDS = Object.freeze([
   'dependencies',
   'trace',
   'impact',
-  'routes'
+  'routes',
+  'communities',
+  'processes'
 ]);

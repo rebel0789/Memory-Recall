@@ -125,6 +125,30 @@ struct Measurements {
     local_files_written: usize,
 }
 
+#[derive(Default)]
+struct QueryOutput {
+    results: Vec<Value>,
+    relationships: Vec<Value>,
+    communities: Option<Vec<Value>>,
+    processes: Option<Vec<Value>>,
+    next_cursor: Option<String>,
+}
+
+impl QueryOutput {
+    fn records(
+        results: Vec<Value>,
+        relationships: Vec<Value>,
+        next_cursor: Option<String>,
+    ) -> Self {
+        Self {
+            results,
+            relationships,
+            next_cursor,
+            ..Self::default()
+        }
+    }
+}
+
 pub fn serve_stdio(engine_version: &str) -> Result<()> {
     let stdin = io::stdin();
     let stdout = io::stdout();
@@ -257,6 +281,8 @@ fn parse_query(value: Value) -> Result<QueryArguments> {
         "trace",
         "impact",
         "routes",
+        "communities",
+        "processes",
     ]
     .contains(&arguments.kind.as_str())
         || !(1..=100).contains(&arguments.limit)
@@ -293,7 +319,15 @@ fn validate_query_shape(arguments: &QueryArguments) -> Result<()> {
                 && arguments.depth.is_none()
                 && arguments.cursor.is_none()
         }
-        "routes" => seeds == 0 && arguments.direction.is_none() && arguments.depth.is_none(),
+        "routes" | "communities" => {
+            seeds == 0 && arguments.direction.is_none() && arguments.depth.is_none()
+        }
+        "processes" => {
+            seeds == 0
+                && arguments.direction.is_none()
+                && arguments.cursor.is_none()
+                && arguments.depth.unwrap_or(4) >= 1
+        }
         "exact" | "search" => {
             seeds == 1 && arguments.direction.is_none() && arguments.depth.is_none()
         }
@@ -545,9 +579,7 @@ fn read_index(
     );
     let mut summary = None;
     let mut omitted_count = 0;
-    let mut results = Vec::new();
-    let mut relationships = Vec::new();
-    let mut next_cursor = None;
+    let mut query_output = QueryOutput::default();
     if path.is_file()
         && matches!(
             health.status,
@@ -564,7 +596,7 @@ fn read_index(
             if elapsed >= request.deadline_ms {
                 bail!("source_index_query_timeout");
             }
-            (results, relationships, next_cursor) = execute_query(
+            query_output = execute_query(
                 &index,
                 arguments,
                 request.deadline_ms.saturating_sub(elapsed),
@@ -589,8 +621,8 @@ fn read_index(
         report.as_ref(),
         summary.as_ref(),
         omitted_count,
-        results,
-        next_cursor,
+        query_output.results,
+        query_output.next_cursor,
         Measurements {
             duration_ms: elapsed_ms(started),
             parsed_file_count: 0,
@@ -607,7 +639,13 @@ fn read_index(
             .collect(),
     );
     if query.is_some() {
-        response["result"]["relationships"] = Value::Array(relationships);
+        response["result"]["relationships"] = Value::Array(query_output.relationships);
+        if let Some(communities) = query_output.communities {
+            response["result"]["communities"] = Value::Array(communities);
+        }
+        if let Some(processes) = query_output.processes {
+            response["result"]["processes"] = Value::Array(processes);
+        }
     }
     Ok(response)
 }
@@ -780,25 +818,35 @@ fn execute_query(
     index: &SourceIndex,
     arguments: &QueryArguments,
     deadline_ms: u64,
-) -> Result<(Vec<Value>, Vec<Value>, Option<String>)> {
-    let mut bounds = QueryBounds::new(arguments.limit).with_depth(arguments.depth.unwrap_or(1));
+) -> Result<QueryOutput> {
+    let default_depth = if arguments.kind == "processes" { 4 } else { 1 };
+    let mut bounds =
+        QueryBounds::new(arguments.limit).with_depth(arguments.depth.unwrap_or(default_depth));
     bounds.timeout_ms = deadline_ms.min(2_000);
     if let Some(cursor) = arguments.cursor.as_deref() {
         bounds.cursor = Some(format!("cinode_{}", &cursor[7..]));
     }
     match arguments.kind.as_str() {
-        "summary" => Ok((Vec::new(), Vec::new(), None)),
+        "summary" => Ok(QueryOutput::default()),
         "exact" => {
             let query = query_seed(arguments)?;
             let page = index.find_exact_nodes(query, &bounds)?;
             let next = page.next_cursor.as_deref().and_then(node_cursor);
-            Ok((nodes_to_results(page.items, index)?, Vec::new(), next))
+            Ok(QueryOutput::records(
+                nodes_to_results(page.items, index)?,
+                Vec::new(),
+                next,
+            ))
         }
         "search" => {
             let query = query_seed(arguments)?;
             let page = index.find_nodes(query, &bounds)?;
             let next = page.next_cursor.as_deref().and_then(node_cursor);
-            Ok((nodes_to_results(page.items, index)?, Vec::new(), next))
+            Ok(QueryOutput::records(
+                nodes_to_results(page.items, index)?,
+                Vec::new(),
+                next,
+            ))
         }
         "routes" => {
             let page = index.nodes_by_kind("route", &bounds)?;
@@ -820,7 +868,7 @@ fn execute_query(
                     }
                 }
             }
-            Ok((
+            Ok(QueryOutput::records(
                 nodes_to_results(page.items, index)?,
                 edges_to_results(relationships.into_values().collect(), index)?,
                 next,
@@ -829,7 +877,7 @@ fn execute_query(
         "neighborhood" => {
             let seed = find_seed(index, arguments, &bounds)?;
             let graph = index.neighborhood(&seed.canonical_id, &bounds)?;
-            Ok((
+            Ok(QueryOutput::records(
                 nodes_to_results(graph.nodes, index)?,
                 edges_to_results(graph.edges, index)?,
                 None,
@@ -847,7 +895,7 @@ fn execute_query(
                 }
             };
             let graph = index.dependency_neighborhood(&seed.canonical_id, direction, &bounds)?;
-            Ok((
+            Ok(QueryOutput::records(
                 nodes_to_results(graph.nodes, index)?,
                 edges_to_results(graph.edges, index)?,
                 None,
@@ -880,14 +928,97 @@ fn execute_query(
                     }
                 }
             }
-            Ok((
+            Ok(QueryOutput::records(
                 nodes_to_results(nodes.into_values().take(bounds.limit).collect(), index)?,
                 edges_to_results(edges.into_values().take(bounds.limit).collect(), index)?,
                 None,
             ))
         }
+        "communities" => {
+            let projection = index.communities(&bounds)?;
+            let results = nodes_to_results(projection.nodes, index)?;
+            let relationships = edges_to_results(projection.edges, index)?;
+            let communities = projection_values(projection.items, &results, &relationships)?;
+            Ok(QueryOutput {
+                results,
+                relationships,
+                communities: Some(communities),
+                ..QueryOutput::default()
+            })
+        }
+        "processes" => {
+            let projection = index.processes(&bounds)?;
+            let results = nodes_to_results(projection.nodes, index)?;
+            let relationships = edges_to_results(projection.edges, index)?;
+            let processes = projection_values(projection.items, &results, &relationships)?;
+            Ok(QueryOutput {
+                results,
+                relationships,
+                processes: Some(processes),
+                ..QueryOutput::default()
+            })
+        }
         _ => bail!("source_index_query_kind_invalid"),
     }
+}
+
+fn projection_values<T: serde::Serialize>(
+    items: Vec<T>,
+    results: &[Value],
+    relationships: &[Value],
+) -> Result<Vec<Value>> {
+    let node_ids = results
+        .iter()
+        .filter_map(|value| value.get("id").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    let relationship_ids = relationships
+        .iter()
+        .filter_map(|value| value.get("id").and_then(Value::as_str))
+        .collect::<BTreeSet<_>>();
+    let mut values = items
+        .into_iter()
+        .map(serde_json::to_value)
+        .collect::<serde_json::Result<Vec<_>>>()?;
+    for value in &mut values {
+        if let Some(label) = value.get_mut("label") {
+            *label = Value::String(safe_label(label.as_str().unwrap_or("unknown")));
+        }
+        if let Some(sink_kind) = value.get_mut("sinkKind") {
+            *sink_kind = Value::String(safe_code(sink_kind.as_str().unwrap_or("unknown")));
+        }
+        let referenced_nodes = value
+            .get("nodeIds")
+            .and_then(Value::as_array)
+            .context("source_index_projection_nodes_missing")?;
+        let referenced_relationships = value
+            .get("relationshipIds")
+            .and_then(Value::as_array)
+            .context("source_index_projection_relationships_missing")?;
+        if referenced_nodes
+            .iter()
+            .any(|id| id.as_str().is_none_or(|id| !node_ids.contains(id)))
+            || referenced_relationships
+                .iter()
+                .any(|id| id.as_str().is_none_or(|id| !relationship_ids.contains(id)))
+        {
+            bail!("source_index_projection_evidence_missing");
+        }
+        for field in ["entryNodeId", "sinkNodeId"] {
+            if value
+                .get(field)
+                .is_some_and(|id| id.as_str().is_none_or(|id| !node_ids.contains(id)))
+            {
+                bail!("source_index_projection_evidence_missing");
+            }
+        }
+        if value
+            .get("entryRelationshipId")
+            .is_some_and(|id| id.as_str().is_none_or(|id| !relationship_ids.contains(id)))
+        {
+            bail!("source_index_projection_evidence_missing");
+        }
+    }
+    Ok(values)
 }
 
 fn find_seed(
@@ -1449,6 +1580,26 @@ mod tests {
             json!({ "kind": "trace", "query": "main", "limit": 10 })
         ))
         .is_err());
+        assert!(parse_request(request(
+            "index.query",
+            json!({ "kind": "communities", "limit": 10 })
+        ))
+        .is_ok());
+        assert!(parse_request(request(
+            "index.query",
+            json!({ "kind": "processes", "depth": 4, "limit": 10 })
+        ))
+        .is_ok());
+        assert!(parse_request(request(
+            "index.query",
+            json!({ "kind": "processes", "depth": 0, "limit": 10 })
+        ))
+        .is_err());
+        assert!(parse_request(request(
+            "index.query",
+            json!({ "kind": "communities", "query": "main", "limit": 10 })
+        ))
+        .is_err());
         let mut unknown = request("index.status", json!({}));
         unknown["unexpected"] = json!(true);
         assert!(parse_request(unknown).is_err());
@@ -1504,6 +1655,44 @@ mod tests {
             fs::metadata(&index_path).unwrap().modified().unwrap(),
             before_modified
         );
+        assert_eq!(bundle_snapshot(&index_path), before_readers);
+
+        let communities = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({ "kind": "communities", "limit": 10 }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert!(communities["result"]["communities"].is_array());
+        assert!(communities["result"].get("processes").is_none());
+        let result_ids = communities["result"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|value| value["id"].as_str())
+            .collect::<BTreeSet<_>>();
+        let relationship_ids = communities["result"]["relationships"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|value| value["id"].as_str())
+            .collect::<BTreeSet<_>>();
+        for community in communities["result"]["communities"].as_array().unwrap() {
+            assert!(community["nodeIds"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|id| result_ids.contains(id.as_str().unwrap())));
+            assert!(community["relationshipIds"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|id| relationship_ids.contains(id.as_str().unwrap())));
+        }
         assert_eq!(bundle_snapshot(&index_path), before_readers);
 
         let query = execute_request(
