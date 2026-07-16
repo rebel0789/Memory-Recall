@@ -102,6 +102,81 @@ mod tests {
     }
 
     #[test]
+    fn unresolved_go_import_coordinate_survives_sqlite_round_trip() {
+        let root = std::env::temp_dir().join(format!(
+            "memory-recall-go-import-coordinate-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("go.mod"),
+            "module example.com/client\n\nrequire example.com/demo v1.0.0\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("main.go"),
+            concat!(
+                "package main\n",
+                "import service \"example.com/demo/service\"\n",
+                "func main() { _ = service.BuildResponse() }\n"
+            ),
+        )
+        .unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["go"]);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "1.1.1", &root, Instant::now())
+            .unwrap()
+            .graph;
+        let input = index_generation_from_graph(&graph, &root).unwrap();
+        let import = input
+            .edges
+            .iter()
+            .find(|edge| edge.kind == "imports" && edge.resolution_class == "unresolved")
+            .unwrap();
+        let imported = input
+            .nodes
+            .iter()
+            .find(|node| node.canonical_id == import.target_id)
+            .unwrap();
+        assert_eq!(
+            imported.qualified_name,
+            "main.go::example.com/demo/service"
+        );
+
+        let path = root.join("index.sqlite");
+        let options = SourceIndexOptions::new(
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "1.1.1",
+        );
+        let mut writer = SourceIndex::open(&path, &options).unwrap();
+        writer.commit_generation(&input).unwrap();
+        drop(writer);
+        let reader = SourceIndex::open_read_only(&path, &options).unwrap();
+        let loaded = reader.load_active_generation().unwrap().unwrap();
+        let stored_import = loaded
+            .input
+            .edges
+            .iter()
+            .find(|edge| edge.canonical_id == import.canonical_id)
+            .unwrap();
+        let stored_target = loaded
+            .input
+            .nodes
+            .iter()
+            .find(|node| node.canonical_id == stored_import.target_id)
+            .unwrap();
+        assert_eq!(
+            stored_target.qualified_name,
+            "main.go::example.com/demo/service"
+        );
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn canonical_names_disambiguate_same_line_symbols() {
         let node = |subject: &str, start_column: u32, end_column: u32| NativeNode {
             subject: subject.to_string(),

@@ -5729,7 +5729,12 @@ fn import_targets(node: Node<'_>, source: &[u8], lang: LangKind) -> Vec<ImportTa
     let text = node_text(node, source);
     let mut out = Vec::new();
     for quoted in quoted_literals(text) {
-        if let Some(target) = import_target_from_raw(&quoted) {
+        let target = if lang == LangKind::Go {
+            go_import_target_from_raw(&quoted)
+        } else {
+            import_target_from_raw(&quoted)
+        };
+        if let Some(target) = target {
             out.push(target);
         }
     }
@@ -5892,6 +5897,21 @@ fn import_target_from_raw(value: &str) -> Option<ImportTarget> {
     Some(ImportTarget {
         raw: clean_import_raw(value)?,
         fallback: module_from_import(value)?,
+    })
+}
+
+fn go_import_target_from_raw(value: &str) -> Option<ImportTarget> {
+    let raw = clean_import_raw(value)?;
+    if raw.len() > 512
+        || raw
+            .bytes()
+            .any(|byte| byte.is_ascii_control() || byte.is_ascii_whitespace())
+    {
+        return None;
+    }
+    Some(ImportTarget {
+        fallback: format!("module:{raw}"),
+        raw,
     })
 }
 
