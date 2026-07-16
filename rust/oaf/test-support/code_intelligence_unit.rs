@@ -761,6 +761,58 @@ mod tests {
     }
 
     #[test]
+    fn combined_c_cpp_cmake_entry_points_resolve_to_same_language_main() {
+        let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../evals/code-intelligence/fixtures/batch-d")
+            .canonicalize()
+            .unwrap();
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["c", "cpp"]);
+        request_value["arguments"]["maxNodes"] = json!(1_000);
+        request_value["arguments"]["maxEdges"] = json!(2_000);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &fixture_root, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+        let node_id = |kind: &str, name: &str, locator: &str| {
+            nodes
+                .iter()
+                .find(|node| {
+                    node["kind"] == kind && node["name"] == name && node["locator"] == locator
+                })
+                .and_then(|node| node["id"].as_str())
+                .unwrap_or_else(|| panic!("missing {kind} {name} at {locator}"))
+                .to_string()
+        };
+        let c_main = node_id("function", "main", "workspace://c/src/main.c#L3-L6");
+        let cpp_main = node_id("function", "main", "workspace://cpp/src/main.cpp#L3-L6");
+        let c_target = node_id(
+            "build_target",
+            "items",
+            "workspace://c/CMakeLists.txt#L3-L3",
+        );
+        let cpp_target = node_id(
+            "build_target",
+            "items_cpp",
+            "workspace://cpp/CMakeLists.txt#L3-L3",
+        );
+        let has_entry_point = |from: &str, to: &str| {
+            edges.iter().any(|edge| {
+                edge["kind"] == "entry_point"
+                    && edge["fromNodeId"] == from
+                    && edge["toNodeId"] == to
+            })
+        };
+
+        assert!(has_entry_point(&c_main, &c_target));
+        assert!(has_entry_point(&cpp_main, &cpp_target));
+        assert!(!has_entry_point(&c_main, &cpp_target));
+        assert!(!has_entry_point(&cpp_main, &c_target));
+    }
+
+    #[test]
     fn batch_e_native_graph_preserves_dynamic_language_structure_and_confidence() {
         let fixture_root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../evals/code-intelligence/fixtures/batch-e")

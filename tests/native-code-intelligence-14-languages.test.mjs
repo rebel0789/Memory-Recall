@@ -17,20 +17,27 @@ const BINARY = path.join(
 const FIXTURES = path.join(ROOT, 'evals', 'code-intelligence', 'fixtures');
 const RAW_SOURCE_SENTINEL = 'RAW_SOURCE_SENTINEL_DO_NOT_RETURN_7e2a63';
 const TIER_1 = Object.freeze([
-  ['typescript', 'typescriptSentinel', 'languages/typescript/'],
-  ['javascript', 'javascriptSentinel', 'languages/javascript/'],
-  ['python', 'BaseService', 'languages/python/'],
-  ['java', 'ItemController', 'languages/java/'],
-  ['kotlin', 'ItemLoader', 'languages/kotlin/'],
-  ['csharp', 'IItemLoader', 'languages/csharp/'],
-  ['go', 'Runner', 'languages/go/'],
-  ['rust', 'Runner', 'languages/rust/'],
-  ['php', 'LogsItems', 'languages/php/'],
-  ['ruby', 'describe', 'languages/ruby/'],
-  ['swift', 'ItemLoading', 'languages/swift/'],
-  ['c', 'item_find', 'languages/c/'],
-  ['cpp', 'ItemLoader', 'languages/cpp/'],
-  ['dart', 'ItemLogging', 'languages/dart/']
+  ['typescript', 'typescriptSentinel', 'index.ts#L3-L3'],
+  ['javascript', 'javascriptSentinel', 'index.js#L3-L3'],
+  ['python', 'BaseService', 'src/demo_app/api.py#L6-L8'],
+  ['java', 'ItemController', 'src/main/java/com/acme/api/ItemController.java#L18-L21'],
+  ['kotlin', 'ItemLoader', 'src/main/kotlin/com/acme/api/Routes.kt#L9-L15'],
+  ['csharp', 'IItemLoader', 'src/Demo/Api.cs#L18-L19'],
+  ['go', 'Runner', 'service/service.go#L13-L15'],
+  ['rust', 'Runner', 'src/service.rs#L19-L21'],
+  ['php', 'LogsItems', 'src/ItemService.php#L22-L25'],
+  ['ruby', 'describe', 'lib/demo/item_service.rb#L25-L28'],
+  ['swift', 'ItemLoading', 'Sources/App/ItemService.swift#L13-L15'],
+  ['c', 'item_find', 'src/main.c#L3-L6'],
+  ['cpp', 'ItemLoader', 'src/item_service.cpp#L8-L10'],
+  ['dart', 'ItemLogging', 'lib/item.dart#L25-L25']
+]);
+const ROUTE_LANGUAGES = Object.freeze([
+  'csharp', 'dart', 'go', 'java', 'kotlin', 'php', 'python', 'ruby', 'rust', 'swift'
+]);
+const ENTRYPOINTS = Object.freeze([
+  ['c', 'src/main.c#L3-L6', 'outbound'],
+  ['dart', 'lib/main.dart#L4-L7', 'outbound']
 ]);
 
 test('native source index builds, reads, queries, and no-op refreshes all 14 Tier-1 languages', async (t) => {
@@ -72,22 +79,90 @@ test('native source index builds, reads, queries, and no-op refreshes all 14 Tie
   assert.equal(status.summary.unresolvedCount, built.summary.unresolvedCount);
   assertReaderSafeguards(status);
 
-  for (const [language, symbol, locatorFragment] of TIER_1) {
-    const query = await provider.queryIndex({
+  const beforeReaders = await fileSnapshot(indexPath);
+  for (const [language, symbol, dependencyPath] of TIER_1) {
+    const locatorFragment = `languages/${language}/`;
+    const search = await provider.queryIndex({
       root: workspace,
       workspaceId: 'ws_polyglot',
-      kind: 'exact',
+      kind: 'search',
       query: symbol,
       limit: 100
     });
-    observed.push(query);
-    assertReaderSafeguards(query);
+    observed.push(search);
+    assertReaderSafeguards(search);
+    const indexedSymbol = search.results.find((result) => result.locator.includes(locatorFragment));
+    assert(indexedSymbol, `${language}: ${symbol} was not searchable in ${locatorFragment}`);
+    assert.match(indexedSymbol.id, /^cinode_[a-f0-9]{32}$/u);
+    assert.equal(indexedSymbol.generation, built.activeGeneration);
+    assert.notEqual(indexedSymbol.kind, 'file', `${language}: search evidence must be parser-produced`);
+
+    const dependency = await provider.queryIndex({
+      root: workspace,
+      workspaceId: 'ws_polyglot',
+      kind: 'dependencies',
+      locator: `workspace://languages/${language}/${dependencyPath}`,
+      direction: 'both',
+      depth: 1,
+      limit: 100
+    });
+    observed.push(dependency);
+    assertReaderSafeguards(dependency);
     assert(
-      query.results.some((result) => result.locator.includes(locatorFragment)),
-      `${language}: expected ${symbol} under ${locatorFragment}; received ${JSON.stringify(query.results)}`
+      dependency.relationships.length > 0,
+      `${language}: expected dependency evidence for ${dependencyPath}`
+    );
+    assert(dependency.results.length >= 2, `${language}: dependency traversal must return both ends`);
+    const resultIds = new Set(dependency.results.map((result) => result.id));
+    assert(
+      dependency.relationships.every((edge) => resultIds.has(edge.fromNodeId) && resultIds.has(edge.toNodeId)),
+      `${language}: dependency edges must reference returned indexed nodes`
+    );
+    const resultById = new Map(dependency.results.map((result) => [result.id, result]));
+    assert(
+      dependency.relationships.some((edge) => {
+        const from = resultById.get(edge.fromNodeId);
+        const to = resultById.get(edge.toNodeId);
+        return from?.locator.includes(locatorFragment) && to?.locator.includes(locatorFragment);
+      }),
+      `${language}: dependency evidence must remain inside its language fixture`
     );
   }
 
+  const routes = await provider.queryIndex({
+    root: workspace,
+    workspaceId: 'ws_polyglot',
+    kind: 'routes',
+    limit: 100
+  });
+  observed.push(routes);
+  assertReaderSafeguards(routes);
+  assert.deepEqual(languagesRepresentedBy(routes.results), [...ROUTE_LANGUAGES]);
+  assert(routes.relationships.length > 0, 'route query must return route-handler evidence');
+  assert(routes.relationships.every((edge) => edge.kind === 'handles_route'));
+
+  for (const [language, entrypointPath, direction] of ENTRYPOINTS) {
+    const entrypoint = await provider.queryIndex({
+      root: workspace,
+      workspaceId: 'ws_polyglot',
+      kind: 'dependencies',
+      locator: `workspace://languages/${language}/${entrypointPath}`,
+      direction,
+      depth: 1,
+      limit: 100
+    });
+    observed.push(entrypoint);
+    assertReaderSafeguards(entrypoint);
+    const entrypointEdge = entrypoint.relationships.find((edge) => edge.kind === 'entry_point');
+    assert(entrypointEdge, `${language}: expected explicit entry-point evidence`);
+    const sourceNode = entrypoint.results.find((result) => result.id === entrypointEdge.fromNodeId);
+    assert(
+      sourceNode?.locator.includes(`/languages/${language}/`),
+      `${language}: entry point must originate in the same language fixture; received ${sourceNode?.locator}`
+    );
+  }
+
+  assert.deepEqual(await fileSnapshot(indexPath), beforeReaders);
   const beforeRefresh = await fileSnapshot(indexPath);
   const refreshed = await provider.refreshIndex({
     root: workspace,
@@ -144,11 +219,19 @@ async function polyglotWorkspace(t) {
   await mkdir(path.join(workspace, 'languages', 'typescript'), { recursive: true });
   await writeFile(
     path.join(workspace, 'languages', 'javascript', 'index.js'),
-    `// ${RAW_SOURCE_SENTINEL}\nexport function javascriptSentinel() { return 1; }\n`
+    `// ${RAW_SOURCE_SENTINEL}\nimport { javascriptHelper } from './helper.js';\nexport function javascriptSentinel() { return javascriptHelper(); }\n`
+  );
+  await writeFile(
+    path.join(workspace, 'languages', 'javascript', 'helper.js'),
+    'export function javascriptHelper() { return 1; }\n'
   );
   await writeFile(
     path.join(workspace, 'languages', 'typescript', 'index.ts'),
-    `// ${RAW_SOURCE_SENTINEL}\nexport function typescriptSentinel(): number { return 1; }\n`
+    `// ${RAW_SOURCE_SENTINEL}\nimport { typescriptHelper } from './helper.js';\nexport function typescriptSentinel(): number { return typescriptHelper(); }\n`
+  );
+  await writeFile(
+    path.join(workspace, 'languages', 'typescript', 'helper.ts'),
+    'export function typescriptHelper(): number { return 1; }\n'
   );
   return workspace;
 }
@@ -175,4 +258,11 @@ function assertReaderSafeguards(result) {
   assert.equal(result.safeguards.modelCalls, 0);
   assert.equal(result.safeguards.rawSourceBodiesIncluded, false);
   assert.equal(result.safeguards.absolutePathsIncluded, false);
+}
+
+function languagesRepresentedBy(results) {
+  return TIER_1
+    .filter(([language]) => results.some((result) => result.locator.includes(`/languages/${language}/`)))
+    .map(([language]) => language)
+    .sort();
 }

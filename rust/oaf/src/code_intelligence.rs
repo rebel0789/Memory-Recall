@@ -993,19 +993,29 @@ fn build_edges(
         else {
             continue;
         };
-        let Some(from_node_id) =
-            resolve_node(&fact.subject, &fact.source, node_lookup, subject_lookup)
-        else {
-            continue;
-        };
-        let Some(to_node_id) =
-            resolve_node(&fact.object, &fact.source, node_lookup, subject_lookup)
-        else {
-            continue;
-        };
         let language = match fact_language_for_request(fact, requested_languages) {
             Some(language) => language,
             None => continue,
+        };
+        let Some(from_node_id) = resolve_node(
+            &fact.subject,
+            &fact.source,
+            language,
+            requested_languages,
+            node_lookup,
+            subject_lookup,
+        ) else {
+            continue;
+        };
+        let Some(to_node_id) = resolve_node(
+            &fact.object,
+            &fact.source,
+            language,
+            requested_languages,
+            node_lookup,
+            subject_lookup,
+        ) else {
+            continue;
         };
         let locator = with_span(&fact.source, fact.span);
         let edge_fingerprint = fingerprint(&json!({
@@ -1217,6 +1227,8 @@ fn edge_mapping(
 fn resolve_node(
     subject: &str,
     source: &str,
+    preferred_language: &str,
+    requested_languages: &BTreeSet<String>,
     node_lookup: &BTreeMap<(String, String), String>,
     subject_lookup: &BTreeMap<String, Vec<(String, String)>>,
 ) -> Option<String> {
@@ -1226,7 +1238,15 @@ fn resolve_node(
         .or_else(|| {
             subject_lookup
                 .get(subject)
-                .and_then(|values| values.first())
+                .and_then(|values| {
+                    values
+                        .iter()
+                        .find(|(candidate_source, _)| {
+                            source_language_for_request(candidate_source, requested_languages)
+                                == Some(preferred_language)
+                        })
+                        .or_else(|| values.first())
+                })
                 .map(|(_, id)| id.clone())
         })
 }
