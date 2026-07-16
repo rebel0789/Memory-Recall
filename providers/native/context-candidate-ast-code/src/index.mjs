@@ -484,15 +484,19 @@ export async function scanAstCodeWorkspace({
   maxFileBytes = DEFAULT_MAX_FILE_BYTES,
   maxFiles = DEFAULT_MAX_FILES,
   explicitIncludes = [],
+  onlyIncludes = [],
+  metadataOnly = false,
   clock = () => new Date().toISOString()
 } = {}) {
   if (typeof root !== 'string' || !root) throw new Error('root is required');
   const normalizedExplicitIncludes = explicitIncludes.map(normalizeIgnoreRelativePath);
+  const normalizedOnlyIncludes = onlyIncludes.map(normalizeIgnoreRelativePath);
   const rootReal = await realpath(root);
   const rootRecallRules = await loadRootRecallIgnore(rootReal);
   const diagnostics = [];
   const chunks = [];
   const fileOutlines = [];
+  const discoveredFiles = [];
   const skippedLocators = new Set();
   const oversizedLocators = new Set();
   const excludedDirectoryLocators = new Set();
@@ -588,6 +592,12 @@ export async function scanAstCodeWorkspace({
     }
     for (const entry of entries) {
       const relativePath = normalizeRelative(path.join(relativeDirectory, entry.name));
+      if (normalizedOnlyIncludes.length) {
+        const selected = entry.isDirectory()
+          ? normalizedOnlyIncludes.some((item) => item.startsWith(`${relativePath}/`))
+          : normalizedOnlyIncludes.includes(relativePath);
+        if (!selected) continue;
+      }
       const absolutePath = path.join(rootReal, relativePath);
       const locator = safeWorkspaceLocatorFor(relativePath);
       if (!locator) {
@@ -659,6 +669,16 @@ export async function scanAstCodeWorkspace({
         diagnostics.push(diagnostic(locator, 'file_too_large'));
         continue;
       }
+      discoveredFiles.push(Object.freeze({
+        relativePath,
+        locator,
+        size,
+        mtimeMs: Number.isFinite(info.mtimeMs) ? Number(info.mtimeMs.toFixed(3)) : 0
+      }));
+      if (metadataOnly) {
+        visitedFiles += 1;
+        continue;
+      }
       let body;
       try {
         body = await readFile(fileReal, 'utf8');
@@ -710,7 +730,8 @@ export async function scanAstCodeWorkspace({
     ignoreFileLocators: [...ignoreFileLocators].sort(),
     ignoreRuleFingerprint: contentFingerprint({
       rules: normalizedIgnoreRules.map(({ base, pattern, negated, directoryOnly }) => ({ base, pattern, negated, directoryOnly })),
-      explicitIncludes: [...normalizedExplicitIncludes].sort()
+      explicitIncludes: [...normalizedExplicitIncludes].sort(),
+      onlyIncludes: [...normalizedOnlyIncludes].sort()
     })
   });
   const result = {
@@ -720,6 +741,7 @@ export async function scanAstCodeWorkspace({
     fileCount: visitedFiles,
     chunkCount: sortedChunks.length,
     chunks: sortedChunks,
+    discoveredFiles: discoveredFiles.sort((left, right) => left.relativePath.localeCompare(right.relativePath)),
     fileOutlines: sortedFileOutlines,
     repositoryOutline: repositoryOutlineFor({ workspaceId, fileOutlines: sortedFileOutlines, symbolIndex }),
     contentJournal: sortedFileOutlines.map((file) => ({
@@ -846,6 +868,58 @@ export async function buildJsTsSourceIndex(options = {}) {
       discoveryIdentity: scan.discoveryIdentity,
       diagnostics: scan.diagnostics
     })
+  });
+}
+
+export function buildJsTsSourceIndexFromShards({
+  workspaceId = 'ws_local',
+  parserVersion = AST_CODE_PARSER_VERSION,
+  shards = [],
+  coverage = {},
+  discoveryIdentity = {},
+  diagnostics = [],
+  clock = () => new Date().toISOString()
+} = {}) {
+  const sortedShards = [...shards].sort((left, right) => left.locator.localeCompare(right.locator));
+  const chunks = sortedShards.flatMap((shard) => shard.chunks ?? []).sort((left, right) => left.locator.localeCompare(right.locator));
+  const fileOutlines = sortedShards.map((shard) => shard.fileOutline).filter(Boolean).sort((left, right) => left.locator.localeCompare(right.locator));
+  const indexedAt = clock();
+  const symbolIndex = buildSymbolIndex({ workspaceId, chunks, fileOutlines, indexedAt });
+  const normalizedCoverage = sourceGraphCoverage({
+    ...coverage,
+    representedJsTsLocators: fileOutlines.map((file) => file.locator),
+    diagnosticCodes: diagnostics.map((item) => item.code)
+  });
+  const repositoryOutline = repositoryOutlineFor({ workspaceId, fileOutlines, symbolIndex });
+  const contentJournal = fileOutlines.map((file) => ({
+    locator: file.locator,
+    contentHash: file.contentHash,
+    symbolFingerprint: file.symbolFingerprint,
+    collectedAt: file.collectedAt
+  }));
+  const scanFingerprint = contentFingerprint({
+    workspaceId,
+    parserVersion,
+    contentJournal,
+    discoveryIdentity,
+    diagnostics
+  });
+  const result = {
+    schemaVersion: '1.0.0',
+    workspaceId,
+    parserVersion,
+    scanFingerprint,
+    repositoryOutline,
+    fileOutlines,
+    contentJournal,
+    symbolIndex,
+    coverage: normalizedCoverage,
+    discoveryIdentity,
+    diagnostics
+  };
+  return Object.freeze({
+    ...result,
+    sourceIndexFingerprint: contentFingerprint(result)
   });
 }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { constants as fsConstants, createReadStream, existsSync, realpathSync } from 'node:fs';
+import { constants as fsConstants, createReadStream, existsSync, realpathSync, watch as watchFs } from 'node:fs';
 import { appendFile, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename as renameFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -73,6 +73,17 @@ import { loadReviewedToolCatalog } from '../../packages/tool-registry/src/index.
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+  buildArchitectureIntelligence,
+  buildCodeContextIntelligence,
+  buildCodeDependenciesIntelligence,
+  buildCodeRoutesIntelligence,
+  buildCodeSearchIntelligence,
+  buildCodeTraceIntelligence,
+  buildPersistentSourceGraphIndex,
+  buildSourceGraphIntelligence,
+  readPersistentSourceGraphIndexStatus,
+  readSourceGraphIndexStatus,
+  refreshPersistentSourceGraphIndex,
   buildSourceGraphPreview
 } from '../../packages/source-graph/src/index.mjs';
 
@@ -2876,8 +2887,155 @@ async function graphCommand(values) {
   if (subcommand === 'search') return graphSearchCommand(rest);
   if (subcommand === 'trace') return graphTraceCommand(rest);
   if (subcommand === 'impact') return graphImpactCommand(rest);
-  console.error('graph requires stats, search, trace, or impact');
+  if (subcommand === 'index') return graphIndexCommand(rest);
+  console.error('graph requires stats, search, trace, impact, or index');
   process.exitCode = 2;
+}
+
+async function graphIndexCommand(values) {
+  const modes = ['--status', '--write', '--refresh'].filter((flag) => values.includes(flag));
+  if (modes.length !== 1) {
+    console.error('graph index requires --status, --write, or --refresh');
+    process.exitCode = 2;
+    return;
+  }
+  const watch = values.includes('--watch');
+  if (watch && modes[0] !== '--refresh') {
+    console.error('graph index --watch requires --refresh');
+    process.exitCode = 2;
+    return;
+  }
+  const allowedFlags = new Set(['--status', '--write', '--refresh', '--watch', '--root', '--workspace', '--out', '--format', '--max-files', '--max-file-bytes']);
+  const valueFlags = new Set(['--root', '--workspace', '--out', '--format', '--max-files', '--max-file-bytes']);
+  const unsupported = unsupportedFlags(values, allowedFlags, valueFlags);
+  if (unsupported.length) {
+    console.error('graph index options are invalid');
+    process.exitCode = 2;
+    return;
+  }
+  const format = option(values, '--format') ?? 'summary';
+  if (!['json', 'summary'].includes(format)) {
+    console.error('graph index only supports --format json or summary');
+    process.exitCode = 2;
+    return;
+  }
+  const root = option(values, '--root') ?? process.cwd();
+  const workspaceId = option(values, '--workspace') ?? 'ws_local';
+  const relativePath = option(values, '--out') ?? '.local/source-graph/index.v1.json';
+  const indexOptions = {
+    root,
+    workspaceId,
+    relativePath,
+    maxFiles: strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
+    maxFileBytes: strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES),
+    clock: fixedNow
+  };
+  try {
+    if (modes[0] === '--status') {
+      const status = await readPersistentSourceGraphIndexStatus(indexOptions);
+      const report = { command: 'graph index status', ...status, safeguards: graphIndexSafeguards({ localFilesWritten: 0 }) };
+      console.log(format === 'json' ? JSON.stringify(report, null, 2) : renderGraphIndexSummary(report));
+      return;
+    }
+    const execute = async () => {
+      const result = modes[0] === '--write'
+        ? await buildPersistentSourceGraphIndex(indexOptions)
+        : await refreshPersistentSourceGraphIndex(indexOptions);
+      const report = compactGraphIndexReport(result);
+      console.log(format === 'json' ? JSON.stringify(report, null, 2) : renderGraphIndexSummary(report));
+      return report;
+    };
+    await execute();
+    if (watch) await watchGraphIndex({ root: path.resolve(root), execute });
+  } catch (error) {
+    console.error(error?.code === 'source_graph_index_invalid' ? 'source_graph_index_invalid' : error.message);
+    process.exitCode = 2;
+  }
+}
+
+function compactGraphIndexReport(result) {
+  return {
+    schemaVersion: result.schemaVersion,
+    command: 'graph index',
+    status: result.status,
+    indexLocator: result.indexLocator,
+    graph: {
+      fingerprint: result.graph.graphFingerprint,
+      nodeCount: result.graph.nodes.length,
+      edgeCount: result.graph.edges.length
+    },
+    measurements: result.measurements,
+    safeguards: graphIndexSafeguards({ localFilesWritten: 1 })
+  };
+}
+
+function graphIndexSafeguards({ localFilesWritten }) {
+  return {
+    readOnly: localFilesWritten === 0,
+    localFilesWritten,
+    networkCalls: 0,
+    modelCalls: 0,
+    externalWritesEnabled: false,
+    rawSourceBodiesIncluded: false,
+    absoluteFilesystemLocationsIncluded: false
+  };
+}
+
+function renderGraphIndexSummary(report) {
+  const measurements = report.measurements ?? {};
+  return [
+    '# Source Graph Index',
+    `Status: ${report.status}`,
+    `Index: ${report.indexLocator}`,
+    `Files: ${report.fileCount ?? (measurements.parsedFileCount ?? 0) + (measurements.reusedFileCount ?? 0)}`,
+    `Nodes: ${report.nodeCount ?? report.graph?.nodeCount ?? 0}`,
+    `Edges: ${report.edgeCount ?? report.graph?.edgeCount ?? 0}`,
+    `Parsed: ${measurements.parsedFileCount ?? 0}`,
+    `Reused: ${measurements.reusedFileCount ?? 0}`,
+    `Changed: ${measurements.changedFileCount ?? 0}`,
+    `Added: ${measurements.addedFileCount ?? 0}`,
+    `Deleted: ${measurements.deletedFileCount ?? 0}`,
+    `Raw source bodies stored: no`
+  ].join('\n');
+}
+
+async function watchGraphIndex({ root, execute }) {
+  let timer = null;
+  let running = false;
+  let pending = false;
+  const refresh = async () => {
+    if (running) {
+      pending = true;
+      return;
+    }
+    running = true;
+    try {
+      await execute();
+    } finally {
+      running = false;
+      if (pending) {
+        pending = false;
+        await refresh();
+      }
+    }
+  };
+  const watcher = watchFs(root, { recursive: true }, (_event, filename) => {
+    const relative = String(filename ?? '').replaceAll('\\', '/');
+    if (!relative || relative.startsWith('.local/source-graph/') || !/(?:\.(?:[cm]?[jt]sx?)|(?:^|\/)\.gitignore|(?:^|\/)\.recallignore)$/u.test(relative)) return;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void refresh(), 250);
+  });
+  await new Promise((resolve) => {
+    const stop = () => {
+      if (timer) clearTimeout(timer);
+      watcher.close();
+      process.off('SIGINT', stop);
+      process.off('SIGTERM', stop);
+      resolve();
+    };
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+  });
 }
 
 async function recallMapCommand(values) {
@@ -6356,7 +6514,202 @@ async function buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, ge
 }
 
 function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null, cursorStore = null }) {
+  let intelligencePromise = null;
+  const loadIntelligence = () => {
+    intelligencePromise ??= buildSourceGraphIntelligence({
+      root,
+      workspaceId,
+      maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
+      maxFileBytes: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+      clock: fixedNow
+    });
+    return intelligencePromise;
+  };
   return [
+    {
+      name: 'repo.architecture',
+      description: 'Return bounded architecture groups, entry points, and structural hotspots from local source metadata.',
+      operation: 'repo.architecture',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['limit'], 'repo.architecture');
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const intelligence = await loadIntelligence();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'repo.architecture',
+          workspaceId,
+          generatedAt: fixedNow(),
+          data: { ...buildArchitectureIntelligence(intelligence.graph, { limit }), source: intelligence.source }
+        }));
+      }
+    },
+    {
+      name: 'repo.index_status',
+      description: 'Report whether the local persistent source index exists; this tool never builds or refreshes it.',
+      operation: 'repo.index_status',
+      sideEffectClass: 'read-only',
+      inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+      handler: async ({ arguments: args }) => {
+        mcpMapArguments(args, [], 'repo.index_status');
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'repo.index_status',
+          workspaceId,
+          generatedAt: fixedNow(),
+          data: await readSourceGraphIndexStatus({ root })
+        }));
+      }
+    },
+    {
+      name: 'code.search',
+      description: 'Search bounded symbols, files, modules, and relationships using local structural metadata.',
+      operation: 'code.search',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['query'],
+        properties: {
+          query: { type: 'string', minLength: 1, maxLength: 512 },
+          nodeKinds: { type: 'array', maxItems: 4, items: { type: 'string', enum: ['file', 'chunk', 'symbol', 'module'] } },
+          edgeKinds: { type: 'array', maxItems: 6, items: { type: 'string', enum: ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls'] } },
+          locatorPrefix: { type: 'string', minLength: 1, maxLength: 512 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+          offset: { type: 'integer', minimum: 0, maximum: 10000, default: 0 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['query', 'nodeKinds', 'edgeKinds', 'locatorPrefix', 'limit', 'offset'], 'code.search');
+        const query = mcpStructuralString(input.query, 'code.search query', { required: true, max: 512 });
+        const nodeKinds = mcpStructuralKinds(input.nodeKinds, ['file', 'chunk', 'symbol', 'module']);
+        const edgeKinds = mcpStructuralKinds(input.edgeKinds, ['contains', 'defined_in', 'imports', 'exports', 'references', 'calls']);
+        const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const offset = mcpStrictBoundedInteger(input.offset, 0, { min: 0, max: 10000, name: 'offset' });
+        const intelligence = await loadIntelligence();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.search',
+          workspaceId,
+          generatedAt: fixedNow(),
+          data: { ...buildCodeSearchIntelligence(intelligence.graph, { query, nodeKinds, edgeKinds, locatorPrefix, limit, offset }), source: intelligence.source }
+        }));
+      }
+    },
+    {
+      name: 'code.context',
+      description: 'Return one selected symbol with bounded incoming and outgoing structural relationships.',
+      operation: 'code.context',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['query'],
+        properties: {
+          query: { type: 'string', minLength: 1, maxLength: 512 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['query', 'limit'], 'code.context');
+        const query = mcpStructuralString(input.query, 'code.context query', { required: true, max: 512 });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const intelligence = await loadIntelligence();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.context', workspaceId, generatedAt: fixedNow(),
+          data: { ...buildCodeContextIntelligence(intelligence.graph, { query, limit }), source: intelligence.source }
+        }));
+      }
+    },
+    {
+      name: 'code.trace',
+      description: 'Trace bounded inbound or outbound call paths from a local symbol.',
+      operation: 'code.trace',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['symbol'],
+        properties: {
+          symbol: { type: 'string', minLength: 1, maxLength: 240 },
+          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'], default: 'outbound' },
+          depth: { type: 'integer', enum: [1, 2, 3], default: 2 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 },
+          locatorPrefix: { type: 'string', minLength: 1, maxLength: 512 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['symbol', 'direction', 'depth', 'limit', 'locatorPrefix'], 'code.trace');
+        const symbol = mcpStructuralString(input.symbol, 'code.trace symbol', { required: true, max: 240 });
+        const direction = mcpStructuralDirection(input.direction);
+        const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
+        const intelligence = await loadIntelligence();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.trace', workspaceId, generatedAt: fixedNow(),
+          data: { ...buildCodeTraceIntelligence(intelligence.graph, { symbol, direction, depth, limit, locatorPrefix }), source: intelligence.source }
+        }));
+      }
+    },
+    {
+      name: 'code.dependencies',
+      description: 'Walk a bounded local dependency neighborhood for a file, module, or symbol.',
+      operation: 'code.dependencies',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['query'],
+        properties: {
+          query: { type: 'string', minLength: 1, maxLength: 512 },
+          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'], default: 'outbound' },
+          depth: { type: 'integer', enum: [1, 2, 3], default: 2 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['query', 'direction', 'depth', 'limit'], 'code.dependencies');
+        const query = mcpStructuralString(input.query, 'code.dependencies query', { required: true, max: 512 });
+        const direction = mcpStructuralDirection(input.direction);
+        const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const intelligence = await loadIntelligence();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
+          data: { ...buildCodeDependenciesIntelligence(intelligence.graph, { query, direction, depth, limit }), source: intelligence.source }
+        }));
+      }
+    },
+    {
+      name: 'code.routes',
+      description: 'Discover bounded HTTP route exports with locator-safe static evidence.',
+      operation: 'code.routes',
+      sideEffectClass: 'read-only',
+      inputSchema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          query: { type: 'string', maxLength: 240 },
+          limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
+        }
+      },
+      handler: async ({ arguments: args }) => {
+        const input = mcpMapArguments(args, ['query', 'limit'], 'code.routes');
+        const query = mcpStructuralString(input.query, 'code.routes query', { required: false, max: 240 });
+        const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
+        const intelligence = await loadIntelligence();
+        return mcpToolJsonResult(mcpStructuralPayload({
+          command: 'code.routes', workspaceId, generatedAt: fixedNow(),
+          data: { ...buildCodeRoutesIntelligence(intelligence.graph, { query, limit }), source: intelligence.source }
+        }));
+      }
+    },
     {
       name: 'repo.map',
       description: 'Return a bounded Recall Map of local source coverage, governed memory, and handoff readiness.',
@@ -6627,6 +6980,45 @@ function mcpStrictBoundedInteger(value, fallback, { min, max, name }) {
     throw new Error(`mcp ${name} is invalid`);
   }
   return value;
+}
+
+function mcpStructuralString(value, name, { required, max }) {
+  if (value === undefined || value === null) {
+    if (required) throw new Error(`${name} is invalid`);
+    return '';
+  }
+  if (typeof value !== 'string' || value.length > max || /[\0\r\n]/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+    throw new Error(`${name} is invalid`);
+  }
+  const normalized = value.trim();
+  if (required && !normalized) throw new Error(`${name} is invalid`);
+  return normalized;
+}
+
+function mcpStructuralKinds(value, allowed) {
+  if (value === undefined || value === null) return null;
+  if (!Array.isArray(value) || value.length > allowed.length || value.some((item) => !allowed.includes(item))) {
+    throw new Error('mcp structural kinds are invalid');
+  }
+  return [...new Set(value)];
+}
+
+function mcpStructuralDirection(value) {
+  const direction = value ?? 'outbound';
+  if (!['outbound', 'inbound', 'both'].includes(direction)) throw new Error('mcp direction is invalid');
+  return direction;
+}
+
+function mcpStructuralLocatorPrefix(value) {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 512 || /[\0\r\n]/u.test(value) || MCP_PRIVATE_MATERIAL.test(value)) {
+    throw new Error('mcp locator prefix is invalid');
+  }
+  try {
+    return normalizeSourceGraphWorkspaceLocator(value, { stripFragment: true });
+  } catch {
+    throw new Error('mcp locator prefix is invalid');
+  }
 }
 
 async function buildMcpMemoryRecallPayload({ values, root, workspaceId, generatedAt, args }) {
@@ -7207,6 +7599,17 @@ function mcpNoWritePayload({ command, workspaceId, generatedAt, data }) {
     safeguards: {
       ...payload.safeguards,
       localFilesWritten: 0
+    }
+  };
+}
+
+function mcpStructuralPayload({ command, workspaceId, generatedAt, data }) {
+  const payload = mcpNoWritePayload({ command, workspaceId, generatedAt, data });
+  return {
+    ...payload,
+    safeguards: {
+      ...payload.safeguards,
+      rawSourceBodiesIncluded: false
     }
   };
 }

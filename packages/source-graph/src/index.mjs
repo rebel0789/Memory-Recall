@@ -17,6 +17,23 @@ import { buildSourceGraphFocus, buildSourceGraphOrientation } from './orientatio
 
 export { buildSourceGraphFocus, buildSourceGraphOrientation };
 export { createSourceGraphSnapshotService } from './snapshot-service.mjs';
+export {
+  DEFAULT_SOURCE_GRAPH_INDEX_PATH,
+  buildPersistentSourceGraphIndex,
+  loadPersistentSourceGraphIndex,
+  readPersistentSourceGraphIndexStatus,
+  refreshPersistentSourceGraphIndex
+} from './index-store.mjs';
+export {
+  buildArchitectureIntelligence,
+  buildCodeContextIntelligence,
+  buildCodeDependenciesIntelligence,
+  buildCodeRoutesIntelligence,
+  buildCodeSearchIntelligence,
+  buildCodeTraceIntelligence,
+  buildSourceGraphIntelligence,
+  readSourceGraphIndexStatus
+} from './intelligence.mjs';
 
 const PREVIEW_VERSION = 'oaf-source-graph-preview-1.0.0';
 export const DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES = 512 * 1024;

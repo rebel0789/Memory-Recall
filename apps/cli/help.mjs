@@ -11,7 +11,7 @@ function renderHelpText(text) {
   if (command === 'oaf') return text;
   return text
     .replace(
-      /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|map|semantic|handoff|token-saver|context|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
+      /\boaf (?=(status|setup|verify|doctor|connect|disconnect|task|demo|serve|check|eval|manifest|map|semantic|handoff|token-saver|context|graph|loop|skill|measure|benchmark|bench|memory|mcp|harness|hook|version)\b)/g,
       `${command} `
     );
 }
@@ -68,6 +68,9 @@ Usage:
   oaf graph search --root . --query "route registration hooks" --format summary
   oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
   oaf graph impact --root . --changed src/auth.ts --format summary
+  oaf graph index --status --root . --format summary
+  oaf graph index --write --root . --format json
+  oaf graph index --refresh --watch --root . --format summary
   oaf loop plan --read-only --root . --objective "Ship safely" --stop-condition "focused tests pass" --validation "node --test tests/web-shell.test.mjs" --format json
   oaf loop observe --root . --plan loop-plan.json --execute-commands --format json
   oaf loop verify --root . --plan loop-plan.json --worktree ../isolated-worktree --sqlite .local/memory.sqlite --execute-commands --format json
@@ -240,11 +243,16 @@ Usage:
   oaf graph trace --root . --symbol runAuthWorkflow --direction outbound --format summary
   oaf graph impact --root . --changed src/auth.ts --format summary
   oaf graph impact --root . --changed-from-git --format json
+  oaf graph index --status --root . --format summary
+  oaf graph index --write --root . --format json
+  oaf graph index --refresh --root . --format json
+  oaf graph index --refresh --watch --root . --format summary
 
 Graph commands build a bounded local JS/TS source graph and return locator-only
-stats, search, trace, or changed-file impact reports. They are read-only by default:
-no files are written, no model calls are made, no network calls are made, and
-raw source bodies are not included.`],
+stats, search, trace, or changed-file impact reports. Index writes are explicit.
+The index stores structural metadata under .local/source-graph by default and
+never stores raw source bodies. MCP reads the index but never builds or refreshes it.
+No graph command makes model or network calls.`],
     ['context handoff', `Memory Recall CLI: context handoff
 
 Usage:
