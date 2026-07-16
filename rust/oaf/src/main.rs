@@ -27,7 +27,7 @@ use std::time::Instant;
 
 const PROVIDER: &str = "provider:native:memory:sqlite";
 const PROTOCOL_VERSION: &str = "2025-06-18";
-const SERVER_VERSION: &str = "1.1.1";
+const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SERVER_NAME: &str = "memory-recall";
 
 fn main() {

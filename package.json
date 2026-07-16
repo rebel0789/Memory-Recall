@@ -115,6 +115,7 @@
     "planning/",
     "providers/",
     "rfcs/",
+    "!native-packages/",
     "rust/Cargo.lock",
     "rust/Cargo.toml",
     "rust/README.md",
@@ -139,6 +140,7 @@
     "!scripts/code-intelligence-phase3-index.mjs",
     "!scripts/code-intelligence-phase4-intelligence.mjs",
     "!scripts/native-code-intelligence-consumer-smoke.mjs",
+    "!scripts/package-native-platform.mjs",
     "!scripts/pin-code-intelligence-corpus.mjs",
     "!scripts/rust-ingest-quality.mjs",
     "!scripts/rust-intelligence-quality.mjs",
@@ -148,10 +150,18 @@
     "workflows/"
   ],
   "workspaces": [
+    "native-packages/*",
     "packages/*",
     "providers/native/*",
     "services/*"
   ],
+  "optionalDependencies": {
+    "@memory-recall/native-darwin-arm64": "1.1.1",
+    "@memory-recall/native-darwin-x64": "1.1.1",
+    "@memory-recall/native-linux-arm64-gnu": "1.1.1",
+    "@memory-recall/native-linux-x64-gnu": "1.1.1",
+    "@memory-recall/native-win32-x64": "1.1.1"
+  },
   "scripts": {
     "bootstrap": "node scripts/bootstrap.mjs",
     "local:run": "npm run bootstrap && npm run native:smoke",

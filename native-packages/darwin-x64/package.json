@@ -1,0 +1,25 @@
+{
+  "name": "@memory-recall/native-darwin-x64",
+  "version": "1.1.1",
+  "description": "Memory Recall native code-intelligence engine for macOS x64.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rebel0789/Memory-Recall.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin/oaf",
+    "native-manifest.json",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "memoryRecallNative": {
+    "target": "darwin-x64",
+    "platform": "darwin",
+    "arch": "x64",
+    "binary": "bin/oaf"
+  }
+}

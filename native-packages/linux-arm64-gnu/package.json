@@ -1,0 +1,26 @@
+{
+  "name": "@memory-recall/native-linux-arm64-gnu",
+  "version": "1.1.1",
+  "description": "Memory Recall native code-intelligence engine for Linux arm64 GNU.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rebel0789/Memory-Recall.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin/oaf",
+    "native-manifest.json",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "memoryRecallNative": {
+    "target": "linux-arm64-gnu",
+    "platform": "linux",
+    "arch": "arm64",
+    "libc": "glibc",
+    "binary": "bin/oaf"
+  }
+}
