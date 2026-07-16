@@ -126,6 +126,7 @@ Usage:
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --changed-from-git --format json
   oaf mcp resources --read-only --stdio
   oaf mcp server --read-only --root . --stdio
+  oaf mcp server --read-only --engine auto --root . --stdio
   oaf mcp server --read-only --engine native-preview --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp install --client claude-code --dry-run --format json
@@ -395,6 +396,7 @@ Usage:
   oaf mcp resources --read-only --memory-refine --uri oaf://workspace/ws_local/memory/refine --format summary
   oaf mcp resources --read-only --context-pack --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
   oaf mcp server --read-only --root . --stdio
+  oaf mcp server --read-only --engine auto --root . --stdio
   oaf mcp server --read-only --engine native-preview --root . --stdio
   oaf mcp stats --read-only --root . --format json
   oaf mcp smoke context-pack --read-only --objective "Ship safely" --step "handoff" --target codex --changed src/auth.ts --format json
@@ -404,8 +406,10 @@ MCP commands inspect or expose local read-only resources, run the stdio bridge,
 preview install plans, or report delivery stats. Resource summaries require
 --uri and do not dump full resource bodies. Resource/server paths require
 --read-only; install remains dry-run unless explicitly confirmed by the install
-flow. The MCP server keeps the JS engine by default. Native preview reads only a
-prebuilt .local/source-index database and never builds or refreshes it.`],
+flow. The MCP server keeps the JS engine by default. Explicit auto mode uses a
+current, healthy native index and otherwise labels a bounded JS fallback. Native
+preview reads only a prebuilt .local/source-index database and never builds or
+refreshes it.`],
     ['memory refine', `Memory Recall CLI: memory refine
 
 Usage:

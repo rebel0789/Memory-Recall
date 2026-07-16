@@ -1122,6 +1122,7 @@
         "Phase 3 adds the isolated SQLite lifecycle, bounded invalidation refresh, watcher coordination, doctor/repair, CLI, provider, explicit read-only MCP preview, and a clean four-case performance receipt over 781 files; it does not promote the runtime default, bundle a native binary, move web, prove multi-repository or million-node scale, or make a parity or leadership claim.",
         "Phase 4 adds deterministic bounded communities and evidence-backed entry-to-sink processes through the existing native repo.architecture MCP result. Its local fixture proves deterministic output, evidence integrity, read-only behavior, and the two-second query deadline; it does not prove per-language process support, competitor parity, leadership, multi-repository behavior, or million-node scale.",
         "Native index.status now performs a bounded, read-only source-hash comparison against the active SQLite generation and reports source changes or unverified bounds as stale. Persisted node, edge, or file omissions remain partial. Normal queries remain SQLite-only, indexes created before scan-scope persistence require a rebuild for verified freshness, and historical custom max-file-byte settings can conservatively produce false-stale results because that setting is not yet persisted.",
+        "Explicit MCP --engine auto now rechecks native health and index freshness before each structural tool call. It uses only a healthy, current committed generation; every other native state returns a reason-labeled bounded JS result. Omitting --engine remains JS, and auto never builds, refreshes, repairs, or silently falls back after a native query starts.",
         "The local Phase 6 distribution gate proves current-platform package discovery, target/path/checksum/version validation, compiler-free 14-language parsing, and installed SQLite build/status/query behavior on macOS arm64. CI now defines exact-tarball native-runner gates for all five initial targets, but the four non-local lanes have not run here; signed or published packages, automatic native public defaults, rollback/uninstall, and cross-platform release readiness remain unproven."
       ]
     }
@@ -1163,7 +1164,7 @@
       "node scripts/code-intelligence-phase3-index.mjs --check",
       "node scripts/code-intelligence-phase4-intelligence.mjs --check"
     ],
-    "testsExpected": 771,
+    "testsExpected": 775,
     "protocolFixturesExpected": 208,
     "evaluationsExpected": 144,
     "note": "Counts are a dated snapshot; command results and HANDOFF_VERIFICATION.json are authoritative."

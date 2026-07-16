@@ -6558,8 +6558,8 @@ async function mcpServerCommand(values) {
     return;
   }
   const sourceIndexEngine = option(values, '--engine') ?? 'js';
-  if (!['js', 'native-preview'].includes(sourceIndexEngine)) {
-    console.error('mcp server --engine must be js or native-preview');
+  if (!['js', 'auto', 'native-preview'].includes(sourceIndexEngine)) {
+    console.error('mcp server --engine must be js, auto, or native-preview');
     process.exitCode = 2;
     return;
   }
@@ -6698,6 +6698,23 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     return nativeProviderPromise;
   };
   const nativeStatus = async () => (await loadNativeProvider()).indexStatus({ root, workspaceId });
+  const selectStructuralEngine = async () => {
+    if (sourceIndexEngine !== 'auto') return { selection: sourceIndexEngine, status: null, reasonCode: null };
+    try {
+      const provider = await loadNativeProvider();
+      const health = await provider.health();
+      if (health.status !== 'healthy') return { selection: 'js', status: null, reasonCode: 'native_unavailable' };
+      const status = await provider.indexStatus({ root, workspaceId });
+      return nativeIndexReadyForAutomaticRead(status)
+        ? { selection: 'native-preview', status, reasonCode: 'native_index_current' }
+        : { selection: 'js', status, reasonCode: nativeAutomaticFallbackReason(status) };
+    } catch {
+      return { selection: 'js', status: null, reasonCode: 'native_unavailable' };
+    }
+  };
+  const jsFallbackSource = (source, selected) => sourceIndexEngine === 'auto'
+    ? { ...source, engine: 'js', reason: selected.reasonCode }
+    : source;
   const nativeQuery = async (kind, argumentsValue = {}) => (await loadNativeProvider()).queryIndex({
     root,
     workspaceId,
@@ -6724,7 +6741,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       handler: async ({ arguments: args }) => {
         const input = mcpMapArguments(args, ['limit'], 'repo.architecture');
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-        if (sourceIndexEngine === 'native-preview') {
+        const selected = await selectStructuralEngine();
+        if (selected.selection === 'native-preview') {
           const [communities, processes] = await Promise.all([
             nativeQuery('communities', { limit }),
             nativeQuery('processes', { depth: 4, limit })
@@ -6739,7 +6757,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           command: 'repo.architecture',
           workspaceId,
           generatedAt: fixedNow(),
-          data: { ...buildArchitectureIntelligence(intelligence.graph, { limit }), source: intelligence.source }
+          data: { ...buildArchitectureIntelligence(intelligence.graph, { limit }), source: jsFallbackSource(intelligence.source, selected) }
         }));
       }
     },
@@ -6751,18 +6769,24 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       inputSchema: { type: 'object', additionalProperties: false, properties: {} },
       handler: async ({ arguments: args }) => {
         mcpMapArguments(args, [], 'repo.index_status');
-        if (sourceIndexEngine === 'native-preview') {
-          const result = await nativeStatus();
+        const selected = await selectStructuralEngine();
+        if (selected.selection === 'native-preview') {
+          const result = selected.status ?? await nativeStatus();
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'repo.index_status', workspaceId, generatedAt: fixedNow(),
             data: nativeIndexStatusData(result)
           }));
         }
+        const data = selected.status
+          ? nativeIndexStatusData(selected.status)
+          : await readSourceGraphIndexStatus({ root });
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'repo.index_status',
           workspaceId,
           generatedAt: fixedNow(),
-          data: await readSourceGraphIndexStatus({ root })
+          data: sourceIndexEngine === 'auto'
+            ? { ...data, automaticSelection: { engine: 'js', reason: selected.reasonCode } }
+            : data
         }));
       }
     },
@@ -6792,7 +6816,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
         const offset = mcpStrictBoundedInteger(input.offset, 0, { min: 0, max: 10000, name: 'offset' });
-        if (sourceIndexEngine === 'native-preview') {
+        const selected = await selectStructuralEngine();
+        if (selected.selection === 'native-preview') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           if (edgeKinds?.length) throw new Error('native index edge-kind filtering is not available in preview');
           const result = await nativeQuery('search', { query, limit: Math.min(50, limit + offset) });
@@ -6811,7 +6836,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           command: 'code.search',
           workspaceId,
           generatedAt: fixedNow(),
-          data: { ...buildCodeSearchIntelligence(intelligence.graph, { query, nodeKinds, edgeKinds, locatorPrefix, limit, offset }), source: intelligence.source }
+          data: {
+            ...buildCodeSearchIntelligence(intelligence.graph, { query, nodeKinds, edgeKinds, locatorPrefix, limit, offset }),
+            source: jsFallbackSource(intelligence.source, selected)
+          }
         }));
       }
     },
@@ -6833,7 +6861,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const input = mcpMapArguments(args, ['query', 'limit'], 'code.context');
         const query = mcpStructuralString(input.query, 'code.context query', { required: true, max: 512 });
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-        if (sourceIndexEngine === 'native-preview') {
+        const selectedEngine = await selectStructuralEngine();
+        if (selectedEngine.selection === 'native-preview') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           const [selected, neighborhood] = await Promise.all([
             nativeQuery('exact', { query, limit: 1 }),
@@ -6853,7 +6882,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const intelligence = await loadIntelligence();
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.context', workspaceId, generatedAt: fixedNow(),
-          data: { ...buildCodeContextIntelligence(intelligence.graph, { query, limit }), source: intelligence.source }
+          data: { ...buildCodeContextIntelligence(intelligence.graph, { query, limit }), source: jsFallbackSource(intelligence.source, selectedEngine) }
         }));
       }
     },
@@ -6881,7 +6910,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
         const locatorPrefix = mcpStructuralLocatorPrefix(input.locatorPrefix);
-        if (sourceIndexEngine === 'native-preview') {
+        const selected = await selectStructuralEngine();
+        if (selected.selection === 'native-preview') {
           if (symbol.length > 160) throw new Error('native index query exceeds 160 characters');
           const result = await nativeQuery('dependencies', { query: symbol, direction, depth, limit });
           return mcpToolJsonResult(mcpStructuralPayload({
@@ -6892,7 +6922,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const intelligence = await loadIntelligence();
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.trace', workspaceId, generatedAt: fixedNow(),
-          data: { ...buildCodeTraceIntelligence(intelligence.graph, { symbol, direction, depth, limit, locatorPrefix }), source: intelligence.source }
+          data: { ...buildCodeTraceIntelligence(intelligence.graph, { symbol, direction, depth, limit, locatorPrefix }), source: jsFallbackSource(intelligence.source, selected) }
         }));
       }
     },
@@ -6918,7 +6948,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const direction = mcpStructuralDirection(input.direction);
         const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-        if (sourceIndexEngine === 'native-preview') {
+        const selected = await selectStructuralEngine();
+        if (selected.selection === 'native-preview') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           const result = await nativeQuery('dependencies', { query, direction, depth, limit });
           return mcpToolJsonResult(mcpStructuralPayload({
@@ -6929,7 +6960,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const intelligence = await loadIntelligence();
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.dependencies', workspaceId, generatedAt: fixedNow(),
-          data: { ...buildCodeDependenciesIntelligence(intelligence.graph, { query, direction, depth, limit }), source: intelligence.source }
+          data: { ...buildCodeDependenciesIntelligence(intelligence.graph, { query, direction, depth, limit }), source: jsFallbackSource(intelligence.source, selected) }
         }));
       }
     },
@@ -6950,7 +6981,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const input = mcpMapArguments(args, ['query', 'limit'], 'code.routes');
         const query = mcpStructuralString(input.query, 'code.routes query', { required: false, max: 240 });
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-        if (sourceIndexEngine === 'native-preview') {
+        const selected = await selectStructuralEngine();
+        if (selected.selection === 'native-preview') {
           const result = await nativeQuery('routes', { limit });
           const routes = result.results
             .filter((item) => !query || item.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
@@ -6963,7 +6995,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         const intelligence = await loadIntelligence();
         return mcpToolJsonResult(mcpStructuralPayload({
           command: 'code.routes', workspaceId, generatedAt: fixedNow(),
-          data: { ...buildCodeRoutesIntelligence(intelligence.graph, { query, limit }), source: intelligence.source }
+          data: { ...buildCodeRoutesIntelligence(intelligence.graph, { query, limit }), source: jsFallbackSource(intelligence.source, selected) }
         }));
       }
     },
@@ -6983,13 +7015,14 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         }
       },
       handler: async ({ arguments: args }) => {
-        if (sourceIndexEngine === 'native-preview') {
+        const selected = await selectStructuralEngine();
+        if (selected.selection === 'native-preview') {
           const input = mcpMapArguments(args, ['client', 'changed', 'query', 'limit'], 'repo.map');
           mcpMapClient(input.client);
           const changedLocators = mcpMapChangedLocators(input.changed, { required: false });
           const query = mcpMapQuery(input.query);
           const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
-          const status = await nativeStatus();
+          const status = selected.status ?? await nativeStatus();
           const search = query ? await nativeQuery('exact', { query, limit }) : null;
           const impact = [];
           for (const locator of changedLocators) {
@@ -7014,7 +7047,9 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           generatedAt: fixedNow(),
           args
         });
-        return mcpToolJsonResult(payload);
+        return mcpToolJsonResult(sourceIndexEngine === 'auto'
+          ? { ...payload, data: { ...payload.data, source: jsFallbackSource({ kind: 'bounded-scan', freshness: 'fresh', persisted: false }, selected) } }
+          : payload);
       }
     },
     {
@@ -7033,7 +7068,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         }
       },
       handler: async ({ arguments: args }) => {
-        if (sourceIndexEngine === 'native-preview') {
+        const selected = await selectStructuralEngine();
+        if (selected.selection === 'native-preview') {
           const input = mcpMapArguments(args, ['changed', 'depth', 'limit'], 'code.impact');
           const changedLocators = mcpMapChangedLocators(input.changed, { required: true });
           const depth = mcpStrictBoundedInteger(input.depth, 2, { min: 1, max: 3, name: 'depth' });
@@ -7043,7 +7079,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
             const result = await nativeQuery('impact', { query: locator, depth, limit });
             results.push({ locator, nodes: result.results.map(nativeStructuralNode), relationships: (result.relationships ?? []).map(nativeStructuralRelationship) });
           }
-          const status = await nativeStatus();
+          const status = selected.status ?? await nativeStatus();
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.impact', workspaceId, generatedAt: fixedNow(),
             data: { changedLocators, depth, results, source: nativeIndexSource(status) }
@@ -7056,7 +7092,9 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           generatedAt: fixedNow(),
           args
         });
-        return mcpToolJsonResult(payload);
+        return mcpToolJsonResult(sourceIndexEngine === 'auto'
+          ? { ...payload, data: { ...payload.data, source: jsFallbackSource({ kind: 'bounded-scan', freshness: 'fresh', persisted: false }, selected) } }
+          : payload);
       }
     },
     {
@@ -7930,6 +7968,25 @@ function nativeIndexSource(result) {
     previewOnly: true,
     publicDefaultChanged: false
   };
+}
+
+function nativeIndexReadyForAutomaticRead(result) {
+  return result?.operation === 'index.status'
+    && result.state === 'ready'
+    && result.freshness === 'current'
+    && result.health?.status === 'ready'
+    && result.health.repairRequired === false
+    && Number.isSafeInteger(result.activeGeneration)
+    && result.activeGeneration >= 1
+    && result.safeguards?.readOnly === true
+    && result.safeguards.localFilesWritten === 0;
+}
+
+function nativeAutomaticFallbackReason(result) {
+  if (result?.state === 'absent') return 'native_index_absent';
+  if (result?.state === 'stale') return 'native_index_stale';
+  if (result?.state === 'partial') return 'native_index_partial';
+  return 'native_index_invalid';
 }
 
 function nativeStructuralNode(item) {

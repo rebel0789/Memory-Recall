@@ -92,6 +92,17 @@ MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
 The native MCP preview never builds, refreshes, repairs, or writes governed
 memory. Normal MCP startup remains on the JS engine.
 
+To opt into freshness-gated per-read selection while keeping a bounded fallback:
+
+```bash
+MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
+  npm run recall -- mcp server --read-only --engine auto --root . --stdio
+```
+
+Auto mode uses the native index only when status is healthy, ready, current,
+and committed. Every other status is labeled and served by the bounded JS scan.
+It does not build, refresh, or repair the index.
+
 ## Verify from a source checkout
 
 ```bash

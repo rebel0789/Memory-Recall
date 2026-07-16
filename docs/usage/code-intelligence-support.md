@@ -47,8 +47,10 @@ remain unproven.
 Graph commands without `--engine`, the web workbench, and normal MCP startup
 continue to use the Node path. An MCP server started with both `--read-only` and
 `--engine native-preview` may query a prebuilt SQLite index; it never builds,
-refreshes, or repairs one. Other languages remain experimental and are not
-promoted as public graph support.
+refreshes, or repairs one. Explicit MCP `--engine auto` checks that prebuilt
+index before each structural read, uses it only while it is healthy and current,
+and otherwise reports a bounded JS fallback reason. Other languages remain
+experimental and are not promoted as public graph support.
 
 This boundary changes only when implementation, fixtures, pinned repository
 results, package verification, and public documentation land together.

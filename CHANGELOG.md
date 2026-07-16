@@ -12,6 +12,7 @@
 - Added an isolated SQLite native source index with generation commits, incremental refresh, bounded queries, doctor/confirm-gated repair, and a no-write MCP preview. A reviewed integration fixture proves build, query, and exact no-op refresh behavior for all 14 Tier 1 languages.
 - Added deterministic bounded communities and evidence-backed entry-to-sink processes to the existing native `repo.architecture` MCP result, plus a reproducible Phase 4 correctness and query-deadline receipt. The MCP surface remains twelve read-only tools and no parity claim is made.
 - Added five optional native-platform package templates, exact npm/Cargo/binary version alignment, a verified platform-binary resolver, and an offline macOS arm64 installed-package gate covering all fourteen Tier 1 parsers and the SQLite lifecycle without a compiler. A five-runner CI matrix now defines the same exact-tarball gate for the remaining targets, but those hosted runs, signing, and publication remain unproven; JS remains the public default.
+- Added explicit MCP `--engine auto` selection. Each structural read uses the native SQLite index only while it is healthy and current; otherwise it returns a reason-labeled bounded JS result without writing or repairing the index. Omitting `--engine` still selects JS.
 
 ### Fixed
 
@@ -26,7 +27,7 @@
 - Token Saver and handoff measurement reuse the already-built context pack for their real MCP stdio readback, avoiding a second repository scan while preserving fingerprint verification.
 - Native changed-file refresh now parses only the bounded invalidation closure plus dependency context. The clean Phase 3 receipt covers 781 files across one dependency fixture and three pinned repository scopes; it keeps scale, competitor, parity, and leadership claims false.
 - Tier 1 documentation now names the 46 capability rows that meet the sampled Phase 2 floor and the 108 rows that remain unmeasured or not applicable. Every language remains overall unmeasured, the JS engine remains the public default, and no competitor, parity, leadership, multi-repository, or scale claim is made.
-- The npm package excludes checkout-only Tier 1 audit scripts, the nested Rust build guide, and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
+- The npm package excludes checkout-only Tier 1 audit and real-world benchmark scripts, the nested Rust build guide, and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
 
 ## [1.1.0] — 2026-07-15
 

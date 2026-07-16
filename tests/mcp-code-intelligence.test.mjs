@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -238,6 +238,183 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   assert.equal(statSync(indexPath).mtimeMs, indexMtimeBefore);
   assert.deepEqual(readFileSync(memoryPath), memoryBefore);
   assert.equal(result.stdout.includes(root), false);
+});
+
+test('explicit auto MCP selects a current native index and preserves it', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-auto-current-'));
+  writeFileSync(path.join(root, 'main.ts'), 'export function autoNativeEntry(){ return 1; }\n');
+  writeFileSync(path.join(root, 'worker.py'), 'def auto_python_entry():\n    return 2\n');
+  writeFileSync(path.join(root, 'worker.go'), 'package worker\nfunc AutoGoEntry() int { return 3 }\n');
+  const binary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+  const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: binary };
+  const built = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'graph', 'index', '--write', '--engine', 'native-preview',
+    '--languages', 'typescript,python,go', '--root', root, '--format', 'json'
+  ], { encoding: 'utf8', env });
+  assert.equal(built.status, 0, built.stderr);
+  const indexPath = path.join(root, '.local', 'source-index', 'index.v1.sqlite');
+  const before = readFileSync(indexPath);
+  const beforeMtime = statSync(indexPath).mtimeMs;
+  const input = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'repo.index_status', arguments: {} } },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'autoNativeEntry' } } },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 10 } } },
+    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'autoNativeEntry' } } },
+    { jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'code.trace', arguments: { symbol: 'autoNativeEntry' } } },
+    { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'code.dependencies', arguments: { query: 'main.ts' } } },
+    { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'code.routes', arguments: {} } },
+    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'repo.map', arguments: { query: 'autoNativeEntry', changed: ['main.ts'] } } },
+    { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['main.ts'] } } },
+    { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'auto_python_entry' } } },
+    { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'AutoGoEntry' } } }
+  ].map((message) => JSON.stringify(message)).join('\n');
+  const result = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'auto', '--root', root, '--stdio'
+  ], { encoding: 'utf8', env, input });
+  assert.equal(result.status, 0, result.stderr);
+  const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
+  const payload = (id) => JSON.parse(responses.find((entry) => entry.id === id).result.content[0].text);
+  assert.equal(payload(2).data.status, 'ready');
+  assert.equal(payload(2).data.source.kind, 'native-persistent-index-preview');
+  assert.equal(payload(3).data.source.kind, 'native-persistent-index-preview');
+  assert(payload(3).data.results.some((item) => item.label === 'autoNativeEntry'));
+  assert(payload(11).data.results.some((item) => item.label === 'auto_python_entry'));
+  assert(payload(12).data.results.some((item) => item.label === 'AutoGoEntry'));
+  for (let id = 4; id <= 10; id += 1) {
+    assert.equal(payload(id).data.source.kind, 'native-persistent-index-preview', `tool response ${id}`);
+  }
+  assert.deepEqual(readFileSync(indexPath), before);
+  assert.equal(statSync(indexPath).mtimeMs, beforeMtime);
+});
+
+test('explicit auto MCP falls back to a fresh JS scan when the native index is stale', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-auto-stale-'));
+  const sourcePath = path.join(root, 'main.ts');
+  writeFileSync(sourcePath, 'export function staleNativeEntry(){ return 1; }\n');
+  const binary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+  const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: binary };
+  const built = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'graph', 'index', '--write', '--engine', 'native-preview',
+    '--languages', 'typescript', '--root', root, '--format', 'json'
+  ], { encoding: 'utf8', env });
+  assert.equal(built.status, 0, built.stderr);
+  const indexPath = path.join(root, '.local', 'source-index', 'index.v1.sqlite');
+  const before = readFileSync(indexPath);
+  const beforeMtime = statSync(indexPath).mtimeMs;
+  writeFileSync(sourcePath, 'export function freshJsFallback(){ return 2; }\n');
+  const input = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'repo.index_status', arguments: {} } },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'freshJsFallback' } } },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 10 } } },
+    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'freshJsFallback' } } },
+    { jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'code.trace', arguments: { symbol: 'freshJsFallback' } } },
+    { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'code.dependencies', arguments: { query: 'main.ts' } } },
+    { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'code.routes', arguments: {} } },
+    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'repo.map', arguments: { query: 'freshJsFallback', changed: ['main.ts'] } } },
+    { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['main.ts'] } } }
+  ].map((message) => JSON.stringify(message)).join('\n');
+  const result = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'auto', '--root', root, '--stdio'
+  ], { encoding: 'utf8', env, input });
+  assert.equal(result.status, 0, result.stderr);
+  const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
+  const payload = (id) => JSON.parse(responses.find((entry) => entry.id === id).result.content[0].text);
+  assert.equal(payload(2).data.status, 'stale');
+  assert.equal(payload(2).data.automaticSelection.engine, 'js');
+  assert.equal(payload(2).data.automaticSelection.reason, 'native_index_stale');
+  assert(payload(3).data.results.some((item) => item.label === 'freshJsFallback'));
+  for (let id = 3; id <= 10; id += 1) {
+    assert.notEqual(payload(id).data.source.kind, 'native-persistent-index-preview', `tool response ${id}`);
+    assert.equal(payload(id).data.source.reason, 'native_index_stale', `tool response ${id}`);
+  }
+  assert.deepEqual(readFileSync(indexPath), before);
+  assert.equal(statSync(indexPath).mtimeMs, beforeMtime);
+  assert.equal(existsSync(`${indexPath}-wal`), false);
+  assert.equal(existsSync(`${indexPath}-shm`), false);
+});
+
+test('explicit auto MCP uses bounded JS when the native binary or index is unavailable', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-auto-unavailable-'));
+  writeFileSync(path.join(root, 'index.ts'), 'export function unavailableNativeFallback(){ return true; }\n');
+  const input = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'unavailableNativeFallback' } } }
+  ].map((message) => JSON.stringify(message)).join('\n');
+  const result = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'auto', '--root', root, '--stdio'
+  ], {
+    encoding: 'utf8',
+    input,
+    env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: path.join(root, 'missing-native-binary') }
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const response = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line)).find((entry) => entry.id === 2);
+  const payload = JSON.parse(response.result.content[0].text);
+  assert.equal(payload.data.source.reason, 'native_unavailable');
+  assert(payload.data.results.some((item) => item.label === 'unavailableNativeFallback'));
+  const binary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+  const absent = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'auto', '--root', root, '--stdio'
+  ], { encoding: 'utf8', input, env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: binary } });
+  assert.equal(absent.status, 0, absent.stderr);
+  const absentResponse = absent.stdout.trim().split(/\n/u).map((line) => JSON.parse(line)).find((entry) => entry.id === 2);
+  const absentPayload = JSON.parse(absentResponse.result.content[0].text);
+  assert.equal(absentPayload.data.source.reason, 'native_index_absent');
+  assert(absentPayload.data.results.some((item) => item.label === 'unavailableNativeFallback'));
+});
+
+test('explicit auto MCP rechecks freshness between structural calls', async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-auto-recheck-'));
+  const sourcePath = path.join(root, 'main.ts');
+  writeFileSync(sourcePath, 'export function currentNativeResult(){ return 1; }\n');
+  const binary = path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf');
+  const env = { ...process.env, MEMORY_RECALL_NATIVE_BINARY: binary };
+  const built = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'graph', 'index', '--write', '--engine', 'native-preview',
+    '--languages', 'typescript', '--root', root, '--format', 'json'
+  ], { encoding: 'utf8', env });
+  assert.equal(built.status, 0, built.stderr);
+  const child = spawn(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'auto', '--root', root, '--stdio'
+  ], { cwd: path.resolve('.'), env, stdio: ['pipe', 'pipe', 'pipe'] });
+  t.after(() => child.kill('SIGTERM'));
+  let stderr = '';
+  let stdoutBuffer = '';
+  const pending = new Map();
+  child.stderr.on('data', (chunk) => { stderr += chunk; });
+  child.stdout.on('data', (chunk) => {
+    stdoutBuffer += chunk;
+    const lines = stdoutBuffer.split(/\r?\n/u);
+    stdoutBuffer = lines.pop() ?? '';
+    for (const line of lines.filter(Boolean)) {
+      const response = JSON.parse(line);
+      pending.get(response.id)?.(response);
+      pending.delete(response.id);
+    }
+  });
+  const request = (message) => new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      pending.delete(message.id);
+      reject(new Error(`MCP response timed out; stderr=${stderr}`));
+    }, 2000);
+    pending.set(message.id, (response) => {
+      clearTimeout(timeout);
+      resolve(response);
+    });
+    child.stdin.write(`${JSON.stringify(message)}\n`);
+  });
+  await request({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+  const current = await request({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'currentNativeResult' } } });
+  const currentPayload = JSON.parse(current.result.content[0].text);
+  assert.equal(currentPayload.data.source.kind, 'native-persistent-index-preview');
+  writeFileSync(sourcePath, 'export function freshJsAfterMutation(){ return 2; }\n');
+  const stale = await request({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'freshJsAfterMutation' } } });
+  const stalePayload = JSON.parse(stale.result.content[0].text);
+  assert.equal(stalePayload.data.source.reason, 'native_index_stale');
+  assert(stalePayload.data.results.some((item) => item.label === 'freshJsAfterMutation'));
+  child.stdin.end();
 });
 
 test('MCP keeps the JS compatibility engine and never starts native preview implicitly', () => {

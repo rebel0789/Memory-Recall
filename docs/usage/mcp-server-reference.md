@@ -92,6 +92,19 @@ queries that prebuilt index and fails clearly if it is unavailable; it never
 builds, refreshes, repairs, or falls back to the JS engine. Normal MCP startup
 continues to use the JS index behavior above.
 
+Explicit automatic selection is available without changing that default:
+
+```bash
+recall mcp server --read-only --engine auto --root . --stdio
+```
+
+Before each structural tool call, auto mode checks the native binary and the
+prebuilt index. It reads native results only when the index is healthy, ready,
+current, and has a committed generation. Absent, stale, partial, invalid, or
+unavailable native state uses the fresh bounded JS scan and reports the reason.
+Auto mode never builds, refreshes, or repairs an index, and a native query error
+after selection is returned instead of silently mixing engines.
+
 In native preview, `repo.architecture` derives groups with
 `label-propagation-v1` and entry-to-sink paths with `entry-path-v1`. Each
 process references returned node and relationship IDs. Reads remain capped,
