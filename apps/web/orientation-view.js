@@ -13,7 +13,7 @@ export function renderOrientation(model) {
   const coverageLabel = coverageText(model.coverage);
   const architecture = groups.length
     ? `<div class="architecture-board" style="--orientation-layers:${maxLayer + 1}">${groups.map((group) => groupButton(group, model.selectedGroupId)).join('')}${renderRelations(model.relations, groups)}</div>${architectureOutline(groups, model.selectedGroupId)}`
-    : statePanel('empty', 'No supported groups', 'The scan did not find JavaScript or TypeScript groups inside its current bounds.');
+    : statePanel('empty', 'No supported groups', 'The current index did not return any repository groups inside its bounds.');
 
   return `<section class="orientation-workbench" aria-labelledby="orientation-title">
     <header class="orientation-heading">
@@ -101,7 +101,7 @@ function repositoryLine(model) {
 }
 
 function selectedGroupCopy(group) {
-  return group ? `${group.prefix}. ${group.fileCount} files and ${group.symbolCount} symbols.` : 'Bounded JavaScript and TypeScript structure.';
+  return group ? `${group.prefix}. ${group.fileCount} files and ${group.symbolCount} symbols.` : 'Bounded local index structure.';
 }
 
 function titleCase(value) {

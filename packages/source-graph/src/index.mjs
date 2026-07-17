@@ -17,6 +17,15 @@ import { buildSourceGraphFocus, buildSourceGraphOrientation } from './orientatio
 
 export { buildSourceGraphFocus, buildSourceGraphOrientation };
 export { compareSourceGraphCompatibility, translateCodeIntelligenceGraph } from './native-compatibility.mjs';
+export {
+  NATIVE_INDEX_LANGUAGES,
+  buildNativeIndexArchitecture,
+  buildNativeIndexSourceGraphPreview,
+  nativeIndexReadyForAutomaticRead,
+  nativeIndexSource,
+  nativeStructuralNode,
+  nativeStructuralRelationship
+} from './native-index-projection.mjs';
 export { createSourceGraphSnapshotService } from './snapshot-service.mjs';
 export {
   DEFAULT_SOURCE_GRAPH_INDEX_PATH,

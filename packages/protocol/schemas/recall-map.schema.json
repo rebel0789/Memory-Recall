@@ -152,9 +152,9 @@
             "languages": {
               "type": "array",
               "minItems": 2,
-              "maxItems": 2,
+              "maxItems": 14,
               "uniqueItems": true,
-              "items": { "enum": ["javascript", "typescript"] }
+              "items": { "enum": ["c", "cpp", "csharp", "dart", "go", "java", "javascript", "kotlin", "php", "python", "ruby", "rust", "swift", "typescript"] }
             },
             "coverage": {
               "type": "object",

@@ -66,7 +66,7 @@ export function renderSourceMap({ state: value = {}, report = null, error = null
   const result = error
     ? renderApiErrorPanel('Map request failed', error)
     : loading
-      ? statePanel('loading', 'Reading repository map', 'Loading bounded source metadata from the local API.')
+      ? statePanel('loading', 'Reading repository map', 'Loading bounded source metadata from the local index.')
       : report
         ? renderMapResult(report, state)
         : statePanel('empty', 'Map not loaded', 'Run the map to inspect bounded repository structure.');
@@ -138,7 +138,7 @@ function renderMapForm(state) {
         <label class="field field-compact"><span>Limit</span><input name="limit" type="number" min="1" max="100" value="${state.limit}"></label>
       </div>
     </details>
-    <div class="map-query-actions"><button class="button primary" type="submit">Search code</button><button class="button quiet" type="button" data-action="refresh-source-map">Refresh scan</button><span>No model, network, or external writes</span></div>
+    <div class="map-query-actions"><button class="button primary" type="submit">Search code</button><button class="button quiet" type="button" data-action="refresh-source-map">Reload map</button><span>No model, network, or external writes</span></div>
   </form></section>`;
 }
 
@@ -165,7 +165,7 @@ function renderMapResult(report, state) {
 }
 
 function renderArchitecture(groups, relations) {
-  if (!groups.length) return statePanel('empty', 'No supported groups', 'No JavaScript or TypeScript groups were represented inside the current scan bounds.');
+  if (!groups.length) return statePanel('empty', 'No supported groups', 'No repository groups were represented inside the current index bounds.');
   return `<div class="map-graph-toolbar"><div class="map-focus-summary"><strong>${number(groups.length)} groups</strong><span>${number(relations.length)} connections</span></div><div><button class="button secondary" type="button" data-graph-action="fit">Fit view</button><button class="button quiet" type="button" data-graph-action="reset">Reset view</button></div></div><p class="map-graph-error" data-graph-error hidden></p><div class="source-map-canvas-wrap"><canvas id="source-map-canvas" width="960" height="560" role="img" aria-label="Interactive repository architecture graph"></canvas></div>`;
 }
 

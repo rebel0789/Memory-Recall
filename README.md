@@ -60,9 +60,9 @@ for preserved legacy names and URIs.
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
 | Fast local code intelligence | Auto-selected Rust reads from a verified platform package when a healthy current index exists, with a labeled bounded JS/TS fallback; the installed compiler-free Rust path is proven locally across all 14 Tier 1 fixtures, while full language and cross-platform gates remain open. |
-| Larger JS/TS repositories | Explicit local index with incremental refresh and watch mode; MCP reads it without writing. |
+| Larger repositories | Explicit local index with incremental refresh and watch mode; MCP and the web workbench read it without writing. |
 | Two-repository Go calls | Experimental Rust path resolves an exact Go module import, traces one entry-to-service call, and reports reverse impact with source evidence. |
-| First look at a repository | Recall Map shows bounded source coverage, entry points, changed impact, and separate memory status without writing. |
+| First look at a repository | The web Recall Map prefers a healthy current Rust index, otherwise labels the bounded JS/TS fallback; both paths show coverage, entry points, changed impact, and separate memory status without writing. |
 | Long context pressure | Repeat MCP pulls use cursors and deltas instead of resending the same profile. |
 | Trust | Dry-run first, confirm-gated writes, local-only storage, and no automatic transcript import. |
 | Codebase context | Source graph hints, locator-only context packs, and manifest-backed selection. |

@@ -4,6 +4,7 @@
 
 ### Added
 
+- Connected the loopback Control API and web Recall Map to healthy current Rust indexes. Browser reads stay bounded and read-only, preserve native coverage diagnostics, and fall back to the labeled JS/TS scanner only when the native index is unavailable.
 - Approved the Rust/Node production-engine boundary, added provider-neutral graph and language-evidence contracts, pinned a 42-repository Tier 1 benchmark corpus, and recorded a clean Phase 0 baseline. The baseline makes no competitor-parity claim.
 - Added explicit `native-preview` and `compatibility` modes to graph read commands through a versioned, bounded Rust provider. The JS engine remains the default; MCP uses it unless the server is started with the explicit read-only native preview.
 - Added isolated packed-package proof and a reproducible Phase 1 compatibility receipt across JS/TS fixtures and two exact-commit repositories. The receipt records current import and call gaps and makes no accuracy, parity, or leadership claim.

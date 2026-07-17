@@ -61,7 +61,7 @@ test('Map heading and actions avoid template-like chrome', () => {
   const html = renderSourceMap({ state: parseMapUrl('/map?query=router'), report: mapPreviewFixture() });
   assert.doesNotMatch(html, /class="eyebrow"/);
   assert.match(html, /class="button primary" type="submit">Search code/);
-  assert.match(html, /class="button quiet" type="button" data-action="refresh-source-map">Refresh scan/);
+  assert.match(html, /class="button quiet" type="button" data-action="refresh-source-map">Reload map/);
   assert.match(html, /data-graph-action="fit">Fit selection/);
   assert.match(html, /class="button quiet" type="button" data-graph-action="reset">Reset view/);
 });

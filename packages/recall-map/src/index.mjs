@@ -10,6 +10,7 @@ import { inspectRepositoryIdentity } from '../../harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
+  NATIVE_INDEX_LANGUAGES,
   buildSourceGraphPreview
 } from '../../source-graph/src/index.mjs';
 
@@ -61,6 +62,7 @@ export async function buildRecallMap({
   clock = () => new Date().toISOString(),
   sqliteLocator = SQLITE_LOCATOR,
   sourceGraphSnapshotService = null,
+  sourceGraphPreviewBuilder = buildSourceGraphPreview,
   refreshSourceGraph = false
 } = {}) {
   const requestedRoot = normalizeRoot(root);
@@ -81,7 +83,7 @@ export async function buildRecallMap({
   const requestedLimit = normalizeMapBoundedInteger(limit, DEFAULT_MAP_LIMIT, 1, MAX_MAP_REQUEST_LIMIT, 'recall_map_limit_invalid');
   const safeLimit = Math.min(requestedLimit, MAX_ARCHITECTURE_ITEMS);
   const sqlitePath = resolveSqlitePath(workspace.root, sqliteLocator);
-  const preview = await buildSourceGraphPreview({
+  const preview = await sourceGraphPreviewBuilder({
     root: workspace.status === 'available' ? workspace.root : requestedRoot,
     workspaceId: safeWorkspaceId,
     changedLocators,
@@ -275,6 +277,9 @@ function summarizeSupport(preview, memory) {
   const unavailable = preview.snapshot?.status === 'unavailable'
     || diagnostics.some((item) => item.code?.startsWith('source_graph_unavailable'));
   const summary = preview.graph?.summary ?? {};
+  const native = String(preview.graph?.parserVersion ?? '').startsWith('memory-recall-native-');
+  const representedFileCount = boundedInteger(summary.coverage?.representedFileCount ?? summary.fileCount, 0, DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES);
+  const omittedFileCount = boundedInteger(summary.coverage?.skippedFileCount, 0, DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES);
   const coverageStatus = unavailable
     ? 'unavailable'
     : preview.snapshot?.status === 'stale'
@@ -283,16 +288,16 @@ function summarizeSupport(preview, memory) {
   return {
     sourceGraph: {
       status: unavailable ? 'unavailable' : 'implemented',
-      languages: ['javascript', 'typescript'],
+      languages: native ? NATIVE_INDEX_LANGUAGES : ['javascript', 'typescript'],
       coverage: {
         status: coverageStatus,
-        analyzedFileCount: boundedInteger(summary.fileCount, 0, DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES),
-        maxFiles: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
+        analyzedFileCount: representedFileCount,
+        maxFiles: native ? Math.max(1, representedFileCount + omittedFileCount) : DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
         maxFileBytes: DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
         diagnosticCount: boundedInteger(diagnostics.length, 0, 5000),
         reasonCodes: unavailable
           ? ['source_graph_unavailable']
-          : ['static_js_ts_only', 'bounded_file_scan']
+          : native ? ['native_persistent_index', 'bounded_index_read'] : ['static_js_ts_only', 'bounded_file_scan']
       },
       snapshot: summarizeSnapshot(preview.snapshot)
     },

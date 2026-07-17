@@ -7,14 +7,17 @@ import { FileStateStore } from '../../../packages/storage/src/file-store.mjs';
 import { LocalIdentityStore, hashOpaqueSecret } from '../../../providers/native/identity-local/src/index.mjs';
 import { FilesystemContextManifestRepository } from '../../../providers/native/context-manifest-local/src/index.mjs';
 import { SQLiteMemoryProvider } from '../../../providers/native/memory-sqlite/src/index.mjs';
+import { RustCodeIntelligenceProvider } from '../../../providers/native/code-intelligence-rust/src/index.mjs';
 import { runContentIntelligence } from '../../../workflows/content-intelligence/runner.mjs';
 import { buildCompressedProfileContextReport, compileAndPersistContext, compileContext as defaultCompileContext } from '../../../packages/context-compiler/src/index.mjs';
 import { buildContextPack, buildContextPackReceiveReport, buildContextPackUsePlan, buildContextProfileDeliveryPayloadFromReport, buildHarnessContextPreview, buildHarnessSetupReport, buildLoopPlan, buildMemoryProposalPreflightFromConfig, buildRealisticContextProfileSavingsReport, detectGitChangedLocators, pinContextPackArtifacts, REALISTIC_SAVINGS_OBJECTIVE, REALISTIC_SAVINGS_STEP, renderContextPackMarkdown, verifyContextPackRegistry } from '../../../packages/harness-context/src/index.mjs';
 import {
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES,
   DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES,
+  buildNativeIndexSourceGraphPreview,
   buildSourceGraphPreview,
-  createSourceGraphSnapshotService
+  createSourceGraphSnapshotService,
+  nativeIndexReadyForAutomaticRead
 } from '../../../packages/source-graph/src/index.mjs';
 import { buildRecallMap } from '../../../packages/recall-map/src/index.mjs';
 import { buildContextPackReadbackProof } from '../../../packages/protocol-bridges/src/index.mjs';
@@ -676,6 +679,7 @@ export function createControlApiServer({
   memoryDatabasePath = path.resolve(sourceGraphRoot, '.local/memory.sqlite'),
   mcpStatsPath = path.resolve(sourceGraphRoot, '.local/mcp-stats.jsonl'),
   sourceGraphSnapshotService = null,
+  codeIntelligenceProvider = null,
   identityStore = createUnavailableIdentityStore(),
   loginRateLimiter = createLoginRateLimiter({ clock: () => Date.now() }),
   recallMapRateLimiter = createLoginRateLimiter({ clock: () => Date.now(), limit: 60 }),
@@ -698,6 +702,26 @@ export function createControlApiServer({
   const streams = new Set();
   const sourceSnapshots = sourceGraphSnapshotService ?? createSourceGraphSnapshotService();
   const ownsSourceSnapshots = !sourceGraphSnapshotService;
+  const buildControlSourceGraphPreview = async (options) => {
+    if (codeIntelligenceProvider) {
+      try {
+        const status = await codeIntelligenceProvider.indexStatus({
+          root: options.root,
+          workspaceId: options.workspaceId
+        });
+        if (nativeIndexReadyForAutomaticRead(status)) {
+          return buildNativeIndexSourceGraphPreview({
+            ...options,
+            provider: codeIntelligenceProvider,
+            status
+          });
+        }
+      } catch {
+        // The frozen JS scanner remains the bounded fallback until packaged native coverage is universal.
+      }
+    }
+    return buildSourceGraphPreview(options);
+  };
 
   const server = http.createServer(async (request, response) => {
     const started = Date.now();
@@ -821,6 +845,7 @@ export function createControlApiServer({
           changedLocators: context.query.changed ? [context.query.changed] : [],
           query: context.query.query ?? '',
           sourceGraphSnapshotService: sourceSnapshots,
+          sourceGraphPreviewBuilder: buildControlSourceGraphPreview,
           clock
         });
       case 'postRecallMap': {
@@ -840,6 +865,7 @@ export function createControlApiServer({
           changedLocators: context.body.changedLocators,
           query: context.body.query ?? '',
           sourceGraphSnapshotService: sourceSnapshots,
+          sourceGraphPreviewBuilder: buildControlSourceGraphPreview,
           refreshSourceGraph: context.body.refresh === true,
           clock
         });
@@ -1032,7 +1058,7 @@ export function createControlApiServer({
           clock
         });
       case 'previewContextGraph':
-        return buildSourceGraphPreview({
+        return buildControlSourceGraphPreview({
           root: sourceGraphRoot,
           workspaceId: context.workspaceId,
           query: context.body.query ?? '',
@@ -1788,7 +1814,8 @@ async function main() {
     sourceGraphRoot,
     harnessSetupHome: process.env.HOME ?? sourceGraphRoot,
     memoryDatabasePath: path.join(dataDir, 'memory.sqlite'),
-    mcpStatsPath: path.join(dataDir, 'mcp-stats.jsonl')
+    mcpStatsPath: path.join(dataDir, 'mcp-stats.jsonl'),
+    codeIntelligenceProvider: new RustCodeIntelligenceProvider()
   });
   api.server.listen(port, host, () => {
     console.log(`Memory Recall local workspace: http://${host}:${port}`);

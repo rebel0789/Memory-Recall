@@ -39,7 +39,7 @@ export function buildOrientationModel({
     relations: Object.freeze([]),
     startHere: Object.freeze([])
   });
-  if (!report) return frozenState('empty', 'Repository not scanned', 'Scan the repository to build a bounded local map.');
+  if (!report) return frozenState('empty', 'Repository index unavailable', 'Build the local index, then reload this page.');
 
   const architecture = objectValue(report.architecture);
   const repository = normalizeRepository(report.repository);
@@ -73,6 +73,7 @@ export function buildOrientationModel({
         : 'success';
   const commands = normalizeCommands(report);
   const recentActivity = normalizeActivity(report.memory);
+  const nativeIndex = arrayValue(sourceGraph.languages).length > 2;
   const trust = Object.freeze({
     memory: Object.freeze({
       status: memory.pendingCount > 0 ? 'pending' : memory.staleCount > 0 ? 'stale' : memory.status === 'available' ? 'current' : memory.status,
@@ -108,8 +109,8 @@ export function buildOrientationModel({
     index: Object.freeze({
       status: safeText(sourceGraph.status || 'unavailable', 32),
       kind: sourceGraph.status === 'implemented' ? 'success' : 'error',
-      label: sourceGraph.status === 'implemented' ? 'JS/TS map indexed' : 'Source graph unavailable',
-      copy: sourceGraph.status === 'implemented' ? 'Bounded static metadata only; raw source bodies stay local.' : 'The local source graph could not be read.'
+      label: sourceGraph.status === 'implemented' ? (nativeIndex ? 'Native index ready' : 'JS/TS map indexed') : 'Source graph unavailable',
+      copy: sourceGraph.status === 'implemented' ? 'Bounded local metadata only; raw source bodies stay local.' : 'The local source graph could not be read.'
     }),
     entryPoints: Object.freeze(arrayValue(architecture.entryPoints).map(normalizeStartItem)),
     hotspots: Object.freeze(arrayValue(architecture.hotspots).map(normalizeStartItem)),

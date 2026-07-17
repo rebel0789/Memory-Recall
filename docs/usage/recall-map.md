@@ -1,8 +1,10 @@
 # Recall Map
 
 `recall map` is the first explicit read-only command for understanding a local
-repository. It combines the implemented bounded JavaScript/TypeScript static
-source graph with the status of the governed local SQLite memory store.
+repository. The command uses the bounded JavaScript/TypeScript compatibility
+graph. The local web workbench prefers a healthy current Rust index and uses
+the compatibility graph only when that index is unavailable. Both paths keep
+source metadata separate from the governed local SQLite memory store.
 
 Run it from the repository you want to inspect:
 
@@ -71,11 +73,12 @@ Partial reports include reason codes when file, node, or edge limits omit
 candidates. A stale report contains the last valid graph after a refresh fails;
 it is not presented as current or empty.
 
-The local Control API reuses one in-process source snapshot for Recall Map and
-source preview requests. Supported source and ignore-file changes invalidate
-the snapshot automatically. Environments without recursive file watching use
-a bounded metadata scan. A POST request can set `refresh: true` to request an
-explicit refresh; GET remains cache-aware and read-only.
+The local Control API reads a healthy current Rust index for Recall Map and
+source preview requests without changing its SQLite bytes or timestamps. If no
+current index exists, it reuses one bounded in-process JS/TS snapshot. A POST
+request can set `refresh: true` to reload the map, but it never builds or
+refreshes the Rust index. Index writes remain explicit CLI operations. GET is
+cache-aware and read-only.
 
 When `.local/memory.sqlite` is absent, the report remains read-only and reports
 the memory store as missing. It never creates a database just to produce a map.

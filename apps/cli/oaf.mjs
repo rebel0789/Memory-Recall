@@ -79,12 +79,17 @@ import {
   buildCodeRoutesIntelligence,
   buildCodeSearchIntelligence,
   buildCodeTraceIntelligence,
+  buildNativeIndexArchitecture,
   buildPersistentSourceGraphIndex,
   buildSourceGraphIntelligence,
   readPersistentSourceGraphIndexStatus,
   readSourceGraphIndexStatus,
   refreshPersistentSourceGraphIndex,
-  buildSourceGraphPreview
+  buildSourceGraphPreview,
+  nativeIndexReadyForAutomaticRead,
+  nativeIndexSource,
+  nativeStructuralNode,
+  nativeStructuralRelationship
 } from '../../packages/source-graph/src/index.mjs';
 
 const CLI_PATH = fileURLToPath(import.meta.url);
@@ -6995,7 +7000,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
           ]);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'repo.architecture', workspaceId, generatedAt: fixedNow(),
-            data: nativeArchitectureData(communities, processes, limit)
+            data: buildNativeIndexArchitecture(communities, processes, limit)
           }));
         }
         const intelligence = await loadIntelligence();
@@ -8366,18 +8371,6 @@ function mcpStructuralPayload({ command, workspaceId, generatedAt, data }) {
   };
 }
 
-function nativeIndexSource(result) {
-  return {
-    kind: 'native-persistent-index-preview',
-    engine: 'memory-recall-native',
-    indexLocator: result.indexLocator,
-    activeGeneration: result.activeGeneration,
-    freshness: result.freshness,
-    previewOnly: true,
-    publicDefaultChanged: false
-  };
-}
-
 function nativeRepositorySource(result) {
   return {
     kind: 'native-persistent-repository-index',
@@ -8429,50 +8422,11 @@ function nativeCrossRepositoryData(result, crossRepository) {
   };
 }
 
-function nativeIndexReadyForAutomaticRead(result) {
-  return result?.operation === 'index.status'
-    && result.state === 'ready'
-    && result.freshness === 'current'
-    && result.health?.status === 'ready'
-    && result.health.repairRequired === false
-    && Number.isSafeInteger(result.activeGeneration)
-    && result.activeGeneration >= 1
-    && result.safeguards?.readOnly === true
-    && result.safeguards.localFilesWritten === 0;
-}
-
 function nativeAutomaticFallbackReason(result) {
   if (result?.state === 'absent') return 'native_index_absent';
   if (result?.state === 'stale') return 'native_index_stale';
   if (result?.state === 'partial') return 'native_index_partial';
   return 'native_index_invalid';
-}
-
-function nativeStructuralNode(item) {
-  return {
-    id: item.id,
-    kind: item.kind,
-    label: item.label,
-    locator: item.locator,
-    confidence: item.confidence,
-    generation: item.generation
-  };
-}
-
-function nativeStructuralRelationship(item) {
-  return {
-    id: item.id,
-    kind: item.kind,
-    fromNodeId: item.fromNodeId,
-    toNodeId: item.toNodeId,
-    locator: item.locator,
-    confidence: item.confidence,
-    resolution: item.resolution,
-    resolver: item.resolver,
-    resolverVersion: item.resolverVersion,
-    generation: item.generation,
-    stale: item.stale
-  };
 }
 
 function nativeNodeMatchesKinds(item, requestedKinds) {
@@ -8499,84 +8453,6 @@ function nativeIndexStatusData(result) {
     health: result.health,
     source: nativeIndexSource(result)
   };
-}
-
-function nativeArchitectureData(communityResult, processResult, limit) {
-  const processNodes = processResult.results.map(nativeStructuralNode);
-  const communityNodes = communityResult.results.map(nativeStructuralNode);
-  const nodes = uniqueById([...processNodes, ...communityNodes], 100);
-  const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const processRelationships = processResult.relationships.map(nativeStructuralRelationship);
-  const communityRelationships = communityResult.relationships.map(nativeStructuralRelationship);
-  const relationships = uniqueById([...processRelationships, ...communityRelationships], 100);
-  const groups = communityResult.communities.slice(0, limit).map((community) => ({
-    id: community.id,
-    label: community.label,
-    pathPrefix: community.pathPrefix,
-    nodeCount: community.representedNodeCount,
-    relationshipCount: community.representedRelationshipCount,
-    sampleNodeIds: community.nodeIds.filter((id) => nodeById.has(id)).slice(0, 3),
-    algorithmVersion: community.algorithmVersion,
-    truncated: community.truncated
-  }));
-  const processes = processResult.processes.slice(0, limit).map((process) => ({
-    id: process.id,
-    label: process.label,
-    entryNodeId: process.entryNodeId,
-    entryRelationshipId: process.entryRelationshipId,
-    sinkNodeId: process.sinkNodeId,
-    sinkKind: process.sinkKind,
-    nodeIds: process.nodeIds,
-    relationshipIds: process.relationshipIds,
-    confidence: process.confidence,
-    algorithmVersion: process.algorithmVersion,
-    truncated: process.truncated
-  }));
-  const entryPoints = uniqueById(
-    processes.map((process) => nodeById.get(process.entryNodeId)).filter(Boolean),
-    limit
-  );
-  const degree = new Map();
-  for (const relationship of communityRelationships) {
-    degree.set(relationship.fromNodeId, (degree.get(relationship.fromNodeId) ?? 0) + 1);
-    degree.set(relationship.toNodeId, (degree.get(relationship.toNodeId) ?? 0) + 1);
-  }
-  const hotspots = communityNodes
-    .filter((node) => (degree.get(node.id) ?? 0) > 0)
-    .sort((left, right) => (degree.get(right.id) ?? 0) - (degree.get(left.id) ?? 0) || left.id.localeCompare(right.id))
-    .slice(0, limit)
-    .map((node) => ({ ...node, relationshipCount: degree.get(node.id) }));
-  return {
-    schemaVersion: '1.0.0',
-    retrievalMethod: 'native_index_architecture',
-    summary: {
-      representedNodeCount: nodes.length,
-      representedRelationshipCount: relationships.length,
-      totalNodeCount: communityResult.summary.nodeCount,
-      fileCount: communityResult.summary.fileCount,
-      edgeCount: communityResult.summary.edgeCount,
-      communityCount: groups.length,
-      processCount: processes.length
-    },
-    groups,
-    entryPoints,
-    hotspots,
-    processes,
-    nodes,
-    relationships,
-    truncated: groups.some((group) => group.truncated) || processes.some((process) => process.truncated),
-    source: nativeIndexSource(communityResult)
-  };
-}
-
-function uniqueById(items, limit) {
-  const unique = new Map();
-  for (const item of items) {
-    if (!item || unique.has(item.id)) continue;
-    unique.set(item.id, item);
-    if (unique.size >= limit) break;
-  }
-  return [...unique.values()];
 }
 
 async function createMcpStatsRecorder({ values, root, workspaceId, generatedAt }) {

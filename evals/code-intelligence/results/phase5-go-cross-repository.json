@@ -21,7 +21,7 @@
       "rust/oaf/src/repository_protocol.rs",
       "scripts/native-code-intelligence-consumer-smoke.mjs"
     ],
-    "fingerprint": "sha256:64e2154598ce319ece3ca17e9d56fdaa942eeb5040c3cf0b1af827be2dbe6619",
+    "fingerprint": "sha256:84cd70e4c78f0a51a75dd891f1278853b704bada5852cf6b7b0d24af85391d76",
     "releaseBinarySha256": "sha256:3027b6554d1c10de65ebde0170a437221c55862709cb89f9196a52c9289c286a"
   },
   "packageEvidence": {
@@ -103,5 +103,5 @@
     "competitorParity": false,
     "productionPublishReady": false
   },
-  "receiptFingerprint": "sha256:48149e7f18d16917a2e4a32c52f2603b321d6c2ff0ed6489225aa54484114cc6"
+  "receiptFingerprint": "sha256:0578437da1bba3ade24d44a3e0d29d6e37e3b7c01bc1ae24713582708a5ea976"
 }
