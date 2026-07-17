@@ -889,6 +889,9 @@ impl ParsedRepo {
     }
 
     fn resolve_scoped_call_target(&self, call: &CallRef) -> Option<String> {
+        if !call.allow_name_resolution {
+            return None;
+        }
         let direct_name = sanitize_symbol(&call.callee_name)?;
         let name = self.lookup_symbol_name_in_source(&call.callee_name, &call.source)?;
         let subjects = self.definitions_by_name.get(&name)?;
@@ -906,6 +909,34 @@ impl ParsedRepo {
             .collect::<Vec<_>>();
         if local.len() == 1 {
             return Some(local[0].clone());
+        }
+        let enclosing_owners = self
+            .facts
+            .iter()
+            .filter(|fact| {
+                fact.predicate == "DEFINES"
+                    && fact.object == call.caller
+                    && fact.source == call.source
+            })
+            .map(|fact| fact.subject.as_str())
+            .collect::<BTreeSet<_>>();
+        if enclosing_owners.len() == 1 {
+            let enclosing_owner = enclosing_owners.iter().next().unwrap();
+            let siblings = subjects
+                .iter()
+                .filter(|candidate| {
+                    self.facts.iter().any(|fact| {
+                        fact.predicate == "DEFINES"
+                            && fact.subject == *enclosing_owner
+                            && fact.object == candidate.as_str()
+                            && fact.source == call.source
+                    })
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            if siblings.len() == 1 {
+                return Some(siblings[0].clone());
+            }
         }
         if name != direct_name && subjects.len() == 1 {
             return subjects.iter().next().cloned();

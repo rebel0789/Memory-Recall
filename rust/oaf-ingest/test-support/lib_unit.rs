@@ -41,6 +41,45 @@ mod tests {
     }
 
     #[test]
+    fn resolves_calls_to_sibling_functions_in_the_enclosing_scope() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-lexical-sibling-call-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("nested.ts"),
+            [
+                "function outer() {",
+                "  function caller() { visitor(); }",
+                "  function visitor() {}",
+                "  caller();",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "function:outer"
+                && fact.predicate == "CALLS"
+                && fact.object == "function:outer_caller"
+                && fact.notes.as_deref() == Some("oaf.ingest:resolved-scoped-call")
+        }));
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "function:outer_caller"
+                && fact.predicate == "CALLS"
+                && fact.object == "function:outer_visitor"
+                && fact.notes.as_deref() == Some("oaf.ingest:resolved-scoped-call")
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn resolves_python_receiver_calls_with_constructor_type_bindings() {
         let root =
             std::env::temp_dir().join(format!("oaf-ingest-python-types-{}", std::process::id()));
