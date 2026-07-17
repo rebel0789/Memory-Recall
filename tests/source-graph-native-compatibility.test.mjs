@@ -212,6 +212,40 @@ test('compatibility preserves the official node:path import key', async (t) => {
   });
 });
 
+test('compatibility preserves a hyphenated CommonJS package import key', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-hyphenated-package-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, 'index.js'), [
+    "var merge = require('merge-descriptors');",
+    'function mergeApp(target, source){ return merge(target, source); }',
+    'module.exports = mergeApp;'
+  ].join('\n'));
+
+  const provider = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });
+  const [baseline, native] = await Promise.all([
+    buildJsTsSourceGraph({ root, workspaceId: 'ws_local', clock: () => fixedNow }),
+    provider.buildGraph({ root, workspaceId: 'ws_local', languages: ['javascript'] })
+  ]);
+  const translated = translateCodeIntelligenceGraph(native);
+  const comparison = compareSourceGraphCompatibility(baseline, translated);
+  const nativeNodes = new Map(translated.nodes.map((node) => [node.id, node]));
+  const nativeImport = translated.edges.find((edge) => edge.kind === 'imports');
+
+  assert.equal(nativeNodes.get(nativeImport?.toNodeId)?.label, 'merge-descriptors');
+  assert.deepEqual(comparison.dimensions.find((item) => item.name === 'imports'), {
+    name: 'imports',
+    baselineCount: 1,
+    nativeCount: 1,
+    matchedCount: 1,
+    recall: 1,
+    baselineOnlyCount: 0,
+    nativeOnlyCount: 0,
+    nativeAgreement: 1,
+    baselineOnlySample: [],
+    nativeOnlySample: []
+  });
+});
+
 test('compatibility resolves a CommonJS member call to the required module', async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-commonjs-member-'));
   t.after(() => rm(root, { recursive: true, force: true }));

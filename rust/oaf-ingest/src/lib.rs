@@ -6066,6 +6066,15 @@ fn module_from_import(value: &str) -> Option<String> {
     let first = trimmed
         .split([':', '/', '.', ' ', ',', '{', '}'])
         .find(|part| !part.is_empty())?;
+    if !relative
+        && !trimmed.starts_with('@')
+        && first.bytes().next().is_some_and(|byte| byte.is_ascii_alphanumeric())
+        && first
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+    {
+        return Some(format!("module:{first}"));
+    }
     sanitize_symbol(first).map(|token| format!("module:{token}"))
 }
 
