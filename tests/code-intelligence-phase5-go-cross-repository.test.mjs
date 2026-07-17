@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -20,6 +21,7 @@ const BINARY = path.join(
 );
 const WORKSPACE_ID = 'ws_go_cross_repo';
 const GO_FIXTURE = path.join(ROOT, 'evals', 'code-intelligence', 'fixtures', 'batch-b', 'go');
+const RECEIPT = path.join(ROOT, 'evals', 'code-intelligence', 'results', 'phase5-go-cross-repository.json');
 const EXPECTED_TOOLS = Object.freeze([
   'code.context',
   'code.dependencies',
@@ -36,6 +38,7 @@ const EXPECTED_TOOLS = Object.freeze([
 ]);
 
 test('release binary resolves one exact Go module across repositories and excludes an identical decoy', { timeout: 120_000 }, async (t) => {
+  await assertStoredReceipt(JSON.parse(await readFile(RECEIPT, 'utf8')));
   const fleet = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-go-cross-repo-'));
   t.after(() => rm(fleet, { recursive: true, force: true }));
   const clientRoot = path.join(fleet, 'repositories', 'client');
@@ -412,4 +415,73 @@ function graphRepositories(args, env) {
   assert.equal(result.error, undefined);
   assert.equal(result.stdout.includes(env.MEMORY_RECALL_NATIVE_BINARY), false);
   return JSON.parse(result.stdout);
+}
+
+async function assertStoredReceipt(receipt) {
+  assert.equal(receipt.schemaVersion, '1.0.0');
+  assert.equal(receipt.receiptVersion, 'memory-recall-phase5-go-cross-repository-1');
+  assert.equal(receipt.phase, 5);
+  assert.equal(receipt.packageEvidence.installed, true);
+  assert.equal(receipt.packageEvidence.providerSource, 'platform-package');
+  assert.equal(receipt.packageEvidence.providerVerified, true);
+  assert.equal(receipt.packageEvidence.mcpEngine, 'native-preview');
+  assert.match(receipt.packageEvidence.rootTarballSha256, /^sha256:[a-f0-9]{64}$/u);
+  assert.match(receipt.packageEvidence.nativeTarballSha256, /^sha256:[a-f0-9]{64}$/u);
+  assert.match(receipt.implementation.releaseBinarySha256, /^sha256:[a-f0-9]{64}$/u);
+  assert.equal(receipt.implementation.fingerprint, await filesFingerprint(receipt.implementation.files));
+  assert.equal(receipt.fixture.language, 'go');
+  assert.equal(receipt.fixture.selectedIndependentGitRepositoryCount, 2);
+  assert.equal(receipt.fixture.selectedGitHeadCommits.length, 2);
+  assert(receipt.fixture.selectedGitHeadCommits.every((commit) => /^[a-f0-9]{40}$/u.test(commit)));
+  assert.equal(new Set(receipt.fixture.selectedGitHeadCommits).size, 2);
+  assert.equal(receipt.fixture.identicalDecoyNativeId, true);
+  assert.equal(receipt.fixture.requiredModuleCoordinate, 'example.com/demo');
+  assert.equal(receipt.fixture.decoyModuleCoordinate, 'example.com/wrong');
+  assert.deepEqual(receipt.results.selectedRepositoryFreshness, ['current', 'current']);
+  assert.equal(receipt.results.selectedRepositoryCount, 2);
+  assert.equal(receipt.results.openedRepositoryCount, 2);
+  assert.equal(receipt.results.exactModuleEvidenceSelected, true);
+  assert.equal(receipt.results.identicalDecoyExcluded, true);
+  assert.equal(receipt.results.bounded, true);
+  assert.equal(receipt.results.sourceBacked, true);
+  assert.equal(receipt.results.sqliteBundlesPreserved, true);
+  assert.equal(receipt.results.relationshipEvidence.length, 2);
+  assert(receipt.results.relationshipEvidence.every((relationship) => (
+    relationship.resolution === 'exact_module_coordinate'
+      && /^workspace:\/\//u.test(relationship.evidenceLocator)
+      && relationship.evidenceNativeRelationshipIds.every((id) => /^ciedge_[a-f0-9]{32}$/u.test(id))
+  )));
+  assert.deepEqual(receipt.safeguards, {
+    readOnlyQueries: true,
+    localFilesWrittenByQueries: 0,
+    rawSourceBodiesIncluded: false,
+    absolutePathsIncluded: false,
+    networkCalls: 0,
+    modelCalls: 0,
+    published: false
+  });
+  assert.deepEqual(receipt.claims, {
+    exactGoCrossRepositoryBehavior: true,
+    generalCrossLanguageBehavior: false,
+    competitorParity: false,
+    productionPublishReady: false
+  });
+  const comparable = { ...receipt };
+  delete comparable.generatedAt;
+  delete comparable.receiptFingerprint;
+  assert.equal(
+    receipt.receiptFingerprint,
+    `sha256:${createHash('sha256').update(JSON.stringify(comparable)).digest('hex')}`
+  );
+  assert.doesNotMatch(JSON.stringify(receipt), /(?:\/Users\/|\/home\/[A-Za-z0-9._-]+\/|\/private\/|\/var\/folders\/|[A-Za-z]:\\)/u);
+}
+
+async function filesFingerprint(files) {
+  const hash = createHash('sha256');
+  for (const relative of [...files].sort()) {
+    hash.update(`${relative}\0`);
+    hash.update(await readFile(path.join(ROOT, relative)));
+    hash.update('\0');
+  }
+  return `sha256:${hash.digest('hex')}`;
 }

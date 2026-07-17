@@ -35,8 +35,22 @@ const languages = Object.freeze([
 ]);
 const rawSourceSentinel = 'RAW_SOURCE_SENTINEL_INSTALLED_CONSUMER_9f47c2';
 const governedMemory = path.join(workspace, '.local', 'memory.sqlite');
+const goCrossRepositoryReceiptPath = parseGoCrossRepositoryReceiptPath(process.argv.slice(2));
+const goCrossRepositoryImplementationFiles = Object.freeze([
+  'apps/cli/oaf.mjs',
+  'packages/protocol/schemas/code-intelligence-repository-request.schema.json',
+  'packages/protocol/schemas/code-intelligence-repository-response.schema.json',
+  'providers/native/code-intelligence-rust/src/binary-resolver.mjs',
+  'providers/native/code-intelligence-rust/src/index.mjs',
+  'rust/oaf-index/src/registry.rs',
+  'rust/oaf/src/code_intelligence.rs',
+  'rust/oaf/src/repository_protocol.rs',
+  'scripts/native-code-intelligence-consumer-smoke.mjs'
+]);
+let pendingGoCrossRepositoryReceipt = null;
 
 try {
+  if (goCrossRepositoryReceiptPath !== null) await rm(goCrossRepositoryReceiptPath, { force: true });
   must((await stat(nativeBinary)).isFile(), 'build the local release native engine before running this smoke');
   await mkdir(home, { recursive: true });
   const mcpConfig = path.join(home, '.cursor', 'mcp.json');
@@ -184,11 +198,17 @@ try {
   must(!installedReports.includes(workspace), 'installed native reports redact the workspace path');
   must(!installedReports.includes(rawSourceSentinel), 'installed native reports omit raw source bodies');
 
-  const crossNodes = await withProcessEnvironment(isolatedEnvironment, async () => {
+  await withProcessEnvironment(isolatedEnvironment, async () => {
     const provider = new RustCodeIntelligenceProvider({ timeoutMs: 60_000 });
     for (const repositoryRoot of [clientRoot, serviceRoot, decoyRoot]) {
       await provider.buildIndex({ root: repositoryRoot, workspaceId: fleetWorkspaceId, languages: ['go'] });
     }
+  });
+  const repositoryIndexPaths = [clientRoot, serviceRoot, decoyRoot]
+    .map((repositoryRoot) => path.join(repositoryRoot, '.local', 'source-index', 'index.v1.sqlite'));
+  const repositoryBundlesBeforeQueries = await Promise.all(repositoryIndexPaths.map(fileBundleSnapshot));
+  const crossNodes = await withProcessEnvironment(isolatedEnvironment, async () => {
+    const provider = new RustCodeIntelligenceProvider({ timeoutMs: 60_000 });
     const exact = async (repositoryRoot, queryText) => {
       const result = await provider.queryIndex({
         root: repositoryRoot,
@@ -206,7 +226,15 @@ try {
       exact(decoyRoot, 'Service')
     ]);
     must(decoyTarget.id === serviceTarget.id, 'installed decoy preserves the same native symbol identity');
-    return { clientEntry, serviceTarget };
+    const [clientStatus, serviceStatus] = await Promise.all([
+      provider.indexStatus({ root: clientRoot, workspaceId: fleetWorkspaceId }),
+      provider.indexStatus({ root: serviceRoot, workspaceId: fleetWorkspaceId })
+    ]);
+    for (const status of [clientStatus, serviceStatus]) {
+      must(status.state === 'ready' && status.freshness === 'current', 'installed selected repository index is current');
+      must(status.safeguards?.readOnly === true && status.safeguards?.localFilesWritten === 0, 'installed repository freshness check is read-only');
+    }
+    return { clientEntry, serviceTarget, decoyTarget, clientStatus, serviceStatus };
   });
 
   const repositoryCli = (commandArgs) => runJson(process.execPath, [installedCli, 'graph', 'repositories', ...commandArgs], {
@@ -232,6 +260,8 @@ try {
   const client = clientRegistration.repositories[0];
   const service = serviceRegistration.repositories[0];
   const decoy = decoyRegistration.repositories[0];
+  const registryPath = path.join(fleet, '.local', 'source-index', 'registry.v1.sqlite');
+  const registryBundleBeforeQueries = await fileBundleSnapshot(registryPath);
   const listedRepositories = repositoryCli([
     'list', '--read-only', '--root', fleet, '--workspace', fleetWorkspaceId, '--limit', '10', '--format', 'json'
   ]);
@@ -298,6 +328,52 @@ try {
       && impact.data.impactedNodes.some(({ repositoryId, nativeId }) => repositoryId === client.repositoryId && nativeId === crossNodes.clientEntry.id),
     'installed MCP returns the exact reverse-impact client entry'
   );
+  for (const relationship of dependencies.data.relationships) {
+    must(relationship.resolution === 'exact_module_coordinate', 'installed MCP selects only exact Go module-coordinate evidence');
+    must(/^workspace:\/\//u.test(relationship.evidenceLocator), 'installed MCP returns a workspace evidence locator');
+    must(
+      relationship.evidenceNativeRelationshipIds.length > 0
+        && relationship.evidenceNativeRelationshipIds.every((id) => /^ciedge_[a-f0-9]{32}$/u.test(id)),
+      'installed MCP binds every Go relationship to native evidence ids'
+    );
+  }
+  const crossRepositoryPayloads = [dependencies, trace, impact];
+  must(
+    crossRepositoryPayloads.every((payload) => JSON.stringify(payload).length <= 1_048_576),
+    'installed cross-repository MCP results stay within the output bound'
+  );
+  must(
+    dependencies.data.relationships.length <= 10
+      && trace.data.paths.length <= 10
+      && impact.data.paths.length <= 10
+      && impact.data.impactedNodes.length <= 10,
+    'installed cross-repository MCP honors requested result bounds'
+  );
+  const repositoryBundlesAfterQueries = await Promise.all(repositoryIndexPaths.map(fileBundleSnapshot));
+  must(
+    repositoryBundlesBeforeQueries.every((before, index) => sameFileBundleSnapshot(before, repositoryBundlesAfterQueries[index])),
+    'installed repository queries preserve every SQLite, WAL, and SHM bundle'
+  );
+  must(
+    sameFileBundleSnapshot(registryBundleBeforeQueries, await fileBundleSnapshot(registryPath)),
+    'installed repository queries preserve the registry SQLite, WAL, and SHM bundle'
+  );
+  if (goCrossRepositoryReceiptPath !== null) {
+    pendingGoCrossRepositoryReceipt = await buildGoCrossRepositoryReceipt({
+      target,
+      nativeBinary,
+      tarball,
+      nativePackage,
+      health,
+      client,
+      service,
+      decoy,
+      crossNodes,
+      dependencies,
+      trace,
+      impact
+    });
+  }
 
   const stats = runJson(process.execPath, [installedCli,
     'graph', 'stats', '--root', cliWorkspace, '--engine', 'native-preview', '--format', 'json'
@@ -479,6 +555,11 @@ try {
   must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'reinstall preserves consumer source');
   must(await treeFingerprint(home) === homeAfterMcpRemoval, 'reinstall preserves home configuration and backups');
 
+  if (goCrossRepositoryReceiptPath !== null) {
+    await mkdir(path.dirname(goCrossRepositoryReceiptPath), { recursive: true });
+    await writeFile(goCrossRepositoryReceiptPath, `${JSON.stringify(pendingGoCrossRepositoryReceipt, null, 2)}\n`);
+  }
+
   console.log(`PASS installed verified native platform package ${target}`);
   console.log('PASS compiler-free 14-language graph and SQLite lifecycle');
   console.log('PASS automatic native preview stats and search');
@@ -595,6 +676,164 @@ async function createCrossRepositoryWorkspace() {
     writeFile(path.join(decoyRoot, 'go.mod'), 'module example.com/wrong\n\ngo 1.22\n'),
     writeFile(path.join(decoyRoot, 'service', 'service.go'), serviceSource)
   ]);
+  await Promise.all([clientRoot, serviceRoot, decoyRoot].map(initializeGitRepository));
+}
+
+function initializeGitRepository(repositoryRoot) {
+  run('git', ['init', '--quiet', repositoryRoot]);
+  run('git', ['-C', repositoryRoot, 'add', '.']);
+  run('git', [
+    '-C', repositoryRoot,
+    '-c', 'user.name=Memory Recall Evidence',
+    '-c', 'user.email=evidence@memory-recall.invalid',
+    'commit', '--quiet', '-m', 'fixture'
+  ], {
+    env: {
+      ...process.env,
+      GIT_AUTHOR_DATE: '2026-07-17T00:00:00Z',
+      GIT_COMMITTER_DATE: '2026-07-17T00:00:00Z'
+    }
+  });
+}
+
+function parseGoCrossRepositoryReceiptPath(argv) {
+  if (argv.length === 0) return null;
+  if (argv.length !== 2 || argv[0] !== '--go-cross-repository-receipt' || argv[1].length === 0) {
+    throw new Error('usage: native-code-intelligence-consumer-smoke [--go-cross-repository-receipt <path>]');
+  }
+  return path.resolve(argv[1]);
+}
+
+async function buildGoCrossRepositoryReceipt({
+  target,
+  nativeBinary,
+  tarball,
+  nativePackage,
+  health,
+  client,
+  service,
+  decoy,
+  crossNodes,
+  dependencies,
+  trace,
+  impact
+}) {
+  const selectedGitRoots = [clientRoot, serviceRoot].map((repositoryRoot) => (
+    run('git', ['-C', repositoryRoot, 'rev-parse', '--show-toplevel']).stdout.trim()
+  ));
+  must(new Set(selectedGitRoots).size === 2, 'installed selected repositories have independent Git metadata');
+  const selectedGitHeads = [clientRoot, serviceRoot].map((repositoryRoot) => (
+    run('git', ['-C', repositoryRoot, 'rev-parse', 'HEAD']).stdout.trim()
+  ));
+  const rootPackage = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+  const evidence = dependencies.data.relationships.map((relationship) => ({
+    id: relationship.id,
+    kind: relationship.kind,
+    resolution: relationship.resolution,
+    evidenceLocator: relationship.evidenceLocator,
+    evidenceNativeRelationshipIds: relationship.evidenceNativeRelationshipIds
+  }));
+  const receipt = {
+    schemaVersion: '1.0.0',
+    receiptVersion: 'memory-recall-phase5-go-cross-repository-1',
+    phase: 5,
+    generatedAt: new Date().toISOString(),
+    environment: {
+      platform: os.platform(),
+      architecture: os.arch(),
+      nodeVersion: process.version,
+      nativeTarget: target
+    },
+    implementation: {
+      files: [...goCrossRepositoryImplementationFiles],
+      fingerprint: await filesFingerprint(goCrossRepositoryImplementationFiles),
+      releaseBinarySha256: await fileSha256(nativeBinary)
+    },
+    packageEvidence: {
+      rootPackage: `${rootPackage.name}@${rootPackage.version}`,
+      rootTarballSha256: await fileSha256(tarball),
+      nativePackage: `@memory-recall/native-${target}@${rootPackage.version}`,
+      nativeTarballSha256: await fileSha256(nativePackage.tarball),
+      installed: true,
+      providerSource: health.details.source,
+      providerVerified: health.details.verified,
+      mcpEngine: 'native-preview'
+    },
+    fixture: {
+      language: 'go',
+      selectedIndependentGitRepositoryCount: 2,
+      selectedGitHeadCommits: selectedGitHeads,
+      decoyRepositoryCount: 1,
+      identicalDecoyNativeId: crossNodes.decoyTarget.id === crossNodes.serviceTarget.id,
+      clientModuleCoordinate: 'example.com/client',
+      requiredModuleCoordinate: 'example.com/demo',
+      decoyModuleCoordinate: 'example.com/wrong'
+    },
+    results: {
+      selectedRepositoryCount: dependencies.data.measurements.selectedRepositoryCount,
+      openedRepositoryCount: dependencies.data.measurements.openedRepositoryCount,
+      selectedRepositoryFreshness: [crossNodes.clientStatus.freshness, crossNodes.serviceStatus.freshness],
+      exactModuleEvidenceSelected: evidence.length === 2
+        && evidence.every((relationship) => relationship.resolution === 'exact_module_coordinate'),
+      identicalDecoyExcluded: !JSON.stringify({ dependencies, trace, impact }).includes(decoy.repositoryId),
+      bounded: [dependencies, trace, impact].every((payload) => JSON.stringify(payload).length <= 1_048_576)
+        && dependencies.data.relationships.length <= 10
+        && trace.data.paths.length <= 10
+        && impact.data.paths.length <= 10
+        && impact.data.impactedNodes.length <= 10,
+      sourceBacked: evidence.every((relationship) => /^workspace:\/\//u.test(relationship.evidenceLocator)
+        && relationship.evidenceNativeRelationshipIds.length > 0),
+      sqliteBundlesPreserved: true,
+      relationshipEvidence: evidence,
+      traceRelationshipIds: trace.data.relationships.map(({ id }) => id),
+      impactNativeNodeIds: impact.data.impactedNodes.map(({ nativeId }) => nativeId)
+    },
+    safeguards: {
+      readOnlyQueries: true,
+      localFilesWrittenByQueries: 0,
+      rawSourceBodiesIncluded: false,
+      absolutePathsIncluded: false,
+      networkCalls: 0,
+      modelCalls: 0,
+      published: false
+    },
+    claims: {
+      exactGoCrossRepositoryBehavior: true,
+      generalCrossLanguageBehavior: false,
+      competitorParity: false,
+      productionPublishReady: false
+    }
+  };
+  receipt.receiptFingerprint = reportFingerprint(receipt);
+  const serialized = JSON.stringify(receipt);
+  must(!serialized.includes(temp), 'Go cross-repository receipt excludes temporary paths');
+  must(!/(?:\/Users\/|\/home\/[A-Za-z0-9._-]+\/|\/private\/|\/var\/folders\/|[A-Za-z]:\\)/u.test(serialized), 'Go cross-repository receipt excludes absolute paths');
+  must(receipt.results.exactModuleEvidenceSelected, 'Go cross-repository receipt requires exact module evidence');
+  must(receipt.results.identicalDecoyExcluded, 'Go cross-repository receipt requires decoy exclusion');
+  must(receipt.results.bounded && receipt.results.sourceBacked, 'Go cross-repository receipt requires bounded source evidence');
+  must(receipt.results.selectedRepositoryFreshness.every((freshness) => freshness === 'current'), 'Go cross-repository receipt requires current selected repositories');
+  return Object.freeze(receipt);
+}
+
+async function filesFingerprint(files) {
+  const hash = createHash('sha256');
+  for (const relative of [...files].sort()) {
+    hash.update(`${relative}\0`);
+    hash.update(await readFile(path.join(root, relative)));
+    hash.update('\0');
+  }
+  return `sha256:${hash.digest('hex')}`;
+}
+
+async function fileSha256(file) {
+  return `sha256:${createHash('sha256').update(await readFile(file)).digest('hex')}`;
+}
+
+function reportFingerprint(report) {
+  const comparable = { ...report };
+  delete comparable.generatedAt;
+  delete comparable.receiptFingerprint;
+  return `sha256:${createHash('sha256').update(JSON.stringify(comparable)).digest('hex')}`;
 }
 
 function assertCommandUnavailable(command, environment) {
