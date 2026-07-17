@@ -110,9 +110,9 @@ recall mcp server --read-only --engine native-preview --root . --stdio
 Its fixed path is `.local/source-index/index.v1.sqlite`. The native MCP preview
 queries that prebuilt index and fails clearly if it is unavailable; it never
 builds, refreshes, repairs, or falls back to the JS engine. Direct `mcp server`
-commands without `--engine` continue to use the JS index behavior above.
+commands without `--engine` use auto selection.
 
-Explicit automatic selection is available without changing that default:
+Automatic selection is the default and may also be requested explicitly:
 
 ```bash
 recall mcp server --read-only --engine auto --root . --stdio

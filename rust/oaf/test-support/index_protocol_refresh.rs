@@ -140,13 +140,25 @@ fn bounded_refresh_never_replaces_unexamined_files_and_complete_refresh_recovers
         );
         assert_eq!(bundle_snapshot(&index_path), before, "{mutation:?}");
 
-        for symbol in ["alphaValue", "middle_value", "ZuluValue"] {
-            let stored = exact_query(workspace.path(), symbol);
-            assert_eq!(stored["result"]["activeGeneration"], generation, "{mutation:?}");
-            assert!(query_contains(&stored, symbol), "{mutation:?}: {symbol}");
-        }
-        if let Some(symbol) = added_symbol {
-            assert!(!query_contains(&exact_query(workspace.path(), symbol), symbol));
+        if matches!(mutation, Mutation::None) {
+            for symbol in ["alphaValue", "middle_value", "ZuluValue"] {
+                let stored = exact_query(workspace.path(), symbol);
+                assert_eq!(stored["result"]["activeGeneration"], generation, "{mutation:?}");
+                assert!(query_contains(&stored, symbol), "{mutation:?}: {symbol}");
+            }
+        } else {
+            let error = execute_request(
+                parse_request(request(
+                    "index.query",
+                    json!({ "kind": "exact", "query": "middle_value", "limit": 10 }),
+                ))
+                .unwrap(),
+                workspace.path(),
+                "1.1.1",
+            )
+            .unwrap_err();
+            assert_eq!(safe_error_code(&error), "source_index_refresh_required");
+            assert_eq!(bundle_snapshot(&index_path), before, "{mutation:?}");
         }
 
         let recovered = execute_request(

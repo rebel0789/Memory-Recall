@@ -35,20 +35,20 @@ rows, and full claims without both evidence classes.
 
 ## Current boundary
 
-The production-facing Node.js path remains bounded JavaScript and TypeScript
-static analysis. The explicit `native-preview` engine supports graph reads and
-the isolated source-index lifecycle. The current registry package does not ship
-that binary. This source checkout now contains five optional platform-package
+Node.js remains the production CLI and transport layer. Graph reads now default
+to freshness-gated auto selection; strict `native-preview` supports graph reads
+and the isolated source-index lifecycle. The current registry release does not
+ship that binary. This source checkout now contains five optional platform-package
 templates and a resolver that verifies package identity, target, path
 containment, SHA-256, executable availability, and exact binary version before
 use. The macOS arm64 package path passes an isolated local packed-install gate;
-the other targets, signing, release publication, and public-default promotion
+the other targets, signing, release publication, and published-default promotion
 remain unproven.
-Graph commands without `--engine`, the web workbench, and direct MCP startup
-without `--engine` continue to use the Node path. Installer-generated MCP
-startup uses `--engine auto`. An MCP server started with both `--read-only` and
+Graph commands, direct MCP startup, and installer-generated MCP startup use
+`--engine auto` when the flag is omitted. The web workbench still uses the Node
+graph path. An MCP server started with both `--read-only` and
 `--engine native-preview` may query a prebuilt SQLite index; it never builds,
-refreshes, or repairs one. Explicit MCP `--engine auto` checks that prebuilt
+refreshes, or repairs one. Default or explicit MCP `--engine auto` checks that prebuilt
 index before each structural read, uses it only while it is healthy and current,
 and otherwise reports a bounded JS fallback reason. Other languages remain
 experimental and are not promoted as public graph support.
@@ -211,9 +211,10 @@ queries without building or refreshing.
 The recorded local pass is macOS arm64 only. It does not prove macOS x64,
 Linux GNU arm64/x64, or Windows x64 artifacts, signing/notarization,
 trusted-publisher ownership for the scoped packages, public installation, or a
-native public default. It proves same-version removal/reinstall survivability,
-not downgrade compatibility with an older release. The explicit JS fallback
-therefore remains frozen and the current registry instructions remain unchanged.
+cross-platform native release. It proves same-version removal/reinstall
+survivability, not downgrade compatibility with an older release. The explicit
+JS fallback remains frozen until the unified packaged and web gates allow its
+deletion.
 
 The Rust CI workflow defines native-runner packaging lanes for those five
 targets. Each lane checks the runner architecture, builds the locked release

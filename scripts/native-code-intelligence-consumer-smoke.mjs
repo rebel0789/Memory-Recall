@@ -399,7 +399,7 @@ consumerSmoke: try {
     'graph', 'stats', '--root', cliWorkspace, '--engine', 'native-preview', '--format', 'json'
   ], { cwd: cliWorkspace, env: isolatedEnvironment });
   must(stats.engine?.selection === 'native-preview', 'packed CLI selects native preview explicitly');
-  must(stats.engine?.previewOnly === true && stats.engine?.publicDefaultChanged === false, 'packed CLI keeps native preview non-default');
+  must(stats.engine?.previewOnly === true && stats.engine?.publicDefaultChanged === true, 'packed CLI reports strict native preview under the auto public default');
   must(stats.graph?.summary?.fileCount >= 1 && stats.graph?.summary?.symbolCount >= 2, 'packed CLI reports native graph coverage');
 
   const search = runJson(process.execPath, [installedCli,
@@ -424,11 +424,12 @@ consumerSmoke: try {
   must(unavailable.status === 2, 'invalid explicit native override fails closed');
   must(/native_engine_unavailable/u.test(unavailable.stderr), 'invalid explicit native override reports native_engine_unavailable');
 
-  const jsDefault = runJson(process.execPath, [installedCli, 'graph', 'stats', '--root', cliWorkspace, '--format', 'json'], {
+  const autoWithoutIndex = runJson(process.execPath, [installedCli, 'graph', 'stats', '--root', cliWorkspace, '--format', 'json'], {
     cwd: cliWorkspace,
     env: isolatedEnvironment
   });
-  must(jsDefault.engine?.selection === 'js' && jsDefault.engine?.publicDefaultChanged === false, 'packed CLI keeps JS as the default');
+  must(autoWithoutIndex.engine?.requested === 'auto' && autoWithoutIndex.engine?.selection === 'js', 'packed CLI defaults to auto and keeps the bounded JS fallback without a native index');
+  must(autoWithoutIndex.engine?.reason === 'native_index_absent' && autoWithoutIndex.engine?.publicDefaultChanged === true, 'packed CLI labels the absent-index auto fallback');
 
   must(await treeFingerprint(path.join(workspace, 'languages')) === initialSource, 'native preview leaves consumer source unchanged');
   must(await treeFingerprint(cliWorkspace) === initialCliSource, 'native preview leaves CLI consumer source unchanged');
@@ -586,7 +587,7 @@ consumerSmoke: try {
   console.log('PASS installed repository CLI and cross-repository MCP');
   console.log('PASS invalid explicit native override fails closed');
   console.log('PASS no source, governed-memory, config, or package mutation');
-  console.log('PASS JavaScript remains the public default');
+  console.log('PASS auto is the public read default with a labeled bounded fallback');
   console.log('PASS packed MCP install and uninstall preserve neighboring config');
   console.log('PASS uninstall removes packages and preserves workspace-local state');
   console.log('PASS same-version reinstall reopens the existing index without rebuilding');

@@ -120,8 +120,8 @@ test('public usage docs avoid stale task and missing context-file examples while
   assert.match(docs, /zero model calls, network calls, external writes, adapter\s+enablement, active memory creation, or source-body inclusion/);
   assert.match(docs, /not provider\s+billing claims/);
   assert.match(contract, /# Memory Recall: Developer-First Product Contract/);
-  assert.match(contract, /Implemented: local JS\/TS static graph, optional persistent incremental index,\s+reviewed SQLite memory, and twelve read-only MCP tools\./);
-  assert.match(contract, /Experimental: Rust acceleration paths require a local build before explicit invocation\. The bounded cross-repository path currently covers exact Go module resolution/);
+  assert.match(contract, /Implemented: freshness-gated auto graph reads with a bounded JS\/TS fallback,\s+optional persistent indexes, reviewed SQLite memory, and twelve read-only MCP\s+tools\./);
+  assert.match(contract, /Experimental: the verified packaged Rust path has compiler-free local evidence across 14 Tier 1 fixtures, while full language and cross-platform release gates remain open\. The bounded cross-repository path currently covers exact Go module resolution/);
   assert.match(contract, /Unsupported: automatic transcript capture, write-capable MCP, hosted sync,\s+production-default non-JS\/TS source graph analysis, general cross-repository\s+analysis beyond that exact Go path, and million-node indexes\./);
   assert.match(readme, /npm install -g memory-recall@latest\nrecall setup\nrecall map --root \. --sqlite \.local\/memory\.sqlite --format summary\nrecall handoff/);
   assert.match(readme, /Source patch candidate: \*\*1\.1\.1\*\*\. Registry version: verify with `npm view memory-recall version`\./);
@@ -142,10 +142,9 @@ test('public usage docs avoid stale task and missing context-file examples while
   assert.match(recallMap, /no absolute local workspace paths in the report/);
   assert.doesNotMatch(normalHandoff, /npm run status/);
   assert.match(sourceCheckout, /First run `npm run status`; when it reports `Next task: none`, use the\n`First safe handoff` command it prints or continue below\./);
-  assert.doesNotMatch(readme, /Rust code intelligence/);
-  assert.match(readme, /Experimental Rust acceleration requires a local build/);
+  assert.match(readme, /Verified packaged Rust reads when a current local index exists/);
   assert.doesNotMatch(rustAcceleration, /Memory Recall uses a Rust core/);
-  assert.match(rustAcceleration, /Experimental Rust acceleration is opt-in and\s+requires a local build/);
+  assert.match(rustAcceleration, /Graph\s+reads now default to `auto`/);
   assert.match(rustAcceleration, /cargo build --release --manifest-path rust\/Cargo\.toml/);
   assert.match(tokenSavings, /## Experimental Rust evaluation/);
   assert.match(tokenSavings, /source-checkout-only experiment after a local\s+Rust build/i);

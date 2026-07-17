@@ -479,6 +479,6 @@ test('default MCP falls back safely and strict native failures give the matching
   assert.equal(absent.status, 0, absent.stderr);
   const absentResponse = absent.stdout.trim().split(/\n/u).map((line) => JSON.parse(line)).find(({ id }) => id === 2);
   assert.match(absentResponse.error.message, /source_index_(?:build_required|query_unavailable)/u);
-  assert.match(absentResponse.error.message, /oaf graph index --write --engine native-preview --root \. --format summary/u);
+  assert.match(absentResponse.error.message, /recall graph index --write --engine native-preview --root \. --format summary/u);
   assert.doesNotMatch(absentResponse.error.message, /@memory-recall\/native-/u);
 });

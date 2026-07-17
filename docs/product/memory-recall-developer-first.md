@@ -22,10 +22,11 @@ a read-only handoff for the next coding-agent session.
 
 ## Support contract
 
-- Implemented: local JS/TS static graph, optional persistent incremental index,
-  reviewed SQLite memory, and twelve read-only MCP tools.
+- Implemented: freshness-gated auto graph reads with a bounded JS/TS fallback,
+  optional persistent indexes, reviewed SQLite memory, and twelve read-only MCP
+  tools.
 - Implemented: bounded semantic plan and task packets, strict result import, pending proposals, and source-rechecked named approval.
-- Experimental: Rust acceleration paths require a local build before explicit invocation. The bounded cross-repository path currently covers exact Go module resolution, one entry-to-service trace, and reverse impact across two explicitly registered repositories through the existing MCP tools.
+- Experimental: the verified packaged Rust path has compiler-free local evidence across 14 Tier 1 fixtures, while full language and cross-platform release gates remain open. The bounded cross-repository path currently covers exact Go module resolution, one entry-to-service trace, and reverse impact across two explicitly registered repositories through the existing MCP tools.
 - Experimental: explicit one-shot Gemini and OpenAI-compatible semantic API execution.
 - Unsupported: automatic transcript capture, write-capable MCP, hosted sync,
   production-default non-JS/TS source graph analysis, general cross-repository

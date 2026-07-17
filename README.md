@@ -15,7 +15,7 @@
 
 <p align="center">
   <strong>Local repo memory and context for Codex, Claude Code, Cursor, and other coding agents.</strong><br>
-  Governed SQLite memory. Read-only MCP. Experimental Rust acceleration requires a local build. The default local path needs no hosted account or model API key.
+  Governed SQLite memory. Read-only MCP. Verified packaged Rust reads when a current local index exists. No hosted account or model API key required.
 </p>
 
 Memory Recall turns a repository into a governed context source. New agent
@@ -59,7 +59,7 @@ for preserved legacy names and URIs.
 | --- | --- |
 | New agent session | A compact handoff with required local reads, changed-file coverage, hashes, and MCP proof. |
 | Repo memory | SQLite/FTS5 facts that start as proposals and become ACTIVE only after review. |
-| Fast local code intelligence | Implemented JS/TS static graph; experimental Rust native preview has sampled evidence across 14 Tier 1 languages but still requires a local build, and every language retains unmeasured capability rows. |
+| Fast local code intelligence | Auto-selected Rust reads from a verified platform package when a healthy current index exists, with a labeled bounded JS/TS fallback; the installed compiler-free Rust path is proven locally across all 14 Tier 1 fixtures, while full language and cross-platform gates remain open. |
 | Larger JS/TS repositories | Explicit local index with incremental refresh and watch mode; MCP reads it without writing. |
 | Two-repository Go calls | Experimental Rust path resolves an exact Go module import, traces one entry-to-service call, and reports reverse impact with source evidence. |
 | First look at a repository | Recall Map shows bounded source coverage, entry points, changed impact, and separate memory status without writing. |
@@ -119,8 +119,8 @@ command only when the fingerprint matches. That path installs the twelve-tool
 read-only MCP server with `--engine auto`; install never builds or refreshes an
 index, and its `indexBuildCommand` is the separate explicit native-index write.
 Until a healthy, current native index exists, structural tools report a labeled
-bounded JS path. Direct `mcp server` commands without `--engine` still default
-to JS. Reverse the install with `recall mcp uninstall --client
+bounded JS path. Direct `mcp server` commands without `--engine` use the same
+read-only auto selection. Reverse the install with `recall mcp uninstall --client
 claude-code --dry-run --format json`, then the printed confirmed command. It
 removes only the exact package-owned entry and preserves neighboring servers.
 `recall connect` is separate: it installs a resource
@@ -190,15 +190,16 @@ cross-product benchmark leaderboard.
 - Read-only `recall mcp server` exposing twelve local tools for governed memory,
   compact context, repository maps, architecture, code search, symbol context,
   call traces, dependencies, routes, changed-file impact, and index status.
-- Explicit `--engine native-preview` source-index lifecycle with a local SQLite
+- Auto-selected packaged Rust reads plus an explicit `--engine native-preview` source-index lifecycle with a local SQLite
   generation store, incremental refresh, doctor/confirm-gated repair, bounded
   queries, and read-only MCP access to a prebuilt index. Native
   `repo.architecture` returns deterministic communities, bounded entry-to-sink
   processes, and their source relationships. Native use requires a verified
   matching binary from a local build, an explicit environment path, or an
-  optional platform package; no platform package is published in the registry
-  yet. Graph commands and direct MCP startup without `--engine` remain on JS,
-  while installer-generated MCP config uses freshness-gated auto selection.
+  optional platform package. Graph commands, direct MCP startup, and
+  installer-generated MCP config now use freshness-gated auto selection by
+  default. The current-host packed-install gate is green; other targets,
+  signing, registry publication, and full language parity remain unproven.
 - Explicit persistent JS/TS source index with atomic writes, per-file structural
   shards, incremental refresh, stale detection, and watch mode. MCP can read a
   current index but never creates or refreshes one.
@@ -208,10 +209,10 @@ cross-product benchmark leaderboard.
   explicit project root and project SQLite memory path.
 - Local `/memory` cockpit over the loopback Control API with temporal facts,
   proposal counts, MCP delivery stats, and confirm-gated approvals.
-- Experimental Rust acceleration paths for local ingest, governed graph/search,
-  wiki, MCP, and static analysis when explicitly invoked. Source checkouts can
-  use a local release build; the resolver can also use a verified matching
-  optional platform package when one is available.
+- Rust paths for local ingest, governed graph/search, wiki, MCP, and static
+  analysis. Read commands use freshness-gated auto selection; source checkouts
+  can use a local release build, and installed packages can use a verified
+  matching optional platform package.
 - Release-candidate native packaging now has five target-specific optional
   package manifests and a checksum-, version-, target-, and path-verified
   resolver. A local macOS arm64 packed-install gate passes without Cargo or

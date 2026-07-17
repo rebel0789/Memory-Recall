@@ -90,7 +90,7 @@ does not build or refresh a graph index: its report prints `indexBuildCommand`
 as a separate explicit write. Without a healthy, current native index, the
 read-only structural tools use the labeled bounded JS fallback; with one, they
 read the native index without writing it. Direct `mcp server` commands without
-`--engine` remain on the JS default.
+`--engine` use the same auto selection.
 
 Applying the preview requires the matching plan fingerprint from that dry-run:
 

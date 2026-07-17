@@ -37,7 +37,7 @@ reversal path.
 | Claude Code resource bridge | `recall connect claude-code --dry-run --format json`, then `--yes` | Same narrow connect-owned writer and backup behavior | Same three connect-owned hook events | Resources only; no MCP graph tools | Implemented |
 | OpenCode, OpenClaw, Gemini CLI, Zed, Aider, Goose, VS Code, Cline, Roo, Windsurf, Generic MCP | `recall harness setup plan --client <client> --server oaf --dry-run --format json`, then copy the shown snippet yourself | Preview and manual snippet only; `harness setup` never writes config | No writer; use the read-only MCP server manually if the client supports it | No installer-backed graph-tool proof for each client | Experimental |
 | Other clients or marketplaces | None | No installer or runtime proof | None | None | Unsupported |
-| Local Rust graph preview | Build locally, set `MEMORY_RECALL_NATIVE_BINARY`, then add `--engine native-preview` to a graph read command | No client config writer | None | Explicit bounded preview for the 14 Tier 1 languages; 46 capability rows meet the sampled Phase 2 floor, while every language retains applicable unmeasured rows; npm ships source, not a binary; JS remains the default | Experimental |
+| Packaged Rust graph reads | Install a matching optional platform package or set `MEMORY_RECALL_NATIVE_BINARY`; omit `--engine` for auto selection or use `--engine native-preview` strictly | No client config writer | None | A healthy current native index selects verified Rust by default; the compiler-free installed path represents all 14 Tier 1 fixtures, while full language and cross-platform gates remain open | Experimental |
 | Local Rust persistent index preview | Build locally, set `MEMORY_RECALL_NATIVE_BINARY`, then use `graph index` with `--engine native-preview`; writer modes remain explicit | Writes only `.local/source-index/index.v1.sqlite` for explicit build, refresh, or confirm-gated repair | None | SQLite generations, bounded invalidation refresh, doctor, repair, bounded query, exact no-op refresh across 14 reviewed fixtures, and a clean 781-file Phase 3 receipt | Experimental |
 | Local Rust MCP preview | Start `recall mcp server --read-only --engine native-preview` after building the indexes and registering repositories explicitly | No client config writer and no index or memory writes | None | Twelve-tool server; structural tools read prebuilt native indexes and expose bounded repository listing/search plus exact two-repository Go dependencies, trace, and reverse impact; governed memory tools keep their existing read-only behavior | Experimental |
 | Tier 2 and other source graph analysis | None | None | None | Lua, Bash, SQL, Objective-C, Scala, R, Julia, Zig, and languages outside Tier 1 have no promoted static graph support | Unsupported |
@@ -45,19 +45,20 @@ reversal path.
 
 ## Graph boundary
 
-The implemented graph is static and bounded: it scans supported JS/TS-family
-files only, up to 1,000 files and 512 KiB per file, and reports skipped or
-partial coverage. It is not a language server, semantic graph database, or
-universal code index.
+Both graph engines are static and bounded. The compatibility engine scans
+supported JS/TS-family files only; the Rust engine has fixture-backed parsing
+across 14 Tier 1 languages but still carries unmeasured capability rows. Both
+report skipped or partial coverage. Neither is a language server, semantic
+graph database, or universal code index.
 
 `recall graph index --write` creates an optional JS/TS structural index under
 `.local/source-graph/`. `--refresh` reparses changed and added files, reuses
 unchanged shards, and removes deleted files. `--refresh --watch` keeps it
-current while the process runs. Direct MCP startup without `--engine` stays on
-this JS path, which reuses a current index or performs a bounded scan when the
-index is absent or stale. Strict `native-preview` reads only a prebuilt SQLite
-index and does not fall back. Installer-generated `auto` status-gates that
-native index, then uses the labeled JS path when native is unavailable. Every
+current while the process runs. Graph reads, direct MCP startup, and installed
+MCP servers default to `auto`: they use a verified Rust engine only when its
+prebuilt SQLite index is healthy and current, then use the labeled JS path when
+native is unavailable, absent, or stale. Strict `native-preview` does not fall
+back. Every
 build, refresh, and repair remains explicit.
 
 `recall graph stats`, `recall graph search`, `recall graph trace`, and
@@ -69,8 +70,9 @@ dependencies` or `recall graph routes` CLI subcommands.
 Native preview can parse the 14 Tier 1 languages. The Phase 2 audit covers one
 fixture and three pinned repositories per language, but it promotes only the 46
 capability rows with qualifying evidence. Every language still has applicable
-unmeasured rows. These modes are read-only and explicit; neither changes the
-public default or creates an installer-backed polyglot promise.
+unmeasured rows. These modes are read-only. Auto selection changes the
+source-checkout default, but it does not establish full language parity or a
+cross-platform published promise.
 
 The experimental repository registry is explicit. Build each repository index,
 then use `recall graph repositories register --write` from their shared fleet

@@ -6878,10 +6878,10 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
   const strictNativeReadMessage = (error) => {
     const code = String(error?.code ?? error?.message ?? 'native_engine_unavailable');
     if (code === 'source_index_build_required' || code === 'source_index_query_unavailable') {
-      return `${code}: run oaf graph index --write --engine native-preview --root . --format summary`;
+      return `${code}: run recall graph index --write --engine native-preview --root . --format summary`;
     }
     if (code === 'source_index_refresh_required') {
-      return `${code}: run oaf graph index --refresh --engine native-preview --root . --format summary`;
+      return `${code}: run recall graph index --refresh --engine native-preview --root . --format summary`;
     }
     if ([
       'source_index_corrupt',
@@ -6891,7 +6891,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       'source_index_repair_required',
       'source_index_wrong_repository'
     ].includes(code)) {
-      return `${code}: run oaf graph index --doctor --engine native-preview --root . --format summary, then use the exact repair command it reports`;
+      return `${code}: run recall graph index --doctor --engine native-preview --root . --format summary, then use the exact repair command it reports`;
     }
     if (code === 'source_index_schema_newer') {
       return `${code}: use a Memory Recall version compatible with the newer index schema; do not overwrite it with this version`;

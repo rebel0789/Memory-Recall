@@ -1,16 +1,17 @@
-# Experimental Rust Acceleration
+# Rust Code Intelligence
 
-Memory Recall's default public path is a zero-account Node.js CLI with an
-implemented JS/TS static graph. Experimental Rust acceleration is opt-in and
-requires a local build; it is not default shipping code intelligence.
+Memory Recall keeps Node.js as the zero-account CLI and transport layer. Graph
+reads now default to `auto`: a verified packaged Rust engine is selected only
+when its explicit local SQLite index is healthy and current. Otherwise the
+result identifies the bounded JS/TS fallback.
 
 Use this wording publicly:
 
-> Memory Recall provides an implemented JS/TS static graph. Experimental Rust
-> acceleration is opt-in and requires a local build; the npm package includes
-> Rust source, not a built binary.
+> Memory Recall prefers verified packaged Rust reads from a healthy current
+> local index, never builds that index from a read path, and labels its bounded
+> JS/TS fallback when native state is unavailable.
 
-## What Rust Does After A Local Build
+## What Rust Does
 
 - local ingest over repository source;
 - governed File, Module, Function, Class, Method facts;
@@ -30,10 +31,11 @@ Use this wording publicly:
 - memory governance workflows;
 - release readiness, protocol validation, and consumer smoke tests.
 
-## Build
+## Optional local build
 
-The npm tarball includes Rust source but no built Rust binary. No Rust command
-runs as part of `npm install`, `recall setup`, or `recall handoff`.
+The root npm tarball excludes Rust source and build output. Matching optional
+platform packages carry verified binaries. No compiler runs as part of
+`npm install`, `recall setup`, or `recall handoff`.
 
 ```bash
 cargo build --release --manifest-path rust/Cargo.toml
@@ -45,14 +47,12 @@ The release binary is:
 rust/target/release/oaf
 ```
 
-Build output is intentionally excluded from the npm tarball. The Rust source is
-included so users can inspect and build it locally when they choose the
-experimental acceleration path.
+Build output remains excluded from the root npm tarball. A source checkout can
+still build the engine explicitly for development.
 
 ## Run the graph preview
 
-Point Memory Recall at the local release binary and select the preview on each
-read command:
+Point Memory Recall at a local release binary when testing a source checkout:
 
 ```bash
 MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
@@ -61,9 +61,9 @@ MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
 
 Use `--engine compatibility` to receive the native graph plus bounded
 file/symbol/import/call/route comparisons against the existing JS/TS graph.
-Both graph-read modes are read-only. A missing or invalid binary fails clearly;
-there is no silent fallback. Commands without `--engine` continue to use the JS
-engine.
+Both strict graph-read modes are read-only. A missing or invalid strict native
+binary fails clearly. Commands without `--engine` use auto selection and report
+the selected engine and reason.
 
 ## Build and query the native preview index
 
@@ -90,9 +90,9 @@ MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
 ```
 
 The native MCP preview never builds, refreshes, repairs, or writes governed
-memory. Normal MCP startup remains on the JS engine.
+memory. Normal MCP startup uses the same freshness-gated auto selection.
 
-To opt into freshness-gated per-read selection while keeping a bounded fallback:
+To request freshness-gated auto selection explicitly:
 
 ```bash
 MEMORY_RECALL_NATIVE_BINARY="$PWD/rust/target/release/oaf" \
@@ -120,5 +120,5 @@ Some Rust benchmark scripts clone public repositories before running local
 commands. Treat those as optional evidence gates, not install-time behavior.
 The Phase 1 compatibility runner fetches exact commits from the pinned corpus.
 Its passing gate proves deterministic bounded execution, not the published
-accuracy floor. The stored results show native import and call gaps, so the
-preview remains non-default.
+accuracy floor. The stored results still contain unmeasured language rows, so
+auto selection is not a parity or leadership claim.
