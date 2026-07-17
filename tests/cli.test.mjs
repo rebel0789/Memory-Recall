@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import { createHash } from 'node:crypto';import { spawn, spawnSync } from 'node:child_process';import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';import os from 'node:os';import path from 'node:path';import contextPackHandoffReportSchema from '../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };import contextPackMeasurementReportSchema from '../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };import contextPackReceiveReportSchema from '../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };import memoryRefineReportSchema from '../packages/protocol/schemas/memory-refine-report.schema.json' with { type: 'json' };import recallMapSchema from '../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import { createHash } from 'node:crypto';import { spawn, spawnSync } from 'node:child_process';import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from 'node:fs';import os from 'node:os';import path from 'node:path';import contextPackHandoffReportSchema from '../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };import contextPackMeasurementReportSchema from '../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };import contextPackReceiveReportSchema from '../packages/protocol/schemas/context-pack-receive-report.schema.json' with { type: 'json' };import memoryRefineReportSchema from '../packages/protocol/schemas/memory-refine-report.schema.json' with { type: 'json' };import recallMapSchema from '../packages/protocol/schemas/recall-map.schema.json' with { type: 'json' };import { assertJsonSchema } from '../packages/protocol/src/schema-validator.mjs';import { SQLiteMemoryProvider } from '../providers/native/memory-sqlite/src/index.mjs';
 import semanticSetupReportSchema from '../packages/protocol/schemas/semantic-setup-report.schema.json' with { type: 'json' };
 import { createServer } from 'node:http';
 const CLI_PATH=path.resolve('apps/cli/oaf.mjs');
@@ -1770,7 +1770,7 @@ test('mcp install dry-run prints exact token-saver config for coding clients wit
   const root = path.resolve('.');
   const sqlitePath = path.join(root, '.local', 'memory.sqlite');
   const statsPath = path.join(root, '.local', 'mcp-stats.jsonl');
-  const expectedArgs = [path.join(root, 'apps', 'cli', 'oaf.mjs'), 'mcp', 'server', '--read-only', '--root', root, '--sqlite', sqlitePath, '--stats', statsPath, '--stdio'];
+  const expectedArgs = [path.join(root, 'apps', 'cli', 'oaf.mjs'), 'mcp', 'server', '--read-only', '--engine', 'auto', '--root', root, '--sqlite', sqlitePath, '--stats', statsPath, '--stdio'];
   for (const client of ['claude-code', 'cursor', 'codex']) {
     const home = mkdtempSync(path.join(os.tmpdir(), `oaf-cli-mcp-install-${client}-`));
     const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', client, '--home', home, '--format', 'json'], { encoding: 'utf8' });
@@ -1796,6 +1796,8 @@ test('mcp install dry-run prints exact token-saver config for coding clients wit
     assert.equal(report.desiredServer.command, process.execPath);
     assert.deepEqual(report.desiredServer.args, expectedArgs);
     assert.equal(report.desiredServer.resourceMode, 'read-only-token-saver');
+    assert.equal(report.indexBuildCommand, `recall graph index --write --engine native-preview --root ${JSON.stringify(root)} --format summary`);
+    assert.equal(report.warnings.some((warning) => warning.includes('never builds or refreshes an index')), true);
     assert.equal(report.safeguards.localFilesWritten, 0);
     assert.equal(report.safeguards.homeConfigMutated, false);
     assert.equal(report.safeguards.externalWritesEnabled, false);
@@ -1819,29 +1821,35 @@ test('mcp install dry-run prints exact token-saver config for coding clients wit
 });
 
 test('mcp install apply requires matching confirmation before writing config', () => {
-  const root = path.resolve('.');
-  const expectedArgs = [path.join(root, 'apps', 'cli', 'oaf.mjs'), 'mcp', 'server', '--read-only', '--root', root, '--sqlite', path.join(root, '.local', 'memory.sqlite'), '--stats', path.join(root, '.local', 'mcp-stats.jsonl'), '--stdio'];
+  const cliPath = path.resolve('apps/cli/oaf.mjs');
+  const root = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-root-'));
+  const realRoot = realpathSync(root);
+  const expectedArgs = [cliPath, 'mcp', 'server', '--read-only', '--engine', 'auto', '--root', realRoot, '--sqlite', path.join(realRoot, '.local', 'memory.sqlite'), '--stats', path.join(realRoot, '.local', 'mcp-stats.jsonl'), '--stdio'];
+  const expectedIndexBuildCommand = `recall graph index --write --engine native-preview --root ${JSON.stringify(realRoot)} --format summary`;
   const home = mkdtempSync(path.join(os.tmpdir(), 'oaf-cli-mcp-install-apply-'));
   const configPath = path.join(home, '.cursor', 'mcp.json');
-  const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  const indexPath = path.join(root, '.local', 'source-index', 'index.v1.sqlite');
+  const preview = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--root', root, '--format', 'json'], { encoding: 'utf8' });
   assert.equal(preview.status, 0, preview.stderr);
   const previewReport = JSON.parse(preview.stdout);
   assert.equal(previewReport.status.server, 'absent');
+  assert.equal(previewReport.indexBuildCommand, expectedIndexBuildCommand);
   assert.equal(existsSync(configPath), false);
+  assert.equal(existsSync(indexPath), false);
 
-  const missingConfirm = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--format', 'json'], { encoding: 'utf8' });
+  const missingConfirm = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--root', root, '--apply', '--format', 'json'], { encoding: 'utf8' });
   assert.equal(missingConfirm.status, 2);
   assert.match(missingConfirm.stderr, /requires --confirm <planFingerprint>/);
   assert.equal(missingConfirm.stdout, '');
   assert.equal(existsSync(configPath), false);
 
-  const wrongConfirm = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--confirm', 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '--format', 'json'], { encoding: 'utf8' });
+  const wrongConfirm = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--root', root, '--apply', '--confirm', 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '--format', 'json'], { encoding: 'utf8' });
   assert.equal(wrongConfirm.status, 2);
   assert.match(wrongConfirm.stderr, /requires --confirm <planFingerprint>/);
   assert.equal(wrongConfirm.stdout, '');
   assert.equal(existsSync(configPath), false);
 
-  const applied = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--apply', '--confirm', previewReport.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
+  const applied = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--root', root, '--apply', '--confirm', previewReport.planFingerprint, '--format', 'json'], { encoding: 'utf8' });
   assert.equal(applied.status, 0, applied.stderr);
   const appliedReport = JSON.parse(applied.stdout);
   assert.equal(appliedReport.dryRun, false);
@@ -1850,14 +1858,16 @@ test('mcp install apply requires matching confirmation before writing config', (
   assert.equal(appliedReport.apply.applied, true);
   assert.equal(appliedReport.safeguards.localFilesWritten, 1);
   assert.equal(appliedReport.safeguards.homeConfigMutated, true);
+  assert.equal(appliedReport.indexBuildCommand, expectedIndexBuildCommand);
   assert.equal(appliedReport.nextCommand, null);
   assert.equal(appliedReport.reversal.target, 'mcpServers.oaf');
   assert.equal(existsSync(configPath), true);
   const written = JSON.parse(readFileSync(configPath, 'utf8'));
   assert.equal(written.mcpServers.oaf.command, process.execPath);
   assert.deepEqual(written.mcpServers.oaf.args, expectedArgs);
+  assert.equal(existsSync(indexPath), false);
 
-  const after = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--format', 'json'], { encoding: 'utf8' });
+  const after = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'install', '--client', 'cursor', '--home', home, '--root', root, '--format', 'json'], { encoding: 'utf8' });
   assert.equal(after.status, 0, after.stderr);
   const afterReport = JSON.parse(after.stdout);
   assert.equal(afterReport.status.server, 'installed');

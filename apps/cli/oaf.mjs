@@ -8909,6 +8909,8 @@ async function buildPortableMcpInstallPlan({ setup, client, root, sqlitePath, st
       'mcp',
       'server',
       '--read-only',
+      '--engine',
+      'auto',
       '--root',
       realRoot,
       '--sqlite',
@@ -8985,13 +8987,13 @@ async function buildPortableMcpUninstallPlan({ setup, client, home, configPath }
 function isOwnedMcpInstallServer(serverConfig) {
   if (serverConfig?.command !== process.execPath || !Array.isArray(serverConfig.args)) return false;
   const args = serverConfig.args;
-  return args.length === 11 &&
+  return args.length === 13 &&
     args[0] === CLI_PATH &&
-    arraysEqual(args.slice(1, 5), ['mcp', 'server', '--read-only', '--root']) &&
-    path.isAbsolute(args[5]) &&
-    args[6] === '--sqlite' && path.isAbsolute(args[7]) &&
-    args[8] === '--stats' && path.isAbsolute(args[9]) &&
-    args[10] === '--stdio';
+    arraysEqual(args.slice(1, 7), ['mcp', 'server', '--read-only', '--engine', 'auto', '--root']) &&
+    path.isAbsolute(args[7]) &&
+    args[8] === '--sqlite' && path.isAbsolute(args[9]) &&
+    args[10] === '--stats' && path.isAbsolute(args[11]) &&
+    args[12] === '--stdio';
 }
 
 function buildMcpInstallManualConfigSnippet({ client, server, configRef, serverConfig }) {
@@ -9090,6 +9092,7 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
     config: setup.config,
     status: installPlan.status,
     desiredServer: installPlan.desiredServer,
+    indexBuildCommand: `recall graph index --write --engine native-preview --root ${JSON.stringify(installPlan.workspaceRoot)} --format summary`,
     configPreimageFingerprint: installPlan.configPreimageFingerprint,
     manualConfigSnippet: installPlan.manualConfigSnippet,
     reversal: {
@@ -9113,8 +9116,9 @@ function buildMcpInstallReport({ setup, installPlan, client, root, sqlitePath, s
       ? null
       : `recall mcp install --client ${client.id} --root ${JSON.stringify(root)} --apply --confirm ${planFingerprint} --format json`,
     warnings: [
-      'Dry-run is the default; OAF writes home config only with --apply and matching --confirm.',
-      'Review the config before applying. The MCP server is local stdio and read-only.'
+      'Dry-run is the default; Memory Recall writes home config only with --apply and matching --confirm.',
+      'mcp install configures --engine auto but never builds or refreshes an index. Run indexBuildCommand explicitly; until then structural tools use the labeled bounded JS fallback.',
+      'Auto mode reads a healthy, current native index without writing. The MCP server remains local stdio and read-only.'
     ]
   };
 }
