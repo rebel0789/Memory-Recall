@@ -228,7 +228,8 @@ async function materializeFixtures(directory) {
   await writeFile(path.join(typescript, 'src', 'index.ts'), [
     "import { helper } from './helper.js';",
     'export interface Result { value: number }',
-    'export function main(value: number): Result { return { value: helper(value) }; }',
+    'class ResultBox { constructor(readonly value: number) {} }',
+    'export function main(value: number): Result { return new ResultBox(helper(value)); }',
     ''
   ].join('\n'));
   await writeFile(path.join(javascript, 'helper.js'), 'export function helper(value) { return value + 1; }\n');

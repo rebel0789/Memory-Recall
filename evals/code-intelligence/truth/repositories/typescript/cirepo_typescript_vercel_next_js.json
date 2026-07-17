@@ -110,6 +110,28 @@
       "resolution": "typed"
     },
     {
+      "id": "cititem_next_on_userland_loaded_typed_call",
+      "semanticKey": "edge:calls:module.ts:AppRouteRouteModule.constructor:_onUserlandLoaded",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "calls",
+      "from": {
+        "kind": "method",
+        "name": "constructor",
+        "qualifiedName": "module.ts::AppRouteRouteModule::constructor",
+        "locator": "workspace://module.ts#L256-L284"
+      },
+      "to": {
+        "kind": "method",
+        "name": "_onUserlandLoaded",
+        "qualifiedName": "module.ts::AppRouteRouteModule::_onUserlandLoaded",
+        "locator": "workspace://module.ts#L286-L342"
+      },
+      "locator": "workspace://module.ts#L276-L276",
+      "resolution": "typed"
+    },
+    {
       "id": "cititem_next_resolve_handler_false_call",
       "semanticKey": "edge:calls:module.ts:AppRouteRouteModule.handle:parsedUrlQueryToParams:absent",
       "capability": "calls",
@@ -131,5 +153,5 @@
       "locator": "workspace://module.ts#L773-L773"
     }
   ],
-  "truthFingerprint": "sha256:161291d48daa4c8b36316210b17bf7cc779ffc20a8f72e2cb0f59d1badb9ae7c"
+  "truthFingerprint": "sha256:fd1169366c4951e02d6a85af53eb3054e9595f1a2ed121c0af91253f7b7fd8ed"
 }

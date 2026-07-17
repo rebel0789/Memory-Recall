@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-a-1",
   "phase": 2,
   "batch": "A",
-  "generatedAt": "2026-07-17T15:59:30.447Z",
+  "generatedAt": "2026-07-17T16:50:35.255Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -47,12 +47,12 @@
       "id": "fixture_typescript_import_call",
       "language": "typescript",
       "sourceClass": "fixture",
-      "sourceRef": "fixture://sha256:f2992ddcf7fba78474ac2f8e1c005290dd6bd513273fd106f7807279f09cce4b",
+      "sourceRef": "fixture://sha256:0da79f91adfdca5b7658a56903c4e755db779bc6ce5347f57899c981c07ab61a",
       "truthPath": "evals/code-intelligence/truth/fixtures/typescript.json",
       "graph": {
-        "fingerprint": "sha256:ba2e6562015a2a0412afcc064fbdc5c35d8d5dc391354b776c8096be6dfeae0c",
-        "nodeCount": 7,
-        "edgeCount": 10,
+        "fingerprint": "sha256:42fc85bbae7a7dafa1d0dfb8bf894ac1a8e843f7ce9628a905ef084f92209068",
+        "nodeCount": 9,
+        "edgeCount": 13,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -70,10 +70,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 28.114,
-        "secondElapsedMs": 7.672,
-        "evaluatorMaxRssKb": 58880,
-        "graphResponseBytes": 8634,
+        "firstElapsedMs": 29.489,
+        "secondElapsedMs": 8.144,
+        "evaluatorMaxRssKb": 59248,
+        "graphResponseBytes": 10929,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -81,10 +81,10 @@
         "reportVersion": "memory-recall-code-intelligence-language-report-1",
         "truthId": "citruth_typescript_import_call_fixture",
         "language": "typescript",
-        "sourceRef": "fixture://sha256:f2992ddcf7fba78474ac2f8e1c005290dd6bd513273fd106f7807279f09cce4b",
+        "sourceRef": "fixture://sha256:0da79f91adfdca5b7658a56903c4e755db779bc6ce5347f57899c981c07ab61a",
         "graphFingerprints": [
-          "sha256:ba2e6562015a2a0412afcc064fbdc5c35d8d5dc391354b776c8096be6dfeae0c",
-          "sha256:ba2e6562015a2a0412afcc064fbdc5c35d8d5dc391354b776c8096be6dfeae0c"
+          "sha256:42fc85bbae7a7dafa1d0dfb8bf894ac1a8e843f7ce9628a905ef084f92209068",
+          "sha256:42fc85bbae7a7dafa1d0dfb8bf894ac1a8e843f7ce9628a905ef084f92209068"
         ],
         "reviewCoverage": {
           "declarations": "exhaustive",
@@ -98,8 +98,8 @@
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 2,
-            "denominator": 2,
+            "numerator": 3,
+            "denominator": 3,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -110,8 +110,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 7,
-          "matchedTruthItemCount": 7
+          "truthItemCount": 8,
+          "matchedTruthItemCount": 8
         },
         "capabilities": [
           {
@@ -125,8 +125,8 @@
             "id": "structure",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 2,
-            "matchedItemCount": 2
+            "itemCount": 3,
+            "matchedItemCount": 3
           },
           {
             "id": "imports",
@@ -208,7 +208,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:5b69a1881051090eca4f8410afdb52f5d3165f9d1f1faaaaa26733bf70829245"
+        "reportFingerprint": "sha256:5b977d7e5fd55c11b6a2be788c771037a250f2f062f5f62ee2c631ebe0a84900"
       }
     },
     {
@@ -238,9 +238,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 6.891,
-        "secondElapsedMs": 7.28,
-        "evaluatorMaxRssKb": 59840,
+        "firstElapsedMs": 7.092,
+        "secondElapsedMs": 7.456,
+        "evaluatorMaxRssKb": 65136,
         "graphResponseBytes": 7255,
         "workspaceFingerprintUnchanged": true
       },
@@ -416,9 +416,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 937.906,
-        "secondElapsedMs": 924.912,
-        "evaluatorMaxRssKb": 168864,
+        "firstElapsedMs": 932.245,
+        "secondElapsedMs": 909.308,
+        "evaluatorMaxRssKb": 169184,
         "graphResponseBytes": 6809185,
         "workspaceFingerprintUnchanged": true
       },
@@ -594,9 +594,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1067.617,
-        "secondElapsedMs": 1066.615,
-        "evaluatorMaxRssKb": 220096,
+        "firstElapsedMs": 1080.998,
+        "secondElapsedMs": 1055.216,
+        "evaluatorMaxRssKb": 222704,
         "graphResponseBytes": 7212004,
         "workspaceFingerprintUnchanged": true
       },
@@ -763,9 +763,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 29.712,
-        "secondElapsedMs": 30.041,
-        "evaluatorMaxRssKb": 220096,
+        "firstElapsedMs": 30.958,
+        "secondElapsedMs": 29.242,
+        "evaluatorMaxRssKb": 222704,
         "graphResponseBytes": 226045,
         "workspaceFingerprintUnchanged": true
       },
@@ -796,15 +796,15 @@
             "value": 1
           },
           "reviewedCallPrecision": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
         },
         "capabilities": [
           {
@@ -846,8 +846,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -901,7 +901,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:fc6c8e14188d70a1f8d3df42dccc3e1c8935866e1de0016aacf0cdcc7b855b91"
+        "reportFingerprint": "sha256:33676fdcc3388a7bacfc1726fadaa44c2e811df43b6ce2cd8ee9ae320a2871e9"
       }
     },
     {
@@ -932,9 +932,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 33.798,
-        "secondElapsedMs": 32.453,
-        "evaluatorMaxRssKb": 220096,
+        "firstElapsedMs": 34.109,
+        "secondElapsedMs": 34.82,
+        "evaluatorMaxRssKb": 222704,
         "graphResponseBytes": 321860,
         "workspaceFingerprintUnchanged": true
       },
@@ -1101,9 +1101,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 34.338,
-        "secondElapsedMs": 33.59,
-        "evaluatorMaxRssKb": 220096,
+        "firstElapsedMs": 33.426,
+        "secondElapsedMs": 31.927,
+        "evaluatorMaxRssKb": 222704,
         "graphResponseBytes": 337048,
         "workspaceFingerprintUnchanged": true
       },
@@ -1270,9 +1270,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 184.239,
-        "secondElapsedMs": 183.955,
-        "evaluatorMaxRssKb": 220096,
+        "firstElapsedMs": 184.347,
+        "secondElapsedMs": 186.893,
+        "evaluatorMaxRssKb": 222704,
         "graphResponseBytes": 1061356,
         "workspaceFingerprintUnchanged": true
       },
@@ -1452,13 +1452,13 @@
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 8,
-          "denominator": 8,
+          "numerator": 9,
+          "denominator": 9,
           "value": 1
         },
         "reviewedCallPrecision": {
-          "numerator": 4,
-          "denominator": 4,
+          "numerator": 5,
+          "denominator": 5,
           "value": 1
         },
         "duplicateCanonicalSymbolCount": 0,
@@ -1489,5 +1489,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:41183d7c0de70bc94e999526387af1ff1de999f80a7024c3db71a3edb875f8ff"
+  "reportFingerprint": "sha256:8e60372a5cad3ec67bbd6314da8209f1b40c4c46712ee63c82fcac9a8444eca9"
 }

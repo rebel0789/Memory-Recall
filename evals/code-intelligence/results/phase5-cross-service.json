@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase5-cross-service-1",
   "phase": 5,
-  "generatedAt": "2026-07-17T16:35:25.688Z",
+  "generatedAt": "2026-07-17T16:52:58.154Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -11,7 +11,7 @@
   "inputs": {
     "fixtureRef": "fixture://sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
     "fixtureFingerprint": "sha256:7dad06cf60b8cb2a90996634607cf81a7fc1a1bdc7e87660b6f63002ce325155",
-    "implementationFingerprint": "sha256:47c6aff9df890c30ffb44badeaeeccb616a1ee5c606344e5379e0ab589fbf027",
+    "implementationFingerprint": "sha256:f6f94654e1d9c9f36b6e0663f1429fb62e2246dffc7f5ef86eb69ec3627f4c11",
     "workspaceId": "ws_phase5_cross_service",
     "serviceBoundaries": [
       {
@@ -33,7 +33,7 @@
     "queryDeadlineMs": 2000
   },
   "index": {
-    "repositoryIdentityHash": "sha256:1625357329a873a2b63a59c5ae7a76ffe4afa75f3d48f82fe8d86e409312f691",
+    "repositoryIdentityHash": "sha256:93193bc7a196acabe3a7e77bdb2a6c067e800cd576d1442dc9c0fc4366797bb5",
     "fileCount": 4,
     "nodeCount": 17,
     "edgeCount": 20,
@@ -51,12 +51,12 @@
     "unresolvedTargetExcluded": true,
     "evidenceIdsComplete": true,
     "bounded": true,
-    "deterministicFingerprint": "sha256:6416e2f34ce6cbca6383994d1aeb2d0cf925dc6c36938254d993a3d883e01615",
+    "deterministicFingerprint": "sha256:19079c49ad453f0d37845d15be04e51c1469accfe971bd0edd4b31f8813f02ab",
     "queryWallMs": {
-      "minimum": 6.853,
-      "p50": 8.112,
-      "p95": 9.73,
-      "maximum": 9.73
+      "minimum": 7.188,
+      "p50": 9.035,
+      "p95": 9.525,
+      "maximum": 9.525
     },
     "readQueriesPreservedIndex": true
   },
@@ -77,5 +77,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:eb9815df1a523aadee927b3dbd53d407d21e9f01ce18a5f2f2a5387ff6ccba47"
+  "reportFingerprint": "sha256:1f029a5d6bf327b9158cb362a66dd43645968d146c90612db89be8d576fdf516"
 }

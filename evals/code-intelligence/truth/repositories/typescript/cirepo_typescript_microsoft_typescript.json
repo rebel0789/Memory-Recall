@@ -35,7 +35,7 @@
     {
       "id": "cititem_ts_compiler_class_facts",
       "semanticKey": "node:enum:classFields.ts:ClassFacts",
-      "capability": "types",
+      "capability": "structure",
       "expectation": "present",
       "recordKind": "node",
       "kind": "enum",
@@ -68,7 +68,7 @@
     {
       "id": "cititem_ts_compiler_identifier_map_construct",
       "semanticKey": "edge:constructs:module/module.ts:appendExportsOfImportDeclaration:IdentifierNameMap",
-      "capability": "structure",
+      "capability": "types",
       "expectation": "present",
       "recordKind": "edge",
       "kind": "constructs",
@@ -131,5 +131,5 @@
       "locator": "workspace://es2016.ts#L27-L27"
     }
   ],
-  "truthFingerprint": "sha256:c03f480b0e71674123de912a2bc044038889ceb39dc8fbb45b55cc14bffa0afd"
+  "truthFingerprint": "sha256:20df4d82cae4de2affd9be6a812da313fa61e020932fedf28eaa074694d868e9"
 }

@@ -5,7 +5,7 @@
   "language": "typescript",
   "source": {
     "class": "fixture",
-    "ref": "fixture://sha256:f2992ddcf7fba78474ac2f8e1c005290dd6bd513273fd106f7807279f09cce4b"
+    "ref": "fixture://sha256:0da79f91adfdca5b7658a56903c4e755db779bc6ce5347f57899c981c07ab61a"
   },
   "review": {
     "status": "reviewed",
@@ -46,13 +46,35 @@
     {
       "id": "cititem_typescript_result",
       "semanticKey": "node:interface:src/index.ts:Result",
-      "capability": "types",
+      "capability": "structure",
       "expectation": "present",
       "recordKind": "node",
       "kind": "interface",
       "name": "Result",
       "qualifiedName": "src/index.ts::Result",
       "locator": "workspace://src/index.ts#L2-L2"
+    },
+    {
+      "id": "cititem_typescript_construct_result_box",
+      "semanticKey": "edge:constructs:src/index.ts:main:ResultBox",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "constructs",
+      "from": {
+        "kind": "function",
+        "name": "main",
+        "qualifiedName": "src/index.ts::main",
+        "locator": "workspace://src/index.ts#L4-L4"
+      },
+      "to": {
+        "kind": "class",
+        "name": "ResultBox",
+        "qualifiedName": "src/index.ts::ResultBox",
+        "locator": "workspace://src/index.ts#L3-L3"
+      },
+      "locator": "workspace://src/index.ts#L4-L4",
+      "resolution": "exact"
     },
     {
       "id": "cititem_typescript_main",
@@ -63,7 +85,7 @@
       "kind": "function",
       "name": "main",
       "qualifiedName": "src/index.ts::main",
-      "locator": "workspace://src/index.ts#L3-L3"
+      "locator": "workspace://src/index.ts#L4-L4"
     },
     {
       "id": "cititem_typescript_import_helper",
@@ -76,7 +98,7 @@
         "kind": "module",
         "name": "src_index",
         "qualifiedName": "src/index.ts::src_index",
-        "locator": "workspace://src/index.ts#L1-L4"
+        "locator": "workspace://src/index.ts#L1-L5"
       },
       "to": {
         "kind": "module",
@@ -98,7 +120,7 @@
         "kind": "module",
         "name": "src_index",
         "qualifiedName": "src/index.ts::src_index",
-        "locator": "workspace://src/index.ts#L1-L4"
+        "locator": "workspace://src/index.ts#L1-L5"
       },
       "to": {
         "kind": "interface",
@@ -120,7 +142,7 @@
         "kind": "function",
         "name": "main",
         "qualifiedName": "src/index.ts::main",
-        "locator": "workspace://src/index.ts#L3-L3"
+        "locator": "workspace://src/index.ts#L4-L4"
       },
       "to": {
         "kind": "function",
@@ -128,7 +150,7 @@
         "qualifiedName": "src/helper.ts::helper",
         "locator": "workspace://src/helper.ts#L1-L1"
       },
-      "locator": "workspace://src/index.ts#L3-L3",
+      "locator": "workspace://src/index.ts#L4-L4",
       "resolution": "inferred"
     },
     {
@@ -142,7 +164,7 @@
         "kind": "function",
         "name": "main",
         "qualifiedName": "src/index.ts::main",
-        "locator": "workspace://src/index.ts#L3-L3"
+        "locator": "workspace://src/index.ts#L4-L4"
       },
       "to": {
         "kind": "interface",
@@ -150,8 +172,8 @@
         "qualifiedName": "src/index.ts::Result",
         "locator": "workspace://src/index.ts#L2-L2"
       },
-      "locator": "workspace://src/index.ts#L3-L3"
+      "locator": "workspace://src/index.ts#L4-L4"
     }
   ],
-  "truthFingerprint": "sha256:5849600e5d3ce2e2cf807f7596ea025e06b5a4f28a6c436c638bd6611686a9b9"
+  "truthFingerprint": "sha256:7b61a9d64afe4b8da93bf1b503b0f878faaba43b03b966196eb8f111d6d2e801"
 }

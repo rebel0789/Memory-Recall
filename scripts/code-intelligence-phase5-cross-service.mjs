@@ -19,6 +19,7 @@ const DECOY_PREFIX = 'workspace://services/zzz-decoy/';
 const UNRESOLVED_PREFIX = 'workspace://services/missing/';
 const IMPLEMENTATION_FILES = Object.freeze([
   'scripts/code-intelligence-phase5-cross-service.mjs',
+  'rust/oaf-ingest/src/lib.rs',
   'rust/oaf-index/src/lib.rs',
   'rust/oaf/src/code_intelligence.rs',
   'rust/oaf/src/index_protocol.rs',

@@ -72,7 +72,7 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 
 | Language | Declarations | Relationships | Reviewed calls | Capability rows at floor | Applicable rows still unmeasured | Overall |
 | --- | ---: | ---: | ---: | --- | --- | --- |
-| TypeScript | 6/6 | 8/8 | 4/4 | parse, structure, exports, calls | imports, types | unmeasured |
+| TypeScript | 6/6 | 9/9 | 5/5 | parse, structure, exports, types, calls | imports | unmeasured |
 | JavaScript | 8/8 | 8/8 | 4/4 | parse, structure, imports, exports, types, calls | none | meets-floor |
 | Python | 16/16 | 9/9 | 4/4 | parse, structure, calls | imports, heritage, types, config, frameworks | unmeasured |
 | Java | 21/21 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
@@ -87,12 +87,17 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | C++ | 15/15 | 6/6 | 4/4 | parse, structure, calls | imports, heritage, types, config | unmeasured |
 | Dart | 17/17 | 15/15 | 3/3 | parse, structure, imports, types | exports, heritage, calls, config, frameworks | unmeasured |
 
-Across the 154 Tier 1 capability cells, 49 meet the Phase 2 floor, none has a
-recorded floor failure, and 105 remain unmeasured or not applicable. JavaScript
+Across the 154 Tier 1 capability cells, 50 meet the Phase 2 floor, none has a
+recorded floor failure, and 104 remain unmeasured or not applicable. JavaScript
 is the first language whose applicable Phase 2 rows all meet the sampled floor;
 the other thirteen languages remain overall unmeasured. Six
 repository scopes hit the configured node or edge budget and report the exact
 omitted counts; their available reviewed evidence remains usable and partial.
+
+TypeScript's `types` row is backed by a resolved construction or typed-receiver
+edge in its fixture and each pinned repository. Its `imports` row remains
+unmeasured: two pinned repository scopes do not contain a qualifying resolved
+import target, so the benchmark does not infer support from unresolved syntax.
 
 Reproduce the stored batch receipts and aggregate from a source checkout with a
 local release binary:
