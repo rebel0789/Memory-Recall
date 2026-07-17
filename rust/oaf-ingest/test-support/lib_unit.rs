@@ -3,6 +3,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn javascript_route_decorator_only_applies_to_the_immediately_following_method() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-immediate-route-decorator-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let mut source = String::from("class Items {\n  @Get('/real')\n  real() {}\n");
+        for index in 0..2_000 {
+            source.push_str(&format!("  plain{index}() {{}}\n"));
+        }
+        source.push_str("}\n");
+        fs::write(root.join("items.ts"), source).unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let handlers = report
+            .code_facts
+            .iter()
+            .filter(|fact| fact.predicate == "HANDLES" && fact.object == "route:GET_real")
+            .map(|fact| fact.subject.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(handlers, vec!["method:Items_real"]);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn resolves_calls_to_functions_not_modules() {
         let mut parsed = ParsedRepo::new();
         parsed.add_symbol_name("runServer", "function:runServer");

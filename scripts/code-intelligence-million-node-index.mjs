@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { spawn, execFile } from 'node:child_process';
-import { constants, createReadStream } from 'node:fs';
-import { access, appendFile, mkdir, mkdtemp, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { appendFile, mkdir, mkdtemp, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -26,6 +26,8 @@ const MAX_STDERR_BYTES = 1024 * 1024;
 const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_NODES = 1_000_000;
 const MAX_EDGES = 1_000_000;
+const RSS_SAMPLE_INTERVAL_MS = 250;
+const RSS_SAMPLE_TIMEOUT_MS = 500;
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const execFileAsync = promisify(execFile);
 
@@ -105,10 +107,9 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
       process.platform === 'win32' ? 'oaf.exe' : 'oaf'
     );
     const selected = await resolveNativeBinary({ binaryPath: checkoutBinary });
-    const [binarySha256, checkout, timer] = await Promise.all([
+    const [binarySha256, checkout] = await Promise.all([
       fileSha256(selected.path),
-      checkoutEvidence(),
-      resolveTimer()
+      checkoutEvidence()
     ]);
     const writerArguments = {
       write: true,
@@ -125,8 +126,7 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
       operation,
       argumentsValue,
       deadlineMs,
-      ordinal: ordinal += 1,
-      timer
+      ordinal: ordinal += 1
     });
 
     const coldBuild = await run('index.build', writerArguments, BUILD_DEADLINE_MS);
@@ -193,9 +193,11 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
         binarySha256,
         checkoutCommit: checkout.commit,
         checkoutDirtyBeforeRun: checkout.dirty,
-        argvTemplate: timer
-          ? ['<timer>', ...timer.args, '<checkout-rust-binary>', 'code-intelligence', 'index', '--stdio']
-          : ['<checkout-rust-binary>', 'code-intelligence', 'index', '--stdio']
+        argvTemplate: ['<checkout-rust-binary>', 'code-intelligence', 'index', '--stdio'],
+        rssSampling: {
+          method: coldBuild.rssMeasurement ?? 'unavailable',
+          cadenceMs: coldBuild.rssSampleIntervalMs ?? null
+        }
       },
       fixture,
       bounds: {
@@ -265,17 +267,15 @@ export async function runMillionNodeBenchmark({ root = REPOSITORY_ROOT } = {}) {
   return report;
 }
 
-async function runIndexOperation({ binary, workspace, operation, argumentsValue, deadlineMs, ordinal, timer }) {
+async function runIndexOperation({ binary, workspace, operation, argumentsValue, deadlineMs, ordinal }) {
   const request = requestFrame(operation, argumentsValue, deadlineMs, ordinal);
   if (!validateJsonSchema(requestSchema, request).valid) {
     return failedOperation('benchmark_request_invalid');
   }
   const started = performance.now();
   const executed = await runKillSafeProcess({
-    command: timer?.command ?? binary,
-    args: timer
-      ? [...timer.args, binary, 'code-intelligence', 'index', '--stdio']
-      : ['code-intelligence', 'index', '--stdio'],
+    command: binary,
+    args: ['code-intelligence', 'index', '--stdio'],
     cwd: workspace,
     input: `${JSON.stringify(request)}\n`,
     timeoutMs: deadlineMs + 5_000,
@@ -289,8 +289,7 @@ async function runIndexOperation({ binary, workspace, operation, argumentsValue,
     })
   });
   const wallMs = round(performance.now() - started);
-  const peakNativeRssMb = timer ? parsePeakRssMb(executed.stderr, timer.measurement) : null;
-  const processEvidence = processReceipt(executed, timer, peakNativeRssMb);
+  const processEvidence = processReceipt(executed);
   if (executed.timedOut) {
     return failedOperation('benchmark_operation_timeout', { wallMs, ...processEvidence });
   }
@@ -333,7 +332,8 @@ export function runKillSafeProcess({
   timeoutMs,
   maxStdoutBytes = MAX_STDOUT_BYTES,
   maxStderrBytes = MAX_STDERR_BYTES,
-  env = process.env
+  env = process.env,
+  rssSampler = platformRssSampler()
 }) {
   return new Promise((resolve) => {
     const grouped = process.platform !== 'win32';
@@ -353,6 +353,20 @@ export function runKillSafeProcess({
     let outputLimitExceeded = false;
     let errorCode = null;
     let killStarted = false;
+    let closed = false;
+    let peakNativeRssMb = null;
+    let rssSampleInFlight = null;
+    let rssSampleInterval = null;
+    const sampleRss = () => {
+      if (!rssSampler || !child.pid || closed || rssSampleInFlight) return rssSampleInFlight ?? Promise.resolve();
+      rssSampleInFlight = sampleDirectChildRssMb(child.pid, rssSampler)
+        .then((rssMb) => {
+          if (rssMb !== null) peakNativeRssMb = Math.max(peakNativeRssMb ?? 0, rssMb);
+        })
+        .catch(() => {})
+        .finally(() => { rssSampleInFlight = null; });
+      return rssSampleInFlight;
+    };
     const killTree = () => {
       if (killStarted) return;
       killStarted = true;
@@ -390,32 +404,45 @@ export function runKillSafeProcess({
       stderr.push(chunk);
     });
     child.on('close', (exitCode, signal) => {
+      closed = true;
       clearTimeout(timerId);
+      if (rssSampleInterval) clearInterval(rssSampleInterval);
       const stdoutBuffer = Buffer.concat(stdout);
       const stderrBuffer = Buffer.concat(stderr);
-      resolve(Object.freeze({
-        exitCode,
-        signal,
-        timedOut,
-        outputLimitExceeded,
-        errorCode,
-        stdout: stdoutBuffer,
-        stderr: stderrBuffer,
-        stdoutBytes,
-        stderrBytes,
-        stdoutSha256: bufferSha256(stdoutBuffer),
-        stderrSha256: bufferSha256(stderrBuffer)
-      }));
+      const pendingSample = rssSampleInFlight;
+      void Promise.resolve(pendingSample).finally(() => {
+        resolve(Object.freeze({
+          exitCode,
+          signal,
+          timedOut,
+          outputLimitExceeded,
+          errorCode,
+          stdout: stdoutBuffer,
+          stderr: stderrBuffer,
+          stdoutBytes,
+          stderrBytes,
+          stdoutSha256: bufferSha256(stdoutBuffer),
+          stderrSha256: bufferSha256(stderrBuffer),
+          peakNativeRssMb,
+          rssMeasurement: peakNativeRssMb === null ? 'unavailable' : rssSampler.measurement,
+          rssSampleIntervalMs: peakNativeRssMb === null ? null : rssSampler.cadenceMs
+        }));
+      });
     });
     child.stdin.on('error', () => killTree());
-    child.stdin.end(input);
+    void sampleRss().finally(() => {
+      if (closed || killStarted) return;
+      rssSampleInterval = setInterval(() => { void sampleRss(); }, rssSampler?.cadenceMs ?? RSS_SAMPLE_INTERVAL_MS);
+      child.stdin.end(input);
+    });
   });
 }
 
-function processReceipt(executed, timer, peakNativeRssMb) {
+function processReceipt(executed) {
   return {
-    peakNativeRssMb,
-    rssMeasurement: peakNativeRssMb === null ? 'unavailable' : timer.measurement,
+    peakNativeRssMb: executed.peakNativeRssMb,
+    rssMeasurement: executed.rssMeasurement,
+    rssSampleIntervalMs: executed.rssSampleIntervalMs,
     exitCode: executed.exitCode,
     signal: executed.signal,
     timedOut: executed.timedOut,
@@ -428,29 +455,27 @@ function processReceipt(executed, timer, peakNativeRssMb) {
   };
 }
 
-async function resolveTimer() {
+function platformRssSampler() {
   if (!['darwin', 'linux'].includes(process.platform)) return null;
-  try {
-    await access('/usr/bin/time', constants.X_OK);
-    return process.platform === 'darwin'
-      ? Object.freeze({ command: '/usr/bin/time', args: ['-l'], measurement: 'usr-bin-time-l' })
-      : Object.freeze({ command: '/usr/bin/time', args: ['-v'], measurement: 'usr-bin-time-v' });
-  } catch {
-    return null;
-  }
+  return Object.freeze({
+    command: 'ps',
+    measurement: 'direct-child-ps-sampled',
+    cadenceMs: RSS_SAMPLE_INTERVAL_MS,
+    timeoutMs: RSS_SAMPLE_TIMEOUT_MS
+  });
 }
 
-export function parsePeakRssMb(stderr, measurement) {
-  const text = Buffer.isBuffer(stderr) ? stderr.toString('utf8') : String(stderr ?? '');
-  if (measurement === 'usr-bin-time-l') {
-    const bytes = Number(text.match(/(\d+)\s+maximum resident set size/u)?.[1] ?? 0);
-    return bytes > 0 ? Number((bytes / 1024 / 1024).toFixed(1)) : null;
-  }
-  if (measurement === 'usr-bin-time-v') {
-    const kilobytes = Number(text.match(/Maximum resident set size \(kbytes\):\s*(\d+)/u)?.[1] ?? 0);
-    return kilobytes > 0 ? Number((kilobytes / 1024).toFixed(1)) : null;
-  }
-  return null;
+async function sampleDirectChildRssMb(pid, sampler) {
+  const { stdout } = await execFileAsync(sampler.command, ['-o', 'rss=', '-p', String(pid)], {
+    encoding: 'utf8',
+    timeout: sampler.timeoutMs,
+    maxBuffer: 4096,
+    windowsHide: true
+  });
+  const kilobytes = Number(stdout.trim().split(/\s+/u)[0] ?? 0);
+  return Number.isFinite(kilobytes) && kilobytes > 0
+    ? Number((kilobytes / 1024).toFixed(1))
+    : null;
 }
 
 async function checkoutEvidence() {
@@ -510,6 +535,7 @@ function executionReceipt(operation) {
   return {
     peakNativeRssMb: operation.peakNativeRssMb,
     rssMeasurement: operation.rssMeasurement,
+    rssSampleIntervalMs: operation.rssSampleIntervalMs,
     exitCode: operation.exitCode,
     signal: operation.signal,
     timedOut: operation.timedOut,
@@ -650,6 +676,7 @@ function failedOperation(code, evidence = {}) {
     wallMs: evidence.wallMs ?? 0,
     peakNativeRssMb: evidence.peakNativeRssMb ?? null,
     rssMeasurement: evidence.rssMeasurement ?? 'unavailable',
+    rssSampleIntervalMs: evidence.rssSampleIntervalMs ?? null,
     exitCode: evidence.exitCode ?? null,
     signal: evidence.signal ?? null,
     timedOut: evidence.timedOut ?? false,

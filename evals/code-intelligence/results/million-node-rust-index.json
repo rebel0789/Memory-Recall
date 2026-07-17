@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportVersion": "memory-recall-million-node-rust-index-1",
+  "generatedAt": "2026-07-17T00:23:48.572Z",
+  "environment": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "nodeVersion": "v22.22.3",
+    "nativeVersion": "1.1.1",
+    "nativeTarget": "darwin-arm64",
+    "nativeSource": "checkout",
+    "rssMeasurement": "unavailable"
+  },
+  "execution": {
+    "binarySha256": "sha256:5cd276d8ec61f03b91b5358726316a3f22d76d1334d06467795583949ba15296",
+    "checkoutCommit": "ef7e10c11493e9c3b536fdec65e82b2dc64fa28f",
+    "checkoutDirtyBeforeRun": false,
+    "argvTemplate": [
+      "<timer>",
+      "-l",
+      "<checkout-rust-binary>",
+      "code-intelligence",
+      "index",
+      "--stdio"
+    ]
+  },
+  "fixture": {
+    "ref": "fixture://sha256:8628dda76e1a19e6495f8446231f4fa26e3627833a309a6e2bdc50a2d1d208a6",
+    "language": "javascript",
+    "fileCount": 10,
+    "methodsPerFile": 99997,
+    "expectedNodeCount": 1000000,
+    "expectedEdgeCount": 999990,
+    "totalSourceBytes": 9519930,
+    "maxSourceFileBytes": 951993
+  },
+  "bounds": {
+    "maxFiles": 10,
+    "maxFileBytes": 1048576,
+    "maxNodes": 1000000,
+    "maxEdges": 1000000,
+    "buildDeadlineMs": 300000,
+    "queryDeadlineMs": 2000,
+    "queryRepetitions": 20
+  },
+  "index": {
+    "fileCount": 0,
+    "nodeCount": 0,
+    "edgeCount": 0,
+    "unresolvedCount": 0,
+    "omittedCount": 0,
+    "databaseBytes": 0
+  },
+  "proof": {
+    "measuredBoundary": "exactly-1000000-committed-nodes",
+    "generatedFixtureNodeCount": 1000000,
+    "buildCommittedNodeCount": null,
+    "warmStatusCommittedNodeCount": null,
+    "querySamplesAllReadCommittedMillion": false,
+    "finalStatusCommittedNodeCount": null
+  },
+  "measurements": {
+    "indexAndPersist": {
+      "status": "failed",
+      "code": "benchmark_operation_timeout",
+      "wallMs": 305016.665,
+      "peakNativeRssMb": null,
+      "rssMeasurement": "unavailable",
+      "exitCode": null,
+      "signal": "SIGKILL",
+      "timedOut": true,
+      "outputLimitExceeded": false,
+      "errorCode": null,
+      "stdoutBytes": 0,
+      "stderrBytes": 0,
+      "stdoutSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "warmOpen": {
+      "status": "failed",
+      "code": "cold_build_failed",
+      "wallMs": 0,
+      "peakNativeRssMb": null,
+      "rssMeasurement": "unavailable",
+      "exitCode": null,
+      "signal": null,
+      "timedOut": false,
+      "outputLimitExceeded": false,
+      "errorCode": null,
+      "stdoutBytes": 0,
+      "stderrBytes": 0,
+      "stdoutSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "noChangeRefresh": {
+      "status": "failed",
+      "code": "cold_build_failed",
+      "wallMs": 0,
+      "peakNativeRssMb": null,
+      "rssMeasurement": "unavailable",
+      "exitCode": null,
+      "signal": null,
+      "timedOut": false,
+      "outputLimitExceeded": false,
+      "errorCode": null,
+      "stdoutBytes": 0,
+      "stderrBytes": 0,
+      "stdoutSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "oneFileRefresh": {
+      "status": "failed",
+      "code": "cold_build_failed",
+      "wallMs": 0,
+      "peakNativeRssMb": null,
+      "rssMeasurement": "unavailable",
+      "exitCode": null,
+      "signal": null,
+      "timedOut": false,
+      "outputLimitExceeded": false,
+      "errorCode": null,
+      "stdoutBytes": 0,
+      "stderrBytes": 0,
+      "stdoutSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "exactQuery": {
+      "status": "skipped",
+      "reason": "cold_build_failed",
+      "repetitions": 0,
+      "sqliteBefore": null,
+      "sqliteAfter": null
+    }
+  },
+  "failures": [
+    "cold_build_benchmark_operation_timeout",
+    "warm_open_cold_build_failed",
+    "no_change_refresh_cold_build_failed",
+    "one_file_refresh_cold_build_failed",
+    "final_status_cold_build_failed",
+    "persisted_file_count_mismatch",
+    "persisted_node_count_mismatch",
+    "persisted_edge_count_mismatch",
+    "exact_query_incomplete"
+  ],
+  "gateDecision": "fail",
+  "claims": {
+    "millionNodeScaleProven": false,
+    "competitorParity": false,
+    "leadership": false,
+    "reason": "The million-node claim remains unproven because one or more required measurements or correctness gates failed."
+  },
+  "safeguards": {
+    "networkCalls": 0,
+    "modelCalls": 0,
+    "canonicalMemoryWrites": 0,
+    "rawSourceStoredInReport": false,
+    "absolutePathsStoredInReport": false,
+    "fixtureDeletedAfterRun": true
+  },
+  "reportFingerprint": "sha256:35369b285b2caaf298aa3db828bbe9ffc6e6a207d17401745cc4728b27a54ae8"
+}

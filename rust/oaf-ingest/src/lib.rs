@@ -5537,11 +5537,17 @@ fn nest_method_route(node: Node<'_>, source: &[u8]) -> Option<(String, String)> 
 fn preceding_decorator<'a>(node: Node<'_>, source: &'a [u8]) -> Option<&'a str> {
     let parent = node.parent()?;
     let prefix = source.get(parent.start_byte()..node.start_byte())?;
-    std::str::from_utf8(prefix)
-        .ok()?
-        .lines()
-        .rev()
-        .find(|line| line.trim_start().starts_with('@'))
+    let current_line_start = prefix.iter().rposition(|byte| *byte == b'\n')?;
+    let before_current_line = &prefix[..current_line_start];
+    let previous_line_start = before_current_line
+        .iter()
+        .rposition(|byte| *byte == b'\n')
+        .map_or(0, |index| index + 1);
+    let previous_line = std::str::from_utf8(&before_current_line[previous_line_start..]).ok()?;
+    previous_line
+        .trim_start()
+        .starts_with('@')
+        .then_some(previous_line)
 }
 
 fn decorator_aware_span(node: Node<'_>, source: &[u8]) -> CodeSpan {
