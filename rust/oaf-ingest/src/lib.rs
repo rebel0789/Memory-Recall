@@ -1490,7 +1490,7 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         }
     }
 
-    augment_cmake_targets(&root, &mut parsed)?;
+    augment_build_targets(&root, &mut parsed)?;
 
     let generated_call_count = parsed.generated_call_count;
     let import_count = parsed.import_count;
@@ -1517,7 +1517,7 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
     })
 }
 
-fn augment_cmake_targets(root: &Path, parsed: &mut ParsedRepo) -> Result<()> {
+fn augment_build_targets(root: &Path, parsed: &mut ParsedRepo) -> Result<()> {
     let mut builder = WalkBuilder::new(root);
     builder
         .follow_links(false)
@@ -1528,7 +1528,7 @@ fn augment_cmake_targets(root: &Path, parsed: &mut ParsedRepo) -> Result<()> {
         .filter_entry(should_descend);
     for entry in builder.build().filter_map(Result::ok) {
         let path = entry.path();
-        if path.file_name().and_then(|name| name.to_str()) != Some("CMakeLists.txt") {
+        if !is_build_configuration(path) {
             continue;
         }
         let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
@@ -1539,68 +1539,41 @@ fn augment_cmake_targets(root: &Path, parsed: &mut ParsedRepo) -> Result<()> {
         let source_ref = format!("workspace://{relative}");
         let source = fs::read_to_string(path)
             .with_context(|| format!("read build configuration {relative}"))?;
-        for (command, arguments, line) in cmake_target_calls(&source) {
-            let mut tokens = arguments.split_whitespace();
-            let Some(target_name) = tokens.next().and_then(sanitize_symbol) else {
-                continue;
-            };
-            let sources = tokens
-                .filter(|token| !matches!(*token, "STATIC" | "SHARED" | "MODULE" | "OBJECT"))
-                .filter_map(|token| {
-                    let token = token.trim_matches(['"', '\'']);
-                    matches!(
-                        language_for_path(Path::new(token)),
-                        Some(LangKind::C | LangKind::Cpp)
-                    )
-                    .then_some(token)
-                })
-                .collect::<Vec<_>>();
-            let modules = sources
-                .iter()
-                .filter_map(|source| {
-                    let resolved = resolve_config_relative(&relative, source);
-                    parsed.resolve_existing_module_subject(&resolved)
-                })
-                .collect::<BTreeSet<_>>();
-            if modules.is_empty() {
-                continue;
-            }
-            let target = format!("build_target:{target_name}");
-            let span = CodeSpan {
-                start_line: line,
-                start_column: 0,
-                end_line: line,
-                end_column: 1,
-            };
-            let note = if sources
-                .iter()
-                .any(|source| language_for_path(Path::new(source)) == Some(LangKind::Cpp))
-            {
-                "oaf.ingest:cmake-cpp"
-            } else {
-                "oaf.ingest:cmake-c"
-            };
-            parsed.add_entity_at(target.clone(), "BuildTarget", &source_ref, note, span);
-            for module in modules {
-                parsed.add_fact_at(
-                    target.clone(),
-                    "DEPENDS_ON",
-                    module,
+        if path.file_name().and_then(|name| name.to_str()) == Some("CMakeLists.txt") {
+            let variables = cmake_source_variables(path, &source)?;
+            for (command, arguments, line) in cmake_target_calls(&source) {
+                let tokens = expand_source_variables(
+                    arguments.split_whitespace().map(str::to_string).collect(),
+                    &variables,
+                    0,
+                );
+                let Some(target_name) = tokens.first().and_then(|token| sanitize_symbol(token))
+                else {
+                    continue;
+                };
+                add_build_target(
+                    parsed,
+                    &relative,
                     &source_ref,
-                    note,
-                    span,
+                    &target_name,
+                    &tokens[1..],
+                    line,
+                    command.eq_ignore_ascii_case("add_executable"),
+                    "cmake",
                 );
             }
-            if command.eq_ignore_ascii_case("add_executable")
-                && parsed.has_entity_subject("function:main")
-            {
-                parsed.add_fact_at(
-                    "function:main".to_string(),
-                    "ENTRY_POINT",
-                    target,
+        } else {
+            let variables = makefile_variables(&source);
+            for (target_name, sources, line) in makefile_target_calls(&source, &variables) {
+                add_build_target(
+                    parsed,
+                    &relative,
                     &source_ref,
-                    note,
-                    span,
+                    &target_name,
+                    &sources,
+                    line,
+                    true,
+                    "makefile",
                 );
             }
         }
@@ -1608,16 +1581,248 @@ fn augment_cmake_targets(root: &Path, parsed: &mut ParsedRepo) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+fn add_build_target(
+    parsed: &mut ParsedRepo,
+    config: &str,
+    source_ref: &str,
+    target_name: &str,
+    tokens: &[String],
+    line: u32,
+    executable: bool,
+    resolver: &str,
+) {
+    let sources = tokens
+        .iter()
+        .map(|token| token.trim_matches(['"', '\'']))
+        .filter(|token| {
+            !matches!(
+                *token,
+                "STATIC" | "SHARED" | "MODULE" | "OBJECT" | "EXCLUDE_FROM_ALL"
+            )
+        })
+        .filter(|token| {
+            matches!(
+                language_for_path(Path::new(token)),
+                Some(LangKind::C | LangKind::Cpp)
+            )
+        })
+        .collect::<Vec<_>>();
+    let modules = sources
+        .iter()
+        .filter_map(|source| {
+            let resolved = resolve_config_relative(config, source);
+            parsed.resolve_existing_module_subject(&resolved)
+        })
+        .collect::<BTreeSet<_>>();
+    if modules.is_empty() {
+        return;
+    }
+    let target = format!("build_target:{target_name}");
+    let span = CodeSpan {
+        start_line: line,
+        start_column: 0,
+        end_line: line,
+        end_column: 1,
+    };
+    let cpp = sources
+        .iter()
+        .any(|source| language_for_path(Path::new(source)) == Some(LangKind::Cpp));
+    let note = match (resolver, cpp) {
+        ("cmake", true) => "oaf.ingest:cmake-cpp",
+        ("cmake", false) => "oaf.ingest:cmake-c",
+        ("makefile", true) => "oaf.ingest:makefile-cpp",
+        _ => "oaf.ingest:makefile-c",
+    };
+    parsed.add_entity_at(target.clone(), "BuildTarget", source_ref, note, span);
+    for module in modules {
+        parsed.add_fact_at(target.clone(), "DEPENDS_ON", module, source_ref, note, span);
+    }
+    if executable && parsed.has_entity_subject("function:main") {
+        parsed.add_fact_at(
+            "function:main".to_string(),
+            "ENTRY_POINT",
+            target,
+            source_ref,
+            note,
+            span,
+        );
+    }
+}
+
+fn cmake_source_variables(path: &Path, source: &str) -> Result<BTreeMap<String, Vec<String>>> {
+    let mut variables = BTreeMap::<String, Vec<String>>::new();
+    let Some(directory) = path.parent() else {
+        return Ok(variables);
+    };
+    let mut siblings = fs::read_dir(directory)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| is_makefile(path))
+        .collect::<Vec<_>>();
+    siblings.sort();
+    for sibling in siblings {
+        let metadata = fs::metadata(&sibling)?;
+        if metadata.len() <= DEFAULT_MAX_FILE_BYTES {
+            let contents = fs::read_to_string(&sibling)?;
+            variables.extend(makefile_variables(&contents));
+        }
+    }
+    for (command, arguments, _) in cmake_variable_calls(source) {
+        let mut tokens = arguments.split_whitespace();
+        if command.eq_ignore_ascii_case("set") {
+            let Some(name) = tokens.next().and_then(sanitize_symbol) else {
+                continue;
+            };
+            variables.insert(name, tokens.map(str::to_string).collect());
+        } else {
+            if tokens.next() != Some("APPEND") {
+                continue;
+            }
+            let Some(name) = tokens.next().and_then(sanitize_symbol) else {
+                continue;
+            };
+            variables
+                .entry(name)
+                .or_default()
+                .extend(tokens.map(str::to_string));
+        }
+    }
+    Ok(variables)
+}
+
+fn makefile_variables(source: &str) -> BTreeMap<String, Vec<String>> {
+    let mut variables = BTreeMap::<String, Vec<String>>::new();
+    for (line, _) in logical_makefile_lines(source) {
+        let Some((left, right)) = line.split_once('=') else {
+            continue;
+        };
+        let append = left.trim_end().ends_with('+');
+        let name = left.trim().trim_end_matches([':', '+', '?']).trim();
+        if sanitize_symbol(name).as_deref() != Some(name) {
+            continue;
+        }
+        let values = right.split_whitespace().map(str::to_string);
+        if append {
+            variables
+                .entry(name.to_string())
+                .or_default()
+                .extend(values);
+        } else {
+            variables.insert(name.to_string(), values.collect());
+        }
+    }
+    variables
+}
+
+fn makefile_target_calls(
+    source: &str,
+    variables: &BTreeMap<String, Vec<String>>,
+) -> Vec<(String, Vec<String>, u32)> {
+    logical_makefile_lines(source)
+        .into_iter()
+        .filter_map(|(line, line_number)| {
+            if line.contains('=') || line.starts_with('.') || line.starts_with('\t') {
+                return None;
+            }
+            let (target, dependencies) = line.split_once(':')?;
+            let target = sanitize_symbol(target.trim())?;
+            let sources = expand_source_variables(
+                dependencies
+                    .split_whitespace()
+                    .map(str::to_string)
+                    .collect(),
+                variables,
+                0,
+            );
+            Some((target, sources, line_number))
+        })
+        .collect()
+}
+
+fn logical_makefile_lines(source: &str) -> Vec<(String, u32)> {
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    let mut start_line = 1u32;
+    for (index, raw) in source.lines().enumerate() {
+        let line_number = index as u32 + 1;
+        let content = raw.split('#').next().unwrap_or("").trim_end();
+        if current.is_empty() {
+            start_line = line_number;
+        }
+        current.push_str(content.trim_end_matches('\\'));
+        current.push(' ');
+        if !content.ends_with('\\') {
+            let logical = current.trim().to_string();
+            if !logical.is_empty() {
+                lines.push((logical, start_line));
+            }
+            current.clear();
+        }
+    }
+    lines
+}
+
+fn expand_source_variables(
+    tokens: Vec<String>,
+    variables: &BTreeMap<String, Vec<String>>,
+    depth: usize,
+) -> Vec<String> {
+    if depth >= 4 {
+        return tokens;
+    }
+    tokens
+        .into_iter()
+        .flat_map(|token| {
+            variable_reference(&token)
+                .and_then(|name| variables.get(name))
+                .map(|values| expand_source_variables(values.clone(), variables, depth + 1))
+                .unwrap_or_else(|| vec![token])
+        })
+        .collect()
+}
+
+fn variable_reference(token: &str) -> Option<&str> {
+    token
+        .strip_prefix("${")
+        .and_then(|value| value.strip_suffix('}'))
+        .or_else(|| {
+            token
+                .strip_prefix("$(")
+                .and_then(|value| value.strip_suffix(')'))
+        })
+}
+
 fn cmake_target_calls(source: &str) -> Vec<(&str, &str, u32)> {
+    cmake_calls(source, &["add_executable", "add_library"])
+}
+
+fn cmake_variable_calls(source: &str) -> Vec<(&str, &str, u32)> {
+    cmake_calls(source, &["set", "list"])
+}
+
+fn cmake_calls<'a>(
+    source: &'a str,
+    commands: &[&'static str],
+) -> Vec<(&'static str, &'a str, u32)> {
     let mut out = Vec::new();
-    for command in ["add_executable", "add_library"] {
+    for &command in commands {
         let mut offset = 0usize;
         while let Some(found) = source[offset..].find(command) {
             let start = offset + found;
+            if start > 0
+                && (source.as_bytes()[start - 1].is_ascii_alphanumeric()
+                    || source.as_bytes()[start - 1] == b'_')
+            {
+                offset = start + command.len();
+                continue;
+            }
             let tail = &source[start + command.len()..];
-            let Some(open) = tail.find('(') else {
-                break;
-            };
+            let open = tail.len() - tail.trim_start().len();
+            if !tail[open..].starts_with('(') {
+                offset = start + command.len();
+                continue;
+            }
             let Some(arguments) = parenthesized_segments(&tail[open..]).into_iter().next() else {
                 break;
             };
@@ -1673,7 +1878,7 @@ pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHas
         .filter_entry(should_descend);
     for entry in builder.build().filter_map(Result::ok) {
         let path = entry.path();
-        if path.file_name().and_then(|name| name.to_str()) != Some("CMakeLists.txt") {
+        if !is_build_configuration(path) {
             continue;
         }
         let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
@@ -1744,11 +1949,8 @@ pub fn discover_file_hashes_bounded(
         if !path.is_file() {
             continue;
         }
-        let is_cmake = path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .is_some_and(|name| name.eq_ignore_ascii_case("CMakeLists.txt"));
-        if !is_cmake && language_for_path_with_options(path, options).is_none() {
+        let is_build_config = is_build_configuration(path);
+        if !is_build_config && language_for_path_with_options(path, options).is_none() {
             continue;
         }
         let relative = match workspace_rel(&root, path) {
@@ -6502,6 +6704,16 @@ fn language_for_path_with_options(path: &Path, options: &IngestOptions) -> Optio
     } else {
         language_for_path(path)
     }
+}
+
+fn is_build_configuration(path: &Path) -> bool {
+    path.file_name().and_then(|name| name.to_str()) == Some("CMakeLists.txt") || is_makefile(path)
+}
+
+fn is_makefile(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name == "Makefile" || name.starts_with("Makefile."))
 }
 
 fn should_descend(entry: &DirEntry) -> bool {

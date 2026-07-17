@@ -1069,6 +1069,88 @@ mod tests {
     }
 
     #[test]
+    fn build_configuration_makefile_target_sources_emit_evidence() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-makefile-target-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("main.c"), "int main(void) { return 0; }\n").unwrap();
+        fs::write(
+            root.join("Makefile"),
+            "app: main.c\n\t$(CC) -o app main.c\n",
+        )
+        .unwrap();
+
+        let options = IngestOptions::new(&root);
+        let report = extract_repo(&options).unwrap();
+        assert!(report.code_facts.iter().any(|fact| {
+            fact.subject == "build_target:app"
+                && fact.predicate == "DEPENDS_ON"
+                && fact.object == "module:main"
+                && fact.source == "workspace://Makefile"
+                && fact.note == "oaf.ingest:makefile-c"
+        }));
+        assert!(report.code_facts.iter().any(|fact| {
+            fact.subject == "function:main"
+                && fact.predicate == "ENTRY_POINT"
+                && fact.object == "build_target:app"
+        }));
+        assert!(discover_file_hashes(&options)
+            .unwrap()
+            .iter()
+            .any(|file| file.source == "workspace://Makefile"));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn build_configuration_cmake_expands_one_level_source_variables() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-cmake-source-variables-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("src")).unwrap();
+        fs::write(root.join("src/a.c"), "void a(void) {}\n").unwrap();
+        fs::write(root.join("src/b.c"), "void b(void) {}\n").unwrap();
+        fs::write(
+            root.join("Makefile.inc"),
+            "BASE = src/a.c\nCSOURCES = $(BASE)\n",
+        )
+        .unwrap();
+        fs::write(
+            root.join("CMakeLists.txt"),
+            [
+                "set(EXTRA src/b.c)",
+                "list(APPEND CSOURCES ${EXTRA})",
+                "add_library(app STATIC ${CSOURCES})",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let options = IngestOptions::new(&root);
+        let report = extract_repo(&options).unwrap();
+        for module in ["module:src_a", "module:src_b"] {
+            assert!(report.code_facts.iter().any(|fact| {
+                fact.subject == "build_target:app"
+                    && fact.predicate == "DEPENDS_ON"
+                    && fact.object == module
+                    && fact.source == "workspace://CMakeLists.txt"
+                    && fact.note == "oaf.ingest:cmake-c"
+            }));
+        }
+        let hashes = discover_file_hashes(&options).unwrap();
+        for source in ["workspace://CMakeLists.txt", "workspace://Makefile.inc"] {
+            assert!(hashes.iter().any(|file| file.source == source));
+        }
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn batch_d_preserves_native_mobile_language_structure() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../evals/code-intelligence/fixtures/batch-d")
