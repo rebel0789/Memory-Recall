@@ -110,6 +110,35 @@ test('compatibility matches a TypeScript import that resolves outside the select
   assert.equal(comparison.dimensions.find((item) => item.name === 'calls')?.matchedCount, 1);
 });
 
+test('compatibility preserves the official node:path import key', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'memory-recall-native-node-path-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, 'index.js'), [
+    "var path = require('node:path');",
+    "function renderPath(){ return path.join('one', 'two'); }",
+    'module.exports = renderPath;'
+  ].join('\n'));
+
+  const provider = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });
+  const [baseline, native] = await Promise.all([
+    buildJsTsSourceGraph({ root, workspaceId: 'ws_local', clock: () => fixedNow }),
+    provider.buildGraph({ root, workspaceId: 'ws_local', languages: ['javascript'] })
+  ]);
+  const translated = translateCodeIntelligenceGraph(native);
+  const comparison = compareSourceGraphCompatibility(baseline, translated);
+  const nativeNodes = new Map(translated.nodes.map((node) => [node.id, node]));
+  const nativeImport = translated.edges.find((edge) => edge.kind === 'imports');
+
+  assert.equal(nativeNodes.get(nativeImport?.toNodeId)?.label, 'node:path');
+  assert.deepEqual(comparison.dimensions.find((item) => item.name === 'imports'), {
+    name: 'imports',
+    baselineCount: 1,
+    nativeCount: 1,
+    matchedCount: 1,
+    recall: 1
+  });
+});
+
 test('source graph intelligence keeps JS default and makes native selection strict', async (t) => {
   const root = await compatibilityWorkspace(t);
   const provider = new RustCodeIntelligenceProvider({ binaryPath: RUST_BINARY });

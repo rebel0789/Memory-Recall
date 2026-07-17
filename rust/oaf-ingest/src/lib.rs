@@ -5952,6 +5952,9 @@ fn module_from_import(value: &str) -> Option<String> {
     } else {
         trimmed
     };
+    if let Some(builtin) = trimmed.strip_prefix("node:").and_then(sanitize_symbol) {
+        return Some(format!("module:node:{builtin}"));
+    }
     let first = trimmed
         .split([':', '/', '.', ' ', ',', '{', '}'])
         .find(|part| !part.is_empty())?;

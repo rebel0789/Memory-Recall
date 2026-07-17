@@ -373,7 +373,11 @@ function routeMethod(name) {
 }
 
 function compatibilityLabel(value) {
-  const label = String(value ?? '')
+  const raw = String(value ?? '');
+  if (/^node:[A-Za-z0-9_][A-Za-z0-9_.-]*(?:\/[A-Za-z0-9_][A-Za-z0-9_.-]*)*$/u.test(raw)) {
+    return raw.slice(0, 240);
+  }
+  const label = raw
     .replace(/[^A-Za-z0-9_$@~./#*+,\[\]-]+/gu, '_')
     .replace(/^_+|_+$/gu, '')
     .slice(0, 240);
