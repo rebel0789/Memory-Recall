@@ -135,8 +135,8 @@ HashiCorp go-multierror repository, the pinned Express repository, and the
 pinned TypeScript compiler-transformers scope.
 
 Across 781 files, 6,646 nodes, and 15,540 edges, the four cold builds had a
-machine-specific p50 of 189.13 ms and maximum of 897.849 ms. Warm status p50
-was 20.095 ms; no-change refresh p50 was 20.171 ms. The 600-file fixture parsed
+machine-specific p50 of 187.77 ms and maximum of 883.291 ms. Warm status p50
+was 21.763 ms; no-change refresh p50 was 21.367 ms. The 600-file fixture parsed
 zero files on an exact no-op refresh, 11 files after the sampled isolated file
 change, and 5 files after the sampled dependency-impact change. All no-op and
 reader checks preserved the exact SQLite bytes and modification time.
