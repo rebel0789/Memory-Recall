@@ -3685,6 +3685,14 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             }
         }
     }
+    if let Some(target) = commonjs_assignment_export(node, source, context.lang) {
+        parsed.exports.push(ExportRef {
+            owner: context.module.clone(),
+            target,
+            source: context.source.clone(),
+            span: CodeSpan::from_node(node),
+        });
+    }
 
     let mut next = context.clone();
     if suppress_child_calls {
@@ -3901,6 +3909,22 @@ fn commonjs_exported_function(
     }
     let module_name = context.module.strip_prefix("module:")?;
     Some(format!("{module_name}.{export_name}"))
+}
+
+fn commonjs_assignment_export(node: Node<'_>, source: &[u8], lang: LangKind) -> Option<String> {
+    if node.kind() != "assignment_expression"
+        || !matches!(lang, LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx)
+        || node
+            .child_by_field_name("left")
+            .is_none_or(|left| node_text(left, source) != "module.exports")
+    {
+        return None;
+    }
+    let right = node.child_by_field_name("right")?;
+    if right.kind() != "identifier" {
+        return None;
+    }
+    sanitize_symbol(node_text(right, source))
 }
 
 fn javascript_member_assigned_function(node: Node<'_>, source: &[u8]) -> Option<(String, String)> {

@@ -477,6 +477,32 @@ mod tests {
     }
 
     #[test]
+    fn commonjs_module_assignment_exports_the_referenced_function() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-commonjs-assignment-export-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("fp")).unwrap();
+        fs::write(
+            root.join("fp/_baseConvert.js"),
+            "function baseConvert(util, name, func, options) { return func; }\nmodule.exports = baseConvert;\n",
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        assert!(report.facts.iter().any(|fact| {
+            fact.subject == "module:fp__baseConvert"
+                && fact.predicate == "EXPORTS"
+                && fact.object == "function:baseConvert"
+                && fact.source == "workspace://fp/_baseConvert.js"
+                && fact.notes.as_deref() == Some("oaf.ingest:resolved-export")
+        }));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn javascript_keeps_private_methods_and_member_call_resolution_scoped() {
         let root = std::env::temp_dir().join(format!(
             "oaf-ingest-javascript-member-calls-{}",
