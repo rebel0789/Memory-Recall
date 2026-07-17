@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-16T00:00:00.000Z"
+    "reviewedAt": "2026-07-17T19:14:11.000Z"
   },
   "reviewCoverage": {
     "declarations": "exhaustive",
@@ -97,6 +97,29 @@
       "name": "legacy_item",
       "qualifiedName": "src/demo_app/api.py::legacy_item",
       "locator": "workspace://src/demo_app/api.py#L11-L12"
+    },
+    {
+      "id": "cititem_python_config_pyproject",
+      "semanticKey": "node:configuration-resource:pyproject:demo-app",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "configuration_resource",
+      "name": "demo_app",
+      "qualifiedName": "pyproject.toml::demo_app",
+      "locator": "workspace://pyproject.toml#L2-L2"
+    },
+    {
+      "id": "cititem_python_config_pyproject_package",
+      "semanticKey": "edge:depends-on:pyproject:demo-app-package",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "depends_on",
+      "from": { "kind": "configuration_resource", "name": "demo_app", "qualifiedName": "pyproject.toml::demo_app", "locator": "workspace://pyproject.toml#L2-L2" },
+      "to": { "kind": "package", "name": "demo_app", "qualifiedName": "pyproject.toml::demo_app", "locator": "workspace://pyproject.toml#L2-L2" },
+      "locator": "workspace://pyproject.toml#L2-L2",
+      "resolution": "exact"
     },
     {
       "id": "cititem_python_import_base",
@@ -194,5 +217,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:fdc935c036e607d792668ba926e43e4d48b84dce37f45bdd27b9b7826cfe8d60"
+  "truthFingerprint": "sha256:88b275f0edd1b5a74f87007e74a1e8c70c42901b2252f014bcfe3ba263720f52"
 }

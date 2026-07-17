@@ -1640,4 +1640,142 @@ mod tests {
             fs::remove_dir_all(scratch).unwrap();
         }
     }
+
+    #[test]
+    fn python_configuration_resources_build_native_config_edges() {
+        let scratch = std::env::temp_dir().join(format!(
+            "memory-recall-python-configuration-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&scratch);
+        let project = scratch.join("project");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(
+            project.join("pyproject.toml"),
+            "[project]\nname = \"demo-app\"\n",
+        )
+        .unwrap();
+        fs::write(project.join("a.py"), "def first():\n    pass\n").unwrap();
+
+        let mut request_value = valid_request();
+        request_value["arguments"]["languages"] = json!(["python"]);
+        let request = parse_request(&request_value).unwrap();
+        let graph = build_graph_at_root(&request, "test", &project, Instant::now())
+            .unwrap()
+            .graph;
+        let nodes = graph["nodes"].as_array().unwrap();
+        let edges = graph["edges"].as_array().unwrap();
+        let configuration = nodes
+            .iter()
+            .find(|node| {
+                node["kind"] == "configuration_resource"
+                    && node["name"] == "demo_app"
+                    && node["qualifiedName"] == "pyproject.toml::demo_app"
+                    && node["locator"] == "workspace://pyproject.toml#L2-L2"
+                    && node["language"] == "python"
+            })
+            .unwrap();
+        let package = nodes
+            .iter()
+            .find(|node| {
+                node["kind"] == "package"
+                    && node["name"] == "demo_app"
+                    && node["qualifiedName"] == "pyproject.toml::demo_app"
+                    && node["locator"] == "workspace://pyproject.toml#L2-L2"
+                    && node["language"] == "python"
+            })
+            .unwrap();
+        assert!(edges.iter().any(|edge| {
+            edge["kind"] == "depends_on"
+                && edge["fromNodeId"] == configuration["id"]
+                && edge["toNodeId"] == package["id"]
+                && edge["evidence"]["kind"] == "config"
+                && edge["evidence"]["locator"] == "workspace://pyproject.toml#L2-L2"
+                && edge["resolver"]["name"] == "memory-recall.config"
+                && edge["resolution"] == "exact"
+                && edge["language"] == "python"
+        }));
+
+        let mut limited_request_value = request_value.clone();
+        limited_request_value["arguments"]["maxFiles"] = json!(1);
+        let limited_request = parse_request(&limited_request_value).unwrap();
+        let limited_graph = build_graph_at_root(
+            &limited_request,
+            "test",
+            &project,
+            Instant::now(),
+        )
+        .unwrap()
+        .graph;
+        assert!(!limited_graph["nodes"].as_array().unwrap().iter().any(|node| {
+            node["kind"] == "configuration_resource" || node["kind"] == "package"
+        }));
+        assert!(!limited_graph["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|edge| edge["evidence"]["kind"] == "config"));
+
+        let javascript_request = parse_request(&valid_request()).unwrap();
+        let javascript_graph = build_graph_at_root(
+            &javascript_request,
+            "test",
+            &project,
+            Instant::now(),
+        )
+        .unwrap()
+        .graph;
+        assert!(!javascript_graph["nodes"].as_array().unwrap().iter().any(|node| {
+            matches!(
+                node["kind"].as_str(),
+                Some("configuration_resource" | "package")
+            )
+        }));
+        assert!(!javascript_graph["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|edge| edge["evidence"]["kind"] == "config"));
+
+        let scoped = scratch.join("fastapi");
+        fs::create_dir_all(&scoped).unwrap();
+        fs::write(scoped.join("__init__.py"), "__version__ = \"1\"\n").unwrap();
+        let scoped_graph = build_graph_at_root(&request, "test", &scoped, Instant::now())
+            .unwrap()
+            .graph;
+        let scoped_nodes = scoped_graph["nodes"].as_array().unwrap();
+        let scoped_edges = scoped_graph["edges"].as_array().unwrap();
+        let scoped_configuration = scoped_nodes
+            .iter()
+            .find(|node| {
+                node["kind"] == "configuration_resource"
+                    && node["name"] == "fastapi"
+                    && node["qualifiedName"] == "__init__.py::fastapi"
+                    && node["locator"] == "workspace://__init__.py#L1-L1"
+                    && node["language"] == "python"
+            })
+            .unwrap();
+        let scoped_package = scoped_nodes
+            .iter()
+            .find(|node| {
+                node["kind"] == "package"
+                    && node["name"] == "fastapi"
+                    && node["qualifiedName"] == "__init__.py::fastapi"
+                    && node["locator"] == "workspace://__init__.py#L1-L1"
+                    && node["language"] == "python"
+            })
+            .unwrap();
+        assert!(scoped_edges.iter().any(|edge| {
+            edge["kind"] == "depends_on"
+                && edge["fromNodeId"] == scoped_configuration["id"]
+                && edge["toNodeId"] == scoped_package["id"]
+                && edge["evidence"]["kind"] == "config"
+                && edge["evidence"]["locator"] == "workspace://__init__.py#L1-L1"
+                && edge["resolver"]["name"] == "memory-recall.config"
+                && edge["resolution"] == "exact"
+                && edge["language"] == "python"
+        }));
+
+        fs::remove_dir_all(scratch).unwrap();
+    }
 }

@@ -189,6 +189,31 @@ impl CodeSpan {
     }
 }
 
+fn full_source_span(source: &[u8]) -> CodeSpan {
+    let content_end = source
+        .last()
+        .is_some_and(|byte| *byte == b'\n')
+        .then(|| source.len().saturating_sub(1))
+        .unwrap_or(source.len());
+    let content_end = source[..content_end]
+        .last()
+        .is_some_and(|byte| *byte == b'\r')
+        .then(|| content_end.saturating_sub(1))
+        .unwrap_or(content_end);
+    let content = &source[..content_end];
+    let end_line = content.iter().filter(|byte| **byte == b'\n').count() as u32 + 1;
+    let end_column = content
+        .iter()
+        .rposition(|byte| *byte == b'\n')
+        .map_or(content.len(), |index| content.len() - index - 1) as u32;
+    CodeSpan {
+        start_line: 1,
+        start_column: 0,
+        end_line,
+        end_column,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct CodeFactRecord {
     pub subject: String,
@@ -1473,10 +1498,10 @@ pub fn extract_repo(options: &IngestOptions) -> Result<IngestReport> {
         options.max_memory_bytes,
         cgroup_memory_limit_bytes,
     );
-    let package_entries = scan_package_entries(&root)?;
+    let mut parsed = ParsedRepo::new();
+    let package_entries = scan_package_entries(&root, options, &mut parsed)?;
     let (jobs, mut skipped_files, scanned_file_count) = discover_jobs(&root, options)?;
     let results = parse_jobs(jobs, effective_worker_count)?;
-    let mut parsed = ParsedRepo::new();
     parsed.package_entries = package_entries;
     let mut parsed_file_count = 0usize;
     let mut parsed_bytes = 0u64;
@@ -1889,7 +1914,7 @@ pub fn discover_file_hashes(options: &IngestOptions) -> Result<Vec<IngestFileHas
         .filter_entry(should_descend);
     for entry in builder.build().filter_map(Result::ok) {
         let path = entry.path();
-        if !is_build_configuration(path) {
+        if !is_build_configuration(path) && !is_python_project_configuration(path) {
             continue;
         }
         let metadata = fs::metadata(path).with_context(|| format!("stat {}", path.display()))?;
@@ -1960,8 +1985,9 @@ pub fn discover_file_hashes_bounded(
         if !path.is_file() {
             continue;
         }
-        let is_build_config = is_build_configuration(path);
-        if !is_build_config && language_for_path_with_options(path, options).is_none() {
+        let is_configuration =
+            is_build_configuration(path) || is_python_project_configuration(path);
+        if !is_configuration && language_for_path_with_options(path, options).is_none() {
             continue;
         }
         let relative = match workspace_rel(&root, path) {
@@ -2884,7 +2910,11 @@ fn push_doc_fact(
     });
 }
 
-fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {
+fn scan_package_entries(
+    root: &Path,
+    options: &IngestOptions,
+    parsed: &mut ParsedRepo,
+) -> Result<BTreeMap<String, String>> {
     let mut entries = BTreeMap::new();
     let mut builder = WalkBuilder::new(root);
     builder
@@ -2916,24 +2946,80 @@ fn scan_package_entries(root: &Path) -> Result<BTreeMap<String, String>> {
         }
         let rel = workspace_rel(root, path)?;
         let source = fs::read_to_string(path).with_context(|| format!("read manifest {rel}"))?;
-        parse_manifest_entries(name, &rel, &source, &mut entries);
+        if let Some(project) = parse_manifest_entries(name, &rel, &source, &mut entries) {
+            let source_ref = format!("workspace://{rel}");
+            if configuration_source_selected(path, &source_ref, options)? {
+                add_python_configuration(
+                    parsed,
+                    &project.package_key,
+                    &source_ref,
+                    "oaf.ingest:python-project-configuration",
+                    project.span,
+                );
+            }
+        }
     }
     if root.join("__init__.py").is_file() {
-        if let Some(name) = root
+        if let Some(package_key) = root
             .file_name()
             .and_then(|value| value.to_str())
-            .filter(|value| {
-                let mut chars = value.chars();
-                chars
-                    .next()
-                    .is_some_and(|ch| ch.is_ascii_alphabetic() || ch == '_')
-                    && chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
-            })
+            .and_then(normalize_python_package_key)
         {
-            insert_package_entry(&mut entries, name, ".");
+            insert_package_entry(&mut entries, &package_key, ".");
+            let marker = root.join("__init__.py");
+            let source_ref = "workspace://__init__.py";
+            if configuration_source_selected(&marker, source_ref, options)? {
+                let source = fs::read(&marker)
+                    .context("read scoped Python package marker __init__.py")?;
+                add_python_configuration(
+                    parsed,
+                    &package_key,
+                    source_ref,
+                    "oaf.ingest:python-package-root-configuration",
+                    full_source_span(&source),
+                );
+            }
         }
     }
     Ok(entries)
+}
+
+fn configuration_source_selected(
+    path: &Path,
+    source: &str,
+    options: &IngestOptions,
+) -> Result<bool> {
+    if options
+        .only_sources
+        .as_ref()
+        .is_some_and(|selected| !selected.contains(source))
+    {
+        return Ok(false);
+    }
+    Ok(fs::metadata(path)
+        .with_context(|| format!("stat {source}"))?
+        .len()
+        <= options.max_file_bytes)
+}
+
+fn add_python_configuration(
+    parsed: &mut ParsedRepo,
+    package_key: &str,
+    source: &str,
+    note: &'static str,
+    span: CodeSpan,
+) {
+    let subject = format!("configuration_resource:{package_key}");
+    let package = format!("package:{package_key}");
+    parsed.add_entity_at(package.clone(), "Package", source, note, span);
+    parsed.add_entity_at(
+        subject.clone(),
+        "ConfigurationResource",
+        source,
+        note,
+        span,
+    );
+    parsed.add_fact_at(subject, "DEPENDS_ON", package, source, note, span);
 }
 
 fn is_manifest_name(name: &str) -> bool {
@@ -2948,15 +3034,16 @@ fn parse_manifest_entries(
     rel: &str,
     source: &str,
     entries: &mut BTreeMap<String, String>,
-) {
+) -> Option<PythonProjectEntry> {
     match name {
         "package.json" => parse_package_json_entries(rel, source, entries),
         "tsconfig.json" => parse_tsconfig_entries(rel, source, entries),
         "Cargo.toml" => parse_cargo_toml_entries(rel, source, entries),
-        "pyproject.toml" => parse_pyproject_toml_entries(rel, source, entries),
+        "pyproject.toml" => return parse_pyproject_toml_entries(rel, source, entries),
         "go.mod" => parse_go_mod_entries(rel, source, entries),
         _ => {}
     }
+    None
 }
 
 fn parse_tsconfig_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
@@ -3037,15 +3124,27 @@ fn parse_cargo_toml_entries(rel: &str, source: &str, entries: &mut BTreeMap<Stri
     insert_package_entry(entries, &name.replace('-', "_"), &stem);
 }
 
-fn parse_pyproject_toml_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
-    let Some(name) = toml_section_name(source, "[project]") else {
-        return;
-    };
-    let normalized = name.replace('-', "_");
+#[derive(Debug, Clone)]
+struct PythonProjectEntry {
+    package_key: String,
+    span: CodeSpan,
+}
+
+fn parse_pyproject_toml_entries(
+    rel: &str,
+    source: &str,
+    entries: &mut BTreeMap<String, String>,
+) -> Option<PythonProjectEntry> {
+    let (name, span) = toml_section_name_with_span(source, "[project]")?;
+    let normalized = normalize_python_package_key(&name)?;
     let Some(stem) = manifest_entry_stem(rel, &format!("src/{normalized}")) else {
-        return;
+        return None;
     };
     insert_package_entry(entries, &normalized, &stem);
+    Some(PythonProjectEntry {
+        package_key: normalized,
+        span,
+    })
 }
 
 fn parse_go_mod_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, String>) {
@@ -3064,8 +3163,12 @@ fn parse_go_mod_entries(rel: &str, source: &str, entries: &mut BTreeMap<String, 
 }
 
 fn toml_section_name(source: &str, section: &str) -> Option<String> {
+    toml_section_name_with_span(source, section).map(|(name, _)| name)
+}
+
+fn toml_section_name_with_span(source: &str, section: &str) -> Option<(String, CodeSpan)> {
     let mut in_section = false;
-    for line in source.lines() {
+    for (index, line) in source.lines().enumerate() {
         let trimmed = line.trim();
         if trimmed.starts_with('[') {
             in_section = trimmed == section;
@@ -3080,9 +3183,53 @@ fn toml_section_name(source: &str, section: &str) -> Option<String> {
         else {
             continue;
         };
-        return quoted_value(value.trim()).map(str::to_string);
+        let name = quoted_value(value.trim())?.to_string();
+        let line_number = index as u32 + 1;
+        return Some((
+            name,
+            CodeSpan {
+                start_line: line_number,
+                start_column: 0,
+                end_line: line_number,
+                end_column: line.len() as u32,
+            },
+        ));
     }
     None
+}
+
+fn normalize_python_package_key(value: &str) -> Option<String> {
+    let mut normalized = String::new();
+    let mut separator = false;
+    for character in value.trim().chars() {
+        if character.is_ascii_alphanumeric() {
+            normalized.push(character.to_ascii_lowercase());
+            separator = false;
+        } else if matches!(character, '-' | '_' | '.') {
+            if normalized.is_empty() {
+                if character != '_' {
+                    return None;
+                }
+                normalized.push('_');
+            } else if !separator {
+                normalized.push('_');
+            }
+            separator = true;
+        } else {
+            return None;
+        }
+    }
+    while normalized.ends_with('_') {
+        normalized.pop();
+    }
+    let mut characters = normalized.chars();
+    characters
+        .next()
+        .is_some_and(|character| character.is_ascii_alphabetic() || character == '_')
+        .then_some(())?;
+    characters
+        .all(|character| character.is_ascii_alphanumeric() || character == '_')
+        .then_some(normalized)
 }
 
 fn quoted_value(value: &str) -> Option<&str> {
@@ -6772,6 +6919,10 @@ fn language_for_path_with_options(path: &Path, options: &IngestOptions) -> Optio
 
 fn is_build_configuration(path: &Path) -> bool {
     path.file_name().and_then(|name| name.to_str()) == Some("CMakeLists.txt") || is_makefile(path)
+}
+
+fn is_python_project_configuration(path: &Path) -> bool {
+    path.file_name().and_then(|name| name.to_str()) == Some("pyproject.toml")
 }
 
 fn is_makefile(path: &Path) -> bool {

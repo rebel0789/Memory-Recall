@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "matrixVersion": "memory-recall-code-intelligence-capabilities-1",
-  "generatedAt": "2026-07-17T18:47:03.669Z",
+  "generatedAt": "2026-07-17T19:41:43.348Z",
   "languages": [
     {
       "id": "typescript",
@@ -770,7 +770,7 @@
         },
         "config": {
           "productStatus": "experimental",
-          "benchmarkStatus": "unmeasured",
+          "benchmarkStatus": "meets-floor",
           "evidence": [
             {
               "class": "documentation",
@@ -779,10 +779,26 @@
             {
               "class": "benchmark",
               "path": "evals/code-intelligence/results/phase2-tier1-summary.json"
+            },
+            {
+              "class": "fixture",
+              "path": "evals/code-intelligence/truth/fixtures/python.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json"
+            },
+            {
+              "class": "real-repo",
+              "path": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json"
             }
           ],
           "limitations": [
-            "Phase 2 has reviewed native-preview evidence, but not qualifying coverage from the fixture and all three pinned repositories for this capability."
+            "Sampled native-preview evidence from the fixture and all three pinned repositories meets the Phase 2 floor; public defaults are unchanged."
           ]
         },
         "frameworks": {
@@ -834,7 +850,7 @@
         }
       },
       "limitations": [
-        "Phase 2 native-preview evidence meets 6 capability floors; 2 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
+        "Phase 2 native-preview evidence meets 7 capability floors; 1 applicable rows remain unmeasured. Native is unbundled and JS remains the public default."
       ]
     },
     {

@@ -935,6 +935,7 @@ fn native_node(
         "Extension" => "extension",
         "TypeAlias" => "type_alias",
         "BuildTarget" => "build_target",
+        "ConfigurationResource" => "configuration_resource",
         "FrameworkComponent" => "framework_component",
         "Route" => "route",
         _ => return None,
@@ -1236,6 +1237,15 @@ fn edge_mapping(
             1.0,
             "exact",
         )),
+        "DEPENDS_ON"
+            if matches!(
+                fact.note.as_str(),
+                "oaf.ingest:python-project-configuration"
+                    | "oaf.ingest:python-package-root-configuration"
+            ) =>
+        {
+            Some(("depends_on", "config", "memory-recall.config", 1.0, "exact"))
+        }
         "DEPENDS_ON" => Some((
             "depends_on",
             "framework",
@@ -1586,7 +1596,15 @@ fn source_language_for_request(
     source: &str,
     requested_languages: &BTreeSet<String>,
 ) -> Option<&'static str> {
-    if source.to_ascii_lowercase().ends_with(".h") && prefers_cpp_headers(requested_languages) {
+    if source
+        .rsplit('/')
+        .next()
+        .is_some_and(|name| name.eq_ignore_ascii_case("pyproject.toml"))
+    {
+        Some("python")
+    } else if source.to_ascii_lowercase().ends_with(".h")
+        && prefers_cpp_headers(requested_languages)
+    {
         Some("cpp")
     } else {
         source_language(source)
@@ -1619,6 +1637,13 @@ fn fact_language_for_request(
     fact: &CodeFactRecord,
     requested_languages: &BTreeSet<String>,
 ) -> Option<&'static str> {
+    if matches!(
+        fact.note.as_str(),
+        "oaf.ingest:python-project-configuration" | "oaf.ingest:python-package-root-configuration"
+    ) {
+        return (requested_languages.is_empty() || requested_languages.contains("python"))
+            .then_some("python");
+    }
     source_language_for_request(&fact.source, requested_languages).or(match fact.note.as_str() {
         "oaf.ingest:cmake-c" => Some("c"),
         "oaf.ingest:cmake-cpp" => Some("cpp"),
@@ -1687,7 +1712,7 @@ fn node_priority(kind: &str) -> usize {
         "class" | "interface" | "struct" | "enum" | "trait" | "protocol" | "mixin"
         | "extension" => 2,
         "function" | "method" => 3,
-        "route" | "build_target" => 4,
+        "route" | "build_target" | "configuration_resource" => 4,
         _ => 5,
     }
 }

@@ -3,7 +3,7 @@
   "reportVersion": "memory-recall-code-intelligence-phase2-batch-b-1",
   "phase": 2,
   "batch": "B",
-  "generatedAt": "2026-07-17T18:47:03.629Z",
+  "generatedAt": "2026-07-17T19:41:39.941Z",
   "inputs": {
     "corpusFingerprint": "sha256:222f203671a3d7c6e7a2cd394e4eb5bffb33ea53f0053184e1bf6f73f6377d90",
     "bounds": {
@@ -57,9 +57,9 @@
       "sourceRef": "fixture://sha256:3c2fd27dc9aa8a7dababe1825cda8eea3e1d38c6d60a1af6dae05b01348f3b48",
       "truthPath": "evals/code-intelligence/truth/fixtures/python.json",
       "graph": {
-        "fingerprint": "sha256:b0111813c216a3a8ce7c490fdda6eb3531bee38f765ee65d724289da2c7d8d37",
-        "nodeCount": 15,
-        "edgeCount": 17,
+        "fingerprint": "sha256:8f4b7c26e2573851094cb83828b9b0285f7f128ffd4344847f037dbd624f65d0",
+        "nodeCount": 17,
+        "edgeCount": 18,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -77,10 +77,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1389.7,
-        "secondElapsedMs": 12.823,
-        "evaluatorMaxRssKb": 60336,
-        "graphResponseBytes": 15618,
+        "firstElapsedMs": 1350.528,
+        "secondElapsedMs": 13.548,
+        "evaluatorMaxRssKb": 60272,
+        "graphResponseBytes": 16882,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -90,8 +90,8 @@
         "language": "python",
         "sourceRef": "fixture://sha256:3c2fd27dc9aa8a7dababe1825cda8eea3e1d38c6d60a1af6dae05b01348f3b48",
         "graphFingerprints": [
-          "sha256:b0111813c216a3a8ce7c490fdda6eb3531bee38f765ee65d724289da2c7d8d37",
-          "sha256:b0111813c216a3a8ce7c490fdda6eb3531bee38f765ee65d724289da2c7d8d37"
+          "sha256:8f4b7c26e2573851094cb83828b9b0285f7f128ffd4344847f037dbd624f65d0",
+          "sha256:8f4b7c26e2573851094cb83828b9b0285f7f128ffd4344847f037dbd624f65d0"
         ],
         "reviewCoverage": {
           "declarations": "exhaustive",
@@ -100,13 +100,13 @@
         },
         "metrics": {
           "declarationRecall": {
-            "numerator": 6,
-            "denominator": 6,
+            "numerator": 7,
+            "denominator": 7,
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 6,
-            "denominator": 6,
+            "numerator": 7,
+            "denominator": 7,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -117,8 +117,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 14,
-          "matchedTruthItemCount": 14
+          "truthItemCount": 16,
+          "matchedTruthItemCount": 16
         },
         "capabilities": [
           {
@@ -174,8 +174,8 @@
             "id": "config",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "frameworks",
@@ -215,7 +215,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:f77ea88db7f08908adeb3daa9da3ee4dc696382e2eaa11400e5e5add22346b79"
+        "reportFingerprint": "sha256:eeb772e1b47e43d7a3b7b4d1f3e3040c178336cbd201bf8701fb81bb1cd7571b"
       }
     },
     {
@@ -245,9 +245,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 11.306,
-        "secondElapsedMs": 10.858,
-        "evaluatorMaxRssKb": 66208,
+        "firstElapsedMs": 11.202,
+        "secondElapsedMs": 10.325,
+        "evaluatorMaxRssKb": 65856,
         "graphResponseBytes": 13753,
         "workspaceFingerprintUnchanged": true
       },
@@ -413,9 +413,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 10.146,
-        "secondElapsedMs": 9.486,
-        "evaluatorMaxRssKb": 67968,
+        "firstElapsedMs": 10.255,
+        "secondElapsedMs": 9.581,
+        "evaluatorMaxRssKb": 66160,
         "graphResponseBytes": 17675,
         "workspaceFingerprintUnchanged": true
       },
@@ -562,9 +562,9 @@
       "commit": "9b8410bdc9fa1fd679ea7e65b926535c7045ab87",
       "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_fastapi_fastapi.json",
       "graph": {
-        "fingerprint": "sha256:889e1df167c72b981de5f8ff6dd94aba903d09af93bec37c0e1b943bc21836aa",
-        "nodeCount": 1063,
-        "edgeCount": 3478,
+        "fingerprint": "sha256:e91cb4112da27807c609a133097d948b1ae3c74970e7a0305e39a3aba747f259",
+        "nodeCount": 1065,
+        "edgeCount": 3479,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -582,10 +582,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 219.576,
-        "secondElapsedMs": 221.95,
-        "evaluatorMaxRssKb": 119456,
-        "graphResponseBytes": 2231553,
+        "firstElapsedMs": 224.142,
+        "secondElapsedMs": 224.13,
+        "evaluatorMaxRssKb": 118960,
+        "graphResponseBytes": 2232748,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -595,8 +595,8 @@
         "language": "python",
         "sourceRef": "corpus://cirepo_python_fastapi_fastapi@9b8410bdc9fa1fd679ea7e65b926535c7045ab87#fastapi",
         "graphFingerprints": [
-          "sha256:889e1df167c72b981de5f8ff6dd94aba903d09af93bec37c0e1b943bc21836aa",
-          "sha256:889e1df167c72b981de5f8ff6dd94aba903d09af93bec37c0e1b943bc21836aa"
+          "sha256:e91cb4112da27807c609a133097d948b1ae3c74970e7a0305e39a3aba747f259",
+          "sha256:e91cb4112da27807c609a133097d948b1ae3c74970e7a0305e39a3aba747f259"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -605,13 +605,13 @@
         },
         "metrics": {
           "declarationRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -622,8 +622,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 7,
-          "matchedTruthItemCount": 7
+          "truthItemCount": 9,
+          "matchedTruthItemCount": 9
         },
         "capabilities": [
           {
@@ -677,10 +677,10 @@
           },
           {
             "id": "config",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "frameworks",
@@ -720,7 +720,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:80fdb41874c8bafb4562e6f4d371e3a92a0fa81b564073d489689340afd40478"
+        "reportFingerprint": "sha256:9bfbc14b903d49ece52d7f08d643aeb1f47f5d0ef8d41e280d0e6135db82e477"
       }
     },
     {
@@ -731,9 +731,9 @@
       "commit": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
       "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_pallets_flask.json",
       "graph": {
-        "fingerprint": "sha256:f2ce712f5f55f41300dc67bffe5dca2d02b237d4c0a0f779bb52700b5e04753f",
-        "nodeCount": 1043,
-        "edgeCount": 1957,
+        "fingerprint": "sha256:1ecd754ea69fde3d39b877f41731200fd4c04637a0f331b9cf0bd6d522682658",
+        "nodeCount": 1045,
+        "edgeCount": 1958,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -751,10 +751,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 127.344,
-        "secondElapsedMs": 127.963,
-        "evaluatorMaxRssKb": 128336,
-        "graphResponseBytes": 1402376,
+        "firstElapsedMs": 133.057,
+        "secondElapsedMs": 130.994,
+        "evaluatorMaxRssKb": 127664,
+        "graphResponseBytes": 1403619,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -764,8 +764,8 @@
         "language": "python",
         "sourceRef": "corpus://cirepo_python_pallets_flask@36e4a824f340fdee7ed50937ba8e7f6bc7d17f81#src/flask",
         "graphFingerprints": [
-          "sha256:f2ce712f5f55f41300dc67bffe5dca2d02b237d4c0a0f779bb52700b5e04753f",
-          "sha256:f2ce712f5f55f41300dc67bffe5dca2d02b237d4c0a0f779bb52700b5e04753f"
+          "sha256:1ecd754ea69fde3d39b877f41731200fd4c04637a0f331b9cf0bd6d522682658",
+          "sha256:1ecd754ea69fde3d39b877f41731200fd4c04637a0f331b9cf0bd6d522682658"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -774,13 +774,13 @@
         },
         "metrics": {
           "declarationRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -791,8 +791,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 7,
-          "matchedTruthItemCount": 7
+          "truthItemCount": 9,
+          "matchedTruthItemCount": 9
         },
         "capabilities": [
           {
@@ -846,10 +846,10 @@
           },
           {
             "id": "config",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "frameworks",
@@ -889,7 +889,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:110cafe9b9d064d6c4764643f0d2eeb604643df72b9948291914d7c156eaa7e2"
+        "reportFingerprint": "sha256:553920fcf0541aedc1ec3ea52a50d560772dfd7fe1d0ee465414a13259c4e491"
       }
     },
     {
@@ -900,9 +900,9 @@
       "commit": "f361ead047be5cb873174218582f7d8b9fcd9f49",
       "truthPath": "evals/code-intelligence/truth/repositories/python/cirepo_python_psf_requests.json",
       "graph": {
-        "fingerprint": "sha256:60f8405fa7b011157078e18507ae695e9cd38ad88a9136a87e8f56b78fb0fa55",
-        "nodeCount": 703,
-        "edgeCount": 1513,
+        "fingerprint": "sha256:fe288ba0e94c571904684586c9de5e7af1b10b099d25fc14364beeea1949fe07",
+        "nodeCount": 705,
+        "edgeCount": 1514,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -920,10 +920,10 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 99.927,
-        "secondElapsedMs": 99.609,
-        "evaluatorMaxRssKb": 128880,
-        "graphResponseBytes": 1041879,
+        "firstElapsedMs": 101.013,
+        "secondElapsedMs": 98.835,
+        "evaluatorMaxRssKb": 128368,
+        "graphResponseBytes": 1043140,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
@@ -933,8 +933,8 @@
         "language": "python",
         "sourceRef": "corpus://cirepo_python_psf_requests@f361ead047be5cb873174218582f7d8b9fcd9f49#src/requests",
         "graphFingerprints": [
-          "sha256:60f8405fa7b011157078e18507ae695e9cd38ad88a9136a87e8f56b78fb0fa55",
-          "sha256:60f8405fa7b011157078e18507ae695e9cd38ad88a9136a87e8f56b78fb0fa55"
+          "sha256:fe288ba0e94c571904684586c9de5e7af1b10b099d25fc14364beeea1949fe07",
+          "sha256:fe288ba0e94c571904684586c9de5e7af1b10b099d25fc14364beeea1949fe07"
         ],
         "reviewCoverage": {
           "declarations": "sampled",
@@ -943,13 +943,13 @@
         },
         "metrics": {
           "declarationRecall": {
-            "numerator": 4,
-            "denominator": 4,
+            "numerator": 5,
+            "denominator": 5,
             "value": 1
           },
           "relationshipRecall": {
-            "numerator": 3,
-            "denominator": 3,
+            "numerator": 4,
+            "denominator": 4,
             "value": 1
           },
           "reviewedCallPrecision": {
@@ -960,8 +960,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 8,
-          "matchedTruthItemCount": 8
+          "truthItemCount": 10,
+          "matchedTruthItemCount": 10
         },
         "capabilities": [
           {
@@ -1015,10 +1015,10 @@
           },
           {
             "id": "config",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 2,
+            "matchedItemCount": 2
           },
           {
             "id": "frameworks",
@@ -1058,7 +1058,7 @@
           "canonicalMemoryWrites": 0,
           "workspaceWrites": 0
         },
-        "reportFingerprint": "sha256:08f886b94436dd549b6c64d2fd3587dbc4524b4173a2a9dc6566b2da3879ef51"
+        "reportFingerprint": "sha256:048258f7d1db528980ecabb842ab92bba3e6d23d3a2f6a3c8a5295ae6d3f047f"
       }
     },
     {
@@ -1094,9 +1094,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 866.797,
-        "secondElapsedMs": 866.269,
-        "evaluatorMaxRssKb": 162256,
+        "firstElapsedMs": 906.972,
+        "secondElapsedMs": 892.301,
+        "evaluatorMaxRssKb": 177248,
         "graphResponseBytes": 6559525,
         "workspaceFingerprintUnchanged": true
       },
@@ -1263,9 +1263,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 278.863,
-        "secondElapsedMs": 274.165,
-        "evaluatorMaxRssKb": 162256,
+        "firstElapsedMs": 279.058,
+        "secondElapsedMs": 275.299,
+        "evaluatorMaxRssKb": 195408,
         "graphResponseBytes": 2869191,
         "workspaceFingerprintUnchanged": true
       },
@@ -1432,9 +1432,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 26.495,
-        "secondElapsedMs": 25.938,
-        "evaluatorMaxRssKb": 162256,
+        "firstElapsedMs": 26.91,
+        "secondElapsedMs": 26.403,
+        "evaluatorMaxRssKb": 196656,
         "graphResponseBytes": 244040,
         "workspaceFingerprintUnchanged": true
       },
@@ -1601,9 +1601,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 13.372,
-        "secondElapsedMs": 15.136,
-        "evaluatorMaxRssKb": 162256,
+        "firstElapsedMs": 13.453,
+        "secondElapsedMs": 12.178,
+        "evaluatorMaxRssKb": 196656,
         "graphResponseBytes": 54790,
         "workspaceFingerprintUnchanged": true
       },
@@ -1770,9 +1770,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 312.02,
-        "secondElapsedMs": 300.341,
-        "evaluatorMaxRssKb": 163552,
+        "firstElapsedMs": 305.606,
+        "secondElapsedMs": 307.006,
+        "evaluatorMaxRssKb": 218000,
         "graphResponseBytes": 2967280,
         "workspaceFingerprintUnchanged": true
       },
@@ -1939,9 +1939,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 459.511,
-        "secondElapsedMs": 456.589,
-        "evaluatorMaxRssKb": 169360,
+        "firstElapsedMs": 520.654,
+        "secondElapsedMs": 466.826,
+        "evaluatorMaxRssKb": 218000,
         "graphResponseBytes": 4237455,
         "workspaceFingerprintUnchanged": true
       },
@@ -2089,13 +2089,13 @@
       "repositoryCount": 3,
       "metrics": {
         "declarationRecall": {
-          "numerator": 16,
-          "denominator": 16,
+          "numerator": 20,
+          "denominator": 20,
           "value": 1
         },
         "relationshipRecall": {
-          "numerator": 15,
-          "denominator": 15,
+          "numerator": 19,
+          "denominator": 19,
           "value": 1
         },
         "reviewedCallPrecision": {
@@ -2185,5 +2185,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:4978e340bf26705891fb4f190ef3b5fb6e1ee5dee8eb903af93a57289d7d0be0"
+  "reportFingerprint": "sha256:05d58ab7eb7ebfe4fb90b0c7a3c18f05e43267f5961a3920d599de5f9001677b"
 }

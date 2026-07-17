@@ -74,7 +74,7 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | TypeScript | 6/6 | 10/10 | 6/6 | parse, structure, imports, exports, types, calls | none | meets-floor |
 | JavaScript | 8/8 | 8/8 | 4/4 | parse, structure, imports, exports, types, calls | none | meets-floor |
-| Python | 16/16 | 15/15 | 4/4 | parse, structure, imports, heritage, types, calls | config, frameworks | unmeasured |
+| Python | 20/20 | 19/19 | 4/4 | parse, structure, imports, heritage, types, calls, config | frameworks | unmeasured |
 | Java | 21/21 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
 | Kotlin | 20/20 | 8/8 | 4/4 | parse, structure | imports, heritage, types, calls, frameworks | unmeasured |
 | C# | 23/23 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
@@ -87,8 +87,8 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | C++ | 15/15 | 6/6 | 4/4 | parse, structure, calls | imports, heritage, types, config | unmeasured |
 | Dart | 17/17 | 15/15 | 3/3 | parse, structure, imports, types | exports, heritage, calls, config, frameworks | unmeasured |
 
-Across the 154 Tier 1 capability cells, 54 meet the Phase 2 floor, none has a
-recorded floor failure, and 100 remain unmeasured or not applicable. TypeScript
+Across the 154 Tier 1 capability cells, 55 meet the Phase 2 floor, none has a
+recorded floor failure, and 99 remain unmeasured or not applicable. TypeScript
 and JavaScript are the first two languages whose applicable Phase 2 rows all
 meet the sampled floor; the other twelve languages remain overall unmeasured.
 Five repository scopes hit the configured node or edge budget and report the
@@ -100,11 +100,14 @@ construction or typed-receiver edge in the same four cases. This Phase 2 status
 does not measure TypeScript heritage, configuration, frameworks, impact, or
 processes and is not a full-language or competitor-parity claim.
 
-Python's `imports`, `heritage`, and `types` rows are backed by exact reviewed
+Python's `imports`, `heritage`, `types`, and `config` rows are backed by exact reviewed
 edges in its fixture and each pinned repository. The native resolver handles
 dotted relative imports, absolute self-package submodules, sampled same-file
 inheritance, and sampled construction edges within the existing bounded package
-scopes. Package-root imports, imported-name expansion, configuration,
+scopes. Python configuration evidence consists of package-keyed configuration
+resources derived from `pyproject.toml` project metadata or root package markers,
+plus exact `depends_on` edges to package nodes. Project metadata also participates
+in absolute self-package resolution and freshness checks. Imported-name expansion,
 frameworks, impact, and processes remain unevaluated.
 
 Python framework extraction currently has exact FastAPI and Django route

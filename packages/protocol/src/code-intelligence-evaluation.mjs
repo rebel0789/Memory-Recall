@@ -41,6 +41,41 @@ export function auditCodeIntelligenceLanguageTruth(truth) {
       findings.push({ code: 'truth_full_claim_requires_exhaustive_review', capability });
     }
   }
+  if (truth.language === 'python' && truth.capabilityClaims.config !== 'unmeasured') {
+    const configItems = truth.items.filter((item) => item.capability === 'config');
+    const configurationResources = configItems.filter((item) => (
+      item.recordKind === 'node'
+      && item.kind === 'configuration_resource'
+      && item.expectation === 'present'
+    ));
+    const exactCausalEdges = configItems.filter((item) => (
+      item.recordKind === 'edge'
+      && item.expectation === 'present'
+      && item.resolution === 'exact'
+      && item.kind === 'depends_on'
+      && item.from.kind === 'configuration_resource'
+      && item.to.kind === 'package'
+    ));
+
+    for (const item of configItems) {
+      const allowedNode = item.recordKind === 'node' && item.kind === 'configuration_resource';
+      const allowedEdge = item.recordKind === 'edge'
+        && item.kind === 'depends_on'
+        && item.from.kind === 'configuration_resource'
+        && item.to.kind === 'package';
+      if (!allowedNode && !allowedEdge) {
+        findings.push({ code: 'python_config_truth_item_kind_invalid', itemId: item.id });
+      } else if (allowedEdge && item.expectation === 'present' && item.resolution !== 'exact') {
+        findings.push({ code: 'python_config_truth_edge_not_exact', itemId: item.id });
+      }
+    }
+    if (configurationResources.length === 0) {
+      findings.push({ code: 'python_config_claim_missing_configuration_resource', capability: 'config' });
+    }
+    if (exactCausalEdges.length === 0) {
+      findings.push({ code: 'python_config_claim_missing_exact_causal_edge', capability: 'config' });
+    }
+  }
   if (truth.truthFingerprint !== truthFingerprint(truth)) findings.push({ code: 'truth_fingerprint_mismatch' });
   return findings;
 }

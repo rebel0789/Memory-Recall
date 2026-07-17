@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-17T18:25:09.000Z"
+    "reviewedAt": "2026-07-17T19:14:11.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -26,7 +26,7 @@
     "heritage": "partial",
     "types": "partial",
     "calls": "partial",
-    "config": "unmeasured",
+    "config": "partial",
     "frameworks": "unmeasured",
     "impact": "unmeasured",
     "processes": "unmeasured"
@@ -64,6 +64,29 @@
       "name": "setup",
       "qualifiedName": "applications.py::FastAPI::setup",
       "locator": "workspace://applications.py#L1105-L1158"
+    },
+    {
+      "id": "cititem_fastapi_config_package_marker",
+      "semanticKey": "node:configuration-resource:package-marker:fastapi",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "configuration_resource",
+      "name": "fastapi",
+      "qualifiedName": "__init__.py::fastapi",
+      "locator": "workspace://__init__.py#L1-L25"
+    },
+    {
+      "id": "cititem_fastapi_config_package_dependency",
+      "semanticKey": "edge:depends-on:package-marker:fastapi",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "depends_on",
+      "from": { "kind": "configuration_resource", "name": "fastapi", "qualifiedName": "__init__.py::fastapi", "locator": "workspace://__init__.py#L1-L25" },
+      "to": { "kind": "package", "name": "fastapi", "qualifiedName": "__init__.py::fastapi", "locator": "workspace://__init__.py#L1-L25" },
+      "locator": "workspace://__init__.py#L1-L25",
+      "resolution": "exact"
     },
     {
       "id": "cititem_fastapi_import_openapi_utils",
@@ -134,5 +157,5 @@
       "resolution": "typed"
     }
   ],
-  "truthFingerprint": "sha256:fb1de92b7721c3965e6eab41d53b5da512811c7e3b201f1a02a21fb6651683a6"
+  "truthFingerprint": "sha256:99d0e6ed888ff5e20bb86d8d744b4149490de11723542ef89305eef3a4508782"
 }

@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-17T18:14:34.000Z"
+    "reviewedAt": "2026-07-17T19:14:11.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -26,7 +26,7 @@
     "heritage": "partial",
     "types": "partial",
     "calls": "partial",
-    "config": "unmeasured",
+    "config": "partial",
     "frameworks": "unmeasured",
     "impact": "unmeasured",
     "processes": "unmeasured"
@@ -75,6 +75,29 @@
       "name": "copy",
       "qualifiedName": "structures.py::CaseInsensitiveDict::copy",
       "locator": "workspace://structures.py#L89-L90"
+    },
+    {
+      "id": "cititem_requests_config_package_marker",
+      "semanticKey": "node:configuration-resource:package-marker:requests",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "configuration_resource",
+      "name": "requests",
+      "qualifiedName": "__init__.py::requests",
+      "locator": "workspace://__init__.py#L1-L219"
+    },
+    {
+      "id": "cititem_requests_config_package_dependency",
+      "semanticKey": "edge:depends-on:package-marker:requests",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "depends_on",
+      "from": { "kind": "configuration_resource", "name": "requests", "qualifiedName": "__init__.py::requests", "locator": "workspace://__init__.py#L1-L219" },
+      "to": { "kind": "package", "name": "requests", "qualifiedName": "__init__.py::requests", "locator": "workspace://__init__.py#L1-L219" },
+      "locator": "workspace://__init__.py#L1-L219",
+      "resolution": "exact"
     },
     {
       "id": "cititem_requests_import_adapters",
@@ -135,5 +158,5 @@
       "resolution": "exact"
     }
   ],
-  "truthFingerprint": "sha256:bc19ddf7499f4dec820ebb2345327266b3714b3a4aa44199b2254c7a2aba3d6b"
+  "truthFingerprint": "sha256:bc32d95b6d5d5fce20c0b6306fa876b681f85301425dc49f42471e98a89ce546"
 }

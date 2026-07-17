@@ -1608,4 +1608,153 @@ mod tests {
         assert_eq!(diff.renamed[0].to_source, "workspace://renamed.ts");
     }
 
+    #[test]
+    fn python_configuration_resources_are_package_keyed_and_causally_resolve_imports() {
+        let scratch = std::env::temp_dir().join(format!(
+            "oaf-ingest-python-configuration-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&scratch);
+        let project = scratch.join("project");
+        fs::create_dir_all(project.join("src/demo_app")).unwrap();
+        fs::write(
+            project.join("src/demo_app/base.py"),
+            "class BaseService:\n    pass\n",
+        )
+        .unwrap();
+        fs::write(
+            project.join("src/demo_app/service.py"),
+            "from demo_app.base import BaseService\nclass Service(BaseService):\n    pass\n",
+        )
+        .unwrap();
+
+        let without_configuration = extract_repo(&IngestOptions::new(&project)).unwrap();
+        assert!(!without_configuration.code_facts.iter().any(|fact| {
+            fact.predicate == "IMPORTS"
+                && fact.object == "module:src_demo_app_base"
+                && fact.note == "oaf.ingest:resolved-import"
+        }));
+        assert!(without_configuration.code_facts.iter().any(|fact| {
+            fact.predicate == "IMPORTS"
+                && fact.source == "workspace://src/demo_app/service.py"
+                && fact.note == "oaf.ingest:unresolved-import"
+        }));
+
+        fs::write(
+            project.join("pyproject.toml"),
+            "[project]\nname = \"demo-app\"\n",
+        )
+        .unwrap();
+        let options = IngestOptions::new(&project);
+        let with_configuration = extract_repo(&options).unwrap();
+        assert!(with_configuration.code_facts.iter().any(|fact| {
+            fact.subject == "module:src_demo_app_service"
+                && fact.predicate == "IMPORTS"
+                && fact.object == "module:src_demo_app_base"
+                && fact.note == "oaf.ingest:resolved-import"
+        }));
+        for (subject, object) in [
+            ("configuration_resource:demo_app", "ConfigurationResource"),
+            ("package:demo_app", "Package"),
+        ] {
+            assert!(with_configuration.code_facts.iter().any(|fact| {
+                fact.subject == subject
+                    && fact.predicate == "IS_A"
+                    && fact.object == object
+                    && fact.source == "workspace://pyproject.toml"
+                    && fact.note == "oaf.ingest:python-project-configuration"
+                    && fact.span.start_line == 2
+                    && fact.span.end_line == 2
+            }));
+        }
+        assert!(with_configuration.code_facts.iter().any(|fact| {
+            fact.subject == "configuration_resource:demo_app"
+                && fact.predicate == "DEPENDS_ON"
+                && fact.object == "package:demo_app"
+                && fact.source == "workspace://pyproject.toml"
+                && fact.note == "oaf.ingest:python-project-configuration"
+                && fact.span.start_line == 2
+                && fact.span.end_line == 2
+        }));
+
+        let mut source_bounded = IngestOptions::new(&project);
+        source_bounded.only_sources = Some(
+            [
+                "workspace://src/demo_app/base.py".to_string(),
+                "workspace://src/demo_app/service.py".to_string(),
+            ]
+            .into_iter()
+            .collect(),
+        );
+        let source_bounded_report = extract_repo(&source_bounded).unwrap();
+        assert!(!source_bounded_report.code_facts.iter().any(|fact| {
+            fact.note == "oaf.ingest:python-project-configuration"
+        }));
+
+        assert!(discover_file_hashes(&options)
+            .unwrap()
+            .iter()
+            .any(|file| file.source == "workspace://pyproject.toml"));
+        let bounded = discover_file_hashes_bounded(
+            &options,
+            &FileHashDiscoveryBounds {
+                max_candidate_files: 100,
+                max_hashed_bytes: 10 * 1024 * 1024,
+                selected_file_limit: None,
+                deadline: Instant::now() + std::time::Duration::from_secs(5),
+            },
+            |_| true,
+        )
+        .unwrap();
+        assert!(bounded.complete, "{:?}", bounded.reason_codes);
+        assert!(bounded
+            .hashes
+            .iter()
+            .any(|file| file.source == "workspace://pyproject.toml"));
+
+        let scoped = scratch.join("fastapi");
+        fs::create_dir_all(&scoped).unwrap();
+        fs::write(
+            scoped.join("__init__.py"),
+            "from .routing import route\n__all__ = [\"route\"]\n",
+        )
+        .unwrap();
+        fs::write(scoped.join("routing.py"), "def route():\n    pass\n").unwrap();
+        let scoped_report = extract_repo(&IngestOptions::new(&scoped)).unwrap();
+        for (subject, object) in [
+            ("configuration_resource:fastapi", "ConfigurationResource"),
+            ("package:fastapi", "Package"),
+        ] {
+            assert!(scoped_report.code_facts.iter().any(|fact| {
+                fact.subject == subject
+                    && fact.predicate == "IS_A"
+                    && fact.object == object
+                    && fact.source == "workspace://__init__.py"
+                    && fact.note == "oaf.ingest:python-package-root-configuration"
+                    && fact.span.start_line == 1
+                    && fact.span.end_line == 2
+            }));
+        }
+        assert!(scoped_report.code_facts.iter().any(|fact| {
+            fact.subject == "configuration_resource:fastapi"
+                && fact.predicate == "DEPENDS_ON"
+                && fact.object == "package:fastapi"
+                && fact.source == "workspace://__init__.py"
+                && fact.note == "oaf.ingest:python-package-root-configuration"
+                && fact.span.start_line == 1
+                && fact.span.end_line == 2
+        }));
+
+        fs::write(scoped.join("__init__.py"), [0xff, b'\n']).unwrap();
+        let non_utf8_marker = extract_repo(&IngestOptions::new(&scoped)).unwrap();
+        assert!(non_utf8_marker.code_facts.iter().any(|fact| {
+            fact.subject == "configuration_resource:fastapi"
+                && fact.note == "oaf.ingest:python-package-root-configuration"
+                && fact.span.start_line == 1
+                && fact.span.end_line == 1
+        }));
+
+        fs::remove_dir_all(scratch).unwrap();
+    }
+
 }

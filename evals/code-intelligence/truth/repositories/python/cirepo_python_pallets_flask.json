@@ -11,7 +11,7 @@
     "status": "reviewed",
     "method": "source-locator",
     "reviewedBy": "memory-recall-maintainer",
-    "reviewedAt": "2026-07-17T18:25:09.000Z"
+    "reviewedAt": "2026-07-17T19:14:11.000Z"
   },
   "reviewCoverage": {
     "declarations": "sampled",
@@ -26,7 +26,7 @@
     "heritage": "partial",
     "types": "partial",
     "calls": "partial",
-    "config": "unmeasured",
+    "config": "partial",
     "frameworks": "unmeasured",
     "impact": "unmeasured",
     "processes": "unmeasured"
@@ -64,6 +64,29 @@
       "name": "dispatch_request",
       "qualifiedName": "views.py::MethodView::dispatch_request",
       "locator": "workspace://views.py#L182-L191"
+    },
+    {
+      "id": "cititem_flask_config_package_marker",
+      "semanticKey": "node:configuration-resource:package-marker:flask",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "configuration_resource",
+      "name": "flask",
+      "qualifiedName": "__init__.py::flask",
+      "locator": "workspace://__init__.py#L1-L39"
+    },
+    {
+      "id": "cititem_flask_config_package_dependency",
+      "semanticKey": "edge:depends-on:package-marker:flask",
+      "capability": "config",
+      "expectation": "present",
+      "recordKind": "edge",
+      "kind": "depends_on",
+      "from": { "kind": "configuration_resource", "name": "flask", "qualifiedName": "__init__.py::flask", "locator": "workspace://__init__.py#L1-L39" },
+      "to": { "kind": "package", "name": "flask", "qualifiedName": "__init__.py::flask", "locator": "workspace://__init__.py#L1-L39" },
+      "locator": "workspace://__init__.py#L1-L39",
+      "resolution": "exact"
     },
     {
       "id": "cititem_flask_import_globals",
@@ -134,5 +157,5 @@
       "resolution": "unresolved"
     }
   ],
-  "truthFingerprint": "sha256:48af714c281e9efc30182a355f549b29180b1392ddb0462b205b067c875a0478"
+  "truthFingerprint": "sha256:63c808d1d9eb974163850a1c0a3db7886cd9f4b7807e3ad510a03e4f16c1baca"
 }
