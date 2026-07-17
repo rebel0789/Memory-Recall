@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-3",
   "phase": 4,
-  "generatedAt": "2026-07-17T04:43:21.052Z",
+  "generatedAt": "2026-07-17T05:11:25.445Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -10,7 +10,7 @@
   },
   "inputs": {
     "fixtureRef": "fixture://sha256:18244cf1480348cec4f788205b2d941e6b4a70d2fb1dbef2814415ae04790636",
-    "implementationFingerprint": "sha256:7ed64bdb7781e1e43f9938db27754b3ee17ca598312b7f271de7fcbd2e14741e",
+    "implementationFingerprint": "sha256:dd308e3d64b76ad156a99c2be06e27f026635d73f042a03ba5e95cafe5fa254e",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000
@@ -27,16 +27,16 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 7.125,
-      "p50": 7.284,
-      "p95": 7.773,
-      "maximum": 7.773
+      "minimum": 8.447,
+      "p50": 8.606,
+      "p95": 8.884,
+      "maximum": 8.884
     },
     "processQueryWallMs": {
-      "minimum": 6.301,
-      "p50": 6.698,
-      "p95": 6.865,
-      "maximum": 6.865
+      "minimum": 7.39,
+      "p50": 8.023,
+      "p95": 8.873,
+      "maximum": 8.873
     },
     "deterministicProjectionFingerprint": "sha256:102a9f8c1b1e07db1c4ba741c8f7059265a1e86aec9fda4c23c08018ab9193f1",
     "readQueriesPreservedIndex": true,
@@ -105,5 +105,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:0104ace512458d599ba816435ebc20065180d91dd06692678c508d0c543e688e"
+  "reportFingerprint": "sha256:f718518535673001422ed94e2ce3ce29c787f6c4bfd1f4a8c2160bc8f3aba853"
 }

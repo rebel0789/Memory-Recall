@@ -68,7 +68,7 @@ test('semantic setup docs and status describe only the governed implemented path
   assert.doesNotMatch(`${semantic}\n${skill}`, /oaf ingest-docs|memory consolidate/);
   assert.match(usageIndex, /\[Semantic setup\]\(semantic-setup\.md\)/);
   assert.match(readme, /docs\/usage\/semantic-setup\.md/);
-  assert.match(readme, /default local path needs no hosted account or model API key/i);
+  assert.match(readme, /No hosted account or model API key required/i);
   assert.doesNotMatch(readme, /\b(?:better|strongest|superior)\b/i);
   assert.match(contract, /Implemented: bounded semantic plan and task packets, strict result import, pending proposals, and source-rechecked named approval\./);
   assert.match(contract, /Experimental: explicit one-shot Gemini and OpenAI-compatible semantic API execution\./);
