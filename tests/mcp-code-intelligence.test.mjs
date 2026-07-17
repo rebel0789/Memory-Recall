@@ -155,7 +155,8 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   mkdirSync(path.join(root, '.local'), { recursive: true });
   writeFileSync(path.join(root, 'src', 'index.ts'), [
     'export function main(){ return helper(); }',
-    'export function helper(){ return 1; }',
+    'export function helper(){ return leaf(); }',
+    'export function leaf(){ return 1; }',
     'export function mainUtility(){ return 2; }'
   ].join('\n'));
   writeFileSync(path.join(root, 'src', 'worker.py'), 'def worker():\n    return 1\n');
@@ -189,7 +190,10 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
     { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'repo.map', arguments: { query: 'main', changed: ['src/index.ts'], limit: 10 } } },
     { jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'code.impact', arguments: { changed: ['src/index.ts'], depth: 2, limit: 10 } } },
     { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'repo.architecture', arguments: { limit: 20 } } },
-    { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 3 } } }
+    { jsonrpc: '2.0', id: 13, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'main', limit: 3 } } },
+    { jsonrpc: '2.0', id: 14, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', direction: 'outbound', depth: 2, edgeKinds: ['calls'], limit: 10 } } },
+    { jsonrpc: '2.0', id: 15, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', edgeKinds: ['calls', 'calls'] } } },
+    { jsonrpc: '2.0', id: 16, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', edgeKinds: ['contains', 'defines', 'imports', 'exports', 're_exports', 'references', 'calls', 'constructs', 'inherits', 'implements', 'extends', 'mixes_in', 'extends_type', 'part_of', 'entry_point', 'handles_route', 'reads'] } } }
   ];
   const result = spawnSync(process.execPath, [
     'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
@@ -197,12 +201,13 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   assert.equal(result.status, 0, result.stderr);
   const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
   const listedTools = responses.find((entry) => entry.id === 2).result.tools;
+  assert.equal(listedTools.length, 12);
   assert.deepEqual(listedTools.map((tool) => tool.name).sort(), EXPECTED_TOOLS);
   assert.equal(
     listedTools.find((tool) => tool.name === 'repo.architecture').description,
     'Return bounded architecture groups, communities, entry points, hotspots, and evidence-backed entry-to-sink processes from local source metadata.'
   );
-  for (let id = 3; id <= 13; id += 1) {
+  for (let id = 3; id <= 14; id += 1) {
     const response = responses.find((entry) => entry.id === id);
     assert.equal(response.error, undefined, `tool response ${id}: ${JSON.stringify(response.error)}`);
     const payload = JSON.parse(response.result.content[0].text);
@@ -252,6 +257,21 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
       && searchResultIds.has(item.toNodeId)
   )));
   assert(JSON.parse(responses.find((entry) => entry.id === 6).result.content[0].text).data.relationships.some((item) => item.kind === 'calls' && item.confidence > 0));
+  const constrainedContext = JSON.parse(responses.find((entry) => entry.id === 14).result.content[0].text).data;
+  assert.equal(constrainedContext.selected.label, 'main');
+  assert.equal(constrainedContext.direction, 'outbound');
+  assert.equal(constrainedContext.depth, 2);
+  assert.deepEqual(constrainedContext.edgeKinds, ['calls']);
+  assert(constrainedContext.related.some((item) => item.label === 'leaf'));
+  const contextNodeIds = new Set(constrainedContext.related.map((item) => item.id));
+  assert.equal(constrainedContext.relationships.length, 2);
+  assert(constrainedContext.relationships.every((item) => (
+    item.kind === 'calls'
+      && contextNodeIds.has(item.fromNodeId)
+      && contextNodeIds.has(item.toNodeId)
+  )));
+  assert(responses.find((entry) => entry.id === 15).error);
+  assert(responses.find((entry) => entry.id === 16).error);
   const routes = JSON.parse(responses.find((entry) => entry.id === 9).result.content[0].text).data;
   assert(routes.routes.some((item) => item.locator.includes('app/api/users/route.ts')));
   assert(routes.relationships.some((item) => item.kind === 'handles_route' && item.confidence > 0));
@@ -259,6 +279,19 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   assert.equal(statSync(indexPath).mtimeMs, indexMtimeBefore);
   assert.deepEqual(readFileSync(memoryPath), memoryBefore);
   assert.equal(result.stdout.includes(root), false);
+  const constrainedJs = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'js', '--root', root, '--stdio'
+  ], {
+    encoding: 'utf8',
+    env,
+    input: [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.context', arguments: { query: 'main', depth: 2 } } }
+    ].map((request) => JSON.stringify(request)).join('\n')
+  });
+  assert.equal(constrainedJs.status, 0, constrainedJs.stderr);
+  const constrainedJsResponse = constrainedJs.stdout.trim().split(/\n/u).map((line) => JSON.parse(line)).find((entry) => entry.id === 2);
+  assert.match(constrainedJsResponse.error.message, /code\.context constraints require a current native index/u);
 });
 
 test('default graph and MCP reads select a current native index and preserve it', () => {

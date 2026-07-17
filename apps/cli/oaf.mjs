@@ -60,6 +60,7 @@ import contextPackUsePlanSchema from '../../packages/protocol/schemas/context-pa
 import contextPackSchema from '../../packages/protocol/schemas/context-pack.schema.json' with { type: 'json' };
 import contextPackHandoffReportSchema from '../../packages/protocol/schemas/context-pack-handoff-report.schema.json' with { type: 'json' };
 import contextPackMeasurementReportSchema from '../../packages/protocol/schemas/context-pack-measurement-report.schema.json' with { type: 'json' };
+import codeIntelligenceGraphSchema from '../../packages/protocol/schemas/code-intelligence-graph.schema.json' with { type: 'json' };
 import mcpContextPackSmokeSchema from '../../packages/protocol/schemas/mcp-context-pack-smoke.schema.json' with { type: 'json' };
 import memoryRefineReportSchema from '../../packages/protocol/schemas/memory-refine-report.schema.json' with { type: 'json' };
 import semanticSetupReportSchema from '../../packages/protocol/schemas/semantic-setup-report.schema.json' with { type: 'json' };
@@ -104,6 +105,7 @@ const MCP_STDIO_CHILD_TIMEOUT_MS = boundedEnvInteger('OAF_MCP_STDIO_CHILD_TIMEOU
 const MCP_STDIO_CHILD_MAX_STDOUT_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDOUT_BYTES', 512 * 1024, { min: 1, max: 2_000_000 });
 const MCP_STDIO_CHILD_MAX_STDERR_BYTES = boundedEnvInteger('OAF_MCP_STDIO_CHILD_MAX_STDERR_BYTES', 64 * 1024, { min: 1, max: 512 * 1024 });
 const MCP_CONTEXT_PACK_AUX_MAX_BYTES = 2_000_000;
+const CODE_INTELLIGENCE_EDGE_KINDS = Object.freeze([...codeIntelligenceGraphSchema.$defs.edge.properties.kind.enum]);
 const MEMORY_PATH_MAX_BYTES = 8 * 1024 * 1024;
 const SEMANTIC_HARNESSES = new Set(['codex', 'claude-code', 'cursor', 'generic']);
 const SEMANTIC_PROVIDERS = new Set(['gemini', 'openai-compatible']);
@@ -6970,7 +6972,8 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         ...(argumentsValue.query === undefined ? {} : { query: argumentsValue.query }),
         ...(argumentsValue.locator === undefined ? {} : { locator: argumentsValue.locator }),
         ...(argumentsValue.direction === undefined ? {} : { direction: argumentsValue.direction }),
-        ...(argumentsValue.depth === undefined ? {} : { depth: argumentsValue.depth })
+        ...(argumentsValue.depth === undefined ? {} : { depth: argumentsValue.depth }),
+        ...(argumentsValue.edgeKinds === undefined ? {} : { edgeKinds: argumentsValue.edgeKinds })
       });
     } catch (error) {
       return actionableNativeReadError(error);
@@ -7147,7 +7150,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
     },
     {
       name: 'code.context',
-      description: 'Return one selected symbol with bounded incoming and outgoing structural relationships.',
+      description: 'Return one selected symbol with bounded, optionally filtered incoming and outgoing structural relationships.',
       operation: 'code.context',
       sideEffectClass: 'read-only',
       inputSchema: {
@@ -7156,27 +7159,58 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         required: ['query'],
         properties: {
           query: { type: 'string', minLength: 1, maxLength: 512 },
+          direction: { type: 'string', enum: ['outbound', 'inbound', 'both'] },
+          depth: { type: 'integer', enum: [1, 2, 3] },
+          edgeKinds: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 16,
+            uniqueItems: true,
+            items: { type: 'string', enum: CODE_INTELLIGENCE_EDGE_KINDS }
+          },
           limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 }
         }
       },
       handler: async ({ arguments: args }) => {
-        const input = mcpMapArguments(args, ['query', 'limit'], 'code.context');
+        const input = mcpMapArguments(args, ['query', 'direction', 'depth', 'edgeKinds', 'limit'], 'code.context');
         const query = mcpStructuralString(input.query, 'code.context query', { required: true, max: 512 });
+        const constrained = ['direction', 'depth', 'edgeKinds'].some((key) => Object.hasOwn(input, key));
+        const direction = mcpStructuralDirection(input.direction ?? 'both');
+        const depth = mcpStrictBoundedInteger(input.depth, 1, { min: 1, max: 3, name: 'depth' });
+        const edgeKinds = mcpStructuralKinds(input.edgeKinds, CODE_INTELLIGENCE_EDGE_KINDS, { minItems: 1, maxItems: 16, unique: true });
         const limit = mcpStrictBoundedInteger(input.limit, 20, { min: 1, max: 50, name: 'limit' });
         const selectedEngine = await selectStructuralEngine();
+        if (constrained) {
+          if (selectedEngine.selection !== 'native-preview') {
+            throw new Error('code.context constraints require a current native index; run recall graph index --write --engine native-preview --root . --format summary');
+          }
+          const status = selectedEngine.status ?? await nativeStatus();
+          if (!nativeIndexReadyForAutomaticRead(status)) {
+            throw new Error('code.context constraints require a current native index; refresh it with recall graph index --refresh --engine native-preview --root . --format summary');
+          }
+        }
         if (selectedEngine.selection === 'native-preview') {
           if (query.length > 160) throw new Error('native index query exceeds 160 characters');
           const [selected, neighborhood] = await Promise.all([
             nativeQuery('exact', { query, limit: 1 }),
-            nativeQuery('neighborhood', { query, limit, depth: 1 })
+            constrained
+              ? nativeQuery('dependencies', { query, direction, depth, edgeKinds, limit })
+              : nativeQuery('neighborhood', { query, limit, depth: 1 })
           ]);
+          const related = neighborhood.results.map(nativeStructuralNode);
+          const relatedIds = new Set(related.map((item) => item.id));
+          const relationships = (neighborhood.relationships ?? [])
+            .filter((item) => relatedIds.has(item.fromNodeId) && relatedIds.has(item.toNodeId))
+            .filter((item) => !edgeKinds || edgeKinds.includes(item.kind))
+            .map(nativeStructuralRelationship);
           return mcpToolJsonResult(mcpStructuralPayload({
             command: 'code.context', workspaceId, generatedAt: fixedNow(),
             data: {
               query,
               selected: selected.results[0] ? nativeStructuralNode(selected.results[0]) : null,
-              related: neighborhood.results.map(nativeStructuralNode),
-              relationships: (neighborhood.relationships ?? []).map(nativeStructuralRelationship),
+              related,
+              relationships,
+              ...(constrained ? { direction, depth, edgeKinds: edgeKinds ?? [] } : {}),
               source: nativeIndexSource(neighborhood)
             }
           }));
@@ -7666,9 +7700,15 @@ function mcpStructuralString(value, name, { required, max }) {
   return normalized;
 }
 
-function mcpStructuralKinds(value, allowed) {
+function mcpStructuralKinds(value, allowed, { minItems = 0, maxItems = allowed.length, unique = false } = {}) {
   if (value === undefined || value === null) return null;
-  if (!Array.isArray(value) || value.length > allowed.length || value.some((item) => !allowed.includes(item))) {
+  if (
+    !Array.isArray(value)
+    || value.length < minItems
+    || value.length > maxItems
+    || (unique && new Set(value).size !== value.length)
+    || value.some((item) => !allowed.includes(item))
+  ) {
     throw new Error('mcp structural kinds are invalid');
   }
   return [...new Set(value)];

@@ -682,6 +682,16 @@ impl SourceIndex {
         direction: EdgeDirection,
         bounds: &QueryBounds,
     ) -> Result<QueryPage<EdgeRecord>> {
+        self.dependency_edges_with_kinds(node_id, direction, bounds, None)
+    }
+
+    fn dependency_edges_with_kinds(
+        &self,
+        node_id: &str,
+        direction: EdgeDirection,
+        bounds: &QueryBounds,
+        edge_kinds: Option<&BTreeSet<String>>,
+    ) -> Result<QueryPage<EdgeRecord>> {
         validate_query_bounds(bounds)?;
         validate_identifier(node_id)?;
         let started = Instant::now();
@@ -696,20 +706,29 @@ impl SourceIndex {
             EdgeDirection::Outgoing => "source_id = ?2",
             EdgeDirection::Both => "(source_id = ?2 OR target_id = ?2)",
         };
+        let edge_kind_predicate = edge_kinds.map_or_else(String::new, |kinds| {
+            let parameters = (0..kinds.len())
+                .map(|index| format!("?{}", index + 4))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(" AND kind IN ({parameters})")
+        });
+        let limit_parameter = edge_kinds.map_or(4, |kinds| kinds.len() + 4);
         let sql = format!(
-            "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND {predicate} AND canonical_id > ?3 ORDER BY canonical_id LIMIT ?4"
+            "SELECT canonical_id, source_id, target_id, kind, locator, start_line, end_line, resolver, resolver_version, confidence, resolution_class, stale FROM index_edges WHERE generation_id = ?1 AND {predicate} AND canonical_id > ?3{edge_kind_predicate} ORDER BY canonical_id LIMIT ?{limit_parameter}"
         );
+        let mut parameters = vec![
+            SqlValue::Integer(generation_id),
+            SqlValue::Text(node_id.to_string()),
+            SqlValue::Text(bounds.cursor.clone().unwrap_or_default()),
+        ];
+        if let Some(kinds) = edge_kinds {
+            parameters.extend(kinds.iter().cloned().map(SqlValue::Text));
+        }
+        parameters.push(SqlValue::Integer(count_i64(bounds.limit + 1)?));
         let mut statement = self.connection.prepare(&sql)?;
         let items = statement
-            .query_map(
-                params![
-                    generation_id,
-                    node_id,
-                    bounds.cursor.as_deref().unwrap_or(""),
-                    count_i64(bounds.limit + 1)?
-                ],
-                row_to_edge,
-            )?
+            .query_map(params_from_iter(parameters.iter()), row_to_edge)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         ensure_deadline(started, bounds)?;
         bounded_page(items, bounds)
@@ -780,6 +799,26 @@ impl SourceIndex {
         direction: EdgeDirection,
         bounds: &QueryBounds,
     ) -> Result<GraphNeighborhood> {
+        self.dependency_neighborhood_inner(node_id, direction, bounds, None)
+    }
+
+    pub fn dependency_neighborhood_with_kinds(
+        &self,
+        node_id: &str,
+        direction: EdgeDirection,
+        bounds: &QueryBounds,
+        edge_kinds: &BTreeSet<String>,
+    ) -> Result<GraphNeighborhood> {
+        self.dependency_neighborhood_inner(node_id, direction, bounds, Some(edge_kinds))
+    }
+
+    fn dependency_neighborhood_inner(
+        &self,
+        node_id: &str,
+        direction: EdgeDirection,
+        bounds: &QueryBounds,
+        edge_kinds: Option<&BTreeSet<String>>,
+    ) -> Result<GraphNeighborhood> {
         validate_query_bounds(bounds)?;
         validate_identifier(node_id)?;
         let Some(generation_id) = self.active_generation() else {
@@ -806,8 +845,12 @@ impl SourceIndex {
             let mut next = BTreeSet::new();
             for current in frontier {
                 ensure_deadline(started, bounds)?;
-                let page =
-                    self.dependency_edges(&current, direction, &QueryBounds::new(bounds.limit))?;
+                let page = self.dependency_edges_with_kinds(
+                    &current,
+                    direction,
+                    &QueryBounds::new(bounds.limit),
+                    edge_kinds,
+                )?;
                 truncated |= page.next_cursor.is_some();
                 for edge in page.items {
                     if edges.len() >= bounds.limit {

@@ -25,7 +25,7 @@ npm run recall -- mcp server --read-only --root . --sqlite .local/memory.sqlite 
 | `repo.architecture` | Return bounded architecture groups, entry points, processes, structural hotspots, and evidence. | No |
 | `repo.index_status` | Report local index status or list explicitly registered repositories. | No |
 | `code.search` | Search local metadata or selected registered repository indexes. | No |
-| `code.context` | Return one symbol with bounded incoming and outgoing relationships. | No |
+| `code.context` | Return one symbol with bounded, optionally filtered structural relationships. | No |
 | `code.trace` | Trace bounded local call paths or one exact Go path across two repositories. | No |
 | `code.dependencies` | Walk local dependencies or resolve one exact Go module boundary across two repositories. | No |
 | `code.routes` | Discover HTTP method exports in route-like JS/TS files. | No |
@@ -49,7 +49,11 @@ remains capped at 20 listed architecture, search, and impact items.
 
 `code.search` accepts a query plus optional node kinds, edge kinds, locator
 prefix, limit, and offset. `code.context` selects a symbol and reports its direct
-incoming and outgoing relationships. `code.trace` follows call edges.
+incoming and outgoing relationships. With a current native index, it also
+accepts `direction`, depth `1..3`, and 1..16 unique canonical `edgeKinds` for a
+filtered traversal. Supplying any constraint never falls back to the JS scanner;
+a missing or stale native index returns a refresh instruction. `code.trace`
+follows call edges.
 `code.dependencies` walks imports and related structural edges. `code.routes`
 uses static HTTP-method exports in route-like paths; it does not execute a
 framework or claim runtime route coverage.
@@ -131,6 +135,10 @@ process references returned node and relationship IDs. Reads remain capped,
 report truncation, and preserve the index bytes and modification time. These
 projections are available through the existing twelve-tool MCP surface; no new
 write or query-execution tool is exposed.
+
+Constrained `code.context` reads use the same surface. Edge-kind filtering is
+performed inside each SQLite traversal step, and returned relationships retain
+source locators with both endpoints present in the bounded result.
 
 ## Resource Catalog
 

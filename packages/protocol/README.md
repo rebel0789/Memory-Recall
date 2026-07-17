@@ -234,6 +234,9 @@ prior read-only doctor report. Status, doctor, and query cannot carry write or
 repair authority. The index
 locator is the fixed workspace-relative
 `workspace://.local/source-index/index.v1.sqlite` value, never a local path.
+Dependency, neighborhood, and impact queries may restrict traversal to 1..16
+unique canonical edge kinds. The filter is applied during every bounded index
+expansion, not after a broader graph has been read.
 
 Index responses expose only repository identity hashes, schema and engine
 versions, generation state, bounded counts, safe diagnostics, and locator-only

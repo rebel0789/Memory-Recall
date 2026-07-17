@@ -135,8 +135,9 @@ multi-repository indexing, million-node scale, or competitor parity.
 ## Phase 4 structural-intelligence evidence
 
 The explicit native preview now derives deterministic bounded exact, lexical,
-and one-hop structural search, communities, and entry-to-sink processes from
-the persistent index. Search returns source-backed relationship evidence only
+and one-hop structural search, communities, entry-to-sink processes, and
+constrained dependency traversal from the persistent index. Search and filtered
+traversal return source-backed relationship evidence only
 when both endpoints are in the bounded result. Process results retain the
 entry relationship and every traversed source relationship. They exclude stale,
 unresolved, and sub-0.75-confidence steps. `repo.architecture` exposes these
@@ -145,8 +146,8 @@ projections through the existing twelve read-only MCP tools.
 The local Phase 4 receipt is
 [`phase4-intelligence.json`](../../evals/code-intelligence/results/phase4-intelligence.json).
 It proves deterministic search ranking and output, complete returned evidence,
-unchanged SQLite bytes and modification time, and the two-second query deadline
-on its fixture.
+an outbound depth-two calls-only traversal, unchanged SQLite bytes and
+modification time, and the two-second query deadline on its fixture.
 It does not promote any language's process capability to `meets-floor`: that
 still requires applicable deterministic and pinned real-repository evidence.
 It also does not change the JS default or prove packaged binaries, competitors,

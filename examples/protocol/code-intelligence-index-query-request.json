@@ -8,9 +8,11 @@
   "deadlineMs": 30000,
   "responseSchemaVersion": "1.0.0",
   "arguments": {
-    "kind": "neighborhood",
+    "kind": "dependencies",
     "query": "UserController",
+    "direction": "outbound",
     "depth": 2,
+    "edgeKinds": ["calls", "constructs"],
     "limit": 25
   }
 }

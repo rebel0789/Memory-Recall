@@ -182,7 +182,7 @@ export class RustCodeIntelligenceProvider {
   }
 
   async queryIndex(options = {}) {
-    const { kind, query, locator, direction, depth, limit = 25, cursor } = options;
+    const { kind, query, locator, direction, depth, edgeKinds, limit = 25, cursor } = options;
     return this.#indexOperation('index.query', options, {
       kind,
       limit,
@@ -190,6 +190,7 @@ export class RustCodeIntelligenceProvider {
       ...(locator === undefined ? {} : { locator }),
       ...(direction === undefined ? {} : { direction }),
       ...(depth === undefined ? {} : { depth }),
+      ...(edgeKinds === undefined ? {} : { edgeKinds }),
       ...(cursor === undefined ? {} : { cursor })
     });
   }

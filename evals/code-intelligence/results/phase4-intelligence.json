@@ -1,8 +1,8 @@
 {
   "schemaVersion": "1.0.0",
-  "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-4",
+  "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-5",
   "phase": 4,
-  "generatedAt": "2026-07-17T16:11:31.637Z",
+  "generatedAt": "2026-07-17T16:31:19.474Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -10,10 +10,20 @@
   },
   "inputs": {
     "fixtureRef": "fixture://sha256:af154c4a9074ac46477b7415d9e0ac1cde6c9c857d354b955161c0365244af8f",
-    "implementationFingerprint": "sha256:b4446b9bc2d1b380eac765470bab335e5a34ff9effcf0b4362342c319c6ca7d0",
+    "implementationFingerprint": "sha256:698b7b391d795e153cea20b2948de042e690c81f15a0d82905353466d3e5c7e6",
     "repetitions": 5,
     "queryLimit": 50,
-    "queryDeadlineMs": 2000
+    "queryDeadlineMs": 2000,
+    "constrainedQuery": {
+      "kind": "dependencies",
+      "query": "GET",
+      "direction": "outbound",
+      "depth": 2,
+      "edgeKinds": [
+        "calls"
+      ],
+      "limit": 50
+    }
   },
   "index": {
     "fileCount": 4,
@@ -27,39 +37,47 @@
     "routeCount": 1,
     "impactNodeCount": 5,
     "impactRelationshipCount": 7,
+    "constrainedQueryNodeCount": 3,
+    "constrainedQueryRelationshipCount": 2,
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 7.988,
-      "p50": 9.187,
-      "p95": 10.171,
-      "maximum": 10.171
+      "minimum": 7.693,
+      "p50": 8.336,
+      "p95": 8.717,
+      "maximum": 8.717
     },
     "processQueryWallMs": {
-      "minimum": 7.286,
-      "p50": 7.973,
-      "p95": 9.219,
-      "maximum": 9.219
+      "minimum": 7.404,
+      "p50": 7.724,
+      "p95": 8.213,
+      "maximum": 8.213
     },
     "routeQueryWallMs": {
-      "minimum": 7.177,
-      "p50": 7.235,
-      "p95": 9.979,
-      "maximum": 9.979
+      "minimum": 6.567,
+      "p50": 6.732,
+      "p95": 7.06,
+      "maximum": 7.06
     },
     "impactQueryWallMs": {
-      "minimum": 6.633,
-      "p50": 6.857,
-      "p95": 7.452,
-      "maximum": 7.452
+      "minimum": 6.683,
+      "p50": 7.172,
+      "p95": 7.503,
+      "maximum": 7.503
     },
     "searchQueryWallMs": {
-      "minimum": 6.523,
-      "p50": 7.158,
-      "p95": 7.87,
-      "maximum": 7.87
+      "minimum": 6.567,
+      "p50": 6.928,
+      "p95": 7.588,
+      "maximum": 7.588
     },
-    "deterministicProjectionFingerprint": "sha256:937121ecad112784c24bac6dab7086078be5ea19124b1301837c551044552353",
+    "constrainedQueryWallMs": {
+      "minimum": 6.513,
+      "p50": 6.938,
+      "p95": 7.837,
+      "maximum": 7.837
+    },
+    "deterministicProjectionFingerprint": "sha256:a006d4d6dd442589f42ae24cfa5d27f8b1bab56d584b530cf81a44fd8b8d251a",
     "readQueriesPreservedIndex": true,
     "evidenceComplete": true,
     "representativeProcess": {
@@ -150,6 +168,39 @@
       "confidence": 0.75,
       "locator": "workspace://app/api/users/route.ts#L3-L3"
     },
+    "representativeConstrainedQuery": {
+      "direction": "outbound",
+      "depth": 2,
+      "edgeKinds": [
+        "calls"
+      ],
+      "nodeIds": [
+        "cinode_0a6766c57aa6fe04016a31775a4c7c82",
+        "cinode_b1d9033581223f492d71170fff0c3e34",
+        "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3"
+      ],
+      "relationships": [
+        {
+          "relationshipId": "ciedge_3c2f44f961a8e4b3ee861679a46599c6",
+          "kind": "calls",
+          "fromNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
+          "toNodeId": "cinode_b1d9033581223f492d71170fff0c3e34",
+          "locator": "workspace://app/api/users/route.ts#L2-L2",
+          "confidence": 0.75,
+          "resolution": "inferred"
+        },
+        {
+          "relationshipId": "ciedge_39df168f0f66d16fd2b64aca3de198f9",
+          "kind": "calls",
+          "fromNodeId": "cinode_b1d9033581223f492d71170fff0c3e34",
+          "toNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
+          "locator": "workspace://app/api/users/route.ts#L3-L3",
+          "confidence": 0.75,
+          "resolution": "inferred"
+        }
+      ],
+      "evidenceEndpointsComplete": true
+    },
     "confidenceEvidence": {
       "range": [
         0,
@@ -176,7 +227,7 @@
     "competitorParity": false,
     "leadership": false,
     "millionNodeScale": false,
-    "reason": "This local fixture gate proves deterministic bounded exact, lexical, and one-hop structural search; communities; entry-to-sink processes; route evidence; reverse impact; confidence propagation; read-only behavior; and the two-second query deadline. It does not prove constrained graph queries, competitor parity, packaged native binaries, multi-repository behavior, or million-node scale."
+    "reason": "This local fixture gate proves deterministic bounded exact, lexical, and one-hop structural search; communities; entry-to-sink processes; route evidence; reverse impact; outbound depth-two calls-only traversal with evidence endpoints; confidence propagation; read-only behavior; and the two-second query deadline. It does not prove competitor parity, packaged native binaries, multi-repository behavior, or million-node scale."
   },
   "safeguards": {
     "networkCalls": 0,
@@ -185,5 +236,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:fc57e8f0cadadc75e625b41a15928cc8e22e370f71c352fc7adf1c4186dc93d2"
+  "reportFingerprint": "sha256:2dea3435f0cd1b0ba26fdaefa0deab73d7db61d775d49d8fe2ce9229a57f5a2f"
 }

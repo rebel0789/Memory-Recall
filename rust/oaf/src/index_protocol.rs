@@ -54,6 +54,32 @@ const LANGUAGES: &[&str] = &[
     "julia",
     "zig",
 ];
+const EDGE_KINDS: &[&str] = &[
+    "contains",
+    "defines",
+    "imports",
+    "exports",
+    "re_exports",
+    "references",
+    "calls",
+    "constructs",
+    "inherits",
+    "implements",
+    "extends",
+    "mixes_in",
+    "extends_type",
+    "part_of",
+    "entry_point",
+    "handles_route",
+    "reads",
+    "writes",
+    "emits",
+    "listens",
+    "depends_on",
+    "member_of",
+    "process_step",
+    "cross_repo_depends_on",
+];
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -103,6 +129,8 @@ struct QueryArguments {
     depth: Option<usize>,
     #[serde(default)]
     cursor: Option<String>,
+    #[serde(default)]
+    edge_kinds: Option<Vec<String>>,
 }
 
 struct ParsedRequest {
@@ -284,6 +312,7 @@ fn parse_empty(value: Value) -> Result<()> {
 fn parse_query(value: Value) -> Result<QueryArguments> {
     let arguments: QueryArguments =
         serde_json::from_value(value).map_err(|_| anyhow::anyhow!("index_request_invalid"))?;
+    let mut edge_kinds = BTreeSet::new();
     if ![
         "summary",
         "exact",
@@ -315,6 +344,13 @@ fn parse_query(value: Value) -> Result<QueryArguments> {
             .cursor
             .as_deref()
             .is_some_and(|value| !valid_prefixed_hex(value, "idxcur_"))
+        || arguments.edge_kinds.as_ref().is_some_and(|kinds| {
+            kinds.is_empty()
+                || kinds.len() > 16
+                || kinds.iter().any(|kind| {
+                    !EDGE_KINDS.contains(&kind.as_str()) || !edge_kinds.insert(kind.clone())
+                })
+        })
     {
         bail!("index_request_invalid");
     }
@@ -330,18 +366,26 @@ fn validate_query_shape(arguments: &QueryArguments) -> Result<()> {
                 && arguments.direction.is_none()
                 && arguments.depth.is_none()
                 && arguments.cursor.is_none()
+                && arguments.edge_kinds.is_none()
         }
         "routes" | "communities" => {
-            seeds == 0 && arguments.direction.is_none() && arguments.depth.is_none()
+            seeds == 0
+                && arguments.direction.is_none()
+                && arguments.depth.is_none()
+                && arguments.edge_kinds.is_none()
         }
         "processes" => {
             seeds == 0
                 && arguments.direction.is_none()
                 && arguments.cursor.is_none()
                 && arguments.depth.unwrap_or(4) >= 1
+                && arguments.edge_kinds.is_none()
         }
         "exact" | "search" => {
-            seeds == 1 && arguments.direction.is_none() && arguments.depth.is_none()
+            seeds == 1
+                && arguments.direction.is_none()
+                && arguments.depth.is_none()
+                && arguments.edge_kinds.is_none()
         }
         "neighborhood" => seeds == 1 && arguments.direction.is_none() && arguments.cursor.is_none(),
         "dependencies" => seeds == 1 && arguments.cursor.is_none(),
@@ -351,6 +395,7 @@ fn validate_query_shape(arguments: &QueryArguments) -> Result<()> {
                 && arguments.locator.is_some()
                 && arguments.direction.is_none()
                 && arguments.cursor.is_none()
+                && arguments.edge_kinds.is_none()
         }
         _ => false,
     };
@@ -1142,6 +1187,10 @@ fn execute_query(
     if let Some(cursor) = arguments.cursor.as_deref() {
         bounds.cursor = Some(format!("cinode_{}", &cursor[7..]));
     }
+    let edge_kinds = arguments
+        .edge_kinds
+        .as_ref()
+        .map(|kinds| kinds.iter().cloned().collect::<BTreeSet<_>>());
     match arguments.kind.as_str() {
         "summary" => Ok(QueryOutput::default()),
         "exact" => {
@@ -1313,7 +1362,16 @@ fn execute_query(
         }
         "neighborhood" => {
             let seed = find_seed(index, arguments, &bounds)?;
-            let graph = index.neighborhood(&seed.canonical_id, &bounds)?;
+            let graph = if let Some(edge_kinds) = edge_kinds.as_ref() {
+                index.dependency_neighborhood_with_kinds(
+                    &seed.canonical_id,
+                    EdgeDirection::Both,
+                    &bounds,
+                    edge_kinds,
+                )?
+            } else {
+                index.neighborhood(&seed.canonical_id, &bounds)?
+            };
             Ok(QueryOutput::records(
                 nodes_to_results(graph.nodes, index)?,
                 edges_to_results(graph.edges, index)?,
@@ -1331,7 +1389,16 @@ fn execute_query(
                     _ => EdgeDirection::Both,
                 }
             };
-            let graph = index.dependency_neighborhood(&seed.canonical_id, direction, &bounds)?;
+            let graph = if let Some(edge_kinds) = edge_kinds.as_ref() {
+                index.dependency_neighborhood_with_kinds(
+                    &seed.canonical_id,
+                    direction,
+                    &bounds,
+                    edge_kinds,
+                )?
+            } else {
+                index.dependency_neighborhood(&seed.canonical_id, direction, &bounds)?
+            };
             Ok(QueryOutput::records(
                 nodes_to_results(graph.nodes, index)?,
                 edges_to_results(graph.edges, index)?,
@@ -2175,6 +2242,96 @@ mod tests {
                 .into_iter()
                 .collect()
         );
+    }
+
+    #[test]
+    fn traversal_edge_kinds_constrain_every_depth_and_keep_evidence_endpoints() {
+        for edge_kind in ["unknown_edge", "CALLS"] {
+            assert!(parse_request(request(
+                "index.query",
+                json!({
+                    "kind": "dependencies",
+                    "query": "entry",
+                    "direction": "outbound",
+                    "depth": 2,
+                    "edgeKinds": [edge_kind],
+                    "limit": 10
+                }),
+            ))
+            .is_err());
+        }
+
+        let workspace = tempdir().unwrap();
+        fs::create_dir_all(workspace.path().join("src")).unwrap();
+        fs::write(
+            workspace.path().join("src/index.ts"),
+            "export class Worker {}\nexport function entry(): Worker { return middle(); }\nexport function middle(): Worker { return new Worker(); }\n",
+        )
+        .unwrap();
+        execute_request(
+            parse_request(request("index.build", writer_arguments())).unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+
+        let unfiltered = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({
+                    "kind": "dependencies",
+                    "query": "entry",
+                    "direction": "outbound",
+                    "depth": 2,
+                    "limit": 10
+                }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        assert!(unfiltered["result"]["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["label"] == "Worker"));
+
+        let filtered = execute_request(
+            parse_request(request(
+                "index.query",
+                json!({
+                    "kind": "dependencies",
+                    "query": "entry",
+                    "direction": "outbound",
+                    "depth": 2,
+                    "edgeKinds": ["calls"],
+                    "limit": 10
+                }),
+            ))
+            .unwrap(),
+            workspace.path(),
+            "1.1.1",
+        )
+        .unwrap();
+        let results = filtered["result"]["results"].as_array().unwrap();
+        assert!(results.iter().any(|item| item["label"] == "entry"));
+        assert!(results.iter().any(|item| item["label"] == "middle"));
+        assert!(!results.iter().any(|item| item["label"] == "Worker"));
+        let result_ids = results
+            .iter()
+            .map(|item| item["id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>();
+        let relationships = filtered["result"]["relationships"].as_array().unwrap();
+        assert_eq!(relationships.len(), 1);
+        assert!(relationships.iter().all(|edge| {
+            edge["kind"] == "calls"
+                && result_ids.contains(edge["fromNodeId"].as_str().unwrap())
+                && result_ids.contains(edge["toNodeId"].as_str().unwrap())
+                && edge["locator"]
+                    .as_str()
+                    .is_some_and(|locator| locator.starts_with("workspace://src/index.ts#L"))
+        }));
     }
 
     #[test]

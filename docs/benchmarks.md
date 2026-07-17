@@ -153,7 +153,9 @@ node scripts/code-intelligence-phase4-intelligence.mjs --check
 The local fixture builds four disconnected TypeScript areas plus one Next.js
 route-to-handler call chain. Five repeated reads prove deterministic exact,
 lexical, and one-hop structural search alongside bounded communities and an
-evidence-backed process. Every query stays below the bounded two-second deadline
+evidence-backed process. The same fixture proves that an outbound depth-two
+calls-only query retains both call steps and their source-backed endpoints while
+excluding other edge kinds. Every query stays below the bounded two-second deadline
 and preserves the exact SQLite bytes and modification time. The committed
 receipt records the machine-specific p95 values.
 

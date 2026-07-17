@@ -181,7 +181,7 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   assert.deepEqual(report.failures, []);
   assert(report.results.communityCount > 0);
   assert(report.results.processCount > 0);
-  assert.equal(report.reportVersion, 'memory-recall-code-intelligence-phase4-intelligence-4');
+  assert.equal(report.reportVersion, 'memory-recall-code-intelligence-phase4-intelligence-5');
   assert.equal(report.results.communityAlgorithm, 'label-propagation-v1');
   assert.equal(report.results.processAlgorithm, 'entry-path-v1');
   assert.equal(report.results.readQueriesPreservedIndex, true);
@@ -195,6 +195,26 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   assert(report.results.representativeSearch.relationshipId);
   assert(report.results.representativeSearch.confidence > 0);
   assert.match(report.results.representativeSearch.locator, /^workspace:\/\//u);
+  assert.deepEqual(report.inputs.constrainedQuery, {
+    kind: 'dependencies',
+    query: 'GET',
+    direction: 'outbound',
+    depth: 2,
+    edgeKinds: ['calls'],
+    limit: 50
+  });
+  assert.equal(report.results.constrainedQueryNodeCount, 3);
+  assert.equal(report.results.constrainedQueryRelationshipCount, 2);
+  assert(report.results.constrainedQueryWallMs.p95 <= report.inputs.queryDeadlineMs);
+  const constrained = report.results.representativeConstrainedQuery;
+  assert.equal(constrained.evidenceEndpointsComplete, true);
+  assert.deepEqual(constrained.edgeKinds, ['calls']);
+  assert.equal(constrained.relationships.every((item) => item.kind === 'calls'), true);
+  assert.deepEqual(
+    constrained.relationships.map((item) => [item.fromNodeId, item.toNodeId]),
+    constrained.nodeIds.slice(0, -1).map((nodeId, index) => [nodeId, constrained.nodeIds[index + 1]])
+  );
+  assert.equal(constrained.relationships.every((item) => /^workspace:\/\//u.test(item.locator)), true);
   const representative = report.results.representativeProcess;
   assert.equal(representative.entryNodeId, representative.nodeIds[0]);
   assert.equal(representative.sinkNodeId, representative.nodeIds.at(-1));
