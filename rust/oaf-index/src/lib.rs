@@ -820,7 +820,6 @@ impl SourceIndex {
                         EdgeDirection::Both if edge.source_id == current => edge.target_id.clone(),
                         EdgeDirection::Both => edge.source_id.clone(),
                     };
-                    edges.entry(edge.canonical_id.clone()).or_insert(edge);
                     if !nodes.contains_key(&other) {
                         if nodes.len() >= bounds.limit {
                             truncated = true;
@@ -831,6 +830,7 @@ impl SourceIndex {
                             next.insert(other);
                         }
                     }
+                    edges.entry(edge.canonical_id.clone()).or_insert(edge);
                 }
             }
             if next.is_empty() {

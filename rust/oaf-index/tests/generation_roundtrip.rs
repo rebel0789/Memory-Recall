@@ -244,6 +244,48 @@ fn read_queries_are_stable_paginated_and_bounded() {
 }
 
 #[test]
+fn dependency_neighborhood_keeps_relationship_endpoints_under_tight_bounds() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("index.sqlite");
+    let mut writer = SourceIndex::open(&path, &options()).unwrap();
+    writer
+        .commit_generation(&sample_generation(
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "one",
+        ))
+        .unwrap();
+    drop(writer);
+    let index = SourceIndex::open_read_only(&path, &options()).unwrap();
+
+    let bounded = index
+        .dependency_neighborhood(
+            "node_one_caller",
+            EdgeDirection::Outgoing,
+            &QueryBounds::new(1).with_depth(1),
+        )
+        .unwrap();
+    assert_eq!(bounded.nodes.len(), 1);
+    assert!(bounded.edges.is_empty());
+    assert!(bounded.truncated);
+
+    let complete = index
+        .dependency_neighborhood(
+            "node_one_caller",
+            EdgeDirection::Outgoing,
+            &QueryBounds::new(2).with_depth(1),
+        )
+        .unwrap();
+    let node_ids = complete
+        .nodes
+        .iter()
+        .map(|node| node.canonical_id.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert!(complete.edges.iter().all(|edge| {
+        node_ids.contains(edge.source_id.as_str()) && node_ids.contains(edge.target_id.as_str())
+    }));
+}
+
+#[test]
 fn search_matches_all_natural_language_terms_and_keeps_pagination() {
     let root = tempdir().unwrap();
     let path = root.path().join("index.sqlite");
