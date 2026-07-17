@@ -73,7 +73,7 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | Language | Declarations | Relationships | Reviewed calls | Capability rows at floor | Applicable rows still unmeasured | Overall |
 | --- | ---: | ---: | ---: | --- | --- | --- |
 | TypeScript | 6/6 | 6/6 | 4/4 | parse, structure, calls | imports, exports, types | unmeasured |
-| JavaScript | 5/5 | 6/6 | 4/4 | parse, structure, imports, calls | exports, types | unmeasured |
+| JavaScript | 8/8 | 6/6 | 4/4 | parse, structure, imports, types, calls | exports | unmeasured |
 | Python | 16/16 | 9/9 | 4/4 | parse, structure, calls | imports, heritage, types, config, frameworks | unmeasured |
 | Java | 21/21 | 7/7 | 5/5 | parse, structure, calls | imports, heritage, types, frameworks | unmeasured |
 | Kotlin | 20/20 | 8/8 | 4/4 | parse, structure | imports, heritage, types, calls, frameworks | unmeasured |
@@ -87,8 +87,8 @@ with narrower evidence stays `unmeasured`, even when every sampled item passes.
 | C++ | 15/15 | 6/6 | 4/4 | parse, structure, calls | imports, heritage, types, config | unmeasured |
 | Dart | 17/17 | 15/15 | 3/3 | parse, structure, imports, types | exports, heritage, calls, config, frameworks | unmeasured |
 
-Across the 154 Tier 1 capability cells, 46 meet the Phase 2 floor, none has a
-recorded floor failure, and 108 remain unmeasured or not applicable. Six
+Across the 154 Tier 1 capability cells, 47 meet the Phase 2 floor, none has a
+recorded floor failure, and 107 remain unmeasured or not applicable. Six
 repository scopes hit the configured node or edge budget and report the exact
 omitted counts; their available reviewed evidence remains usable and partial.
 

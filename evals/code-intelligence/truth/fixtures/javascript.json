@@ -24,7 +24,7 @@
     "imports": "partial",
     "exports": "partial",
     "heritage": "unmeasured",
-    "types": "unmeasured",
+    "types": "partial",
     "calls": "partial",
     "config": "unmeasured",
     "frameworks": "unmeasured",
@@ -35,7 +35,7 @@
     {
       "id": "cititem_javascript_helper",
       "semanticKey": "node:function:helper.js:helper",
-      "capability": "structure",
+      "capability": "types",
       "expectation": "present",
       "recordKind": "node",
       "kind": "function",
@@ -142,5 +142,5 @@
       "locator": "workspace://routes/health.js#L2-L2"
     }
   ],
-  "truthFingerprint": "sha256:1b2b0a6c04e5f0954bcc35eff897f69850008fae9ec2187b649321d8e8ecabe9"
+  "truthFingerprint": "sha256:2eabc4fc261ed2d4c886ec5dd24c8cbd5722c179d5af913d1cb5c00ca845ce55"
 }

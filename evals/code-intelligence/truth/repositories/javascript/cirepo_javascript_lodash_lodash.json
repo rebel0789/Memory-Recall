@@ -24,7 +24,7 @@
     "imports": "partial",
     "exports": "unmeasured",
     "heritage": "unmeasured",
-    "types": "unmeasured",
+    "types": "partial",
     "calls": "partial",
     "config": "unmeasured",
     "frameworks": "unmeasured",
@@ -64,6 +64,17 @@
       },
       "locator": "workspace://lib/fp/build-doc.js#L7-L7",
       "resolution": "exact"
+    },
+    {
+      "id": "cititem_lodash_auto_link_type",
+      "semanticKey": "node:function:lib/main/build-site.js:autoLink",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "autoLink",
+      "qualifiedName": "lib/main/build-site.js::autoLink",
+      "locator": "workspace://lib/main/build-site.js#L48-L57"
     },
     {
       "id": "cititem_lodash_auto_link_call",
@@ -109,5 +120,5 @@
       "locator": "workspace://lib/main/build-site.js#L208-L208"
     }
   ],
-  "truthFingerprint": "sha256:1afe3cd8a06153ff2d6fbbdbd97f676ef66ca481e462144b96db76aba8628ce8"
+  "truthFingerprint": "sha256:c72da367030043f5dd02bc1a0197afb21258b0cc627e2a856a6a16cd7d9a654e"
 }

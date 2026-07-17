@@ -24,7 +24,7 @@
     "imports": "partial",
     "exports": "unmeasured",
     "heritage": "unmeasured",
-    "types": "unmeasured",
+    "types": "partial",
     "calls": "partial",
     "config": "unmeasured",
     "frameworks": "unmeasured",
@@ -64,6 +64,17 @@
       },
       "locator": "workspace://express.js#L18-L18",
       "resolution": "exact"
+    },
+    {
+      "id": "cititem_express_onerror_type",
+      "semanticKey": "node:function:response.js:sendfile:onerror",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "onerror",
+      "qualifiedName": "response.js::sendfile::onerror",
+      "locator": "workspace://response.js#L949-L953"
     },
     {
       "id": "cititem_express_onerror_call",
@@ -109,5 +120,5 @@
       "locator": "workspace://response.js#L970-L970"
     }
   ],
-  "truthFingerprint": "sha256:a91ad68c18033bfd95b7b162d7ce273486bdc068d14e6f61a6267a1a1e12c9f8"
+  "truthFingerprint": "sha256:73b1e612dbf02cbd19db8ebf04b3c2309a88250fcf4c3fd41c9ce8ca4212259b"
 }

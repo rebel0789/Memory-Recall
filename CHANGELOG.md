@@ -33,7 +33,7 @@
 
 - Token Saver and handoff measurement reuse the already-built context pack for their real MCP stdio readback, avoiding a second repository scan while preserving fingerprint verification.
 - Native changed-file refresh now parses only the bounded invalidation closure plus dependency context. The clean Phase 3 receipt covers 781 files across one dependency fixture and three pinned repository scopes; it keeps scale, competitor, parity, and leadership claims false.
-- Tier 1 documentation now names the 46 capability rows that meet the sampled Phase 2 floor and the 108 rows that remain unmeasured or not applicable. Every language remains overall unmeasured, the JS engine remains the public default, and no competitor, parity, leadership, multi-repository, or scale claim is made.
+- Tier 1 documentation now names the 47 capability rows that meet the sampled Phase 2 floor and the 107 rows that remain unmeasured or not applicable. Every language remains overall unmeasured, the JS engine remains the public default, and no competitor, parity, leadership, multi-repository, or scale claim is made.
 - The npm package excludes checkout-only Tier 1 audit and real-world benchmark scripts, the nested Rust build guide, the architecture bitmap, and the 114 KiB capability matrix, keeping the verified unpacked package below its fixed size ceiling.
 
 ## [1.1.0] — 2026-07-15

@@ -2,7 +2,7 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase2-tier1-summary-1",
   "phase": 2,
-  "generatedAt": "2026-07-16T15:05:05.023Z",
+  "generatedAt": "2026-07-17T13:25:52.798Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
@@ -22,7 +22,7 @@
       {
         "batch": "A",
         "path": "evals/code-intelligence/results/phase2-batch-a.json",
-        "reportFingerprint": "sha256:0dd3d2b9841a12be9c10abfbabb34d5b42116303bbb06a409d8927b1a4a32fd4",
+        "reportFingerprint": "sha256:4a59077f86c52bcdf50683b1168cf4a3eaa68a7f005cd5ed98396f567c1875cf",
         "caseCount": 8,
         "languageCount": 2
       },
@@ -61,15 +61,15 @@
     "repositoryCount": 42,
     "languageCount": 14,
     "caseCount": 56,
-    "graphNodeCount": 52388,
-    "graphEdgeCount": 117989,
-    "graphResponseBytes": 82862298,
-    "firstRunWallTimeMs": 15665.42,
-    "secondRunWallTimeMs": 15750.958,
-    "peakEvaluatorRssKb": 208800,
-    "meetsFloorCapabilityCount": 46,
+    "graphNodeCount": 52594,
+    "graphEdgeCount": 119163,
+    "graphResponseBytes": 83572554,
+    "firstRunWallTimeMs": 15556.666,
+    "secondRunWallTimeMs": 15636.867,
+    "peakEvaluatorRssKb": 223056,
+    "meetsFloorCapabilityCount": 47,
     "doesNotMeetFloorCapabilityCount": 0,
-    "unmeasuredCapabilityCount": 108
+    "unmeasuredCapabilityCount": 107
   },
   "cases": [
     {
@@ -100,9 +100,9 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 8.802,
-        "secondElapsedMs": 7.185,
-        "evaluatorMaxRssKb": 57504,
+        "firstElapsedMs": 48.231,
+        "secondElapsedMs": 8.518,
+        "evaluatorMaxRssKb": 59024,
         "graphResponseBytes": 8634,
         "workspaceFingerprintUnchanged": true
       },
@@ -241,14 +241,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 6.892,
-        "secondElapsedMs": 6.775,
-        "evaluatorMaxRssKb": 58752,
+        "firstElapsedMs": 8.553,
+        "secondElapsedMs": 8.025,
+        "evaluatorMaxRssKb": 60096,
         "graphResponseBytes": 7255,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:42528e58f2bc99e1aaa32907376fd18f6d3b03b1ec8ec1083486a4801f34cb52",
+        "reportFingerprint": "sha256:36d799d4387bc07fb63f7366accec78fb039b1263f9415d9b8eabf8df72ffcba",
         "metrics": {
           "declarationRecall": {
             "numerator": 2,
@@ -283,8 +283,8 @@
             "id": "structure",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 2,
-            "matchedItemCount": 2
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "imports",
@@ -309,10 +309,10 @@
           },
           {
             "id": "types",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -363,8 +363,8 @@
       "commit": "637d5746b70257028fb95aad32ddec6b26ab0a14",
       "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_typescript.json",
       "graph": {
-        "fingerprint": "sha256:c7b813937e80454fb1486dbc3dda6f15ebb6172cf7487ef4971154a709627d92",
-        "nodeCount": 4178,
+        "fingerprint": "sha256:9c3a43450f8dc1fb3c259d9a502b29f89ae645040b4212c06624d34aa4090440",
+        "nodeCount": 3829,
         "edgeCount": 10000,
         "diagnosticCount": 2,
         "diagnostics": [
@@ -392,14 +392,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 818.769,
-        "secondElapsedMs": 810.111,
-        "evaluatorMaxRssKb": 175840,
-        "graphResponseBytes": 6951147,
+        "firstElapsedMs": 955.701,
+        "secondElapsedMs": 958.176,
+        "evaluatorMaxRssKb": 169248,
+        "graphResponseBytes": 6809185,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:f96174f6a3b4793cd497642e0d837e3f51c58983e2c18c28ace532d2c5c27a8e",
+        "reportFingerprint": "sha256:a736b051daf7cb98e4232a97889f1bcc8b67e2914c9735bfa94bd819bf260b0e",
         "metrics": {
           "declarationRecall": {
             "numerator": 1,
@@ -514,18 +514,18 @@
       "commit": "53e335d0387969ba6b6bd68f2481be89252089ca",
       "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_microsoft_vscode.json",
       "graph": {
-        "fingerprint": "sha256:6a6a04a91f670b25fa7d603e6d626e827f0e21d543723a90af3d33e53b15dcc2",
+        "fingerprint": "sha256:9267ce29403e5df571e0b753ec6d362f4131d1e47d06d61810a6920f10bc5771",
         "nodeCount": 5000,
         "edgeCount": 10000,
         "diagnosticCount": 2,
         "diagnostics": [
           {
             "code": "edge_budget_reached",
-            "count": 1790
+            "count": 1801
           },
           {
             "code": "node_budget_reached",
-            "count": 64
+            "count": 79
           }
         ],
         "coverage": [
@@ -543,14 +543,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 1461.703,
-        "secondElapsedMs": 1477.962,
-        "evaluatorMaxRssKb": 208800,
-        "graphResponseBytes": 7210706,
+        "firstElapsedMs": 1089.666,
+        "secondElapsedMs": 1126.711,
+        "evaluatorMaxRssKb": 223056,
+        "graphResponseBytes": 7212004,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:da06e8b6c39b60f830c0d9ee4e0276eb4a8d183234deb5d938f81412fcb7991e",
+        "reportFingerprint": "sha256:346fa9f3fe8f1e6925c88a99e85eb5d11a0894676bf02a5cf64419523f8eefa1",
         "metrics": {
           "declarationRecall": {
             "numerator": 1,
@@ -665,9 +665,9 @@
       "commit": "153bf8ac5fa00888ef5fbb2b65cac12f0942a44f",
       "truthPath": "evals/code-intelligence/truth/repositories/typescript/cirepo_typescript_vercel_next_js.json",
       "graph": {
-        "fingerprint": "sha256:443f68637a66846d6be4126f511dcb4c063e899c346bd86413c0b7a478f16a11",
-        "nodeCount": 145,
-        "edgeCount": 299,
+        "fingerprint": "sha256:ae665b34e530eeeb0c2a5aa593967eb95dca3b247867e9de5b60f1f56f8c822c",
+        "nodeCount": 174,
+        "edgeCount": 300,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -685,14 +685,14 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 27.757,
-        "secondElapsedMs": 25.821,
-        "evaluatorMaxRssKb": 208800,
-        "graphResponseBytes": 214620,
+        "firstElapsedMs": 31.057,
+        "secondElapsedMs": 30.347,
+        "evaluatorMaxRssKb": 223056,
+        "graphResponseBytes": 226045,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:ae49ded501400469261abf716a60f96e5411c0ef3176453fd8833fd3fe151cbb",
+        "reportFingerprint": "sha256:fc6c8e14188d70a1f8d3df42dccc3e1c8935866e1de0016aacf0cdcc7b855b91",
         "metrics": {
           "declarationRecall": {
             "numerator": 1,
@@ -807,9 +807,9 @@
       "commit": "3041b8fd1daf17404d1bad1f9d94026ea5ab400b",
       "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_axios_axios.json",
       "graph": {
-        "fingerprint": "sha256:84eafda8de9f5c3e5ae542ec5e2bfb10d49010f13690db4217ff613a17e9dc0d",
-        "nodeCount": 230,
-        "edgeCount": 437,
+        "fingerprint": "sha256:89e965f4b740696cabd74debea2e51f946f613c4e848e136534c4396503204b5",
+        "nodeCount": 238,
+        "edgeCount": 441,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -827,18 +827,18 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 30.875,
-        "secondElapsedMs": 30.471,
-        "evaluatorMaxRssKb": 208800,
-        "graphResponseBytes": 316787,
+        "firstElapsedMs": 39.06,
+        "secondElapsedMs": 36.124,
+        "evaluatorMaxRssKb": 223056,
+        "graphResponseBytes": 321860,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:cfd18c182488718e940a23edc1285bdd917dee108cf1870cec36d40784d0ca86",
+        "reportFingerprint": "sha256:fc66185e8fbe18e9612d6fbde36f417011e3bc9a2c6f7a12a0007d30a7f31885",
         "metrics": {
           "declarationRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "relationshipRecall": {
@@ -854,8 +854,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 5,
-          "matchedTruthItemCount": 5
+          "truthItemCount": 6,
+          "matchedTruthItemCount": 6
         },
         "capabilities": [
           {
@@ -897,8 +897,8 @@
             "id": "types",
             "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -949,9 +949,9 @@
       "commit": "ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4",
       "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_expressjs_express.json",
       "graph": {
-        "fingerprint": "sha256:77a7df29ad6d3bf2b9a93b23ea8f096ad059bde89b680a4b3e0d45b783f98906",
-        "nodeCount": 94,
-        "edgeCount": 141,
+        "fingerprint": "sha256:217d4d8616843e5ec1fd4f57ad251a2aeb308d93482a72e0c9f56799e01e3afa",
+        "nodeCount": 252,
+        "edgeCount": 466,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -969,18 +969,18 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 19.166,
-        "secondElapsedMs": 18.375,
-        "evaluatorMaxRssKb": 208800,
-        "graphResponseBytes": 109124,
+        "firstElapsedMs": 36.73,
+        "secondElapsedMs": 36.942,
+        "evaluatorMaxRssKb": 223056,
+        "graphResponseBytes": 337048,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:45f1848a3c6caa1fe862f990058841032f8c9193990c70f68298141fb92d98f0",
+        "reportFingerprint": "sha256:ed0e00864b92c1e23262c6283c8a26b3a60ab0282bae4040fb643fe2476633be",
         "metrics": {
           "declarationRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "relationshipRecall": {
@@ -996,8 +996,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 4,
-          "matchedTruthItemCount": 4
+          "truthItemCount": 5,
+          "matchedTruthItemCount": 5
         },
         "capabilities": [
           {
@@ -1037,10 +1037,10 @@
           },
           {
             "id": "types",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -1091,9 +1091,9 @@
       "commit": "a666ba591064c8011988275790ad7d625279f09c",
       "truthPath": "evals/code-intelligence/truth/repositories/javascript/cirepo_javascript_lodash_lodash.json",
       "graph": {
-        "fingerprint": "sha256:c23817c00d82d15b3f0796010f3f1306d22449adc740d3b1b657a6e7ebe2b06c",
-        "nodeCount": 373,
-        "edgeCount": 573,
+        "fingerprint": "sha256:651e7364c10dfdec3438d730d370022c8c477631c38eaf918f88e1645a0c20e5",
+        "nodeCount": 733,
+        "edgeCount": 1417,
         "diagnosticCount": 0,
         "diagnostics": [],
         "coverage": [
@@ -1111,18 +1111,18 @@
         ]
       },
       "measurements": {
-        "firstElapsedMs": 135.748,
-        "secondElapsedMs": 134.462,
-        "evaluatorMaxRssKb": 208800,
-        "graphResponseBytes": 454858,
+        "firstElapsedMs": 191.96,
+        "secondElapsedMs": 192.228,
+        "evaluatorMaxRssKb": 223056,
+        "graphResponseBytes": 1061356,
         "workspaceFingerprintUnchanged": true
       },
       "report": {
-        "reportFingerprint": "sha256:fc935bd1557da96beeb23517a84e13a5cba4a1857ead0bef193440cf22f9672b",
+        "reportFingerprint": "sha256:23b9efbd59dffb7420872bf8ec925c9474e8902cf8fb7661d6724566a826e725",
         "metrics": {
           "declarationRecall": {
-            "numerator": 1,
-            "denominator": 1,
+            "numerator": 2,
+            "denominator": 2,
             "value": 1
           },
           "relationshipRecall": {
@@ -1138,8 +1138,8 @@
           "duplicateCanonicalSymbolCount": 0,
           "parseFailureCount": 0,
           "deterministicGraphFingerprint": true,
-          "truthItemCount": 4,
-          "matchedTruthItemCount": 4
+          "truthItemCount": 5,
+          "matchedTruthItemCount": 5
         },
         "capabilities": [
           {
@@ -1179,10 +1179,10 @@
           },
           {
             "id": "types",
-            "claim": "unmeasured",
+            "claim": "partial",
             "benchmarkStatus": "unmeasured",
-            "itemCount": 0,
-            "matchedItemCount": 0
+            "itemCount": 1,
+            "matchedItemCount": 1
           },
           {
             "id": "calls",
@@ -8369,8 +8369,8 @@
       "benchmarkStatus": "unmeasured",
       "accuracy": {
         "declarationRecall": {
-          "numerator": 5,
-          "denominator": 5,
+          "numerator": 8,
+          "denominator": 8,
           "value": 1
         },
         "relationshipRecall": {
@@ -8418,8 +8418,8 @@
           "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
-              "numerator": 5,
-              "denominator": 5,
+              "numerator": 4,
+              "denominator": 4,
               "value": 1
             },
             "duplicateCanonicalSymbolCount": 0,
@@ -8496,22 +8496,22 @@
         {
           "id": "types",
           "applicable": true,
-          "benchmarkStatus": "unmeasured",
-          "fixtureEvidenceCount": 0,
-          "repositoryEvidenceCount": 0,
-          "sourceCoverageMet": false,
+          "benchmarkStatus": "meets-floor",
+          "fixtureEvidenceCount": 1,
+          "repositoryEvidenceCount": 3,
+          "sourceCoverageMet": true,
           "metrics": {
             "reviewedTruth": {
-              "numerator": 0,
-              "denominator": 0,
-              "value": null
+              "numerator": 4,
+              "denominator": 4,
+              "value": 1
             },
             "duplicateCanonicalSymbolCount": 0,
             "parseFailureCount": 0,
             "deterministicGraphFingerprint": true
           },
           "limitations": [
-            "The capability lacks qualifying reviewed evidence from the fixture and all three pinned repositories, or a measured sample missed a floor."
+            "Sampled fixture and all three pinned repository sources meet the published Phase 2 floor. Native remains preview-only."
           ]
         },
         {
@@ -11764,5 +11764,5 @@
     "canonicalMemoryWrites": 0,
     "workspaceWrites": 0
   },
-  "reportFingerprint": "sha256:88e3bc29d59931a9d7eeae6daac6134a9bbbc27348ffb18a2f6f90d47954600b"
+  "reportFingerprint": "sha256:facb4944818fd3959bb42d4fe8ec8dbf79fb82582c40bb735f37f434b7ce5323"
 }

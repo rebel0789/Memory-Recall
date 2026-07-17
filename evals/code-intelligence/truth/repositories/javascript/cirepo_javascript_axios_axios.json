@@ -88,6 +88,17 @@
       "resolution": "exact"
     },
     {
+      "id": "cititem_axios_stringify_safely_type",
+      "semanticKey": "node:function:AxiosError.js:stringifySafely",
+      "capability": "types",
+      "expectation": "present",
+      "recordKind": "node",
+      "kind": "function",
+      "name": "stringifySafely",
+      "qualifiedName": "AxiosError.js::stringifySafely",
+      "locator": "workspace://AxiosError.js#L75-L81"
+    },
+    {
       "id": "cititem_axios_stringify_safely_call",
       "semanticKey": "edge:calls:AxiosError.js:aggregateErrorMessage:stringifySafely",
       "capability": "calls",
@@ -131,5 +142,5 @@
       "locator": "workspace://AxiosError.js#L87-L87"
     }
   ],
-  "truthFingerprint": "sha256:a49799b7b16c655e5b4a0ec20d9f1bcfd4c79db06806a8319f61e8177066105c"
+  "truthFingerprint": "sha256:63e9495b4a5a6851e8757eb0aef282564359cf06b214cd50be3718d61dc83f63"
 }
