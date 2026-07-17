@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -345,6 +345,11 @@ try {
     'mcp', 'install', '--client', 'cursor', '--home', home, '--root', cliWorkspace, '--format', 'json'
   ], { cwd: temp, env: isolatedEnvironment });
   must(mcpInstallPreview.status?.server === 'absent', 'packed CLI previews an absent MCP server entry');
+  const cliRealRoot = await realpath(cliWorkspace);
+  const cliIndexPath = path.join(cliRealRoot, '.local', 'source-index', 'index.v1.sqlite');
+  const cliMemoryPath = path.join(cliRealRoot, '.local', 'memory.sqlite');
+  const expectedIndexBuildCommand = `recall graph index --write --engine native-preview --root ${JSON.stringify(cliRealRoot)} --format summary`;
+  must(mcpInstallPreview.indexBuildCommand === expectedIndexBuildCommand, 'packed CLI preview exposes the exact explicit native index build command');
   const mcpInstall = runJson(process.execPath, [installedCli,
     'mcp', 'install', '--client', 'cursor', '--home', home, '--root', cliWorkspace,
     '--apply', '--confirm', mcpInstallPreview.planFingerprint, '--format', 'json'
@@ -352,7 +357,49 @@ try {
   must(mcpInstall.apply?.applied === true && mcpInstall.apply?.backupRef?.startsWith('home://'), 'packed CLI installs with a private config backup');
   const installedMcpConfig = JSON.parse(await readFile(mcpConfig, 'utf8'));
   must(installedMcpConfig.mcpServers?.neighbor?.command === 'neighbor', 'MCP install preserves neighboring servers');
-  must(installedMcpConfig.mcpServers?.oaf?.args?.includes('--read-only'), 'MCP install writes the read-only server entry');
+  const installedMcpServer = installedMcpConfig.mcpServers?.oaf;
+  must(installedMcpServer?.args?.includes('--read-only'), 'MCP install writes the read-only server entry');
+  must(installedMcpServer.args.some((argument, index) => argument === '--engine' && installedMcpServer.args[index + 1] === 'auto'), 'MCP install persists contiguous --engine auto arguments');
+  const callInstalledStructuralTool = (query) => {
+    const requests = [
+      { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+      { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.search', arguments: { query } } }
+    ];
+    const result = run(installedMcpServer.command, installedMcpServer.args, {
+      cwd: cliWorkspace,
+      env: isolatedEnvironment,
+      input: requests.map((request) => JSON.stringify(request)).join('\n'),
+      maxBuffer: 2 * 1024 * 1024,
+      timeout: 30_000
+    });
+    const response = result.stdout.trim().split(/\r?\n/u).map((line) => JSON.parse(line)).find((entry) => entry.id === 2);
+    must(response && !response.error, 'installed MCP structural tool call succeeds');
+    return JSON.parse(response.result.content[0].text);
+  };
+
+  must((await fileBundleSnapshot(cliIndexPath)).every((snapshot) => snapshot === null), 'MCP install leaves source-index SQLite, WAL, and SHM absent');
+  const absentIndexSearch = callInstalledStructuralTool('launchSmoke');
+  must(absentIndexSearch.data?.source?.engine === 'js', 'installed auto MCP selects the JS engine when the native index is absent');
+  must(absentIndexSearch.data?.source?.reason === 'native_index_absent', 'installed auto MCP labels the JS fallback when the native index is absent');
+  must(absentIndexSearch.data?.results?.some((item) => item.label === 'launchSmoke'), 'installed auto MCP JS fallback returns the requested symbol');
+  must(absentIndexSearch.safeguards?.readOnly === true && absentIndexSearch.safeguards?.localFilesWritten === 0, 'installed auto MCP JS fallback is read-only');
+  must((await fileBundleSnapshot(cliIndexPath)).every((snapshot) => snapshot === null), 'installed auto MCP fallback does not create source-index SQLite, WAL, or SHM');
+  must((await fileBundleSnapshot(cliMemoryPath)).every((snapshot) => snapshot === null), 'installed auto MCP fallback does not create memory SQLite, WAL, or SHM');
+
+  const cliIndexBuild = runJson(process.execPath, [installedCli,
+    'graph', 'index', '--write', '--engine', 'native-preview', '--root', cliWorkspace, '--format', 'json'
+  ], { cwd: cliWorkspace, env: isolatedEnvironment });
+  must(cliIndexBuild.command === 'graph index build' && cliIndexBuild.status === 'ready', 'packed CLI builds the native index only after the explicit writer command');
+  must(cliIndexBuild.safeguards?.readOnly === false && cliIndexBuild.safeguards?.localFilesWritten === 1 && cliIndexBuild.safeguards?.canonicalMemoryWrites === 0, 'explicit packed CLI writer changes only the native index');
+  const cliIndexBeforeNativeMcp = await fileBundleSnapshot(cliIndexPath);
+  must(cliIndexBeforeNativeMcp[0] !== null, 'explicit native build creates the source-index SQLite database');
+  const nativeIndexSearch = callInstalledStructuralTool('launchSmoke');
+  must(nativeIndexSearch.data?.source?.kind === 'native-persistent-index-preview', 'installed auto MCP selects the current native index');
+  must(nativeIndexSearch.data?.source?.engine === 'memory-recall-native' && nativeIndexSearch.data?.source?.freshness === 'current', 'installed auto MCP reports a current native source');
+  must(nativeIndexSearch.data?.results?.some((item) => item.label === 'launchSmoke'), 'installed auto MCP native query returns the requested symbol');
+  must(nativeIndexSearch.safeguards?.readOnly === true && nativeIndexSearch.safeguards?.localFilesWritten === 0, 'installed auto MCP native query is read-only');
+  must(sameFileBundleSnapshot(await fileBundleSnapshot(cliIndexPath), cliIndexBeforeNativeMcp), 'installed auto MCP native read preserves SQLite bytes and mtime and leaves WAL and SHM unchanged');
+  must((await fileBundleSnapshot(cliMemoryPath)).every((snapshot) => snapshot === null), 'installed auto MCP native read does not create memory SQLite, WAL, or SHM');
 
   const mcpUninstallPreview = runJson(process.execPath, [installedCli,
     'mcp', 'uninstall', '--client', 'cursor', '--home', home, '--format', 'json'
