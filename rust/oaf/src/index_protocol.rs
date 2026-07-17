@@ -685,6 +685,7 @@ fn read_index(
                     .map(|code| json!({ "code": code, "count": 1 }))
                     .collect();
             }
+            response_diagnostics.extend(persisted_coverage_diagnostics(&active.input));
             summary = Some(active.summary);
         }
         if let Some(arguments) = query {
@@ -1026,6 +1027,25 @@ fn persisted_omitted_count(input: &GenerationInput) -> u64 {
         })
         .map(|record| u64::try_from(record.omitted_count).unwrap_or(0))
         .sum()
+}
+
+fn persisted_coverage_diagnostics(input: &GenerationInput) -> Vec<Value> {
+    [
+        ("omitted-files", "source_index_files_omitted"),
+        ("omitted-nodes", "source_index_nodes_omitted"),
+        ("omitted-edges", "source_index_edges_omitted"),
+    ]
+    .into_iter()
+    .filter_map(|(capability, code)| {
+        let count = input
+            .coverage
+            .iter()
+            .filter(|record| record.language == "source-index" && record.capability == capability)
+            .map(|record| u64::try_from(record.omitted_count).unwrap_or(0))
+            .sum::<u64>();
+        (count > 0).then(|| json!({ "code": code, "count": count }))
+    })
+    .collect()
 }
 
 fn persisted_omitted_file_count(input: &GenerationInput) -> u64 {
@@ -2341,11 +2361,17 @@ mod tests {
         let workspace = tempdir().unwrap();
         fs::write(
             workspace.path().join("main.ts"),
-            "export function main(): number { return helper(); }\nexport function helper(): number { return 1; }\n",
+            "export function main(): number { return first() + second(); }\nexport function first(): number { return 1; }\nexport function second(): number { return 2; }\n",
+        )
+        .unwrap();
+        fs::write(
+            workspace.path().join("omitted.ts"),
+            "export const omitted = true;\n",
         )
         .unwrap();
         let mut arguments = writer_arguments();
-        arguments["maxNodes"] = json!(1);
+        arguments["maxFiles"] = json!(1);
+        arguments["maxEdges"] = json!(1);
         let build = execute_request(
             parse_request(request("index.build", arguments)).unwrap(),
             workspace.path(),
@@ -2369,6 +2395,24 @@ mod tests {
         assert_eq!(status["result"]["freshness"], "partial");
         assert_eq!(status["result"]["health"]["status"], "partial");
         assert_eq!(status["result"]["health"]["repairRequired"], false);
+        let diagnostic_count = |response: &Value, code: &str| {
+            response["result"]["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|diagnostic| diagnostic["code"] == code)
+                .and_then(|diagnostic| diagnostic["count"].as_u64())
+        };
+        assert_eq!(
+            diagnostic_count(&status, "source_index_files_omitted"),
+            diagnostic_count(&build, "source_index_files_omitted")
+        );
+        assert_eq!(
+            diagnostic_count(&status, "source_index_edges_omitted"),
+            diagnostic_count(&build, "source_index_edges_omitted")
+        );
+        assert!(diagnostic_count(&status, "source_index_files_omitted").unwrap() > 0);
+        assert!(diagnostic_count(&status, "source_index_edges_omitted").unwrap() > 0);
         assert_eq!(bundle_snapshot(&index_path), before);
     }
 
