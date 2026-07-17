@@ -80,6 +80,67 @@ mod tests {
     }
 
     #[test]
+    fn javascript_extracts_and_resolves_member_assigned_functions() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-javascript-member-assignments-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("request.js"),
+            [
+                "const req = {};",
+                "req.accepts = function () {};",
+                "req.acceptsCharsets = function (...charsets) {",
+                "  return req.accepts(charsets);",
+                "};",
+                "function accepts() {}",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let facts = report
+            .facts
+            .iter()
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.predicate.as_str(),
+                    fact.object.as_str(),
+                    fact.notes.as_deref(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        assert!(
+            facts.contains(&(
+                "module:request",
+                "DEFINES",
+                "method:req_accepts",
+                Some("oaf.ingest:define-callable")
+            )),
+            "{facts:#?}"
+        );
+        assert!(facts.contains(&(
+            "module:request",
+            "DEFINES",
+            "method:req_acceptsCharsets",
+            Some("oaf.ingest:define-callable")
+        )));
+        assert!(facts.contains(&(
+            "method:req_acceptsCharsets",
+            "CALLS",
+            "method:req_accepts",
+            Some("oaf.ingest:typed-call-javascript")
+        )));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn resolves_python_receiver_calls_with_constructor_type_bindings() {
         let root =
             std::env::temp_dir().join(format!("oaf-ingest-python-types-{}", std::process::id()));

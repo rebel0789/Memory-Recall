@@ -3621,6 +3621,9 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
             );
         }
         parsed.add_symbol_name(&name, &subject);
+        if let Some((_, method)) = javascript_member_assigned_function(node, source) {
+            parsed.add_symbol_name(&method, &subject);
+        }
         if let Some(bare) =
             callable_node_name(node, source, context).and_then(|value| sanitize_symbol(&value))
         {
@@ -3649,6 +3652,7 @@ fn walk_node(node: Node<'_>, source: &[u8], context: &WalkContext, parsed: &mut 
                 context.lang,
                 LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
             )
+            && commonjs_exported_function(node, source, context).is_some()
         {
             parsed.exports.push(ExportRef {
                 owner: context.module.clone(),
@@ -3695,6 +3699,23 @@ fn commonjs_exported_function(
     }
     let module_name = context.module.strip_prefix("module:")?;
     Some(format!("{module_name}.{export_name}"))
+}
+
+fn javascript_member_assigned_function(node: Node<'_>, source: &[u8]) -> Option<(String, String)> {
+    let left = node.child_by_field_name("left")?;
+    let right = node.child_by_field_name("right")?;
+    if !matches!(
+        right.kind(),
+        "function_expression" | "function" | "arrow_function"
+    ) {
+        return None;
+    }
+    let left = node_text(left, source);
+    if left.starts_with("exports.") || left.starts_with("module.exports.") {
+        return None;
+    }
+    let (receiver, method) = receiver_method(left)?;
+    Some((format!("{receiver}_{method}"), method))
 }
 
 fn commonjs_require_member_binding(
@@ -3980,12 +4001,16 @@ fn callable_definition(
                 LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
             ) =>
         {
-            let qualified = commonjs_exported_function(node, source, context)?;
-            Some((
-                qualified.clone(),
-                format!("function:{qualified}"),
-                "Function",
-            ))
+            if let Some(qualified) = commonjs_exported_function(node, source, context) {
+                Some((
+                    qualified.clone(),
+                    format!("function:{qualified}"),
+                    "Function",
+                ))
+            } else {
+                let (qualified, _) = javascript_member_assigned_function(node, source)?;
+                Some((qualified.clone(), format!("method:{qualified}"), "Method"))
+            }
         }
         "variable_declarator" => {
             let value = node.child_by_field_name("value")?;
@@ -4849,6 +4874,11 @@ fn typed_call_target(
         {
             bound.clone()
         } else if looks_like_type_name(receiver_key) {
+            receiver_key.to_string()
+        } else if matches!(
+            context.lang,
+            LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx
+        ) {
             receiver_key.to_string()
         } else {
             return None;
