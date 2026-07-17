@@ -456,6 +456,8 @@ mod tests {
         fs::write(
             root.join("app.py"),
             [
+                "from fastapi import FastAPI",
+                "app = FastAPI()",
                 "class BaseService:",
                 "    pass",
                 "class Service(BaseService):",
@@ -520,17 +522,17 @@ mod tests {
         assert!(edges.iter().any(|edge| {
             edge["kind"] == "constructs"
                 && edge["resolution"] == "exact"
-                && edge["evidence"]["locator"] == "workspace://app.py#L8-L8"
+                && edge["evidence"]["locator"] == "workspace://app.py#L10-L10"
         }));
         assert!(edges.iter().any(|edge| {
             edge["kind"] == "calls"
                 && edge["resolution"] == "typed"
-                && edge["evidence"]["locator"] == "workspace://app.py#L9-L9"
+                && edge["evidence"]["locator"] == "workspace://app.py#L11-L11"
         }));
         assert!(edges.iter().any(|edge| {
             edge["kind"] == "extends"
                 && edge["resolution"] == "exact"
-                && edge["evidence"]["locator"] == "workspace://app.py#L3-L5"
+                && edge["evidence"]["locator"] == "workspace://app.py#L5-L7"
         }));
         assert!(edges.iter().any(|edge| {
             edge["kind"] == "implements"
@@ -538,7 +540,7 @@ mod tests {
                 && edge["evidence"]["locator"] == "workspace://server.rs#L3-L3"
         }));
         for locator in [
-            "workspace://app.py#L6-L9",
+            "workspace://app.py#L8-L11",
             "workspace://server.go#L6-L6",
             "workspace://server.rs#L5-L5",
         ] {
