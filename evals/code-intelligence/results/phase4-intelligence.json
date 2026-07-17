@@ -2,23 +2,23 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase4-intelligence-2",
   "phase": 4,
-  "generatedAt": "2026-07-17T00:57:16.453Z",
+  "generatedAt": "2026-07-17T02:29:51.406Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
     "nodeVersion": "v22.22.3"
   },
   "inputs": {
-    "fixtureRef": "fixture://sha256:21d5665b4f9f5ad95bdb96fe37897696ff532835496cb738e00545d5afe7e6e1",
-    "implementationFingerprint": "sha256:1c1bef0a525f6754202e2dc90f2f184c52f076706a551c3302cccdd55520200b",
+    "fixtureRef": "fixture://sha256:18244cf1480348cec4f788205b2d941e6b4a70d2fb1dbef2814415ae04790636",
+    "implementationFingerprint": "sha256:5c825b3fb917427ae66e155833029ffd9e704643a389d3650b93462415ffbf90",
     "repetitions": 5,
     "queryLimit": 50,
     "queryDeadlineMs": 2000
   },
   "index": {
     "fileCount": 4,
-    "nodeCount": 18,
-    "edgeCount": 23,
+    "nodeCount": 20,
+    "edgeCount": 26,
     "databaseBytes": 81920
   },
   "results": {
@@ -27,55 +27,64 @@
     "communityAlgorithm": "label-propagation-v1",
     "processAlgorithm": "entry-path-v1",
     "communityQueryWallMs": {
-      "minimum": 8.333,
-      "p50": 8.547,
-      "p95": 9.388,
-      "maximum": 9.388
+      "minimum": 8.083,
+      "p50": 8.95,
+      "p95": 12.454,
+      "maximum": 12.454
     },
     "processQueryWallMs": {
-      "minimum": 7.516,
-      "p50": 7.632,
-      "p95": 8.716,
-      "maximum": 8.716
+      "minimum": 6.155,
+      "p50": 6.649,
+      "p95": 7.389,
+      "maximum": 7.389
     },
-    "deterministicProjectionFingerprint": "sha256:747642cfd3c6b07c0c1ced68dda8303b929c70ad623831165523a9d98da9617b",
+    "deterministicProjectionFingerprint": "sha256:af16a2181df0b399a005f0660ad01727310fba8bcc88f029a5a6a125c6a3b1ea",
     "readQueriesPreservedIndex": true,
     "evidenceComplete": true,
     "representativeProcess": {
-      "processId": "ciprocess_cafc5b03e409705166fbf78ed07fbc17",
+      "processId": "ciprocess_6118a2d5f5d18b2f9159bd59aace8408",
       "entryNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
-      "entryRelationshipId": "ciedge_e40273e67bd45014357f1a6f1f64c300",
-      "sinkNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
-      "sinkKind": "function",
+      "entryRelationshipId": "ciedge_15a63bc12c6821845cbf597d5f26dcdb",
+      "sinkNodeId": "cinode_85094285f619b36928e8e9e5b8a9415a",
+      "sinkKind": "listens",
       "nodeIds": [
         "cinode_0a6766c57aa6fe04016a31775a4c7c82",
         "cinode_b1d9033581223f492d71170fff0c3e34",
-        "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3"
+        "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
+        "cinode_85094285f619b36928e8e9e5b8a9415a"
       ],
       "relationshipIds": [
-        "ciedge_e40273e67bd45014357f1a6f1f64c300",
-        "ciedge_c182ad43c5db5548a4ab932bf26ddaf1",
-        "ciedge_9eab5a0eb35dc56c1117021f4ae0da2d"
+        "ciedge_15a63bc12c6821845cbf597d5f26dcdb",
+        "ciedge_3c2f44f961a8e4b3ee861679a46599c6",
+        "ciedge_39df168f0f66d16fd2b64aca3de198f9",
+        "ciedge_624958b6dcac5a19d032cd04baad1c47"
       ],
       "confidence": 0.75,
+      "truncated": false,
       "entryEvidence": {
-        "relationshipId": "ciedge_e40273e67bd45014357f1a6f1f64c300",
+        "relationshipId": "ciedge_15a63bc12c6821845cbf597d5f26dcdb",
         "kind": "handles_route",
         "fromNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
         "toNodeId": "cinode_6900700ca3d90a107e36f0dac9a3397a"
       },
       "executionSteps": [
         {
-          "relationshipId": "ciedge_c182ad43c5db5548a4ab932bf26ddaf1",
+          "relationshipId": "ciedge_3c2f44f961a8e4b3ee861679a46599c6",
           "kind": "calls",
           "fromNodeId": "cinode_0a6766c57aa6fe04016a31775a4c7c82",
           "toNodeId": "cinode_b1d9033581223f492d71170fff0c3e34"
         },
         {
-          "relationshipId": "ciedge_9eab5a0eb35dc56c1117021f4ae0da2d",
+          "relationshipId": "ciedge_39df168f0f66d16fd2b64aca3de198f9",
           "kind": "calls",
           "fromNodeId": "cinode_b1d9033581223f492d71170fff0c3e34",
           "toNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3"
+        },
+        {
+          "relationshipId": "ciedge_624958b6dcac5a19d032cd04baad1c47",
+          "kind": "listens",
+          "fromNodeId": "cinode_b5f2ec1dd78e2e5969fbdfa0253c17a3",
+          "toNodeId": "cinode_85094285f619b36928e8e9e5b8a9415a"
         }
       ]
     }
@@ -96,5 +105,5 @@
     "rawSourceStoredInReport": false,
     "absolutePathsStoredInReport": false
   },
-  "reportFingerprint": "sha256:a86e38c24bae934a2156fdb64144e24066478be3888ca61b06b08de9affb21cc"
+  "reportFingerprint": "sha256:15b3abff0448b2e20376bb1292b3975bf7c38ce52125619f4d2c4769228f5a02"
 }

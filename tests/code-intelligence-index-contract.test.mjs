@@ -158,6 +158,8 @@ test('Phase 4 intelligence evidence proves deterministic bounded projections wit
   const representative = report.results.representativeProcess;
   assert.equal(representative.entryNodeId, representative.nodeIds[0]);
   assert.equal(representative.sinkNodeId, representative.nodeIds.at(-1));
+  assert(new Set(['route', 'handler', 'storage', 'queue', 'event', 'sink', 'reads', 'writes', 'emits', 'listens']).has(representative.sinkKind));
+  assert.equal(representative.truncated, false);
   assert.equal(representative.entryRelationshipId, representative.relationshipIds[0]);
   assert.equal(representative.entryEvidence.fromNodeId, representative.entryNodeId);
   assert.equal(representative.executionSteps.length, representative.nodeIds.length - 1);

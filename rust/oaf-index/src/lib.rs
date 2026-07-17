@@ -1356,6 +1356,9 @@ impl SourceIndex {
                 queue.push_back(candidate);
             }
         }
+        if fallback.as_ref().is_some_and(|path| !path.edges.is_empty()) {
+            globally_mark_path(&mut fallback);
+        }
         Ok(fallback)
     }
 

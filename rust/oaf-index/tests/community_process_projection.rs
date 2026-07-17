@@ -193,6 +193,30 @@ fn processes_follow_only_resolved_high_confidence_entry_paths() {
 }
 
 #[test]
+fn process_plain_function_dead_end_is_not_proven_complete() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("index.sqlite");
+    let mut input = generation();
+    input
+        .edges
+        .retain(|edge| matches!(edge.canonical_id.as_str(), "edge_01_entry" | "edge_02_call"));
+    let mut writer = SourceIndex::open(&path, &options()).unwrap();
+    writer.commit_generation(&input).unwrap();
+    drop(writer);
+    let index = SourceIndex::open_read_only(&path, &options()).unwrap();
+
+    let projection = index
+        .processes(&QueryBounds::new(10).with_depth(4))
+        .unwrap();
+
+    assert_eq!(projection.items.len(), 1);
+    let process = &projection.items[0];
+    assert_eq!(process.sink_node_id, "node_c");
+    assert_eq!(process.sink_kind, "function");
+    assert!(process.truncated);
+}
+
+#[test]
 fn process_depth_is_strict_and_reports_truncation_without_cycles() {
     let (_root, index) = ready_index();
     let projection = index

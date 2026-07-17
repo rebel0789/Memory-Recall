@@ -11,6 +11,7 @@ const PRIVATE_PATH = /(?:\/Users\/|\/home\/[A-Za-z0-9._-]+\/|\/private\/|\/var\/
 const REPETITIONS = 5;
 const QUERY_LIMIT = 50;
 const QUERY_DEADLINE_MS = 2_000;
+const PROCESS_SINK_KINDS = new Set(['route', 'handler', 'storage', 'queue', 'event', 'sink', 'reads', 'writes', 'emits', 'listens']);
 const mode = parseMode(process.argv.slice(2));
 const root = process.cwd();
 
@@ -145,9 +146,11 @@ async function runBenchmark() {
 async function writeFixture(workspace) {
   const files = new Map([
     ['app/api/users/route.ts', [
+      "import http from 'node:http';",
       'export function GET() { return handleUser(); }',
       'function handleUser() { return persistUser(); }',
-      'function persistUser() { return { ok: true }; }'
+      'function persistUser() { return { ok: true }; }',
+      'http.createServer(persistUser);'
     ].join('\n')],
     ['packages/auth/session.ts', 'export function readSession() { return validateSession(); }\nfunction validateSession() { return true; }\n'],
     ['packages/billing/invoice.ts', 'export function createInvoice() { return priceInvoice(); }\nfunction priceInvoice() { return 1; }\n'],
@@ -184,6 +187,7 @@ function projectedResultFingerprint(result) {
 function representativeProcessEvidence(result) {
   const relationships = new Map(result.relationships.map((item) => [item.id, item]));
   for (const process of result.processes) {
+    if (process.truncated || !PROCESS_SINK_KINDS.has(process.sinkKind)) continue;
     if (process.nodeIds[0] !== process.entryNodeId || process.nodeIds.at(-1) !== process.sinkNodeId) continue;
     if (process.relationshipIds[0] !== process.entryRelationshipId) continue;
     const entry = relationships.get(process.entryRelationshipId);
@@ -202,6 +206,7 @@ function representativeProcessEvidence(result) {
       nodeIds: process.nodeIds,
       relationshipIds: process.relationshipIds,
       confidence: process.confidence,
+      truncated: process.truncated,
       entryEvidence: {
         relationshipId: entry.id,
         kind: entry.kind,
@@ -233,6 +238,7 @@ async function checkStoredReport() {
   if (report.reportFingerprint !== fingerprint(comparableReport(report))) throw new Error('phase4_report_fingerprint_invalid');
   if (report.gateDecision !== 'pass' || report.failures.length !== 0) throw new Error('phase4_gate_not_passing');
   if (!report.results.readQueriesPreservedIndex || !report.results.evidenceComplete) throw new Error('phase4_evidence_gate_not_passing');
+  if (report.results.representativeProcess?.truncated !== false || !PROCESS_SINK_KINDS.has(report.results.representativeProcess?.sinkKind)) throw new Error('phase4_representative_sink_invalid');
   if (report.claims.competitorParity || report.claims.leadership || report.claims.millionNodeScale) throw new Error('phase4_claim_boundary_invalid');
   if (PRIVATE_PATH.test(JSON.stringify(report))) throw new Error('phase4_private_path_leak');
   console.log(`Phase 4 intelligence evidence is current: ${report.results.communityCount} communities, ${report.results.processCount} processes.`);
