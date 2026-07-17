@@ -57,6 +57,22 @@ const LANGUAGES: &[&str] = &[
     "julia",
     "zig",
 ];
+const TIER_1_LANGUAGES: &[&str] = &[
+    "typescript",
+    "javascript",
+    "python",
+    "java",
+    "kotlin",
+    "csharp",
+    "go",
+    "rust",
+    "php",
+    "ruby",
+    "swift",
+    "c",
+    "cpp",
+    "dart",
+];
 
 #[derive(Debug)]
 struct EngineRequest {
@@ -411,6 +427,7 @@ fn build_graph_at_root_with_sources(
     let diagnostics = build_diagnostics(
         &report.skipped_files,
         &report.recovered_files,
+        &coverage,
         omitted_file_count,
         omitted_node_count,
         omitted_edge_count,
@@ -1304,9 +1321,13 @@ fn build_coverage(
             if omitted_file_count > 0 {
                 reasons.push("file_budget_reached");
             }
+            let tier_1 = TIER_1_LANGUAGES.contains(&language.as_str());
+            if !tier_1 {
+                reasons.push("tier1_language_unpromoted");
+            }
             json!({
                 "language": language,
-                "support": "partial",
+                "support": if tier_1 { "partial" } else { "parse-only" },
                 "discoveredFileCount": discovered_count,
                 "indexedFileCount": indexed_count,
                 "failedFileCount": failed_count,
@@ -1320,6 +1341,7 @@ fn build_coverage(
 fn build_diagnostics(
     skipped_files: &[oaf_ingest::SkippedFile],
     recovered_files: &[oaf_ingest::RecoveredFile],
+    coverage: &[Value],
     omitted_file_count: usize,
     omitted_node_count: usize,
     omitted_edge_count: usize,
@@ -1349,6 +1371,24 @@ fn build_diagnostics(
             })
         })
     }));
+    for item in coverage
+        .iter()
+        .filter(|item| item["support"] == "parse-only")
+    {
+        let Some(language) = item["language"].as_str() else {
+            continue;
+        };
+        let count = item["discoveredFileCount"].as_u64().unwrap_or(0);
+        if count == 0 {
+            continue;
+        }
+        diagnostics.push(json!({
+            "code": "tier1_language_unpromoted",
+            "severity": "warning",
+            "language": language,
+            "count": count,
+        }));
+    }
     for (code, count) in [
         ("file_budget_reached", omitted_file_count),
         ("node_budget_reached", omitted_node_count),

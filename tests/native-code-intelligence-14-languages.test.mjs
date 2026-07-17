@@ -51,6 +51,28 @@ test('native source index builds, reads, queries, and no-op refreshes all 14 Tie
   const languages = TIER_1.map(([language]) => language);
   const observed = [];
 
+  const unpromoted = await provider.buildGraph({
+    root: workspace,
+    workspaceId: 'ws_polyglot_unpromoted',
+    languages: ['lua']
+  });
+  observed.push(unpromoted);
+  assert.deepEqual(unpromoted.coverage, [{
+    language: 'lua',
+    support: 'parse-only',
+    discoveredFileCount: 1,
+    indexedFileCount: 1,
+    failedFileCount: 0,
+    omittedFileCount: 0,
+    reasonCodes: ['native_preview', 'tier1_language_unpromoted']
+  }]);
+  assert.deepEqual(unpromoted.diagnostics, [{
+    code: 'tier1_language_unpromoted',
+    severity: 'warning',
+    language: 'lua',
+    count: 1
+  }]);
+
   const built = await provider.buildIndex({
     root: workspace,
     workspaceId: 'ws_polyglot',
@@ -66,6 +88,10 @@ test('native source index builds, reads, queries, and no-op refreshes all 14 Tie
   assert(built.summary.nodeCount >= TIER_1.length, built.summary);
   assert(built.summary.edgeCount > 0, built.summary);
   assert(built.measurements.parsedFileCount >= TIER_1.length, built.measurements);
+  assert.deepEqual(
+    built.diagnostics.filter(({ code }) => code === 'parse_recovered'),
+    [{ code: 'parse_recovered', count: 1 }]
+  );
   assertWriterSafeguards(built);
 
   const status = await provider.indexStatus({ root: workspace, workspaceId: 'ws_polyglot' });
@@ -232,6 +258,15 @@ async function polyglotWorkspace(t) {
   await writeFile(
     path.join(workspace, 'languages', 'typescript', 'helper.ts'),
     'export function typescriptHelper(): number { return 1; }\n'
+  );
+  await writeFile(
+    path.join(workspace, 'languages', 'typescript', 'malformed.ts'),
+    'const incomplete = ;\nexport function recoveredTypeScriptSentinel(): number { return 1; }\n'
+  );
+  await mkdir(path.join(workspace, 'languages', 'lua'), { recursive: true });
+  await writeFile(
+    path.join(workspace, 'languages', 'lua', 'unpromoted.lua'),
+    'function unpromotedLuaSentinel() return 1 end\n'
   );
   return workspace;
 }
