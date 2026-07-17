@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -54,7 +54,7 @@ test('MCP exposes twelve bounded read-only tools with structural code intelligen
     { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'code.dependencies', arguments: { query: 'src/routes/users.ts', direction: 'outbound', depth: 2, limit: 10 } } },
     { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'code.routes', arguments: { limit: 10 } } }
   ].map((message) => JSON.stringify(message)).join('\n');
-  const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], {
+  const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'js', '--root', root, '--stdio'], {
     encoding: 'utf8',
     env: { ...process.env, OAF_FIXED_NOW: '2026-07-16T08:00:00.000Z' },
     input
@@ -116,7 +116,7 @@ test('structural MCP tools reject unsafe and unbounded arguments', () => {
     { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'entry', locatorPrefix: '../outside', limit: 500 } } },
     { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'code.search', arguments: { query: '/Users/rebel/private.ts' } } }
   ].map((message) => JSON.stringify(message)).join('\n');
-  const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], { encoding: 'utf8', input });
+  const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'js', '--root', root, '--stdio'], { encoding: 'utf8', input });
   assert.equal(result.status, 0, result.stderr);
   const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
   assert(responses.find((entry) => entry.id === 2).error);
@@ -138,7 +138,7 @@ test('MCP structural tools reuse a persistent index without mutating it', () => 
     { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'repo.index_status', arguments: {} } },
     { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'persistedEntry' } } }
   ].map((message) => JSON.stringify(message)).join('\n');
-  const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], { encoding: 'utf8', input });
+  const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'js', '--root', root, '--stdio'], { encoding: 'utf8', input });
   assert.equal(result.status, 0, result.stderr);
   const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
   const payload = (id) => JSON.parse(responses.find((entry) => entry.id === id).result.content[0].text);
@@ -245,7 +245,7 @@ test('explicit native-preview MCP reads the prebuilt SQLite index without rebuil
   assert.equal(result.stdout.includes(root), false);
 });
 
-test('explicit auto MCP selects a current native index and preserves it', () => {
+test('default graph and MCP reads select a current native index and preserve it', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-auto-current-'));
   writeFileSync(path.join(root, 'main.ts'), 'export function autoNativeEntry(){ return 1; }\n');
   writeFileSync(path.join(root, 'worker.py'), 'def auto_python_entry():\n    return 2\n');
@@ -260,6 +260,19 @@ test('explicit auto MCP selects a current native index and preserves it', () => 
   const indexPath = path.join(root, '.local', 'source-index', 'index.v1.sqlite');
   const before = readFileSync(indexPath);
   const beforeMtime = statSync(indexPath).mtimeMs;
+  const graph = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'graph', 'search', '--root', root, '--query', 'autoNativeEntry', '--format', 'json'
+  ], { encoding: 'utf8', env });
+  assert.equal(graph.status, 0, graph.stderr);
+  const graphReport = JSON.parse(graph.stdout);
+  assert.equal(graphReport.engine.requested, 'auto');
+  assert.equal(graphReport.engine.selection, 'native-preview');
+  assert.equal(graphReport.engine.reason, 'native_index_current');
+  assert.equal(graphReport.engine.previewOnly, false);
+  assert.equal(graphReport.engine.publicDefaultChanged, true);
+  assert(graphReport.search.results.some((item) => item.label === 'autoNativeEntry'));
+  assert.deepEqual(readFileSync(indexPath), before);
+  assert.equal(statSync(indexPath).mtimeMs, beforeMtime);
   const input = [
     { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
     { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'repo.index_status', arguments: {} } },
@@ -275,7 +288,7 @@ test('explicit auto MCP selects a current native index and preserves it', () => 
     { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'AutoGoEntry' } } }
   ].map((message) => JSON.stringify(message)).join('\n');
   const result = spawnSync(process.execPath, [
-    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'auto', '--root', root, '--stdio'
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'
   ], { encoding: 'utf8', env, input });
   assert.equal(result.status, 0, result.stderr);
   const responses = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line));
@@ -422,13 +435,10 @@ test('explicit auto MCP rechecks freshness between structural calls', async (t) 
   child.stdin.end();
 });
 
-test('MCP keeps the JS compatibility engine and never starts native preview implicitly', () => {
+test('default MCP falls back safely and explicit native failure is actionable', () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-mcp-native-off-'));
-  const marker = path.join(root, 'native-started');
-  const spy = path.join(root, 'native-spy.mjs');
   writeFileSync(path.join(root, 'index.ts'), 'export function mcpDefault(){ return true; }\n');
-  writeFileSync(spy, `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(marker)}, 'started');\n`);
-  chmodSync(spy, 0o755);
+  const missingBinary = path.join(root, 'missing-native');
   const input = [
     { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
     { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'code.search', arguments: { query: 'mcpDefault' } } }
@@ -436,8 +446,23 @@ test('MCP keeps the JS compatibility engine and never starts native preview impl
   const result = spawnSync(process.execPath, ['apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--root', root, '--stdio'], {
     encoding: 'utf8',
     input,
-    env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: spy }
+    env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: missingBinary }
   });
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(existsSync(marker), false);
+  const fallbackResponse = result.stdout.trim().split(/\n/u).map((line) => JSON.parse(line)).find(({ id }) => id === 2);
+  const fallback = JSON.parse(fallbackResponse.result.content[0].text);
+  assert.equal(fallback.data.source.reason, 'native_unavailable');
+  assert(fallback.data.results.some((item) => item.label === 'mcpDefault'));
+
+  const strict = spawnSync(process.execPath, [
+    'apps/cli/oaf.mjs', 'mcp', 'server', '--read-only', '--engine', 'native-preview', '--root', root, '--stdio'
+  ], {
+    encoding: 'utf8',
+    input,
+    env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: missingBinary }
+  });
+  assert.equal(strict.status, 0, strict.stderr);
+  const strictResponse = strict.stdout.trim().split(/\n/u).map((line) => JSON.parse(line)).find(({ id }) => id === 2);
+  assert.match(strictResponse.error.message, /native_engine_unavailable/u);
+  assert.match(strictResponse.error.message, /@memory-recall\/native-/u);
 });

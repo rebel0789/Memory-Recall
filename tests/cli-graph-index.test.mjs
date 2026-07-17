@@ -28,6 +28,7 @@ test('graph read commands expose strict native preview and compatibility modes',
   const nativeReport = JSON.parse(native.stdout);
   assert.equal(nativeReport.engine.selection, 'native-preview');
   assert.equal(nativeReport.engine.previewOnly, true);
+  assert.equal(nativeReport.engine.publicDefaultChanged, true);
   assert(nativeReport.search.results.some((item) => item.label === 'main'));
   assert.equal(JSON.stringify(nativeReport).includes(root), false);
 
@@ -40,7 +41,7 @@ test('graph read commands expose strict native preview and compatibility modes',
 
   const invalid = run('unknown');
   assert.equal(invalid.status, 2);
-  assert.match(invalid.stderr, /graph --engine must be js, native-preview, or compatibility/u);
+  assert.match(invalid.stderr, /graph --engine must be js, auto, native-preview, or compatibility/u);
 
   const missing = spawnSync(process.execPath, [
     cli, 'graph', 'stats', '--root', root, '--engine', 'native-preview', '--format', 'json'
@@ -49,14 +50,21 @@ test('graph read commands expose strict native preview and compatibility modes',
   assert.match(missing.stderr, /native_engine_unavailable/u);
 });
 
-test('graph read commands keep the JS engine as the public default', () => {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-js-default-'));
+test('graph read commands default to auto and do not build a missing native index', () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'memory-recall-cli-auto-default-'));
   writeFileSync(path.join(root, 'index.ts'), 'export function currentDefault(){ return true; }\n');
-  const result = spawnSync(process.execPath, [cli, 'graph', 'stats', '--root', root, '--format', 'json'], { encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [cli, 'graph', 'stats', '--root', root, '--format', 'json'], {
+    encoding: 'utf8',
+    env: { ...process.env, MEMORY_RECALL_NATIVE_BINARY: rustBinary }
+  });
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(result.stdout);
+  assert.equal(report.engine.requested, 'auto');
   assert.equal(report.engine.selection, 'js');
-  assert.equal(report.engine.publicDefaultChanged, false);
+  assert.equal(report.engine.reason, 'native_index_absent');
+  assert.equal(report.engine.previewOnly, false);
+  assert.equal(report.engine.publicDefaultChanged, true);
+  assert.equal(existsSync(path.join(root, '.local', 'source-index', 'index.v1.sqlite')), false);
 });
 
 test('graph index CLI builds, reports, and incrementally refreshes a local persistent index', () => {
@@ -206,7 +214,7 @@ test('graph help documents the explicit persistent index lifecycle', () => {
   assert.match(result.stdout, /graph index --refresh/u);
   assert.match(result.stdout, /--watch/u);
   assert.match(result.stdout, /MCP reads the index but never builds or refreshes it/u);
-  assert.match(result.stdout, /--engine <js\|native-preview\|compatibility>/u);
+  assert.match(result.stdout, /--engine <auto\|js\|native-preview\|compatibility>/u);
   assert.match(result.stdout, /graph index --doctor --engine native-preview/u);
   assert.match(result.stdout, /graph index --repair --confirm <repairPlanFingerprint>/u);
   assert.match(result.stdout, /\.local\/source-index/u);

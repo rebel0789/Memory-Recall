@@ -3548,15 +3548,17 @@ async function graphPreviewBackedCommand(values, {
   }
   const root = option(values, '--root') ?? process.cwd();
   const workspaceId = option(values, '--workspace') ?? 'ws_local';
-  const engine = option(values, '--engine') ?? 'js';
-  if (!['js', 'native-preview', 'compatibility'].includes(engine)) {
-    console.error('graph --engine must be js, native-preview, or compatibility');
+  const requestedEngine = option(values, '--engine') ?? 'auto';
+  if (!['js', 'auto', 'native-preview', 'compatibility'].includes(requestedEngine)) {
+    console.error('graph --engine must be js, auto, native-preview, or compatibility');
     process.exitCode = 2;
     return;
   }
   try {
     const maxFiles = strictIntegerOption(values, '--max-files', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILES);
     const maxFileBytes = strictIntegerOption(values, '--max-file-bytes', DEFAULT_SOURCE_GRAPH_PREVIEW_MAX_FILE_BYTES);
+    const selected = await selectGraphReadEngine({ requestedEngine, root, workspaceId });
+    const engine = selected.selection;
     let intelligence = null;
     if (engine !== 'js') {
       const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
@@ -3566,7 +3568,7 @@ async function graphPreviewBackedCommand(values, {
         maxFiles,
         maxFileBytes,
         engine,
-        codeIntelligenceProvider: new RustCodeIntelligenceProvider(),
+        codeIntelligenceProvider: selected.provider ?? new RustCodeIntelligenceProvider(),
         clock: fixedNow
       });
     }
@@ -3598,8 +3600,10 @@ async function graphPreviewBackedCommand(values, {
       engine: {
         selection: engine,
         implementation: engine === 'js' ? 'javascript-typescript-compatibility' : 'memory-recall-native',
-        previewOnly: engine !== 'js',
-        publicDefaultChanged: false
+        previewOnly: requestedEngine === 'native-preview' || requestedEngine === 'compatibility',
+        publicDefaultChanged: true,
+        requested: requestedEngine,
+        reason: selected.reasonCode
       },
       ...(intelligence?.compatibility ? { compatibility: intelligence.compatibility } : {}),
       graph: compactGraphCommandGraph(preview.graph),
@@ -3609,8 +3613,31 @@ async function graphPreviewBackedCommand(values, {
     const report = { ...baseReport, measurements: graphCommandMeasurements(preview.measurements, baseReport) };
     console.log(format === 'summary' ? renderSummary(report) : JSON.stringify(report, null, 2));
   } catch (error) {
-    console.error(error.message);
+    const code = error?.code ?? error.message;
+    console.error(requestedEngine === 'native-preview' && String(code).includes('native_engine')
+      ? `${code}: install the matching @memory-recall/native-* package, or use --engine auto or --engine js`
+      : code);
     process.exitCode = 2;
+  }
+}
+
+async function selectGraphReadEngine({ requestedEngine, root, workspaceId }) {
+  if (requestedEngine !== 'auto') {
+    return { selection: requestedEngine, provider: null, reasonCode: null };
+  }
+  try {
+    const { RustCodeIntelligenceProvider } = await import('../../providers/native/code-intelligence-rust/src/index.mjs');
+    const provider = new RustCodeIntelligenceProvider();
+    const health = await provider.health();
+    if (health.status !== 'healthy') {
+      return { selection: 'js', provider: null, reasonCode: 'native_unavailable' };
+    }
+    const status = await provider.indexStatus({ root, workspaceId });
+    return nativeIndexReadyForAutomaticRead(status)
+      ? { selection: 'native-preview', provider, reasonCode: 'native_index_current' }
+      : { selection: 'js', provider: null, reasonCode: nativeAutomaticFallbackReason(status) };
+  } catch {
+    return { selection: 'js', provider: null, reasonCode: 'native_unavailable' };
   }
 }
 
@@ -6708,7 +6735,7 @@ async function mcpServerCommand(values) {
     process.exitCode = 2;
     return;
   }
-  const sourceIndexEngine = option(values, '--engine') ?? 'js';
+  const sourceIndexEngine = option(values, '--engine') ?? 'auto';
   if (!['js', 'auto', 'native-preview'].includes(sourceIndexEngine)) {
     console.error('mcp server --engine must be js, auto, or native-preview');
     process.exitCode = 2;
@@ -6830,7 +6857,7 @@ async function buildMcpRealisticSavingsBenchmark({ values, root, workspaceId, ge
 }
 
 function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, statsRecorder = null, cursorStore = null }) {
-  const sourceIndexEngine = option(values, '--engine') ?? 'js';
+  const sourceIndexEngine = option(values, '--engine') ?? 'auto';
   let intelligencePromise = null;
   const loadIntelligence = () => {
     intelligencePromise ??= buildSourceGraphIntelligence({
@@ -6848,7 +6875,18 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
       .then(({ RustCodeIntelligenceProvider }) => new RustCodeIntelligenceProvider());
     return nativeProviderPromise;
   };
-  const nativeStatus = async () => (await loadNativeProvider()).indexStatus({ root, workspaceId });
+  const actionableNativeReadError = (error) => {
+    if (sourceIndexEngine !== 'native-preview') throw error;
+    const code = error?.code ?? error.message ?? 'native_engine_unavailable';
+    throw new Error(`${code}: install the matching @memory-recall/native-* package, or use --engine auto or --engine js`);
+  };
+  const nativeStatus = async () => {
+    try {
+      return await (await loadNativeProvider()).indexStatus({ root, workspaceId });
+    } catch (error) {
+      return actionableNativeReadError(error);
+    }
+  };
   let nativeRepositoryProviderPromise = null;
   const requireNativeRepositoryProvider = () => {
     if (!['native-preview', 'auto'].includes(sourceIndexEngine)) {
@@ -6861,7 +6899,7 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
         return provider;
       })
       .catch(() => {
-        throw new Error('cross-repository native engine is unavailable');
+        throw new Error('cross-repository native engine is unavailable; install the matching @memory-recall/native-* package');
       });
     return nativeRepositoryProviderPromise;
   };
@@ -6882,16 +6920,22 @@ function buildMcpTokenSaverTools({ values, root, workspaceId, generatedAt, stats
   const jsFallbackSource = (source, selected) => sourceIndexEngine === 'auto'
     ? { ...source, engine: 'js', reason: selected.reasonCode }
     : source;
-  const nativeQuery = async (kind, argumentsValue = {}) => (await loadNativeProvider()).queryIndex({
-    root,
-    workspaceId,
-    kind,
-    limit: argumentsValue.limit ?? 20,
-    ...(argumentsValue.query === undefined ? {} : { query: argumentsValue.query }),
-    ...(argumentsValue.locator === undefined ? {} : { locator: argumentsValue.locator }),
-    ...(argumentsValue.direction === undefined ? {} : { direction: argumentsValue.direction }),
-    ...(argumentsValue.depth === undefined ? {} : { depth: argumentsValue.depth })
-  });
+  const nativeQuery = async (kind, argumentsValue = {}) => {
+    try {
+      return await (await loadNativeProvider()).queryIndex({
+        root,
+        workspaceId,
+        kind,
+        limit: argumentsValue.limit ?? 20,
+        ...(argumentsValue.query === undefined ? {} : { query: argumentsValue.query }),
+        ...(argumentsValue.locator === undefined ? {} : { locator: argumentsValue.locator }),
+        ...(argumentsValue.direction === undefined ? {} : { direction: argumentsValue.direction }),
+        ...(argumentsValue.depth === undefined ? {} : { depth: argumentsValue.depth })
+      });
+    } catch (error) {
+      return actionableNativeReadError(error);
+    }
+  };
   return [
     {
       name: 'repo.architecture',

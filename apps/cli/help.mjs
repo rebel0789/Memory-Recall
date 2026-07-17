@@ -262,11 +262,13 @@ Usage:
   oaf graph index --repair --confirm <repairPlanFingerprint> --engine native-preview --root . --format summary
 
 Options for read commands:
-  --engine <js|native-preview|compatibility>  Keep JS as the default, run strict native preview, or measure both.
+  --engine <auto|js|native-preview|compatibility>  Prefer a current native index, force JS/native, or measure both.
 
 Graph read commands return bounded locator-only stats, search, trace, or
-changed-file impact reports. The JS/TS engine remains the default. Native
-preview is explicit and fails clearly when its verified binary is unavailable;
+changed-file impact reports. Auto mode is the default: it uses the verified
+packaged Rust engine only when the native index is current and healthy, then
+falls back to labeled bounded JS/TS reads. Strict native preview fails clearly
+when its verified binary is unavailable;
 compatibility mode runs both engines and does not claim parity. Index writes are
 explicit. The default JS index stores structural metadata under .local/source-graph.
 The explicit native preview stores its versioned SQLite index under
@@ -409,8 +411,8 @@ preview install plans, or report delivery stats. Resource summaries require
 --uri and do not dump full resource bodies. Resource/server paths require
 --read-only; install and uninstall remain dry-run unless explicitly confirmed.
 Uninstall removes only an exact Memory Recall-owned entry and preserves .local.
-Direct MCP server commands without --engine keep the JS default. mcp install
-configures auto mode and prints indexBuildCommand; install never builds or
+Direct MCP server commands and mcp install default to auto mode and print
+indexBuildCommand; install never builds or
 refreshes an index. Run the explicit writer when wanted:
   oaf graph index --write --engine native-preview --root . --format summary
 Auto mode reads a current, healthy native index and otherwise labels a bounded
