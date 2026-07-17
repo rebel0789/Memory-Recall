@@ -9,6 +9,7 @@ import path from 'node:path';
 import { createControlApiServer, createLoginRateLimiter, resolveServeSourceGraphRoot } from '../services/control-api/src/server.mjs';
 import { API_ROUTE_CONTRACTS } from '../services/control-api/src/route-contracts.mjs';
 import { LocalIdentityStore } from '../providers/native/identity-local/src/index.mjs';
+import { RustCodeIntelligenceProvider } from '../providers/native/code-intelligence-rust/src/index.mjs';
 import { buildJsTsSourceGraph } from '../providers/native/context-candidate-ast-code/src/index.mjs';
 import { createSourceGraphSnapshotService } from '../packages/source-graph/src/index.mjs';
 
@@ -417,6 +418,80 @@ test('Recall Map and source preview share one source snapshot', async (t) => {
   assert.equal(refreshed.status, 200, refreshed.text);
   assert.equal(refreshed.body.snapshot.reuse, 'cold');
   assert.equal(buildCount, 2);
+});
+
+test('Control API Recall Map presents a prebuilt TypeScript and Python native index without the legacy scanner', async (t) => {
+  const sourceGraphRoot = await mkdtemp(path.join(os.tmpdir(), 'oaf-native-recall-map-'));
+  t.after(async () => rm(sourceGraphRoot, { recursive: true, force: true }));
+  await mkdir(path.join(sourceGraphRoot, 'src'), { recursive: true });
+  await writeFile(
+    path.join(sourceGraphRoot, 'src', 'index.ts'),
+    'export function calculateRouteScore(): number { return 1; }\n'
+  );
+  await writeFile(
+    path.join(sourceGraphRoot, 'worker.py'),
+    'def compute_worker_score():\n    return 1\n'
+  );
+
+  const codeIntelligenceProvider = new RustCodeIntelligenceProvider({
+    binaryPath: path.resolve('rust', 'target', 'release', process.platform === 'win32' ? 'oaf.exe' : 'oaf'),
+    timeoutMs: 60_000
+  });
+  const built = await codeIntelligenceProvider.buildIndex({
+    root: sourceGraphRoot,
+    workspaceId: 'ws_local',
+    languages: ['typescript', 'python'],
+    maxFiles: 20,
+    maxNodes: 200,
+    maxEdges: 400
+  });
+  assert.equal(built.state, 'ready');
+
+  let legacyScannerInvocations = 0;
+  const sourceGraphSnapshotService = {
+    async getSnapshot() {
+      legacyScannerInvocations += 1;
+      throw new Error('legacy_js_intelligence_invoked');
+    },
+    close() {}
+  };
+  const api = await startServer(t, {
+    sourceGraphRoot,
+    sourceGraphSnapshotService,
+    codeIntelligenceProvider
+  });
+  const authHeaders = { cookie: api.auth.cookie, origin: api.base };
+
+  const typescript = await request(
+    api.base,
+    '/api/recall/map?workspaceId=ws_local&query=calculateRouteScore',
+    { headers: authHeaders }
+  );
+  const python = await request(
+    api.base,
+    '/api/recall/map?workspaceId=ws_local&query=compute_worker_score',
+    { headers: authHeaders }
+  );
+
+  for (const [language, response] of [['typescript', typescript], ['python', python]]) {
+    assert.equal(
+      response.status,
+      200,
+      `${language}: ${response.text}\nlogs: ${JSON.stringify(api.calls.logs)}`
+    );
+    assert.equal(response.body.support.sourceGraph.status, 'implemented');
+    assert.deepEqual(
+      response.body.support.sourceGraph.coverage.reasonCodes,
+      ['native_persistent_index', 'bounded_index_read']
+    );
+  }
+  assert(typescript.body.architecture.search.results.some((item) => (
+    item.label === 'calculateRouteScore' && item.locator.includes('workspace://src/index.ts')
+  )), JSON.stringify(typescript.body.architecture.search.results, null, 2));
+  assert(python.body.architecture.search.results.some((item) => (
+    item.label === 'compute_worker_score' && item.locator.includes('workspace://worker.py')
+  )), JSON.stringify(python.body.architecture.search.results, null, 2));
+  assert.equal(legacyScannerInvocations, 0);
 });
 
 const validContextPayload = () => ({
