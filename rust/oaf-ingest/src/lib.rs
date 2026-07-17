@@ -5295,16 +5295,23 @@ fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
     let function = node
         .child_by_field_name("function")
         .or_else(|| node.named_child(0))?;
-    let (receiver, method) = receiver_method(node_text(function, source))?;
+    let function_text = node_text(function, source);
+    let (receiver, method) = receiver_method(function_text)?;
     let (method, handler_name, note) = match context.lang {
         LangKind::JavaScript | LangKind::TypeScript | LangKind::Tsx => {
-            if !matches!(receiver.as_str(), "app" | "router" | "fastify" | "server") {
-                return None;
-            }
+            let direct = javascript_route_receiver(&receiver);
+            let route_receiver = direct
+                .then_some(receiver.clone())
+                .or_else(|| javascript_route_chain_receiver(node, source))?;
+            let handler = if direct {
+                route_handler_name(text)?
+            } else {
+                call_argument_handler_name(node, source)?
+            };
             (
                 http_method(&method)?,
-                route_handler_name(text)?,
-                if receiver == "fastify" {
+                handler,
+                if route_receiver == "fastify" {
                     "oaf.ingest:route-fastify"
                 } else {
                     "oaf.ingest:route-javascript"
@@ -5373,6 +5380,38 @@ fn route_registration(node: Node<'_>, source: &[u8], context: &WalkContext) -> O
         note,
         span: CodeSpan::from_node(node),
     })
+}
+
+fn javascript_route_receiver(receiver: &str) -> bool {
+    matches!(receiver, "app" | "router" | "fastify" | "server")
+}
+
+fn javascript_route_chain_receiver(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let mut function = node.child_by_field_name("function")?;
+    loop {
+        let object = function.child_by_field_name("object")?;
+        if object.kind() != "call_expression" {
+            return None;
+        }
+        let inner_function = object.child_by_field_name("function")?;
+        let (receiver, method) = receiver_method(node_text(inner_function, source))?;
+        if method == "route" && javascript_route_receiver(&receiver) {
+            return Some(receiver);
+        }
+        function = inner_function;
+    }
+}
+
+fn call_argument_handler_name(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let arguments = node.child_by_field_name("arguments")?;
+    let candidate = arguments.named_child(arguments.named_child_count().checked_sub(1)?)?;
+    if matches!(
+        candidate.kind(),
+        "arrow_function" | "function" | "function_expression"
+    ) {
+        return None;
+    }
+    sanitize_symbol(node_text(candidate, source))
 }
 
 fn vapor_route_path(node: Node<'_>, source: &[u8]) -> Option<String> {

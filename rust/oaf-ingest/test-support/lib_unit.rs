@@ -141,6 +141,71 @@ mod tests {
     }
 
     #[test]
+    fn javascript_extracts_chained_express_routes() {
+        let root = std::env::temp_dir().join(format!(
+            "oaf-ingest-javascript-chained-routes-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("routes.js"),
+            [
+                "function getItem() {}",
+                "function postItem() {}",
+                "app.route('/items/:id').get(getItem).post(postItem);",
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let report = extract_repo(&IngestOptions::new(&root)).unwrap();
+        let facts = report
+            .facts
+            .iter()
+            .map(|fact| {
+                (
+                    fact.subject.as_str(),
+                    fact.predicate.as_str(),
+                    fact.object.as_str(),
+                    fact.notes.as_deref(),
+                )
+            })
+            .collect::<BTreeSet<_>>();
+
+        for (method, handler) in [("GET", "function:getItem"), ("POST", "function:postItem")] {
+            let route = format!("route:{method}_items_param");
+            let method_value = format!("method={method}");
+            assert!(facts.contains(&(
+                route.as_str(),
+                "IS_A",
+                "Route",
+                Some("oaf.ingest:route")
+            )));
+            assert!(facts.contains(&(
+                route.as_str(),
+                "HAS_METHOD",
+                method_value.as_str(),
+                Some("oaf.ingest:route-javascript")
+            )));
+            assert!(facts.contains(&(
+                route.as_str(),
+                "HAS_PATH",
+                "path=/items/:param",
+                Some("oaf.ingest:route-javascript")
+            )));
+            assert!(facts.contains(&(
+                handler,
+                "HANDLES",
+                route.as_str(),
+                Some("oaf.ingest:route-javascript")
+            )));
+        }
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn resolves_python_receiver_calls_with_constructor_type_bindings() {
         let root =
             std::env::temp_dir().join(format!("oaf-ingest-python-types-{}", std::process::id()));
