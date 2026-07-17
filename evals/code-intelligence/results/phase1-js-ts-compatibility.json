@@ -2,14 +2,14 @@
   "schemaVersion": "1.0.0",
   "reportVersion": "memory-recall-code-intelligence-phase1-compatibility-1",
   "phase": 1,
-  "generatedAt": "2026-07-17T20:15:54.783Z",
+  "generatedAt": "2026-07-17T20:21:36.624Z",
   "environment": {
     "platform": "darwin",
     "architecture": "arm64",
     "nodeVersion": "v22.22.3"
   },
   "checkout": {
-    "commit": "fe66130b0e1ea1d773f7a49ecfe477860e05a705",
+    "commit": "6dec82d30f667f173a2a3e3e54f3fb904ca07f73",
     "dirtyBeforeRun": true
   },
   "inputs": {
